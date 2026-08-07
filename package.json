@@ -1,0 +1,14 @@
+{
+  "name": "web-slideshow",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

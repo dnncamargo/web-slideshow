@@ -1,0 +1,84 @@
+# Dependencies
+
+node_modules/
+.pnpm-store/
+
+# Build outputs
+
+dist/
+build/
+out/
+.next/
+.vercel/
+
+# Tests / coverage
+
+coverage/
+.nyc_output/
+
+# TypeScript
+
+*.tsbuildinfo
+
+# Environment variables
+
+.env
+.env.*
+!.env.example
+
+# Firebase
+
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# Local emulators / generated data
+
+firebase-export/
+emulator-data/
+
+# Logs
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Operating system
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Temporary files
+
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Windows / PowerShell temporary files
+
+*.bak
+
+# Vercel local configuration
+
+.vercel/
+
+# Local secrets / credentials
+
+*.pem
+*.key
+service-account*.json
+firebase-admin*.json
