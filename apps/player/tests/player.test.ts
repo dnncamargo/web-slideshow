@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mountPlayer, type PlayerController } from "../src/player";
+import {
+  mountPlayer,
+  type PlayerController,
+  type PlayerOptions,
+} from "../src/player";
 
 import { playerTestPresentation } from "./fixtures/player-presentation";
 
@@ -23,6 +27,12 @@ describe("PowerShow Player", () => {
 
     player = mountPlayer(root, playerTestPresentation);
   });
+
+  function remount(options: PlayerOptions): void {
+    player.destroy();
+
+    player = mountPlayer(root, playerTestPresentation, options);
+  }
 
   afterEach(() => {
     player.destroy();
@@ -200,5 +210,167 @@ describe("PowerShow Player", () => {
     player.destroy();
 
     expect(root.children.length).toBe(0);
+  });
+  it("auto-hides controls after the configured delay", () => {
+    vi.useFakeTimers();
+
+    try {
+      remount({
+        transition: "none",
+        controlsAutoHideMs: 1000,
+      });
+
+      const controls = root.querySelector<HTMLElement>(
+        ".powershow-player-controls",
+      );
+
+      expect(controls).not.toBeNull();
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(false);
+
+      vi.advanceTimersByTime(999);
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(false);
+
+      vi.advanceTimersByTime(1);
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("keeps controls visible when auto-hide is disabled", () => {
+    vi.useFakeTimers();
+
+    try {
+      remount({
+        transition: "none",
+        controlsAutoHideMs: null,
+      });
+
+      const controls = root.querySelector<HTMLElement>(
+        ".powershow-player-controls",
+      );
+
+      expect(controls).not.toBeNull();
+
+      vi.advanceTimersByTime(60_000);
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("reveals hidden controls on pointer movement", () => {
+    vi.useFakeTimers();
+
+    try {
+      remount({
+        transition: "none",
+        controlsAutoHideMs: 1000,
+      });
+
+      const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+
+      const controls = root.querySelector<HTMLElement>(
+        ".powershow-player-controls",
+      );
+
+      expect(stage).not.toBeNull();
+      expect(controls).not.toBeNull();
+
+      vi.advanceTimersByTime(1000);
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(true);
+
+      stage?.dispatchEvent(new Event("pointermove"));
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(false);
+
+      vi.advanceTimersByTime(1000);
+
+      expect(
+        controls?.classList.contains("powershow-player-controls-hidden"),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("animates slide changes when fade transition is enabled", () => {
+    remount({
+      transition: "fade",
+      controlsAutoHideMs: null,
+    });
+
+    const slideHost = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-host",
+    );
+
+    expect(slideHost).not.toBeNull();
+
+    const animateMock = vi.fn();
+
+    Object.defineProperty(slideHost, "animate", {
+      configurable: true,
+      value: animateMock,
+    });
+
+    player.next();
+
+    expect(animateMock).toHaveBeenCalledOnce();
+
+    expect(animateMock).toHaveBeenCalledWith(
+      [
+        {
+          opacity: 0,
+          transform: "scale(0.995)",
+        },
+        {
+          opacity: 1,
+          transform: "scale(1)",
+        },
+      ],
+      {
+        duration: 180,
+        easing: "ease-out",
+      },
+    );
+  });
+  it("does not animate slide changes when transition is none", () => {
+    remount({
+      transition: "none",
+      controlsAutoHideMs: null,
+    });
+
+    const slideHost = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-host",
+    );
+
+    expect(slideHost).not.toBeNull();
+
+    const animateMock = vi.fn();
+
+    Object.defineProperty(slideHost, "animate", {
+      configurable: true,
+      value: animateMock,
+    });
+
+    player.next();
+
+    expect(animateMock).not.toHaveBeenCalled();
+
+    expect(player.getCurrentIndex()).toBe(1);
   });
 });

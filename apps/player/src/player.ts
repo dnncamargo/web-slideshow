@@ -1,18 +1,35 @@
-import type { Presentation } from "@powershow/document-schema";
+import type {
+  Presentation,
+} from "@powershow/document-schema";
 
-import { renderSlide } from "@powershow/renderer";
+import {
+  renderSlide,
+} from "@powershow/renderer";
 
 function queryRequired<T extends Element>(
   root: ParentNode,
   selector: string,
 ): T {
-  const element = root.querySelector<T>(selector);
+  const element =
+    root.querySelector<T>(selector);
 
   if (!element) {
-    throw new Error(`PowerShow Player element not found: ${selector}`);
+    throw new Error(
+      `PowerShow Player element not found: ${selector}`,
+    );
   }
 
   return element;
+}
+
+export type PlayerTransition =
+  | "none"
+  | "fade";
+
+export interface PlayerOptions {
+  transition?: PlayerTransition;
+
+  controlsAutoHideMs?: number | null;
 }
 
 export interface PlayerController {
@@ -32,9 +49,31 @@ export interface PlayerController {
 export function mountPlayer(
   root: HTMLElement,
   presentation: Presentation,
+  options: PlayerOptions = {},
 ): PlayerController {
   let currentIndex = 0;
 
+  let controlsTimer:
+    ReturnType<typeof setTimeout>
+    | undefined;
+
+  let destroyed = false;
+
+  const transition =
+    options.transition ?? "fade";
+
+  const controlsAutoHideMs =
+    options.controlsAutoHideMs === undefined
+      ? 2500
+      : options.controlsAutoHideMs;
+
+  /*
+   * Player shell.
+   *
+   * Notice that navigation is a sibling of
+   * the slide host. It is NOT rendered by
+   * renderSlide().
+   */
   root.innerHTML = `
     <div class="powershow-player">
       <div class="powershow-player-stage">
@@ -78,43 +117,54 @@ export function mountPlayer(
       </div>
     </div>
   `;
-  const stage = queryRequired<HTMLElement>(root, ".powershow-player-stage");
 
-  const slideHost = queryRequired<HTMLElement>(
-    root,
-    ".powershow-player-slide-host",
-  );
+  /*
+   * Required DOM elements.
+   *
+   * queryRequired() guarantees non-null
+   * values both to TypeScript and at runtime.
+   */
+  const stage =
+    queryRequired<HTMLElement>(
+      root,
+      ".powershow-player-stage",
+    );
 
-  const counter = queryRequired<HTMLOutputElement>(
-    root,
-    ".powershow-player-counter",
-  );
+  const slideHost =
+    queryRequired<HTMLElement>(
+      root,
+      ".powershow-player-slide-host",
+    );
 
-  const previousButton = queryRequired<HTMLButtonElement>(
-    root,
-    '[data-player-action="previous"]',
-  );
+  const controls =
+    queryRequired<HTMLElement>(
+      root,
+      ".powershow-player-controls",
+    );
 
-  const nextButton = queryRequired<HTMLButtonElement>(
-    root,
-    '[data-player-action="next"]',
-  );
+  const counter =
+    queryRequired<HTMLOutputElement>(
+      root,
+      ".powershow-player-counter",
+    );
 
-  const fullscreenButton = queryRequired<HTMLButtonElement>(
-    root,
-    '[data-player-action="fullscreen"]',
-  );
+  const previousButton =
+    queryRequired<HTMLButtonElement>(
+      root,
+      '[data-player-action="previous"]',
+    );
 
-  if (
-    !stage ||
-    !slideHost ||
-    !counter ||
-    !previousButton ||
-    !nextButton ||
-    !fullscreenButton
-  ) {
-    throw new Error("PowerShow Player failed to initialize.");
-  }
+  const nextButton =
+    queryRequired<HTMLButtonElement>(
+      root,
+      '[data-player-action="next"]',
+    );
+
+  const fullscreenButton =
+    queryRequired<HTMLButtonElement>(
+      root,
+      '[data-player-action="fullscreen"]',
+    );
 
   function updateStageSize(): void {
     const ratio =
@@ -133,13 +183,41 @@ export function mountPlayer(
       window.innerHeight / ratio.height,
     );
 
-    stage.style.width = `${ratio.width * scale}px`;
+    stage.style.width =
+      `${ratio.width * scale}px`;
 
-    stage.style.height = `${ratio.height * scale}px`;
+    stage.style.height =
+      `${ratio.height * scale}px`;
+  }
+
+  function showControls(): void {
+    if (controlsTimer !== undefined) {
+      clearTimeout(controlsTimer);
+
+      controlsTimer = undefined;
+    }
+
+    controls.classList.remove(
+      "powershow-player-controls-hidden",
+    );
+
+    if (
+      controlsAutoHideMs !== null &&
+      controlsAutoHideMs > 0
+    ) {
+      controlsTimer = setTimeout(() => {
+        controls.classList.add(
+          "powershow-player-controls-hidden",
+        );
+
+        controlsTimer = undefined;
+      }, controlsAutoHideMs);
+    }
   }
 
   function renderCurrentSlide(): void {
-    const slide = presentation.slides[currentIndex];
+    const slide =
+      presentation.slides[currentIndex];
 
     if (!slide) {
       slideHost.innerHTML = `
@@ -156,17 +234,47 @@ export function mountPlayer(
       return;
     }
 
-    slideHost.innerHTML = renderSlide(slide);
+    slideHost.innerHTML =
+      renderSlide(slide);
 
-    counter.value = `${currentIndex + 1} / ${presentation.slides.length}`;
+    if (
+      transition === "fade" &&
+      typeof slideHost.animate === "function"
+    ) {
+      slideHost.animate(
+        [
+          {
+            opacity: 0,
+            transform: "scale(0.995)",
+          },
+          {
+            opacity: 1,
+            transform: "scale(1)",
+          },
+        ],
+        {
+          duration: 180,
+          easing: "ease-out",
+        },
+      );
+    }
 
-    previousButton.disabled = currentIndex === 0;
+    counter.value =
+      `${currentIndex + 1} / ${presentation.slides.length}`;
 
-    nextButton.disabled = currentIndex === presentation.slides.length - 1;
+    previousButton.disabled =
+      currentIndex === 0;
+
+    nextButton.disabled =
+      currentIndex ===
+      presentation.slides.length - 1;
   }
 
   function goTo(index: number): void {
-    if (index < 0 || index >= presentation.slides.length) {
+    if (
+      index < 0 ||
+      index >= presentation.slides.length
+    ) {
       return;
     }
 
@@ -186,40 +294,55 @@ export function mountPlayer(
   async function fullscreen(): Promise<void> {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
+
       return;
     }
 
     await root.requestFullscreen();
   }
 
-  function handleKeyboard(event: KeyboardEvent): void {
+  function handleKeyboard(
+    event: KeyboardEvent,
+  ): void {
     switch (event.key) {
       case "ArrowRight":
       case "PageDown":
         event.preventDefault();
+
         next();
+
         break;
 
       case "ArrowLeft":
       case "PageUp":
         event.preventDefault();
+
         previous();
+
         break;
 
       case "Home":
         event.preventDefault();
+
         goTo(0);
+
         break;
 
       case "End":
         event.preventDefault();
-        goTo(presentation.slides.length - 1);
+
+        goTo(
+          presentation.slides.length - 1,
+        );
+
         break;
 
       case "f":
       case "F":
         event.preventDefault();
+
         void fullscreen();
+
         break;
     }
   }
@@ -236,23 +359,55 @@ export function mountPlayer(
     void fullscreen();
   }
 
-  previousButton.addEventListener("click", handlePrevious);
+  /*
+   * Register listeners exactly once.
+   */
+  previousButton.addEventListener(
+    "click",
+    handlePrevious,
+  );
 
-  nextButton.addEventListener("click", handleNext);
+  nextButton.addEventListener(
+    "click",
+    handleNext,
+  );
 
-  fullscreenButton.addEventListener("click", handleFullscreen);
+  fullscreenButton.addEventListener(
+    "click",
+    handleFullscreen,
+  );
 
-  window.addEventListener("keydown", handleKeyboard);
+  window.addEventListener(
+    "keydown",
+    handleKeyboard,
+  );
 
-  window.addEventListener("resize", updateStageSize);
+  window.addEventListener(
+    "resize",
+    updateStageSize,
+  );
+
+  stage.addEventListener(
+    "pointermove",
+    showControls,
+  );
+
+  stage.addEventListener(
+    "pointerdown",
+    showControls,
+  );
 
   updateStageSize();
   renderCurrentSlide();
+  showControls();
 
   return {
     next,
+
     previous,
+
     goTo,
+
     fullscreen,
 
     getCurrentIndex(): number {
@@ -260,15 +415,52 @@ export function mountPlayer(
     },
 
     destroy(): void {
-      previousButton.removeEventListener("click", handlePrevious);
+      if (destroyed) {
+        return;
+      }
 
-      nextButton.removeEventListener("click", handleNext);
+      destroyed = true;
 
-      fullscreenButton.removeEventListener("click", handleFullscreen);
+      if (controlsTimer !== undefined) {
+        clearTimeout(controlsTimer);
 
-      window.removeEventListener("keydown", handleKeyboard);
+        controlsTimer = undefined;
+      }
 
-      window.removeEventListener("resize", updateStageSize);
+      previousButton.removeEventListener(
+        "click",
+        handlePrevious,
+      );
+
+      nextButton.removeEventListener(
+        "click",
+        handleNext,
+      );
+
+      fullscreenButton.removeEventListener(
+        "click",
+        handleFullscreen,
+      );
+
+      window.removeEventListener(
+        "keydown",
+        handleKeyboard,
+      );
+
+      window.removeEventListener(
+        "resize",
+        updateStageSize,
+      );
+
+      stage.removeEventListener(
+        "pointermove",
+        showControls,
+      );
+
+      stage.removeEventListener(
+        "pointerdown",
+        showControls,
+      );
 
       root.replaceChildren();
     },
