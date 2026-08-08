@@ -2,8 +2,13 @@ import type {
   TerminalElement,
 } from "@powershow/document-schema";
 
-import { escapeHtml } from "./escape-html";
-import { renderStyle } from "./render-style";
+import {
+  escapeHtml,
+} from "./escape-html";
+
+import {
+  renderStyle,
+} from "./render-style";
 
 export function renderTerminal(
   element: TerminalElement,
@@ -31,10 +36,26 @@ export function renderTerminal(
     ? ` style="${escapeHtml(baseStyle)}"`
     : "";
 
-  const title = element.title
+  const titleBar = element.title
     ? (
-      `<div class="powershow-terminal-title">` +
-      escapeHtml(element.title) +
+      `<div class="powershow-terminal-titlebar">` +
+        `<div` +
+          ` class="powershow-terminal-controls"` +
+          ` aria-hidden="true"` +
+        `>` +
+          `<span` +
+            ` class="powershow-terminal-control powershow-terminal-control-close"` +
+          `></span>` +
+          `<span` +
+            ` class="powershow-terminal-control powershow-terminal-control-minimize"` +
+          `></span>` +
+          `<span` +
+            ` class="powershow-terminal-control powershow-terminal-control-expand"` +
+          `></span>` +
+        `</div>` +
+        `<div class="powershow-terminal-title">` +
+          escapeHtml(element.title) +
+        `</div>` +
       `</div>`
     )
     : "";
@@ -43,10 +64,10 @@ export function renderTerminal(
     .map((line) => {
       return (
         `<div` +
-        ` class="powershow-terminal-line powershow-terminal-line-${line.type}"` +
-        ` data-terminal-line-type="${line.type}"` +
+          ` class="powershow-terminal-line powershow-terminal-line-${line.type}"` +
+          ` data-terminal-line-type="${line.type}"` +
         `>` +
-        escapeHtml(line.content) +
+          escapeHtml(line.content) +
         `</div>`
       );
     })
@@ -54,19 +75,19 @@ export function renderTerminal(
 
   return (
     `<div` +
-    ` class="${escapeHtml(
-      classes.join(" "),
-    )}"` +
-    ` data-powershow-id="${escapeHtml(
-      element.id,
-    )}"` +
-    ` data-powershow-type="terminal"` +
-    styleAttribute +
+      ` class="${escapeHtml(
+        classes.join(" "),
+      )}"` +
+      ` data-powershow-id="${escapeHtml(
+        element.id,
+      )}"` +
+      ` data-powershow-type="terminal"` +
+      styleAttribute +
     `>` +
-    title +
-    `<div class="powershow-terminal-body">` +
-    lines +
-    `</div>` +
+      titleBar +
+      `<div class="powershow-terminal-body">` +
+        lines +
+      `</div>` +
     `</div>`
   );
 }

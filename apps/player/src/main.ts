@@ -1,3 +1,4 @@
+import "@powershow/theme/index.css";
 import "./player.css";
 
 import { demoPresentation } from "./demo-presentation";

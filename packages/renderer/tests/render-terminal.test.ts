@@ -1,33 +1,17 @@
-import {
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type {
-  TerminalElement,
-} from "@powershow/document-schema";
+import type { TerminalElement } from "@powershow/document-schema";
 
-import {
-  renderTerminal,
-} from "../src/render-terminal";
+import { renderTerminal } from "../src/render-terminal";
 
-import {
-  createTerminalElement,
-} from "./fixtures/render-fixtures";
+import { createTerminalElement } from "./fixtures/render-fixtures";
 
 describe("renderTerminal", () => {
   it("omits the title region when no title is provided", () => {
-    const html = renderTerminal(
-      createTerminalElement(),
-    );
+    const html = renderTerminal(createTerminalElement());
 
-    expect(html).not.toContain(
-      "powershow-terminal-title",
-    );
-    expect(html).toContain(
-      'class="powershow-terminal-body"',
-    );
+    expect(html).not.toContain("powershow-terminal-title");
+    expect(html).toContain('class="powershow-terminal-body"');
   });
 
   it("renders an empty terminal body for no lines", () => {
@@ -39,36 +23,28 @@ describe("renderTerminal", () => {
     );
 
     expect(html).toContain("powershow-terminal-body");
-    expect(html).not.toContain(
-      "data-terminal-line-type",
-    );
+    expect(html).not.toContain("data-terminal-line-type");
   });
 
-  it.each([
-    "command",
-    "output",
-    "error",
-    "comment",
-  ] as const)("renders %s lines with semantic type metadata", (type) => {
-    const line: TerminalElement["lines"][number] = {
-      type,
-      content: `${type} content`,
-    };
+  it.each(["command", "output", "error", "comment"] as const)(
+    "renders %s lines with semantic type metadata",
+    (type) => {
+      const line: TerminalElement["lines"][number] = {
+        type,
+        content: `${type} content`,
+      };
 
-    const html = renderTerminal(
-      createTerminalElement({
-        lines: [line],
-      }),
-    );
+      const html = renderTerminal(
+        createTerminalElement({
+          lines: [line],
+        }),
+      );
 
-    expect(html).toContain(
-      `powershow-terminal-line-${type}`,
-    );
-    expect(html).toContain(
-      `data-terminal-line-type="${type}"`,
-    );
-    expect(html).toContain(`${type} content`);
-  });
+      expect(html).toContain(`powershow-terminal-line-${type}`);
+      expect(html).toContain(`data-terminal-line-type="${type}"`);
+      expect(html).toContain(`${type} content`);
+    },
+  );
 
   it("escapes HTML in the title and every line", () => {
     const html = renderTerminal(
@@ -89,9 +65,7 @@ describe("renderTerminal", () => {
 
     expect(html).not.toContain("<script>");
     expect(html).not.toContain('<Terminal title="unsafe">');
-    expect(html).toContain(
-      "&lt;Terminal title=&quot;unsafe&quot;&gt;",
-    );
+    expect(html).toContain("&lt;Terminal title=&quot;unsafe&quot;&gt;");
     expect(html).toContain(
       "&lt;script&gt;alert(&quot;command&quot;)&lt;/script&gt;",
     );
@@ -113,5 +87,71 @@ describe("renderTerminal", () => {
     );
 
     expect(html).toBe("");
+  });
+
+  it("renders the terminal titlebar and controls", () => {
+    const html = renderTerminal({
+      type: "terminal",
+      id: "terminal-titlebar",
+      hidden: false,
+
+      title: "PowerShow",
+
+      lines: [
+        {
+          type: "command",
+          content: "pnpm dev",
+        },
+      ],
+    });
+
+    expect(html).toContain('class="powershow-terminal-titlebar"');
+
+    expect(html).toContain('class="powershow-terminal-controls"');
+
+    expect(html).toContain(
+      'class="powershow-terminal-control powershow-terminal-control-close"',
+    );
+
+    expect(html).toContain(
+      'class="powershow-terminal-control powershow-terminal-control-minimize"',
+    );
+
+    expect(html).toContain(
+      'class="powershow-terminal-control powershow-terminal-control-expand"',
+    );
+
+    expect(html).toContain('aria-hidden="true"');
+
+    expect(html).toContain('class="powershow-terminal-title"');
+
+    expect(html).toContain(">PowerShow</div>");
+
+    expect(html).toContain('class="powershow-terminal-body"');
+
+    expect(html).toContain(
+      'class="powershow-terminal-line powershow-terminal-line-command"',
+    );
+
+    expect(html).toContain('data-terminal-line-type="command"');
+
+    expect(html).toContain("pnpm dev");
+  });
+
+  it("does not render a titlebar without a title", () => {
+    const html = renderTerminal({
+      type: "terminal",
+      id: "terminal-no-title",
+      hidden: false,
+
+      lines: [
+        {
+          type: "output",
+          content: "Hello",
+        },
+      ],
+    });
+
+    expect(html).not.toContain("powershow-terminal-titlebar");
   });
 });

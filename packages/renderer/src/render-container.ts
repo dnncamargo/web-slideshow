@@ -5,9 +5,12 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import {
-  renderLength,
   renderStyle,
 } from "./render-style";
+
+import {
+  renderLength,
+} from "./render-length";
 
 type RenderChild = (
   element: PowerShowElement,

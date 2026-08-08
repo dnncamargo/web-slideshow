@@ -150,3 +150,78 @@ button {
 
   transform: translateX(-50%) translateY(8px);
 }
+
+.powershow-terminal {
+  width: 100%;
+
+  overflow: hidden;
+
+  border-radius: 14px;
+
+  background:
+    rgba(0, 0, 0, 0.38);
+
+  color: #d1fae5;
+
+  font-family:
+    "Cascadia Code",
+    "Cascadia Mono",
+    "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.powershow-terminal-title {
+  padding:
+    12px
+    18px;
+
+  border-bottom:
+    1px solid
+    rgba(255, 255, 255, 0.08);
+
+  color: #a7f3d0;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.powershow-terminal-body {
+  padding:
+    18px
+    20px;
+}
+
+.powershow-terminal-line {
+  min-height: 1.6em;
+
+  white-space: pre-wrap;
+
+  overflow-wrap: anywhere;
+}
+
+.powershow-terminal-line-command {
+  color: #d1fae5;
+}
+
+.powershow-terminal-line-command::before {
+  content: "$ ";
+
+  color: #34d399;
+}
+
+.powershow-terminal-line-output {
+  color: #cbd5e1;
+}
+
+.powershow-terminal-line-error {
+  color: #fca5a5;
+}
+
+.powershow-terminal-line-comment {
+  color: #64748b;
+}
