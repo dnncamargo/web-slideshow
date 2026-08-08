@@ -11,8 +11,22 @@ if (!root) {
   throw new Error("PowerShow Player root element was not found.");
 }
 
-mountPlayer(root, demoPresentation, {
-  transition: "fade",
-  controlsAutoHideMs: 2500,
-});
-  
+mountPlayer(
+  root,
+  demoPresentation,
+  {
+    controls: {
+      // ======================================================
+      // TESTE VISUAL TEMPORÁRIO
+      // ======================================================
+
+      position: "bottom-right",
+
+      style: "compact",
+
+      showCounter: true,
+
+      animation: "fade",
+    },
+  },
+);
