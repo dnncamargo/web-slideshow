@@ -78,6 +78,7 @@ describe("PresentationSchema", () => {
         expectedDefaultsOutput,
       );
     });
+    
   });
 
   describe("invalid presentations", () => {
