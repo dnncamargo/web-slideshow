@@ -1,0 +1,144 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+html,
+body {
+  overflow: hidden;
+  background: #000;
+}
+
+body {
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.powershow-player {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  background: #000;
+}
+
+.powershow-player-stage {
+  position: relative;
+
+  flex: none;
+
+  overflow: hidden;
+
+  background: #000;
+}
+
+.powershow-player-slide-host {
+  position: absolute;
+  inset: 0;
+
+  z-index: 1;
+}
+
+.powershow-player-slide-host
+  > .powershow-slide {
+  width: 100%;
+  height: 100%;
+}
+
+.powershow-player-controls {
+  position: absolute;
+
+  left: 50%;
+  bottom: 18px;
+
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 8px 10px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(0, 0, 0, 0.58);
+
+  backdrop-filter: blur(8px);
+
+  transform:
+    translateX(-50%);
+}
+
+.powershow-player-controls button {
+  display: grid;
+  place-items: center;
+
+  min-width: 44px;
+  min-height: 44px;
+
+  padding: 8px 12px;
+
+  border: 0;
+  border-radius: 999px;
+
+  background:
+    rgba(255, 255, 255, 0.12);
+
+  color: #fff;
+
+  cursor: pointer;
+}
+
+.powershow-player-controls button:hover {
+  background:
+    rgba(255, 255, 255, 0.2);
+}
+
+.powershow-player-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.powershow-player-counter {
+  min-width: 72px;
+
+  color: #fff;
+
+  text-align: center;
+
+  font-size: 14px;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.powershow-player-empty {
+  display: grid;
+  place-items: center;
+
+  width: 100%;
+  height: 100%;
+
+  color: #fff;
+}
