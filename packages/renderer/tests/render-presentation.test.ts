@@ -12,6 +12,12 @@ import {
   renderPresentation,
 } from "../src/render-presentation";
 
+import {
+  createPresentation as createPresentationFixture,
+  createSlide,
+  createTextElement,
+} from "./fixtures/render-fixtures";
+
 function createPresentation(): Presentation {
   return {
     schemaVersion: 1,
@@ -159,5 +165,79 @@ describe("renderPresentation", () => {
     expect(html).not.toContain(
       'class="powershow-slide"',
     );
+  });
+
+  it("renders exactly one slide for a one-slide presentation", () => {
+    const html = renderPresentation(
+      createPresentationFixture({
+        slides: [
+          createSlide({ id: "only-slide" }),
+        ],
+      }),
+    );
+
+    expect(
+      html.split("data-powershow-slide-id=").length - 1,
+    ).toBe(1);
+    expect(html).toContain(
+      'data-powershow-slide-id="only-slide"',
+    );
+  });
+
+  it("escapes presentation and slide metadata attributes", () => {
+    const html = renderPresentation(
+      createPresentationFixture({
+        id: 'presentation"><script>',
+        slides: [
+          createSlide({
+            id: 'slide"><img src=x>',
+          }),
+        ],
+      }),
+    );
+
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img src=x>");
+    expect(html).toContain(
+      'data-powershow-presentation-id="presentation&quot;&gt;&lt;script&gt;"',
+    );
+    expect(html).toContain(
+      'data-powershow-slide-id="slide&quot;&gt;&lt;img src=x&gt;"',
+    );
+  });
+
+  it("does not select an active slide", () => {
+    const html = renderPresentation(
+      createPresentationFixture({
+        slides: [
+          createSlide({ id: "first" }),
+          createSlide({ id: "second" }),
+        ],
+      }),
+    );
+
+    expect(html).not.toContain("powershow-slide-active");
+    expect(html).not.toContain("data-powershow-active");
+    expect(html).not.toContain("aria-current");
+  });
+
+  it("does not generate presentation navigation controls", () => {
+    const html = renderPresentation(
+      createPresentationFixture({
+        slides: [
+          createSlide({
+            elements: [
+              createTextElement({
+                content: "Presentation content",
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(html).not.toMatch(/<(?:button|nav)\b/);
+    expect(html).not.toContain("powershow-navigation");
+    expect(html).not.toContain("powershow-controls");
   });
 });

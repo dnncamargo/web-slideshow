@@ -1,0 +1,102 @@
+import type {
+  CodeElement,
+  ContainerElement,
+  Presentation,
+  Slide,
+  TableElement,
+  TerminalElement,
+  TextElement,
+} from "@powershow/document-schema";
+
+export function createCodeElement(
+  overrides: Partial<CodeElement> = {},
+): CodeElement {
+  return {
+    type: "code",
+    id: "code-fixture",
+    hidden: false,
+    code: "const answer = 42;",
+    language: "typescript",
+    showLineNumbers: true,
+    highlightedLines: [],
+    ...overrides,
+  };
+}
+
+export function createTerminalElement(
+  overrides: Partial<TerminalElement> = {},
+): TerminalElement {
+  return {
+    type: "terminal",
+    id: "terminal-fixture",
+    hidden: false,
+    lines: [],
+    ...overrides,
+  };
+}
+
+export function createTableElement(
+  overrides: Partial<TableElement> = {},
+): TableElement {
+  return {
+    type: "table",
+    id: "table-fixture",
+    hidden: false,
+    columns: [],
+    rows: [],
+    ...overrides,
+  };
+}
+
+export function createTextElement(
+  overrides: Partial<TextElement> = {},
+): TextElement {
+  return {
+    type: "text",
+    id: "text-fixture",
+    hidden: false,
+    variant: "body",
+    content: "Fixture text",
+    ...overrides,
+  };
+}
+
+export function createContainerElement(
+  overrides: Partial<ContainerElement> = {},
+): ContainerElement {
+  return {
+    type: "container",
+    id: "container-fixture",
+    hidden: false,
+    direction: "column",
+    children: [],
+    ...overrides,
+  };
+}
+
+export function createSlide(
+  overrides: Partial<Slide> = {},
+): Slide {
+  return {
+    id: "slide-fixture",
+    title: "",
+    summary: "",
+    speakerNotes: "",
+    elements: [],
+    ...overrides,
+  };
+}
+
+export function createPresentation(
+  overrides: Partial<Presentation> = {},
+): Presentation {
+  return {
+    schemaVersion: 1,
+    id: "presentation-fixture",
+    title: "Fixture presentation",
+    description: "",
+    aspectRatio: "16:9",
+    slides: [],
+    ...overrides,
+  };
+}
