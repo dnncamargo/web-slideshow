@@ -119,4 +119,46 @@ describe("renderStyle", () => {
 
     expect(result).toContain("border-color:#fff");
   });
+  // ============================================================
+  // BEGIN: TESTE DE DIMENSÕES DO CONTAINER
+  //
+  // Garante que width e height estruturados são convertidos
+  // corretamente para CSS.
+  // ============================================================
+
+  it("renders width and height", () => {
+    const result = renderStyle({
+      width: "72%",
+      height: "60%",
+    });
+
+    expect(result).toContain("width:72%");
+
+    expect(result).toContain("height:60%");
+  });
+
+  // ============================================================
+  // END: TESTE DE DIMENSÕES DO CONTAINER
+  // ============================================================
+
+  // ============================================================
+  // BEGIN: TESTE DE DIMENSÕES NUMÉRICAS
+  //
+  // Números são convertidos para px pelo renderLength().
+  // ============================================================
+
+  it("renders numeric dimensions as pixels", () => {
+    const result = renderStyle({
+      width: 640,
+      height: 360,
+    });
+
+    expect(result).toContain("width:640px");
+
+    expect(result).toContain("height:360px");
+  });
+
+  // ============================================================
+  // END: TESTE DE DIMENSÕES NUMÉRICAS
+  // ============================================================
 });

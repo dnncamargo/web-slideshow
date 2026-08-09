@@ -1,508 +1,1715 @@
-import { PresentationSchema } from "@powershow/document-schema";
+// ============================================================
+// BEGIN: PRESETS DE TAMANHO
+// ============================================================
 
-export const demoPresentation = PresentationSchema.parse({
-  schemaVersion: 1,
+import {
+  resolvePanelSize,
+} from "@powershow/theme/panel-size";
 
-  id: "powershow-demo",
+// ============================================================
+// END: PRESETS DE TAMANHO
+// ============================================================
 
-  title: "PowerShow Player Demo",
+import {
+  PresentationSchema,
+} from "@powershow/document-schema";
 
-  description: "Visual primitives demonstration.",
 
-  aspectRatio: "16:9",
+// ============================================================
+// BEGIN: IMAGEM LOCAL DA DEMO
+//
+// Usamos um SVG embutido como data URI.
+//
+// Vantagens:
+// - não depende da internet;
+// - não exige arquivo adicional em public/;
+// - permite comparar contain / cover / fill.
+//
+// O desenho propositalmente tem proporção 16:9.
+// Nos slides vamos colocá-lo dentro de caixas quadradas,
+// deixando as diferenças entre os modos de fit bem visíveis.
+// ============================================================
 
-  slides: [
-    {
-      id: "slide-1",
+const demoImageSvg = `
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 800 450"
+>
+  <defs>
+    <linearGradient
+      id="background"
+      x1="0"
+      y1="0"
+      x2="1"
+      y2="1"
+    >
+      <stop
+        offset="0%"
+        stop-color="#7c3aed"
+      />
 
-      title: "PowerShow",
+      <stop
+        offset="100%"
+        stop-color="#06b6d4"
+      />
+    </linearGradient>
+  </defs>
 
-      background: {
-        color: "#080b12",
+  <rect
+    width="800"
+    height="450"
+    fill="url(#background)"
+  />
 
-        gradient: {
-          type: "linear",
-          angle: 135,
+  <circle
+    cx="175"
+    cy="225"
+    r="105"
+    fill="#f8fafc"
+    fill-opacity="0.92"
+  />
 
-          stops: [
-            {
-              color: "#080b12",
-              position: 0,
-            },
-            {
-              color: "#121b35",
-              position: 52,
-            },
-            {
-              color: "#23133d",
-              position: 100,
-            },
-          ],
-        },
+  <rect
+    x="340"
+    y="105"
+    width="330"
+    height="240"
+    rx="30"
+    fill="#020617"
+    fill-opacity="0.78"
+  />
 
-        pattern: {
-          type: "dots",
-          color: "rgba(148,163,184,0.20)",
-          size: 24,
-          opacity: 0.7,
-        },
-      },
+  <text
+    x="505"
+    y="210"
+    text-anchor="middle"
+    fill="#f8fafc"
+    font-family="Arial, sans-serif"
+    font-size="46"
+    font-weight="700"
+  >
+    PowerShow
+  </text>
 
-      elements: [
-        {
-          type: "container",
+  <text
+    x="505"
+    y="265"
+    text-anchor="middle"
+    fill="#cbd5e1"
+    font-family="Arial, sans-serif"
+    font-size="24"
+  >
+    Image demo
+  </text>
+</svg>
+`;
 
-          id: "content-shell",
+const demoImageSrc =
+  `data:image/svg+xml,${encodeURIComponent(
+    demoImageSvg,
+  )}`;
 
-          role: "content",
+// ============================================================
+// END: IMAGEM LOCAL DA DEMO
+// ============================================================
 
-          hidden: false,
 
-          direction: "column",
+// ============================================================
+// BEGIN: APRESENTAÇÃO DE DEMONSTRAÇÃO
+// ============================================================
 
-          horizontalAlign: "center",
+export const demoPresentation =
+  PresentationSchema.parse({
+    schemaVersion: 1,
 
-          verticalAlign: "center",
+    id: "powershow-demo",
 
-          style: {
-            width: "100%",
-            height: "100%",
-            padding: 64,
+    title:
+      "PowerShow Component Showcase",
+
+    description:
+      "Visual validation of PowerShow renderer and theme components.",
+
+    aspectRatio: "16:9",
+
+    slides: [
+
+      // ======================================================
+      // SLIDE 1
+      // VISUAL PRIMITIVES
+      //
+      // Valida:
+      // - slide gradient;
+      // - pattern;
+      // - content gradient;
+      // - rounded corners;
+      // - shadow;
+      // - gradient border;
+      // - title/subtitle/textbox.
+      // ======================================================
+
+      {
+        id: "slide-1",
+
+        title:
+          "Visual primitives",
+
+        background: {
+          color: "#080b12",
+
+          gradient: {
+            type: "linear",
+            angle: 135,
+
+            stops: [
+              {
+                color: "#080b12",
+                position: 0,
+              },
+              {
+                color: "#121b35",
+                position: 52,
+              },
+              {
+                color: "#23133d",
+                position: 100,
+              },
+            ],
           },
 
-          children: [
-            {
-              type: "container",
+          pattern: {
+            type: "dots",
 
-              id: "content-panel",
+            color:
+              "rgba(148,163,184,0.20)",
 
-              role: "main",
+            size: 24,
+            opacity: 0.7,
+          },
+        },
 
-              hidden: false,
+        elements: [
+          {
+            type: "container",
 
-              direction: "column",
+            id: "slide-1-shell",
 
-              gap: 24,
+            role: "content",
 
-              horizontalAlign: "center",
+            hidden: false,
 
-              verticalAlign: "center",
+            direction: "column",
 
-              style: {
-                width: "78%",
-                height: "72%",
+            horizontalAlign: "center",
+            verticalAlign: "center",
 
-                padding: 48,
+            style: {
+              width: "100%",
+              height: "100%",
+              padding: 64,
+            },
 
-                borderRadius: 28,
+            children: [
+              {
+                type: "container",
 
-                backgroundGradient: {
-                  type: "linear",
-                  angle: 145,
+                id: "slide-1-panel",
 
-                  stops: [
-                    {
-                      color: "rgba(15,23,42,0.96)",
-                      position: 0,
-                    },
-                    {
-                      color: "rgba(30,41,59,0.88)",
-                      position: 55,
-                    },
-                    {
-                      color: "rgba(49,46,129,0.72)",
-                      position: 100,
-                    },
-                  ],
-                },
+                role: "main",
 
-                border: {
-                  width: 2,
+                hidden: false,
 
-                  gradient: {
+                direction: "column",
+
+                gap: 24,
+
+                horizontalAlign:
+                  "center",
+
+                verticalAlign:
+                  "center",
+
+                style: {
+                    ...resolvePanelSize(
+                      "large",
+                    ),
+
+                  padding: 48,
+
+                  borderRadius: 28,
+
+                  backgroundGradient: {
                     type: "linear",
-                    angle: 135,
+                    angle: 145,
 
                     stops: [
                       {
-                        color: "#8b5cf6",
+                        color:
+                          "rgba(15,23,42,0.96)",
+
                         position: 0,
                       },
                       {
-                        color: "#22d3ee",
+                        color:
+                          "rgba(30,41,59,0.88)",
+
+                        position: 55,
+                      },
+                      {
+                        color:
+                          "rgba(49,46,129,0.72)",
+
                         position: 100,
                       },
                     ],
                   },
+
+                  border: {
+                    width: 2,
+
+                    gradient: {
+                      type: "linear",
+                      angle: 135,
+
+                      stops: [
+                        {
+                          color:
+                            "#8b5cf6",
+
+                          position: 0,
+                        },
+                        {
+                          color:
+                            "#22d3ee",
+
+                          position: 100,
+                        },
+                      ],
+                    },
+                  },
+
+                  shadow: {
+                    x: 0,
+                    y: 24,
+                    blur: 72,
+                    spread: -16,
+
+                    color:
+                      "rgba(0,0,0,0.58)",
+                  },
                 },
 
-                shadow: {
-                  x: 0,
-                  y: 24,
-                  blur: 72,
-                  spread: -16,
-                  color: "rgba(0,0,0,0.58)",
-                },
+                children: [
+                  {
+                    type: "text",
+
+                    id:
+                      "slide-1-title",
+
+                    hidden: false,
+
+                    variant: "title",
+
+                    content:
+                      "PowerShow",
+                  },
+
+                  {
+                    type: "text",
+
+                    id:
+                      "slide-1-subtitle",
+
+                    hidden: false,
+
+                    variant:
+                      "subtitle",
+
+                    content:
+                      "Structured for authoring. Native for presenting.",
+                  },
+
+                  {
+                    type: "textbox",
+
+                    id:
+                      "slide-1-message",
+
+                    hidden: false,
+
+                    content:
+                      "Background, content and Player navigation are independent visual layers.",
+                  },
+                ],
               },
-
-              children: [
-                {
-                  type: "text",
-
-                  id: "title",
-
-                  hidden: false,
-
-                  variant: "title",
-
-                  content: "PowerShow",
-
-                  style: {
-                    color: "#f8fafc",
-                  },
-                },
-
-                {
-                  type: "text",
-
-                  id: "subtitle",
-
-                  hidden: false,
-
-                  variant: "subtitle",
-
-                  content: "Structured for authoring. Native for presenting.",
-
-                  style: {
-                    color: "#cbd5e1",
-                  },
-                },
-
-                {
-                  type: "textbox",
-
-                  id: "message",
-
-                  hidden: false,
-
-                  content:
-                    "Background, content and Player navigation are independent visual layers.",
-
-                  style: {
-                    color: "#94a3b8",
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-
-    {
-      id: "slide-2",
-
-      title: "Native rendering",
-
-      background: {
-        color: "#07111c",
-
-        gradient: {
-          type: "radial",
-          shape: "ellipse",
-
-          stops: [
-            {
-              color: "#183a52",
-              position: 0,
-            },
-            {
-              color: "#0d1d2c",
-              position: 48,
-            },
-            {
-              color: "#05090f",
-              position: 100,
-            },
-          ],
-        },
-
-        pattern: {
-          type: "grid",
-          color: "rgba(125,211,252,0.12)",
-          size: 32,
-          opacity: 0.7,
-        },
+            ],
+          },
+        ],
       },
 
-      elements: [
-        {
-          type: "container",
 
-          id: "slide-2-content",
+      // ======================================================
+      // SLIDE 2
+      // TYPOGRAPHY
+      //
+      // Valida todos os variants de TextElement:
+      // - title
+      // - subtitle
+      // - body
+      // - caption
+      //
+      // Este slide deve usar principalmente os defaults
+      // definidos por @powershow/theme.
+      // ======================================================
 
-          role: "content",
+      {
+        id: "slide-2",
 
-          hidden: false,
+        title:
+          "Typography",
 
-          direction: "column",
+        background: {
+          gradient: {
+            type: "linear",
+            angle: 125,
 
-          gap: 28,
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          style: {
-            width: "100%",
-            height: "100%",
-            padding: 72,
+            stops: [
+              {
+                color: "#07111f",
+                position: 0,
+              },
+              {
+                color: "#172554",
+                position: 100,
+              },
+            ],
           },
 
-          children: [
-            {
-              type: "container",
+          pattern: {
+            type: "horizontal-lines",
 
-              id: "code-panel",
+            color:
+              "rgba(148,163,184,0.08)",
 
-              role: "main",
+            size: 32,
+            opacity: 0.7,
+          },
+        },
 
-              hidden: false,
+        elements: [
+          {
+            type: "container",
 
-              direction: "column",
+            id:
+              "slide-2-content",
 
-              gap: 24,
+            role: "content",
 
-              horizontalAlign: "stretch",
+            hidden: false,
 
-              verticalAlign: "center",
+            direction: "column",
 
-              style: {
-                width: "76%",
-                padding: 40,
+            gap: 22,
 
-                borderRadius: 24,
+            horizontalAlign:
+              "start",
 
-                backgroundGradient: {
-                  type: "linear",
-                  angle: 160,
+            verticalAlign:
+              "center",
 
-                  stops: [
-                    {
-                      color: "rgba(8,15,27,0.96)",
-                      position: 0,
-                    },
-                    {
-                      color: "rgba(15,30,48,0.92)",
-                      position: 100,
-                    },
-                  ],
-                },
+            style: {
+              width: "100%",
+              height: "100%",
 
-                border: {
-                  width: 1,
-                  style: "solid",
-                  color: "rgba(125,211,252,0.30)",
-                },
+              padding: 96,
+            },
 
-                shadow: {
-                  x: 0,
-                  y: 20,
-                  blur: 60,
-                  spread: -14,
-                  color: "rgba(0,0,0,0.65)",
-                },
+            children: [
+              {
+                type: "text",
+
+                id:
+                  "typography-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Presentation typography",
               },
 
-              children: [
-                {
-                  type: "text",
+              {
+                type: "text",
 
-                  id: "slide-2-title",
+                id:
+                  "typography-subtitle",
 
-                  hidden: false,
+                hidden: false,
 
-                  variant: "title",
+                variant:
+                  "subtitle",
 
-                  content: "Native HTML rendering",
+                content:
+                  "A structural hierarchy without exposing CSS.",
+              },
 
-                  style: {
-                    color: "#f0f9ff",
-                  },
-                },
+              {
+                type: "text",
 
-                {
-                  type: "code",
+                id:
+                  "typography-body",
 
-                  id: "slide-2-code",
+                hidden: false,
 
-                  hidden: false,
+                variant: "body",
 
-                  language: "typescript",
+                content:
+                  "Body text is intended for explanations, supporting information and normal slide content. The theme provides readable defaults while the document can still override selected visual properties.",
+              },
 
-                  code: "const html = renderSlide(slide);\nplayer.show(html);",
+              {
+                type: "text",
 
-                  showLineNumbers: true,
+                id:
+                  "typography-caption",
 
-                  highlightedLines: [1],
+                hidden: false,
 
-                  style: {
-                    color: "#e2e8f0",
-                    background: "rgba(2,6,23,0.72)",
-                    padding: 24,
-                    borderRadius: 16,
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
+                variant:
+                  "caption",
 
-    {
-      id: "slide-3",
-
-      title: "Terminal",
-
-      background: {
-        gradient: {
-          type: "linear",
-          angle: 120,
-
-          stops: [
-            {
-              color: "#050505",
-              position: 0,
-            },
-            {
-              color: "#101513",
-              position: 55,
-            },
-            {
-              color: "#092019",
-              position: 100,
-            },
-          ],
-        },
-
-        pattern: {
-          type: "diagonal-lines",
-          color: "rgba(52,211,153,0.09)",
-          size: 28,
-          opacity: 0.8,
-        },
+                content:
+                  "Caption — secondary information and contextual notes.",
+              },
+            ],
+          },
+        ],
       },
 
-      elements: [
-        {
-          type: "container",
 
-          id: "slide-3-content",
+      // ======================================================
+      // SLIDE 3
+      // TEXTBOX + CONTAINERS
+      //
+      // Valida:
+      // - textbox sem aparência pesada obrigatória;
+      // - containers como infraestrutura de layout;
+      // - overrides estruturados de background/border.
+      // ======================================================
 
-          role: "content",
+      {
+        id: "slide-3",
 
-          hidden: false,
+        title:
+          "Textbox",
 
-          direction: "column",
+        background: {
+          color: "#0b1020",
 
-          horizontalAlign: "center",
+          pattern: {
+            type: "grid",
 
-          verticalAlign: "center",
+            color:
+              "rgba(99,102,241,0.14)",
 
-          style: {
-            width: "100%",
-            height: "100%",
-            padding: 72,
+            size: 36,
+            opacity: 0.65,
           },
+        },
 
-          children: [
-            {
-              type: "container",
+        elements: [
+          {
+            type: "container",
 
-              id: "terminal-panel",
+            id:
+              "slide-3-content",
 
-              role: "main",
+            role: "content",
 
-              hidden: false,
+            hidden: false,
 
-              direction: "column",
+            direction: "column",
 
-              style: {
-                width: "72%",
+            gap: 30,
 
-                padding: 32,
+            horizontalAlign:
+              "center",
 
-                borderRadius: 22,
+            verticalAlign:
+              "center",
 
-                backgroundGradient: {
-                  type: "linear",
-                  angle: 145,
+            style: {
+              width: "100%",
+              height: "100%",
 
-                  stops: [
-                    {
-                      color: "rgba(3,7,6,0.97)",
-                      position: 0,
-                    },
-                    {
-                      color: "rgba(10,25,20,0.94)",
-                      position: 100,
-                    },
-                  ],
-                },
+              padding: 72,
+            },
 
-                border: {
-                  width: 1,
-                  style: "solid",
-                  color: "rgba(52,211,153,0.35)",
-                },
+            children: [
+              {
+                type: "text",
 
-                shadow: {
-                  x: 0,
-                  y: 24,
-                  blur: 64,
-                  spread: -12,
-                  color: "rgba(0,0,0,0.72)",
-                },
+                id:
+                  "slide-3-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Textbox and content panels",
               },
 
-              children: [
-                {
-                  type: "terminal",
+              {
+                type: "container",
 
-                  id: "terminal",
+                id:
+                  "textbox-panel",
 
-                  hidden: false,
+                role: "main",
 
-                  title: "PowerShow",
+                hidden: false,
 
-                  style: {
-                    width: "100%",
-                    color: "#d1fae5",
+                direction: "column",
+
+                gap: 20,
+
+                style: {
+                  width: "76%",
+
+                  padding: 36,
+
+                  borderRadius: 20,
+
+                  background:
+                    "rgba(15,23,42,0.88)",
+
+                  border: {
+                    width: 1,
+                    style: "solid",
+
+                    color:
+                      "rgba(148,163,184,0.24)",
                   },
 
-                  lines: [
-                    {
-                      type: "command",
-                      content: "pnpm --filter @powershow/player dev",
-                    },
+                  shadow: {
+                    x: 0,
+                    y: 18,
+                    blur: 48,
+                    spread: -12,
 
-                    {
-                      type: "output",
-                      content: "PowerShow Player running",
-                    },
-
-                    {
-                      type: "comment",
-                      content: "Renderer connected successfully",
-                    },
-                  ],
+                    color:
+                      "rgba(0,0,0,0.55)",
+                  },
                 },
-              ],
-            },
-          ],
+
+                children: [
+                  {
+                    type: "textbox",
+
+                    id:
+                      "textbox-example-1",
+
+                    hidden: false,
+
+                    content:
+                      "Textbox is designed for normal blocks of textual content. Its baseline typography comes from the shared theme.",
+                  },
+
+                  {
+                    type: "textbox",
+
+                    id:
+                      "textbox-example-2",
+
+                    hidden: false,
+
+                    content:
+                      "The author should not need to understand font-family, line-height, CSS selectors or browser layout rules to create a readable slide.",
+
+                    style: {
+                      color:
+                        "#a5b4fc",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+
+
+      // ======================================================
+      // SLIDE 4
+      // CODE
+      //
+      // Valida:
+      // - base theme do code;
+      // - fonte monospace;
+      // - line numbers;
+      // - highlighted lines.
+      // ======================================================
+
+      {
+        id: "slide-4",
+
+        title:
+          "Code",
+
+        background: {
+          gradient: {
+            type: "radial",
+            shape: "ellipse",
+
+            stops: [
+              {
+                color: "#183a52",
+                position: 0,
+              },
+              {
+                color: "#0d1d2c",
+                position: 48,
+              },
+              {
+                color: "#05090f",
+                position: 100,
+              },
+            ],
+          },
+
+          pattern: {
+            type: "grid",
+
+            color:
+              "rgba(125,211,252,0.10)",
+
+            size: 32,
+            opacity: 0.7,
+          },
         },
-      ],
-    },
-  ],
-});
+
+        elements: [
+          {
+            type: "container",
+
+            id:
+              "slide-4-content",
+
+            role: "content",
+
+            hidden: false,
+
+            direction: "column",
+
+            gap: 26,
+
+            horizontalAlign:
+              "center",
+
+            verticalAlign:
+              "center",
+
+            style: {
+              width: "100%",
+              height: "100%",
+
+              padding: 72,
+            },
+
+            children: [
+              {
+                type: "text",
+
+                id:
+                  "slide-4-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Native HTML rendering",
+              },
+
+              {
+                type: "code",
+
+                id:
+                  "slide-4-code",
+
+                hidden: false,
+
+                language:
+                  "typescript",
+
+                code:
+                  'const slide = presentation.slides[index];\nconst html = renderSlide(slide);\nslideHost.innerHTML = html;\nplayer.showControls();',
+
+                showLineNumbers: true,
+
+                highlightedLines:
+                  [2, 3],
+
+                style: {
+                  width: "76%",
+                },
+              },
+            ],
+          },
+        ],
+      },
+
+
+      // ======================================================
+      // SLIDE 5
+      // TERMINAL
+      //
+      // Valida:
+      // - titlebar;
+      // - controles decorativos;
+      // - command;
+      // - output;
+      // - comment;
+      // - error.
+      // ======================================================
+
+      {
+        id: "slide-5",
+
+        title:
+          "Terminal",
+
+        background: {
+          gradient: {
+            type: "linear",
+            angle: 120,
+
+            stops: [
+              {
+                color: "#050505",
+                position: 0,
+              },
+              {
+                color: "#101513",
+                position: 55,
+              },
+              {
+                color: "#092019",
+                position: 100,
+              },
+            ],
+          },
+
+          pattern: {
+            type:
+              "diagonal-lines",
+
+            color:
+              "rgba(52,211,153,0.09)",
+
+            size: 28,
+            opacity: 0.8,
+          },
+        },
+
+        elements: [
+          {
+            type: "container",
+
+            id:
+              "slide-5-content",
+
+            role: "content",
+
+            hidden: false,
+
+            direction: "column",
+
+            gap: 28,
+
+            horizontalAlign:
+              "center",
+
+            verticalAlign:
+              "center",
+
+            style: {
+              width: "100%",
+              height: "100%",
+
+              padding: 72,
+            },
+
+            children: [
+              {
+                type: "text",
+
+                id:
+                  "slide-5-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Terminal component",
+              },
+
+              {
+                type: "container",
+
+                id:
+                  "terminal-panel",
+
+                role: "main",
+
+                hidden: false,
+
+                direction: "column",
+
+                style: {
+                  ...resolvePanelSize(
+                    "medium",
+                  ),
+
+                  padding: 28,
+
+                  borderRadius: 22,
+
+                  background:
+                    "rgba(3,7,6,0.76)",
+
+                  border: {
+                    width: 1,
+
+                    color:
+                      "rgba(52,211,153,0.28)",
+                  },
+
+                  shadow: {
+                    x: 0,
+                    y: 24,
+                    blur: 64,
+                    spread: -12,
+
+                    color:
+                      "rgba(0,0,0,0.72)",
+                  },
+                },
+
+                children: [
+                  {
+                    type: "terminal",
+
+                    id:
+                      "terminal",
+
+                    hidden: false,
+
+                    title:
+                      "PowerShow",
+
+                    lines: [
+                      {
+                        type:
+                          "command",
+
+                        content:
+                          "pnpm --filter @powershow/player dev",
+                      },
+
+                      {
+                        type:
+                          "output",
+
+                        content:
+                          "PowerShow Player running",
+                      },
+
+                      {
+                        type:
+                          "comment",
+
+                        content:
+                          "Renderer connected successfully",
+                      },
+
+                      {
+                        type:
+                          "error",
+
+                        content:
+                          "Example error message for visual validation",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+
+
+      // ======================================================
+      // SLIDE 6
+      // TABLE
+      //
+      // O schema atual usa:
+      //
+      // columns: [
+      //   { key, label }
+      // ]
+      //
+      // rows: [
+      //   { [key]: value }
+      // ]
+      //
+      // Valida o estilo estrutural definido em
+      // @powershow/theme.
+      // ======================================================
+
+      {
+        id: "slide-6",
+
+        title:
+          "Table",
+
+        background: {
+          gradient: {
+            type: "linear",
+            angle: 145,
+
+            stops: [
+              {
+                color: "#111827",
+                position: 0,
+              },
+              {
+                color: "#172033",
+                position: 100,
+              },
+            ],
+          },
+
+          pattern: {
+            type:
+              "vertical-lines",
+
+            color:
+              "rgba(148,163,184,0.07)",
+
+            size: 40,
+            opacity: 0.8,
+          },
+        },
+
+        elements: [
+          {
+            type: "container",
+
+            id:
+              "slide-6-content",
+
+            role: "content",
+
+            hidden: false,
+
+            direction: "column",
+
+            gap: 28,
+
+            horizontalAlign:
+              "center",
+
+            verticalAlign:
+              "center",
+
+            style: {
+              width: "100%",
+              height: "100%",
+
+              padding: 76,
+            },
+
+            children: [
+              {
+                type: "text",
+
+                id:
+                  "slide-6-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Structured tables",
+              },
+
+              {
+                type: "text",
+
+                id:
+                  "slide-6-subtitle",
+
+                hidden: false,
+
+                variant:
+                  "subtitle",
+
+                content:
+                  "Semantic data without requiring HTML tables from the author.",
+              },
+
+              {
+                type: "table",
+
+                id:
+                  "component-table",
+
+                hidden: false,
+
+                style: {
+                  width: "84%",
+                },
+
+                columns: [
+                  {
+                    key:
+                      "component",
+
+                    label:
+                      "Component",
+                  },
+                  {
+                    key:
+                      "purpose",
+
+                    label:
+                      "Purpose",
+                  },
+                  {
+                    key:
+                      "status",
+
+                    label:
+                      "Status",
+                  },
+                ],
+
+                rows: [
+                  {
+                    component:
+                      "Text",
+
+                    purpose:
+                      "Presentation typography",
+
+                    status:
+                      "Ready",
+                  },
+                  {
+                    component:
+                      "Code",
+
+                    purpose:
+                      "Source examples",
+
+                    status:
+                      "Ready",
+                  },
+                  {
+                    component:
+                      "Terminal",
+
+                    purpose:
+                      "Command-line demonstrations",
+
+                    status:
+                      "Ready",
+                  },
+                  {
+                    component:
+                      "Table",
+
+                    purpose:
+                      "Structured information",
+
+                    status:
+                      "Ready",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+
+
+      // ======================================================
+      // SLIDE 7
+      // IMAGE
+      //
+      // Mostra os três modos aceitos pelo schema:
+      //
+      // contain
+      // cover
+      // fill
+      //
+      // Usamos a mesma imagem e a mesma caixa quadrada
+      // para tornar a diferença evidente.
+      // ======================================================
+
+      {
+        id: "slide-7",
+
+        title:
+          "Images",
+
+        background: {
+          gradient: {
+            type: "linear",
+            angle: 135,
+
+            stops: [
+              {
+                color: "#120b24",
+                position: 0,
+              },
+              {
+                color: "#17112d",
+                position: 50,
+              },
+              {
+                color: "#061724",
+                position: 100,
+              },
+            ],
+          },
+        },
+
+        elements: [
+          {
+            type: "container",
+
+            id:
+              "slide-7-content",
+
+            role: "content",
+
+            hidden: false,
+
+            direction: "column",
+
+            gap: 30,
+
+            horizontalAlign:
+              "center",
+
+            verticalAlign:
+              "center",
+
+            style: {
+              width: "100%",
+              height: "100%",
+
+              padding: 64,
+            },
+
+            children: [
+              {
+                type: "text",
+
+                id:
+                  "slide-7-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Image fitting",
+              },
+
+              {
+                type: "container",
+
+                id:
+                  "image-comparison",
+
+                role: "row",
+
+                hidden: false,
+
+                direction: "row",
+
+                gap: 30,
+
+                horizontalAlign:
+                  "center",
+
+                verticalAlign:
+                  "center",
+
+                style: {
+                  width: "92%",
+                },
+
+                children: [
+
+                  // --------------------------------------------
+                  // CONTAIN
+                  // --------------------------------------------
+
+                  {
+                    type:
+                      "container",
+
+                    id:
+                      "image-contain-column",
+
+                    role: "column",
+
+                    hidden: false,
+
+                    direction:
+                      "column",
+
+                    gap: 14,
+
+                    horizontalAlign:
+                      "center",
+
+                    children: [
+                      {
+                        type:
+                          "text",
+
+                        id:
+                          "image-contain-label",
+
+                        hidden: false,
+
+                        variant:
+                          "subtitle",
+
+                        content:
+                          "contain",
+                      },
+
+                      {
+                        type:
+                          "image",
+
+                        id:
+                          "image-contain",
+
+                        hidden: false,
+
+                        src:
+                          demoImageSrc,
+
+                        alt:
+                          "PowerShow demo graphic using contain",
+
+                        fit:
+                          "contain",
+
+                        style: {
+                          width: 240,
+                          height: 240,
+
+                          background:
+                            "rgba(15,23,42,0.72)",
+
+                          borderRadius:
+                            18,
+
+                          border: {
+                            width: 1,
+
+                            color:
+                              "rgba(148,163,184,0.28)",
+                          },
+                        },
+                      },
+                    ],
+                  },
+
+
+                  // --------------------------------------------
+                  // COVER
+                  // --------------------------------------------
+
+                  {
+                    type:
+                      "container",
+
+                    id:
+                      "image-cover-column",
+
+                    role: "column",
+
+                    hidden: false,
+
+                    direction:
+                      "column",
+
+                    gap: 14,
+
+                    horizontalAlign:
+                      "center",
+
+                    children: [
+                      {
+                        type:
+                          "text",
+
+                        id:
+                          "image-cover-label",
+
+                        hidden: false,
+
+                        variant:
+                          "subtitle",
+
+                        content:
+                          "cover",
+                      },
+
+                      {
+                        type:
+                          "image",
+
+                        id:
+                          "image-cover",
+
+                        hidden: false,
+
+                        src:
+                          demoImageSrc,
+
+                        alt:
+                          "PowerShow demo graphic using cover",
+
+                        fit:
+                          "cover",
+
+                        style: {
+                          width: 240,
+                          height: 240,
+
+                          borderRadius:
+                            18,
+
+                          border: {
+                            width: 1,
+
+                            color:
+                              "rgba(148,163,184,0.28)",
+                          },
+                        },
+                      },
+                    ],
+                  },
+
+
+                  // --------------------------------------------
+                  // FILL
+                  // --------------------------------------------
+
+                  {
+                    type:
+                      "container",
+
+                    id:
+                      "image-fill-column",
+
+                    role: "column",
+
+                    hidden: false,
+
+                    direction:
+                      "column",
+
+                    gap: 14,
+
+                    horizontalAlign:
+                      "center",
+
+                    children: [
+                      {
+                        type:
+                          "text",
+
+                        id:
+                          "image-fill-label",
+
+                        hidden: false,
+
+                        variant:
+                          "subtitle",
+
+                        content:
+                          "fill",
+                      },
+
+                      {
+                        type:
+                          "image",
+
+                        id:
+                          "image-fill",
+
+                        hidden: false,
+
+                        src:
+                          demoImageSrc,
+
+                        alt:
+                          "PowerShow demo graphic using fill",
+
+                        fit:
+                          "fill",
+
+                        style: {
+                          width: 240,
+                          height: 240,
+
+                          borderRadius:
+                            18,
+
+                          border: {
+                            width: 1,
+
+                            color:
+                              "rgba(148,163,184,0.28)",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+
+
+      // ======================================================
+      // SLIDE 8
+      // COMPONENTES AINDA NÃO IMPLEMENTADOS
+      //
+      // Chart e Interactive já existem no schema,
+      // mas neste estágio o renderer ainda produz placeholders.
+      //
+      // Isso é proposital:
+      // permite enxergar claramente o estágio atual do projeto.
+      // ======================================================
+
+      {
+        id: "slide-8",
+
+        title:
+          "Future interactive components",
+
+        background: {
+          color: "#080b12",
+
+          pattern: {
+            type: "dots",
+
+            color:
+              "rgba(139,92,246,0.18)",
+
+            size: 26,
+            opacity: 0.8,
+          },
+        },
+
+        elements: [
+          {
+            type: "container",
+
+            id:
+              "slide-8-content",
+
+            role: "content",
+
+            hidden: false,
+
+            direction: "column",
+
+            gap: 30,
+
+            horizontalAlign:
+              "center",
+
+            verticalAlign:
+              "center",
+
+            style: {
+              width: "100%",
+              height: "100%",
+
+              padding: 72,
+            },
+
+            children: [
+              {
+                type: "text",
+
+                id:
+                  "slide-8-title",
+
+                hidden: false,
+
+                variant: "title",
+
+                content:
+                  "Interactive elements",
+              },
+
+              {
+                type: "text",
+
+                id:
+                  "slide-8-subtitle",
+
+                hidden: false,
+
+                variant:
+                  "subtitle",
+
+                content:
+                  "These schema elements currently render as placeholders.",
+              },
+
+              {
+                type: "container",
+
+                id:
+                  "future-components-row",
+
+                role: "row",
+
+                hidden: false,
+
+                direction: "row",
+
+                gap: 40,
+
+                horizontalAlign:
+                  "center",
+
+                verticalAlign:
+                  "center",
+
+                children: [
+                  {
+                    type: "chart",
+
+                    id:
+                      "demo-chart",
+
+                    hidden: false,
+
+                    chartType:
+                      "line",
+
+                    series: [
+                      {
+                        name:
+                          "Demo",
+
+                        values: [
+                          {
+                            x: 0,
+                            y: 1,
+                          },
+                          {
+                            x: 1,
+                            y: 3,
+                          },
+                          {
+                            x: 2,
+                            y: 2,
+                          },
+                        ],
+                      },
+                    ],
+
+                    style: {
+                      width: 280,
+                      height: 180,
+
+                      padding: 24,
+
+                      borderRadius:
+                        18,
+
+                      background:
+                        "rgba(15,23,42,0.82)",
+
+                      border: {
+                        width: 1,
+
+                        color:
+                          "rgba(139,92,246,0.40)",
+                      },
+                    },
+                  },
+
+                  {
+                    type:
+                      "interactive",
+
+                    id:
+                      "demo-interactive",
+
+                    hidden: false,
+
+                    widget:
+                      "function-plot",
+
+                    config: {
+                      expression:
+                        "x^2",
+                    },
+
+                    style: {
+                      width: 280,
+                      height: 180,
+
+                      padding: 24,
+
+                      borderRadius:
+                        18,
+
+                      background:
+                        "rgba(15,23,42,0.82)",
+
+                      border: {
+                        width: 1,
+
+                        color:
+                          "rgba(34,211,238,0.40)",
+                      },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+// ============================================================
+// END: APRESENTAÇÃO DE DEMONSTRAÇÃO
+// ============================================================

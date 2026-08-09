@@ -426,4 +426,35 @@ describe("renderElement", () => {
 
     expect(html).toContain("&lt;script&gt;");
   });
+
+  // ============================================================
+  // BEGIN: TESTE DE CONTAINER REDIMENSIONÁVEL
+  // ============================================================
+
+  it("renders container dimensions", () => {
+    const html = renderElement({
+      type: "container",
+
+      id: "resizable-panel",
+
+      hidden: false,
+
+      direction: "column",
+
+      style: {
+        width: "68%",
+        height: "60%",
+      },
+
+      children: [],
+    });
+
+    expect(html).toContain("width:68%");
+
+    expect(html).toContain("height:60%");
+  });
+
+  // ============================================================
+  // END: TESTE DE CONTAINER REDIMENSIONÁVEL
+  // ============================================================
 });
