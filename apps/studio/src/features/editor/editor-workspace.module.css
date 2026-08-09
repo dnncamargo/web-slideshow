@@ -1454,3 +1454,155 @@
 /* ==========================================================
    END: TABLE EDITOR
    ========================================================== */
+
+/* ==========================================================
+   BEGIN: ELEMENT CRUD
+   ========================================================== */
+
+.elementCrud {
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 8px;
+
+  padding-bottom:
+    14px;
+
+  border-bottom:
+    1px solid
+    #232a36;
+}
+
+
+.elementCrudCreate {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  gap: 7px;
+}
+
+
+.elementCrudCreate select,
+.elementCrudCreate button,
+.elementCrudActions button {
+  min-width: 0;
+
+  height: 32px;
+
+  border:
+    1px solid
+    #303847;
+
+  border-radius:
+    6px;
+
+  background:
+    #111720;
+
+  color:
+    #cbd5e1;
+
+  font-size:
+    11px;
+}
+
+
+.elementCrudCreate select {
+  padding:
+    0
+    8px;
+}
+
+
+.elementCrudCreate button,
+.elementCrudActions button {
+  padding:
+    0
+    10px;
+
+  cursor:
+    pointer;
+}
+
+
+.elementCrudPrimary {
+  border-color:
+    #4f46e5 !important;
+
+  background:
+    #312e81 !important;
+
+  color:
+    #eef2ff !important;
+}
+
+
+.elementCrudPrimary:hover {
+  background:
+    #3730a3 !important;
+}
+
+
+.elementCrudHint {
+  color:
+    #64748b;
+
+  font-size:
+    10px;
+
+  line-height:
+    1.4;
+}
+
+
+.elementCrudActions {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  gap: 7px;
+}
+
+
+.elementCrudActions button:hover:not(:disabled) {
+  border-color:
+    #4b5567;
+
+  background:
+    #1b2330;
+}
+
+
+.elementCrudDanger {
+  color:
+    #fca5a5 !important;
+}
+
+
+.elementCrudDanger:hover:not(:disabled) {
+  border-color:
+    #7f1d1d !important;
+
+  background:
+    #261317 !important;
+}
+
+
+.elementCrudActions button:disabled {
+  opacity:
+    0.38;
+
+  cursor:
+    not-allowed;
+}
+
+/* ==========================================================
+   END: ELEMENT CRUD
+   ========================================================== */
