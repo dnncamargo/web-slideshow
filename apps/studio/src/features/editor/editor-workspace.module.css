@@ -143,75 +143,105 @@
    ========================================================== */
 
 /* ==========================================================
-   BEGIN: SLIDE SIDEBAR COM CRUD
+   BEGIN: SLIDE SIDEBAR COM PRESETS
    ========================================================== */
 
 .slideSidebar {
   grid-template-rows:
     44px
+    auto
     minmax(0, 1fr)
     auto;
 }
 
 /* ==========================================================
-   END: SLIDE SIDEBAR COM CRUD
+   END: SLIDE SIDEBAR COM PRESETS
    ========================================================== */
 
-.slidePanelHeader {
-  justify-content:
-    space-between;
+   /* ==========================================================
+   BEGIN: NEW SLIDE PRESET BAR
+   ========================================================== */
 
-  gap: 8px;
+.slideCreateBar {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  gap: 6px;
+
+  padding:
+    8px
+    10px;
+
+  border-bottom:
+    1px solid
+    #232a36;
+
+  background:
+    #111620;
 }
 
 
-.slideHeaderButton {
-  height: 26px;
+.slideCreateBar select,
+.slideCreateBar button {
+  min-width: 0;
 
-  padding:
-    0
-    8px;
+  height: 32px;
 
   border:
     1px solid
-    #3b4260;
+    #303847;
 
   border-radius:
     6px;
 
   background:
-    #252443;
+    #111720;
 
   color:
-    #c7d2fe;
+    #cbd5e1;
 
   font-size:
     11px;
-
-  font-weight:
-    600;
-
-  cursor:
-    pointer;
-
-  text-transform:
-    none;
-
-  letter-spacing:
-    normal;
 }
 
 
-.slideHeaderButton:hover {
+.slideCreateBar select {
+  padding:
+    0
+    7px;
+}
+
+
+.slideCreateBar button {
+  padding:
+    0
+    9px;
+
   border-color:
-    #6366f1;
+    #4f46e5;
 
   background:
-    #302e58;
+    #312e81;
 
   color:
     #eef2ff;
+
+  cursor:
+    pointer;
 }
+
+
+.slideCreateBar button:hover {
+  background:
+    #3730a3;
+}
+
+/* ==========================================================
+   END: NEW SLIDE PRESET BAR
+   ========================================================== */
 
 /* ==========================================================
    END: SLIDE CRUD LAYOUT
@@ -1605,4 +1635,602 @@
 
 /* ==========================================================
    END: ELEMENT CRUD
+   ========================================================== */
+
+   /* ==========================================================
+   BEGIN: SLIDE LAYOUT PICKER
+   ========================================================== */
+
+.layoutPicker {
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 8px;
+
+  padding:
+    9px
+    10px
+    10px;
+
+  border-bottom:
+    1px solid
+    #232a36;
+
+  background:
+    #111620;
+}
+
+
+.layoutPickerHeader {
+  display: flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap: 8px;
+
+  color:
+    #94a3b8;
+
+  font-size:
+    10px;
+
+  font-weight:
+    600;
+
+  text-transform:
+    uppercase;
+
+  letter-spacing:
+    0.05em;
+}
+
+
+.layoutCreateButton {
+  height: 26px;
+
+  padding:
+    0
+    9px;
+
+  border:
+    1px solid
+    #4f46e5;
+
+  border-radius:
+    6px;
+
+  background:
+    #312e81;
+
+  color:
+    #eef2ff;
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+
+  cursor:
+    pointer;
+
+  text-transform:
+    none;
+
+  letter-spacing:
+    normal;
+}
+
+
+.layoutCreateButton:hover {
+  background:
+    #3730a3;
+}
+
+/* ==========================================================
+   END: SLIDE LAYOUT PICKER
+   ========================================================== */
+
+
+/* ==========================================================
+   BEGIN: PRESET GRID
+   ========================================================== */
+
+.layoutPresetGrid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 6px;
+}
+
+
+.layoutPreset,
+.layoutPresetSelected {
+  min-width: 0;
+
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 5px;
+
+  padding: 6px;
+
+  border:
+    1px solid
+    #293140;
+
+  border-radius:
+    7px;
+
+  background:
+    #0d121b;
+
+  color:
+    #94a3b8;
+
+  text-align:
+    left;
+
+  cursor:
+    pointer;
+}
+
+
+.layoutPreset:hover {
+  border-color:
+    #465065;
+
+  background:
+    #121924;
+}
+
+
+.layoutPresetSelected {
+  border-color:
+    #6366f1;
+
+  background:
+    #171735;
+
+  color:
+    #e0e7ff;
+}
+
+
+/* ==========================================================
+   TEXTO
+   ========================================================== */
+
+.layoutPresetText {
+  min-width: 0;
+
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 1px;
+}
+
+
+.layoutPresetText strong {
+  overflow:
+    hidden;
+
+  color:
+    #cbd5e1;
+
+  font-size:
+    10px;
+
+  font-weight:
+    600;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+
+.layoutPresetText span {
+  overflow:
+    hidden;
+
+  color:
+    #64748b;
+
+  font-size:
+    9px;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+/* ==========================================================
+   END: PRESET GRID
+   ========================================================== */
+
+
+/* ==========================================================
+   BEGIN: MINI PREVIEWS
+   ========================================================== */
+
+.layoutPreview {
+  width: 100%;
+
+  aspect-ratio:
+    16 / 9;
+
+  padding: 5px;
+
+  border:
+    1px solid
+    #2c3544;
+
+  border-radius:
+    4px;
+
+  background:
+    #080b10;
+
+  overflow:
+    hidden;
+}
+
+
+.layoutPreviewBlank {
+  width: 100%;
+  height: 100%;
+
+  border:
+    1px dashed
+    #303847;
+
+  border-radius:
+    2px;
+}
+
+
+.layoutPreviewCentered {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+
+  flex-direction:
+    column;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  gap: 4px;
+}
+
+
+.layoutPreviewCentered span:first-child {
+  width: 52%;
+  height: 5px;
+
+  border-radius:
+    2px;
+
+  background:
+    #818cf8;
+}
+
+
+.layoutPreviewCentered span:last-child {
+  width: 68%;
+  height: 14px;
+
+  border-radius:
+    2px;
+
+  background:
+    #293140;
+}
+
+
+.layoutPreviewTitleContent {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+
+  grid-template-rows:
+    auto
+    minmax(0, 1fr);
+
+  gap: 5px;
+}
+
+
+.layoutPreviewTitle {
+  display: block;
+
+  width: 56%;
+  height: 5px;
+
+  border-radius:
+    2px;
+
+  background:
+    #818cf8;
+}
+
+
+.layoutPreviewContent {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  border-radius:
+    2px;
+
+  background:
+    #293140;
+}
+
+
+.layoutPreviewColumns,
+.layoutPreviewThreeColumns {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+
+  gap: 4px;
+}
+
+
+.layoutPreviewColumns {
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+}
+
+
+.layoutPreviewThreeColumns {
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+}
+
+
+.layoutPreviewColumns span,
+.layoutPreviewThreeColumns span {
+  border-radius:
+    2px;
+
+  background:
+    #293140;
+}
+
+
+.layoutPreviewTitleColumns {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+
+  grid-template-rows:
+    auto
+    minmax(0, 1fr);
+
+  gap: 5px;
+}
+
+
+.layoutPreviewTitleColumns > div {
+  min-height: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 4px;
+}
+
+
+.layoutPreviewTitleColumns > div span {
+  border-radius:
+    2px;
+
+  background:
+    #293140;
+}
+
+/* ==========================================================
+   END: MINI PREVIEWS
+   ========================================================== */
+
+/* ==========================================================
+   BEGIN: LAYOUT PICKER ACTIONS
+   ========================================================== */
+
+.layoutPickerActions {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  gap: 7px;
+
+  padding-top:
+    2px;
+}
+
+
+.layoutCancelButton,
+.layoutCreateButton {
+  min-width: 0;
+
+  height: 30px;
+
+  padding:
+    0
+    9px;
+
+  border-radius:
+    6px;
+
+  font-size:
+    11px;
+
+  cursor:
+    pointer;
+}
+
+
+.layoutCancelButton {
+  border:
+    1px solid
+    #303847;
+
+  background:
+    #151b26;
+
+  color:
+    #94a3b8;
+}
+
+
+.layoutCancelButton:hover {
+  border-color:
+    #4b5567;
+
+  background:
+    #1b2330;
+
+  color:
+    #e2e8f0;
+}
+
+
+.layoutCreateButton {
+  border:
+    1px solid
+    #4f46e5;
+
+  background:
+    #312e81;
+
+  color:
+    #eef2ff;
+
+  font-weight:
+    600;
+}
+
+
+.layoutCreateButton:hover {
+  background:
+    #3730a3;
+}
+
+/* ==========================================================
+   END: LAYOUT PICKER ACTIONS
+   ========================================================== */
+
+   /* ==========================================================
+   BEGIN: SLIDE HEADER ACTION
+   ========================================================== */
+
+.slidePanelHeader {
+  display: flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    8px;
+}
+
+
+.slideHeaderButton {
+  height:
+    28px;
+
+  padding:
+    0
+    10px;
+
+  border:
+    1px solid
+    #4f46e5;
+
+  border-radius:
+    6px;
+
+  background:
+    #312e81;
+
+  color:
+    #eef2ff;
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+
+  cursor:
+    pointer;
+
+  white-space:
+    nowrap;
+}
+
+
+.slideHeaderButton:hover {
+  background:
+    #3730a3;
+}
+
+
+.slideHeaderButton:focus-visible {
+  outline:
+    2px solid
+    #818cf8;
+
+  outline-offset:
+    2px;
+}
+
+/* ==========================================================
+   END: SLIDE HEADER ACTION
    ========================================================== */

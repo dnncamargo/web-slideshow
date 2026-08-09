@@ -174,17 +174,35 @@ function cloneElementWithUniqueIds(
 // END: CLONE RECURSIVO DE ELEMENTO
 // ============================================================
 
+// ============================================================
+// BEGIN: SLIDE LAYOUT PRESETS
+//
+// O preset é somente uma ferramenta de autoria.
+//
+// Depois que o slide é criado, o documento contém apenas:
+// - containers;
+// - textos;
+// - dimensões;
+// - espaçamentos.
+//
+// Não armazenamos "preset: two-columns" no documento.
+// ============================================================
+
+export type SlideLayoutPreset =
+  | "blank"
+  | "centered"
+  | "title-content"
+  | "two-columns"
+  | "three-columns"
+  | "title-two-columns";
+
 
 // ============================================================
-// BEGIN: CREATE SLIDE
-//
-// Um novo slide começa propositalmente simples.
-//
-// Não criamos container/text automaticamente nesta fase.
-// Element CRUD será responsável por isso posteriormente.
+// BEGIN: CREATE SLIDE FROM PRESET
 // ============================================================
 
-export function createBlankSlide(
+export function createSlideFromPreset(
+  preset: SlideLayoutPreset,
   slides: readonly Slide[],
 ): Slide {
   const usedIds =
@@ -193,39 +211,839 @@ export function createBlankSlide(
     );
 
 
-  const id =
+  const slideId =
     createUniqueId(
       "slide",
       usedIds,
     );
 
 
-  return {
-    id,
+  usedIds.add(
+    slideId,
+  );
 
-    title:
-      "Untitled slide",
 
-    summary:
-      "",
+  // ----------------------------------------------------------
+  // Cria IDs de elementos derivados do slide, mas ainda
+  // garantindo unicidade global.
+  // ----------------------------------------------------------
 
-    speakerNotes:
-      "",
+  function elementId(
+    name: string,
+  ): string {
+    const id =
+      createUniqueId(
+        `${slideId}-${name}`,
+        usedIds,
+      );
 
-    elements:
-      [],
 
-    background: {
-      color:
-        "#0b1020",
-    },
-  };
+    usedIds.add(
+      id,
+    );
+
+
+    return id;
+  }
+
+
+  // ----------------------------------------------------------
+  // Base comum para todos os presets.
+  // ----------------------------------------------------------
+
+  function buildSlide(
+    elements: PowerShowElement[],
+  ): Slide {
+    return {
+      id:
+        slideId,
+
+      title:
+        "Untitled slide",
+
+      summary:
+        "",
+
+      speakerNotes:
+        "",
+
+      background: {
+        color:
+          "#0b1020",
+      },
+
+      elements,
+    };
+  }
+
+
+  switch (preset) {
+    // ========================================================
+    // BEGIN: BLANK
+    // ========================================================
+
+    case "blank":
+      return buildSlide(
+        [],
+      );
+
+    // ========================================================
+    // END: BLANK
+    // ========================================================
+
+
+    // ========================================================
+    // BEGIN: CENTERED
+    // ========================================================
+
+    case "centered":
+      return buildSlide([
+        {
+          id:
+            elementId(
+              "root",
+            ),
+
+          type:
+            "container",
+
+          hidden:
+            false,
+
+          direction:
+            "column",
+
+          gap:
+            20,
+
+          horizontalAlign:
+            "center",
+
+          verticalAlign:
+            "center",
+
+          style: {
+            width:
+              "100%",
+
+            height:
+              "100%",
+
+            padding:
+              64,
+          },
+
+          children: [
+            {
+              id:
+                elementId(
+                  "title",
+                ),
+
+              type:
+                "text",
+
+              hidden:
+                false,
+
+              variant:
+                "title",
+
+              content:
+                "Centered slide",
+            },
+
+            {
+              id:
+                elementId(
+                  "content",
+                ),
+
+              type:
+                "textbox",
+
+              hidden:
+                false,
+
+              content:
+                "Add your content here.",
+
+              style: {
+                width:
+                  "70%",
+              },
+            },
+          ],
+        },
+      ]);
+
+    // ========================================================
+    // END: CENTERED
+    // ========================================================
+
+
+    // ========================================================
+    // BEGIN: TITLE + CONTENT
+    // ========================================================
+
+    case "title-content":
+      return buildSlide([
+        {
+          id:
+            elementId(
+              "root",
+            ),
+
+          type:
+            "container",
+
+          hidden:
+            false,
+
+          direction:
+            "column",
+
+          gap:
+            32,
+
+          horizontalAlign:
+            "center",
+
+          verticalAlign:
+            "center",
+
+          style: {
+            width:
+              "100%",
+
+            height:
+              "100%",
+
+            padding:
+              56,
+          },
+
+          children: [
+            {
+              id:
+                elementId(
+                  "title",
+                ),
+
+              type:
+                "text",
+
+              hidden:
+                false,
+
+              variant:
+                "title",
+
+              content:
+                "Slide title",
+
+              style: {
+                width:
+                  "90%",
+              },
+            },
+
+            {
+              id:
+                elementId(
+                  "content",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "column",
+
+              gap:
+                16,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "90%",
+
+                height:
+                  "68%",
+
+                padding:
+                  32,
+
+                background:
+                  "rgba(15, 23, 42, 0.45)",
+              },
+
+              children: [
+                {
+                  id:
+                    elementId(
+                      "body",
+                    ),
+
+                  type:
+                    "textbox",
+
+                  hidden:
+                    false,
+
+                  content:
+                    "Add your content here.",
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+    // ========================================================
+    // END: TITLE + CONTENT
+    // ========================================================
+
+
+    // ========================================================
+    // BEGIN: TWO COLUMNS
+    // ========================================================
+
+    case "two-columns":
+      return buildSlide([
+        {
+          id:
+            elementId(
+              "root",
+            ),
+
+          type:
+            "container",
+
+          hidden:
+            false,
+
+          direction:
+            "row",
+
+          gap:
+            32,
+
+          horizontalAlign:
+            "center",
+
+          verticalAlign:
+            "center",
+
+          style: {
+            width:
+              "100%",
+
+            height:
+              "100%",
+
+            padding:
+              48,
+          },
+
+          children: [
+            {
+              id:
+                elementId(
+                  "left",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "column",
+
+              gap:
+                16,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "47%",
+
+                height:
+                  "82%",
+
+                padding:
+                  24,
+
+                background:
+                  "rgba(15, 23, 42, 0.45)",
+              },
+
+              children:
+                [],
+            },
+
+            {
+              id:
+                elementId(
+                  "right",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "column",
+
+              gap:
+                16,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "47%",
+
+                height:
+                  "82%",
+
+                padding:
+                  24,
+
+                background:
+                  "rgba(15, 23, 42, 0.45)",
+              },
+
+              children:
+                [],
+            },
+          ],
+        },
+      ]);
+
+    // ========================================================
+    // END: TWO COLUMNS
+    // ========================================================
+
+
+    // ========================================================
+    // BEGIN: THREE COLUMNS
+    // ========================================================
+
+    case "three-columns":
+      return buildSlide([
+        {
+          id:
+            elementId(
+              "root",
+            ),
+
+          type:
+            "container",
+
+          hidden:
+            false,
+
+          direction:
+            "row",
+
+          gap:
+            24,
+
+          horizontalAlign:
+            "center",
+
+          verticalAlign:
+            "center",
+
+          style: {
+            width:
+              "100%",
+
+            height:
+              "100%",
+
+            padding:
+              48,
+          },
+
+          children: [
+            {
+              id:
+                elementId(
+                  "column-1",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "column",
+
+              gap:
+                16,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "30%",
+
+                height:
+                  "82%",
+
+                padding:
+                  20,
+
+                background:
+                  "rgba(15, 23, 42, 0.45)",
+              },
+
+              children:
+                [],
+            },
+
+            {
+              id:
+                elementId(
+                  "column-2",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "column",
+
+              gap:
+                16,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "30%",
+
+                height:
+                  "82%",
+
+                padding:
+                  20,
+
+                background:
+                  "rgba(15, 23, 42, 0.45)",
+              },
+
+              children:
+                [],
+            },
+
+            {
+              id:
+                elementId(
+                  "column-3",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "column",
+
+              gap:
+                16,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "30%",
+
+                height:
+                  "82%",
+
+                padding:
+                  20,
+
+                background:
+                  "rgba(15, 23, 42, 0.45)",
+              },
+
+              children:
+                [],
+            },
+          ],
+        },
+      ]);
+
+    // ========================================================
+    // END: THREE COLUMNS
+    // ========================================================
+
+
+    // ========================================================
+    // BEGIN: TITLE + TWO COLUMNS
+    // ========================================================
+
+    case "title-two-columns":
+      return buildSlide([
+        {
+          id:
+            elementId(
+              "root",
+            ),
+
+          type:
+            "container",
+
+          hidden:
+            false,
+
+          direction:
+            "column",
+
+          gap:
+            28,
+
+          horizontalAlign:
+            "center",
+
+          verticalAlign:
+            "center",
+
+          style: {
+            width:
+              "100%",
+
+            height:
+              "100%",
+
+            padding:
+              48,
+          },
+
+          children: [
+            {
+              id:
+                elementId(
+                  "title",
+                ),
+
+              type:
+                "text",
+
+              hidden:
+                false,
+
+              variant:
+                "title",
+
+              content:
+                "Slide title",
+
+              style: {
+                width:
+                  "94%",
+              },
+            },
+
+            {
+              id:
+                elementId(
+                  "columns",
+                ),
+
+              type:
+                "container",
+
+              hidden:
+                false,
+
+              direction:
+                "row",
+
+              gap:
+                28,
+
+              horizontalAlign:
+                "center",
+
+              verticalAlign:
+                "center",
+
+              style: {
+                width:
+                  "94%",
+
+                height:
+                  "70%",
+              },
+
+              children: [
+                {
+                  id:
+                    elementId(
+                      "left",
+                    ),
+
+                  type:
+                    "container",
+
+                  hidden:
+                    false,
+
+                  direction:
+                    "column",
+
+                  gap:
+                    16,
+
+                  horizontalAlign:
+                    "center",
+
+                  verticalAlign:
+                    "center",
+
+                  style: {
+                    width:
+                      "48%",
+
+                    height:
+                      "100%",
+
+                    padding:
+                      24,
+
+                    background:
+                      "rgba(15, 23, 42, 0.45)",
+                  },
+
+                  children:
+                    [],
+                },
+
+                {
+                  id:
+                    elementId(
+                      "right",
+                    ),
+
+                  type:
+                    "container",
+
+                  hidden:
+                    false,
+
+                  direction:
+                    "column",
+
+                  gap:
+                    16,
+
+                  horizontalAlign:
+                    "center",
+
+                  verticalAlign:
+                    "center",
+
+                  style: {
+                    width:
+                      "48%",
+
+                    height:
+                      "100%",
+
+                    padding:
+                      24,
+
+                    background:
+                      "rgba(15, 23, 42, 0.45)",
+                  },
+
+                  children:
+                    [],
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+    // ========================================================
+    // END: TITLE + TWO COLUMNS
+    // ========================================================
+  }
 }
 
 // ============================================================
-// END: CREATE SLIDE
+// END: CREATE SLIDE FROM PRESET
 // ============================================================
 
+
+// ============================================================
+// END: SLIDE LAYOUT PRESETS
+// ============================================================
+
+// ============================================================
+// BEGIN: CREATE BLANK SLIDE
+//
+// Mantemos esta função por compatibilidade com código existente.
+// ============================================================
+
+export function createBlankSlide(
+  slides: readonly Slide[],
+): Slide {
+  return createSlideFromPreset(
+    "blank",
+    slides,
+  );
+}
+
+// ============================================================
+// END: CREATE BLANK SLIDE
+// ============================================================
 
 // ============================================================
 // BEGIN: DUPLICATE SLIDE

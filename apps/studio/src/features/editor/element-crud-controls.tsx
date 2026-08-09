@@ -82,8 +82,18 @@ export function ElementCrudControls({
         : "Adds to slide root.";
 
 
+  // ============================================================
+  // BEGIN: FIREFOX FORM STATE RESTORATION GUARD
+  //
+  // Firefox restores dynamic button disabled states on a soft
+  // reload before React hydrates. Opting this control form out of
+  // restoration keeps the server DOM and first client render equal.
+  // ============================================================
+
   return (
-    <div
+    <form
+      autoComplete="off"
+
       className={
         styles.elementCrud
       }
@@ -268,8 +278,12 @@ export function ElementCrudControls({
       {/* =====================================================
           END: DUPLICATE + DELETE
           ===================================================== */}
-    </div>
+    </form>
   );
+
+  // ============================================================
+  // END: FIREFOX FORM STATE RESTORATION GUARD
+  // ============================================================
 }
 
 // ============================================================

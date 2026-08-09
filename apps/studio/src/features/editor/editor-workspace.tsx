@@ -17,10 +17,12 @@ import { findElementById, updateElementById } from "./element-tree";
 // ============================================================
 
 import {
-  createBlankSlide,
+  createSlideFromPreset,
   duplicateSlideWithUniqueIds,
   moveSlide,
 } from "./slide-operations";
+
+import type { SlideLayoutPreset } from "./slide-operations";
 
 // ============================================================
 // END: SLIDE OPERATIONS
@@ -70,6 +72,16 @@ import type {
 
 // ============================================================
 // END: TIPOS DO DOCUMENTO
+// ============================================================
+
+// ============================================================
+// BEGIN: SLIDE LAYOUT PICKER
+// ============================================================
+
+import { SlideLayoutPicker } from "./slide-layout-picker";
+
+// ============================================================
+// END: SLIDE LAYOUT PICKER
 // ============================================================
 
 // ============================================================
@@ -125,6 +137,34 @@ export function EditorWorkspace() {
 
   // ==========================================================
   // END: SELEÇÃO
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: NEW SLIDE PRESET
+  //
+  // Estado exclusivamente do Editor.
+  // Não faz parte do documento.
+  // ==========================================================
+
+  const [newSlidePreset, setNewSlidePreset] =
+    useState<SlideLayoutPreset>("blank");
+
+  // ==========================================================
+  // END: NEW SLIDE PRESET
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: VISIBILIDADE DO LAYOUT PICKER
+  //
+  // Estado exclusivo da interface do Editor.
+  //
+  // Não pertence à Presentation.
+  // ==========================================================
+
+  const [isSlideLayoutPickerOpen, setIsSlideLayoutPickerOpen] = useState(false);
+
+  // ==========================================================
+  // END: VISIBILIDADE DO LAYOUT PICKER
   // ==========================================================
 
   // ==========================================================
@@ -540,20 +580,17 @@ export function EditorWorkspace() {
   // ==========================================================
   // END: UPDATE DO SLIDE SELECIONADO
   // ==========================================================
-
   // ==========================================================
-  // BEGIN: CREATE SLIDE
-  //
-  // Novo slide é inserido imediatamente depois do atual.
+  // BEGIN: CREATE SLIDE FROM PRESET
   // ==========================================================
 
-  function addSlide() {
+  function addSlide(preset: SlideLayoutPreset) {
     const insertionIndex = Math.min(
       selectedSlideIndex + 1,
       presentation.slides.length,
     );
 
-    const newSlide = createBlankSlide(presentation.slides);
+    const newSlide = createSlideFromPreset(preset, presentation.slides);
 
     setPresentation((current) => ({
       ...current,
@@ -570,12 +607,21 @@ export function EditorWorkspace() {
     setSelectedSlideIndex(insertionIndex);
 
     setSelectedElement(null);
+
+    // ========================================================
+    // BEGIN: FECHAR PICKER APÓS CRIAÇÃO
+    // ========================================================
+
+    setIsSlideLayoutPickerOpen(false);
+
+    // ========================================================
+    // END: FECHAR PICKER APÓS CRIAÇÃO
+    // ========================================================
   }
 
   // ==========================================================
-  // END: CREATE SLIDE
+  // END: CREATE SLIDE FROM PRESET
   // ==========================================================
-
   // ==========================================================
   // BEGIN: DUPLICATE SLIDE
   //
@@ -708,63 +754,32 @@ export function EditorWorkspace() {
   // tendo exatamente o mesmo ID.
   // ==========================================================
 
-  function moveSelectedElement(
-    offset: -1 | 1,
-  ) {
-    if (
-      !selectedElement ||
-      !selectedElementPosition
-    ) {
+  function moveSelectedElement(offset: -1 | 1) {
+    if (!selectedElement || !selectedElementPosition) {
       return;
     }
 
+    const targetIndex = selectedElementPosition.index + offset;
 
-    const targetIndex =
-      selectedElementPosition.index +
-      offset;
-
-
-    if (
-      targetIndex < 0 ||
-      targetIndex >=
-        selectedElementPosition.count
-    ) {
+    if (targetIndex < 0 || targetIndex >= selectedElementPosition.count) {
       return;
     }
 
+    setPresentation((current) => ({
+      ...current,
 
-    setPresentation(
-      (current) => ({
-        ...current,
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
 
-        slides:
-          current.slides.map(
-            (
-              slide,
-              index,
-            ) => {
-              if (
-                index !==
-                selectedSlideIndex
-              ) {
-                return slide;
-              }
+        return {
+          ...slide,
 
-
-              return {
-                ...slide,
-
-                elements:
-                  moveElementById(
-                    slide.elements,
-                    selectedElement.id,
-                    offset,
-                  ),
-              };
-            },
-          ),
+          elements: moveElementById(slide.elements, selectedElement.id, offset),
+        };
       }),
-    );
+    }));
   }
 
   // ==========================================================
@@ -817,27 +832,46 @@ export function EditorWorkspace() {
             =================================================== */}
 
         <aside className={styles.slideSidebar}>
-          {/* =================================================
-              BEGIN: SLIDE HEADER
-              ================================================= */}
-
+          {/* ==========================================================
+    BEGIN: SLIDES HEADER
+    ========================================================== */}
           <div className={`${styles.panelHeader} ${styles.slidePanelHeader}`}>
             <span>Slides</span>
 
             <button
               type="button"
               className={styles.slideHeaderButton}
-              onClick={addSlide}
-              title="Add slide"
+              aria-expanded={isSlideLayoutPickerOpen}
+              onClick={() => {
+                setIsSlideLayoutPickerOpen((current) => !current);
+              }}
             >
-              + New
+              {isSlideLayoutPickerOpen ? "Close" : "+ New slide"}
             </button>
           </div>
+          {/* ==========================================================
+    END: SLIDES HEADER
+    ========================================================== */}
+          {/* ==========================================================
+    BEGIN: CONDITIONAL SLIDE LAYOUT PICKER
+    ========================================================== */}
 
-          {/* =================================================
-              END: SLIDE HEADER
-              ================================================= */}
+          {isSlideLayoutPickerOpen && (
+            <SlideLayoutPicker
+              value={newSlidePreset}
+              onChange={setNewSlidePreset}
+              onCreate={() => {
+                addSlide(newSlidePreset);
+              }}
+              onCancel={() => {
+                setIsSlideLayoutPickerOpen(false);
+              }}
+            />
+          )}
 
+          {/* ==========================================================
+    END: CONDITIONAL SLIDE LAYOUT PICKER
+    ========================================================== */}
           <div className={styles.slideList}>
             {presentation.slides.map((slide, index) => {
               const selected = index === selectedSlideIndex;
@@ -863,11 +897,9 @@ export function EditorWorkspace() {
           {/* =================================================
               BEGIN: SLIDE ACTIONS
               ================================================= */}
-
           {/* =================================================
               BEGIN: SLIDE ACTIONS
               ================================================= */}
-
           <div className={styles.slideActions}>
             {/* ===============================================
                 MOVE UP
@@ -926,11 +958,9 @@ export function EditorWorkspace() {
               Delete
             </button>
           </div>
-
           {/* =================================================
               END: SLIDE ACTIONS
               ================================================= */}
-
           {/* =================================================
               END: SLIDE ACTIONS
               ================================================= */}
@@ -985,60 +1015,33 @@ export function EditorWorkspace() {
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
 
-{/* ==========================================================
+            {/* ==========================================================
     BEGIN: ELEMENT CRUD CONTROLS
     ========================================================== */}
 
-<ElementCrudControls
-  selectedElement={
-    selectedDocumentElement
-  }
+            <ElementCrudControls
+              selectedElement={selectedDocumentElement}
+              canMoveUp={
+                selectedElementPosition !== null &&
+                selectedElementPosition.index > 0
+              }
+              canMoveDown={
+                selectedElementPosition !== null &&
+                selectedElementPosition.index <
+                  selectedElementPosition.count - 1
+              }
+              onAdd={addElement}
+              onMoveUp={() => {
+                moveSelectedElement(-1);
+              }}
+              onMoveDown={() => {
+                moveSelectedElement(1);
+              }}
+              onDuplicate={duplicateSelectedElement}
+              onDelete={deleteSelectedElement}
+            />
 
-  canMoveUp={
-    selectedElementPosition !==
-      null &&
-    selectedElementPosition.index >
-      0
-  }
-
-  canMoveDown={
-    selectedElementPosition !==
-      null &&
-    selectedElementPosition.index <
-      selectedElementPosition.count -
-        1
-  }
-
-  onAdd={
-    addElement
-  }
-
-  onMoveUp={
-    () => {
-      moveSelectedElement(
-        -1,
-      );
-    }
-  }
-
-  onMoveDown={
-    () => {
-      moveSelectedElement(
-        1,
-      );
-    }
-  }
-
-  onDuplicate={
-    duplicateSelectedElement
-  }
-
-  onDelete={
-    deleteSelectedElement
-  }
-/>
-
-{/* ==========================================================
+            {/* ==========================================================
     END: ELEMENT CRUD CONTROLS
     ========================================================== */}
 
