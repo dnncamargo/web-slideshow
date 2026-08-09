@@ -1,7 +1,30 @@
-import type { NextConfig } from "next";
+import type {
+  NextConfig,
+} from "next";
+
+
+// ============================================================
+// BEGIN: CONFIGURAÇÃO DO POWERSHOW STUDIO
+// ============================================================
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // ----------------------------------------------------------
+  // Packages internos do monorepo.
+  //
+  // O Studio usa diretamente o código TypeScript desses
+  // packages, portanto deixamos isso explícito para o Next.
+  // ----------------------------------------------------------
+
+  transpilePackages: [
+    "@powershow/document-schema",
+    "@powershow/renderer",
+    "@powershow/theme",
+  ],
 };
+
+// ============================================================
+// END: CONFIGURAÇÃO DO POWERSHOW STUDIO
+// ============================================================
+
 
 export default nextConfig;
