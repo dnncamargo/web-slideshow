@@ -132,6 +132,190 @@
     1px solid #232a36;
 }
 
+/* ==========================================================
+   BEGIN: SLIDE CRUD LAYOUT
+
+   Sidebar possui:
+
+   1. header fixo;
+   2. lista com scroll;
+   3. ações fixas no rodapé.
+   ========================================================== */
+
+/* ==========================================================
+   BEGIN: SLIDE SIDEBAR COM CRUD
+   ========================================================== */
+
+.slideSidebar {
+  grid-template-rows:
+    44px
+    minmax(0, 1fr)
+    auto;
+}
+
+/* ==========================================================
+   END: SLIDE SIDEBAR COM CRUD
+   ========================================================== */
+
+.slidePanelHeader {
+  justify-content:
+    space-between;
+
+  gap: 8px;
+}
+
+
+.slideHeaderButton {
+  height: 26px;
+
+  padding:
+    0
+    8px;
+
+  border:
+    1px solid
+    #3b4260;
+
+  border-radius:
+    6px;
+
+  background:
+    #252443;
+
+  color:
+    #c7d2fe;
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+
+  cursor:
+    pointer;
+
+  text-transform:
+    none;
+
+  letter-spacing:
+    normal;
+}
+
+
+.slideHeaderButton:hover {
+  border-color:
+    #6366f1;
+
+  background:
+    #302e58;
+
+  color:
+    #eef2ff;
+}
+
+/* ==========================================================
+   END: SLIDE CRUD LAYOUT
+   ========================================================== */
+
+
+/* ==========================================================
+   BEGIN: SLIDE CRUD ACTIONS
+   ========================================================== */
+
+.slideActions {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  gap: 6px;
+
+  padding:
+    6px
+    10px;
+
+  border-top:
+    1px solid
+    #232a36;
+
+  background:
+    #111620;
+}
+
+
+.slideActionButton {
+  min-width: 0;
+
+  height: 30px;
+
+  padding:
+    0
+    8px;
+
+  border:
+    1px solid
+    #303847;
+
+  border-radius:
+    6px;
+
+  background:
+    #151b26;
+
+  color:
+    #aeb7c5;
+
+  font-size:
+    11px;
+
+  cursor:
+    pointer;
+}
+
+
+.slideActionButton:hover:not(:disabled) {
+  border-color:
+    #4b5567;
+
+  background:
+    #1b2330;
+
+  color:
+    #e2e8f0;
+}
+
+
+.slideActionDanger {
+  color:
+    #fca5a5;
+}
+
+
+.slideActionDanger:hover:not(:disabled) {
+  border-color:
+    #7f1d1d;
+
+  background:
+    #261317;
+
+  color:
+    #fecaca;
+}
+
+
+.slideActionButton:disabled {
+  opacity:
+    0.38;
+
+  cursor:
+    not-allowed;
+}
+
+/* ==========================================================
+   END: SLIDE CRUD ACTIONS
+   ========================================================== */
+
 .inspector {
   border-left:
     1px solid #232a36;
