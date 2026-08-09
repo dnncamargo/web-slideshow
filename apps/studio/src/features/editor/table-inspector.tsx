@@ -1,168 +1,93 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useState } from "react";
 
-import type {
-  PowerShowElement,
-} from "@powershow/document-schema";
+import type { PowerShowElement } from "@powershow/document-schema";
 
-import styles from
-  "./editor-workspace.module.css";
-
+import styles from "./editor-workspace.module.css";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
 // ============================================================
 
-type TableElement =
-  Extract<
-    PowerShowElement,
-    {
-      type: "table";
-    }
-  >;
+type TableElement = Extract<
+  PowerShowElement,
+  {
+    type: "table";
+  }
+>;
 
+type TableColumn = TableElement["columns"][number];
 
-type TableColumn =
-  TableElement["columns"][number];
+type TableRow = TableElement["rows"][number];
 
-
-type TableRow =
-  TableElement["rows"][number];
-
-
-type TableCellValue =
-  TableRow[string];
-
+type TableCellValue = TableRow[string];
 
 interface TableInspectorProps {
   element: TableElement;
 
-  onUpdate: (
-    update: (
-      element: PowerShowElement,
-    ) => PowerShowElement,
-  ) => void;
+  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
 }
 
 // ============================================================
 // END: TIPOS DO TABLE INSPECTOR
 // ============================================================
 
-
 // ============================================================
 // BEGIN: HELPERS DE TABLE
 // ============================================================
 
-function createUniqueColumnKey(
-  columns: TableColumn[],
-): string {
+function createUniqueColumnKey(columns: TableColumn[]): string {
   let index = 1;
 
-
-  while (
-    columns.some(
-      (column) =>
-        column.key ===
-        `column_${index}`,
-    )
-  ) {
+  while (columns.some((column) => column.key === `column_${index}`)) {
     index += 1;
   }
-
 
   return `column_${index}`;
 }
 
-
 function getCellType(
-  value:
-    | TableCellValue
-    | undefined,
-):
-  | "string"
-  | "number"
-  | "boolean"
-  | "null" {
-  if (
-    value === null
-  ) {
+  value: TableCellValue | undefined,
+): "string" | "number" | "boolean" | "null" {
+  if (value === null) {
     return "null";
   }
 
-
-  if (
-    typeof value ===
-    "number"
-  ) {
+  if (typeof value === "number") {
     return "number";
   }
 
-
-  if (
-    typeof value ===
-    "boolean"
-  ) {
+  if (typeof value === "boolean") {
     return "boolean";
   }
-
 
   return "string";
 }
 
-
 function convertCellType(
-  value:
-    | TableCellValue
-    | undefined,
+  value: TableCellValue | undefined,
 
-  type:
-    | "string"
-    | "number"
-    | "boolean"
-    | "null",
+  type: "string" | "number" | "boolean" | "null",
 ): TableCellValue {
   switch (type) {
     case "number": {
-      if (
-        typeof value ===
-        "number"
-      ) {
+      if (typeof value === "number") {
         return value;
       }
 
+      const converted = Number(value);
 
-      const converted =
-        Number(value);
-
-
-      return Number.isFinite(
-        converted,
-      )
-        ? converted
-        : 0;
+      return Number.isFinite(converted) ? converted : 0;
     }
 
-
     case "boolean":
-      return typeof value ===
-        "boolean"
-        ? value
-        : false;
-
+      return typeof value === "boolean" ? value : false;
 
     case "null":
       return null;
 
-
     case "string":
     default:
-      return value ===
-        undefined ||
-        value === null
-        ? ""
-        : String(value);
+      return value === undefined || value === null ? "" : String(value);
   }
 }
 
@@ -170,16 +95,17 @@ function convertCellType(
 // END: HELPERS DE TABLE
 // ============================================================
 
-
 // ============================================================
 // BEGIN: COLUMN KEY INPUT
 //
 // A key é estrutural.
 //
-// Por isso não alteramos o documento a cada tecla.
-// A mudança é confirmada no blur/Enter.
+// Mantemos um draft local enquanto o usuário digita e somente
+// alteramos o documento no blur/Enter.
 //
-// Isso evita estados intermediários com key vazia.
+// Não precisamos de useEffect para sincronizar currentKey.
+// Quando a coluna muda de identidade, React recria este
+// componente através de sua key.
 // ============================================================
 
 interface ColumnKeyInputProps {
@@ -187,102 +113,53 @@ interface ColumnKeyInputProps {
 
   existingKeys: string[];
 
-  onCommit: (
-    newKey: string,
-  ) => void;
+  onCommit: (newKey: string) => void;
 }
-
 
 function ColumnKeyInput({
   currentKey,
   existingKeys,
   onCommit,
 }: ColumnKeyInputProps) {
-  const [
-    draft,
-    setDraft,
-  ] = useState(
-    currentKey,
-  );
-
-
-  useEffect(
-    () => {
-      setDraft(
-        currentKey,
-      );
-    },
-    [
-      currentKey,
-    ],
-  );
-
+  const [draft, setDraft] = useState(currentKey);
 
   function commit() {
-    const value =
-      draft.trim();
+    const value = draft.trim();
 
+    const duplicate = existingKeys.some(
+      (key) => key === value && key !== currentKey,
+    );
 
-    const duplicate =
-      existingKeys.some(
-        (key) =>
-          key === value &&
-          key !== currentKey,
-      );
-
-
-    if (
-      !value ||
-      duplicate
-    ) {
-      setDraft(
-        currentKey,
-      );
+    if (!value || duplicate) {
+      setDraft(currentKey);
 
       return;
     }
 
-
-    if (
-      value !== currentKey
-    ) {
-      onCommit(
-        value,
-      );
+    if (value !== currentKey) {
+      onCommit(value);
     }
   }
-
 
   return (
     <input
       type="text"
-
-      value={
-        draft
-      }
-
-      onChange={
-        (event) => {
-          setDraft(
-            event.target.value,
-          );
+      value={draft}
+      onChange={(event) => {
+        setDraft(event.target.value);
+      }}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
         }
-      }
 
-      onBlur={
-        commit
-      }
+        if (event.key === "Escape") {
+          setDraft(currentKey);
 
-      onKeyDown={
-        (event) => {
-          if (
-            event.key ===
-            "Enter"
-          ) {
-            event.currentTarget.blur();
-          }
+          event.currentTarget.blur();
         }
-      }
+      }}
     />
   );
 }
@@ -290,7 +167,6 @@ function ColumnKeyInput({
 // ============================================================
 // END: COLUMN KEY INPUT
 // ============================================================
-
 
 // ============================================================
 // BEGIN: TABLE CELL EDITOR
@@ -309,184 +185,74 @@ function ColumnKeyInput({
 // ============================================================
 
 interface TableCellEditorProps {
-  value:
-    | TableCellValue
-    | undefined;
+  value: TableCellValue | undefined;
 
-  onChange: (
-    value: TableCellValue,
-  ) => void;
+  onChange: (value: TableCellValue) => void;
 }
 
-
-function TableCellEditor({
-  value,
-  onChange,
-}: TableCellEditorProps) {
-  const type =
-    getCellType(
-      value,
-    );
-
+function TableCellEditor({ value, onChange }: TableCellEditorProps) {
+  const type = getCellType(value);
 
   return (
-    <div
-      className={
-        styles.tableCellEditor
-      }
-    >
+    <div className={styles.tableCellEditor}>
       <select
-        className={
-          styles.tableCellType
-        }
+        className={styles.tableCellType}
+        value={type}
+        onChange={(event) => {
+          onChange(
+            convertCellType(
+              value,
 
-        value={
-          type
-        }
-
-        onChange={
-          (event) => {
-            onChange(
-              convertCellType(
-                value,
-
-                event.target
-                  .value as
-                  | "string"
-                  | "number"
-                  | "boolean"
-                  | "null",
-              ),
-            );
-          }
-        }
+              event.target.value as "string" | "number" | "boolean" | "null",
+            ),
+          );
+        }}
       >
-        <option
-          value="string"
-        >
-          Text
-        </option>
+        <option value="string">Text</option>
 
-        <option
-          value="number"
-        >
-          Number
-        </option>
+        <option value="number">Number</option>
 
-        <option
-          value="boolean"
-        >
-          Boolean
-        </option>
+        <option value="boolean">Boolean</option>
 
-        <option
-          value="null"
-        >
-          Null
-        </option>
+        <option value="null">Null</option>
       </select>
 
-
-      {type ===
-        "string" && (
+      {type === "string" && (
         <input
           type="text"
-
-          value={
-            typeof value ===
-              "string"
-              ? value
-              : ""
-          }
-
-          onChange={
-            (event) => {
-              onChange(
-                event.target.value,
-              );
-            }
-          }
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
         />
       )}
 
-
-      {type ===
-        "number" && (
+      {type === "number" && (
         <input
           type="number"
+          value={typeof value === "number" ? value : 0}
+          onChange={(event) => {
+            const number = Number(event.target.value);
 
-          value={
-            typeof value ===
-              "number"
-              ? value
-              : 0
-          }
-
-          onChange={
-            (event) => {
-              const number =
-                Number(
-                  event.target.value,
-                );
-
-
-              onChange(
-                Number.isFinite(
-                  number,
-                )
-                  ? number
-                  : 0,
-              );
-            }
-          }
+            onChange(Number.isFinite(number) ? number : 0);
+          }}
         />
       )}
 
-
-      {type ===
-        "boolean" && (
+      {type === "boolean" && (
         <select
-          value={
-            value === true
-              ? "true"
-              : "false"
-          }
-
-          onChange={
-            (event) => {
-              onChange(
-                event.target
-                  .value ===
-                  "true",
-              );
-            }
-          }
+          value={value === true ? "true" : "false"}
+          onChange={(event) => {
+            onChange(event.target.value === "true");
+          }}
         >
-          <option
-            value="true"
-          >
-            True
-          </option>
+          <option value="true">True</option>
 
-          <option
-            value="false"
-          >
-            False
-          </option>
+          <option value="false">False</option>
         </select>
       )}
 
-
-      {type ===
-        "null" && (
-        <div
-          className={
-            styles.tableNullValue
-          }
-        >
-          null
-        </div>
-      )}
+      {type === "null" && <div className={styles.tableNullValue}>null</div>}
     </div>
   );
 }
@@ -495,46 +261,28 @@ function TableCellEditor({
 // END: TABLE CELL EDITOR
 // ============================================================
 
-
 // ============================================================
 // BEGIN: TABLE INSPECTOR
 // ============================================================
 
-export function TableInspector({
-  element,
-  onUpdate,
-}: TableInspectorProps) {
-
+export function TableInspector({ element, onUpdate }: TableInspectorProps) {
   // ==========================================================
   // BEGIN: UPDATE GENÉRICO DE TABLE
   // ==========================================================
 
-  function updateTable(
-    update: (
-      table: TableElement,
-    ) => TableElement,
-  ) {
-    onUpdate(
-      (current) => {
-        if (
-          current.type !==
-          "table"
-        ) {
-          return current;
-        }
+  function updateTable(update: (table: TableElement) => TableElement) {
+    onUpdate((current) => {
+      if (current.type !== "table") {
+        return current;
+      }
 
-
-        return update(
-          current,
-        );
-      },
-    );
+      return update(current);
+    });
   }
 
   // ==========================================================
   // END: UPDATE GENÉRICO DE TABLE
   // ==========================================================
-
 
   // ==========================================================
   // BEGIN: RENOMEAR KEY DE COLUNA
@@ -543,275 +291,168 @@ export function TableInspector({
   // migrados para a nova key.
   // ==========================================================
 
-  function renameColumn(
-    index: number,
-    newKey: string,
-  ) {
-    updateTable(
-      (table) => {
-        const column =
-          table.columns[
-            index
-          ];
+  function renameColumn(index: number, newKey: string) {
+    updateTable((table) => {
+      const column = table.columns[index];
 
+      if (!column) {
+        return table;
+      }
 
-        if (!column) {
-          return table;
-        }
+      const oldKey = column.key;
 
+      if (oldKey === newKey) {
+        return table;
+      }
 
-        const oldKey =
-          column.key;
+      const columns = table.columns.map((currentColumn, columnIndex) =>
+        columnIndex === index
+          ? {
+              ...currentColumn,
 
+              key: newKey,
+            }
+          : currentColumn,
+      );
 
-        if (
-          oldKey === newKey
-        ) {
-          return table;
-        }
-
-
-        const columns =
-          table.columns.map(
-            (
-              currentColumn,
-              columnIndex,
-            ) =>
-              columnIndex ===
-                index
-                ? {
-                    ...currentColumn,
-
-                    key:
-                      newKey,
-                  }
-                : currentColumn,
-          );
-
-
-        const rows =
-          table.rows.map(
-            (row) => {
-              const nextRow:
-                TableRow = {
-                  ...row,
-                };
-
-
-              const value =
-                nextRow[
-                  oldKey
-                ];
-
-
-              delete nextRow[
-                oldKey
-              ];
-
-
-              nextRow[
-                newKey
-              ] =
-                value ??
-                "";
-
-
-              return nextRow;
-            },
-          );
-
-
-        return {
-          ...table,
-
-          columns,
-          rows,
+      const rows = table.rows.map((row) => {
+        const nextRow: TableRow = {
+          ...row,
         };
-      },
-    );
+
+        const value = nextRow[oldKey];
+
+        delete nextRow[oldKey];
+
+        nextRow[newKey] = value ?? "";
+
+        return nextRow;
+      });
+
+      return {
+        ...table,
+
+        columns,
+        rows,
+      };
+    });
   }
 
   // ==========================================================
   // END: RENOMEAR KEY DE COLUNA
   // ==========================================================
 
-
   // ==========================================================
   // BEGIN: ADICIONAR COLUNA
   // ==========================================================
 
   function addColumn() {
-    updateTable(
-      (table) => {
-        const key =
-          createUniqueColumnKey(
-            table.columns,
-          );
+    updateTable((table) => {
+      const key = createUniqueColumnKey(table.columns);
 
+      return {
+        ...table,
 
-        return {
-          ...table,
+        columns: [
+          ...table.columns,
 
-          columns: [
-            ...table.columns,
+          {
+            key,
 
-            {
-              key,
+            label: "New column",
+          },
+        ],
 
-              label:
-                "New column",
-            },
-          ],
+        rows: table.rows.map((row) => ({
+          ...row,
 
-          rows:
-            table.rows.map(
-              (row) => ({
-                ...row,
-
-                [key]:
-                  "",
-              }),
-            ),
-        };
-      },
-    );
+          [key]: "",
+        })),
+      };
+    });
   }
 
   // ==========================================================
   // END: ADICIONAR COLUNA
   // ==========================================================
 
-
   // ==========================================================
   // BEGIN: REMOVER COLUNA
   // ==========================================================
 
-  function removeColumn(
-    index: number,
-  ) {
-    updateTable(
-      (table) => {
-        const column =
-          table.columns[
-            index
-          ];
+  function removeColumn(index: number) {
+    updateTable((table) => {
+      const column = table.columns[index];
 
+      if (!column) {
+        return table;
+      }
 
-        if (!column) {
-          return table;
-        }
+      const key = column.key;
 
+      return {
+        ...table,
 
-        const key =
-          column.key;
+        columns: table.columns.filter(
+          (_column, columnIndex) => columnIndex !== index,
+        ),
 
+        rows: table.rows.map((row) => {
+          const nextRow: TableRow = {
+            ...row,
+          };
 
-        return {
-          ...table,
+          delete nextRow[key];
 
-          columns:
-            table.columns.filter(
-              (
-                _column,
-                columnIndex,
-              ) =>
-                columnIndex !==
-                index,
-            ),
-
-          rows:
-            table.rows.map(
-              (row) => {
-                const nextRow:
-                  TableRow = {
-                    ...row,
-                  };
-
-
-                delete nextRow[
-                  key
-                ];
-
-
-                return nextRow;
-              },
-            ),
-        };
-      },
-    );
+          return nextRow;
+        }),
+      };
+    });
   }
 
   // ==========================================================
   // END: REMOVER COLUNA
   // ==========================================================
 
-
   // ==========================================================
   // BEGIN: ADICIONAR LINHA
   // ==========================================================
 
   function addRow() {
-    updateTable(
-      (table) => {
-        const row:
-          TableRow = {};
+    updateTable((table) => {
+      const row: TableRow = {};
 
+      for (const column of table.columns) {
+        row[column.key] = "";
+      }
 
-        for (
-          const column of
-            table.columns
-        ) {
-          row[
-            column.key
-          ] = "";
-        }
+      return {
+        ...table,
 
-
-        return {
-          ...table,
-
-          rows: [
-            ...table.rows,
-            row,
-          ],
-        };
-      },
-    );
+        rows: [...table.rows, row],
+      };
+    });
   }
 
   // ==========================================================
   // END: ADICIONAR LINHA
   // ==========================================================
 
-
   // ==========================================================
   // BEGIN: REMOVER LINHA
   // ==========================================================
 
-  function removeRow(
-    index: number,
-  ) {
-    updateTable(
-      (table) => ({
-        ...table,
+  function removeRow(index: number) {
+    updateTable((table) => ({
+      ...table,
 
-        rows:
-          table.rows.filter(
-            (
-              _row,
-              rowIndex,
-            ) =>
-              rowIndex !==
-              index,
-          ),
-      }),
-    );
+      rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
+    }));
   }
 
   // ==========================================================
   // END: REMOVER LINHA
   // ==========================================================
-
 
   // ==========================================================
   // BEGIN: ATUALIZAR CÉLULA
@@ -822,219 +463,112 @@ export function TableInspector({
     columnKey: string,
     value: TableCellValue,
   ) {
-    updateTable(
-      (table) => ({
-        ...table,
+    updateTable((table) => ({
+      ...table,
 
-        rows:
-          table.rows.map(
-            (
-              row,
-              index,
-            ) =>
-              index ===
-                rowIndex
-                ? {
-                    ...row,
+      rows: table.rows.map((row, index) =>
+        index === rowIndex
+          ? {
+              ...row,
 
-                    [columnKey]:
-                      value,
-                  }
-                : row,
-          ),
-      }),
-    );
+              [columnKey]: value,
+            }
+          : row,
+      ),
+    }));
   }
 
   // ==========================================================
   // END: ATUALIZAR CÉLULA
   // ==========================================================
 
-
   return (
     <>
-      <div
-        className={
-          styles.inspectorDivider
-        }
-      />
-
+      <div className={styles.inspectorDivider} />
 
       {/* =====================================================
           BEGIN: COLUMNS
           ===================================================== */}
 
-      <div
-        className={
-          styles.inspectorSectionHeader
-        }
-      >
-        <div
-          className={
-            styles.inspectorSectionTitle
-          }
-        >
-          Columns
-        </div>
+      <div className={styles.inspectorSectionHeader}>
+        <div className={styles.inspectorSectionTitle}>Columns</div>
 
-        <span
-          className={
-            styles.sectionCount
-          }
-        >
-          {element.columns.length}
-        </span>
+        <span className={styles.sectionCount}>{element.columns.length}</span>
       </div>
 
+      <div className={styles.tableEditorList}>
+        {element.columns.map((column, index) => (
+          <div key={column.key} className={styles.tableColumnEditor}>
+            <div className={styles.tableEditorHeader}>
+              <strong>Column {index + 1}</strong>
 
-      <div
-        className={
-          styles.tableEditorList
-        }
-      >
-        {element.columns.map(
-          (
-            column,
-            index,
-          ) => (
-            <div
-              key={
-                column.key
-              }
-
-              className={
-                styles.tableColumnEditor
-              }
-            >
-              <div
-                className={
-                  styles.tableEditorHeader
-                }
+              <button
+                type="button"
+                className={styles.iconButtonDanger}
+                aria-label={`Remove column ${index + 1}`}
+                onClick={() => {
+                  removeColumn(index);
+                }}
               >
-                <strong>
-                  Column {index + 1}
-                </strong>
-
-                <button
-                  type="button"
-
-                  className={
-                    styles.iconButtonDanger
-                  }
-
-                  aria-label={
-                    `Remove column ${index + 1}`
-                  }
-
-                  onClick={
-                    () => {
-                      removeColumn(
-                        index,
-                      );
-                    }
-                  }
-                >
-                  ×
-                </button>
-              </div>
-
-
-              <label
-                className={
-                  styles.field
-                }
-              >
-                <span>
-                  Label
-                </span>
-
-                <input
-                  type="text"
-
-                  value={
-                    column.label
-                  }
-
-                  onChange={
-                    (event) => {
-                      const label =
-                        event.target.value;
-
-
-                      updateTable(
-                        (table) => ({
-                          ...table,
-
-                          columns:
-                            table.columns.map(
-                              (
-                                currentColumn,
-                                columnIndex,
-                              ) =>
-                                columnIndex ===
-                                  index
-                                  ? {
-                                      ...currentColumn,
-
-                                      label,
-                                    }
-                                  : currentColumn,
-                            ),
-                        }),
-                      );
-                    }
-                  }
-                />
-              </label>
-
-
-              <label
-                className={
-                  styles.field
-                }
-              >
-                <span>
-                  Key
-                </span>
-
-                <ColumnKeyInput
-                  currentKey={
-                    column.key
-                  }
-
-                  existingKeys={
-                    element.columns.map(
-                      (item) =>
-                        item.key,
-                    )
-                  }
-
-                  onCommit={
-                    (newKey) => {
-                      renameColumn(
-                        index,
-                        newKey,
-                      );
-                    }
-                  }
-                />
-              </label>
+                ×
+              </button>
             </div>
-          ),
-        )}
-      </div>
 
+            <label className={styles.field}>
+              <span>Label</span>
+
+              <input
+                type="text"
+                value={column.label}
+                onChange={(event) => {
+                  const label = event.target.value;
+
+                  updateTable((table) => ({
+                    ...table,
+
+                    columns: table.columns.map((currentColumn, columnIndex) =>
+                      columnIndex === index
+                        ? {
+                            ...currentColumn,
+
+                            label,
+                          }
+                        : currentColumn,
+                    ),
+                  }));
+                }}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Key</span>
+              {/* ==========================================================
+    BEGIN: COLUMN KEY EDITOR
+
+    A key React acompanha a própria key estrutural da coluna.
+    Se ela for renomeada, ColumnKeyInput é recriado e seu
+    draft começa naturalmente com o novo valor.
+    ========================================================== */}
+              <ColumnKeyInput
+                key={column.key}
+                currentKey={column.key}
+                existingKeys={element.columns.map((item) => item.key)}
+                onCommit={(newKey) => {
+                  renameColumn(index, newKey);
+                }}
+              />
+              {/* ==========================================================
+    END: COLUMN KEY EDITOR
+    ========================================================== */}{" "}
+            </label>
+          </div>
+        ))}
+      </div>
 
       <button
         type="button"
-
-        className={
-          styles.secondaryButton
-        }
-
-        onClick={
-          addColumn
-        }
+        className={styles.secondaryButton}
+        onClick={addColumn}
       >
         + Add column
       </button>
@@ -1043,169 +577,61 @@ export function TableInspector({
           END: COLUMNS
           ===================================================== */}
 
-
-      <div
-        className={
-          styles.inspectorDivider
-        }
-      />
-
+      <div className={styles.inspectorDivider} />
 
       {/* =====================================================
           BEGIN: ROWS
           ===================================================== */}
 
-      <div
-        className={
-          styles.inspectorSectionHeader
-        }
-      >
-        <div
-          className={
-            styles.inspectorSectionTitle
-          }
-        >
-          Rows
-        </div>
+      <div className={styles.inspectorSectionHeader}>
+        <div className={styles.inspectorSectionTitle}>Rows</div>
 
-        <span
-          className={
-            styles.sectionCount
-          }
-        >
-          {element.rows.length}
-        </span>
+        <span className={styles.sectionCount}>{element.rows.length}</span>
       </div>
 
-
-      <div
-        className={
-          styles.tableEditorList
-        }
-      >
-        {element.rows.length ===
-          0 && (
-          <div
-            className={
-              styles.emptyInspectorList
-            }
-          >
-            No rows.
-          </div>
+      <div className={styles.tableEditorList}>
+        {element.rows.length === 0 && (
+          <div className={styles.emptyInspectorList}>No rows.</div>
         )}
 
+        {element.rows.map((row, rowIndex) => (
+          <div key={rowIndex} className={styles.tableRowEditor}>
+            <div className={styles.tableEditorHeader}>
+              <strong>Row {rowIndex + 1}</strong>
 
-        {element.rows.map(
-          (
-            row,
-            rowIndex,
-          ) => (
-            <div
-              key={
-                rowIndex
-              }
-
-              className={
-                styles.tableRowEditor
-              }
-            >
-              <div
-                className={
-                  styles.tableEditorHeader
-                }
+              <button
+                type="button"
+                className={styles.iconButtonDanger}
+                aria-label={`Remove row ${rowIndex + 1}`}
+                onClick={() => {
+                  removeRow(rowIndex);
+                }}
               >
-                <strong>
-                  Row {rowIndex + 1}
-                </strong>
-
-                <button
-                  type="button"
-
-                  className={
-                    styles.iconButtonDanger
-                  }
-
-                  aria-label={
-                    `Remove row ${rowIndex + 1}`
-                  }
-
-                  onClick={
-                    () => {
-                      removeRow(
-                        rowIndex,
-                      );
-                    }
-                  }
-                >
-                  ×
-                </button>
-              </div>
-
-
-              <div
-                className={
-                  styles.tableCells
-                }
-              >
-                {element.columns.map(
-                  (column) => (
-                    <div
-                      key={
-                        column.key
-                      }
-
-                      className={
-                        styles.tableCellField
-                      }
-                    >
-                      <span
-                        className={
-                          styles.tableCellLabel
-                        }
-                      >
-                        {column.label ||
-                          column.key}
-                      </span>
-
-
-                      <TableCellEditor
-                        value={
-                          row[
-                            column.key
-                          ]
-                        }
-
-                        onChange={
-                          (value) => {
-                            updateCell(
-                              rowIndex,
-                              column.key,
-                              value,
-                            );
-                          }
-                        }
-                      />
-                    </div>
-                  ),
-                )}
-              </div>
+                ×
+              </button>
             </div>
-          ),
-        )}
+
+            <div className={styles.tableCells}>
+              {element.columns.map((column) => (
+                <div key={column.key} className={styles.tableCellField}>
+                  <span className={styles.tableCellLabel}>
+                    {column.label || column.key}
+                  </span>
+
+                  <TableCellEditor
+                    value={row[column.key]}
+                    onChange={(value) => {
+                      updateCell(rowIndex, column.key, value);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
-
-      <button
-        type="button"
-
-        className={
-          styles.secondaryButton
-        }
-
-        onClick={
-          addRow
-        }
-      >
+      <button type="button" className={styles.secondaryButton} onClick={addRow}>
         + Add row
       </button>
 
