@@ -52,7 +52,45 @@ describe("SlideSchema", () => {
 
     expect(result.success).toBe(false);
   });
-  it("rejects image and pattern together", () => {
+  it("rejects image combined with gradient", () => {
+    const result = SlideSchema.safeParse({
+      id: "slide-invalid-gradient-background",
+      elements: [],
+
+      background: {
+        image: "/background.jpg",
+
+        gradient: {
+          type: "linear",
+          angle: 135,
+
+          stops: [
+            {
+              color: "#7c3aed",
+              position: 0,
+            },
+            {
+              color: "#06b6d4",
+              position: 100,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) =>
+            issue.message ===
+            "Slide background image cannot currently be combined with pattern or gradient.",
+        ),
+      ).toBe(true);
+    }
+  });
+  it("rejects image combined with pattern", () => {
     const result = SlideSchema.safeParse({
       id: "slide-invalid-background",
       elements: [],
@@ -73,9 +111,40 @@ describe("SlideSchema", () => {
         result.error.issues.some(
           (issue) =>
             issue.message ===
-            "Slide background cannot define both image and pattern.",
+            "Slide background image cannot currently be combined with pattern or gradient.",
         ),
       ).toBe(true);
     }
+  });
+  it("accepts gradient combined with pattern", () => {
+    const result = SlideSchema.safeParse({
+      id: "slide-gradient-pattern",
+      elements: [],
+
+      background: {
+        gradient: {
+          type: "linear",
+
+          stops: [
+            {
+              color: "#111827",
+              position: 0,
+            },
+            {
+              color: "#1f2937",
+              position: 100,
+            },
+          ],
+        },
+
+        pattern: {
+          type: "grid",
+          color: "#374151",
+          size: 24,
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
   });
 });

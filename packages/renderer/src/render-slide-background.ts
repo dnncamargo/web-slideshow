@@ -3,20 +3,17 @@ import type {
   SlideBackgroundPattern,
 } from "@powershow/document-schema";
 
+import {
+  renderGradient,
+} from "./render-visual";
+
 import { escapeHtml } from "./escape-html";
-import { renderLength } from "./render-style";
+import { renderLength } from "./render-length";
 
-function renderPattern(
-  pattern: SlideBackgroundPattern,
-): string {
-  const size =
-    pattern.size !== undefined
-      ? renderLength(pattern.size)
-      : "24px";
+function renderPattern(pattern: SlideBackgroundPattern): string {
+  const size = pattern.size !== undefined ? renderLength(pattern.size) : "24px";
 
-  const color =
-    pattern.color ??
-    "rgba(255,255,255,0.12)";
+  const color = pattern.color ?? "rgba(255,255,255,0.12)";
 
   switch (pattern.type) {
     case "dots":
@@ -61,8 +58,14 @@ export function renderSlideBackground(
   ];
 
   if (background?.color) {
+    styles.push(`background-color:${background.color}`);
+  }
+
+  if (background?.gradient) {
     styles.push(
-      `background-color:${background.color}`,
+      `background-image:${renderGradient(
+        background.gradient,
+      )}`,
     );
   }
 
@@ -87,30 +90,21 @@ export function renderSlideBackground(
       renderPattern(background.pattern),
     ];
 
-    if (
-      background.pattern.backgroundColor
-    ) {
+    if (background.pattern.backgroundColor) {
       patternStyles.push(
         `background-color:${background.pattern.backgroundColor}`,
       );
     }
 
-    if (
-      background.pattern.opacity !==
-      undefined
-    ) {
-      patternStyles.push(
-        `opacity:${background.pattern.opacity}`,
-      );
+    if (background.pattern.opacity !== undefined) {
+      patternStyles.push(`opacity:${background.pattern.opacity}`);
     }
 
     children.push(
       `<div` +
         ` class="powershow-slide-background-pattern"` +
         ` aria-hidden="true"` +
-        ` style="${escapeHtml(
-          patternStyles.join(";"),
-        )}"` +
+        ` style="${escapeHtml(patternStyles.join(";"))}"` +
         `></div>`,
     );
   }
@@ -119,9 +113,7 @@ export function renderSlideBackground(
     `<div` +
     ` class="powershow-slide-background"` +
     ` aria-hidden="true"` +
-    ` style="${escapeHtml(
-      styles.join(";"),
-    )}"` +
+    ` style="${escapeHtml(styles.join(";"))}"` +
     `>` +
     children.join("") +
     `</div>`

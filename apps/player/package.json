@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@powershow/document-schema": "workspace:*",
-    "@powershow/renderer": "workspace:*"
+    "@powershow/renderer": "workspace:*",
+    "@powershow/theme": "workspace:*"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",

@@ -16,6 +16,9 @@ importers:
       '@powershow/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer
+      '@powershow/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
     devDependencies:
       jsdom:
         specifier: ^26.1.0
@@ -85,6 +88,15 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
+        version: 3.2.7(@types/node@20.19.43)(jsdom@26.1.0)(lightningcss@1.33.0)
+
+  packages/theme:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
         version: 3.2.7(@types/node@20.19.43)(jsdom@26.1.0)(lightningcss@1.33.0)
 
 packages:

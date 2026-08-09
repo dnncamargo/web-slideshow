@@ -1,22 +1,13 @@
-import {
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type {
   Slide,
   SlideBackgroundPatternType,
 } from "@powershow/document-schema";
 
-import {
-  renderSlide,
-} from "../src/render-slide";
+import { renderSlide } from "../src/render-slide";
 
-import {
-  createSlide,
-  createTextElement,
-} from "./fixtures/render-fixtures";
+import { createSlide, createTextElement } from "./fixtures/render-fixtures";
 
 describe("renderSlide", () => {
   it("renders separate background and content layers", () => {
@@ -41,17 +32,11 @@ describe("renderSlide", () => {
 
     const html = renderSlide(slide);
 
-    expect(html).toContain(
-      'class="powershow-slide-background"',
-    );
+    expect(html).toContain('class="powershow-slide-background"');
 
-    expect(html).toContain(
-      'class="powershow-slide-content"',
-    );
+    expect(html).toContain('class="powershow-slide-content"');
 
-    expect(html).toContain(
-      "PowerShow",
-    );
+    expect(html).toContain("PowerShow");
   });
 
   it("renders a background image", () => {
@@ -62,24 +47,17 @@ describe("renderSlide", () => {
       speakerNotes: "",
       elements: [],
       background: {
-        image:
-          "/assets/background.jpg",
+        image: "/assets/background.jpg",
       },
     };
 
     const html = renderSlide(slide);
 
-    expect(html).toContain(
-      "powershow-slide-background-image",
-    );
+    expect(html).toContain("powershow-slide-background-image");
 
-    expect(html).toContain(
-      'src="/assets/background.jpg"',
-    );
+    expect(html).toContain('src="/assets/background.jpg"');
 
-    expect(html).toContain(
-      "object-fit:cover",
-    );
+    expect(html).toContain("object-fit:cover");
   });
 
   it("renders a dots pattern", () => {
@@ -101,17 +79,11 @@ describe("renderSlide", () => {
 
     const html = renderSlide(slide);
 
-    expect(html).toContain(
-      "powershow-slide-background-pattern",
-    );
+    expect(html).toContain("powershow-slide-background-pattern");
 
-    expect(html).toContain(
-      "radial-gradient",
-    );
+    expect(html).toContain("radial-gradient");
 
-    expect(html).toContain(
-      "background-size:20px 20px",
-    );
+    expect(html).toContain("background-size:20px 20px");
   });
 
   it("keeps content outside the background layer", () => {
@@ -138,56 +110,24 @@ describe("renderSlide", () => {
 
     const html = renderSlide(slide);
 
-    const backgroundEnd =
-      html.indexOf(
-        "</div>",
-        html.indexOf(
-          'class="powershow-slide-background"',
-        ),
-      );
-
-    const contentStart =
-      html.indexOf(
-        'class="powershow-slide-content"',
-      );
-
-    expect(backgroundEnd).toBeLessThan(
-      contentStart,
+    const backgroundEnd = html.indexOf(
+      "</div>",
+      html.indexOf('class="powershow-slide-background"'),
     );
+
+    const contentStart = html.indexOf('class="powershow-slide-content"');
+
+    expect(backgroundEnd).toBeLessThan(contentStart);
   });
 
   it.each([
-    [
-      "dots",
-      "radial-gradient",
-      "background-size:24px 24px",
-    ],
-    [
-      "grid",
-      "linear-gradient",
-      "background-size:24px 24px",
-    ],
-    [
-      "horizontal-lines",
-      "linear-gradient",
-      "background-size:100% 24px",
-    ],
-    [
-      "vertical-lines",
-      "linear-gradient(90deg",
-      "background-size:24px 100%",
-    ],
-    [
-      "diagonal-lines",
-      "repeating-linear-gradient(45deg",
-      "transparent 24px",
-    ],
+    ["dots", "radial-gradient", "background-size:24px 24px"],
+    ["grid", "linear-gradient", "background-size:24px 24px"],
+    ["horizontal-lines", "linear-gradient", "background-size:100% 24px"],
+    ["vertical-lines", "linear-gradient(90deg", "background-size:24px 100%"],
+    ["diagonal-lines", "repeating-linear-gradient(45deg", "transparent 24px"],
   ] satisfies ReadonlyArray<
-    readonly [
-      SlideBackgroundPatternType,
-      string,
-      string,
-    ]
+    readonly [SlideBackgroundPatternType, string, string]
   >)(
     "renders the %s pattern with its default size",
     (type, gradient, defaultSize) => {
@@ -216,9 +156,7 @@ describe("renderSlide", () => {
       }),
     );
 
-    expect(html).toContain(
-      "background-size:2.5rem 2.5rem",
-    );
+    expect(html).toContain("background-size:2.5rem 2.5rem");
   });
 
   it("renders pattern opacity and background color", () => {
@@ -235,9 +173,7 @@ describe("renderSlide", () => {
     );
 
     expect(html).toContain("opacity:0.35");
-    expect(html).toContain(
-      "background-color:#20242c",
-    );
+    expect(html).toContain("background-color:#20242c");
   });
 
   it("renders the slide background color on the background layer", () => {
@@ -249,20 +185,11 @@ describe("renderSlide", () => {
       }),
     );
 
-    const backgroundStart = html.indexOf(
-      'class="powershow-slide-background"',
-    );
-    const contentStart = html.indexOf(
-      'class="powershow-slide-content"',
-    );
-    const backgroundMarkup = html.slice(
-      backgroundStart,
-      contentStart,
-    );
+    const backgroundStart = html.indexOf('class="powershow-slide-background"');
+    const contentStart = html.indexOf('class="powershow-slide-content"');
+    const backgroundMarkup = html.slice(backgroundStart, contentStart);
 
-    expect(backgroundMarkup).toContain(
-      "background-color:#123456",
-    );
+    expect(backgroundMarkup).toContain("background-color:#123456");
   });
 
   it("escapes the background image URL", () => {
@@ -274,9 +201,7 @@ describe("renderSlide", () => {
       }),
     );
 
-    expect(html).not.toContain(
-      'src="/background?theme=dark&label="hero""',
-    );
+    expect(html).not.toContain('src="/background?theme=dark&label="hero""');
     expect(html).toContain(
       'src="/background?theme=dark&amp;label=&quot;hero&quot;"',
     );
@@ -297,5 +222,66 @@ describe("renderSlide", () => {
     expect(html).not.toContain("powershow-navigation");
     expect(html).not.toContain("powershow-controls");
     expect(html).not.toContain("aria-current");
+  });
+
+  it("renders a gradient slide background", () => {
+    const slide = createSlide({
+      background: {
+        gradient: {
+          type: "linear",
+          angle: 135,
+
+          stops: [
+            {
+              color: "#111827",
+              position: 0,
+            },
+            {
+              color: "#312e81",
+              position: 100,
+            },
+          ],
+        },
+      },
+    });
+
+    const html = renderSlide(slide);
+
+    expect(html).toContain("linear-gradient(135deg,#111827 0%,#312e81 100%)");
+  });
+
+  it("renders gradient and pattern as separate background layers", () => {
+    const slide = createSlide({
+      background: {
+        gradient: {
+          type: "linear",
+
+          stops: [
+            {
+              color: "#111827",
+              position: 0,
+            },
+            {
+              color: "#1f2937",
+              position: 100,
+            },
+          ],
+        },
+
+        pattern: {
+          type: "dots",
+          color: "#475569",
+          size: 24,
+        },
+      },
+    });
+
+    const html = renderSlide(slide);
+
+    expect(html).toContain("linear-gradient");
+
+    expect(html).toContain("radial-gradient");
+
+    expect(html).toContain("powershow-slide-background-pattern");
   });
 });

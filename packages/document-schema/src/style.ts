@@ -9,6 +9,8 @@ import {
   VerticalAlignmentSchema,
 } from "./primitives";
 
+import { BorderSchema, GradientSchema, ShadowSchema } from "./visual";
+
 export const ElementStyleSchema = z.object({
   width: LengthSchema.optional(),
   height: LengthSchema.optional(),
@@ -51,7 +53,12 @@ export const ElementStyleSchema = z.object({
   verticalAlign: VerticalAlignmentSchema.optional(),
 
   className: z.string().optional(),
+
+  backgroundGradient: GradientSchema.optional(),
+
+  border: BorderSchema.optional(),
+
+  shadow: ShadowSchema.optional(),
 });
 
-export type ElementStyle =
-  z.infer<typeof ElementStyleSchema>;
+export type ElementStyle = z.infer<typeof ElementStyleSchema>;

@@ -10,6 +10,10 @@ import {
   PowerShowElementSchema,
 } from "./elements";
 
+import {
+  GradientSchema,
+} from "./visual";
+
 export const SlideBackgroundPatternTypeSchema =
   z.enum([
     "dots",
@@ -52,6 +56,9 @@ export const SlideBackgroundSchema =
     .object({
       color: ColorSchema.optional(),
 
+      gradient:
+          GradientSchema.optional(),
+
       image: z
         .string()
         .min(1)
@@ -60,20 +67,24 @@ export const SlideBackgroundSchema =
       pattern:
         SlideBackgroundPatternSchema.optional(),
     })
-    .superRefine(
-      (background, context) => {
-        if (
-          background.image !== undefined &&
-          background.pattern !== undefined
-        ) {
-          context.addIssue({
-            code: "custom",
-            message:
-              "Slide background cannot define both image and pattern.",
-          });
-        }
-      },
-    );
+      .superRefine(
+    (background, context) => {
+      if (
+        background.image !== undefined &&
+        (
+          background.pattern !== undefined ||
+          background.gradient !== undefined
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+
+          message:
+            "Slide background image cannot currently be combined with pattern or gradient.",
+        });
+      }
+    },
+  );
 
 export type SlideBackground =
   z.infer<typeof SlideBackgroundSchema>;

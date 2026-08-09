@@ -1,0 +1,21 @@
+{
+  "name": "@powershow/theme",
+  "version": "0.0.0",
+  "private": true,
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "exports": {
+    "./index.css": "./src/index.css",
+    "./base.css": "./src/base.css",
+    "./panel-size": "./src/panel-size.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "3.2.7"
+  }
+}

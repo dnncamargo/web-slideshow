@@ -1,35 +1,119 @@
-import type {
-  Presentation,
-} from "@powershow/document-schema";
+import type { Presentation } from "@powershow/document-schema";
 
-import {
-  renderSlide,
-} from "@powershow/renderer";
+import { renderSlide } from "@powershow/renderer";
 
-function queryRequired<T extends Element>(
-  root: ParentNode,
-  selector: string,
-): T {
-  const element =
-    root.querySelector<T>(selector);
+// ============================================================
+// TIPOS PÚBLICOS DO PLAYER
+// ============================================================
 
-  if (!element) {
-    throw new Error(
-      `PowerShow Player element not found: ${selector}`,
-    );
-  }
+export type PlayerTransition = "none" | "fade";
 
-  return element;
+// ============================================================
+// BEGIN: POSIÇÃO DOS CONTROLES
+//
+// NOVO nesta etapa.
+//
+// Mantemos um conjunto pequeno e controlado de posições.
+// O usuário do Editor não terá acesso a top/left/right em CSS.
+// ============================================================
+
+export type PlayerControlsPosition =
+  | "bottom-center"
+  | "bottom-left"
+  | "bottom-right"
+  | "top-center"
+  | "top-left"
+  | "top-right";
+// ============================================================
+// BEGIN: OPÇÕES DOS CONTROLES
+// ============================================================
+
+export interface PlayerControlsOptions {
+  // Onde a barra é posicionada.
+  position?: PlayerControlsPosition;
+
+  // Mostra ou oculta "1 / 3".
+  showCounter?: boolean;
+
+  // Aparência estrutural:
+  // floating | minimal | compact
+  style?: PlayerControlsStyle;
+
+  // Como a barra aparece/desaparece:
+  // fade | slide | none
+  animation?: PlayerControlsAnimation;
 }
 
-export type PlayerTransition =
-  | "none"
-  | "fade";
+// ============================================================
+// END: OPÇÕES DOS CONTROLES
+// ============================================================
+
+// ============================================================
+// BEGIN: VARIANTES VISUAIS DOS CONTROLES
+//
+// São opções estruturadas e limitadas.
+//
+// O Editor futuramente poderá apresentar algo como:
+//
+// Aparência:
+// - Flutuante
+// - Minimalista
+// - Compacta
+//
+// Não expomos propriedades CSS ao usuário.
+// ============================================================
+
+export type PlayerControlsStyle = "floating" | "minimal" | "compact";
+
+// ============================================================
+// END: VARIANTES VISUAIS DOS CONTROLES
+// ============================================================
+
+// ============================================================
+// BEGIN: ANIMAÇÃO DOS CONTROLES
+//
+// Define como a barra aparece e desaparece.
+//
+// "fade":
+//   Transição suave de opacidade.
+//
+// "slide":
+//   Opacidade + pequeno deslocamento.
+//
+// "none":
+//   Mudança imediata.
+//
+// São opções prontas. O usuário não configura duração,
+// transform ou curvas CSS diretamente.
+// ============================================================
+
+export type PlayerControlsAnimation = "fade" | "slide" | "none";
+
+// ============================================================
+// END: ANIMAÇÃO DOS CONTROLES
+// ============================================================
+
+// ============================================================
+// END: POSIÇÃO DOS CONTROLES
+// ============================================================
 
 export interface PlayerOptions {
   transition?: PlayerTransition;
 
+  // Mantemos esta opção como já existia.
+  // Não vamos movê-la para "controls" nesta etapa,
+  // para evitar quebrar código e testes existentes.
   controlsAutoHideMs?: number | null;
+
+  // ==========================================================
+  // BEGIN: CONFIGURAÇÃO DOS CONTROLES
+  // ==========================================================
+
+  controls?: PlayerControlsOptions;
+
+  // ==========================================================
+  // END: CONFIGURAÇÃO DOS CONTROLES
+  // ==========================================================
 }
 
 export interface PlayerController {
@@ -46,44 +130,118 @@ export interface PlayerController {
   destroy(): void;
 }
 
+// ============================================================
+// DEFAULTS
+// ============================================================
+
+const DEFAULT_TRANSITION: PlayerTransition = "fade";
+
+const DEFAULT_CONTROLS_AUTO_HIDE_MS = 2500;
+
+// ============================================================
+// BEGIN: DEFAULTS DOS CONTROLES
+// ============================================================
+
+const DEFAULT_CONTROLS: Required<PlayerControlsOptions> = {
+  position: "bottom-center",
+
+  showCounter: true,
+
+  // Mantém a aparência que já tínhamos como padrão.
+  style: "floating",
+  animation: "fade",
+};
+
+// ============================================================
+// END: DEFAULTS DOS CONTROLES
+// ============================================================
+
+// ============================================================
+// AUXILIAR DE QUERY
+//
+// Garante para o TypeScript que o elemento existe.
+// ============================================================
+
+function queryRequired<T extends Element>(
+  root: ParentNode,
+  selector: string,
+): T {
+  const element = root.querySelector<T>(selector);
+
+  if (!element) {
+    throw new Error(`Required Player element not found: ${selector}`);
+  }
+
+  return element;
+}
+
+// ============================================================
+// BEGIN: API PÚBLICA DO PLAYER
+//
+// Mantemos o nome "mountPlayer" porque:
+// - main.ts já importa mountPlayer
+// - os testes já importam mountPlayer
+// - não queremos quebrar a API existente
+// ============================================================
+
 export function mountPlayer(
   root: HTMLElement,
   presentation: Presentation,
   options: PlayerOptions = {},
 ): PlayerController {
-  let currentIndex = 0;
+  // ============================================================
+  // END: API PÚBLICA DO PLAYER
+  // ============================================================
 
-  let controlsTimer:
-    ReturnType<typeof setTimeout>
-    | undefined;
-
-  let destroyed = false;
-
-  const transition =
-    options.transition ?? "fade";
+  const transition = options.transition ?? DEFAULT_TRANSITION;
 
   const controlsAutoHideMs =
     options.controlsAutoHideMs === undefined
-      ? 2500
+      ? DEFAULT_CONTROLS_AUTO_HIDE_MS
       : options.controlsAutoHideMs;
 
-  /*
-   * Player shell.
-   *
-   * Notice that navigation is a sibling of
-   * the slide host. It is NOT rendered by
-   * renderSlide().
-   */
+  // ==========================================================
+  // BEGIN: RESOLVE CONFIGURAÇÃO DOS CONTROLES
+  // ==========================================================
+
+  const controlsOptions: Required<PlayerControlsOptions> = {
+    ...DEFAULT_CONTROLS,
+    ...options.controls,
+  };
+
+  // ==========================================================
+  // END: RESOLVE CONFIGURAÇÃO DOS CONTROLES
+  // ==========================================================
+
+  // ----------------------------------------------------------
+  // Estado interno
+  // ----------------------------------------------------------
+
+  let currentIndex = 0;
+
+  let controlsHideTimer: ReturnType<typeof setTimeout> | undefined;
+
+  let destroyed = false;
+
+  // ----------------------------------------------------------
+  // Estrutura HTML do Player
+  //
+  // IMPORTANTE:
+  // - slide-host contém somente o slide.
+  // - controls é irmão do slide-host.
+  // - navegação não pertence ao renderSlide().
+  // ----------------------------------------------------------
+
   root.innerHTML = `
     <div class="powershow-player">
       <div class="powershow-player-stage">
+
         <div
           class="powershow-player-slide-host"
         ></div>
 
-        <nav
+        <div
           class="powershow-player-controls"
-          aria-label="Presentation navigation"
         >
           <button
             type="button"
@@ -93,9 +251,16 @@ export function mountPlayer(
             ←
           </button>
 
+          <!-- ======================================================
+              CONTADOR DE SLIDES
+
+              Usamos <output> porque ele possui semanticamente
+              uma propriedade "value", preservando o contrato
+              já utilizado pelos testes do Player.
+              ====================================================== -->
+
           <output
             class="powershow-player-counter"
-            aria-live="polite"
           ></output>
 
           <button
@@ -113,175 +278,335 @@ export function mountPlayer(
           >
             ⛶
           </button>
-        </nav>
+        </div>
+
       </div>
     </div>
   `;
 
-  /*
-   * Required DOM elements.
-   *
-   * queryRequired() guarantees non-null
-   * values both to TypeScript and at runtime.
-   */
-  const stage =
-    queryRequired<HTMLElement>(
-      root,
-      ".powershow-player-stage",
-    );
+  // ----------------------------------------------------------
+  // Elementos necessários
+  // ----------------------------------------------------------
 
-  const slideHost =
-    queryRequired<HTMLElement>(
-      root,
-      ".powershow-player-slide-host",
-    );
+  const player = queryRequired<HTMLElement>(root, ".powershow-player");
 
-  const controls =
-    queryRequired<HTMLElement>(
-      root,
-      ".powershow-player-controls",
-    );
+  const stage = queryRequired<HTMLElement>(root, ".powershow-player-stage");
 
-  const counter =
-    queryRequired<HTMLOutputElement>(
-      root,
-      ".powershow-player-counter",
-    );
+  const slideHost = queryRequired<HTMLElement>(
+    root,
+    ".powershow-player-slide-host",
+  );
 
-  const previousButton =
-    queryRequired<HTMLButtonElement>(
-      root,
-      '[data-player-action="previous"]',
-    );
+  const controls = queryRequired<HTMLElement>(
+    root,
+    ".powershow-player-controls",
+  );
 
-  const nextButton =
-    queryRequired<HTMLButtonElement>(
-      root,
-      '[data-player-action="next"]',
-    );
+  // ==========================================================
+  // BEGIN: REFERÊNCIA AO CONTADOR
+  //
+  // <output> expõe a propriedade "value".
+  // ==========================================================
 
-  const fullscreenButton =
-    queryRequired<HTMLButtonElement>(
-      root,
-      '[data-player-action="fullscreen"]',
-    );
+  const counter = queryRequired<HTMLOutputElement>(
+    root,
+    ".powershow-player-counter",
+  );
+
+  // ==========================================================
+  // END: REFERÊNCIA AO CONTADOR
+  // ==========================================================
+
+  const previousButton = queryRequired<HTMLButtonElement>(
+    root,
+    '[data-player-action="previous"]',
+  );
+
+  const nextButton = queryRequired<HTMLButtonElement>(
+    root,
+    '[data-player-action="next"]',
+  );
+
+  const fullscreenButton = queryRequired<HTMLButtonElement>(
+    root,
+    '[data-player-action="fullscreen"]',
+  );
+
+  // ============================================================
+  // BEGIN: VISIBILIDADE DO CONTADOR
+  //
+  // Usamos a propriedade HTML "hidden".
+  // Isso mantém a decisão simples e sem CSS customizado.
+  //
+  // showCounter: true
+  //   → mostra "1 / 3"
+  //
+  // showCounter: false
+  //   → contador não aparece
+  // ============================================================
+
+  counter.hidden = !controlsOptions.showCounter;
+
+  // ============================================================
+  // END: VISIBILIDADE DO CONTADOR
+  // ============================================================
+  
+  // ==========================================================
+  // BEGIN: CLASSES ESTRUTURAIS DOS CONTROLES
+  //
+  // Exemplo:
+  //
+  // powershow-player-controls
+  // powershow-player-controls-top-right
+  // powershow-player-controls-compact
+  // powershow-player-controls-slide
+  //
+  // Cada aspecto permanece independente.
+  // ==========================================================
+
+  controls.classList.add(
+    `powershow-player-controls-${controlsOptions.position}`,
+  );
+
+  controls.classList.add(`powershow-player-controls-${controlsOptions.style}`);
+
+  controls.classList.add(
+    `powershow-player-controls-${controlsOptions.animation}`,
+  );
+
+  // ==========================================================
+  // END: CLASSES ESTRUTURAIS DOS CONTROLES
+  // ==========================================================
+
+  // ----------------------------------------------------------
+  // Ajusta o tamanho do stage mantendo o aspect ratio
+  // ----------------------------------------------------------
 
   function updateStageSize(): void {
-    const ratio =
-      presentation.aspectRatio === "4:3"
-        ? {
-            width: 4,
-            height: 3,
-          }
-        : {
-            width: 16,
-            height: 9,
-          };
+    const aspectRatio = presentation.aspectRatio === "4:3" ? 4 / 3 : 16 / 9;
 
-    const scale = Math.min(
-      window.innerWidth / ratio.width,
-      window.innerHeight / ratio.height,
-    );
+    const availableWidth = window.innerWidth;
 
-    stage.style.width =
-      `${ratio.width * scale}px`;
+    const availableHeight = window.innerHeight;
 
-    stage.style.height =
-      `${ratio.height * scale}px`;
-  }
+    let width = availableWidth;
 
-  function showControls(): void {
-    if (controlsTimer !== undefined) {
-      clearTimeout(controlsTimer);
+    let height = width / aspectRatio;
 
-      controlsTimer = undefined;
+    if (height > availableHeight) {
+      height = availableHeight;
+
+      width = height * aspectRatio;
     }
 
-    controls.classList.remove(
-      "powershow-player-controls-hidden",
-    );
+    stage.style.width = `${width}px`;
 
-    if (
-      controlsAutoHideMs !== null &&
-      controlsAutoHideMs > 0
-    ) {
-      controlsTimer = setTimeout(() => {
-        controls.classList.add(
-          "powershow-player-controls-hidden",
-        );
-
-        controlsTimer = undefined;
-      }, controlsAutoHideMs);
-    }
+    stage.style.height = `${height}px`;
   }
 
-  function renderCurrentSlide(): void {
-    const slide =
-      presentation.slides[currentIndex];
+  // ============================================================
+  // BEGIN: ATUALIZA ESTADO DOS CONTROLES
+  //
+  // Atualiza:
+  // - contador;
+  // - botão anterior;
+  // - botão próximo.
+  // ============================================================
 
-    if (!slide) {
-      slideHost.innerHTML = `
-        <div class="powershow-player-empty">
-          No slide available.
-        </div>
-      `;
+  function updateControls(): void {
+    const slideCount = presentation.slides.length;
 
+    // ----------------------------------------------------------
+    // Apresentação vazia
+    // ----------------------------------------------------------
+
+    if (slideCount === 0) {
       counter.value = "0 / 0";
 
       previousButton.disabled = true;
+
       nextButton.disabled = true;
 
       return;
     }
 
-    slideHost.innerHTML =
-      renderSlide(slide);
+    // ----------------------------------------------------------
+    // Contador no formato:
+    //
+    // 1 / 3
+    // 2 / 3
+    // 3 / 3
+    // ----------------------------------------------------------
 
-    if (
-      transition === "fade" &&
-      typeof slideHost.animate === "function"
-    ) {
-      slideHost.animate(
-        [
-          {
-            opacity: 0,
-            transform: "scale(0.995)",
-          },
-          {
-            opacity: 1,
-            transform: "scale(1)",
-          },
-        ],
-        {
-          duration: 180,
-          easing: "ease-out",
-        },
-      );
-    }
+    counter.value = `${currentIndex + 1} / ${slideCount}`;
 
-    counter.value =
-      `${currentIndex + 1} / ${presentation.slides.length}`;
+    // ----------------------------------------------------------
+    // Estado dos botões nos limites da apresentação.
+    // ----------------------------------------------------------
 
-    previousButton.disabled =
-      currentIndex === 0;
+    previousButton.disabled = currentIndex === 0;
 
-    nextButton.disabled =
-      currentIndex ===
-      presentation.slides.length - 1;
+    nextButton.disabled = currentIndex === slideCount - 1;
   }
 
-  function goTo(index: number): void {
-    if (
-      index < 0 ||
-      index >= presentation.slides.length
-    ) {
+  // ============================================================
+  // END: ATUALIZA ESTADO DOS CONTROLES
+  // ============================================================
+
+  // ----------------------------------------------------------
+  // Animação do slide
+  // ----------------------------------------------------------
+
+  function animateSlide(): void {
+    if (transition !== "fade") {
       return;
     }
+
+    // Element.animate não existe em alguns
+    // ambientes de teste / browsers antigos.
+    if (typeof slideHost.animate !== "function") {
+      return;
+    }
+
+    slideHost.animate(
+      [
+        {
+          opacity: 0,
+          transform: "scale(0.995)",
+        },
+
+        {
+          opacity: 1,
+          transform: "scale(1)",
+        },
+      ],
+      {
+        duration: 180,
+        easing: "ease-out",
+      },
+    );
+  }
+
+  // ----------------------------------------------------------
+  // Renderiza o slide atual
+  // ----------------------------------------------------------
+
+  function renderCurrentSlide(): void {
+    const slide = presentation.slides[currentIndex];
+
+    if (!slide) {
+      slideHost.innerHTML = `
+        <div
+          class="powershow-player-empty"
+        >
+          No slides
+        </div>
+      `;
+
+      updateControls();
+
+      return;
+    }
+
+    slideHost.innerHTML = renderSlide(slide);
+
+    animateSlide();
+
+    updateControls();
+  }
+
+  // ----------------------------------------------------------
+  // Auto-hide dos controles
+  // ----------------------------------------------------------
+
+  function clearControlsTimer(): void {
+    if (controlsHideTimer === undefined) {
+      return;
+    }
+
+    clearTimeout(controlsHideTimer);
+
+    controlsHideTimer = undefined;
+  }
+
+  function showControls(): void {
+    controls.classList.remove("powershow-player-controls-hidden");
+
+    clearControlsTimer();
+
+    if (controlsAutoHideMs === null) {
+      return;
+    }
+
+    controlsHideTimer = setTimeout(
+      () => {
+        controls.classList.add("powershow-player-controls-hidden");
+      },
+
+      controlsAutoHideMs,
+    );
+  }
+
+  // ============================================================
+  // BEGIN: NAVEGAÇÃO DIRETA PARA UM SLIDE
+  //
+  // CONTRATO DO PLAYER:
+  //
+  // - índice válido:
+  //   navega normalmente.
+  //
+  // - índice negativo:
+  //   ignora.
+  //
+  // - índice maior que o último slide:
+  //   ignora.
+  //
+  // Não fazemos "clamp" para o primeiro/último slide.
+  // Esse comportamento já é coberto pelos testes existentes.
+  // ============================================================
+
+  function goTo(index: number): void {
+    // ----------------------------------------------------------
+    // Se não há slides, não há navegação possível.
+    // ----------------------------------------------------------
+
+    if (presentation.slides.length === 0) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // Ignora índices fora dos limites da apresentação.
+    // ----------------------------------------------------------
+
+    if (index < 0 || index >= presentation.slides.length) {
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // Se já estamos nesse slide, não precisamos renderizar
+    // novamente.
+    // ----------------------------------------------------------
+
+    if (index === currentIndex) {
+      updateControls();
+
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // Atualiza estado e renderiza o novo slide.
+    // ----------------------------------------------------------
 
     currentIndex = index;
 
     renderCurrentSlide();
+
+    showControls();
   }
+
+  // ============================================================
+  // END: NAVEGAÇÃO DIRETA PARA UM SLIDE
+  // ============================================================
 
   function next(): void {
     goTo(currentIndex + 1);
@@ -291,115 +616,141 @@ export function mountPlayer(
     goTo(currentIndex - 1);
   }
 
+  // ----------------------------------------------------------
+  // Fullscreen
+  // ----------------------------------------------------------
+
   async function fullscreen(): Promise<void> {
+    // Se já estamos em fullscreen,
+    // tenta sair.
     if (document.fullscreenElement) {
-      await document.exitFullscreen();
+      if (typeof document.exitFullscreen === "function") {
+        await document.exitFullscreen();
+      }
 
       return;
     }
 
-    await root.requestFullscreen();
+    // Caso contrário,
+    // entra em fullscreen pelo root.
+    if (typeof root.requestFullscreen === "function") {
+      await root.requestFullscreen();
+    }
   }
 
-  function handleKeyboard(
-    event: KeyboardEvent,
-  ): void {
+  // ----------------------------------------------------------
+  // Eventos dos botões
+  // ----------------------------------------------------------
+
+  function handlePreviousClick(): void {
+    previous();
+  }
+
+  function handleNextClick(): void {
+    next();
+  }
+
+  function handleFullscreenClick(): void {
+    void fullscreen();
+  }
+
+  previousButton.addEventListener("click", handlePreviousClick);
+
+  nextButton.addEventListener("click", handleNextClick);
+
+  fullscreenButton.addEventListener("click", handleFullscreenClick);
+
+  // ----------------------------------------------------------
+  // Eventos do mouse / pointer
+  //
+  // Estes listeners são registrados UMA única vez.
+  // Não devem entrar dentro de updateStageSize().
+  // ----------------------------------------------------------
+
+  function handlePointerActivity(): void {
+    showControls();
+  }
+
+  stage.addEventListener("pointermove", handlePointerActivity);
+
+  stage.addEventListener("pointerdown", handlePointerActivity);
+
+  // ----------------------------------------------------------
+  // Keyboard
+  // ----------------------------------------------------------
+
+  function handleKeyDown(event: KeyboardEvent): void {
     switch (event.key) {
       case "ArrowRight":
-      case "PageDown":
+      case "PageDown": {
         event.preventDefault();
 
         next();
 
         break;
+      }
 
       case "ArrowLeft":
-      case "PageUp":
+      case "PageUp": {
         event.preventDefault();
 
         previous();
 
         break;
+      }
 
-      case "Home":
+      case "Home": {
         event.preventDefault();
 
         goTo(0);
 
         break;
+      }
 
-      case "End":
+      case "End": {
         event.preventDefault();
 
-        goTo(
-          presentation.slides.length - 1,
-        );
+        goTo(presentation.slides.length - 1);
 
         break;
+      }
 
       case "f":
-      case "F":
+      case "F": {
         event.preventDefault();
 
         void fullscreen();
 
         break;
+      }
     }
   }
 
-  function handlePrevious(): void {
-    previous();
+  window.addEventListener("keydown", handleKeyDown);
+
+  // ----------------------------------------------------------
+  // Resize
+  // ----------------------------------------------------------
+
+  function handleResize(): void {
+    updateStageSize();
   }
 
-  function handleNext(): void {
-    next();
-  }
+  window.addEventListener("resize", handleResize);
 
-  function handleFullscreen(): void {
-    void fullscreen();
-  }
-
-  /*
-   * Register listeners exactly once.
-   */
-  previousButton.addEventListener(
-    "click",
-    handlePrevious,
-  );
-
-  nextButton.addEventListener(
-    "click",
-    handleNext,
-  );
-
-  fullscreenButton.addEventListener(
-    "click",
-    handleFullscreen,
-  );
-
-  window.addEventListener(
-    "keydown",
-    handleKeyboard,
-  );
-
-  window.addEventListener(
-    "resize",
-    updateStageSize,
-  );
-
-  stage.addEventListener(
-    "pointermove",
-    showControls,
-  );
-
-  stage.addEventListener(
-    "pointerdown",
-    showControls,
-  );
+  // ----------------------------------------------------------
+  // Inicialização
+  // ----------------------------------------------------------
 
   updateStageSize();
+
   renderCurrentSlide();
+
   showControls();
+
+  // ----------------------------------------------------------
+  // API pública
+  // ----------------------------------------------------------
 
   return {
     next,
@@ -415,54 +766,46 @@ export function mountPlayer(
     },
 
     destroy(): void {
+      // destroy precisa ser idempotente.
       if (destroyed) {
         return;
       }
 
       destroyed = true;
 
-      if (controlsTimer !== undefined) {
-        clearTimeout(controlsTimer);
+      clearControlsTimer();
 
-        controlsTimer = undefined;
-      }
+      // ------------------------------------------------------
+      // Remove listeners dos botões
+      // ------------------------------------------------------
 
-      previousButton.removeEventListener(
-        "click",
-        handlePrevious,
-      );
+      previousButton.removeEventListener("click", handlePreviousClick);
 
-      nextButton.removeEventListener(
-        "click",
-        handleNext,
-      );
+      nextButton.removeEventListener("click", handleNextClick);
 
-      fullscreenButton.removeEventListener(
-        "click",
-        handleFullscreen,
-      );
+      fullscreenButton.removeEventListener("click", handleFullscreenClick);
 
-      window.removeEventListener(
-        "keydown",
-        handleKeyboard,
-      );
+      // ------------------------------------------------------
+      // Remove pointer listeners
+      // ------------------------------------------------------
 
-      window.removeEventListener(
-        "resize",
-        updateStageSize,
-      );
+      stage.removeEventListener("pointermove", handlePointerActivity);
 
-      stage.removeEventListener(
-        "pointermove",
-        showControls,
-      );
+      stage.removeEventListener("pointerdown", handlePointerActivity);
 
-      stage.removeEventListener(
-        "pointerdown",
-        showControls,
-      );
+      // ------------------------------------------------------
+      // Remove listeners globais
+      // ------------------------------------------------------
 
-      root.replaceChildren();
+      window.removeEventListener("keydown", handleKeyDown);
+
+      window.removeEventListener("resize", handleResize);
+
+      // ------------------------------------------------------
+      // Remove Player do DOM
+      // ------------------------------------------------------
+
+      root.innerHTML = "";
     },
   };
 }

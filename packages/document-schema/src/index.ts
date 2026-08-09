@@ -4,3 +4,4 @@ export * from "./elements";
 export * from "./slide";
 export * from "./presentation";
 export * from "./slide";
+export * from "./visual";
