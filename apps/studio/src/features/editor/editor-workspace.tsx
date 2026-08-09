@@ -26,6 +26,36 @@ import {
 // END: SLIDE OPERATIONS
 // ============================================================
 
+// ============================================================
+// BEGIN: ELEMENT CRUD
+// ============================================================
+
+import { ElementCrudControls } from "./element-crud-controls";
+
+// ============================================================
+// BEGIN: ELEMENT OPERATIONS
+// ============================================================
+
+import {
+  appendElementToContainer,
+  createElement,
+  duplicateElement,
+  findElementSiblingPosition,
+  insertElementAfterId,
+  moveElementById,
+  removeElementById,
+} from "./element-operations";
+
+// ============================================================
+// END: ELEMENT OPERATIONS
+// ============================================================
+
+import type { ElementCreateType } from "./element-operations";
+
+// ============================================================
+// END: ELEMENT CRUD
+// ============================================================
+
 import styles from "./editor-workspace.module.css";
 
 // ============================================================
@@ -133,6 +163,35 @@ export function EditorWorkspace() {
 
     return findElementById(selectedSlide.elements, selectedElement.id);
   }, [selectedSlide, selectedElement]);
+
+  // ==========================================================
+  // BEGIN: POSIÇÃO DO ELEMENTO SELECIONADO
+  //
+  // Exemplo:
+  //
+  // container
+  // ├── text
+  // ├── image   ← index 1 / count 3
+  // └── code
+  //
+  // Isso permite determinar se Move Up / Move Down estão
+  // disponíveis sem colocar essa lógica na UI.
+  // ==========================================================
+
+  const selectedElementPosition = useMemo(() => {
+    if (!selectedSlide || !selectedElement) {
+      return null;
+    }
+
+    return findElementSiblingPosition(
+      selectedSlide.elements,
+      selectedElement.id,
+    );
+  }, [selectedSlide, selectedElement]);
+
+  // ==========================================================
+  // END: POSIÇÃO DO ELEMENTO SELECIONADO
+  // ==========================================================
 
   // ==========================================================
   // END: ELEMENTO REAL SELECIONADO
@@ -293,6 +352,171 @@ export function EditorWorkspace() {
   }
 
   // ==========================================================
+  // BEGIN: ADD ELEMENT
+  //
+  // Regra:
+  //
+  // nenhuma seleção
+  //   → raiz do slide
+  //
+  // container selecionado
+  //   → filho do container
+  //
+  // outro elemento selecionado
+  //   → irmão imediatamente depois
+  // ==========================================================
+
+  function addElement(type: ElementCreateType) {
+    const newElement = createElement(type, presentation.slides);
+
+    setPresentation((current) => ({
+      ...current,
+
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        if (!selectedDocumentElement) {
+          return {
+            ...slide,
+
+            elements: [...slide.elements, newElement],
+          };
+        }
+
+        if (selectedDocumentElement.type === "container") {
+          return {
+            ...slide,
+
+            elements: appendElementToContainer(
+              slide.elements,
+              selectedDocumentElement.id,
+              newElement,
+            ),
+          };
+        }
+
+        return {
+          ...slide,
+
+          elements: insertElementAfterId(
+            slide.elements,
+            selectedDocumentElement.id,
+            newElement,
+          ),
+        };
+      }),
+    }));
+
+    setSelectedElement({
+      id: newElement.id,
+
+      type: newElement.type,
+    });
+  }
+
+  // ==========================================================
+  // END: ADD ELEMENT
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: DUPLICATE ELEMENT
+  //
+  // A duplicação sempre cria um irmão imediatamente depois do
+  // elemento original.
+  //
+  // Containers são clonados recursivamente com novos IDs.
+  // ==========================================================
+
+  function duplicateSelectedElement() {
+    if (!selectedDocumentElement) {
+      return;
+    }
+
+    const duplicatedElement = duplicateElement(
+      selectedDocumentElement,
+      presentation.slides,
+    );
+
+    setPresentation((current) => ({
+      ...current,
+
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        return {
+          ...slide,
+
+          elements: insertElementAfterId(
+            slide.elements,
+            selectedDocumentElement.id,
+            duplicatedElement,
+          ),
+        };
+      }),
+    }));
+
+    setSelectedElement({
+      id: duplicatedElement.id,
+
+      type: duplicatedElement.type,
+    });
+  }
+
+  // ==========================================================
+  // END: DUPLICATE ELEMENT
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: DELETE ELEMENT
+  // ==========================================================
+
+  function deleteSelectedElement() {
+    if (!selectedDocumentElement) {
+      return;
+    }
+
+    const description =
+      selectedDocumentElement.type === "container"
+        ? `Delete container "${selectedDocumentElement.id}" and all its children?`
+        : `Delete ${selectedDocumentElement.type} "${selectedDocumentElement.id}"?`;
+
+    const confirmed = window.confirm(description);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPresentation((current) => ({
+      ...current,
+
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        return {
+          ...slide,
+
+          elements: removeElementById(
+            slide.elements,
+            selectedDocumentElement.id,
+          ),
+        };
+      }),
+    }));
+
+    setSelectedElement(null);
+  }
+
+  // ==========================================================
+  // END: DELETE ELEMENT
+  // ==========================================================
+
+  // ==========================================================
   // END: ATUALIZAÇÃO DO ELEMENTO SELECIONADO
   // ==========================================================
 
@@ -440,7 +664,7 @@ export function EditorWorkspace() {
   // END: DELETE SLIDE
   // ==========================================================
 
-    // ==========================================================
+  // ==========================================================
   // BEGIN: MOVE SELECTED SLIDE
   //
   // offset:
@@ -455,18 +679,55 @@ export function EditorWorkspace() {
   // movimento.
   // ==========================================================
 
-  function moveSelectedSlide(
+  function moveSelectedSlide(offset: -1 | 1) {
+    const targetIndex = selectedSlideIndex + offset;
+
+    if (targetIndex < 0 || targetIndex >= presentation.slides.length) {
+      return;
+    }
+
+    setPresentation((current) => ({
+      ...current,
+
+      slides: moveSlide(current.slides, selectedSlideIndex, targetIndex),
+    }));
+
+    setSelectedSlideIndex(targetIndex);
+  }
+
+  // ==========================================================
+  // END: MOVE SELECTED SLIDE
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: MOVE SELECTED ELEMENT
+  //
+  // Move apenas entre irmãos.
+  //
+  // A seleção permanece intacta porque o elemento continua
+  // tendo exatamente o mesmo ID.
+  // ==========================================================
+
+  function moveSelectedElement(
     offset: -1 | 1,
   ) {
+    if (
+      !selectedElement ||
+      !selectedElementPosition
+    ) {
+      return;
+    }
+
+
     const targetIndex =
-      selectedSlideIndex +
+      selectedElementPosition.index +
       offset;
 
 
     if (
       targetIndex < 0 ||
       targetIndex >=
-        presentation.slides.length
+        selectedElementPosition.count
     ) {
       return;
     }
@@ -477,22 +738,37 @@ export function EditorWorkspace() {
         ...current,
 
         slides:
-          moveSlide(
-            current.slides,
-            selectedSlideIndex,
-            targetIndex,
+          current.slides.map(
+            (
+              slide,
+              index,
+            ) => {
+              if (
+                index !==
+                selectedSlideIndex
+              ) {
+                return slide;
+              }
+
+
+              return {
+                ...slide,
+
+                elements:
+                  moveElementById(
+                    slide.elements,
+                    selectedElement.id,
+                    offset,
+                  ),
+              };
+            },
           ),
       }),
-    );
-
-
-    setSelectedSlideIndex(
-      targetIndex,
     );
   }
 
   // ==========================================================
-  // END: MOVE SELECTED SLIDE
+  // END: MOVE SELECTED ELEMENT
   // ==========================================================
 
   // ==========================================================
@@ -592,40 +868,22 @@ export function EditorWorkspace() {
               BEGIN: SLIDE ACTIONS
               ================================================= */}
 
-          <div
-            className={
-              styles.slideActions
-            }
-          >
+          <div className={styles.slideActions}>
             {/* ===============================================
                 MOVE UP
                 =============================================== */}
 
             <button
               type="button"
-
-              className={
-                styles.slideActionButton
-              }
-
-              disabled={
-                selectedSlideIndex ===
-                0
-              }
-
-              onClick={
-                () => {
-                  moveSelectedSlide(
-                    -1,
-                  );
-                }
-              }
-
+              className={styles.slideActionButton}
+              disabled={selectedSlideIndex === 0}
+              onClick={() => {
+                moveSelectedSlide(-1);
+              }}
               title="Move slide up"
             >
               ↑ Up
             </button>
-
 
             {/* ===============================================
                 MOVE DOWN
@@ -633,30 +891,15 @@ export function EditorWorkspace() {
 
             <button
               type="button"
-
-              className={
-                styles.slideActionButton
-              }
-
-              disabled={
-                selectedSlideIndex ===
-                presentation.slides.length -
-                  1
-              }
-
-              onClick={
-                () => {
-                  moveSelectedSlide(
-                    1,
-                  );
-                }
-              }
-
+              className={styles.slideActionButton}
+              disabled={selectedSlideIndex === presentation.slides.length - 1}
+              onClick={() => {
+                moveSelectedSlide(1);
+              }}
               title="Move slide down"
             >
               ↓ Down
             </button>
-
 
             {/* ===============================================
                 DUPLICATE
@@ -664,18 +907,11 @@ export function EditorWorkspace() {
 
             <button
               type="button"
-
-              className={
-                styles.slideActionButton
-              }
-
-              onClick={
-                duplicateSelectedSlide
-              }
+              className={styles.slideActionButton}
+              onClick={duplicateSelectedSlide}
             >
               Duplicate
             </button>
-
 
             {/* ===============================================
                 DELETE
@@ -683,17 +919,9 @@ export function EditorWorkspace() {
 
             <button
               type="button"
-
               className={`${styles.slideActionButton} ${styles.slideActionDanger}`}
-
-              disabled={
-                presentation.slides.length <=
-                1
-              }
-
-              onClick={
-                deleteSelectedSlide
-              }
+              disabled={presentation.slides.length <= 1}
+              onClick={deleteSelectedSlide}
             >
               Delete
             </button>
@@ -753,6 +981,70 @@ export function EditorWorkspace() {
           <div className={styles.panelHeader}>Inspector</div>
 
           <div className={styles.inspectorContent}>
+            {/* =================================================
+                BEGIN: ELEMENT CRUD CONTROLS
+                ================================================= */}
+
+{/* ==========================================================
+    BEGIN: ELEMENT CRUD CONTROLS
+    ========================================================== */}
+
+<ElementCrudControls
+  selectedElement={
+    selectedDocumentElement
+  }
+
+  canMoveUp={
+    selectedElementPosition !==
+      null &&
+    selectedElementPosition.index >
+      0
+  }
+
+  canMoveDown={
+    selectedElementPosition !==
+      null &&
+    selectedElementPosition.index <
+      selectedElementPosition.count -
+        1
+  }
+
+  onAdd={
+    addElement
+  }
+
+  onMoveUp={
+    () => {
+      moveSelectedElement(
+        -1,
+      );
+    }
+  }
+
+  onMoveDown={
+    () => {
+      moveSelectedElement(
+        1,
+      );
+    }
+  }
+
+  onDuplicate={
+    duplicateSelectedElement
+  }
+
+  onDelete={
+    deleteSelectedElement
+  }
+/>
+
+{/* ==========================================================
+    END: ELEMENT CRUD CONTROLS
+    ========================================================== */}
+
+            {/* =================================================
+                END: ELEMENT CRUD CONTROLS
+                ================================================= */}
             {selectedDocumentElement ? (
               <ElementInspector
                 element={selectedDocumentElement}
