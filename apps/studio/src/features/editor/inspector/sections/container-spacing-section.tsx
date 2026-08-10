@@ -4,10 +4,12 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
+import type { UpdateContainer } from "../container-inspector-helpers";
+
 import {
   parseOptionalNumber,
-  type UpdateContainer,
-} from "../container-inspector-helpers";
+  readAbsoluteNumber,
+} from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
 
@@ -25,20 +27,6 @@ interface ContainerSpacingSectionProps {
   element: ContainerElement;
 
   onUpdate: UpdateContainer;
-}
-
-function readAbsoluteNumber(value: string | number | undefined): number | "" {
-  if (typeof value === "number") {
-    return value;
-  }
-
-  if (typeof value === "string" && value.endsWith("px")) {
-    const number = Number(value.slice(0, -2));
-
-    return Number.isFinite(number) ? number : "";
-  }
-
-  return "";
 }
 
 // ============================================================

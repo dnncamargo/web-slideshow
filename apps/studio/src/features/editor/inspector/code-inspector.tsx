@@ -8,7 +8,12 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
-import type { TypedInspectorProps } from "./inspector-types";
+import type {
+  TypedInspectorProps,
+  UpdateElementStyle,
+} from "./inspector-types";
+
+import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -34,6 +39,20 @@ export function CodeInspector({
   onUpdate,
 }: TypedInspectorProps<CodeElement>) {
   const { t } = useStudioI18n();
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    onUpdate((current) => {
+      if (current.type !== "code") {
+        return current;
+      }
+
+      return {
+        ...current,
+
+        style: update(current.style),
+      };
+    });
+  };
 
   // ----------------------------------------------------------
   // Mantemos a string localmente enquanto o usuário digita.
@@ -195,6 +214,15 @@ export function CodeInspector({
           </small>
         </label>
       </InspectorSection>
+
+      <ElementAppearanceSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="code"
+        showBackground
+        showRoundedCorners
+        showOpacity
+      />
     </>
   );
 }

@@ -6,7 +6,12 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
-import type { TypedInspectorProps } from "./inspector-types";
+import type {
+  TypedInspectorProps,
+  UpdateElementStyle,
+} from "./inspector-types";
+
+import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -21,6 +26,20 @@ export function TerminalInspector({
   onUpdate,
 }: TypedInspectorProps<TerminalElement>) {
   const { t } = useStudioI18n();
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    onUpdate((current) => {
+      if (current.type !== "terminal") {
+        return current;
+      }
+
+      return {
+        ...current,
+
+        style: update(current.style),
+      };
+    });
+  };
 
   // ==========================================================
   // BEGIN: UPDATE DE UMA LINHA
@@ -223,6 +242,15 @@ export function TerminalInspector({
           <span>{t("inspector.addLine")}</span>
         </button>
       </InspectorSection>
+
+      <ElementAppearanceSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="terminal"
+        showBackground
+        showRoundedCorners
+        showOpacity
+      />
     </>
   );
 }
