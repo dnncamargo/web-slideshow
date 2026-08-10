@@ -6,7 +6,12 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
-import type { TypedInspectorProps } from "./inspector-types";
+import type {
+  TypedInspectorProps,
+  UpdateElementStyle,
+} from "./inspector-types";
+
+import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
@@ -19,6 +24,20 @@ export function ImageInspector({
   onUpdate,
 }: TypedInspectorProps<ImageElement>) {
   const { t } = useStudioI18n();
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    onUpdate((current) => {
+      if (current.type !== "image") {
+        return current;
+      }
+
+      return {
+        ...current,
+
+        style: update(current.style),
+      };
+    });
+  };
 
   return (
     <>
@@ -115,6 +134,14 @@ export function ImageInspector({
           </select>
         </label>
       </InspectorSection>
+
+      <ElementAppearanceSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="image"
+        showRoundedCorners
+        showOpacity
+      />
     </>
   );
 }

@@ -11,10 +11,9 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
-import {
-  parseOptionalNumber,
-  type UpdateContainer,
-} from "../container-inspector-helpers";
+import type { UpdateContainer } from "../container-inspector-helpers";
+
+import { parseOptionalNumber } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
 

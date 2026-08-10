@@ -8,6 +8,10 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
+import type { UpdateElementStyle } from "./inspector-types";
+
+import { ElementAppearanceSection } from "./sections/element-appearance-section";
+
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
 // ============================================================
@@ -315,6 +319,14 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
       return update(current);
     });
   }
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    updateTable((table) => ({
+      ...table,
+
+      style: update(table.style),
+    }));
+  };
 
   // ==========================================================
   // END: UPDATE GENÉRICO DE TABLE
@@ -680,6 +692,15 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
             END: ROWS
             ===================================================== */}
       </InspectorSection>
+
+      <ElementAppearanceSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="table"
+        showBackground
+        showRoundedCorners
+        showOpacity
+      />
     </>
   );
 }
@@ -687,5 +708,4 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
 // ============================================================
 // END: TABLE INSPECTOR
 // ============================================================
-
 

@@ -4,11 +4,14 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../editor-workspace.module.css";
 
-import { readPickerColor } from "./inspector-helpers";
-
 import { InspectorSection } from "./inspector-section";
 
-import type { TypedInspectorProps } from "./inspector-types";
+import type {
+  TypedInspectorProps,
+  UpdateElementStyle,
+} from "./inspector-types";
+
+import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
 type TextboxElement = Extract<PowerShowElement, { type: "textbox" }>;
 
@@ -21,6 +24,20 @@ export function TextboxInspector({
   onUpdate,
 }: TypedInspectorProps<TextboxElement>) {
   const { t } = useStudioI18n();
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    onUpdate((current) => {
+      if (current.type !== "textbox") {
+        return current;
+      }
+
+      return {
+        ...current,
+
+        style: update(current.style),
+      };
+    });
+  };
 
   return (
     <>
@@ -53,64 +70,17 @@ export function TextboxInspector({
             }}
           />
         </label>
-
-        <div className={styles.colorControl}>
-          <label className={styles.field}>
-            <span>{t("inspector.color")}</span>
-
-            <input
-              id="textbox-color"
-              name="textboxColor"
-              className={styles.colorInput}
-              type="color"
-              value={readPickerColor(element.style?.color)}
-              onChange={(event) => {
-                const color = event.target.value;
-
-                onUpdate((current) => {
-                  if (current.type !== "textbox") {
-                    return current;
-                  }
-
-                  return {
-                    ...current,
-
-                    style: {
-                      ...current.style,
-
-                      color,
-                    },
-                  };
-                });
-              }}
-            />
-          </label>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => {
-              onUpdate((current) => {
-                if (current.type !== "textbox") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  style: {
-                    ...current.style,
-
-                    color: undefined,
-                  },
-                };
-              });
-            }}
-          >
-            <span>{t("inspector.useThemeDefault")}</span>
-          </button>
-        </div>
       </InspectorSection>
+
+      <ElementAppearanceSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="textbox"
+        showColor
+        showBackground
+        showRoundedCorners
+        showOpacity
+      />
     </>
   );
 }
