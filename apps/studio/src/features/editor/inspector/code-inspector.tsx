@@ -222,6 +222,7 @@ export function CodeInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="code"
         showBackground
+        showBackgroundGradient
         showRoundedCorners
         showOpacity
         showBorder

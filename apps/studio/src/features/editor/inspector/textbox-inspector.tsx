@@ -80,6 +80,7 @@ export function TextboxInspector({
         controlPrefix="textbox"
         showColor
         showBackground
+        showBackgroundGradient
         showRoundedCorners
         showOpacity
         showBorder

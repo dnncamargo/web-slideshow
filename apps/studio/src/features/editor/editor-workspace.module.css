@@ -1094,7 +1094,7 @@
 
 
 /* ==========================================================
-   BEGIN: CONTROLE DE COR
+   BEGIN: CONTROLES VISUAIS DE APPEARANCE
    ========================================================== */
 
 .colorControl {
@@ -1154,8 +1154,63 @@
     #e2e8f0;
 }
 
+
+.backgroundControls,
+.gradientControl,
+.gradientStops {
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 10px;
+}
+
+
+.gradientStopsTitle {
+  color:
+    #94a3b8;
+
+  font-size:
+    12px;
+
+  font-weight:
+    600;
+}
+
+
+.gradientStopRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 72px)
+    minmax(0, 1fr)
+    auto;
+
+  align-items:
+    end;
+
+  gap: 8px;
+}
+
+
+.gradientStopRow .secondaryButton {
+  min-height: 34px;
+
+  white-space:
+    nowrap;
+}
+
+
+.gradientStops .secondaryButton:disabled {
+  opacity: 0.45;
+
+  cursor:
+    not-allowed;
+}
+
 /* ==========================================================
-   END: CONTROLE DE COR
+   END: CONTROLES VISUAIS DE APPEARANCE
    ========================================================== */
 
    /* ==========================================================

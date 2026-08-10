@@ -700,6 +700,7 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
         onUpdateStyle={updateStyle}
         controlPrefix="table"
         showBackground
+        showBackgroundGradient
         showRoundedCorners
         showOpacity
         showBorder
