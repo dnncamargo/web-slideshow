@@ -161,6 +161,8 @@ const englishMessages = {
   "inspector.distribution.spaceBetween": "Space between",
   "inspector.distribution.spaceAround": "Space around",
   "inspector.distribution.spaceEvenly": "Space evenly",
+  "inspector.alignmentDisabledByDistribution":
+    "Main-axis alignment is controlled by Distribution.",
 
   "image.sourceHint": "Image path or source.",
   "image.alternativeText": "Alternative text",
@@ -352,6 +354,8 @@ const portugueseMessages = {
   "inspector.distribution.spaceBetween": "Espaço entre",
   "inspector.distribution.spaceAround": "Espaço ao redor",
   "inspector.distribution.spaceEvenly": "Espaço uniforme",
+  "inspector.alignmentDisabledByDistribution":
+    "O alinhamento do eixo principal é controlado pela Distribuição.",
 
   "image.sourceHint": "Caminho ou origem da imagem.",
   "image.alternativeText": "Texto alternativo",
