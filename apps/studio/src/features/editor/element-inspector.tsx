@@ -12,6 +12,10 @@ import {
 
 import type { PanelSizePreset } from "@powershow/theme/panel-size";
 
+import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
+
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
 import styles from "./editor-workspace.module.css";
 
 // ============================================================
@@ -76,6 +80,32 @@ type PanelSizeSelection = PanelSizePreset | "custom";
 
 // ============================================================
 // END: TIPOS DO INSPECTOR
+// ============================================================
+
+// ============================================================
+// BEGIN: CONTAINER DISTRIBUTION TYPE
+// ============================================================
+
+type ContainerDistribution = NonNullable<ContainerElement["distribution"]>;
+
+// ============================================================
+// END: CONTAINER DISTRIBUTION TYPE
+// ============================================================
+
+// ============================================================
+// BEGIN: CONTAINER LAYOUT TYPES
+// ============================================================
+
+type ContainerDirection = ContainerElement["direction"];
+
+type ContainerHorizontalAlign = NonNullable<
+  ContainerElement["horizontalAlign"]
+>;
+
+type ContainerVerticalAlign = NonNullable<ContainerElement["verticalAlign"]>;
+
+// ============================================================
+// END: CONTAINER LAYOUT TYPES
 // ============================================================
 
 // ============================================================
@@ -193,6 +223,8 @@ function ContainerInspector({
   element,
   onUpdate,
 }: TypedInspectorProps<ContainerElement>) {
+  const { t } = useStudioI18n();
+
   function updateContainer(
     update: (container: ContainerElement) => ContainerElement,
   ) {
@@ -205,18 +237,196 @@ function ContainerInspector({
     });
   }
 
+  // ============================================================
+  // BEGIN: CONTAINER STYLE FIELD UPDATE
+  // ============================================================
+
+  function updateStyleField(
+    field:
+      | "paddingTop"
+      | "paddingRight"
+      | "paddingBottom"
+      | "paddingLeft"
+      | "marginTop"
+      | "marginRight"
+      | "marginBottom"
+      | "marginLeft",
+    value: number | undefined,
+  ) {
+    updateContainer((container) => ({
+      ...container,
+
+      style: {
+        ...container.style,
+
+        [field]: value,
+      },
+    }));
+  }
+
+  // ============================================================
+  // END: CONTAINER STYLE FIELD UPDATE
+  // ============================================================
+
   return (
     <>
+      {/* ==========================================================
+    BEGIN: CONTAINER LAYOUT
+    ========================================================== */}
+
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Size</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.layout")}</span>
+      </div>
+
+      {/* ----------------------------------------------------------
+    DIRECTION
+    ---------------------------------------------------------- */}
+
+      <label className={styles.field}>
+        <span>{t("inspector.direction")}</span>
+
+        <select
+          value={element.direction}
+          onChange={(event) => {
+            const direction = event.target.value as ContainerDirection;
+
+            updateContainer((container) => ({
+              ...container,
+
+              direction,
+            }));
+          }}
+        >
+          <option value="column">{t("inspector.vertical")}</option>
+
+          <option value="row">{t("inspector.horizontal")}</option>
+        </select>
+      </label>
+
+      {/* ==========================================================
+    BEGIN: CONTAINER DISTRIBUTION
+    ========================================================== */}
+
+      <label className={styles.field}>
+        <span title={t("inspector.distributionHelp")}>
+          {t("inspector.distribution")}
+        </span>
+
+        <select
+          value={element.distribution ?? "packed"}
+          onChange={(event) => {
+            const value = event.target.value as ContainerDistribution;
+
+            updateContainer((container) => ({
+              ...container,
+
+              distribution: value === "packed" ? undefined : value,
+            }));
+          }}
+        >
+          <option value="packed">{t("inspector.distribution.packed")}</option>
+
+          <option value="space-between">
+            {t("inspector.distribution.spaceBetween")}
+          </option>
+
+          <option value="space-around">
+            {t("inspector.distribution.spaceAround")}
+          </option>
+
+          <option value="space-evenly">
+            {t("inspector.distribution.spaceEvenly")}
+          </option>
+        </select>
+      </label>
+
+      {/* ==========================================================
+    END: CONTAINER DISTRIBUTION
+    ========================================================== */}
+
+      {/* ----------------------------------------------------------
+    ALIGNMENT
+    ---------------------------------------------------------- */}
+
+      <div className={styles.fieldGrid}>
+        <label className={styles.field}>
+          <span>{t("inspector.horizontal")}</span>
+
+          <select
+            value={element.horizontalAlign ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+
+              const horizontalAlign =
+                value === "" ? undefined : (value as ContainerHorizontalAlign);
+
+              updateContainer((container) => ({
+                ...container,
+
+                horizontalAlign,
+              }));
+            }}
+          >
+            <option value="">{t("inspector.default")}</option>
+
+            <option value="start">{t("inspector.start")}</option>
+
+            <option value="center">{t("inspector.center")}</option>
+
+            <option value="end">{t("inspector.end")}</option>
+
+            <option value="stretch">{t("inspector.stretch")}</option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.vertical")}</span>
+
+          <select
+            value={element.verticalAlign ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+
+              const verticalAlign =
+                value === "" ? undefined : (value as ContainerVerticalAlign);
+
+              updateContainer((container) => ({
+                ...container,
+
+                verticalAlign,
+              }));
+            }}
+          >
+            <option value="">{t("inspector.default")}</option>
+
+            <option value="start">{t("inspector.start")}</option>
+
+            <option value="center">{t("inspector.center")}</option>
+
+            <option value="end">{t("inspector.end")}</option>
+
+            <option value="stretch">{t("inspector.stretch")}</option>
+          </select>
+        </label>
+      </div>
+
+      {/* ==========================================================
+    END: CONTAINER LAYOUT
+    ========================================================== */}
+      <div className={styles.inspectorDivider} />
+
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.size")}</span>
+      </div>
 
       {/* =====================================================
           BEGIN: PRESET
           ===================================================== */}
 
       <label className={styles.field}>
-        <span>Preset</span>
+        <span>{t("inspector.preset")}</span>
 
         <select
           value={detectPanelSizePreset(element)}
@@ -242,15 +452,15 @@ function ContainerInspector({
             }));
           }}
         >
-          <option value="small">Small</option>
+          <option value="small">{t("inspector.small")}</option>
 
-          <option value="medium">Medium</option>
+          <option value="medium">{t("inspector.medium")}</option>
 
-          <option value="large">Large</option>
+          <option value="large">{t("inspector.large")}</option>
 
-          <option value="wide">Wide</option>
+          <option value="wide">{t("inspector.wide")}</option>
 
-          <option value="custom">Custom</option>
+          <option value="custom">{t("inspector.custom")}</option>
         </select>
       </label>
 
@@ -264,7 +474,7 @@ function ContainerInspector({
 
       <div className={styles.fieldGrid}>
         <label className={styles.field}>
-          <span>Width</span>
+          <span>{t("inspector.width")}</span>
 
           <div className={styles.unitInput}>
             <input
@@ -292,7 +502,7 @@ function ContainerInspector({
         </label>
 
         <label className={styles.field}>
-          <span>Height</span>
+          <span>{t("inspector.height")}</span>
 
           <div className={styles.unitInput}>
             <input
@@ -326,7 +536,9 @@ function ContainerInspector({
 
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Spacing</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.spacing")}</span>
+      </div>
 
       {/* =====================================================
           BEGIN: PADDING + GAP
@@ -334,7 +546,9 @@ function ContainerInspector({
 
       <div className={styles.fieldGrid}>
         <label className={styles.field}>
-          <span>Padding</span>
+          <span title={t("inspector.paddingTooltip")}>
+            {t("inspector.padding")}
+          </span>
 
           <div className={styles.unitInput}>
             <input
@@ -361,7 +575,7 @@ function ContainerInspector({
         </label>
 
         <label className={styles.field}>
-          <span>Gap</span>
+          <span title={t("inspector.gapTooltip")}>{t("inspector.gap")}</span>
 
           <div className={styles.unitInput}>
             <input
@@ -387,6 +601,257 @@ function ContainerInspector({
       {/* =====================================================
           END: PADDING + GAP
           ===================================================== */}
+      {/* ==========================================================
+    BEGIN: INDIVIDUAL PADDING
+    ========================================================== */}
+
+      <details className={styles.spacingDetails}>
+        <summary>
+          <span>{t("inspector.paddingSides")}</span>
+        </summary>
+
+        <div className={styles.spacingSides}>
+          {/* ------------------------------------------------------
+        TOP
+        ------------------------------------------------------ */}
+
+          <label className={styles.field}>
+            <span>{t("inspector.top")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.paddingTop)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "paddingTop",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+
+          {/* ------------------------------------------------------
+        RIGHT
+        ------------------------------------------------------ */}
+
+          <label className={styles.field}>
+            <span>{t("inspector.right")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.paddingRight)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "paddingRight",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+
+          {/* ------------------------------------------------------
+        BOTTOM
+        ------------------------------------------------------ */}
+
+          <label className={styles.field}>
+            <span>{t("inspector.bottom")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.paddingBottom)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "paddingBottom",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+
+          {/* ------------------------------------------------------
+        LEFT
+        ------------------------------------------------------ */}
+
+          <label className={styles.field}>
+            <span>{t("inspector.left")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.paddingLeft)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "paddingLeft",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+        </div>
+      </details>
+
+      {/* ==========================================================
+    END: INDIVIDUAL PADDING
+    ========================================================== */}
+      {/* ==========================================================
+    BEGIN: CONTAINER MARGIN
+    ========================================================== */}
+
+      <label className={styles.field}>
+        <span title={t("inspector.marginTooltip")}>
+          {t("inspector.margin")}
+        </span>
+
+        <div className={styles.unitInput}>
+          <input
+            type="number"
+            min="0"
+            value={readAbsoluteNumber(element.style?.margin)}
+            onChange={(event) => {
+              const number = parseOptionalNumber(event.target.value);
+
+              updateContainer((container) => ({
+                ...container,
+
+                style: {
+                  ...container.style,
+
+                  margin: number,
+                },
+              }));
+            }}
+          />
+
+          <span>px</span>
+        </div>
+      </label>
+
+      {/* ==========================================================
+    END: CONTAINER MARGIN
+    ========================================================== */}
+
+      {/* ==========================================================
+    BEGIN: INDIVIDUAL MARGIN
+    ========================================================== */}
+
+      <details className={styles.spacingDetails}>
+        <summary>
+          <span>{t("inspector.marginSides")}</span>
+        </summary>
+
+        <div className={styles.spacingSides}>
+          <label className={styles.field}>
+            <span>{t("inspector.top")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.marginTop)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "marginTop",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+
+          <label className={styles.field}>
+            <span>{t("inspector.right")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.marginRight)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "marginRight",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+
+          <label className={styles.field}>
+            <span>{t("inspector.bottom")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.marginBottom)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "marginBottom",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+
+          <label className={styles.field}>
+            <span>{t("inspector.left")}</span>
+
+            <div className={styles.unitInput}>
+              <input
+                type="number"
+                min="0"
+                value={readAbsoluteNumber(element.style?.marginLeft)}
+                onChange={(event) => {
+                  updateStyleField(
+                    "marginLeft",
+
+                    parseOptionalNumber(event.target.value),
+                  );
+                }}
+              />
+
+              <span>px</span>
+            </div>
+          </label>
+        </div>
+      </details>
+
+      {/* ==========================================================
+    END: INDIVIDUAL MARGIN
+    ========================================================== */}
     </>
   );
 }
@@ -403,14 +868,18 @@ function TextInspector({
   element,
   onUpdate,
 }: TypedInspectorProps<TextElement>) {
+  const { t } = useStudioI18n();
+
   return (
     <>
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Content</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.content")}</span>
+      </div>
 
       <label className={styles.field}>
-        <span>Text</span>
+        <span>{t("inspector.text")}</span>
 
         <textarea
           className={styles.textArea}
@@ -435,7 +904,7 @@ function TextInspector({
       </label>
 
       <label className={styles.field}>
-        <span>Style</span>
+        <span>{t("inspector.style")}</span>
 
         <select
           value={element.variant}
@@ -455,23 +924,25 @@ function TextInspector({
             });
           }}
         >
-          <option value="title">Title</option>
+          <option value="title">{t("inspector.titleField")}</option>
 
-          <option value="subtitle">Subtitle</option>
+          <option value="subtitle">{t("inspector.subtitle")}</option>
 
-          <option value="body">Body</option>
+          <option value="body">{t("inspector.body")}</option>
 
-          <option value="caption">Caption</option>
+          <option value="caption">{t("inspector.caption")}</option>
         </select>
       </label>
 
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Appearance</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.appearance")}</span>
+      </div>
 
       <div className={styles.colorControl}>
         <label className={styles.field}>
-          <span>Color</span>
+          <span>{t("inspector.color")}</span>
 
           <input
             className={styles.colorInput}
@@ -520,7 +991,7 @@ function TextInspector({
             });
           }}
         >
-          Use theme default
+          <span>{t("inspector.useThemeDefault")}</span>
         </button>
       </div>
     </>
@@ -539,14 +1010,18 @@ function TextboxInspector({
   element,
   onUpdate,
 }: TypedInspectorProps<TextboxElement>) {
+  const { t } = useStudioI18n();
+
   return (
     <>
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Content</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.content")}</span>
+      </div>
 
       <label className={styles.field}>
-        <span>Text</span>
+        <span>{t("inspector.text")}</span>
 
         <textarea
           className={styles.textArea}
@@ -572,11 +1047,13 @@ function TextboxInspector({
 
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Appearance</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("inspector.appearance")}</span>
+      </div>
 
       <div className={styles.colorControl}>
         <label className={styles.field}>
-          <span>Color</span>
+          <span>{t("inspector.color")}</span>
 
           <input
             className={styles.colorInput}
@@ -625,7 +1102,7 @@ function TextboxInspector({
             });
           }}
         >
-          Use theme default
+          <span>{t("inspector.useThemeDefault")}</span>
         </button>
       </div>
     </>
@@ -644,6 +1121,8 @@ function CodeInspector({
   element,
   onUpdate,
 }: TypedInspectorProps<CodeElement>) {
+  const { t } = useStudioI18n();
+
   // ----------------------------------------------------------
   // Mantemos a string localmente enquanto o usuário digita.
   //
@@ -680,14 +1159,16 @@ function CodeInspector({
     <>
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Code</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("element.code")}</span>
+      </div>
 
       {/* =====================================================
           BEGIN: CÓDIGO
           ===================================================== */}
 
       <label className={styles.field}>
-        <span>Source</span>
+        <span>{t("inspector.source")}</span>
 
         <textarea
           className={`${styles.textArea} ${styles.codeTextArea}`}
@@ -721,7 +1202,7 @@ function CodeInspector({
           ===================================================== */}
 
       <label className={styles.field}>
-        <span>Language</span>
+        <span>{t("inspector.language")}</span>
 
         <input
           type="text"
@@ -789,7 +1270,7 @@ function CodeInspector({
           }}
         />
 
-        <span>Show line numbers</span>
+        <span>{t("inspector.showLineNumbers")}</span>
       </label>
 
       {/* =====================================================
@@ -801,7 +1282,7 @@ function CodeInspector({
           ===================================================== */}
 
       <label className={styles.field}>
-        <span>Highlighted lines</span>
+        <span>{t("inspector.highlightedLines")}</span>
 
         <input
           type="text"
@@ -819,7 +1300,7 @@ function CodeInspector({
         />
 
         <small className={styles.fieldHint}>
-          Separate line numbers with commas.
+          <span>{t("inspector.highlightedLinesHint")}</span>
         </small>
       </label>
 
@@ -842,6 +1323,8 @@ function TerminalInspector({
   element,
   onUpdate,
 }: TypedInspectorProps<TerminalElement>) {
+  const { t } = useStudioI18n();
+
   // ==========================================================
   // BEGIN: UPDATE DE UMA LINHA
   // ==========================================================
@@ -928,18 +1411,20 @@ function TerminalInspector({
     <>
       <div className={styles.inspectorDivider} />
 
-      <div className={styles.inspectorSectionTitle}>Terminal</div>
+      <div className={styles.inspectorSectionTitle}>
+        <span>{t("element.terminal")}</span>
+      </div>
 
       {/* =====================================================
           BEGIN: TÍTULO
           ===================================================== */}
 
       <label className={styles.field}>
-        <span>Title</span>
+        <span>{t("inspector.titleField")}</span>
 
         <input
           type="text"
-          placeholder="Optional"
+          placeholder={t("inspector.optional")}
           value={element.title ?? ""}
           onChange={(event) => {
             const value = event.target.value;
@@ -966,7 +1451,9 @@ function TerminalInspector({
       <div className={styles.inspectorDivider} />
 
       <div className={styles.inspectorSectionHeader}>
-        <div className={styles.inspectorSectionTitle}>Lines</div>
+        <div className={styles.inspectorSectionTitle}>
+          <span>{t("inspector.lines")}</span>
+        </div>
 
         <span className={styles.sectionCount}>{element.lines.length}</span>
       </div>
@@ -977,7 +1464,9 @@ function TerminalInspector({
 
       <div className={styles.terminalLines}>
         {element.lines.length === 0 && (
-          <div className={styles.emptyInspectorList}>No terminal lines.</div>
+          <div className={styles.emptyInspectorList}>
+            <span>{t("inspector.noTerminalLines")}</span>
+          </div>
         )}
 
         {element.lines.map((line, index) => (
@@ -1006,25 +1495,27 @@ function TerminalInspector({
                   );
                 }}
               >
-                <option value="command">Command</option>
+                <option value="command">{t("inspector.command")}</option>
 
-                <option value="output">Output</option>
+                <option value="output">{t("inspector.output")}</option>
 
-                <option value="comment">Comment</option>
+                <option value="comment">{t("inspector.comment")}</option>
 
-                <option value="error">Error</option>
+                <option value="error">{t("inspector.error")}</option>
               </select>
 
               <button
                 type="button"
                 className={styles.iconButtonDanger}
-                aria-label={`Remove terminal line ${index + 1}`}
-                title="Remove line"
+                aria-label={t("inspector.removeTerminalLine", {
+                  number: index + 1,
+                })}
+                title={t("inspector.removeLine")}
                 onClick={() => {
                   removeLine(index);
                 }}
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </div>
 
@@ -1071,7 +1562,7 @@ function TerminalInspector({
         className={styles.secondaryButton}
         onClick={addLine}
       >
-        + Add line
+        <span>{t("inspector.addLine")}</span>
       </button>
     </>
   );
@@ -1091,6 +1582,8 @@ function TerminalInspector({
 // ============================================================
 
 export function ElementInspector({ element, onUpdate }: ElementInspectorProps) {
+  const { t } = useStudioI18n();
+
   return (
     <>
       {/* =====================================================
@@ -1098,13 +1591,15 @@ export function ElementInspector({ element, onUpdate }: ElementInspectorProps) {
           ===================================================== */}
 
       <div className={styles.inspectorGroup}>
-        <span className={styles.inspectorLabel}>Element</span>
+        <span className={styles.inspectorLabel}>{t("inspector.element")}</span>
 
-        <strong>{element.type}</strong>
+        <strong>
+          <span>{t(ELEMENT_TYPE_MESSAGE_KEYS[element.type])}</span>
+        </strong>
       </div>
 
       <div className={styles.inspectorGroup}>
-        <span className={styles.inspectorLabel}>ID</span>
+        <span className={styles.inspectorLabel}>{t("inspector.id")}</span>
 
         <code>{element.id}</code>
       </div>
@@ -1172,8 +1667,7 @@ export function ElementInspector({ element, onUpdate }: ElementInspectorProps) {
         element.type !== "image" &&
         element.type !== "table" && (
           <div className={styles.nextStep}>
-            This element is connected to the document. Specific editing controls
-            will be added in the next rounds.
+            <span>{t("inspector.unsupportedElementHint")}</span>
           </div>
         )}
 

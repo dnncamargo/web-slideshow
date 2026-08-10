@@ -2,6 +2,8 @@ import type {
   PowerShowElement,
 } from "@powershow/document-schema";
 
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
 import styles from
   "./editor-workspace.module.css";
 
@@ -42,6 +44,8 @@ export function ImageInspector({
   element,
   onUpdate,
 }: ImageInspectorProps) {
+  const { t } = useStudioI18n();
+
   return (
     <>
       <div
@@ -56,7 +60,9 @@ export function ImageInspector({
           styles.inspectorSectionTitle
         }
       >
-        Image
+        <span>
+          {t("element.image")}
+        </span>
       </div>
 
 
@@ -70,7 +76,7 @@ export function ImageInspector({
         }
       >
         <span>
-          Source
+          {t("inspector.source")}
         </span>
 
         <textarea
@@ -118,7 +124,9 @@ export function ImageInspector({
             styles.fieldHint
           }
         >
-          Image path or source.
+          <span>
+            {t("image.sourceHint")}
+          </span>
         </small>
       </label>
 
@@ -137,7 +145,7 @@ export function ImageInspector({
         }
       >
         <span>
-          Alternative text
+          {t("image.alternativeText")}
         </span>
 
         <textarea
@@ -194,7 +202,7 @@ export function ImageInspector({
         }
       >
         <span>
-          Fit
+          {t("image.fit")}
         </span>
 
         <select
@@ -232,19 +240,19 @@ export function ImageInspector({
           <option
             value="contain"
           >
-            Contain
+            {t("image.contain")}
           </option>
 
           <option
             value="cover"
           >
-            Cover
+            {t("image.cover")}
           </option>
 
           <option
             value="fill"
           >
-            Fill
+            {t("image.fill")}
           </option>
         </select>
       </label>

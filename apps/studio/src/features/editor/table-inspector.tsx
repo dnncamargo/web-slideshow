@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import type { PowerShowElement } from "@powershow/document-schema";
 
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
 import styles from "./editor-workspace.module.css";
 
 // ============================================================
@@ -192,6 +194,7 @@ interface TableCellEditorProps {
 
 function TableCellEditor({ value, onChange }: TableCellEditorProps) {
   const type = getCellType(value);
+  const { t } = useStudioI18n();
 
   return (
     <div className={styles.tableCellEditor}>
@@ -208,13 +211,13 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
           );
         }}
       >
-        <option value="string">Text</option>
+        <option value="string">{t("table.text")}</option>
 
-        <option value="number">Number</option>
+        <option value="number">{t("table.number")}</option>
 
-        <option value="boolean">Boolean</option>
+        <option value="boolean">{t("table.boolean")}</option>
 
-        <option value="null">Null</option>
+        <option value="null">{t("table.null")}</option>
       </select>
 
       {type === "string" && (
@@ -246,13 +249,17 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
             onChange(event.target.value === "true");
           }}
         >
-          <option value="true">True</option>
+          <option value="true">{t("table.true")}</option>
 
-          <option value="false">False</option>
+          <option value="false">{t("table.false")}</option>
         </select>
       )}
 
-      {type === "null" && <div className={styles.tableNullValue}>null</div>}
+      {type === "null" && (
+        <div className={styles.tableNullValue}>
+          <span>null</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -266,6 +273,8 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
 // ============================================================
 
 export function TableInspector({ element, onUpdate }: TableInspectorProps) {
+  const { t } = useStudioI18n();
+
   // ==========================================================
   // BEGIN: UPDATE GENÉRICO DE TABLE
   // ==========================================================
@@ -491,7 +500,9 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
           ===================================================== */}
 
       <div className={styles.inspectorSectionHeader}>
-        <div className={styles.inspectorSectionTitle}>Columns</div>
+        <div className={styles.inspectorSectionTitle}>
+          <span>{t("table.columns")}</span>
+        </div>
 
         <span className={styles.sectionCount}>{element.columns.length}</span>
       </div>
@@ -500,22 +511,24 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
         {element.columns.map((column, index) => (
           <div key={column.key} className={styles.tableColumnEditor}>
             <div className={styles.tableEditorHeader}>
-              <strong>Column {index + 1}</strong>
+              <strong>
+                <span>{t("table.column", { number: index + 1 })}</span>
+              </strong>
 
               <button
                 type="button"
                 className={styles.iconButtonDanger}
-                aria-label={`Remove column ${index + 1}`}
+                aria-label={t("table.removeColumn", { number: index + 1 })}
                 onClick={() => {
                   removeColumn(index);
                 }}
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </div>
 
             <label className={styles.field}>
-              <span>Label</span>
+              <span>{t("table.label")}</span>
 
               <input
                 type="text"
@@ -541,7 +554,7 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
             </label>
 
             <label className={styles.field}>
-              <span>Key</span>
+              <span>{t("table.key")}</span>
               {/* ==========================================================
     BEGIN: COLUMN KEY EDITOR
 
@@ -570,7 +583,7 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
         className={styles.secondaryButton}
         onClick={addColumn}
       >
-        + Add column
+        <span>{t("table.addColumn")}</span>
       </button>
 
       {/* =====================================================
@@ -584,30 +597,36 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
           ===================================================== */}
 
       <div className={styles.inspectorSectionHeader}>
-        <div className={styles.inspectorSectionTitle}>Rows</div>
+        <div className={styles.inspectorSectionTitle}>
+          <span>{t("table.rows")}</span>
+        </div>
 
         <span className={styles.sectionCount}>{element.rows.length}</span>
       </div>
 
       <div className={styles.tableEditorList}>
         {element.rows.length === 0 && (
-          <div className={styles.emptyInspectorList}>No rows.</div>
+          <div className={styles.emptyInspectorList}>
+            <span>{t("table.noRows")}</span>
+          </div>
         )}
 
         {element.rows.map((row, rowIndex) => (
           <div key={rowIndex} className={styles.tableRowEditor}>
             <div className={styles.tableEditorHeader}>
-              <strong>Row {rowIndex + 1}</strong>
+              <strong>
+                <span>{t("table.row", { number: rowIndex + 1 })}</span>
+              </strong>
 
               <button
                 type="button"
                 className={styles.iconButtonDanger}
-                aria-label={`Remove row ${rowIndex + 1}`}
+                aria-label={t("table.removeRow", { number: rowIndex + 1 })}
                 onClick={() => {
                   removeRow(rowIndex);
                 }}
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </div>
 
@@ -632,7 +651,7 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
       </div>
 
       <button type="button" className={styles.secondaryButton} onClick={addRow}>
-        + Add row
+        <span>{t("table.addRow")}</span>
       </button>
 
       {/* =====================================================

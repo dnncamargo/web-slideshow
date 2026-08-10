@@ -45,3 +45,23 @@ export const PositionSchema = z.enum([
   "relative",
   "absolute",
 ]);
+
+// ============================================================
+// BEGIN: CONTAINER DISTRIBUTION
+// ============================================================
+
+export const DistributionSchema = z.enum([
+  "packed",
+  "space-between",
+  "space-around",
+  "space-evenly",
+]);
+
+export type Distribution =
+  z.infer<
+    typeof DistributionSchema
+  >;
+
+// ============================================================
+// END: CONTAINER DISTRIBUTION
+// ============================================================
