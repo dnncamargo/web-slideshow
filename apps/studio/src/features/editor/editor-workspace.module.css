@@ -859,6 +859,29 @@
     0.06em;
 }
 
+
+.inspectorSection {
+  min-width: 0;
+}
+
+
+.inspectorSection > summary {
+  cursor: pointer;
+
+  user-select: none;
+}
+
+
+.inspectorSectionContent {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 18px;
+
+  padding-top: 18px;
+}
+
 /* ==========================================================
    END: SEÇÕES DO INSPECTOR
    ========================================================== */
@@ -916,6 +939,13 @@
   padding:
     0
     9px;
+}
+
+
+.field select:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
 }
 
 
