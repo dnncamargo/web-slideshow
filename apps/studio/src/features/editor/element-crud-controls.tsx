@@ -12,6 +12,8 @@ import type {
   ElementCreateType,
 } from "./element-operations";
 
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
 import styles from
   "./editor-workspace.module.css";
 
@@ -64,6 +66,8 @@ export function ElementCrudControls({
   onDuplicate,
   onDelete,
 }: ElementCrudControlsProps) {
+  const { t } = useStudioI18n();
+
   const [
     createType,
     setCreateType,
@@ -76,10 +80,10 @@ export function ElementCrudControls({
   const insertionDescription =
     selectedElement?.type ===
       "container"
-      ? "Adds inside selected container."
+      ? t("elementCrud.addInsideContainer")
       : selectedElement
-        ? "Adds after selected element."
-        : "Adds to slide root.";
+        ? t("elementCrud.addAfterElement")
+        : t("elementCrud.addToSlideRoot");
 
 
   // ============================================================
@@ -123,31 +127,31 @@ export function ElementCrudControls({
           }
         >
           <option value="text">
-            Text
+            {t("element.text")}
           </option>
 
           <option value="textbox">
-            Textbox
+            {t("element.textbox")}
           </option>
 
           <option value="container">
-            Container
+            {t("element.container")}
           </option>
 
           <option value="image">
-            Image
+            {t("element.image")}
           </option>
 
           <option value="code">
-            Code
+            {t("element.code")}
           </option>
 
           <option value="terminal">
-            Terminal
+            {t("element.terminal")}
           </option>
 
           <option value="table">
-            Table
+            {t("element.table")}
           </option>
         </select>
 
@@ -167,7 +171,9 @@ export function ElementCrudControls({
             }
           }
         >
-          + Add
+          <span>
+            {t("elementCrud.add")}
+          </span>
         </button>
       </div>
 
@@ -181,7 +187,9 @@ export function ElementCrudControls({
           styles.elementCrudHint
         }
       >
-        {insertionDescription}
+        <span>
+          {insertionDescription}
+        </span>
       </small>
 
             {/* =====================================================
@@ -204,9 +212,11 @@ export function ElementCrudControls({
             onMoveUp
           }
 
-          title="Move element up"
+          title={t("elementCrud.moveUpTitle")}
         >
-          ↑ Up
+          <span>
+            {t("elementCrud.up")}
+          </span>
         </button>
 
 
@@ -221,9 +231,11 @@ export function ElementCrudControls({
             onMoveDown
           }
 
-          title="Move element down"
+          title={t("elementCrud.moveDownTitle")}
         >
-          ↓ Down
+          <span>
+            {t("elementCrud.down")}
+          </span>
         </button>
       </div>
 
@@ -252,7 +264,9 @@ export function ElementCrudControls({
             onDuplicate
           }
         >
-          Duplicate
+          <span>
+            {t("elementCrud.duplicate")}
+          </span>
         </button>
 
 
@@ -271,7 +285,9 @@ export function ElementCrudControls({
             onDelete
           }
         >
-          Delete
+          <span>
+            {t("elementCrud.delete")}
+          </span>
         </button>
       </div>
 

@@ -1,5 +1,9 @@
 import type { SlideLayoutPreset } from "./slide-operations";
 
+import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
+
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
 import styles from "./editor-workspace.module.css";
 
 // ============================================================
@@ -27,56 +31,56 @@ interface SlideLayoutPickerProps {
 const presets: {
   id: SlideLayoutPreset;
 
-  label: string;
+  label: StudioMessageKey;
 
-  description: string;
+  description: StudioMessageKey;
 }[] = [
   {
     id: "blank",
 
-    label: "Blank",
+    label: "slides.layout.blank",
 
-    description: "Empty slide",
+    description: "slides.layout.blankDescription",
   },
 
   {
     id: "centered",
 
-    label: "Centered",
+    label: "slides.layout.centered",
 
-    description: "Centered content",
+    description: "slides.layout.centeredDescription",
   },
 
   {
     id: "title-content",
 
-    label: "Title + Content",
+    label: "slides.layout.titleContent",
 
-    description: "Title and body",
+    description: "slides.layout.titleContentDescription",
   },
 
   {
     id: "two-columns",
 
-    label: "Two Columns",
+    label: "slides.layout.twoColumns",
 
-    description: "50 / 50 layout",
+    description: "slides.layout.twoColumnsDescription",
   },
 
   {
     id: "three-columns",
 
-    label: "Three Columns",
+    label: "slides.layout.threeColumns",
 
-    description: "Three sections",
+    description: "slides.layout.threeColumnsDescription",
   },
 
   {
     id: "title-two-columns",
 
-    label: "Title + 2 Cols",
+    label: "slides.layout.titleTwoColumns",
 
-    description: "Title with columns",
+    description: "slides.layout.titleTwoColumnsDescription",
   },
 ];
 
@@ -159,6 +163,8 @@ export function SlideLayoutPicker({
   onCreate,
   onCancel,
 }: SlideLayoutPickerProps) {
+  const { t } = useStudioI18n();
+
   return (
     <div className={styles.layoutPicker}>
       {/* ==========================================================
@@ -166,7 +172,7 @@ export function SlideLayoutPicker({
     ========================================================== */}
 
       <div className={styles.layoutPickerHeader}>
-        <span>Choose layout</span>
+        <span>{t("slides.chooseLayout")}</span>
       </div>
 
       {/* ==========================================================
@@ -194,9 +200,11 @@ export function SlideLayoutPicker({
               </div>
 
               <div className={styles.layoutPresetText}>
-                <strong>{preset.label}</strong>
+                <strong>
+                  <span>{t(preset.label)}</span>
+                </strong>
 
-                <span>{preset.description}</span>
+                <span>{t(preset.description)}</span>
               </div>
             </button>
           );
@@ -212,7 +220,7 @@ export function SlideLayoutPicker({
           className={styles.layoutCancelButton}
           onClick={onCancel}
         >
-          Cancel
+          <span>{t("slides.cancel")}</span>
         </button>
 
         <button
@@ -220,7 +228,7 @@ export function SlideLayoutPicker({
           className={styles.layoutCreateButton}
           onClick={onCreate}
         >
-          + New
+          <span>{t("slides.create")}</span>
         </button>
       </div>
 

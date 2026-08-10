@@ -4,27 +4,15 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import {
-  renderStyle,
-} from "./render-style";
+import { renderStyle } from "./render-style";
 
-import {
-  renderLength,
-} from "./render-length";
+import { renderLength } from "./render-length";
 
-type RenderChild = (
-  element: PowerShowElement,
-) => string;
+type RenderChild = (element: PowerShowElement) => string;
 
-type Alignment =
-  | "start"
-  | "center"
-  | "end"
-  | "stretch";
+type Alignment = "start" | "center" | "end" | "stretch";
 
-function renderMainAxisAlignment(
-  value: Alignment,
-): string {
+function renderMainAxisAlignment(value: Alignment): string {
   switch (value) {
     case "start":
       return "flex-start";
@@ -41,9 +29,7 @@ function renderMainAxisAlignment(
   }
 }
 
-function renderCrossAxisAlignment(
-  value: Alignment,
-): string {
+function renderCrossAxisAlignment(value: Alignment): string {
   switch (value) {
     case "start":
       return "flex-start";
@@ -87,86 +73,87 @@ export function renderContainer(
 
   const styles: string[] = [];
 
-  const baseStyle = renderStyle(
-    element.style,
-  );
+  const baseStyle = renderStyle(element.style);
 
   if (baseStyle) {
     styles.push(baseStyle);
   }
 
   styles.push("display:flex");
-  styles.push(
-    `flex-direction:${element.direction}`,
-  );
+  styles.push(`flex-direction:${element.direction}`);
 
   if (element.gap !== undefined) {
-    styles.push(
-      `gap:${renderLength(element.gap)}`,
-    );
+    styles.push(`gap:${renderLength(element.gap)}`);
   }
 
   if (element.width !== undefined) {
-    styles.push(
-      `width:${renderLength(element.width)}`,
-    );
+    styles.push(`width:${renderLength(element.width)}`);
   }
 
   const horizontalAlign =
-    element.horizontalAlign ??
-    element.style?.horizontalAlign;
+    element.horizontalAlign ?? element.style?.horizontalAlign;
 
-  const verticalAlign =
-    element.verticalAlign ??
-    element.style?.verticalAlign;
+  const verticalAlign = element.verticalAlign ?? element.style?.verticalAlign;
+
+  const distribution = element.distribution ?? "packed";
+
+  const distributedMainAxis = renderDistribution(distribution);
+
+  // ============================================================
+  // BEGIN: CONTAINER ALIGNMENT + DISTRIBUTION
+  // ============================================================
 
   if (element.direction === "row") {
-    if (horizontalAlign) {
+    // ----------------------------------------------------------
+    // MAIN AXIS = HORIZONTAL
+    // ----------------------------------------------------------
+
+    if (distributedMainAxis) {
+      styles.push(`justify-content:${distributedMainAxis}`);
+    } else if (horizontalAlign) {
       styles.push(
-        `justify-content:${renderMainAxisAlignment(
-          horizontalAlign,
-        )}`,
+        `justify-content:${renderMainAxisAlignment(horizontalAlign)}`,
       );
     }
 
+    // ----------------------------------------------------------
+    // CROSS AXIS = VERTICAL
+    // ----------------------------------------------------------
+
     if (verticalAlign) {
-      styles.push(
-        `align-items:${renderCrossAxisAlignment(
-          verticalAlign,
-        )}`,
-      );
+      styles.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
     }
   } else {
+    // ----------------------------------------------------------
+    // CROSS AXIS = HORIZONTAL
+    // ----------------------------------------------------------
+
     if (horizontalAlign) {
-      styles.push(
-        `align-items:${renderCrossAxisAlignment(
-          horizontalAlign,
-        )}`,
-      );
+      styles.push(`align-items:${renderCrossAxisAlignment(horizontalAlign)}`);
     }
 
-    if (verticalAlign) {
-      styles.push(
-        `justify-content:${renderMainAxisAlignment(
-          verticalAlign,
-        )}`,
-      );
+    // ----------------------------------------------------------
+    // MAIN AXIS = VERTICAL
+    // ----------------------------------------------------------
+
+    if (distributedMainAxis) {
+      styles.push(`justify-content:${distributedMainAxis}`);
+    } else if (verticalAlign) {
+      styles.push(`justify-content:${renderMainAxisAlignment(verticalAlign)}`);
     }
   }
 
-  const classes = [
-    "powershow-element",
-    "powershow-container",
-  ];
+  // ============================================================
+  // END: CONTAINER ALIGNMENT + DISTRIBUTION
+  // ============================================================
+
+  const classes = ["powershow-element", "powershow-container"];
 
   if (element.role) {
-    classes.push(
-      `powershow-container-${element.role}`,
-    );
+    classes.push(`powershow-container-${element.role}`);
   }
 
-  const customClass =
-    element.style?.className?.trim();
+  const customClass = element.style?.className?.trim();
 
   if (customClass) {
     classes.push(customClass);
@@ -174,31 +161,47 @@ export function renderContainer(
 
   const tag = getTagName(element.role);
 
-  const children = element.children
-    .map(renderChild)
-    .join("");
+  const children = element.children.map(renderChild).join("");
 
   const roleAttribute = element.role
-    ? ` data-powershow-role="${escapeHtml(
-        element.role,
-      )}"`
+    ? ` data-powershow-role="${escapeHtml(element.role)}"`
     : "";
 
   return (
     `<${tag}` +
-    ` class="${escapeHtml(
-      classes.join(" "),
-    )}"` +
-    ` data-powershow-id="${escapeHtml(
-      element.id,
-    )}"` +
+    ` class="${escapeHtml(classes.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
     ` data-powershow-type="container"` +
     roleAttribute +
-    ` style="${escapeHtml(
-      styles.join(";"),
-    )}"` +
+    ` style="${escapeHtml(styles.join(";"))}"` +
     `>` +
     children +
     `</${tag}>`
   );
 }
+
+// ============================================================
+// BEGIN: DISTRIBUTION RENDERING
+// ============================================================
+
+type Distribution = NonNullable<ContainerElement["distribution"]>;
+
+function renderDistribution(value: Distribution): string | null {
+  switch (value) {
+    case "packed":
+      return null;
+
+    case "space-between":
+      return "space-between";
+
+    case "space-around":
+      return "space-around";
+
+    case "space-evenly":
+      return "space-evenly";
+  }
+}
+
+// ============================================================
+// END: DISTRIBUTION RENDERING
+// ============================================================
