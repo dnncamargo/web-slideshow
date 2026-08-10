@@ -13,6 +13,8 @@ import type {
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementEffectsSection } from "./sections/element-effects-section";
+
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
 type TerminalLine = TerminalElement["lines"][number];
@@ -250,6 +252,13 @@ export function TerminalInspector({
         showBackground
         showRoundedCorners
         showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="terminal"
       />
     </>
   );

@@ -13,6 +13,8 @@ import type {
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementEffectsSection } from "./sections/element-effects-section";
+
 type TextElement = Extract<PowerShowElement, { type: "text" }>;
 
 // ============================================================
@@ -113,6 +115,13 @@ export function TextInspector({
         showBackground
         showRoundedCorners
         showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="text"
       />
     </>
   );

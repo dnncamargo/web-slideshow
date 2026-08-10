@@ -13,6 +13,8 @@ import type {
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementEffectsSection } from "./sections/element-effects-section";
+
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
 // ============================================================
@@ -141,6 +143,13 @@ export function ImageInspector({
         controlPrefix="image"
         showRoundedCorners
         showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="image"
       />
     </>
   );

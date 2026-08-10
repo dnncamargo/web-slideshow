@@ -1,10 +1,11 @@
-import type { ElementStyle } from "@powershow/document-schema";
+import type { Border, ElementStyle } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
 import {
+  getControlName,
   parseOptionalNumber,
   readAbsoluteNumber,
   readPickerColor,
@@ -28,14 +29,32 @@ interface ElementAppearanceSectionProps {
   showRoundedCorners?: boolean;
 
   showOpacity?: boolean;
+
+  showBorder?: boolean;
 }
+
+type EnabledBorderStyle = NonNullable<Border["style"]>;
+
+type BorderSelection = EnabledBorderStyle | "none";
+
+const DEFAULT_BORDER_COLOR = "#94a3b8";
+
+const DEFAULT_BORDER_WIDTH = 1;
 
 function readOpacityPercentage(value: number | undefined): number {
   return value === undefined ? 100 : value * 100;
 }
 
-function getControlName(prefix: string, field: string): string {
-  return `${prefix}${field}`;
+function getBorderSelection(border: Border | undefined): BorderSelection {
+  if (border === undefined) {
+    return "none";
+  }
+
+  return border.style ?? "solid";
+}
+
+function isEnabledBorderStyle(value: string): value is EnabledBorderStyle {
+  return value === "solid" || value === "dashed" || value === "dotted";
 }
 
 // ============================================================
@@ -50,6 +69,7 @@ export function ElementAppearanceSection({
   showBackground = false,
   showRoundedCorners = false,
   showOpacity = false,
+  showBorder = false,
 }: ElementAppearanceSectionProps) {
   const { t } = useStudioI18n();
 
@@ -201,6 +221,146 @@ export function ElementAppearanceSection({
             </label>
           )}
         </div>
+      )}
+
+      {showBorder && (
+        <>
+          <label className={styles.field}>
+            <span title={t("inspector.borderHelp")}>
+              {t("inspector.border")}
+            </span>
+
+            <select
+              id={`${controlPrefix}-border-style`}
+              name={getControlName(controlPrefix, "BorderStyle")}
+              value={getBorderSelection(style?.border)}
+              onChange={(event) => {
+                const borderSelection = event.target.value;
+
+                if (borderSelection === "none") {
+                  onUpdateStyle((currentStyle) => ({
+                    ...currentStyle,
+
+                    border: undefined,
+                  }));
+
+                  return;
+                }
+
+                if (!isEnabledBorderStyle(borderSelection)) {
+                  return;
+                }
+
+                onUpdateStyle((currentStyle) => ({
+                  ...currentStyle,
+
+                  border:
+                    currentStyle?.border === undefined
+                      ? {
+                          width: DEFAULT_BORDER_WIDTH,
+
+                          style: borderSelection,
+
+                          color: DEFAULT_BORDER_COLOR,
+                        }
+                      : {
+                          ...currentStyle.border,
+
+                          style: borderSelection,
+                        },
+                }));
+              }}
+            >
+              <option value="none">{t("inspector.border.none")}</option>
+
+              <option value="solid">{t("inspector.border.solid")}</option>
+
+              <option value="dashed">{t("inspector.border.dashed")}</option>
+
+              <option value="dotted">{t("inspector.border.dotted")}</option>
+            </select>
+          </label>
+
+          {style?.border !== undefined && (
+            <div className={styles.fieldGrid}>
+              <label className={styles.field}>
+                <span>{t("inspector.borderWidth")}</span>
+
+                <div className={styles.unitInput}>
+                  <input
+                    id={`${controlPrefix}-border-width`}
+                    name={getControlName(controlPrefix, "BorderWidth")}
+                    type="number"
+                    min="0"
+                    value={readAbsoluteNumber(style.border.width)}
+                    onChange={(event) => {
+                      const width =
+                        parseOptionalNumber(event.target.value) ??
+                        DEFAULT_BORDER_WIDTH;
+
+                      onUpdateStyle((currentStyle) => ({
+                        ...currentStyle,
+
+                        border:
+                          currentStyle?.border === undefined
+                            ? {
+                                width,
+
+                                style: "solid",
+
+                                color: DEFAULT_BORDER_COLOR,
+                              }
+                            : {
+                                ...currentStyle.border,
+
+                                width,
+                              },
+                      }));
+                    }}
+                  />
+
+                  <span>px</span>
+                </div>
+              </label>
+
+              <label className={styles.field}>
+                <span>{t("inspector.borderColor")}</span>
+
+                <input
+                  id={`${controlPrefix}-border-color`}
+                  name={getControlName(controlPrefix, "BorderColor")}
+                  className={styles.colorInput}
+                  type="color"
+                  value={readPickerColor(style.border.color)}
+                  onChange={(event) => {
+                    const color = event.target.value;
+
+                    onUpdateStyle((currentStyle) => ({
+                      ...currentStyle,
+
+                      border:
+                        currentStyle?.border === undefined
+                          ? {
+                              width: DEFAULT_BORDER_WIDTH,
+
+                              style: "solid",
+
+                              color,
+                            }
+                          : {
+                              ...currentStyle.border,
+
+                              color,
+
+                              gradient: undefined,
+                            },
+                    }));
+                  }}
+                />
+              </label>
+            </div>
+          )}
+        </>
       )}
     </InspectorSection>
   );

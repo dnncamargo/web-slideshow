@@ -1,5 +1,9 @@
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
+export function getControlName(prefix: string, field: string): string {
+  return `${prefix}${field}`;
+}
+
 export function readAbsoluteNumber(
   value: string | number | undefined,
 ): number | "" {

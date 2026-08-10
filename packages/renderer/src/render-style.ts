@@ -95,17 +95,5 @@ export function renderStyle(style: ElementStyle | undefined): string {
     output.push(...renderBorder(style.border));
   }
 
-  if (style.backgroundGradient !== undefined) {
-    output.push(`background-image:${renderGradient(style.backgroundGradient)}`);
-  }
-
-  if (style.shadow !== undefined) {
-    output.push(`box-shadow:${renderShadow(style.shadow)}`);
-  }
-
-  if (style.border !== undefined) {
-    output.push(...renderBorder(style.border));
-  }
-
   return output.join(";");
 }

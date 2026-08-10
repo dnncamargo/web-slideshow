@@ -4,6 +4,10 @@ import { renderStyle } from "../src/render-style";
 
 import { renderLength } from "../src//render-length";
 
+function countOccurrences(value: string, search: string): number {
+  return value.split(search).length - 1;
+}
+
 describe("renderLength", () => {
   it("converts numeric lengths to pixels", () => {
     expect(renderLength(32)).toBe("32px");
@@ -88,6 +92,8 @@ describe("renderStyle", () => {
     expect(result).toContain(
       "background-image:linear-gradient(135deg,#111827 0%,#312e81 100%)",
     );
+
+    expect(countOccurrences(result, "background-image:")).toBe(1);
   });
 
   it("renders a box shadow", () => {
@@ -102,6 +108,8 @@ describe("renderStyle", () => {
     });
 
     expect(result).toContain("box-shadow:0px 16px 40px -8px rgba(0,0,0,0.4)");
+
+    expect(countOccurrences(result, "box-shadow:")).toBe(1);
   });
 
   it("renders a border", () => {
@@ -118,6 +126,47 @@ describe("renderStyle", () => {
     expect(result).toContain("border-style:solid");
 
     expect(result).toContain("border-color:#fff");
+
+    expect(countOccurrences(result, "border-width:")).toBe(1);
+
+    expect(countOccurrences(result, "border-style:")).toBe(1);
+
+    expect(countOccurrences(result, "border-color:")).toBe(1);
+  });
+
+  it("renders a gradient border once", () => {
+    const result = renderStyle({
+      border: {
+        width: 3,
+        style: "dashed",
+        gradient: {
+          type: "linear",
+          angle: 90,
+          stops: [
+            {
+              color: "#7c3aed",
+              position: 0,
+            },
+            {
+              color: "#06b6d4",
+              position: 100,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(result).toContain(
+      "border-image:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%) 1",
+    );
+
+    expect(countOccurrences(result, "border-width:")).toBe(1);
+
+    expect(countOccurrences(result, "border-style:")).toBe(1);
+
+    expect(countOccurrences(result, "border-color:")).toBe(1);
+
+    expect(countOccurrences(result, "border-image:")).toBe(1);
   });
   // ============================================================
   // BEGIN: TESTE DE DIMENSÕES DO CONTAINER
