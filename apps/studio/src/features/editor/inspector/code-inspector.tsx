@@ -15,6 +15,8 @@ import type {
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementEffectsSection } from "./sections/element-effects-section";
+
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
 function formatHighlightedLines(lines: number[]): string {
@@ -222,6 +224,13 @@ export function CodeInspector({
         showBackground
         showRoundedCorners
         showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="code"
       />
     </>
   );

@@ -12,6 +12,8 @@ import type { UpdateElementStyle } from "./inspector-types";
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementEffectsSection } from "./sections/element-effects-section";
+
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
 // ============================================================
@@ -700,6 +702,13 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
         showBackground
         showRoundedCorners
         showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="table"
       />
     </>
   );
@@ -708,4 +717,3 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
 // ============================================================
 // END: TABLE INSPECTOR
 // ============================================================
-

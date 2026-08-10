@@ -13,6 +13,8 @@ import type {
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementEffectsSection } from "./sections/element-effects-section";
+
 type TextboxElement = Extract<PowerShowElement, { type: "textbox" }>;
 
 // ============================================================
@@ -80,6 +82,13 @@ export function TextboxInspector({
         showBackground
         showRoundedCorners
         showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="textbox"
       />
     </>
   );
