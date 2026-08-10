@@ -9,6 +9,8 @@ interface InspectorSectionProps {
 
   defaultOpen?: boolean;
 
+  count?: number;
+
   className?: string;
 }
 
@@ -20,6 +22,7 @@ export function InspectorSection({
   title,
   children,
   defaultOpen = false,
+  count,
   className,
 }: InspectorSectionProps) {
   const sectionClassName = className
@@ -30,6 +33,10 @@ export function InspectorSection({
     <details className={sectionClassName} open={defaultOpen || undefined}>
       <summary className={styles.inspectorSectionTitle}>
         <span>{title}</span>
+
+        {count !== undefined && (
+          <span className={styles.sectionCount}>{count}</span>
+        )}
       </summary>
 
       <div className={styles.inspectorSectionContent}>{children}</div>
