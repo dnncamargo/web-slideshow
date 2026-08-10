@@ -872,6 +872,13 @@
 }
 
 
+.inspectorSection > summary .sectionCount {
+  float: right;
+
+  margin-top: -3px;
+}
+
+
 .inspectorSectionContent {
   display: flex;
 

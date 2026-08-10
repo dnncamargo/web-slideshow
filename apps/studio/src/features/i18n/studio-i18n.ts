@@ -130,6 +130,7 @@ const englishMessages = {
   "inspector.gapTooltip": "Space between the container's child elements.",
   "inspector.marginTooltip": "Space outside the container.",
   "inspector.content": "Content",
+  "inspector.display": "Display",
   "inspector.text": "Text",
   "inspector.style": "Style",
   "inspector.titleField": "Title",
@@ -322,6 +323,7 @@ const portugueseMessages = {
   "inspector.marginTooltip": "Espaço externo ao container.",
 
   "inspector.content": "Conteúdo",
+  "inspector.display": "Exibição",
   "inspector.text": "Texto",
   "inspector.style": "Estilo",
   "inspector.titleField": "Título",
