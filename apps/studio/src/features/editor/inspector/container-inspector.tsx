@@ -66,6 +66,7 @@ export function ContainerInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="container"
         showBackground
+        showBackgroundGradient
         showRoundedCorners
         showOpacity
         showBorder

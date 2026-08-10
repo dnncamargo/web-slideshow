@@ -15,6 +15,8 @@ import { InspectorSection } from "../inspector-section";
 
 import type { UpdateElementStyle } from "../inspector-types";
 
+import { ElementBackgroundGradientControl } from "./element-background-gradient-control";
+
 interface ElementAppearanceSectionProps {
   style: ElementStyle | undefined;
 
@@ -25,6 +27,8 @@ interface ElementAppearanceSectionProps {
   showColor?: boolean;
 
   showBackground?: boolean;
+
+  showBackgroundGradient?: boolean;
 
   showRoundedCorners?: boolean;
 
@@ -67,6 +71,7 @@ export function ElementAppearanceSection({
   controlPrefix,
   showColor = false,
   showBackground = false,
+  showBackgroundGradient = false,
   showRoundedCorners = false,
   showOpacity = false,
   showBorder = false,
@@ -114,44 +119,56 @@ export function ElementAppearanceSection({
         </div>
       )}
 
-      {showBackground && (
-        <div className={styles.colorControl}>
-          <label className={styles.field}>
-            <span title={t("inspector.backgroundHelp")}>
-              {t("inspector.background")}
-            </span>
+      {(showBackground || showBackgroundGradient) && (
+        <div className={styles.backgroundControls}>
+          {showBackground && (
+            <div className={styles.colorControl}>
+              <label className={styles.field}>
+                <span title={t("inspector.backgroundHelp")}>
+                  {t("inspector.background")}
+                </span>
 
-            <input
-              id={`${controlPrefix}-background`}
-              name={getControlName(controlPrefix, "Background")}
-              className={styles.colorInput}
-              type="color"
-              value={readPickerColor(style?.background)}
-              onChange={(event) => {
-                const background = event.target.value;
+                <input
+                  id={`${controlPrefix}-background`}
+                  name={getControlName(controlPrefix, "Background")}
+                  className={styles.colorInput}
+                  type="color"
+                  value={readPickerColor(style?.background)}
+                  onChange={(event) => {
+                    const background = event.target.value;
 
-                onUpdateStyle((currentStyle) => ({
-                  ...currentStyle,
+                    onUpdateStyle((currentStyle) => ({
+                      ...currentStyle,
 
-                  background,
-                }));
-              }}
+                      background,
+                    }));
+                  }}
+                />
+              </label>
+
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={() => {
+                  onUpdateStyle((currentStyle) => ({
+                    ...currentStyle,
+
+                    background: undefined,
+                  }));
+                }}
+              >
+                <span>{t("inspector.clearBackground")}</span>
+              </button>
+            </div>
+          )}
+
+          {showBackgroundGradient && (
+            <ElementBackgroundGradientControl
+              style={style}
+              onUpdateStyle={onUpdateStyle}
+              controlPrefix={controlPrefix}
             />
-          </label>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => {
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
-
-                background: undefined,
-              }));
-            }}
-          >
-            <span>{t("inspector.clearBackground")}</span>
-          </button>
+          )}
         </div>
       )}
 

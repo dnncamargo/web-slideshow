@@ -250,6 +250,7 @@ export function TerminalInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="terminal"
         showBackground
+        showBackgroundGradient
         showRoundedCorners
         showOpacity
         showBorder

@@ -113,6 +113,7 @@ export function TextInspector({
         controlPrefix="text"
         showColor
         showBackground
+        showBackgroundGradient
         showRoundedCorners
         showOpacity
         showBorder
