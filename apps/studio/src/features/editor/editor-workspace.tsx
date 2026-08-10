@@ -1003,7 +1003,7 @@ export function EditorWorkspace() {
           {/* =================================================
               BEGIN: SLIDE ACTIONS
               ================================================= */}
-          <div className={styles.slideActions}>
+          <form className={styles.slideActions}>
             {/* ===============================================
                 MOVE UP
                 =============================================== */}
@@ -1060,7 +1060,7 @@ export function EditorWorkspace() {
             >
               <span>{t("slides.delete")}</span>
             </button>
-          </div>
+          </form>
           {/* =================================================
               END: SLIDE ACTIONS
               ================================================= */}
