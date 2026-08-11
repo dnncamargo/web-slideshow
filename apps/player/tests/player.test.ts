@@ -247,6 +247,70 @@ describe("PowerShow Player", () => {
       root.querySelectorAll("style[data-powershow-font-resources]"),
     ).toHaveLength(1);
   });
+  it("uses the renderer CSS for multiple font faces", () => {
+    player.destroy();
+
+    const presentation = structuredClone(playerTestPresentation);
+    presentation.resources = {
+      fonts: [
+        {
+          id: "inter",
+          family: "Inter",
+          faces: [
+            {
+              weight: 400,
+              style: "normal",
+              subset: "latin",
+              source: {
+                type: "url",
+                url: "https://cdn.example.com/inter-400.woff2",
+                format: "woff2",
+              },
+            },
+            {
+              weight: 700,
+              style: "normal",
+              subset: "latin",
+              source: {
+                type: "url",
+                url: "https://cdn.example.com/inter-700.woff2",
+                format: "woff2",
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const firstElement = presentation.slides[0]?.elements[0];
+    if (firstElement) {
+      firstElement.style = {
+        ...firstElement.style,
+        fontFamily: "Inter",
+        fontWeight: 700,
+      };
+    }
+
+    player = mountPlayer(root, presentation);
+
+    const resourceStyle = root.querySelector<HTMLStyleElement>(
+      "style[data-powershow-font-resources]",
+    );
+
+    expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
+    expect(resourceStyle?.textContent).toContain("font-weight:400");
+    expect(resourceStyle?.textContent).toContain("font-weight:700");
+    expect(resourceStyle?.textContent?.split("font-style:normal")).toHaveLength(
+      3,
+    );
+    expect(root.innerHTML).toContain("font-weight:700");
+
+    player.next();
+
+    expect(
+      root.querySelectorAll("style[data-powershow-font-resources]"),
+    ).toHaveLength(1);
+    expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
+  });
   it("removes the Player DOM when destroyed", () => {
     player.destroy();
 

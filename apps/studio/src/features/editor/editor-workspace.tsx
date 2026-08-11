@@ -6,7 +6,11 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 
 import { renderFontResources, renderSlide } from "@powershow/renderer";
 
-import { FontResourceSchema } from "@powershow/document-schema";
+import {
+  FontFaceResourceSchema,
+  FontResourceSchema,
+  getFontResourceFaces,
+} from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
@@ -21,6 +25,8 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 import { findElementById, updateElementById } from "./element-tree";
 
 import {
+  areFontFacesEquivalent,
+  createFontResourceId,
   normalizeFontFamily,
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
@@ -78,7 +84,7 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
-  FontResource,
+  FontFaceResource,
   PowerShowElement,
   Presentation,
   Slide,
@@ -412,47 +418,67 @@ export function EditorWorkspace() {
     }));
   }
 
-  function addFontResource(fontResource: FontResource) {
+  function addFontFace(family: string, face: FontFaceResource) {
     setPresentation((current) => {
-      const parsed = FontResourceSchema.safeParse(fontResource);
+      const parsedFace = FontFaceResourceSchema.safeParse(face);
+      const trimmedFamily = family.trim();
 
-      if (!parsed.success) {
+      if (!parsedFace.success || !trimmedFamily) {
         return current;
       }
 
       const currentFonts = current.resources?.fonts ?? [];
-      const normalizedFamily = normalizeFontFamily(parsed.data.family);
-      const duplicate = currentFonts.some(
+      const normalizedFamily = normalizeFontFamily(trimmedFamily);
+      const existingIndex = currentFonts.findIndex(
         (registeredFont) =>
           normalizeFontFamily(registeredFont.family) === normalizedFamily,
+      );
+
+      if (existingIndex === -1) {
+        const newResource = FontResourceSchema.safeParse({
+          id: createFontResourceId(
+            trimmedFamily,
+            currentFonts.map((fontResource) => fontResource.id),
+          ),
+          family: trimmedFamily,
+          faces: [parsedFace.data],
+        });
+
+        if (!newResource.success) {
+          return current;
+        }
+
+        return {
+          ...current,
+          resources: {
+            ...current.resources,
+            fonts: [...currentFonts, newResource.data],
+          },
+        };
+      }
+
+      const existingResource = currentFonts[existingIndex];
+
+      if (!existingResource) {
+        return current;
+      }
+
+      const existingFaces = getFontResourceFaces(existingResource);
+      const duplicate = existingFaces.some((existingFace) =>
+        areFontFacesEquivalent(existingFace, parsedFace.data),
       );
 
       if (duplicate) {
         return current;
       }
 
-      return {
-        ...current,
-        resources: {
-          ...current.resources,
-          fonts: [...currentFonts, parsed.data],
-        },
-      };
-    });
-  }
+      const updatedResource = FontResourceSchema.safeParse({
+        id: existingResource.id,
+        family: existingResource.family,
+        faces: [...existingFaces, parsedFace.data],
+      });
 
-  function removeFontResource(fontResourceId: string) {
-    setPresentation((current) => {
-      const currentFonts = current.resources?.fonts;
-      const fontResource = currentFonts?.find(
-        (registeredFont) => registeredFont.id === fontResourceId,
-      );
-
-      if (
-        !currentFonts ||
-        !fontResource ||
-        presentationUsesFontFamily(current, fontResource.family)
-      ) {
+      if (!updatedResource.success) {
         return current;
       }
 
@@ -460,8 +486,69 @@ export function EditorWorkspace() {
         ...current,
         resources: {
           ...current.resources,
-          fonts: currentFonts.filter(
-            (registeredFont) => registeredFont.id !== fontResourceId,
+          fonts: currentFonts.map((fontResource, index) =>
+            index === existingIndex ? updatedResource.data : fontResource,
+          ),
+        },
+      };
+    });
+  }
+
+  function removeFontFace(fontResourceId: string, faceIndex: number) {
+    setPresentation((current) => {
+      const currentFonts = current.resources?.fonts;
+      const fontResourceIndex = currentFonts?.findIndex(
+        (registeredFont) => registeredFont.id === fontResourceId,
+      );
+      const fontResource =
+        fontResourceIndex === undefined || fontResourceIndex < 0
+          ? undefined
+          : currentFonts?.[fontResourceIndex];
+
+      if (!currentFonts || !fontResource || fontResourceIndex === undefined) {
+        return current;
+      }
+
+      const faces = getFontResourceFaces(fontResource);
+
+      if (faceIndex < 0 || faceIndex >= faces.length) {
+        return current;
+      }
+
+      if (faces.length === 1) {
+        if (presentationUsesFontFamily(current, fontResource.family)) {
+          return current;
+        }
+
+        return {
+          ...current,
+          resources: {
+            ...current.resources,
+            fonts: currentFonts.filter(
+              (_registeredFont, index) => index !== fontResourceIndex,
+            ),
+          },
+        };
+      }
+
+      const updatedResource = FontResourceSchema.safeParse({
+        id: fontResource.id,
+        family: fontResource.family,
+        faces: faces.filter((_face, index) => index !== faceIndex),
+      });
+
+      if (!updatedResource.success) {
+        return current;
+      }
+
+      return {
+        ...current,
+        resources: {
+          ...current.resources,
+          fonts: currentFonts.map((registeredFont, index) =>
+            index === fontResourceIndex
+              ? updatedResource.data
+              : registeredFont,
           ),
         },
       };
@@ -1236,8 +1323,8 @@ export function EditorWorkspace() {
                 onUpdate={updateSelectedElement}
                 fontResourceControls={{
                   fontResources: presentation.resources?.fonts ?? [],
-                  onAddFontResource: addFontResource,
-                  onRemoveFontResource: removeFontResource,
+                  onAddFontFace: addFontFace,
+                  onRemoveFontFace: removeFontFace,
                   isFontFamilyInUse: (family) =>
                     presentationUsesFontFamily(presentation, family),
                 }}

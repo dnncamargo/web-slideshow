@@ -1,4 +1,7 @@
-import type { Presentation } from "@powershow/document-schema";
+import type {
+  FontFaceResource,
+  Presentation,
+} from "@powershow/document-schema";
 
 import { someElement } from "./element-tree";
 
@@ -30,6 +33,18 @@ export function createFontResourceId(
   }
 
   return `${baseId}-${suffix}`;
+}
+
+export function areFontFacesEquivalent(
+  first: FontFaceResource,
+  second: FontFaceResource,
+): boolean {
+  return (
+    first.weight === second.weight &&
+    first.style === second.style &&
+    first.subset === second.subset &&
+    first.source.url === second.source.url
+  );
 }
 
 export function presentationUsesFontFamily(

@@ -1,7 +1,9 @@
 import { useState } from "react";
 
 import {
-  FontResourceSchema,
+  FontFaceResourceSchema,
+  getFontResourceFaces,
+  type FontFaceResource,
   type FontFormat,
 } from "@powershow/document-schema";
 
@@ -9,7 +11,7 @@ import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import {
-  createFontResourceId,
+  areFontFacesEquivalent,
   normalizeFontFamily,
 } from "../../font-resource-helpers";
 
@@ -29,20 +31,27 @@ const FONT_FORMATS: readonly FontFormat[] = [
   "opentype",
 ];
 
+const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+
+type FontFaceStyle = NonNullable<FontFaceResource["style"]>;
+
 export function PresentationFontManager({
   id,
   fontResources,
-  onAddFontResource,
-  onRemoveFontResource,
+  onAddFontFace,
+  onRemoveFontFace,
   isFontFamilyInUse,
 }: PresentationFontManagerProps) {
   const { t } = useStudioI18n();
   const [family, setFamily] = useState("");
+  const [weight, setWeight] = useState(400);
+  const [fontStyle, setFontStyle] = useState<FontFaceStyle>("normal");
+  const [subset, setSubset] = useState("");
   const [url, setUrl] = useState("");
   const [format, setFormat] = useState<FontFormat>("woff2");
   const [error, setError] = useState<StudioMessageKey | null>(null);
 
-  function addFont() {
+  function addFontFace() {
     const trimmedFamily = family.trim();
 
     if (!trimmedFamily) {
@@ -50,23 +59,11 @@ export function PresentationFontManager({
       return;
     }
 
-    const normalizedFamily = normalizeFontFamily(trimmedFamily);
-    const duplicate = fontResources.some(
-      (fontResource) =>
-        normalizeFontFamily(fontResource.family) === normalizedFamily,
-    );
-
-    if (duplicate) {
-      setError("inspector.fontFamilyExists");
-      return;
-    }
-
-    const result = FontResourceSchema.safeParse({
-      id: createFontResourceId(
-        trimmedFamily,
-        fontResources.map((fontResource) => fontResource.id),
-      ),
-      family: trimmedFamily,
+    const trimmedSubset = subset.trim();
+    const result = FontFaceResourceSchema.safeParse({
+      weight,
+      style: fontStyle,
+      ...(trimmedSubset ? { subset: trimmedSubset } : {}),
       source: {
         type: "url",
         url: url.trim(),
@@ -79,8 +76,27 @@ export function PresentationFontManager({
       return;
     }
 
-    onAddFontResource(result.data);
+    const normalizedFamily = normalizeFontFamily(trimmedFamily);
+    const existingResource = fontResources.find(
+      (fontResource) =>
+        normalizeFontFamily(fontResource.family) === normalizedFamily,
+    );
+    const duplicate = existingResource
+      ? getFontResourceFaces(existingResource).some((face) =>
+          areFontFacesEquivalent(face, result.data),
+        )
+      : false;
+
+    if (duplicate) {
+      setError("inspector.fontFaceExists");
+      return;
+    }
+
+    onAddFontFace(trimmedFamily, result.data);
     setFamily("");
+    setWeight(400);
+    setFontStyle("normal");
+    setSubset("");
     setUrl("");
     setFormat("woff2");
     setError(null);
@@ -114,6 +130,55 @@ export function PresentationFontManager({
         </label>
 
         <label className={styles.field}>
+          <span>{t("inspector.fontWeight")}</span>
+
+          <select
+            id="presentation-font-weight"
+            name={getControlName("presentation", "FontWeight")}
+            value={weight}
+            onChange={(event) => {
+              const selectedWeight = Number(event.target.value);
+
+              if (
+                FONT_WEIGHTS.some(
+                  (fontWeight) => fontWeight === selectedWeight,
+                )
+              ) {
+                setWeight(selectedWeight);
+              }
+            }}
+          >
+            {FONT_WEIGHTS.map((fontWeight) => (
+              <option key={fontWeight} value={fontWeight}>
+                {fontWeight}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className={styles.fieldGrid}>
+        <label className={styles.field}>
+          <span>{t("inspector.fontStyle")}</span>
+
+          <select
+            id="presentation-font-style"
+            name={getControlName("presentation", "FontStyle")}
+            value={fontStyle}
+            onChange={(event) => {
+              const selectedStyle = event.target.value;
+
+              if (selectedStyle === "normal" || selectedStyle === "italic") {
+                setFontStyle(selectedStyle);
+              }
+            }}
+          >
+            <option value="normal">{t("inspector.fontStyle.normal")}</option>
+            <option value="italic">{t("inspector.fontStyle.italic")}</option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
           <span>{t("inspector.format")}</span>
 
           <select
@@ -138,6 +203,21 @@ export function PresentationFontManager({
       </div>
 
       <label className={styles.field}>
+        <span>{t("inspector.subset")}</span>
+
+        <input
+          id="presentation-font-subset"
+          name={getControlName("presentation", "FontSubset")}
+          type="text"
+          value={subset}
+          onChange={(event) => {
+            setSubset(event.target.value);
+            setError(null);
+          }}
+        />
+      </label>
+
+      <label className={styles.field}>
         <span>{t("inspector.fontUrl")}</span>
 
         <input
@@ -156,9 +236,9 @@ export function PresentationFontManager({
       <button
         className={styles.secondaryButton}
         type="button"
-        onClick={addFont}
+        onClick={addFontFace}
       >
-        {t("inspector.addFont")}
+        {t("inspector.addFontFace")}
       </button>
 
       {error && (
@@ -178,33 +258,60 @@ export function PresentationFontManager({
       ) : (
         <div className={styles.fontResourceList}>
           {fontResources.map((fontResource) => {
+            const faces = getFontResourceFaces(fontResource);
             const inUse = isFontFamilyInUse(fontResource.family);
+            const isLegacy = fontResource.faces === undefined;
 
             return (
               <div className={styles.fontResourceRow} key={fontResource.id}>
-                <div className={styles.fontResourceMeta}>
+                <div className={styles.fontResourceHeader}>
                   <strong>{fontResource.family}</strong>
-                  <span>{fontResource.source.format?.toUpperCase() ?? ""}</span>
+
+                  {inUse && (
+                    <span className={styles.fontResourceStatus}>
+                      {t("inspector.inUse")}
+                    </span>
+                  )}
                 </div>
 
-                {inUse && (
-                  <span className={styles.fontResourceStatus}>
-                    {t("inspector.inUse")}
-                  </span>
-                )}
+                <div className={styles.fontFaceList}>
+                  {faces.map((face, faceIndex) => {
+                    const faceDetails = [
+                      face.weight ?? t("inspector.default"),
+                      face.style === undefined
+                        ? t("inspector.default")
+                        : t(`inspector.fontStyle.${face.style}`),
+                      face.subset,
+                      face.source.format?.toUpperCase(),
+                      isLegacy ? t("inspector.legacyFace") : undefined,
+                    ].filter((detail) => detail !== undefined);
+                    const lastFaceInUse = inUse && faces.length === 1;
 
-                <button
-                  className={styles.secondaryButton}
-                  type="button"
-                  disabled={inUse}
-                  onClick={() => {
-                    if (!inUse) {
-                      onRemoveFontResource(fontResource.id);
-                    }
-                  }}
-                >
-                  {t("inspector.remove")}
-                </button>
+                    return (
+                      <div
+                        className={styles.fontFaceRow}
+                        key={`${fontResource.id}-${faceIndex}`}
+                      >
+                        <span className={styles.fontFaceMeta}>
+                          {faceDetails.join(" · ")}
+                        </span>
+
+                        <button
+                          className={styles.secondaryButton}
+                          type="button"
+                          disabled={lastFaceInUse}
+                          onClick={() => {
+                            if (!lastFaceInUse) {
+                              onRemoveFontFace(fontResource.id, faceIndex);
+                            }
+                          }}
+                        >
+                          {t("inspector.removeFace")}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

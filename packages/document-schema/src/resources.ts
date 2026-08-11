@@ -9,6 +9,18 @@ export const FontFormatSchema = z.enum([
 
 export const FontFamilySchema = z.string().trim().min(1);
 
+export const FontWeightSchema = z
+  .number()
+  .int()
+  .min(100)
+  .max(900)
+  .multipleOf(100);
+
+export const FontStyleSchema = z.enum([
+  "normal",
+  "italic",
+]);
+
 const DISALLOWED_FONT_RESOURCE_PATH = /\.(?:css|js|mjs|cjs)$/i;
 
 export const FontResourceUrlSchema = z
@@ -40,16 +52,50 @@ export const FontResourceSourceSchema = z.object({
   format: FontFormatSchema.optional(),
 });
 
-export const FontResourceSchema = z.object({
-  id: z.string().trim().min(1),
-  family: FontFamilySchema,
+export const FontFaceResourceSchema = z.object({
+  weight: FontWeightSchema.optional(),
+  style: FontStyleSchema.optional(),
+  subset: z.string().trim().min(1).optional(),
+  unicodeRange: z.string().min(1).optional(),
   source: FontResourceSourceSchema,
 });
+
+export const FontResourceSchema = z
+  .object({
+    id: z.string().trim().min(1),
+    family: FontFamilySchema,
+    source: FontResourceSourceSchema.optional(),
+    faces: z.array(FontFaceResourceSchema).min(1).optional(),
+  })
+  .superRefine((fontResource, context) => {
+    const hasLegacySource = fontResource.source !== undefined;
+    const hasFaces = fontResource.faces !== undefined;
+
+    if (hasLegacySource === hasFaces) {
+      context.addIssue({
+        code: "custom",
+        message: "Font resource must define exactly one of source or faces.",
+      });
+    }
+  });
 
 export const PresentationResourcesSchema = z.object({
   fonts: z.array(FontResourceSchema).optional(),
 });
 
 export type FontFormat = z.infer<typeof FontFormatSchema>;
+export type FontFaceResource = z.infer<typeof FontFaceResourceSchema>;
 export type FontResource = z.infer<typeof FontResourceSchema>;
 export type PresentationResources = z.infer<typeof PresentationResourcesSchema>;
+
+export function getFontResourceFaces(
+  fontResource: FontResource,
+): readonly FontFaceResource[] {
+  if (fontResource.faces !== undefined) {
+    return fontResource.faces;
+  }
+
+  return fontResource.source === undefined
+    ? []
+    : [{ source: fontResource.source }];
+}

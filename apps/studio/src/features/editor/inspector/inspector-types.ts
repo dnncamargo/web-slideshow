@@ -1,5 +1,6 @@
 import type {
   ElementStyle,
+  FontFaceResource,
   FontResource,
   PowerShowElement,
 } from "@powershow/document-schema";
@@ -15,9 +16,9 @@ export type UpdateElementStyle = (
 export interface FontResourceControls {
   fontResources: readonly FontResource[];
 
-  onAddFontResource: (fontResource: FontResource) => void;
+  onAddFontFace: (family: string, face: FontFaceResource) => void;
 
-  onRemoveFontResource: (fontResourceId: string) => void;
+  onRemoveFontFace: (fontResourceId: string, faceIndex: number) => void;
 
   isFontFamilyInUse: (family: string) => boolean;
 }
