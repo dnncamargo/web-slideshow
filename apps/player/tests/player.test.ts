@@ -311,6 +311,68 @@ describe("PowerShow Player", () => {
     ).toHaveLength(1);
     expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
   });
+  it("plays normalized Google-imported faces without stylesheet/provider state", () => {
+    player.destroy();
+
+    const presentation = structuredClone(playerTestPresentation);
+    presentation.resources = {
+      fonts: [
+        {
+          id: "audiowide",
+          family: "Audiowide",
+          faces: [
+            {
+              weight: 400,
+              style: "normal",
+              unicodeRange: "U+0100-024F",
+              source: {
+                type: "url",
+                url: "https://fonts.gstatic.com/s/audiowide/latin-ext.woff2",
+                format: "woff2",
+              },
+            },
+            {
+              weight: 400,
+              style: "normal",
+              unicodeRange: "U+0000-00FF",
+              source: {
+                type: "url",
+                url: "https://fonts.gstatic.com/s/audiowide/latin.woff2",
+                format: "woff2",
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const firstElement = presentation.slides[0]?.elements[0];
+
+    if (firstElement) {
+      firstElement.style = {
+        ...firstElement.style,
+        fontFamily: "Audiowide",
+      };
+    }
+
+    player = mountPlayer(root, presentation);
+
+    const resourceStyle = root.querySelector<HTMLStyleElement>(
+      "style[data-powershow-font-resources]",
+    );
+
+    expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
+    expect(resourceStyle?.textContent).toContain("fonts.gstatic.com");
+    expect(resourceStyle?.textContent).toContain("U+0100-024F");
+    expect(resourceStyle?.textContent).toContain("U+0000-00FF");
+    expect(resourceStyle?.textContent).not.toContain("fonts.googleapis.com");
+    expect(JSON.stringify(presentation)).not.toContain("provider");
+
+    player.next();
+
+    expect(
+      root.querySelectorAll("style[data-powershow-font-resources]"),
+    ).toHaveLength(1);
+  });
   it("removes the Player DOM when destroyed", () => {
     player.destroy();
 

@@ -18,6 +18,7 @@ function getFontFaceIdentity(
     face.weight ?? null,
     face.style ?? null,
     face.subset ?? null,
+    face.unicodeRange ?? null,
     face.source.url,
   ]);
 }
