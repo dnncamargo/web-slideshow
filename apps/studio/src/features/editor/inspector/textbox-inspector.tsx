@@ -78,6 +78,7 @@ export function TextboxInspector({
         style={element.style}
         onUpdateStyle={updateStyle}
         controlPrefix="textbox"
+        showTypography
         showColor
         showBackground
         showBackgroundGradient

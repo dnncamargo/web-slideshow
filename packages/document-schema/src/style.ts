@@ -11,6 +11,27 @@ import {
 
 import { BorderSchema, GradientSchema, ShadowSchema } from "./visual";
 
+export const FontWeightSchema = z
+  .number()
+  .int()
+  .min(100)
+  .max(900)
+  .multipleOf(100);
+
+export const FontStyleSchema = z.enum([
+  "normal",
+  "italic",
+]);
+
+export const TextAlignSchema = z.enum([
+  "left",
+  "center",
+  "right",
+  "justify",
+]);
+
+export const LineHeightSchema = z.number().positive();
+
 export const ElementStyleSchema = z.object({
   width: LengthSchema.optional(),
   height: LengthSchema.optional(),
@@ -42,6 +63,13 @@ export const ElementStyleSchema = z.object({
 
   background: ColorSchema.optional(),
   color: ColorSchema.optional(),
+
+  fontSize: LengthSchema.optional(),
+  fontWeight: FontWeightSchema.optional(),
+  fontStyle: FontStyleSchema.optional(),
+  textAlign: TextAlignSchema.optional(),
+  lineHeight: LineHeightSchema.optional(),
+  letterSpacing: LengthSchema.optional(),
 
   borderRadius: LengthSchema.optional(),
 

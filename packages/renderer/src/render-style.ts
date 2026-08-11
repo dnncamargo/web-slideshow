@@ -77,6 +77,18 @@ export function renderStyle(style: ElementStyle | undefined): string {
 
   addStyle(output, "color", style.color);
 
+  addLength(output, "font-size", style.fontSize);
+
+  addStyle(output, "font-weight", style.fontWeight);
+
+  addStyle(output, "font-style", style.fontStyle);
+
+  addStyle(output, "text-align", style.textAlign);
+
+  addStyle(output, "line-height", style.lineHeight);
+
+  addLength(output, "letter-spacing", style.letterSpacing);
+
   addLength(output, "border-radius", style.borderRadius);
 
   addStyle(output, "opacity", style.opacity);

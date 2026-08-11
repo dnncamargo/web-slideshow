@@ -17,12 +17,16 @@ import type { UpdateElementStyle } from "../inspector-types";
 
 import { ElementBackgroundGradientControl } from "./element-background-gradient-control";
 
+import { ElementTypographyControl } from "./element-typography-control";
+
 interface ElementAppearanceSectionProps {
   style: ElementStyle | undefined;
 
   onUpdateStyle: UpdateElementStyle;
 
   controlPrefix: string;
+
+  showTypography?: boolean;
 
   showColor?: boolean;
 
@@ -69,6 +73,7 @@ export function ElementAppearanceSection({
   style,
   onUpdateStyle,
   controlPrefix,
+  showTypography = false,
   showColor = false,
   showBackground = false,
   showBackgroundGradient = false,
@@ -80,6 +85,14 @@ export function ElementAppearanceSection({
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
+      {showTypography && (
+        <ElementTypographyControl
+          style={style}
+          onUpdateStyle={onUpdateStyle}
+          controlPrefix={controlPrefix}
+        />
+      )}
+
       {showColor && (
         <div className={styles.colorControl}>
           <label className={styles.field}>

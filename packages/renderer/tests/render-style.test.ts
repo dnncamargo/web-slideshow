@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { ElementStyle } from "@powershow/document-schema";
+
 import { renderStyle } from "../src/render-style";
 
 import { renderLength } from "../src//render-length";
@@ -57,6 +59,45 @@ describe("renderStyle", () => {
     expect(result).toContain("opacity:0.75");
 
     expect(result).toContain("overflow:hidden");
+  });
+
+  it.each([
+    ["font size", { fontSize: 32 }, "font-size:32px"],
+    ["font weight", { fontWeight: 600 }, "font-weight:600"],
+    ["font style", { fontStyle: "italic" }, "font-style:italic"],
+    ["text alignment", { textAlign: "justify" }, "text-align:justify"],
+    ["line height", { lineHeight: 1.2 }, "line-height:1.2"],
+    ["letter spacing", { letterSpacing: -1 }, "letter-spacing:-1px"],
+  ] satisfies readonly [string, ElementStyle, string][])(
+    "renders %s",
+    (_name, style, expected) => {
+      expect(renderStyle(style)).toContain(expected);
+    },
+  );
+
+  it("renders numeric line height without a length unit", () => {
+    const result = renderStyle({
+      lineHeight: 1.5,
+    });
+
+    expect(result).toContain("line-height:1.5");
+    expect(result).not.toContain("line-height:1.5px");
+  });
+
+  it("renders combined typography overrides", () => {
+    const result = renderStyle({
+      fontSize: 48,
+      fontWeight: 600,
+      fontStyle: "italic",
+      textAlign: "center",
+      lineHeight: 1.3,
+      letterSpacing: 1,
+    });
+
+    expect(result).toBe(
+      "font-size:48px;font-weight:600;font-style:italic;" +
+        "text-align:center;line-height:1.3;letter-spacing:1px",
+    );
   });
 
   it("does not render alignment properties directly", () => {
