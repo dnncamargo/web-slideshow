@@ -218,7 +218,7 @@ export function CodeInspector({
       </InspectorSection>
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="code"
         showBackground

@@ -138,7 +138,7 @@ export function ImageInspector({
       </InspectorSection>
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="image"
         showRoundedCorners

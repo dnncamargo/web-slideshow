@@ -22,6 +22,8 @@ import type { FontResourceControls } from "../inspector-types";
 
 interface PresentationFontManagerProps extends FontResourceControls {
   id: string;
+
+  onFontAdded: (family: string) => void;
 }
 
 const FONT_FORMATS: readonly FontFormat[] = [
@@ -37,6 +39,7 @@ type FontFaceStyle = NonNullable<FontFaceResource["style"]>;
 
 export function PresentationFontManager({
   id,
+  onFontAdded,
   fontResources,
   onAddFontFace,
   onRemoveFontFace,
@@ -92,7 +95,10 @@ export function PresentationFontManager({
       return;
     }
 
-    onAddFontFace(trimmedFamily, result.data);
+    const resourceFamily = existingResource?.family ?? trimmedFamily;
+
+    onAddFontFace(resourceFamily, result.data);
+    onFontAdded(resourceFamily);
     setFamily("");
     setWeight(400);
     setFontStyle("normal");
