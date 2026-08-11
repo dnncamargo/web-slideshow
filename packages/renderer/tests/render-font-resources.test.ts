@@ -135,7 +135,7 @@ describe("renderFontResources", () => {
     expect(countOccurrences(css, "font-weight:700")).toBe(1);
   });
 
-  it("allows faces with different weight, style, subset, or URL", () => {
+  it("allows faces with different weight, style, subset, unicode range, or URL", () => {
     const baseFace = createFace(400);
     const css = renderFontResources([
       createFacesFontResource([
@@ -143,6 +143,7 @@ describe("renderFontResources", () => {
         { ...baseFace, weight: 700 },
         { ...baseFace, style: "italic" },
         { ...baseFace, subset: "latin-ext" },
+        { ...baseFace, unicodeRange: "U+0100-024F" },
         {
           ...baseFace,
           source: {
@@ -153,7 +154,23 @@ describe("renderFontResources", () => {
       ]),
     ]);
 
-    expect(countOccurrences(css, "@font-face")).toBe(5);
+    expect(countOccurrences(css, "@font-face")).toBe(6);
+  });
+
+  it("preserves two unicode ranges that share the same URL", () => {
+    const baseFace = createFace(400, {
+      unicodeRange: "U+0000-00FF",
+    });
+    const css = renderFontResources([
+      createFacesFontResource([
+        baseFace,
+        { ...baseFace, unicodeRange: "U+0100-024F" },
+      ]),
+    ]);
+
+    expect(countOccurrences(css, "@font-face")).toBe(2);
+    expect(css).toContain("unicode-range:U+0000-00FF");
+    expect(css).toContain("unicode-range:U+0100-024F");
   });
 
   it("omits unavailable descriptors and format", () => {

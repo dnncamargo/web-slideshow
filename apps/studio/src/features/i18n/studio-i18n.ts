@@ -158,6 +158,34 @@ const englishMessages = {
   "inspector.fontAddedToPresentation": "{family} added to presentation.",
   "inspector.applyToSelectedText": "Apply to selected text",
   "inspector.appliedToSelectedText": "Applied to selected text",
+  "inspector.googleFontImport.title": "Import Google Fonts link",
+  "inspector.googleFontImport.pasteLink":
+    "Paste a Google Fonts CSS link",
+  "inspector.googleFontImport.resolve": "Resolve",
+  "inspector.googleFontImport.resolving": "Resolving...",
+  "inspector.googleFontImport.resolvedFonts": "Resolved fonts",
+  "inspector.googleFontImport.addSelected": "Add selected",
+  "inspector.googleFontImport.manual": "Manual",
+  "inspector.googleFontImport.selected": "Selected",
+  "inspector.googleFontImport.fontFiles": "Font files ({count})",
+  "inspector.googleFontImport.supportedSummary":
+    "Supported variants: {count}",
+  "inspector.googleFontImport.unsupportedSummary":
+    "Some font variants are not supported ({count}).",
+  "inspector.googleFontImport.invalidUrl": "Invalid Google Fonts URL.",
+  "inspector.googleFontImport.unsupportedParameter":
+    "Only Google Fonts CSS links with family and display parameters are supported.",
+  "inspector.googleFontImport.textNotSupported":
+    "Text-optimized Google Fonts links are not supported.",
+  "inspector.googleFontImport.stylesheetUnavailable":
+    "Could not load the Google Fonts stylesheet.",
+  "inspector.googleFontImport.timeout":
+    "The Google Fonts request timed out.",
+  "inspector.googleFontImport.tooLarge": "The stylesheet is too large.",
+  "inspector.googleFontImport.invalidResponse":
+    "The Google Fonts stylesheet response was invalid.",
+  "inspector.googleFontImport.noSupportedFaces":
+    "No supported WOFF2 font faces were found.",
   "inspector.fontSize": "Font size",
   "inspector.fontWeight": "Font weight",
   "inspector.fontStyle": "Font style",
@@ -434,6 +462,36 @@ const portugueseMessages = {
     "{family} adicionada à apresentação.",
   "inspector.applyToSelectedText": "Aplicar ao texto selecionado",
   "inspector.appliedToSelectedText": "Aplicada ao texto selecionado",
+  "inspector.googleFontImport.title": "Importar link do Google Fonts",
+  "inspector.googleFontImport.pasteLink":
+    "Cole um link CSS do Google Fonts",
+  "inspector.googleFontImport.resolve": "Resolver",
+  "inspector.googleFontImport.resolving": "Resolvendo...",
+  "inspector.googleFontImport.resolvedFonts": "Fontes encontradas",
+  "inspector.googleFontImport.addSelected": "Adicionar selecionadas",
+  "inspector.googleFontImport.manual": "Manual",
+  "inspector.googleFontImport.selected": "Selecionado",
+  "inspector.googleFontImport.fontFiles": "Arquivos da fonte ({count})",
+  "inspector.googleFontImport.supportedSummary":
+    "Variantes compatíveis: {count}",
+  "inspector.googleFontImport.unsupportedSummary":
+    "Algumas variantes da fonte não são suportadas ({count}).",
+  "inspector.googleFontImport.invalidUrl":
+    "URL do Google Fonts inválida.",
+  "inspector.googleFontImport.unsupportedParameter":
+    "Somente links CSS do Google Fonts com os parâmetros family e display são suportados.",
+  "inspector.googleFontImport.textNotSupported":
+    "Links do Google Fonts otimizados por texto não são suportados.",
+  "inspector.googleFontImport.stylesheetUnavailable":
+    "Não foi possível carregar a folha de estilos do Google Fonts.",
+  "inspector.googleFontImport.timeout":
+    "A solicitação ao Google Fonts expirou.",
+  "inspector.googleFontImport.tooLarge":
+    "A folha de estilos é muito grande.",
+  "inspector.googleFontImport.invalidResponse":
+    "A resposta da folha de estilos do Google Fonts é inválida.",
+  "inspector.googleFontImport.noSupportedFaces":
+    "Nenhuma face WOFF2 compatível foi encontrada.",
   "inspector.fontSize": "Tamanho da fonte",
   "inspector.fontWeight": "Peso da fonte",
   "inspector.fontStyle": "Estilo da fonte",

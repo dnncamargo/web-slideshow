@@ -20,6 +20,8 @@ import styles from "../../editor-workspace.module.css";
 import { getControlName } from "../inspector-helpers";
 import type { FontResourceControls } from "../inspector-types";
 
+import { GoogleFontImportControl } from "./google-font-import-control";
+
 interface PresentationFontManagerProps extends FontResourceControls {
   id: string;
 
@@ -118,6 +120,16 @@ export function PresentationFontManager({
       <strong className={styles.fontManagerTitle}>
         {t("inspector.presentationFonts")}
       </strong>
+
+      <GoogleFontImportControl
+        fontResources={fontResources}
+        onAddFontFace={onAddFontFace}
+        onFontAdded={onFontAdded}
+      />
+
+      <span className={styles.appearanceSubheading}>
+        {t("inspector.googleFontImport.manual")}
+      </span>
 
       <div className={styles.fieldGrid}>
         <label className={styles.field}>
