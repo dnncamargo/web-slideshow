@@ -206,6 +206,47 @@ describe("PowerShow Player", () => {
 
     expect(slide?.contains(controls ?? null)).toBe(false);
   });
+  it("mounts presentation font resources once across slide navigation", () => {
+    player.destroy();
+
+    const presentation = structuredClone(playerTestPresentation);
+    presentation.resources = {
+      fonts: [
+        {
+          id: "source-sans-3",
+          family: "Source Sans 3",
+          source: {
+            type: "url",
+            url: "https://cdn.example.com/source-sans-3.woff2",
+            format: "woff2",
+          },
+        },
+      ],
+    };
+    presentation.slides[0]?.elements.forEach((element) => {
+      element.style = {
+        ...element.style,
+        fontFamily: "Source Sans 3",
+      };
+    });
+
+    player = mountPlayer(root, presentation);
+
+    const resourceStyles = root.querySelectorAll(
+      "style[data-powershow-font-resources]",
+    );
+
+    expect(resourceStyles).toHaveLength(1);
+    expect(resourceStyles[0]?.textContent?.split("@font-face")).toHaveLength(2);
+    expect(resourceStyles[0]?.textContent).toContain("font-display:swap");
+    expect(root.innerHTML).toContain("font-family:&quot;Source Sans 3&quot;");
+
+    player.next();
+
+    expect(
+      root.querySelectorAll("style[data-powershow-font-resources]"),
+    ).toHaveLength(1);
+  });
   it("removes the Player DOM when destroyed", () => {
     player.destroy();
 

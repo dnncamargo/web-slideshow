@@ -10,6 +10,7 @@ import {
 } from "./primitives";
 
 import { BorderSchema, GradientSchema, ShadowSchema } from "./visual";
+import { FontFamilySchema } from "./resources";
 
 export const FontWeightSchema = z
   .number()
@@ -64,6 +65,7 @@ export const ElementStyleSchema = z.object({
   background: ColorSchema.optional(),
   color: ColorSchema.optional(),
 
+  fontFamily: FontFamilySchema.optional(),
   fontSize: LengthSchema.optional(),
   fontWeight: FontWeightSchema.optional(),
   fontStyle: FontStyleSchema.optional(),

@@ -2,6 +2,26 @@ import type {
   PowerShowElement,
 } from "@powershow/document-schema";
 
+export function someElement(
+  elements: readonly PowerShowElement[],
+  predicate: (element: PowerShowElement) => boolean,
+): boolean {
+  for (const element of elements) {
+    if (predicate(element)) {
+      return true;
+    }
+
+    if (
+      element.type === "container" &&
+      someElement(element.children, predicate)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 // ============================================================
 // BEGIN: BUSCA DE ELEMENTO NA ÁRVORE

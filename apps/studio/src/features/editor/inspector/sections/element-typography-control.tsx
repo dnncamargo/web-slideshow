@@ -1,4 +1,5 @@
 import type { ElementStyle } from "@powershow/document-schema";
+import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -10,7 +11,12 @@ import {
   readAbsoluteNumber,
 } from "../inspector-helpers";
 
-import type { UpdateElementStyle } from "../inspector-types";
+import type {
+  FontResourceControls,
+  UpdateElementStyle,
+} from "../inspector-types";
+
+import { PresentationFontManager } from "./presentation-font-manager";
 
 interface ElementTypographyControlProps {
   style: ElementStyle | undefined;
@@ -18,6 +24,8 @@ interface ElementTypographyControlProps {
   onUpdateStyle: UpdateElementStyle;
 
   controlPrefix: string;
+
+  fontResourceControls: FontResourceControls;
 }
 
 function readFontWeightSelection(
@@ -85,20 +93,81 @@ export function ElementTypographyControl({
   style,
   onUpdateStyle,
   controlPrefix,
+  fontResourceControls,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
+  const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
 
   const fontWeightSelection = readFontWeightSelection(style?.fontWeight);
 
   const showUncuratedFontWeight =
     style?.fontWeight !== undefined &&
     !isCuratedFontWeight(style.fontWeight);
+  const currentFontFamily = style?.fontFamily ?? "";
+  const showUnregisteredFontFamily =
+    currentFontFamily !== "" &&
+    !fontResourceControls.fontResources.some(
+      (fontResource) => fontResource.family === currentFontFamily,
+    );
+  const fontManagerId = `${controlPrefix}-presentation-font-manager`;
 
   return (
     <div className={styles.appearanceSubgroup}>
       <span className={styles.appearanceSubheading}>
         {t("inspector.typography")}
       </span>
+
+      <div className={styles.fontFamilyRow}>
+        <label className={styles.field}>
+          <span>{t("inspector.fontFamily")}</span>
+
+          <select
+            id={`${controlPrefix}-font-family`}
+            name={getControlName(controlPrefix, "FontFamily")}
+            value={currentFontFamily}
+            onChange={(event) => {
+              const fontFamily = event.target.value || undefined;
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                fontFamily,
+              }));
+            }}
+          >
+            <option value="">{t("inspector.default")}</option>
+
+            {showUnregisteredFontFamily && (
+              <option value={currentFontFamily}>{currentFontFamily}</option>
+            )}
+
+            {fontResourceControls.fontResources.map((fontResource) => (
+              <option key={fontResource.id} value={fontResource.family}>
+                {fontResource.family}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          className={styles.secondaryButton}
+          type="button"
+          aria-expanded={isFontManagerOpen}
+          aria-controls={fontManagerId}
+          onClick={() => {
+            setIsFontManagerOpen((isOpen) => !isOpen);
+          }}
+        >
+          {t("inspector.manageFonts")}
+        </button>
+      </div>
+
+      {isFontManagerOpen && (
+        <PresentationFontManager
+          id={fontManagerId}
+          {...fontResourceControls}
+        />
+      )}
 
       <div className={styles.fieldGrid}>
         <label className={styles.field}>

@@ -7,7 +7,7 @@ import styles from "../editor-workspace.module.css";
 import { InspectorSection } from "./inspector-section";
 
 import type {
-  TypedInspectorProps,
+  TypographyInspectorProps,
   UpdateElementStyle,
 } from "./inspector-types";
 
@@ -24,7 +24,8 @@ type TextboxElement = Extract<PowerShowElement, { type: "textbox" }>;
 export function TextboxInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<TextboxElement>) {
+  fontResourceControls,
+}: TypographyInspectorProps<TextboxElement>) {
   const { t } = useStudioI18n();
 
   const updateStyle: UpdateElementStyle = (update) => {
@@ -79,6 +80,7 @@ export function TextboxInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="textbox"
         showTypography
+        fontResourceControls={fontResourceControls}
         showColor
         showBackground
         showBackgroundGradient

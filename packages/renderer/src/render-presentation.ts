@@ -3,6 +3,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { renderFontResources } from "./render-font-resources";
 import { renderSlide } from "./render-slide";
 
 export function renderPresentation(
@@ -11,6 +12,10 @@ export function renderPresentation(
   const slides = presentation.slides
     .map(renderSlide)
     .join("");
+  const fontResources = renderFontResources(presentation.resources?.fonts);
+  const fontResourceStyle = fontResources
+    ? `<style data-powershow-font-resources>${fontResources}</style>`
+    : "";
 
   return (
     `<div` +
@@ -23,6 +28,7 @@ export function renderPresentation(
       presentation.aspectRatio,
     )}"` +
     `>` +
+    fontResourceStyle +
     slides +
     `</div>`
   );

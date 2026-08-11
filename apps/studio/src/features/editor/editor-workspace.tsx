@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 
-import { renderSlide } from "@powershow/renderer";
+import { renderFontResources, renderSlide } from "@powershow/renderer";
+
+import { FontResourceSchema } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
@@ -17,6 +19,11 @@ import { ElementInspector } from "./element-inspector";
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+
+import {
+  normalizeFontFamily,
+  presentationUsesFontFamily,
+} from "./font-resource-helpers";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -71,6 +78,7 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
+  FontResource,
   PowerShowElement,
   Presentation,
   Slide,
@@ -259,6 +267,11 @@ export function EditorWorkspace() {
     return renderSlide(selectedSlide);
   }, [selectedSlide]);
 
+  const renderedFontResources = useMemo(
+    () => renderFontResources(presentation.resources?.fonts),
+    [presentation.resources?.fonts],
+  );
+
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
   // ==========================================================
@@ -397,6 +410,62 @@ export function EditorWorkspace() {
         };
       }),
     }));
+  }
+
+  function addFontResource(fontResource: FontResource) {
+    setPresentation((current) => {
+      const parsed = FontResourceSchema.safeParse(fontResource);
+
+      if (!parsed.success) {
+        return current;
+      }
+
+      const currentFonts = current.resources?.fonts ?? [];
+      const normalizedFamily = normalizeFontFamily(parsed.data.family);
+      const duplicate = currentFonts.some(
+        (registeredFont) =>
+          normalizeFontFamily(registeredFont.family) === normalizedFamily,
+      );
+
+      if (duplicate) {
+        return current;
+      }
+
+      return {
+        ...current,
+        resources: {
+          ...current.resources,
+          fonts: [...currentFonts, parsed.data],
+        },
+      };
+    });
+  }
+
+  function removeFontResource(fontResourceId: string) {
+    setPresentation((current) => {
+      const currentFonts = current.resources?.fonts;
+      const fontResource = currentFonts?.find(
+        (registeredFont) => registeredFont.id === fontResourceId,
+      );
+
+      if (
+        !currentFonts ||
+        !fontResource ||
+        presentationUsesFontFamily(current, fontResource.family)
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        resources: {
+          ...current.resources,
+          fonts: currentFonts.filter(
+            (registeredFont) => registeredFont.id !== fontResourceId,
+          ),
+        },
+      };
+    });
   }
 
   // ==========================================================
@@ -1093,6 +1162,12 @@ export function EditorWorkspace() {
           </div>
 
           <div className={styles.canvasViewport}>
+            {renderedFontResources && (
+              <style data-powershow-font-resources>
+                {renderedFontResources}
+              </style>
+            )}
+
             <div
               ref={slideCanvasRef}
               className={styles.slideCanvas}
@@ -1159,6 +1234,13 @@ export function EditorWorkspace() {
               <ElementInspector
                 element={selectedDocumentElement}
                 onUpdate={updateSelectedElement}
+                fontResourceControls={{
+                  fontResources: presentation.resources?.fonts ?? [],
+                  onAddFontResource: addFontResource,
+                  onRemoveFontResource: removeFontResource,
+                  isFontFamilyInUse: (family) =>
+                    presentationUsesFontFamily(presentation, family),
+                }}
               />
             ) : (
               <>

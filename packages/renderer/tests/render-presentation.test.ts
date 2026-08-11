@@ -147,6 +147,42 @@ describe("renderPresentation", () => {
     );
   });
 
+  it("emits presentation font resources once regardless of element usage", () => {
+    const presentation = createPresentation();
+
+    presentation.resources = {
+      fonts: [
+        {
+          id: "inter",
+          family: "Inter",
+          source: {
+            type: "url",
+            url: "https://cdn.example.com/inter.woff2",
+            format: "woff2",
+          },
+        },
+      ],
+    };
+    presentation.slides[0]?.elements.push({
+      type: "textbox",
+      id: "textbox-1",
+      hidden: false,
+      content: "Also Inter",
+      style: { fontFamily: "Inter" },
+    });
+    const firstElement = presentation.slides[0]?.elements[0];
+    if (firstElement) {
+      firstElement.style = { fontFamily: "Inter" };
+    }
+
+    const html = renderPresentation(presentation);
+
+    expect(html.split("@font-face").length - 1).toBe(1);
+    expect(html.split("data-powershow-font-resources").length - 1).toBe(1);
+    expect(html.split('font-family:"Inter"').length - 1).toBe(1);
+    expect(html.split("font-family:&quot;Inter&quot;").length - 1).toBe(2);
+  });
+
   it("renders an empty presentation", () => {
     const presentation =
       createPresentation();
