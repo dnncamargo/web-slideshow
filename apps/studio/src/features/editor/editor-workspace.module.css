@@ -1182,13 +1182,9 @@
 
 
 .fontResourceRow {
-  display: grid;
+  display: flex;
 
-  grid-template-columns:
-    minmax(0, 1fr)
-    auto;
-
-  align-items: center;
+  flex-direction: column;
 
   gap: 8px;
 
@@ -1198,14 +1194,14 @@
 }
 
 
-.fontResourceMeta {
+.fontResourceHeader {
   display: flex;
 
-  min-width: 0;
+  align-items: center;
 
-  flex-direction: column;
+  justify-content: space-between;
 
-  gap: 2px;
+  gap: 8px;
 
   color: #e2e8f0;
 
@@ -1213,7 +1209,6 @@
 }
 
 
-.fontResourceMeta span,
 .fontResourceEmpty {
   color: #64748b;
 
@@ -1222,18 +1217,38 @@
 
 
 .fontResourceStatus {
-  grid-column: 1;
-
   color: #fbbf24;
 
   font-size: 11px;
 }
 
 
-.fontResourceRow .secondaryButton {
-  grid-column: 2;
+.fontFaceList {
+  display: flex;
 
-  grid-row: 1 / span 2;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+
+.fontFaceRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+}
+
+
+.fontFaceMeta {
+  color: #94a3b8;
+
+  font-size: 11px;
 }
 
 

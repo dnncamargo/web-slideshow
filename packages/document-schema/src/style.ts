@@ -10,19 +10,16 @@ import {
 } from "./primitives";
 
 import { BorderSchema, GradientSchema, ShadowSchema } from "./visual";
-import { FontFamilySchema } from "./resources";
+import {
+  FontFamilySchema,
+  FontStyleSchema,
+  FontWeightSchema,
+} from "./resources";
 
-export const FontWeightSchema = z
-  .number()
-  .int()
-  .min(100)
-  .max(900)
-  .multipleOf(100);
-
-export const FontStyleSchema = z.enum([
-  "normal",
-  "italic",
-]);
+export {
+  FontStyleSchema,
+  FontWeightSchema,
+};
 
 export const TextAlignSchema = z.enum([
   "left",
