@@ -3,6 +3,7 @@ import type { ElementStyle, Length } from "@powershow/document-schema";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
 import { renderLength } from "./render-length";
+import { quoteCssString } from "./escape-css-string";
 
 function addStyle(
   target: string[],
@@ -26,6 +27,18 @@ function addLength(
   }
 
   target.push(`${property}:${renderLength(value)}`);
+}
+
+function addCssString(
+  target: string[],
+  property: string,
+  value: string | undefined,
+): void {
+  if (value === undefined) {
+    return;
+  }
+
+  target.push(`${property}:${quoteCssString(value)}`);
 }
 
 export function renderStyle(style: ElementStyle | undefined): string {
@@ -76,6 +89,8 @@ export function renderStyle(style: ElementStyle | undefined): string {
   addStyle(output, "background", style.background);
 
   addStyle(output, "color", style.color);
+
+  addCssString(output, "font-family", style.fontFamily);
 
   addLength(output, "font-size", style.fontSize);
 

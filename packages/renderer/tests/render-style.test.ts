@@ -62,6 +62,7 @@ describe("renderStyle", () => {
   });
 
   it.each([
+    ["font family", { fontFamily: "Source Sans 3" }, 'font-family:"Source Sans 3"'],
     ["font size", { fontSize: 32 }, "font-size:32px"],
     ["font weight", { fontWeight: 600 }, "font-weight:600"],
     ["font style", { fontStyle: "italic" }, "font-style:italic"],
@@ -86,6 +87,7 @@ describe("renderStyle", () => {
 
   it("renders combined typography overrides", () => {
     const result = renderStyle({
+      fontFamily: "Inter",
       fontSize: 48,
       fontWeight: 600,
       fontStyle: "italic",
@@ -95,9 +97,20 @@ describe("renderStyle", () => {
     });
 
     expect(result).toBe(
-      "font-size:48px;font-weight:600;font-style:italic;" +
+      'font-family:"Inter";font-size:48px;font-weight:600;font-style:italic;' +
         "text-align:center;line-height:1.3;letter-spacing:1px",
     );
+  });
+
+  it("escapes a font family as a CSS string", () => {
+    const result = renderStyle({
+      fontFamily: 'Family";color:red</style>',
+    });
+
+    expect(result).toBe(
+      "font-family:\"Family\\22 ;color:red\\3c /style\\3e \"",
+    );
+    expect(result).not.toContain("</style>");
   });
 
   it("does not render alignment properties directly", () => {

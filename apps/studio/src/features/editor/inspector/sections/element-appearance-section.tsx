@@ -13,7 +13,10 @@ import {
 
 import { InspectorSection } from "../inspector-section";
 
-import type { UpdateElementStyle } from "../inspector-types";
+import type {
+  FontResourceControls,
+  UpdateElementStyle,
+} from "../inspector-types";
 
 import { ElementBackgroundGradientControl } from "./element-background-gradient-control";
 
@@ -27,6 +30,8 @@ interface ElementAppearanceSectionProps {
   controlPrefix: string;
 
   showTypography?: boolean;
+
+  fontResourceControls?: FontResourceControls;
 
   showColor?: boolean;
 
@@ -74,6 +79,7 @@ export function ElementAppearanceSection({
   onUpdateStyle,
   controlPrefix,
   showTypography = false,
+  fontResourceControls,
   showColor = false,
   showBackground = false,
   showBackgroundGradient = false,
@@ -85,11 +91,12 @@ export function ElementAppearanceSection({
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
-      {showTypography && (
+      {showTypography && fontResourceControls && (
         <ElementTypographyControl
           style={style}
           onUpdateStyle={onUpdateStyle}
           controlPrefix={controlPrefix}
+          fontResourceControls={fontResourceControls}
         />
       )}
 

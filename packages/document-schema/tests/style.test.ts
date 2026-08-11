@@ -7,6 +7,12 @@ describe("ElementStyleSchema typography", () => {
     expect(ElementStyleSchema.parse({})).toEqual({});
   });
 
+  it("accepts an explicit font family and trims its value", () => {
+    expect(ElementStyleSchema.parse({ fontFamily: " Source Sans 3 " })).toEqual({
+      fontFamily: "Source Sans 3",
+    });
+  });
+
   it.each([
     ["numeric font size", { fontSize: 32 }],
     ["string font size", { fontSize: "2.5rem" }],
@@ -35,6 +41,7 @@ describe("ElementStyleSchema typography", () => {
   it("accepts combined typography overrides", () => {
     expect(
       ElementStyleSchema.safeParse({
+        fontFamily: "Inter",
         fontSize: 48,
         fontWeight: 600,
         fontStyle: "italic",

@@ -1,6 +1,6 @@
 import type { Presentation } from "@powershow/document-schema";
 
-import { renderSlide } from "@powershow/renderer";
+import { renderFontResources, renderSlide } from "@powershow/renderer";
 
 // ============================================================
 // TIPOS PÚBLICOS DO PLAYER
@@ -289,6 +289,16 @@ export function mountPlayer(
   // ----------------------------------------------------------
 
   const player = queryRequired<HTMLElement>(root, ".powershow-player");
+
+  const fontResourceCss = renderFontResources(presentation.resources?.fonts);
+
+  if (fontResourceCss) {
+    const fontResourceStyle = document.createElement("style");
+
+    fontResourceStyle.setAttribute("data-powershow-font-resources", "");
+    fontResourceStyle.textContent = fontResourceCss;
+    player.prepend(fontResourceStyle);
+  }
 
   const stage = queryRequired<HTMLElement>(root, ".powershow-player-stage");
 

@@ -1,4 +1,5 @@
 export * from "./primitives";
+export * from "./resources";
 export * from "./style";
 export * from "./elements";
 export * from "./slide";

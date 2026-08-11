@@ -1,0 +1,49 @@
+import type { Presentation } from "@powershow/document-schema";
+
+import { someElement } from "./element-tree";
+
+export function normalizeFontFamily(family: string): string {
+  return family.trim().toLowerCase();
+}
+
+export function createFontResourceId(
+  family: string,
+  existingIds: readonly string[],
+): string {
+  const baseId =
+    family
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "font";
+  const usedIds = new Set(existingIds);
+
+  if (!usedIds.has(baseId)) {
+    return baseId;
+  }
+
+  let suffix = 2;
+
+  while (usedIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `${baseId}-${suffix}`;
+}
+
+export function presentationUsesFontFamily(
+  presentation: Presentation,
+  family: string,
+): boolean {
+  const normalizedFamily = normalizeFontFamily(family);
+
+  return presentation.slides.some((slide) =>
+    someElement(
+      slide.elements,
+      (element) =>
+        element.style?.fontFamily !== undefined &&
+        normalizeFontFamily(element.style.fontFamily) === normalizedFamily,
+    ),
+  );
+}

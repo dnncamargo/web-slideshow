@@ -1135,6 +1135,115 @@
 }
 
 
+.fontFamilyRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: end;
+
+  gap: 10px;
+}
+
+
+.fontManager {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 12px;
+
+  border: 1px solid #303847;
+
+  border-radius: 8px;
+
+  background: #0c111a;
+}
+
+
+.fontManagerTitle {
+  color: #e2e8f0;
+
+  font-size: 13px;
+}
+
+
+.fontResourceList {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+
+.fontResourceRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding-top: 8px;
+
+  border-top: 1px solid #252d3a;
+}
+
+
+.fontResourceMeta {
+  display: flex;
+
+  min-width: 0;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+  color: #e2e8f0;
+
+  font-size: 12px;
+}
+
+
+.fontResourceMeta span,
+.fontResourceEmpty {
+  color: #64748b;
+
+  font-size: 11px;
+}
+
+
+.fontResourceStatus {
+  grid-column: 1;
+
+  color: #fbbf24;
+
+  font-size: 11px;
+}
+
+
+.fontResourceRow .secondaryButton {
+  grid-column: 2;
+
+  grid-row: 1 / span 2;
+}
+
+
+.validationMessage {
+  color: #fca5a5;
+
+  font-size: 11px;
+}
+
+
 .colorInput {
   width: 100% !important;
 
@@ -1180,6 +1289,20 @@
 
   color:
     #e2e8f0;
+}
+
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+
+.secondaryButton:disabled:hover {
+  background: #141a24;
+
+  color: #aeb7c5;
 }
 
 

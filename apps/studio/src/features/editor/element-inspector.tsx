@@ -16,12 +16,17 @@ import {
   TextInspector,
 } from "./inspector";
 
-import type { ElementInspectorUpdate } from "./inspector/inspector-types";
+import type {
+  ElementInspectorUpdate,
+  FontResourceControls,
+} from "./inspector/inspector-types";
 
 interface ElementInspectorProps {
   element: PowerShowElement;
 
   onUpdate: ElementInspectorUpdate;
+
+  fontResourceControls: FontResourceControls;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -35,6 +40,7 @@ interface ElementTypeInspectorProps extends ElementInspectorProps {
 function ElementTypeInspector({
   element,
   onUpdate,
+  fontResourceControls,
   unsupportedElementHint,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
@@ -42,10 +48,22 @@ function ElementTypeInspector({
       return <ContainerInspector element={element} onUpdate={onUpdate} />;
 
     case "text":
-      return <TextInspector element={element} onUpdate={onUpdate} />;
+      return (
+        <TextInspector
+          element={element}
+          onUpdate={onUpdate}
+          fontResourceControls={fontResourceControls}
+        />
+      );
 
     case "textbox":
-      return <TextboxInspector element={element} onUpdate={onUpdate} />;
+      return (
+        <TextboxInspector
+          element={element}
+          onUpdate={onUpdate}
+          fontResourceControls={fontResourceControls}
+        />
+      );
 
     case "code":
       return (
@@ -81,7 +99,11 @@ function ElementTypeInspector({
 // sua edição ao Inspector específico daquele tipo.
 // ============================================================
 
-export function ElementInspector({ element, onUpdate }: ElementInspectorProps) {
+export function ElementInspector({
+  element,
+  onUpdate,
+  fontResourceControls,
+}: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
   return (
@@ -111,6 +133,7 @@ export function ElementInspector({ element, onUpdate }: ElementInspectorProps) {
       <ElementTypeInspector
         element={element}
         onUpdate={onUpdate}
+        fontResourceControls={fontResourceControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
       />
     </>
