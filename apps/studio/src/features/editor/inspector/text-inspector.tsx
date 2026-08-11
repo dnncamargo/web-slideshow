@@ -111,6 +111,7 @@ export function TextInspector({
         style={element.style}
         onUpdateStyle={updateStyle}
         controlPrefix="text"
+        showTypography
         showColor
         showBackground
         showBackgroundGradient
