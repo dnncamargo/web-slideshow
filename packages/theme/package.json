@@ -12,7 +12,8 @@
   "exports": {
     "./index.css": "./src/index.css",
     "./base.css": "./src/base.css",
-    "./panel-size": "./src/panel-size.ts"
+    "./panel-size": "./src/panel-size.ts",
+    "./element-style-defaults": "./src/element-style-defaults.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

@@ -246,7 +246,7 @@ export function TerminalInspector({
       </InspectorSection>
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="terminal"
         showBackground

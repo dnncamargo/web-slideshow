@@ -62,7 +62,7 @@ export function ContainerInspector({
       <ContainerSpacingSection element={element} onUpdate={updateContainer} />
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="container"
         showBackground

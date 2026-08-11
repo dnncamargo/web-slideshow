@@ -76,7 +76,7 @@ export function TextboxInspector({
       </InspectorSection>
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="textbox"
         showTypography

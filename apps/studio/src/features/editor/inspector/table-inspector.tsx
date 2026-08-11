@@ -696,7 +696,7 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
       </InspectorSection>
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="table"
         showBackground

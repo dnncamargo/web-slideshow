@@ -1,4 +1,8 @@
-import type { Border, ElementStyle } from "@powershow/document-schema";
+import type { Border, PowerShowElement } from "@powershow/document-schema";
+import {
+  resolveEffectiveElementStyleDefaults,
+  resolveEffectiveNumericStyleValue,
+} from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -22,8 +26,10 @@ import { ElementBackgroundGradientControl } from "./element-background-gradient-
 
 import { ElementTypographyControl } from "./element-typography-control";
 
+import { EffectiveNumberInput } from "./effective-number-input";
+
 interface ElementAppearanceSectionProps {
-  style: ElementStyle | undefined;
+  element: PowerShowElement;
 
   onUpdateStyle: UpdateElementStyle;
 
@@ -75,7 +81,7 @@ function isEnabledBorderStyle(value: string): value is EnabledBorderStyle {
 // ============================================================
 
 export function ElementAppearanceSection({
-  style,
+  element,
   onUpdateStyle,
   controlPrefix,
   showTypography = false,
@@ -88,17 +94,33 @@ export function ElementAppearanceSection({
   showBorder = false,
 }: ElementAppearanceSectionProps) {
   const { t } = useStudioI18n();
+  const style = element.style;
+  const effectiveDefaults = resolveEffectiveElementStyleDefaults(element);
+  const borderRadiusValue =
+    style?.borderRadius === undefined
+      ? resolveEffectiveNumericStyleValue(
+          undefined,
+          effectiveDefaults.borderRadius,
+        )
+      : {
+          value: readAbsoluteNumber(style.borderRadius),
+          inherited: false,
+        };
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
-      {showTypography && fontResourceControls && (
-        <ElementTypographyControl
-          style={style}
-          onUpdateStyle={onUpdateStyle}
-          controlPrefix={controlPrefix}
-          fontResourceControls={fontResourceControls}
-        />
-      )}
+      {showTypography &&
+        fontResourceControls &&
+        effectiveDefaults.typography && (
+          <ElementTypographyControl
+            selectedElementId={element.id}
+            style={style}
+            effectiveDefaults={effectiveDefaults.typography}
+            onUpdateStyle={onUpdateStyle}
+            controlPrefix={controlPrefix}
+            fontResourceControls={fontResourceControls}
+          />
+        )}
 
       {showColor && (
         <div className={styles.colorControl}>
@@ -195,34 +217,39 @@ export function ElementAppearanceSection({
       {(showRoundedCorners || showOpacity) && (
         <div className={styles.fieldGrid}>
           {showRoundedCorners && (
-            <label className={styles.field}>
-              <span title={t("inspector.roundedCornersHelp")}>
+            <div className={styles.field}>
+              <label
+                htmlFor={`${controlPrefix}-border-radius`}
+                title={t("inspector.roundedCornersHelp")}
+              >
                 {t("inspector.roundedCorners")}
-              </span>
+              </label>
 
-              <div className={styles.unitInput}>
-                <input
-                  id={`${controlPrefix}-border-radius`}
-                  name={getControlName(controlPrefix, "BorderRadius")}
-                  type="number"
-                  min="0"
-                  value={readAbsoluteNumber(style?.borderRadius)}
-                  onChange={(event) => {
-                    const borderRadius = parseOptionalNumber(
-                      event.target.value,
-                    );
+              <EffectiveNumberInput
+                id={`${controlPrefix}-border-radius`}
+                name={getControlName(controlPrefix, "BorderRadius")}
+                min="0"
+                value={borderRadiusValue.value}
+                inherited={borderRadiusValue.inherited}
+                unit="px"
+                onChange={(value) => {
+                  const borderRadius = parseOptionalNumber(value);
 
-                    onUpdateStyle((currentStyle) => ({
-                      ...currentStyle,
+                  onUpdateStyle((currentStyle) => ({
+                    ...currentStyle,
 
-                      borderRadius,
-                    }));
-                  }}
-                />
+                    borderRadius,
+                  }));
+                }}
+                onReset={() => {
+                  onUpdateStyle((currentStyle) => ({
+                    ...currentStyle,
 
-                <span>px</span>
-              </div>
-            </label>
+                    borderRadius: undefined,
+                  }));
+                }}
+              />
+            </div>
           )}
 
           {showOpacity && (

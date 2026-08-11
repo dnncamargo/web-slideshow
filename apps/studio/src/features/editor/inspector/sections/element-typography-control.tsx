@@ -1,4 +1,8 @@
 import type { ElementStyle } from "@powershow/document-schema";
+import {
+  resolveEffectiveNumericStyleValue,
+  type ThemeTypographyDefaults,
+} from "@powershow/theme/element-style-defaults";
 import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -18,14 +22,26 @@ import type {
 
 import { PresentationFontManager } from "./presentation-font-manager";
 
+import { EffectiveNumberInput } from "./effective-number-input";
+
 interface ElementTypographyControlProps {
+  selectedElementId: string;
+
   style: ElementStyle | undefined;
+
+  effectiveDefaults: ThemeTypographyDefaults;
 
   onUpdateStyle: UpdateElementStyle;
 
   controlPrefix: string;
 
   fontResourceControls: FontResourceControls;
+}
+
+interface FontApplySuggestion {
+  elementId: string;
+  family: string;
+  applied: boolean;
 }
 
 function readFontWeightSelection(
@@ -90,13 +106,17 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
 // ============================================================
 
 export function ElementTypographyControl({
+  selectedElementId,
   style,
+  effectiveDefaults,
   onUpdateStyle,
   controlPrefix,
   fontResourceControls,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
   const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
+  const [fontApplySuggestion, setFontApplySuggestion] =
+    useState<FontApplySuggestion>();
 
   const fontWeightSelection = readFontWeightSelection(style?.fontWeight);
 
@@ -110,6 +130,34 @@ export function ElementTypographyControl({
       (fontResource) => fontResource.family === currentFontFamily,
     );
   const fontManagerId = `${controlPrefix}-presentation-font-manager`;
+  const activeFontApplySuggestion =
+    fontApplySuggestion?.elementId === selectedElementId
+      ? fontApplySuggestion
+      : undefined;
+  const fontSizeValue =
+    style?.fontSize === undefined
+      ? resolveEffectiveNumericStyleValue(
+          undefined,
+          effectiveDefaults.fontSize,
+        )
+      : {
+          value: readAbsoluteNumber(style.fontSize),
+          inherited: false,
+        };
+  const lineHeightValue = resolveEffectiveNumericStyleValue(
+    style?.lineHeight,
+    effectiveDefaults.lineHeight,
+  );
+  const letterSpacingValue =
+    style?.letterSpacing === undefined
+      ? resolveEffectiveNumericStyleValue(
+          undefined,
+          effectiveDefaults.letterSpacing,
+        )
+      : {
+          value: readAbsoluteNumber(style.letterSpacing),
+          inherited: false,
+        };
 
   return (
     <div className={styles.appearanceSubgroup}>
@@ -165,37 +213,83 @@ export function ElementTypographyControl({
       {isFontManagerOpen && (
         <PresentationFontManager
           id={fontManagerId}
+          onFontAdded={(family) => {
+            setFontApplySuggestion({
+              elementId: selectedElementId,
+              family,
+              applied: false,
+            });
+          }}
           {...fontResourceControls}
         />
       )}
 
-      <div className={styles.fieldGrid}>
-        <label className={styles.field}>
-          <span>{t("inspector.fontSize")}</span>
+      {activeFontApplySuggestion && (
+        <div className={styles.fontApplySuggestion} aria-live="polite">
+          <span>
+            {t("inspector.fontAddedToPresentation", {
+              family: activeFontApplySuggestion.family,
+            })}
+          </span>
 
-          <div className={styles.unitInput}>
-            <input
-              id={`${controlPrefix}-font-size`}
-              name={getControlName(controlPrefix, "FontSize")}
-              type="number"
-              min="1"
-              value={readAbsoluteNumber(style?.fontSize)}
-              onChange={(event) => {
-                const fontSize = parseOptionalPositiveNumber(
-                  event.target.value,
-                );
+          {activeFontApplySuggestion.applied ? (
+            <strong>{t("inspector.appliedToSelectedText")}</strong>
+          ) : (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => {
+                if (activeFontApplySuggestion.elementId !== selectedElementId) {
+                  return;
+                }
 
                 onUpdateStyle((currentStyle) => ({
                   ...currentStyle,
-
-                  fontSize,
+                  fontFamily: activeFontApplySuggestion.family,
                 }));
+                setFontApplySuggestion({
+                  ...activeFontApplySuggestion,
+                  applied: true,
+                });
               }}
-            />
+            >
+              {t("inspector.applyToSelectedText")}
+            </button>
+          )}
+        </div>
+      )}
 
-            <span>px</span>
-          </div>
-        </label>
+      <div className={styles.fieldGrid}>
+        <div className={styles.field}>
+          <label htmlFor={`${controlPrefix}-font-size`}>
+            {t("inspector.fontSize")}
+          </label>
+
+          <EffectiveNumberInput
+            id={`${controlPrefix}-font-size`}
+            name={getControlName(controlPrefix, "FontSize")}
+            min="1"
+            value={fontSizeValue.value}
+            inherited={fontSizeValue.inherited}
+            unit="px"
+            onChange={(value) => {
+              const fontSize = parseOptionalPositiveNumber(value);
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                fontSize,
+              }));
+            }}
+            onReset={() => {
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                fontSize: undefined,
+              }));
+            }}
+          />
+        </div>
 
         <label className={styles.field}>
           <span>{t("inspector.fontWeight")}</span>
@@ -288,61 +382,73 @@ export function ElementTypographyControl({
           </select>
         </label>
 
-        <label className={styles.field}>
-          <span title={t("inspector.lineHeightHelp")}>
+        <div className={styles.field}>
+          <label
+            htmlFor={`${controlPrefix}-line-height`}
+            title={t("inspector.lineHeightHelp")}
+          >
             {t("inspector.lineHeight")}
-          </span>
+          </label>
 
-          <div className={styles.unitInput}>
-            <input
-              id={`${controlPrefix}-line-height`}
-              name={getControlName(controlPrefix, "LineHeight")}
-              type="number"
-              step="0.1"
-              value={style?.lineHeight ?? ""}
-              onChange={(event) => {
-                const lineHeight = parseOptionalPositiveNumber(
-                  event.target.value,
-                );
+          <EffectiveNumberInput
+            id={`${controlPrefix}-line-height`}
+            name={getControlName(controlPrefix, "LineHeight")}
+            step="0.1"
+            value={lineHeightValue.value}
+            inherited={lineHeightValue.inherited}
+            unit="×"
+            onChange={(value) => {
+              const lineHeight = parseOptionalPositiveNumber(value);
 
-                onUpdateStyle((currentStyle) => ({
-                  ...currentStyle,
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
 
-                  lineHeight,
-                }));
-              }}
-            />
+                lineHeight,
+              }));
+            }}
+            onReset={() => {
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
 
-            <span>×</span>
-          </div>
-        </label>
+                lineHeight: undefined,
+              }));
+            }}
+          />
+        </div>
 
-        <label className={styles.field}>
-          <span title={t("inspector.letterSpacingHelp")}>
+        <div className={styles.field}>
+          <label
+            htmlFor={`${controlPrefix}-letter-spacing`}
+            title={t("inspector.letterSpacingHelp")}
+          >
             {t("inspector.letterSpacing")}
-          </span>
+          </label>
 
-          <div className={styles.unitInput}>
-            <input
-              id={`${controlPrefix}-letter-spacing`}
-              name={getControlName(controlPrefix, "LetterSpacing")}
-              type="number"
-              step="0.1"
-              value={readAbsoluteNumber(style?.letterSpacing)}
-              onChange={(event) => {
-                const letterSpacing = parseOptionalNumber(event.target.value);
+          <EffectiveNumberInput
+            id={`${controlPrefix}-letter-spacing`}
+            name={getControlName(controlPrefix, "LetterSpacing")}
+            step="0.1"
+            value={letterSpacingValue.value}
+            inherited={letterSpacingValue.inherited}
+            unit="px"
+            onChange={(value) => {
+              const letterSpacing = parseOptionalNumber(value);
 
-                onUpdateStyle((currentStyle) => ({
-                  ...currentStyle,
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
 
-                  letterSpacing,
-                }));
-              }}
-            />
+                letterSpacing,
+              }));
+            }}
+            onReset={() => {
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
 
-            <span>px</span>
-          </div>
-        </label>
+                letterSpacing: undefined,
+              }));
+            }}
+          />
+        </div>
       </div>
     </div>
   );

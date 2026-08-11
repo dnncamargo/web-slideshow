@@ -109,7 +109,7 @@ export function TextInspector({
       </InspectorSection>
 
       <ElementAppearanceSection
-        style={element.style}
+        element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="text"
         showTypography
