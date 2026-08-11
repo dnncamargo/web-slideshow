@@ -1216,6 +1216,25 @@
 }
 
 
+.fontSourcePanel,
+.registeredFonts,
+.webFontResults,
+.webFontSelection {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+
+.registeredFonts {
+  padding-top: 10px;
+
+  border-top: 1px solid #252d3a;
+}
+
+
 .googleFontImport,
 .googleFontResolved,
 .googleFontVariantList {
@@ -1228,9 +1247,64 @@
 
 
 .googleFontImport {
-  padding-bottom: 10px;
+  padding-top: 10px;
 
-  border-bottom: 1px solid #252d3a;
+  border-top: 1px solid #252d3a;
+}
+
+
+.webFontResult {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 8px;
+
+  border: 1px solid #293140;
+
+  border-radius: 7px;
+
+  background: #0d121b;
+}
+
+
+.webFontResultMeta {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+  min-width: 0;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+
+.webFontResultMeta strong,
+.webFontSelection > strong {
+  color: #e2e8f0;
+
+  font-size: 12px;
+}
+
+
+.webFontSelection {
+  padding: 9px;
+
+  border: 1px solid #303847;
+
+  border-radius: 7px;
+
+  background: rgba(99, 102, 241, 0.06);
 }
 
 
