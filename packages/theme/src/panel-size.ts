@@ -19,7 +19,8 @@ export type PanelSizePreset =
   | "small"
   | "medium"
   | "large"
-  | "wide";
+  | "wide"
+  | "full";
 
 
 // ============================================================
@@ -83,6 +84,10 @@ export const PANEL_SIZE_PRESETS: Readonly<
   wide: {
     width: "88%",
     height: "58%",
+  },
+    full: {
+    width: "100%",
+    height: "100%",
   },
 };
 

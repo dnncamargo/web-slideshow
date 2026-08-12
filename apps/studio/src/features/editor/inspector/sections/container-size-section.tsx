@@ -42,7 +42,7 @@ function detectPanelSizePreset(
 
   const height = container.style?.height;
 
-  for (const preset of ["small", "medium", "large", "wide"] as const) {
+  for (const preset of ["small", "medium", "large", "wide", "full"] as const) {
     const dimensions = PANEL_SIZE_PRESETS[preset];
 
     if (width === dimensions.width && height === dimensions.height) {
@@ -101,6 +101,8 @@ export function ContainerSizeSection({
           <option value="large">{t("inspector.large")}</option>
 
           <option value="wide">{t("inspector.wide")}</option>
+
+          <option value="full">{t("inspector.full")}</option>
 
           <option value="custom">{t("inspector.custom")}</option>
         </select>
