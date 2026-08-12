@@ -88,6 +88,19 @@ export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   interactive: 0,
 };
 
+export const THEME_COLORS = {
+  textPrimary: "#f8fafc",
+  textSecondary: "#cbd5e1",
+  textMuted: "#94a3b8",
+  surface: "rgba(15, 23, 42, 0.88)",
+  surfaceStrong: "#020617",
+  border: "rgba(148, 163, 184, 0.22)",
+  accent: "#22d3ee",
+  danger: "#f87171",
+} as const;
+
+export type ThemeColorKey = keyof typeof THEME_COLORS;
+
 export interface EffectiveNumericStyleValue {
   value: number;
   inherited: boolean;

@@ -4,6 +4,8 @@ import {
   type Color,
 } from "@powershow/document-schema";
 
+const MAX_RECENT_COLORS = 8;
+
 function colorIdentity(color: Color): string {
   const parsed = parseColor(color);
 
@@ -14,35 +16,38 @@ export function areColorsEquivalent(left: Color, right: Color): boolean {
   return colorIdentity(left) === colorIdentity(right);
 }
 
-export function arePaletteColorsEquivalent(left: Color, right: Color): boolean {
-  return areColorsEquivalent(left, right);
-}
-
-export function addPaletteColor(
+export function addRecentColor(
   colors: readonly Color[],
   color: Color,
 ): readonly Color[] {
   const normalized = parseColor(color) ? (color as Color) : color;
 
-  const existingIndex = colors.findIndex((c) =>
-    arePaletteColorsEquivalent(c, normalized),
+  const normalizedColors = colors.map((c) =>
+    parseColor(c) ? (c as Color) : c,
   );
 
-  if (existingIndex === -1) {
-    return [...colors, normalized];
+  const existingIndex = normalizedColors.findIndex((c) =>
+    areColorsEquivalent(c, normalized),
+  );
+
+  if (existingIndex === 0) {
+    return colors;
   }
 
-  return colors;
+  const filtered = existingIndex > 0
+    ? normalizedColors.filter((_, i) => i !== existingIndex)
+    : normalizedColors;
+
+  const result = [normalized, ...filtered];
+
+  return result.slice(0, MAX_RECENT_COLORS);
 }
 
-export function removePaletteColor(
-  colors: readonly Color[],
-  index: number,
-): readonly Color[] {
-  return colors.filter((_, colorIndex) => colorIndex !== index);
+export function clearRecentColors(): readonly Color[] {
+  return [];
 }
 
-export function movePaletteColor(
+export function moveRecentColor(
   colors: readonly Color[],
   index: number,
   direction: -1 | 1,

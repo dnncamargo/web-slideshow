@@ -32,9 +32,16 @@ import {
 } from "./font-resource-helpers";
 import {
   addPaletteColor,
+  movePaletteColor,
   removePaletteColor,
 } from "./inspector/sections/color-palette-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
+import { RecentColorsProvider } from "./inspector/sections/recent-colors-provider";
+import {
+  addRecentColor,
+  clearRecentColors,
+  moveRecentColor,
+} from "./inspector/sections/recent-colors-helpers";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -590,6 +597,27 @@ export function EditorWorkspace() {
         const { palette: _palette, ...presentationWithoutPalette } = current;
 
         return presentationWithoutPalette;
+      }
+
+      return {
+        ...current,
+        palette: { colors: [...colors] },
+      };
+    });
+  }
+
+  function movePresentationPaletteColor(index: number, direction: -1 | 1) {
+    setPresentation((current) => {
+      const currentColors = current.palette?.colors;
+
+      if (!currentColors || index < 0 || index >= currentColors.length) {
+        return current;
+      }
+
+      const colors = movePaletteColor(currentColors, index, direction);
+
+      if (colors === currentColors) {
+        return current;
       }
 
       return {
@@ -1355,28 +1383,42 @@ export function EditorWorkspace() {
     END: ELEMENT CRUD CONTROLS
     ========================================================== */}
 
-            {/* =================================================
-                END: ELEMENT CRUD CONTROLS
-                ================================================= */}
-            {selectedDocumentElement ? (
-              <PresentationColorPaletteProvider
-                colors={presentation.palette?.colors ?? []}
-                onAddColor={addPresentationPaletteColor}
-                onRemoveColor={removePresentationPaletteColor}
-              >
-                <ElementInspector
-                  element={selectedDocumentElement}
-                  onUpdate={updateSelectedElement}
-                  fontResourceControls={{
-                    fontResources: presentation.resources?.fonts ?? [],
-                    onAddFontFace: addFontFace,
-                    onRemoveFontFace: removeFontFace,
-                    isFontFamilyInUse: (family) =>
-                      presentationUsesFontFamily(presentation, family),
-                  }}
-                />
-              </PresentationColorPaletteProvider>
-            ) : (
+{/* =================================================
+                 END: ELEMENT CRUD CONTROLS
+                 ================================================= */}
+             {selectedDocumentElement ? (
+               <RecentColorsProvider
+                 colors={[]}
+                 onAddColor={(color) => {
+                   // Recent colors are managed locally in ColorControl
+                 }}
+                 onClearColors={() => {
+                   // Clear handled in ColorControl
+                 }}
+                 onMoveColor={(index, direction) => {
+                   // Move handled in ColorControl
+                 }}
+               >
+                 <PresentationColorPaletteProvider
+                   colors={presentation.palette?.colors ?? []}
+                   onAddColor={addPresentationPaletteColor}
+                   onRemoveColor={removePresentationPaletteColor}
+                   onMoveColor={movePresentationPaletteColor}
+                 >
+                   <ElementInspector
+                     element={selectedDocumentElement}
+                     onUpdate={updateSelectedElement}
+                     fontResourceControls={{
+                       fontResources: presentation.resources?.fonts ?? [],
+                       onAddFontFace: addFontFace,
+                       onRemoveFontFace: removeFontFace,
+                       isFontFamilyInUse: (family) =>
+                         presentationUsesFontFamily(presentation, family),
+                     }}
+                   />
+                 </PresentationColorPaletteProvider>
+               </RecentColorsProvider>
+             ) : (
               <>
                 {/* =============================================
                     BEGIN: SLIDE INSPECTOR
