@@ -19,7 +19,7 @@ export interface ThemeTypographyDefaults {
 
 export const AUTHORING_ROOT_FONT_SIZE_PX = 16;
 
-export type AuthoringLengthUnit = "px" | "rem" | "em";
+export type AuthoringLengthUnit = "px" | "rem" | "em" | "%";
 
 export interface ParsedAuthoringLength {
   value: number;
@@ -27,7 +27,7 @@ export interface ParsedAuthoringLength {
 }
 
 const AUTHORING_LENGTH_PATTERN =
-  /^(-?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em)$/;
+  /^(-?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em|%)$/;
 
 export interface EffectiveElementStyleDefaults {
   typography?: ThemeTypographyDefaults;
@@ -138,7 +138,7 @@ export function parseAuthoringLength(
   const unit = match[2];
 
   return Number.isFinite(numericValue) &&
-    (unit === "px" || unit === "rem" || unit === "em")
+    (unit === "px" || unit === "rem" || unit === "em" || unit === "%")
     ? { value: numericValue, unit }
     : undefined;
 }
@@ -160,6 +160,10 @@ export function convertAuthoringLength(
 
   if (parsed.unit === targetUnit) {
     return normalizeAuthoringLengthValue(parsed.value);
+  }
+
+  if (parsed.unit === "%" || targetUnit === "%") {
+    return undefined;
   }
 
   const pixels =
