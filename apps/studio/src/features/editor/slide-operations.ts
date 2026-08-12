@@ -190,6 +190,7 @@ function cloneElementWithUniqueIds(
 
 export type SlideLayoutPreset =
   | "blank"
+  | "full"
   | "centered"
   | "title-content"
   | "two-columns"
@@ -289,6 +290,104 @@ export function createSlideFromPreset(
 
     // ========================================================
     // END: BLANK
+    // ========================================================
+
+
+    // ========================================================
+    // BEGIN: FULL
+    // ========================================================
+
+    case "full":
+      return buildSlide([
+        {
+          id:
+            elementId(
+              "root",
+            ),
+
+          type:
+            "container",
+
+          hidden:
+            false,
+
+          direction:
+            "column",
+
+          gap:
+            24,
+
+          horizontalAlign:
+            "stretch",
+
+          verticalAlign:
+            "stretch",
+
+          style: {
+            width:
+              "100%",
+
+            height:
+              "100%",
+
+            padding:
+              56,
+          },
+
+          children: [
+            {
+              id:
+                elementId(
+                  "title",
+                ),
+
+              type:
+                "text",
+
+              hidden:
+                false,
+
+              variant:
+                "title",
+
+              content:
+                "Slide title",
+
+              style: {
+                width:
+                  "100%",
+              },
+            },
+
+            {
+              id:
+                elementId(
+                  "content",
+                ),
+
+              type:
+                "textbox",
+
+              hidden:
+                false,
+
+              content:
+                "Add your content here.",
+
+              style: {
+                width:
+                  "100%",
+
+                height:
+                  "100%",
+              },
+            },
+          ],
+        },
+      ]);
+
+    // ========================================================
+    // END: FULL
     // ========================================================
 
 

@@ -44,6 +44,14 @@ const presets: {
   },
 
   {
+    id: "full",
+
+    label: "slides.layout.full",
+
+    description: "slides.layout.fullDescription",
+  },
+
+  {
     id: "centered",
 
     label: "slides.layout.centered",
@@ -100,6 +108,15 @@ function LayoutPreview({ preset }: { preset: SlideLayoutPreset }) {
   switch (preset) {
     case "blank":
       return <div className={styles.layoutPreviewBlank} />;
+
+    case "full":
+      return (
+        <div className={styles.layoutPreviewFull}>
+          <span className={styles.layoutPreviewTitle} />
+
+          <span className={styles.layoutPreviewContent} />
+        </div>
+      );
 
     case "centered":
       return (
