@@ -118,6 +118,12 @@ export function renderStyle(style: ElementStyle | undefined): string {
     output.push(`box-shadow:${renderShadow(style.shadow)}`);
   }
 
+  if (style.textStroke) {
+    output.push(
+      `-webkit-text-stroke:${renderLength(style.textStroke.width)} ${style.textStroke.color}`,
+    );
+  }
+
   if (style.border) {
     output.push(...renderBorder(style.border));
   }

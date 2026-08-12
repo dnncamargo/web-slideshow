@@ -1,9 +1,46 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  convertAuthoringLength,
+  normalizeAuthoringLengthValue,
+  parseAuthoringLength,
   resolveEffectiveElementStyleDefaults,
   resolveEffectiveNumericStyleValue,
 } from "../src/element-style-defaults";
+
+describe("authoring length conversions", () => {
+  it("parses numeric pixels and supported string lengths", () => {
+    expect(parseAuthoringLength(48)).toEqual({ value: 48, unit: "px" });
+    expect(parseAuthoringLength("3rem")).toEqual({ value: 3, unit: "rem" });
+    expect(parseAuthoringLength("0.025em")).toEqual({
+      value: 0.025,
+      unit: "em",
+    });
+  });
+
+  it("converts pixels and rem from the deterministic root basis", () => {
+    expect(convertAuthoringLength(48, "rem")).toBe(3);
+    expect(convertAuthoringLength("3rem", "px")).toBe(48);
+    expect(convertAuthoringLength(18, "rem")).toBe(1.125);
+  });
+
+  it("converts letter spacing to em from the effective font size", () => {
+    expect(convertAuthoringLength(-1.2, "em", 48)).toBe(-0.025);
+  });
+
+  it("converts letter spacing back from em to pixels", () => {
+    expect(convertAuthoringLength("-0.025em", "px", 48)).toBe(-1.2);
+  });
+
+  it("round-trips a negative explicit value across units", () => {
+    expect(convertAuthoringLength("-1.2px", "rem")).toBe(-0.075);
+    expect(convertAuthoringLength("-0.075rem", "px")).toBe(-1.2);
+  });
+
+  it("normalizes converted values to four decimal places", () => {
+    expect(normalizeAuthoringLengthValue(0.333333333333)).toBe(0.3333);
+  });
+});
 
 describe("element style authoring defaults", () => {
   it("resolves inherited typography for every text variant", () => {

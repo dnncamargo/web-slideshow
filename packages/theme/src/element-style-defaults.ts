@@ -17,6 +17,18 @@ export interface ThemeTypographyDefaults {
   letterSpacing: number;
 }
 
+export const AUTHORING_ROOT_FONT_SIZE_PX = 16;
+
+export type AuthoringLengthUnit = "px" | "rem" | "em";
+
+export interface ParsedAuthoringLength {
+  value: number;
+  unit: AuthoringLengthUnit;
+}
+
+const AUTHORING_LENGTH_PATTERN =
+  /^(-?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em)$/;
+
 export interface EffectiveElementStyleDefaults {
   typography?: ThemeTypographyDefaults;
   borderRadius: number;
@@ -29,8 +41,8 @@ export interface ThemeStyleDefaultElement {
 
 // These values are the deterministic authoring representation of the
 // canonical declarations in base.css. rem/em lengths are resolved against the
-// PowerShow authoring base of 16px so the Studio can expose px number inputs
-// without consulting the DOM.
+// PowerShow authoring root so the Studio can convert rem values without
+// consulting the DOM.
 export const TEXT_VARIANT_TYPOGRAPHY_DEFAULTS: Readonly<
   Record<ThemeTextVariant, Readonly<ThemeTypographyDefaults>>
 > = {
@@ -96,6 +108,81 @@ export function resolveEffectiveNumericStyleValue(
       };
 }
 
+export function parseAuthoringLength(
+  value: number | string,
+): ParsedAuthoringLength | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? { value, unit: "px" } : undefined;
+  }
+
+  const match = AUTHORING_LENGTH_PATTERN.exec(value.trim());
+
+  if (!match) {
+    return undefined;
+  }
+
+  const numericValue = Number(match[1]);
+  const unit = match[2];
+
+  return Number.isFinite(numericValue) &&
+    (unit === "px" || unit === "rem" || unit === "em")
+    ? { value: numericValue, unit }
+    : undefined;
+}
+
+export function normalizeAuthoringLengthValue(value: number): number {
+  return Number(value.toFixed(4));
+}
+
+export function convertAuthoringLength(
+  value: number | string,
+  targetUnit: AuthoringLengthUnit,
+  relativeFontSizePx?: number,
+): number | undefined {
+  const parsed = parseAuthoringLength(value);
+
+  if (!parsed) {
+    return undefined;
+  }
+
+  if (parsed.unit === targetUnit) {
+    return normalizeAuthoringLengthValue(parsed.value);
+  }
+
+  const pixels =
+    parsed.unit === "px"
+      ? parsed.value
+      : parsed.unit === "rem"
+        ? parsed.value * AUTHORING_ROOT_FONT_SIZE_PX
+        : relativeFontSizePx === undefined
+          ? undefined
+          : parsed.value * relativeFontSizePx;
+
+  if (pixels === undefined) {
+    return undefined;
+  }
+
+  const converted =
+    targetUnit === "px"
+      ? pixels
+      : targetUnit === "rem"
+        ? pixels / AUTHORING_ROOT_FONT_SIZE_PX
+        : relativeFontSizePx === undefined
+          ? undefined
+          : pixels / relativeFontSizePx;
+
+  return converted === undefined
+    ? undefined
+    : normalizeAuthoringLengthValue(converted);
+}
+
+export function serializeAuthoringLength(
+  value: number,
+  unit: AuthoringLengthUnit,
+): number | string {
+  return unit === "px" ? value : `${value}${unit}`;
+}
+
 export function resolveEffectiveElementStyleDefaults(
   element: ThemeStyleDefaultElement,
 ): EffectiveElementStyleDefaults {
@@ -118,4 +205,3 @@ export function resolveEffectiveElementStyleDefaults(
 
   return { borderRadius };
 }
-

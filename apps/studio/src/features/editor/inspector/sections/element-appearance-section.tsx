@@ -1,8 +1,5 @@
 import type { Border, PowerShowElement } from "@powershow/document-schema";
-import {
-  resolveEffectiveElementStyleDefaults,
-  resolveEffectiveNumericStyleValue,
-} from "@powershow/theme/element-style-defaults";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -27,6 +24,7 @@ import { ElementBackgroundGradientControl } from "./element-background-gradient-
 import { ElementTypographyControl } from "./element-typography-control";
 
 import { EffectiveNumberInput } from "./effective-number-input";
+import { EffectiveLengthInput } from "./effective-length-input";
 
 interface ElementAppearanceSectionProps {
   element: PowerShowElement;
@@ -96,16 +94,6 @@ export function ElementAppearanceSection({
   const { t } = useStudioI18n();
   const style = element.style;
   const effectiveDefaults = resolveEffectiveElementStyleDefaults(element);
-  const borderRadiusValue =
-    style?.borderRadius === undefined
-      ? resolveEffectiveNumericStyleValue(
-          undefined,
-          effectiveDefaults.borderRadius,
-        )
-      : {
-          value: readAbsoluteNumber(style.borderRadius),
-          inherited: false,
-        };
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
@@ -225,15 +213,16 @@ export function ElementAppearanceSection({
                 {t("inspector.roundedCorners")}
               </label>
 
-              <EffectiveNumberInput
+              <EffectiveLengthInput
                 id={`${controlPrefix}-border-radius`}
                 name={getControlName(controlPrefix, "BorderRadius")}
                 min="0"
-                value={borderRadiusValue.value}
-                inherited={borderRadiusValue.inherited}
-                unit="px"
-                onChange={(value) => {
-                  const borderRadius = parseOptionalNumber(value);
+                value={style?.borderRadius}
+                inheritedValue={effectiveDefaults.borderRadius}
+                preferredUnit="px"
+                units={["px", "rem"]}
+                stepByUnit={{ px: "1", rem: "0.1" }}
+                onChange={(borderRadius) => {
 
                   onUpdateStyle((currentStyle) => ({
                     ...currentStyle,

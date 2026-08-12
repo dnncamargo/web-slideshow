@@ -93,6 +93,7 @@ export function TextboxInspector({
         style={element.style}
         onUpdateStyle={updateStyle}
         controlPrefix="textbox"
+        showTextStroke
       />
     </>
   );

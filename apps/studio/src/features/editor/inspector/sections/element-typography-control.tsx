@@ -1,5 +1,6 @@
 import type { ElementStyle } from "@powershow/document-schema";
 import {
+  convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
   type ThemeTypographyDefaults,
 } from "@powershow/theme/element-style-defaults";
@@ -12,7 +13,6 @@ import styles from "../../editor-workspace.module.css";
 import {
   getControlName,
   parseOptionalNumber,
-  readAbsoluteNumber,
 } from "../inspector-helpers";
 
 import type {
@@ -23,6 +23,7 @@ import type {
 import { PresentationFontManager } from "./presentation-font-manager";
 
 import { EffectiveNumberInput } from "./effective-number-input";
+import { EffectiveLengthInput } from "./effective-length-input";
 
 interface ElementTypographyControlProps {
   selectedElementId: string;
@@ -134,30 +135,14 @@ export function ElementTypographyControl({
     fontApplySuggestion?.elementId === selectedElementId
       ? fontApplySuggestion
       : undefined;
-  const fontSizeValue =
+  const effectiveFontSizePx =
     style?.fontSize === undefined
-      ? resolveEffectiveNumericStyleValue(
-          undefined,
-          effectiveDefaults.fontSize,
-        )
-      : {
-          value: readAbsoluteNumber(style.fontSize),
-          inherited: false,
-        };
+      ? effectiveDefaults.fontSize
+      : convertAuthoringLength(style.fontSize, "px");
   const lineHeightValue = resolveEffectiveNumericStyleValue(
     style?.lineHeight,
     effectiveDefaults.lineHeight,
   );
-  const letterSpacingValue =
-    style?.letterSpacing === undefined
-      ? resolveEffectiveNumericStyleValue(
-          undefined,
-          effectiveDefaults.letterSpacing,
-        )
-      : {
-          value: readAbsoluteNumber(style.letterSpacing),
-          inherited: false,
-        };
 
   return (
     <div className={styles.appearanceSubgroup}>
@@ -265,15 +250,16 @@ export function ElementTypographyControl({
             {t("inspector.fontSize")}
           </label>
 
-          <EffectiveNumberInput
+          <EffectiveLengthInput
             id={`${controlPrefix}-font-size`}
             name={getControlName(controlPrefix, "FontSize")}
             min="1"
-            value={fontSizeValue.value}
-            inherited={fontSizeValue.inherited}
-            unit="px"
-            onChange={(value) => {
-              const fontSize = parseOptionalPositiveNumber(value);
+            value={style?.fontSize}
+            inheritedValue={effectiveDefaults.fontSize}
+            preferredUnit="rem"
+            units={["px", "rem"]}
+            stepByUnit={{ px: "1", rem: "0.1" }}
+            onChange={(fontSize) => {
 
               onUpdateStyle((currentStyle) => ({
                 ...currentStyle,
@@ -424,15 +410,16 @@ export function ElementTypographyControl({
             {t("inspector.letterSpacing")}
           </label>
 
-          <EffectiveNumberInput
+          <EffectiveLengthInput
             id={`${controlPrefix}-letter-spacing`}
             name={getControlName(controlPrefix, "LetterSpacing")}
-            step="0.1"
-            value={letterSpacingValue.value}
-            inherited={letterSpacingValue.inherited}
-            unit="px"
-            onChange={(value) => {
-              const letterSpacing = parseOptionalNumber(value);
+            value={style?.letterSpacing}
+            inheritedValue={effectiveDefaults.letterSpacing}
+            preferredUnit="em"
+            units={["px", "em", "rem"]}
+            relativeFontSizePx={effectiveFontSizePx}
+            stepByUnit={{ px: "0.1", em: "0.01", rem: "0.01" }}
+            onChange={(letterSpacing) => {
 
               onUpdateStyle((currentStyle) => ({
                 ...currentStyle,

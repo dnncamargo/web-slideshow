@@ -1041,6 +1041,32 @@
 }
 
 
+.unitInput select {
+  min-width: 52px;
+
+  padding: 0 7px;
+
+  border: 0;
+
+  border-left: 1px solid #303847;
+
+  border-radius: 0;
+
+  background: transparent;
+
+  color: #94a3b8;
+
+  font: inherit;
+
+  font-size: 11px;
+}
+
+
+.unitInput select:focus {
+  outline: 0;
+}
+
+
 .effectiveNumberControl {
   display: flex;
 
