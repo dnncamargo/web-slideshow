@@ -1,5 +1,11 @@
 import type { PowerShowElement, Slide } from "@powershow/document-schema";
 
+import {
+  findElementSiblingPosition,
+  type MoveElementOptions,
+} from "./element-operations";
+import { findElementById } from "./element-tree";
+
 interface ParentTarget {
   id: string | null;
   label: string;
@@ -99,5 +105,51 @@ export function getTreeActionState(
     canMoveUp: index > 0,
     canMoveDown: index < siblingCount - 1,
     canMoveOut: parentId !== null,
+  };
+}
+
+export type TreeDropIntent = "before" | "after" | "inside";
+
+export function resolveTreeDrop(
+  elements: PowerShowElement[],
+  elementId: string,
+  targetId: string,
+  intent: TreeDropIntent,
+): MoveElementOptions | null {
+  if (elementId === targetId) {
+    return null;
+  }
+
+  const sourcePosition = findElementSiblingPosition(elements, elementId);
+  const targetPosition = findElementSiblingPosition(elements, targetId);
+  const source = findElementById(elements, elementId);
+  const target = findElementById(elements, targetId);
+
+  if (!sourcePosition || !targetPosition || !source || !target) {
+    return null;
+  }
+
+  const forbiddenIds = new Set<string>();
+  collectDescendantIds(source, forbiddenIds);
+
+  if (forbiddenIds.has(targetId)) {
+    return null;
+  }
+
+  if (intent === "inside") {
+    return target.type === "container"
+      ? { elementId, targetParentId: target.id }
+      : null;
+  }
+
+  const sourceIsBeforeTarget =
+    sourcePosition.parentId === targetPosition.parentId &&
+    sourcePosition.index < targetPosition.index;
+  const targetIndex = targetPosition.index - (sourceIsBeforeTarget ? 1 : 0);
+
+  return {
+    elementId,
+    targetParentId: targetPosition.parentId,
+    targetIndex: intent === "before" ? targetIndex : targetIndex + 1,
   };
 }
