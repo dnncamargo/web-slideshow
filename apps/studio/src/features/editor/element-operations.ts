@@ -830,6 +830,54 @@ export function moveElementById(
     : elements;
 }
 
+export function moveElementToSiblingIndexById(
+  elements: PowerShowElement[],
+  id: string,
+  targetIndex: number,
+): PowerShowElement[] {
+  const currentIndex = elements.findIndex((element) => element.id === id);
+
+  if (currentIndex !== -1) {
+    if (targetIndex < 0 || targetIndex >= elements.length || targetIndex === currentIndex) {
+      return elements;
+    }
+
+    const nextElements = [...elements];
+    const [movedElement] = nextElements.splice(currentIndex, 1);
+
+    if (!movedElement) {
+      return elements;
+    }
+
+    nextElements.splice(targetIndex, 0, movedElement);
+
+    return nextElements;
+  }
+
+  let changed = false;
+  const nextElements = elements.map((element) => {
+    if (element.type !== "container") {
+      return element;
+    }
+
+    const children = moveElementToSiblingIndexById(
+      element.children,
+      id,
+      targetIndex,
+    );
+
+    if (children === element.children) {
+      return element;
+    }
+
+    changed = true;
+
+    return { ...element, children };
+  });
+
+  return changed ? nextElements : elements;
+}
+
 // ============================================================
 // END: MOVE ELEMENT
 // ============================================================

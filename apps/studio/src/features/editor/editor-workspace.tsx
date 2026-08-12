@@ -76,6 +76,7 @@ import {
   findElementSiblingPosition,
   insertElementAfterId,
   moveElementById,
+  moveElementToSiblingIndexById,
   removeElementById,
 } from "./element-operations";
 
@@ -263,6 +264,19 @@ export function EditorWorkspace() {
       selectedElement.id,
     );
   }, [selectedSlide, selectedElement]);
+
+  const selectedElementParent = useMemo(() => {
+    if (!selectedSlide || !selectedElementPosition?.parentId) {
+      return null;
+    }
+
+    const parent = findElementById(
+      selectedSlide.elements,
+      selectedElementPosition.parentId,
+    );
+
+    return parent?.type === "container" ? parent : null;
+  }, [selectedElementPosition, selectedSlide]);
 
   // ==========================================================
   // END: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -1025,6 +1039,28 @@ export function EditorWorkspace() {
     }));
   }
 
+  function moveSelectedElementTo(targetIndex: number) {
+    if (!selectedElement || !selectedElementPosition) {
+      return;
+    }
+
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: moveElementToSiblingIndexById(
+                slide.elements,
+                selectedElement.id,
+                targetIndex,
+              ),
+            }
+          : slide,
+      ),
+    }));
+  }
+
   // ==========================================================
   // END: MOVE SELECTED ELEMENT
   // ==========================================================
@@ -1408,14 +1444,24 @@ export function EditorWorkspace() {
                    <ElementInspector
                      element={selectedDocumentElement}
                      onUpdate={updateSelectedElement}
-                     fontResourceControls={{
+                      fontResourceControls={{
                        fontResources: presentation.resources?.fonts ?? [],
                        onAddFontFace: addFontFace,
                        onRemoveFontFace: removeFontFace,
                        isFontFamilyInUse: (family) =>
                          presentationUsesFontFamily(presentation, family),
-                     }}
-                   />
+                      }}
+                      parent={selectedElementParent}
+                      layerControls={
+                        selectedElementPosition
+                          ? {
+                              index: selectedElementPosition.index,
+                              count: selectedElementPosition.count,
+                              onMoveTo: moveSelectedElementTo,
+                            }
+                          : null
+                      }
+                    />
                  </PresentationColorPaletteProvider>
                </RecentColorsProvider>
              ) : (

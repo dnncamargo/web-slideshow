@@ -5,6 +5,7 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderStyle } from "./render-style";
+import { isAbsolutePlacement } from "./render-placement";
 
 import { renderLength } from "./render-length";
 
@@ -108,8 +109,15 @@ export function renderContainer(
   }
 
   const isStack = element.layoutMode === "stack";
+  const hasAbsoluteChild = element.children.some((child) =>
+    isAbsolutePlacement(child.style?.placement),
+  );
 
   styles.push(isStack ? "display:grid" : "display:flex");
+
+  if (hasAbsoluteChild) {
+    styles.push("position:relative");
+  }
 
   if (!isStack) {
     styles.push(`flex-direction:${element.direction}`);

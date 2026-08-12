@@ -3,6 +3,7 @@ import type { ElementStyle, Length } from "@powershow/document-schema";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
 import { renderLength } from "./render-length";
+import { renderPlacement } from "./render-placement";
 import { quoteCssString } from "./escape-css-string";
 
 function addStyle(
@@ -80,6 +81,12 @@ export function renderStyle(style: ElementStyle | undefined): string {
   addLength(output, "padding-left", style.paddingLeft);
 
   addStyle(output, "position", style.position);
+
+  const placement = renderPlacement(style.placement);
+
+  if (placement) {
+    output.push(placement);
+  }
 
   addLength(output, "top", style.top);
   addLength(output, "right", style.right);

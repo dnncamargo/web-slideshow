@@ -5,7 +5,9 @@ import {
   HorizontalAlignmentSchema,
   LengthSchema,
   OverflowSchema,
+  PositionAnchorSchema,
   PositionSchema,
+  SignedLengthSchema,
   VerticalAlignmentSchema,
 } from "./primitives";
 
@@ -35,6 +37,15 @@ export const TextAlignSchema = z.enum([
 
 export const LineHeightSchema = z.number().positive();
 
+export const ElementPlacementSchema = z.object({
+  mode: z.enum(["flow", "absolute"]),
+  anchor: PositionAnchorSchema.optional(),
+  offsetX: SignedLengthSchema.optional(),
+  offsetY: SignedLengthSchema.optional(),
+});
+
+export type ElementPlacement = z.infer<typeof ElementPlacementSchema>;
+
 export const ElementStyleSchema = z.object({
   width: LengthSchema.optional(),
   height: LengthSchema.optional(),
@@ -58,6 +69,8 @@ export const ElementStyleSchema = z.object({
   paddingLeft: LengthSchema.optional(),
 
   position: PositionSchema.optional(),
+
+  placement: ElementPlacementSchema.optional(),
 
   top: LengthSchema.optional(),
   right: LengthSchema.optional(),

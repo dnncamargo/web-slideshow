@@ -1748,6 +1748,33 @@
   border-color: #6366f1;
 }
 
+.positionAnchorGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.positionAnchorButton {
+  min-height: 30px;
+  border: 1px solid #475569;
+  border-radius: 5px;
+  background: #141a24;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.positionAnchorButton[aria-pressed="true"] {
+  border-color: #22d3ee;
+  background: #164e63;
+  color: #ecfeff;
+}
+
+.positionLayerActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
 
 .colorValueControl input[type="text"],
 .colorValueControl select {

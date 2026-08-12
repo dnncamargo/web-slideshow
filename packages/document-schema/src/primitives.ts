@@ -189,6 +189,30 @@ export const PositionSchema = z.enum([
   "absolute",
 ]);
 
+export const PositionAnchorSchema = z.enum([
+  "top-left",
+  "top",
+  "top-right",
+  "left",
+  "center",
+  "right",
+  "bottom-left",
+  "bottom",
+  "bottom-right",
+]);
+
+export type PositionAnchor = z.infer<typeof PositionAnchorSchema>;
+
+export const SignedLengthSchema = z.union([
+  z.number().finite(),
+  z.string().regex(
+    /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:px|%)$/,
+    "Signed length must use px or %.",
+  ),
+]);
+
+export type SignedLength = z.infer<typeof SignedLengthSchema>;
+
 // ============================================================
 // BEGIN: CONTAINER DISTRIBUTION
 // ============================================================
