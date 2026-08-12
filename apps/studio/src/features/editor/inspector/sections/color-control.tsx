@@ -17,8 +17,11 @@ import styles from "../../editor-workspace.module.css";
 import {
   addPaletteColor,
   arePaletteColorsEquivalent,
+  movePaletteColor,
 } from "./color-palette-helpers";
 import { usePresentationColorPalette } from "./presentation-color-palette";
+import { useRecentColors } from "./recent-colors-provider";
+import { THEME_COLORS, type ThemeColorKey } from "@powershow/theme/element-style-defaults";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -46,6 +49,7 @@ function formatColor(value: string, format: ColorFormat): Color | undefined {
 export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
+  const recent = useRecentColors();
   const sourceValue = value ?? DEFAULT_PICKER_COLOR;
   const [draft, setDraft] = useState(sourceValue);
   const [format, setFormat] = useState<ColorFormat>(() =>
@@ -190,6 +194,97 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
+
+      {recent && recent.colors.length > 0 && (
+        <div className={styles.colorRecent}>
+          <span className={styles.colorPaletteLabel}>{t("inspector.recent")}</span>
+
+          <div className={styles.colorPaletteActions}>
+            {recent.colors.map((color, index) => (
+              <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
+                <button
+                  className={styles.colorPaletteSwatch}
+                  type="button"
+                  aria-label={t("inspector.applyPaletteColor", { color })}
+                  title={t("inspector.applyPaletteColor", { color })}
+                  style={{ backgroundColor: color }}
+                  onClick={() => {
+                    setDraft(color);
+                    setFormat(getColorFormat(color));
+                    onChange(color);
+                  }}
+                />
+
+                <div className={styles.colorPaletteMoveButtons}>
+                  <button
+                    className={styles.colorPaletteMove}
+                    type="button"
+                    disabled={index === 0}
+                    aria-label={t("inspector.moveColorLeft", { color })}
+                    title={t("inspector.moveColorLeft", { color })}
+                    onClick={() => {
+                      recent.onMoveColor(index, -1);
+                    }}
+                  >
+                    ←
+                  </button>
+
+                  <button
+                    className={styles.colorPaletteMove}
+                    type="button"
+                    disabled={index === recent.colors.length - 1}
+                    aria-label={t("inspector.moveColorRight", { color })}
+                    title={t("inspector.moveColorRight", { color })}
+                    onClick={() => {
+                      recent.onMoveColor(index, 1);
+                    }}
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            ))}
+
+<button
+               className={styles.colorPaletteClear}
+               type="button"
+               aria-label={t("inspector.clearRecentColors")}
+               title={t("inspector.clearRecentColors")}
+               onClick={() => {
+                 recent.onClearColors();
+               }}
+             >
+               {t("inspector.clear")}
+             </button>
+           </div>
+         </div>
+       )}
+
+       <div className={styles.colorTheme}>
+         <span className={styles.colorPaletteLabel}>{t("inspector.theme")}</span>
+
+         <div className={styles.colorPaletteActions}>
+           {(Object.keys(THEME_COLORS) as ThemeColorKey[]).map((key) => {
+             const color = THEME_COLORS[key];
+
+             return (
+               <button
+                 key={key}
+                 className={styles.colorPaletteSwatch}
+                 type="button"
+                 aria-label={t("inspector.applyPaletteColor", { color })}
+                 title={t("inspector.applyPaletteColor", { color })}
+                 style={{ backgroundColor: color }}
+                 onClick={() => {
+                   setDraft(color);
+                   setFormat(getColorFormat(color));
+                   onChange(color);
+                 }}
+               />
+             );
+           })}
+         </div>
+       </div>
+     </div>
+   );
+ }

@@ -9,6 +9,7 @@ interface PresentationColorPaletteControls {
   colors: readonly Color[];
   onAddColor: (color: Color) => void;
   onRemoveColor: (index: number) => void;
+  onMoveColor: (index: number, direction: -1 | 1) => void;
 }
 
 const PresentationColorPaletteContext =
@@ -23,11 +24,12 @@ export function PresentationColorPaletteProvider({
   colors,
   onAddColor,
   onRemoveColor,
+  onMoveColor,
   children,
 }: PresentationColorPaletteProviderProps) {
   return (
     <PresentationColorPaletteContext.Provider
-      value={{ colors, onAddColor, onRemoveColor }}
+      value={{ colors, onAddColor, onRemoveColor, onMoveColor }}
     >
       {children}
     </PresentationColorPaletteContext.Provider>
