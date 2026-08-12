@@ -38,6 +38,8 @@ const englishMessages = {
   "slides.chooseLayout": "Choose layout",
   "slides.layout.blank": "Blank",
   "slides.layout.blankDescription": "Empty slide",
+  "slides.layout.full": "Full",
+  "slides.layout.fullDescription": "Full-bleed content",
   "slides.layout.centered": "Centered",
   "slides.layout.centeredDescription": "Centered content",
   "slides.layout.titleContent": "Title + Content",
@@ -118,6 +120,7 @@ const englishMessages = {
   "inspector.medium": "Medium",
   "inspector.large": "Large",
   "inspector.wide": "Wide",
+  "inspector.full": "Full",
   "inspector.custom": "Custom",
   "inspector.width": "Width",
   "inspector.height": "Height",
@@ -293,7 +296,6 @@ const englishMessages = {
   "inspector.distribution.spaceEvenly": "Space evenly",
   "inspector.alignmentDisabledByDistribution":
     "Main-axis alignment is controlled by Distribution.",
-  "inspector.full": "Full",
   
   "image.sourceHint": "Image path or source.",
   "image.alternativeText": "Alternative text",
@@ -360,6 +362,8 @@ const portugueseMessages = {
   "slides.chooseLayout": "Escolher layout",
   "slides.layout.blank": "Em branco",
   "slides.layout.blankDescription": "Slide vazio",
+  "slides.layout.full": "Tela cheia",
+  "slides.layout.fullDescription": "Conteúdo em tela cheia",
   "slides.layout.centered": "Centralizado",
   "slides.layout.centeredDescription": "Conteúdo centralizado",
   "slides.layout.titleContent": "Título + Conteúdo",
@@ -440,6 +444,7 @@ const portugueseMessages = {
   "inspector.medium": "Médio",
   "inspector.large": "Grande",
   "inspector.wide": "Largo",
+  "inspector.full": "Completo",
   "inspector.custom": "Personalizado",
   "inspector.width": "Largura",
   "inspector.height": "Altura",
@@ -621,8 +626,6 @@ const portugueseMessages = {
   "inspector.distribution.spaceEvenly": "Espaço uniforme",
   "inspector.alignmentDisabledByDistribution":
     "O alinhamento do eixo principal é controlado pela Distribuição.",
-  "inspector.full": "Cheio",
-  
 
   "image.sourceHint": "Caminho ou origem da imagem.",
   "image.alternativeText": "Texto alternativo",
