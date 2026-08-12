@@ -296,7 +296,6 @@ const englishMessages = {
   "inspector.distribution.spaceEvenly": "Space evenly",
   "inspector.alignmentDisabledByDistribution":
     "Main-axis alignment is controlled by Distribution.",
-  "inspector.full": "Full",
   
   "image.sourceHint": "Image path or source.",
   "image.alternativeText": "Alternative text",
@@ -627,8 +626,6 @@ const portugueseMessages = {
   "inspector.distribution.spaceEvenly": "Espaço uniforme",
   "inspector.alignmentDisabledByDistribution":
     "O alinhamento do eixo principal é controlado pela Distribuição.",
-  "inspector.full": "Cheio",
-  
 
   "image.sourceHint": "Caminho ou origem da imagem.",
   "image.alternativeText": "Texto alternativo",
