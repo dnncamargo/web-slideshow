@@ -878,6 +878,226 @@ export function moveElementToSiblingIndexById(
   return changed ? nextElements : elements;
 }
 
+export interface MoveElementOptions {
+  elementId: string;
+  targetParentId: string | null;
+  targetIndex?: number;
+}
+
+export type MoveElementError =
+  | "element-not-found"
+  | "target-parent-not-found"
+  | "invalid-target-parent"
+  | "cycle"
+  | "invalid-target-index";
+
+export interface MoveElementResult {
+  elements: PowerShowElement[];
+  moved: boolean;
+  error?: MoveElementError;
+}
+
+interface ElementLocation {
+  element: PowerShowElement;
+  parentId: string | null;
+  index: number;
+}
+
+function findElementLocation(
+  elements: readonly PowerShowElement[],
+  id: string,
+  parentId: string | null = null,
+): ElementLocation | null {
+  for (let index = 0; index < elements.length; index += 1) {
+    const element = elements[index];
+
+    if (!element) {
+      continue;
+    }
+
+    if (element.id === id) {
+      return { element, parentId, index };
+    }
+
+    if (element.type === "container") {
+      const found = findElementLocation(element.children, id, element.id);
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+function findContainerById(
+  elements: readonly PowerShowElement[],
+  id: string,
+): Extract<PowerShowElement, { type: "container" }> | null {
+  const location = findElementLocation(elements, id);
+
+  return location?.element.type === "container" ? location.element : null;
+}
+
+function collectDescendantIds(element: PowerShowElement, ids: Set<string>): void {
+  ids.add(element.id);
+
+  if (element.type === "container") {
+    for (const child of element.children) {
+      collectDescendantIds(child, ids);
+    }
+  }
+}
+
+function removeElementFromHierarchy(
+  elements: PowerShowElement[],
+  id: string,
+): PowerShowElement[] {
+  const nextElements: PowerShowElement[] = [];
+
+  for (const element of elements) {
+    if (element.id === id) {
+      continue;
+    }
+
+    if (element.type !== "container") {
+      nextElements.push(element);
+      continue;
+    }
+
+    const children = removeElementFromHierarchy(element.children, id);
+
+    nextElements.push(children === element.children ? element : { ...element, children });
+  }
+
+  return nextElements;
+}
+
+function insertElementIntoParent(
+  elements: PowerShowElement[],
+  parentId: string | null,
+  index: number,
+  elementToInsert: PowerShowElement,
+): PowerShowElement[] {
+  if (parentId === null) {
+    return [
+      ...elements.slice(0, index),
+      elementToInsert,
+      ...elements.slice(index),
+    ];
+  }
+
+  return elements.map((element) => {
+    if (element.type !== "container") {
+      return element;
+    }
+
+    if (element.id === parentId) {
+      return {
+        ...element,
+        children: [
+          ...element.children.slice(0, index),
+          elementToInsert,
+          ...element.children.slice(index),
+        ],
+      };
+    }
+
+    const children = insertElementIntoParent(
+      element.children,
+      parentId,
+      index,
+      elementToInsert,
+    );
+
+    return children === element.children ? element : { ...element, children };
+  });
+}
+
+function getElementsForParent(
+  elements: PowerShowElement[],
+  parentId: string | null,
+): PowerShowElement[] | null {
+  if (parentId === null) {
+    return elements;
+  }
+
+  return findContainerById(elements, parentId)?.children ?? null;
+}
+
+export function moveElement(
+  elements: PowerShowElement[],
+  options: MoveElementOptions,
+): MoveElementResult {
+  const source = findElementLocation(elements, options.elementId);
+
+  if (!source) {
+    return { elements, moved: false, error: "element-not-found" };
+  }
+
+  if (options.targetParentId !== null) {
+    const targetParent = findContainerById(elements, options.targetParentId);
+
+    if (!targetParent) {
+      return { elements, moved: false, error: "target-parent-not-found" };
+    }
+
+    const forbiddenIds = new Set<string>();
+    collectDescendantIds(source.element, forbiddenIds);
+
+    if (forbiddenIds.has(targetParent.id)) {
+      return { elements, moved: false, error: "cycle" };
+    }
+  }
+
+  const withoutSource = removeElementFromHierarchy(elements, options.elementId);
+  const targetElements = getElementsForParent(withoutSource, options.targetParentId);
+
+  if (!targetElements) {
+    return { elements, moved: false, error: "invalid-target-parent" };
+  }
+
+  const targetIndex = options.targetIndex ?? targetElements.length;
+
+  if (targetIndex < 0 || targetIndex > targetElements.length) {
+    return { elements, moved: false, error: "invalid-target-index" };
+  }
+
+  return {
+    elements: insertElementIntoParent(
+      withoutSource,
+      options.targetParentId,
+      targetIndex,
+      source.element,
+    ),
+    moved: true,
+  };
+}
+
+export function moveElementOut(
+  elements: PowerShowElement[],
+  elementId: string,
+): MoveElementResult {
+  const source = findElementLocation(elements, elementId);
+
+  if (!source || source.parentId === null) {
+    return { elements, moved: false, error: "invalid-target-parent" };
+  }
+
+  const parent = findElementLocation(elements, source.parentId);
+
+  if (!parent || parent.element.type !== "container") {
+    return { elements, moved: false, error: "invalid-target-parent" };
+  }
+
+  return moveElement(elements, {
+    elementId,
+    targetParentId: parent.parentId,
+    targetIndex: parent.index + 1,
+  });
+}
+
 // ============================================================
 // END: MOVE ELEMENT
 // ============================================================

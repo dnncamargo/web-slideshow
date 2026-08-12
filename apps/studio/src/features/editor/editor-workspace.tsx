@@ -19,6 +19,7 @@ import type { StudioLocale } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { ElementInspector } from "./element-inspector";
+import { ElementTreePanel } from "./element-tree-panel";
 
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
@@ -76,6 +77,8 @@ import {
   findElementSiblingPosition,
   insertElementAfterId,
   moveElementById,
+  moveElement,
+  moveElementOut,
   moveElementToSiblingIndexById,
   removeElementById,
 } from "./element-operations";
@@ -170,6 +173,10 @@ export function EditorWorkspace() {
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
+
+  const [rightPanelView, setRightPanelView] = useState<"inspector" | "elements">(
+    "inspector",
+  );
 
   // ==========================================================
   // END: SELEÇÃO
@@ -1061,6 +1068,36 @@ export function EditorWorkspace() {
     }));
   }
 
+  function moveElementInTree(options: Parameters<typeof moveElement>[1]) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        const result = moveElement(slide.elements, options);
+
+        return result.moved ? { ...slide, elements: result.elements } : slide;
+      }),
+    }));
+  }
+
+  function moveElementOutInTree(elementId: string) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        const result = moveElementOut(slide.elements, elementId);
+
+        return result.moved ? { ...slide, elements: result.elements } : slide;
+      }),
+    }));
+  }
+
   // ==========================================================
   // END: MOVE SELECTED ELEMENT
   // ==========================================================
@@ -1381,10 +1418,38 @@ export function EditorWorkspace() {
 
         <aside className={styles.inspector}>
           <div className={styles.panelHeader}>
-            <span>{t("inspector.title")}</span>
+            <button
+              className={rightPanelView === "inspector" ? styles.rightPanelTabActive : styles.rightPanelTab}
+              type="button"
+              aria-pressed={rightPanelView === "inspector"}
+              onClick={() => setRightPanelView("inspector")}
+            >
+              {t("inspector.title")}
+            </button>
+            <button
+              className={rightPanelView === "elements" ? styles.rightPanelTabActive : styles.rightPanelTab}
+              type="button"
+              aria-pressed={rightPanelView === "elements"}
+              onClick={() => setRightPanelView("elements")}
+            >
+              {t("tree.elements")}
+            </button>
           </div>
 
           <div className={styles.inspectorContent}>
+            {rightPanelView === "elements" ? (
+              <ElementTreePanel
+                key={selectedSlide.id}
+                slide={selectedSlide}
+                selectedElementId={selectedElement?.id ?? null}
+                onSelectElement={(element) => {
+                  setSelectedElement({ id: element.id, type: element.type });
+                }}
+                onMoveElement={moveElementInTree}
+                onMoveElementOut={moveElementOutInTree}
+              />
+            ) : (
+              <>
             {/* =================================================
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
@@ -1520,6 +1585,8 @@ export function EditorWorkspace() {
                 {/* =============================================
                     END: SLIDE INSPECTOR
                     ============================================= */}
+              </>
+            )}
               </>
             )}
           </div>
