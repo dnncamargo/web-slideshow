@@ -1091,6 +1091,22 @@
   right: -6px;
 }
 
+.canvasGuideVertical,
+.canvasGuideHorizontal {
+  position: fixed;
+  z-index: 9;
+  pointer-events: none;
+  background: rgba(34, 211, 238, 0.8);
+}
+
+.canvasGuideVertical {
+  width: 1px;
+}
+
+.canvasGuideHorizontal {
+  height: 1px;
+}
+
 /* ==========================================================
    END: SELEÇÃO PERSISTENTE NO CANVAS
    ========================================================== */

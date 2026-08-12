@@ -145,6 +145,8 @@ export function ElementPlacementSection({
           <option value="flow">{t("inspector.flow")}</option>
           <option value="absolute">{t("inspector.absolute")}</option>
         </select>
+
+        <small className={styles.fieldHint}>{t("inspector.canvasSnapHelp")}</small>
       </label>
 
       {isAbsolute && (

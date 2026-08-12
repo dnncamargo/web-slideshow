@@ -309,6 +309,8 @@ const englishMessages = {
   "inspector.position": "Position",
   "inspector.positionHelp":
     "Defines how this container is positioned inside its parent.",
+  "inspector.canvasSnapHelp":
+    "Drag near edges or centers to align automatically. Hold Alt to move without snapping.",
   "inspector.absolute": "Absolute",
   "inspector.anchor": "Anchor",
   "inspector.xOffset": "X offset",
@@ -686,6 +688,8 @@ const portugueseMessages = {
   "inspector.position": "Posição",
   "inspector.positionHelp":
     "Define como este container é posicionado dentro do elemento pai.",
+  "inspector.canvasSnapHelp":
+    "Arraste próximo às bordas ou centros para alinhar automaticamente. Segure Alt para mover sem encaixe.",
   "inspector.absolute": "Absoluto",
   "inspector.anchor": "Âncora",
   "inspector.xOffset": "Deslocamento X",

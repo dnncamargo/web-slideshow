@@ -24,6 +24,13 @@ import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
+  buildCanvasSnapCandidates,
+  resolveCanvasAxisSnap,
+  type CanvasBounds,
+  type CanvasSnapCandidate,
+  type CanvasSnapGuide,
+} from "./canvas-snap-helpers";
+import {
   getCanvasResizeCursor,
   getCanvasResizeDeltas,
   getCanvasResizePlacementAdjustment,
@@ -157,6 +164,9 @@ interface CanvasDragState {
   scaleY: number;
   deltaX: number;
   deltaY: number;
+  initialBounds: CanvasBounds;
+  candidates: CanvasSnapCandidate[];
+  guideBounds: CanvasBounds;
 }
 
 interface CanvasResizeOverlay {
@@ -183,6 +193,8 @@ interface CanvasResizeState {
   initialOverlay: CanvasResizeOverlay;
   deltaX: number;
   deltaY: number;
+  candidates: CanvasSnapCandidate[];
+  guideBounds: CanvasBounds;
 }
 
 const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
@@ -287,6 +299,8 @@ export function EditorWorkspace() {
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
   const [canvasResizeOverlay, setCanvasResizeOverlay] =
     useState<CanvasResizeOverlay | null>(null);
+  const [canvasGuides, setCanvasGuides] = useState<CanvasSnapGuide[]>([]);
+  const [canvasGuideBounds, setCanvasGuideBounds] = useState<CanvasBounds | null>(null);
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -498,6 +512,7 @@ export function EditorWorkspace() {
     }
 
     canvasDragRef.current = null;
+    clearCanvasGuides();
   }
 
   function getCanvasLayoutParent(
@@ -521,6 +536,41 @@ export function EditorWorkspace() {
     return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
       (candidate) => candidate.dataset.powershowId === position.parentId,
     ) ?? null;
+  }
+
+  function getCanvasBounds(element: HTMLElement): CanvasBounds {
+    const bounds = element.getBoundingClientRect();
+
+    return {
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    };
+  }
+
+  function getCanvasSnapCandidates(
+    parent: HTMLElement,
+    selectedId: string,
+  ): { candidates: CanvasSnapCandidate[]; parentBounds: CanvasBounds } {
+    const parentBounds = getCanvasBounds(parent);
+    const siblings = Array.from(parent.children).flatMap((child) => {
+      if (!(child instanceof HTMLElement) || child.dataset.powershowId === selectedId) {
+        return [];
+      }
+
+      return child.matches("[data-powershow-id]") ? [getCanvasBounds(child)] : [];
+    });
+
+    return {
+      candidates: buildCanvasSnapCandidates(parentBounds, siblings),
+      parentBounds,
+    };
+  }
+
+  function clearCanvasGuides() {
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
   }
 
   function handleCanvasPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -569,6 +619,8 @@ export function EditorWorkspace() {
 
     event.preventDefault();
     elementTarget.setPointerCapture(event.pointerId);
+    const snap = getCanvasSnapCandidates(layoutParent, selection.id);
+    setCanvasGuideBounds(snap.parentBounds);
     canvasDragRef.current = {
       pointerId: event.pointerId,
       elementId: selection.id,
@@ -582,6 +634,9 @@ export function EditorWorkspace() {
       scaleY: parentBounds.height / logicalHeight || 1,
       deltaX: 0,
       deltaY: 0,
+      initialBounds: getCanvasBounds(elementTarget),
+      candidates: snap.candidates,
+      guideBounds: snap.parentBounds,
     };
   }
 
@@ -592,8 +647,36 @@ export function EditorWorkspace() {
       return;
     }
 
-    drag.deltaX = (event.clientX - drag.startClientX) / drag.scaleX;
-    drag.deltaY = (event.clientY - drag.startClientY) / drag.scaleY;
+    const rawClientX = event.clientX - drag.startClientX;
+    const rawClientY = event.clientY - drag.startClientY;
+    const xSnap = resolveCanvasAxisSnap(
+      "x",
+      [
+        drag.initialBounds.left + rawClientX,
+        drag.initialBounds.left + drag.initialBounds.width / 2 + rawClientX,
+        drag.initialBounds.left + drag.initialBounds.width + rawClientX,
+      ],
+      drag.candidates,
+      event.altKey,
+    );
+    const ySnap = resolveCanvasAxisSnap(
+      "y",
+      [
+        drag.initialBounds.top + rawClientY,
+        drag.initialBounds.top + drag.initialBounds.height / 2 + rawClientY,
+        drag.initialBounds.top + drag.initialBounds.height + rawClientY,
+      ],
+      drag.candidates,
+      event.altKey,
+    );
+
+    drag.deltaX = (rawClientX + xSnap.correction) / drag.scaleX;
+    drag.deltaY = (rawClientY + ySnap.correction) / drag.scaleY;
+    setCanvasGuides(
+      [xSnap.guide, ySnap.guide].filter(
+        (guide): guide is CanvasSnapGuide => guide !== null,
+      ),
+    );
     drag.target.style.setProperty("translate", `${drag.deltaX}px ${drag.deltaY}px`);
   }
 
@@ -650,6 +733,7 @@ export function EditorWorkspace() {
 
     setCanvasResizeOverlay(resize.initialOverlay);
     canvasResizeRef.current = null;
+    clearCanvasGuides();
   }
 
   function handleResizePointerDown(
@@ -686,6 +770,8 @@ export function EditorWorkspace() {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
+    const snap = getCanvasSnapCandidates(layoutParent, selectedDocumentElement.id);
+    setCanvasGuideBounds(snap.parentBounds);
     canvasResizeRef.current = {
       pointerId: event.pointerId,
       elementId: selectedDocumentElement.id,
@@ -702,6 +788,8 @@ export function EditorWorkspace() {
       initialOverlay: canvasResizeOverlay,
       deltaX: 0,
       deltaY: 0,
+      candidates: snap.candidates,
+      guideBounds: snap.parentBounds,
     };
   }
 
@@ -712,13 +800,45 @@ export function EditorWorkspace() {
       return;
     }
 
+    const rawClientX = event.clientX - resize.startClientX;
+    const rawClientY = event.clientY - resize.startClientY;
+    const movesWest = resize.direction.includes("w");
+    const movesEast = resize.direction.includes("e");
+    const movesNorth = resize.direction.includes("n");
+    const movesSouth = resize.direction.includes("s");
+    const xSnap = resolveCanvasAxisSnap(
+      "x",
+      movesWest
+        ? [resize.initialOverlay.left + rawClientX]
+        : movesEast
+          ? [resize.initialOverlay.left + resize.initialOverlay.width + rawClientX]
+          : [],
+      resize.candidates,
+      event.altKey,
+    );
+    const ySnap = resolveCanvasAxisSnap(
+      "y",
+      movesNorth
+        ? [resize.initialOverlay.top + rawClientY]
+        : movesSouth
+          ? [resize.initialOverlay.top + resize.initialOverlay.height + rawClientY]
+          : [],
+      resize.candidates,
+      event.altKey,
+    );
+
     resize.deltaX = toLogicalCanvasResizeDelta(
-      event.clientX - resize.startClientX,
+      rawClientX + xSnap.correction,
       resize.scaleX,
     );
     resize.deltaY = toLogicalCanvasResizeDelta(
-      event.clientY - resize.startClientY,
+      rawClientY + ySnap.correction,
       resize.scaleY,
+    );
+    setCanvasGuides(
+      [xSnap.guide, ySnap.guide].filter(
+        (guide): guide is CanvasSnapGuide => guide !== null,
+      ),
     );
     const deltas = getCanvasResizeDeltas(
       resize.direction,
@@ -744,6 +864,7 @@ export function EditorWorkspace() {
     }
 
     canvasResizeRef.current = null;
+    clearCanvasGuides();
     setPresentation((current) => ({
       ...current,
       slides: current.slides.map((slide, index) =>
@@ -1778,6 +1899,29 @@ export function EditorWorkspace() {
                 ))}
               </div>
             )}
+            {canvasGuideBounds && canvasGuides.map((guide) => (
+              <div
+                key={`${guide.axis}-${guide.value}`}
+                className={
+                  guide.axis === "x"
+                    ? styles.canvasGuideVertical
+                    : styles.canvasGuideHorizontal
+                }
+                style={
+                  guide.axis === "x"
+                    ? {
+                        left: `${guide.value}px`,
+                        top: `${canvasGuideBounds.top}px`,
+                        height: `${canvasGuideBounds.height}px`,
+                      }
+                    : {
+                        left: `${canvasGuideBounds.left}px`,
+                        top: `${guide.value}px`,
+                        width: `${canvasGuideBounds.width}px`,
+                      }
+                }
+              />
+            ))}
           </div>
         </section>
 
