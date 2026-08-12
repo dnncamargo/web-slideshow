@@ -63,3 +63,37 @@ describe("ElementStyleSchema typography", () => {
     expect(ElementStyleSchema.safeParse(style).success).toBe(false);
   });
 });
+
+describe("ElementStyleSchema text stroke", () => {
+  it("keeps text stroke optional for existing documents", () => {
+    expect(ElementStyleSchema.parse({})).toEqual({});
+
+    expect(ElementStyleSchema.safeParse({ textStroke: undefined }).success).toBe(
+      true,
+    );
+  });
+
+  it("accepts a text stroke with a length and color", () => {
+    expect(
+      ElementStyleSchema.parse({
+        textStroke: {
+          width: "0.125rem",
+          color: "#0f172a",
+        },
+      }),
+    ).toEqual({
+      textStroke: {
+        width: "0.125rem",
+        color: "#0f172a",
+      },
+    });
+  });
+
+  it.each([
+    ["missing width", { textStroke: { color: "#0f172a" } }],
+    ["missing color", { textStroke: { width: 1 } }],
+    ["empty color", { textStroke: { width: 1, color: "" } }],
+  ])("rejects %s", (_name, style) => {
+    expect(ElementStyleSchema.safeParse(style).success).toBe(false);
+  });
+});

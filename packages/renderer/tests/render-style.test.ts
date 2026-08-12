@@ -166,6 +166,41 @@ describe("renderStyle", () => {
     expect(countOccurrences(result, "box-shadow:")).toBe(1);
   });
 
+  it("renders a text stroke with numeric widths as pixels", () => {
+    const result = renderStyle({
+      textStroke: {
+        width: 1,
+        color: "#0f172a",
+      },
+    });
+
+    expect(result).toContain("-webkit-text-stroke:1px #0f172a");
+  });
+
+  it("does not render a text stroke when undefined", () => {
+    const result = renderStyle({ textStroke: undefined });
+
+    expect(result).not.toContain("text-stroke:");
+  });
+
+  it("renders text stroke together with a shadow", () => {
+    const result = renderStyle({
+      shadow: {
+        x: 0,
+        y: 4,
+        blur: 12,
+        color: "#000000",
+      },
+      textStroke: {
+        width: "0.1em",
+        color: "#f8fafc",
+      },
+    });
+
+    expect(result).toContain("box-shadow:0px 4px 12px #000000");
+    expect(result).toContain("-webkit-text-stroke:0.1em #f8fafc");
+  });
+
   it("renders a border", () => {
     const result = renderStyle({
       border: {

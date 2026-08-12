@@ -126,6 +126,7 @@ export function TextInspector({
         style={element.style}
         onUpdateStyle={updateStyle}
         controlPrefix="text"
+        showTextStroke
       />
     </>
   );

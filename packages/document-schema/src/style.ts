@@ -9,7 +9,12 @@ import {
   VerticalAlignmentSchema,
 } from "./primitives";
 
-import { BorderSchema, GradientSchema, ShadowSchema } from "./visual";
+import {
+  BorderSchema,
+  GradientSchema,
+  ShadowSchema,
+  TextStrokeSchema,
+} from "./visual";
 import {
   FontFamilySchema,
   FontStyleSchema,
@@ -86,6 +91,8 @@ export const ElementStyleSchema = z.object({
   border: BorderSchema.optional(),
 
   shadow: ShadowSchema.optional(),
+
+  textStroke: TextStrokeSchema.optional(),
 });
 
 export type ElementStyle = z.infer<typeof ElementStyleSchema>;
