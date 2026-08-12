@@ -1,5 +1,3 @@
-const DEFAULT_PICKER_COLOR = "#f8fafc";
-
 export function getControlName(prefix: string, field: string): string {
   return `${prefix}${field}`;
 }
@@ -28,12 +26,4 @@ export function parseOptionalNumber(value: string): number | undefined {
   const number = Number(value);
 
   return Number.isFinite(number) ? number : undefined;
-}
-
-export function readPickerColor(value: string | undefined): string {
-  if (value && /^#[0-9a-fA-F]{6}$/.test(value)) {
-    return value;
-  }
-
-  return DEFAULT_PICKER_COLOR;
 }

@@ -11,10 +11,11 @@ import styles from "../../editor-workspace.module.css";
 import {
   getControlName,
   parseOptionalNumber,
-  readPickerColor,
 } from "../inspector-helpers";
 
 import type { UpdateElementStyle } from "../inspector-types";
+
+import { ColorControl } from "./color-control";
 
 interface ElementBackgroundGradientControlProps {
   style: ElementStyle | undefined;
@@ -383,18 +384,14 @@ export function ElementBackgroundGradientControl({
                 <label className={styles.field}>
                   <span>{t("inspector.gradientStopColor")}</span>
 
-                  <input
+                  <ColorControl
                     id={`${controlPrefix}-gradient-stop-${index}-color`}
                     name={getControlName(
                       controlPrefix,
                       `GradientStop${index}Color`,
                     )}
-                    className={styles.colorInput}
-                    type="color"
-                    value={readPickerColor(stop.color)}
-                    onChange={(event) => {
-                      const color = event.target.value;
-
+                    value={stop.color}
+                    onChange={(color) => {
                       updateStop(index, (currentStop) => ({
                         ...currentStop,
 
