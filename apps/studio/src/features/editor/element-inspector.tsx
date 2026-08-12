@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { ContainerElement, PowerShowElement } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
@@ -20,6 +20,7 @@ import type {
   ElementInspectorUpdate,
   FontResourceControls,
 } from "./inspector/inspector-types";
+import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
 
 interface ElementInspectorProps {
   element: PowerShowElement;
@@ -27,6 +28,14 @@ interface ElementInspectorProps {
   onUpdate: ElementInspectorUpdate;
 
   fontResourceControls: FontResourceControls;
+
+  parent: ContainerElement | null;
+
+  layerControls: {
+    index: number;
+    count: number;
+    onMoveTo: (index: number) => void;
+  } | null;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -103,6 +112,8 @@ export function ElementInspector({
   element,
   onUpdate,
   fontResourceControls,
+  parent,
+  layerControls,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
@@ -134,8 +145,24 @@ export function ElementInspector({
         element={element}
         onUpdate={onUpdate}
         fontResourceControls={fontResourceControls}
+        parent={parent}
+        layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
       />
+
+      {parent && layerControls && (
+        <ElementPlacementSection
+          element={element}
+          parent={parent}
+          onUpdateStyle={(update) => {
+            onUpdate((current) => ({
+              ...current,
+              style: update(current.style),
+            }));
+          }}
+          layerControls={layerControls}
+        />
+      )}
     </>
   );
 }

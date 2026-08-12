@@ -1,6 +1,7 @@
 export * from "./escape-html";
 export * from "./render-font-resources";
 export * from "./render-length";
+export * from "./render-placement";
 export * from "./render-style";
 export * from "./render-visual";
 export * from "./render-element";
