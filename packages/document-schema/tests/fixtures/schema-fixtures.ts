@@ -420,7 +420,7 @@ export const validStyleFixtures = [
           {
             ...textElement,
             style: {
-              background: "rgb(10 20 30)",
+              background: "rgba(10, 20, 30, 1)",
             },
           },
         ]),

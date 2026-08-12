@@ -9,7 +9,6 @@ import {
   getControlName,
   parseOptionalNumber,
   readAbsoluteNumber,
-  readPickerColor,
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
@@ -20,6 +19,7 @@ import type {
 } from "../inspector-types";
 
 import { ElementBackgroundGradientControl } from "./element-background-gradient-control";
+import { ColorControl } from "./color-control";
 
 import { ElementTypographyControl } from "./element-typography-control";
 
@@ -115,15 +115,11 @@ export function ElementAppearanceSection({
           <label className={styles.field}>
             <span>{t("inspector.color")}</span>
 
-            <input
+            <ColorControl
               id={`${controlPrefix}-color`}
               name={getControlName(controlPrefix, "Color")}
-              className={styles.colorInput}
-              type="color"
-              value={readPickerColor(style?.color)}
-              onChange={(event) => {
-                const color = event.target.value;
-
+              value={style?.color}
+              onChange={(color) => {
                 onUpdateStyle((currentStyle) => ({
                   ...currentStyle,
 
@@ -158,15 +154,11 @@ export function ElementAppearanceSection({
                   {t("inspector.background")}
                 </span>
 
-                <input
+                <ColorControl
                   id={`${controlPrefix}-background`}
                   name={getControlName(controlPrefix, "Background")}
-                  className={styles.colorInput}
-                  type="color"
-                  value={readPickerColor(style?.background)}
-                  onChange={(event) => {
-                    const background = event.target.value;
-
+                  value={style?.background}
+                  onChange={(background) => {
                     onUpdateStyle((currentStyle) => ({
                       ...currentStyle,
 
@@ -379,15 +371,11 @@ export function ElementAppearanceSection({
               <label className={styles.field}>
                 <span>{t("inspector.borderColor")}</span>
 
-                <input
+                <ColorControl
                   id={`${controlPrefix}-border-color`}
                   name={getControlName(controlPrefix, "BorderColor")}
-                  className={styles.colorInput}
-                  type="color"
-                  value={readPickerColor(style.border.color)}
-                  onChange={(event) => {
-                    const color = event.target.value;
-
+                  value={style.border.color}
+                  onChange={(color) => {
                     onUpdateStyle((currentStyle) => ({
                       ...currentStyle,
 

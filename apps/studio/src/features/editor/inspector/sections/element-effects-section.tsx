@@ -12,12 +12,13 @@ import {
   getControlName,
   parseOptionalNumber,
   readAbsoluteNumber,
-  readPickerColor,
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
 
 import type { UpdateElementStyle } from "../inspector-types";
+
+import { ColorControl } from "./color-control";
 
 interface ElementEffectsSectionProps {
   style: ElementStyle | undefined;
@@ -80,7 +81,7 @@ function createDefaultTextStroke(color: string | undefined): TextStroke {
   return {
     width: DEFAULT_TEXT_STROKE_WIDTH,
 
-    color: readPickerColor(color),
+    color: color ?? "#f8fafc",
   };
 }
 
@@ -180,15 +181,11 @@ export function ElementEffectsSection({
               <label className={styles.field}>
                 <span>{t("inspector.textStrokeColor")}</span>
 
-                <input
+                <ColorControl
                   id={`${controlPrefix}-text-stroke-color`}
                   name={getControlName(controlPrefix, "TextStrokeColor")}
-                  className={styles.colorInput}
-                  type="color"
-                  value={readPickerColor(style.textStroke.color)}
-                  onChange={(event) => {
-                    const color = event.target.value;
-
+                  value={style.textStroke.color}
+                  onChange={(color) => {
                     onUpdateStyle((currentStyle) => ({
                       ...currentStyle,
 
@@ -367,15 +364,11 @@ export function ElementEffectsSection({
           <label className={styles.field}>
             <span>{t("inspector.shadowColor")}</span>
 
-            <input
+            <ColorControl
               id={`${controlPrefix}-shadow-color`}
               name={getControlName(controlPrefix, "ShadowColor")}
-              className={styles.colorInput}
-              type="color"
-              value={readPickerColor(style.shadow.color)}
-              onChange={(event) => {
-                const color = event.target.value;
-
+              value={style.shadow.color}
+              onChange={(color) => {
                 updateShadow((shadow) => ({
                   ...shadow,
 
