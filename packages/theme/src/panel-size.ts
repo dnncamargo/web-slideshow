@@ -85,8 +85,7 @@ export const PANEL_SIZE_PRESETS: Readonly<
     width: "88%",
     height: "58%",
   },
-
-  full: {
+    full: {
     width: "100%",
     height: "100%",
   },
