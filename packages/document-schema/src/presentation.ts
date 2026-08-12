@@ -4,6 +4,12 @@ import {
   SlideSchema,
 } from "./slide";
 import { PresentationResourcesSchema } from "./resources";
+import { ColorSchema } from "./primitives";
+
+export const PresentationPaletteSchema =
+  z.object({
+    colors: z.array(ColorSchema),
+  });
 
 export const PresentationSchema =
   z.object({
@@ -22,6 +28,8 @@ export const PresentationSchema =
 
     resources: PresentationResourcesSchema.optional(),
 
+    palette: PresentationPaletteSchema.optional(),
+
     slides: z.array(
       SlideSchema,
     ),
@@ -29,3 +37,6 @@ export const PresentationSchema =
 
 export type Presentation =
   z.infer<typeof PresentationSchema>;
+
+export type PresentationPalette =
+  z.infer<typeof PresentationPaletteSchema>;

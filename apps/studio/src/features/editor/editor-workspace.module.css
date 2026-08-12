@@ -1598,6 +1598,89 @@
 }
 
 
+.colorControlGroup,
+.colorPalette {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+
+.colorPaletteActions {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 5px;
+}
+
+
+.colorPaletteLabel {
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+
+.colorPaletteEntry {
+  position: relative;
+}
+
+
+.colorPaletteSwatch,
+.colorPaletteAdd {
+  width: 24px;
+
+  height: 24px;
+
+  padding: 0;
+
+  border: 1px solid #475569;
+
+  border-radius: 5px;
+
+  cursor: pointer;
+}
+
+
+.colorPaletteAdd {
+  background: #141a24;
+
+  color: #cbd5e1;
+}
+
+
+.colorPaletteRemove {
+  position: absolute;
+
+  top: -5px;
+
+  right: -5px;
+
+  width: 14px;
+
+  height: 14px;
+
+  padding: 0;
+
+  border: 1px solid #475569;
+
+  border-radius: 50%;
+
+  background: #0f172a;
+
+  color: #e2e8f0;
+
+  font-size: 11px;
+
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+
 .colorValueControl:focus-within {
   border-color: #6366f1;
 }
