@@ -2,7 +2,17 @@ import { useState } from "react";
 
 import type { PowerShowElement } from "@powershow/document-schema";
 
-import styles from "./editor-workspace.module.css";
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
+import styles from "../editor-workspace.module.css";
+
+import { InspectorSection } from "./inspector-section";
+
+import type { UpdateElementStyle } from "./inspector-types";
+
+import { ElementAppearanceSection } from "./sections/element-appearance-section";
+
+import { ElementEffectsSection } from "./sections/element-effects-section";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -109,6 +119,10 @@ function convertCellType(
 // ============================================================
 
 interface ColumnKeyInputProps {
+  inputId: string;
+
+  inputName: string;
+
   currentKey: string;
 
   existingKeys: string[];
@@ -117,6 +131,8 @@ interface ColumnKeyInputProps {
 }
 
 function ColumnKeyInput({
+  inputId,
+  inputName,
   currentKey,
   existingKeys,
   onCommit,
@@ -143,6 +159,8 @@ function ColumnKeyInput({
 
   return (
     <input
+      id={inputId}
+      name={inputName}
       type="text"
       value={draft}
       onChange={(event) => {
@@ -185,17 +203,29 @@ function ColumnKeyInput({
 // ============================================================
 
 interface TableCellEditorProps {
+  controlIdPrefix: string;
+
+  controlNamePrefix: string;
+
   value: TableCellValue | undefined;
 
   onChange: (value: TableCellValue) => void;
 }
 
-function TableCellEditor({ value, onChange }: TableCellEditorProps) {
+function TableCellEditor({
+  controlIdPrefix,
+  controlNamePrefix,
+  value,
+  onChange,
+}: TableCellEditorProps) {
   const type = getCellType(value);
+  const { t } = useStudioI18n();
 
   return (
     <div className={styles.tableCellEditor}>
       <select
+        id={`${controlIdPrefix}-type`}
+        name={`${controlNamePrefix}Type`}
         className={styles.tableCellType}
         value={type}
         onChange={(event) => {
@@ -208,17 +238,19 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
           );
         }}
       >
-        <option value="string">Text</option>
+        <option value="string">{t("table.text")}</option>
 
-        <option value="number">Number</option>
+        <option value="number">{t("table.number")}</option>
 
-        <option value="boolean">Boolean</option>
+        <option value="boolean">{t("table.boolean")}</option>
 
-        <option value="null">Null</option>
+        <option value="null">{t("table.null")}</option>
       </select>
 
       {type === "string" && (
         <input
+          id={`${controlIdPrefix}-value`}
+          name={`${controlNamePrefix}Value`}
           type="text"
           value={typeof value === "string" ? value : ""}
           onChange={(event) => {
@@ -229,6 +261,8 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
 
       {type === "number" && (
         <input
+          id={`${controlIdPrefix}-value`}
+          name={`${controlNamePrefix}Value`}
           type="number"
           value={typeof value === "number" ? value : 0}
           onChange={(event) => {
@@ -241,18 +275,24 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
 
       {type === "boolean" && (
         <select
+          id={`${controlIdPrefix}-value`}
+          name={`${controlNamePrefix}Value`}
           value={value === true ? "true" : "false"}
           onChange={(event) => {
             onChange(event.target.value === "true");
           }}
         >
-          <option value="true">True</option>
+          <option value="true">{t("table.true")}</option>
 
-          <option value="false">False</option>
+          <option value="false">{t("table.false")}</option>
         </select>
       )}
 
-      {type === "null" && <div className={styles.tableNullValue}>null</div>}
+      {type === "null" && (
+        <div className={styles.tableNullValue}>
+          <span>null</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -266,6 +306,8 @@ function TableCellEditor({ value, onChange }: TableCellEditorProps) {
 // ============================================================
 
 export function TableInspector({ element, onUpdate }: TableInspectorProps) {
+  const { t } = useStudioI18n();
+
   // ==========================================================
   // BEGIN: UPDATE GENÉRICO DE TABLE
   // ==========================================================
@@ -279,6 +321,14 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
       return update(current);
     });
   }
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    updateTable((table) => ({
+      ...table,
+
+      style: update(table.style),
+    }));
+  };
 
   // ==========================================================
   // END: UPDATE GENÉRICO DE TABLE
@@ -486,38 +536,41 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
     <>
       <div className={styles.inspectorDivider} />
 
-      {/* =====================================================
-          BEGIN: COLUMNS
-          ===================================================== */}
-
-      <div className={styles.inspectorSectionHeader}>
-        <div className={styles.inspectorSectionTitle}>Columns</div>
-
-        <span className={styles.sectionCount}>{element.columns.length}</span>
-      </div>
+      <InspectorSection
+        title={t("table.columns")}
+        count={element.columns.length}
+        defaultOpen
+      >
+        {/* =====================================================
+            BEGIN: COLUMNS
+            ===================================================== */}
 
       <div className={styles.tableEditorList}>
         {element.columns.map((column, index) => (
           <div key={column.key} className={styles.tableColumnEditor}>
             <div className={styles.tableEditorHeader}>
-              <strong>Column {index + 1}</strong>
+              <strong>
+                <span>{t("table.column", { number: index + 1 })}</span>
+              </strong>
 
               <button
                 type="button"
                 className={styles.iconButtonDanger}
-                aria-label={`Remove column ${index + 1}`}
+                aria-label={t("table.removeColumn", { number: index + 1 })}
                 onClick={() => {
                   removeColumn(index);
                 }}
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </div>
 
             <label className={styles.field}>
-              <span>Label</span>
+              <span>{t("table.label")}</span>
 
               <input
+                id={`table-${element.id}-column-${column.key}-label`}
+                name={`tableColumnLabel_${element.id}_${column.key}`}
                 type="text"
                 value={column.label}
                 onChange={(event) => {
@@ -541,7 +594,7 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
             </label>
 
             <label className={styles.field}>
-              <span>Key</span>
+              <span>{t("table.key")}</span>
               {/* ==========================================================
     BEGIN: COLUMN KEY EDITOR
 
@@ -551,6 +604,8 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
     ========================================================== */}
               <ColumnKeyInput
                 key={column.key}
+                inputId={`table-${element.id}-column-${column.key}-key`}
+                inputName={`tableColumnKey_${element.id}_${column.key}`}
                 currentKey={column.key}
                 existingKeys={element.columns.map((item) => item.key)}
                 onCommit={(newKey) => {
@@ -570,55 +625,55 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
         className={styles.secondaryButton}
         onClick={addColumn}
       >
-        + Add column
+        <span>{t("table.addColumn")}</span>
       </button>
 
-      {/* =====================================================
-          END: COLUMNS
-          ===================================================== */}
+        {/* =====================================================
+            END: COLUMNS
+            ===================================================== */}
+      </InspectorSection>
 
-      <div className={styles.inspectorDivider} />
-
-      {/* =====================================================
-          BEGIN: ROWS
-          ===================================================== */}
-
-      <div className={styles.inspectorSectionHeader}>
-        <div className={styles.inspectorSectionTitle}>Rows</div>
-
-        <span className={styles.sectionCount}>{element.rows.length}</span>
-      </div>
+      <InspectorSection title={t("table.rows")} count={element.rows.length}>
+        {/* =====================================================
+            BEGIN: ROWS
+            ===================================================== */}
 
       <div className={styles.tableEditorList}>
         {element.rows.length === 0 && (
-          <div className={styles.emptyInspectorList}>No rows.</div>
+          <div className={styles.emptyInspectorList}>
+            <span>{t("table.noRows")}</span>
+          </div>
         )}
 
         {element.rows.map((row, rowIndex) => (
           <div key={rowIndex} className={styles.tableRowEditor}>
             <div className={styles.tableEditorHeader}>
-              <strong>Row {rowIndex + 1}</strong>
+              <strong>
+                <span>{t("table.row", { number: rowIndex + 1 })}</span>
+              </strong>
 
               <button
                 type="button"
                 className={styles.iconButtonDanger}
-                aria-label={`Remove row ${rowIndex + 1}`}
+                aria-label={t("table.removeRow", { number: rowIndex + 1 })}
                 onClick={() => {
                   removeRow(rowIndex);
                 }}
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </div>
 
             <div className={styles.tableCells}>
-              {element.columns.map((column) => (
+              {element.columns.map((column, columnIndex) => (
                 <div key={column.key} className={styles.tableCellField}>
                   <span className={styles.tableCellLabel}>
                     {column.label || column.key}
                   </span>
 
                   <TableCellEditor
+                    controlIdPrefix={`table-${element.id}-row-${rowIndex}-column-${column.key}-${columnIndex}`}
+                    controlNamePrefix={`tableCell_${element.id}_${rowIndex}_${column.key}_${columnIndex}`}
                     value={row[column.key]}
                     onChange={(value) => {
                       updateCell(rowIndex, column.key, value);
@@ -632,12 +687,30 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
       </div>
 
       <button type="button" className={styles.secondaryButton} onClick={addRow}>
-        + Add row
+        <span>{t("table.addRow")}</span>
       </button>
 
-      {/* =====================================================
-          END: ROWS
-          ===================================================== */}
+        {/* =====================================================
+            END: ROWS
+            ===================================================== */}
+      </InspectorSection>
+
+      <ElementAppearanceSection
+        element={element}
+        onUpdateStyle={updateStyle}
+        controlPrefix="table"
+        showBackground
+        showBackgroundGradient
+        showRoundedCorners
+        showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="table"
+      />
     </>
   );
 }

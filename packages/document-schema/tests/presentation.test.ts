@@ -35,6 +35,42 @@ describe("PresentationSchema", () => {
       expect(result.success).toBe(true);
     });
 
+    it("keeps presentation resources optional for existing documents", () => {
+      const result = PresentationSchema.parse(defaultsInput);
+
+      expect(result).not.toHaveProperty("resources");
+    });
+
+    it("accepts an empty presentation font registry", () => {
+      expect(
+        PresentationSchema.safeParse({
+          ...defaultsInput,
+          resources: { fonts: [] },
+        }).success,
+      ).toBe(true);
+    });
+
+    it("accepts a presentation font resource", () => {
+      expect(
+        PresentationSchema.safeParse({
+          ...defaultsInput,
+          resources: {
+            fonts: [
+              {
+                id: "inter",
+                family: "Inter",
+                source: {
+                  type: "url",
+                  url: "https://cdn.example.com/inter.woff2",
+                  format: "woff2",
+                },
+              },
+            ],
+          },
+        }).success,
+      ).toBe(true);
+    });
+
     it.each(
       validStructureFixtures,
     )("accepts $name", ({ input }) => {

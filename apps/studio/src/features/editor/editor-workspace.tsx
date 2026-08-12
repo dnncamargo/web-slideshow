@@ -4,13 +4,32 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 
-import { renderSlide } from "@powershow/renderer";
+import { renderFontResources, renderSlide } from "@powershow/renderer";
+
+import {
+  FontFaceResourceSchema,
+  FontResourceSchema,
+  getFontResourceFaces,
+} from "@powershow/document-schema";
+
+import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
+
+import type { StudioLocale } from "@/features/i18n/studio-i18n";
+
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { ElementInspector } from "./element-inspector";
 
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+
+import {
+  areFontFacesEquivalent,
+  createFontResourceId,
+  normalizeFontFamily,
+  presentationUsesFontFamily,
+} from "./font-resource-helpers";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -65,6 +84,7 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
+  FontFaceResource,
   PowerShowElement,
   Presentation,
   Slide,
@@ -114,6 +134,8 @@ interface SelectedElementInfo {
 // ============================================================
 
 export function EditorWorkspace() {
+  const { locale, setLocale, t } = useStudioI18n();
+
   // ==========================================================
   // BEGIN: DOCUMENTO EDITÁVEL
   // ==========================================================
@@ -251,6 +273,11 @@ export function EditorWorkspace() {
     return renderSlide(selectedSlide);
   }, [selectedSlide]);
 
+  const renderedFontResources = useMemo(
+    () => renderFontResources(presentation.resources?.fonts),
+    [presentation.resources?.fonts],
+  );
+
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
   // ==========================================================
@@ -291,7 +318,7 @@ export function EditorWorkspace() {
     );
 
     target?.classList.add("powershow-editor-selected");
-  }, [renderedSlide, selectedElement]);
+  }, [locale, renderedSlide, selectedElement]);
 
   // ==========================================================
   // END: OUTLINE DO ELEMENTO SELECIONADO
@@ -389,6 +416,143 @@ export function EditorWorkspace() {
         };
       }),
     }));
+  }
+
+  function addFontFace(family: string, face: FontFaceResource) {
+    setPresentation((current) => {
+      const parsedFace = FontFaceResourceSchema.safeParse(face);
+      const trimmedFamily = family.trim();
+
+      if (!parsedFace.success || !trimmedFamily) {
+        return current;
+      }
+
+      const currentFonts = current.resources?.fonts ?? [];
+      const normalizedFamily = normalizeFontFamily(trimmedFamily);
+      const existingIndex = currentFonts.findIndex(
+        (registeredFont) =>
+          normalizeFontFamily(registeredFont.family) === normalizedFamily,
+      );
+
+      if (existingIndex === -1) {
+        const newResource = FontResourceSchema.safeParse({
+          id: createFontResourceId(
+            trimmedFamily,
+            currentFonts.map((fontResource) => fontResource.id),
+          ),
+          family: trimmedFamily,
+          faces: [parsedFace.data],
+        });
+
+        if (!newResource.success) {
+          return current;
+        }
+
+        return {
+          ...current,
+          resources: {
+            ...current.resources,
+            fonts: [...currentFonts, newResource.data],
+          },
+        };
+      }
+
+      const existingResource = currentFonts[existingIndex];
+
+      if (!existingResource) {
+        return current;
+      }
+
+      const existingFaces = getFontResourceFaces(existingResource);
+      const duplicate = existingFaces.some((existingFace) =>
+        areFontFacesEquivalent(existingFace, parsedFace.data),
+      );
+
+      if (duplicate) {
+        return current;
+      }
+
+      const updatedResource = FontResourceSchema.safeParse({
+        id: existingResource.id,
+        family: existingResource.family,
+        faces: [...existingFaces, parsedFace.data],
+      });
+
+      if (!updatedResource.success) {
+        return current;
+      }
+
+      return {
+        ...current,
+        resources: {
+          ...current.resources,
+          fonts: currentFonts.map((fontResource, index) =>
+            index === existingIndex ? updatedResource.data : fontResource,
+          ),
+        },
+      };
+    });
+  }
+
+  function removeFontFace(fontResourceId: string, faceIndex: number) {
+    setPresentation((current) => {
+      const currentFonts = current.resources?.fonts;
+      const fontResourceIndex = currentFonts?.findIndex(
+        (registeredFont) => registeredFont.id === fontResourceId,
+      );
+      const fontResource =
+        fontResourceIndex === undefined || fontResourceIndex < 0
+          ? undefined
+          : currentFonts?.[fontResourceIndex];
+
+      if (!currentFonts || !fontResource || fontResourceIndex === undefined) {
+        return current;
+      }
+
+      const faces = getFontResourceFaces(fontResource);
+
+      if (faceIndex < 0 || faceIndex >= faces.length) {
+        return current;
+      }
+
+      if (faces.length === 1) {
+        if (presentationUsesFontFamily(current, fontResource.family)) {
+          return current;
+        }
+
+        return {
+          ...current,
+          resources: {
+            ...current.resources,
+            fonts: currentFonts.filter(
+              (_registeredFont, index) => index !== fontResourceIndex,
+            ),
+          },
+        };
+      }
+
+      const updatedResource = FontResourceSchema.safeParse({
+        id: fontResource.id,
+        family: fontResource.family,
+        faces: faces.filter((_face, index) => index !== faceIndex),
+      });
+
+      if (!updatedResource.success) {
+        return current;
+      }
+
+      return {
+        ...current,
+        resources: {
+          ...current.resources,
+          fonts: currentFonts.map((registeredFont, index) =>
+            index === fontResourceIndex
+              ? updatedResource.data
+              : registeredFont,
+          ),
+        },
+      };
+    });
   }
 
   // ==========================================================
@@ -521,8 +685,13 @@ export function EditorWorkspace() {
 
     const description =
       selectedDocumentElement.type === "container"
-        ? `Delete container "${selectedDocumentElement.id}" and all its children?`
-        : `Delete ${selectedDocumentElement.type} "${selectedDocumentElement.id}"?`;
+        ? t("elementCrud.deleteContainerConfirm", {
+            id: selectedDocumentElement.id,
+          })
+        : t("elementCrud.deleteElementConfirm", {
+            id: selectedDocumentElement.id,
+            type: t(ELEMENT_TYPE_MESSAGE_KEYS[selectedDocumentElement.type]),
+          });
 
     const confirmed = window.confirm(description);
 
@@ -680,7 +849,9 @@ export function EditorWorkspace() {
     }
 
     const confirmed = window.confirm(
-      `Delete slide "${selectedSlide.title || "Untitled slide"}"?`,
+      t("slides.deleteConfirm", {
+        title: selectedSlide.title || t("slides.untitled"),
+      }),
     );
 
     if (!confirmed) {
@@ -792,7 +963,9 @@ export function EditorWorkspace() {
 
   if (!selectedSlide) {
     return (
-      <main className={styles.emptyState}>Presentation has no slides.</main>
+      <main className={styles.emptyState}>
+        <span>{t("slides.emptyPresentation")}</span>
+      </main>
     );
   }
 
@@ -806,22 +979,106 @@ export function EditorWorkspace() {
           BEGIN: TOP BAR
           ===================================================== */}
 
-      <header className={styles.topbar}>
-        <div>
-          <strong>PowerShow</strong>
+      {/* ==========================================================
+    BEGIN: TOP BAR
+    ========================================================== */}
 
-          <span className={styles.topbarSection}>Editor</span>
+      <header className={styles.topbar}>
+        {/* ========================================================
+      BEGIN: BRAND
+      ======================================================== */}
+
+        <div>
+          <strong>
+            <span>PowerShow</span>
+          </strong>
+
+          <span className={styles.topbarSection}>{t("topbar.editor")}</span>
         </div>
 
-        <div className={styles.presentationTitle}>{presentation.title}</div>
+        {/* ========================================================
+      END: BRAND
+      ======================================================== */}
 
-        <div className={styles.status}>Local draft</div>
+        {/* ========================================================
+      BEGIN: PRESENTATION TITLE
+      ======================================================== */}
+
+        <div className={styles.presentationTitle}>
+          <span>{presentation.title}</span>
+        </div>
+
+        {/* ========================================================
+      END: PRESENTATION TITLE
+      ======================================================== */}
+
+        {/* ========================================================
+      BEGIN: TOPBAR CONTROLS
+      ======================================================== */}
+
+        <div className={styles.topbarControls}>
+          {/* ======================================================
+        BEGIN: STUDIO LANGUAGE SELECTOR
+        ====================================================== */}
+
+          <label className={styles.localeControl} title={t("locale.language")}>
+            <span className={styles.localeIcon} aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="9" />
+
+                <path d="M3 12h18" />
+
+                <path d="M12 3a15 15 0 0 1 0 18" />
+
+                <path d="M12 3a15 15 0 0 0 0 18" />
+              </svg>
+            </span>
+
+            <select
+              value={locale}
+              aria-label={t("locale.language")}
+              onChange={(event) => {
+                setLocale(event.target.value as StudioLocale);
+              }}
+            >
+              <option value="en">US</option>
+
+              <option value="pt-BR">PT</option>
+            </select>
+          </label>
+
+          {/* ======================================================
+        END: STUDIO LANGUAGE SELECTOR
+        ====================================================== */}
+
+          {/* ======================================================
+        BEGIN: LOCAL DRAFT STATUS
+        ====================================================== */}
+
+          <span className={styles.status}>{t("topbar.localDraft")}</span>
+
+          {/* ======================================================
+        END: LOCAL DRAFT STATUS
+        ====================================================== */}
+        </div>
+
+        {/* ========================================================
+      END: TOPBAR CONTROLS
+      ======================================================== */}
       </header>
 
-      {/* =====================================================
-          END: TOP BAR
-          ===================================================== */}
-
+      {/* ==========================================================
+    END: TOP BAR
+    ========================================================== */}
       {/* =====================================================
           BEGIN: WORKSPACE
           ===================================================== */}
@@ -836,7 +1093,7 @@ export function EditorWorkspace() {
     BEGIN: SLIDES HEADER
     ========================================================== */}
           <div className={`${styles.panelHeader} ${styles.slidePanelHeader}`}>
-            <span>Slides</span>
+            <span>{t("slides.title")}</span>
 
             <button
               type="button"
@@ -846,7 +1103,9 @@ export function EditorWorkspace() {
                 setIsSlideLayoutPickerOpen((current) => !current);
               }}
             >
-              {isSlideLayoutPickerOpen ? "Close" : "+ New slide"}
+              <span>
+                {isSlideLayoutPickerOpen ? t("slides.close") : t("slides.new")}
+              </span>
             </button>
           </div>
           {/* ==========================================================
@@ -889,7 +1148,7 @@ export function EditorWorkspace() {
                 >
                   <span className={styles.slideNumber}>{index + 1}</span>
 
-                  <span>{slide.title || "Untitled slide"}</span>
+                  <span>{slide.title || t("slides.untitled")}</span>
                 </button>
               );
             })}
@@ -897,10 +1156,10 @@ export function EditorWorkspace() {
           {/* =================================================
               BEGIN: SLIDE ACTIONS
               ================================================= */}
-          {/* =================================================
-              BEGIN: SLIDE ACTIONS
-              ================================================= */}
-          <div className={styles.slideActions}>
+
+          <form
+            autoComplete="off"
+            className={styles.slideActions}>
             {/* ===============================================
                 MOVE UP
                 =============================================== */}
@@ -912,9 +1171,9 @@ export function EditorWorkspace() {
               onClick={() => {
                 moveSelectedSlide(-1);
               }}
-              title="Move slide up"
+              title={t("slides.moveUpTitle")}
             >
-              ↑ Up
+              <span>{t("slides.up")}</span>
             </button>
 
             {/* ===============================================
@@ -928,9 +1187,9 @@ export function EditorWorkspace() {
               onClick={() => {
                 moveSelectedSlide(1);
               }}
-              title="Move slide down"
+              title={t("slides.moveDownTitle")}
             >
-              ↓ Down
+              <span>{t("slides.down")}</span>
             </button>
 
             {/* ===============================================
@@ -942,7 +1201,7 @@ export function EditorWorkspace() {
               className={styles.slideActionButton}
               onClick={duplicateSelectedSlide}
             >
-              Duplicate
+              <span>{t("slides.duplicate")}</span>
             </button>
 
             {/* ===============================================
@@ -955,12 +1214,9 @@ export function EditorWorkspace() {
               disabled={presentation.slides.length <= 1}
               onClick={deleteSelectedSlide}
             >
-              Delete
+              <span>{t("slides.delete")}</span>
             </button>
-          </div>
-          {/* =================================================
-              END: SLIDE ACTIONS
-              ================================================= */}
+          </form>
           {/* =================================================
               END: SLIDE ACTIONS
               ================================================= */}
@@ -976,18 +1232,26 @@ export function EditorWorkspace() {
 
         <section className={styles.canvasArea}>
           <div className={styles.canvasToolbar}>
-            <span>Slide {selectedSlideIndex + 1}</span>
+            <span>
+              {t("slides.current", { number: selectedSlideIndex + 1 })}
+            </span>
 
             <span>
               {selectedDocumentElement
-                ? `${selectedDocumentElement.type} · ${selectedDocumentElement.id}`
-                : "No element selected"}
+                ? `${t(ELEMENT_TYPE_MESSAGE_KEYS[selectedDocumentElement.type])} · ${selectedDocumentElement.id}`
+                : t("canvas.noElementSelected")}
             </span>
 
             <span>{presentation.aspectRatio}</span>
           </div>
 
           <div className={styles.canvasViewport}>
+            {renderedFontResources && (
+              <style data-powershow-font-resources>
+                {renderedFontResources}
+              </style>
+            )}
+
             <div
               ref={slideCanvasRef}
               className={styles.slideCanvas}
@@ -1008,7 +1272,9 @@ export function EditorWorkspace() {
             =================================================== */}
 
         <aside className={styles.inspector}>
-          <div className={styles.panelHeader}>Inspector</div>
+          <div className={styles.panelHeader}>
+            <span>{t("inspector.title")}</span>
+          </div>
 
           <div className={styles.inspectorContent}>
             {/* =================================================
@@ -1052,6 +1318,13 @@ export function EditorWorkspace() {
               <ElementInspector
                 element={selectedDocumentElement}
                 onUpdate={updateSelectedElement}
+                fontResourceControls={{
+                  fontResources: presentation.resources?.fonts ?? [],
+                  onAddFontFace: addFontFace,
+                  onRemoveFontFace: removeFontFace,
+                  isFontFamilyInUse: (family) =>
+                    presentationUsesFontFamily(presentation, family),
+                }}
               />
             ) : (
               <>
@@ -1064,12 +1337,12 @@ export function EditorWorkspace() {
                     =========================================== */}
 
                 <label className={styles.field}>
-                  <span>Title</span>
+                  <span>{t("inspector.titleField")}</span>
 
                   <input
                     type="text"
                     value={selectedSlide.title}
-                    placeholder="Untitled slide"
+                    placeholder={t("slides.untitled")}
                     onChange={(event) => {
                       const title = event.target.value;
 
@@ -1087,19 +1360,23 @@ export function EditorWorkspace() {
                     =========================================== */}
 
                 <div className={styles.inspectorGroup}>
-                  <span className={styles.inspectorLabel}>ID</span>
+                  <span className={styles.inspectorLabel}>
+                    {t("inspector.id")}
+                  </span>
 
                   <code>{selectedSlide.id}</code>
                 </div>
 
                 <div className={styles.inspectorGroup}>
-                  <span className={styles.inspectorLabel}>Root elements</span>
+                  <span className={styles.inspectorLabel}>
+                    {t("inspector.rootElements")}
+                  </span>
 
                   <strong>{selectedSlide.elements.length}</strong>
                 </div>
 
                 <div className={styles.nextStep}>
-                  Click an element directly on the canvas to inspect it.
+                  <span>{t("inspector.selectElementHint")}</span>
                 </div>
 
                 {/* =============================================

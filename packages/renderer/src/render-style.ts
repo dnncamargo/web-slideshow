@@ -3,6 +3,7 @@ import type { ElementStyle, Length } from "@powershow/document-schema";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
 import { renderLength } from "./render-length";
+import { quoteCssString } from "./escape-css-string";
 
 function addStyle(
   target: string[],
@@ -26,6 +27,18 @@ function addLength(
   }
 
   target.push(`${property}:${renderLength(value)}`);
+}
+
+function addCssString(
+  target: string[],
+  property: string,
+  value: string | undefined,
+): void {
+  if (value === undefined) {
+    return;
+  }
+
+  target.push(`${property}:${quoteCssString(value)}`);
 }
 
 export function renderStyle(style: ElementStyle | undefined): string {
@@ -77,6 +90,20 @@ export function renderStyle(style: ElementStyle | undefined): string {
 
   addStyle(output, "color", style.color);
 
+  addCssString(output, "font-family", style.fontFamily);
+
+  addLength(output, "font-size", style.fontSize);
+
+  addStyle(output, "font-weight", style.fontWeight);
+
+  addStyle(output, "font-style", style.fontStyle);
+
+  addStyle(output, "text-align", style.textAlign);
+
+  addStyle(output, "line-height", style.lineHeight);
+
+  addLength(output, "letter-spacing", style.letterSpacing);
+
   addLength(output, "border-radius", style.borderRadius);
 
   addStyle(output, "opacity", style.opacity);
@@ -91,19 +118,13 @@ export function renderStyle(style: ElementStyle | undefined): string {
     output.push(`box-shadow:${renderShadow(style.shadow)}`);
   }
 
+  if (style.textStroke) {
+    output.push(
+      `-webkit-text-stroke:${renderLength(style.textStroke.width)} ${style.textStroke.color}`,
+    );
+  }
+
   if (style.border) {
-    output.push(...renderBorder(style.border));
-  }
-
-  if (style.backgroundGradient !== undefined) {
-    output.push(`background-image:${renderGradient(style.backgroundGradient)}`);
-  }
-
-  if (style.shadow !== undefined) {
-    output.push(`box-shadow:${renderShadow(style.shadow)}`);
-  }
-
-  if (style.border !== undefined) {
     output.push(...renderBorder(style.border));
   }
 

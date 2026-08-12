@@ -23,6 +23,18 @@ import "./globals.css";
 // END: THEME COMPARTILHADO DO POWERSHOW
 // ============================================================
 
+// ============================================================
+// BEGIN: STUDIO I18N PROVIDER
+// ============================================================
+
+import {
+  StudioI18nProvider,
+} from "@/features/i18n/studio-i18n-context";
+
+// ============================================================
+// END: STUDIO I18N PROVIDER
+// ============================================================
+
 
 // ============================================================
 // BEGIN: METADATA DO STUDIO
@@ -55,9 +67,11 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="en">
       <body>
-        {children}
+        <StudioI18nProvider>
+          {children}
+        </StudioI18nProvider>
       </body>
     </html>
   );

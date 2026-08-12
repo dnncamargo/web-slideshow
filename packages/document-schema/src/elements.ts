@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   DirectionSchema,
+  DistributionSchema,
   ElementIdSchema,
   HorizontalAlignmentSchema,
   LengthSchema,
@@ -201,6 +202,13 @@ export type ContainerElement = {
     | "row"
     | "column";
 
+distribution?:
+  | "packed"
+  | "space-between"
+  | "space-around"
+  | "space-evenly"
+  | undefined;
+
   gap?:
     | number
     | string
@@ -274,6 +282,9 @@ export const PowerShowElementSchema:
 
         direction:
           DirectionSchema.default("column"),
+
+        distribution:
+          DistributionSchema.optional(),
 
         gap: LengthSchema.optional(),
 

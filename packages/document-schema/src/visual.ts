@@ -162,3 +162,13 @@ export const ShadowSchema =
 
 export type Shadow =
   z.infer<typeof ShadowSchema>;
+
+export const TextStrokeSchema =
+  z.object({
+    width: LengthSchema,
+
+    color: ColorSchema,
+  });
+
+export type TextStroke =
+  z.infer<typeof TextStrokeSchema>;

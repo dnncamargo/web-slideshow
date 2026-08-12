@@ -294,7 +294,7 @@ const englishMessages = {
   "inspector.alignmentDisabledByDistribution":
     "Main-axis alignment is controlled by Distribution.",
   "inspector.full": "Full",
-
+  
   "image.sourceHint": "Image path or source.",
   "image.alternativeText": "Alternative text",
   "image.fit": "Fit",

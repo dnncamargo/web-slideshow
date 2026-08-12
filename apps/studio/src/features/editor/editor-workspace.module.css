@@ -67,14 +67,114 @@
 }
 
 .status {
-  justify-self: end;
-
   color: #87909f;
 
   font-size: 13px;
+
+  white-space: nowrap;
 }
 
 /* ==========================================================
+   BEGIN: STUDIO LANGUAGE SELECTOR
+   ========================================================== */
+
+.topbarControls {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  justify-self: end;
+
+  gap: 14px;
+}
+
+.localeControl {
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  gap:
+    4px;
+
+  height:
+    28px;
+
+  padding:
+    0
+    5px;
+
+  border:
+    1px solid
+    #303847;
+
+  border-radius:
+    6px;
+
+  background:
+    #111720;
+
+  color:
+    #94a3b8;
+}
+
+
+.localeIcon {
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  flex:
+    0
+    0
+    auto;
+}
+
+
+.localeControl select {
+  min-width:
+    40px;
+
+  height:
+    24px;
+
+  padding:
+    0
+    2px;
+
+  border:
+    0;
+
+  outline:
+    0;
+
+  background:
+    transparent;
+
+  color:
+    #cbd5e1;
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+
+  cursor:
+    pointer;
+}
+
+/* ==========================================================
+   END: STUDIO LANGUAGE SELECTOR
+   ========================================================== */
+   
+   /* ==========================================================
    BEGIN: WORKSPACE FIXO
 
    Nenhuma coluna deve aumentar a altura geral da aplicação.
@@ -759,6 +859,36 @@
     0.06em;
 }
 
+
+.inspectorSection {
+  min-width: 0;
+}
+
+
+.inspectorSection > summary {
+  cursor: pointer;
+
+  user-select: none;
+}
+
+
+.inspectorSection > summary .sectionCount {
+  float: right;
+
+  margin-top: -3px;
+}
+
+
+.inspectorSectionContent {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 18px;
+
+  padding-top: 18px;
+}
+
 /* ==========================================================
    END: SEÇÕES DO INSPECTOR
    ========================================================== */
@@ -816,6 +946,13 @@
   padding:
     0
     9px;
+}
+
+
+.field select:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
 }
 
 
@@ -903,6 +1040,76 @@
     11px;
 }
 
+
+.unitInput select {
+  min-width: 52px;
+
+  padding: 0 7px;
+
+  border: 0;
+
+  border-left: 1px solid #303847;
+
+  border-radius: 0;
+
+  background: transparent;
+
+  color: #94a3b8;
+
+  font: inherit;
+
+  font-size: 11px;
+}
+
+
+.unitInput select:focus {
+  outline: 0;
+}
+
+
+.effectiveNumberControl {
+  display: flex;
+
+  min-width: 0;
+
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+
+.inheritedValueLabel,
+.effectiveValueReset {
+  align-self: flex-start;
+
+  color: #64748b;
+
+  font-size: 10px;
+}
+
+
+.effectiveValueReset {
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+
+  cursor: pointer;
+
+  font: inherit;
+
+  text-decoration: underline;
+
+  text-underline-offset: 2px;
+}
+
+
+.effectiveValueReset:hover,
+.effectiveValueReset:focus-visible {
+  color: #a5b4fc;
+}
+
 /* ==========================================================
    END: CAMPOS DO INSPECTOR
    ========================================================== */
@@ -957,7 +1164,7 @@
 
 
 /* ==========================================================
-   BEGIN: CONTROLE DE COR
+   BEGIN: CONTROLES VISUAIS DE APPEARANCE
    ========================================================== */
 
 .colorControl {
@@ -970,14 +1177,454 @@
 }
 
 
+.appearanceSubgroup {
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 10px;
+}
+
+
+.appearanceSubheading {
+  color:
+    #94a3b8;
+
+  font-size:
+    11px;
+
+  font-weight:
+    600;
+
+  letter-spacing:
+    0.04em;
+
+  text-transform:
+    uppercase;
+}
+
+
+.fontFamilyRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: end;
+
+  gap: 10px;
+}
+
+
+.fontManager {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 12px;
+
+  border: 1px solid #303847;
+
+  border-radius: 8px;
+
+  background: #0c111a;
+}
+
+
+.fontManagerTitle {
+  color: #e2e8f0;
+
+  font-size: 13px;
+}
+
+
+.fontSourcePanel,
+.registeredFonts,
+.webFontResults,
+.webFontSelection {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+
+.registeredFonts {
+  padding-top: 10px;
+
+  border-top: 1px solid #252d3a;
+}
+
+
+.googleFontImport,
+.googleFontResolved,
+.googleFontVariantList {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+
+.googleFontImport {
+  padding-top: 10px;
+
+  border-top: 1px solid #252d3a;
+}
+
+
+.webFontResult {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 8px;
+
+  border: 1px solid #293140;
+
+  border-radius: 7px;
+
+  background: #0d121b;
+}
+
+
+.webFontResultMeta {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+  min-width: 0;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+
+.webFontResultMeta strong,
+.webFontSelection > strong {
+  color: #e2e8f0;
+
+  font-size: 12px;
+}
+
+
+.webFontSelection {
+  padding: 9px;
+
+  border: 1px solid #303847;
+
+  border-radius: 7px;
+
+  background: rgba(99, 102, 241, 0.06);
+}
+
+
+.googleFontResolved {
+  padding: 9px;
+
+  border: 1px solid #293140;
+
+  border-radius: 7px;
+
+  background: #0d121b;
+}
+
+
+.googleFontResolvedHeader {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 8px;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+}
+
+
+.googleFontResolvedHeader strong {
+  color: #cbd5e1;
+
+  font-size: 12px;
+}
+
+
+.googleFontUnsupported {
+  color: #fbbf24;
+
+  font-size: 10px;
+
+  line-height: 1.4;
+}
+
+
+.googleFontFamily {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding-top: 7px;
+
+  border-top: 1px solid #252d3a;
+}
+
+
+.googleFontFamily > .checkboxRow {
+  min-height: 24px;
+
+  color: #e2e8f0;
+}
+
+
+.googleFontVariantList {
+  padding-left: 8px;
+}
+
+
+.googleFontVariant {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+
+.googleFontVariant .checkboxRow {
+  min-height: 24px;
+}
+
+
+.googleFontSelected {
+  margin-left: auto;
+
+  color: #86efac;
+
+  font-size: 10px;
+}
+
+
+.googleFontFiles {
+  margin-left: 25px;
+
+  color: #64748b;
+
+  font-size: 10px;
+}
+
+
+.googleFontFiles summary {
+  cursor: pointer;
+}
+
+
+.googleFontFiles ul {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 3px;
+
+  margin: 5px 0 0;
+
+  padding-left: 16px;
+
+  overflow-wrap: anywhere;
+}
+
+
+.fontApplySuggestion {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  gap: 7px;
+
+  padding: 9px;
+
+  border: 1px solid #303847;
+
+  border-radius: 7px;
+
+  background: rgba(99, 102, 241, 0.08);
+
+  color: #cbd5e1;
+
+  font-size: 11px;
+}
+
+
+.fontApplySuggestion strong {
+  color: #86efac;
+
+  font-size: 11px;
+}
+
+
+.fontResourceList {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+
+.fontResourceRow {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+
+  padding-top: 8px;
+
+  border-top: 1px solid #252d3a;
+}
+
+
+.fontResourceHeader {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 8px;
+
+  color: #e2e8f0;
+
+  font-size: 12px;
+}
+
+
+.fontResourceEmpty {
+  color: #64748b;
+
+  font-size: 11px;
+}
+
+
+.fontResourceStatus {
+  color: #fbbf24;
+
+  font-size: 11px;
+}
+
+
+.fontFaceList {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+
+.fontFaceRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+}
+
+
+.fontFaceMeta {
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+
+.validationMessage {
+  color: #fca5a5;
+
+  font-size: 11px;
+}
+
+
 .colorInput {
-  width: 100% !important;
+  width: 38px !important;
 
   height: 38px !important;
 
   padding: 4px !important;
 
   cursor: pointer;
+}
+
+
+.colorValueControl {
+  display: grid;
+
+  grid-template-columns: auto minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  overflow: hidden;
+
+  border: 1px solid #303847;
+
+  border-radius: 7px;
+
+  background: #0c111a;
+}
+
+
+.colorValueControl:focus-within {
+  border-color: #6366f1;
+}
+
+
+.colorValueControl input[type="text"],
+.colorValueControl select {
+  min-width: 0;
+
+  border: 0;
+
+  border-radius: 0;
+
+  background: transparent;
+}
+
+
+.colorValueControl select {
+  padding: 0 7px;
+
+  border-left: 1px solid #303847;
+
+  color: #94a3b8;
+
+  font: inherit;
+
+  font-size: 11px;
 }
 
 
@@ -1017,8 +1664,77 @@
     #e2e8f0;
 }
 
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+
+.secondaryButton:disabled:hover {
+  background: #141a24;
+
+  color: #aeb7c5;
+}
+
+
+.backgroundControls,
+.gradientControl,
+.gradientStops {
+  display: flex;
+
+  flex-direction:
+    column;
+
+  gap: 10px;
+}
+
+
+.gradientStopsTitle {
+  color:
+    #94a3b8;
+
+  font-size:
+    12px;
+
+  font-weight:
+    600;
+}
+
+
+.gradientStopRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 72px)
+    minmax(0, 1fr)
+    auto;
+
+  align-items:
+    end;
+
+  gap: 8px;
+}
+
+
+.gradientStopRow .secondaryButton {
+  min-height: 34px;
+
+  white-space:
+    nowrap;
+}
+
+
+.gradientStops .secondaryButton:disabled {
+  opacity: 0.45;
+
+  cursor:
+    not-allowed;
+}
+
 /* ==========================================================
-   END: CONTROLE DE COR
+   END: CONTROLES VISUAIS DE APPEARANCE
    ========================================================== */
 
    /* ==========================================================
@@ -2233,4 +2949,88 @@
 
 /* ==========================================================
    END: SLIDE HEADER ACTION
+   ========================================================== */
+/* ==========================================================
+   BEGIN: INDIVIDUAL SPACING CONTROLS
+   ========================================================== */
+
+.spacingDetails {
+  min-width:
+    0;
+
+  border:
+    1px solid
+    #252d3a;
+
+  border-radius:
+    6px;
+
+  background:
+    #0d121a;
+}
+
+
+.spacingDetails summary {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  min-height:
+    30px;
+
+  padding:
+    0
+    9px;
+
+  color:
+    #94a3b8;
+
+  font-size:
+    10px;
+
+  font-weight:
+    600;
+
+  cursor:
+    pointer;
+
+  user-select:
+    none;
+}
+
+
+.spacingDetails summary:hover {
+  color:
+    #cbd5e1;
+
+  background:
+    #121924;
+}
+
+
+.spacingSides {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap:
+    8px;
+
+  padding:
+    9px;
+
+  border-top:
+    1px solid
+    #252d3a;
+}
+
+/* ==========================================================
+   END: INDIVIDUAL SPACING CONTROLS
    ========================================================== */

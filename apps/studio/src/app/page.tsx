@@ -1,41 +1,49 @@
+"use client";
+
 import Image from "next/image";
+
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
 import styles from "./page.module.css";
 
 export default function Home() {
+  const { t } = useStudioI18n();
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <Image
           className={styles.logo}
           src="/next.svg"
-          alt="Next.js logo"
+          alt={t("home.nextLogoAlt")}
           width={100}
           height={20}
           priority
         />
         <div className={styles.intro}>
           <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
+            <span>{t("home.getStartedPrefix")}</span>{" "}
+            <code className={styles.code}>page.tsx</code>
+            <span>{t("home.getStartedSuffix")}</span>
           </h1>
           <p>
-            Looking for a starting point or more instructions? Head over to{" "}
+            <span>{t("home.instructionsPrefix")}</span>{" "}
             <a
               href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Templates
+              <span>{t("home.templates")}</span>
             </a>{" "}
-            or the{" "}
+            <span>{t("home.or")}</span>{" "}
             <a
               href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learning
+              <span>{t("home.learning")}</span>
             </a>{" "}
-            center.
+            <span>{t("home.center")}</span>
           </p>
         </div>
         <div className={styles.ctas}>
@@ -48,11 +56,11 @@ export default function Home() {
             <Image
               className={styles.logo}
               src="/vercel.svg"
-              alt="Vercel logomark"
+              alt={t("home.vercelLogoAlt")}
               width={16}
               height={14}
             />
-            Deploy Now
+            <span>{t("home.deploy")}</span>
           </a>
           <a
             className={styles.secondary}
@@ -60,7 +68,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Documentation
+            <span>{t("home.documentation")}</span>
           </a>
         </div>
       </main>

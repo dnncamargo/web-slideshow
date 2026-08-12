@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import type { ElementStyle } from "@powershow/document-schema";
+
 import { renderStyle } from "../src/render-style";
 
 import { renderLength } from "../src//render-length";
+
+function countOccurrences(value: string, search: string): number {
+  return value.split(search).length - 1;
+}
 
 describe("renderLength", () => {
   it("converts numeric lengths to pixels", () => {
@@ -55,6 +61,58 @@ describe("renderStyle", () => {
     expect(result).toContain("overflow:hidden");
   });
 
+  it.each([
+    ["font family", { fontFamily: "Source Sans 3" }, 'font-family:"Source Sans 3"'],
+    ["font size", { fontSize: 32 }, "font-size:32px"],
+    ["font weight", { fontWeight: 600 }, "font-weight:600"],
+    ["font style", { fontStyle: "italic" }, "font-style:italic"],
+    ["text alignment", { textAlign: "justify" }, "text-align:justify"],
+    ["line height", { lineHeight: 1.2 }, "line-height:1.2"],
+    ["letter spacing", { letterSpacing: -1 }, "letter-spacing:-1px"],
+  ] satisfies readonly [string, ElementStyle, string][])(
+    "renders %s",
+    (_name, style, expected) => {
+      expect(renderStyle(style)).toContain(expected);
+    },
+  );
+
+  it("renders numeric line height without a length unit", () => {
+    const result = renderStyle({
+      lineHeight: 1.5,
+    });
+
+    expect(result).toContain("line-height:1.5");
+    expect(result).not.toContain("line-height:1.5px");
+  });
+
+  it("renders combined typography overrides", () => {
+    const result = renderStyle({
+      fontFamily: "Inter",
+      fontSize: 48,
+      fontWeight: 600,
+      fontStyle: "italic",
+      textAlign: "center",
+      lineHeight: 1.3,
+      letterSpacing: 1,
+    });
+
+    expect(result).toBe(
+      'font-family:"Inter";font-size:48px;font-weight:600;font-style:italic;' +
+        "text-align:center;line-height:1.3;letter-spacing:1px",
+    );
+  });
+
+  it("escapes a font family as a CSS string", () => {
+    const result = renderStyle({
+      fontFamily: 'Family";color:red</style>',
+    });
+
+    expect(result).toBe(
+      "font-family:\"Family\\22 ;color:red\\3c /style\\3e \"",
+    );
+    expect(result).not.toContain("</style>");
+  });
+
   it("does not render alignment properties directly", () => {
     const result = renderStyle({
       horizontalAlign: "center",
@@ -88,6 +146,8 @@ describe("renderStyle", () => {
     expect(result).toContain(
       "background-image:linear-gradient(135deg,#111827 0%,#312e81 100%)",
     );
+
+    expect(countOccurrences(result, "background-image:")).toBe(1);
   });
 
   it("renders a box shadow", () => {
@@ -102,6 +162,43 @@ describe("renderStyle", () => {
     });
 
     expect(result).toContain("box-shadow:0px 16px 40px -8px rgba(0,0,0,0.4)");
+
+    expect(countOccurrences(result, "box-shadow:")).toBe(1);
+  });
+
+  it("renders a text stroke with numeric widths as pixels", () => {
+    const result = renderStyle({
+      textStroke: {
+        width: 1,
+        color: "#0f172a",
+      },
+    });
+
+    expect(result).toContain("-webkit-text-stroke:1px #0f172a");
+  });
+
+  it("does not render a text stroke when undefined", () => {
+    const result = renderStyle({ textStroke: undefined });
+
+    expect(result).not.toContain("text-stroke:");
+  });
+
+  it("renders text stroke together with a shadow", () => {
+    const result = renderStyle({
+      shadow: {
+        x: 0,
+        y: 4,
+        blur: 12,
+        color: "#000000",
+      },
+      textStroke: {
+        width: "0.1em",
+        color: "#f8fafc",
+      },
+    });
+
+    expect(result).toContain("box-shadow:0px 4px 12px #000000");
+    expect(result).toContain("-webkit-text-stroke:0.1em #f8fafc");
   });
 
   it("renders a border", () => {
@@ -118,6 +215,47 @@ describe("renderStyle", () => {
     expect(result).toContain("border-style:solid");
 
     expect(result).toContain("border-color:#fff");
+
+    expect(countOccurrences(result, "border-width:")).toBe(1);
+
+    expect(countOccurrences(result, "border-style:")).toBe(1);
+
+    expect(countOccurrences(result, "border-color:")).toBe(1);
+  });
+
+  it("renders a gradient border once", () => {
+    const result = renderStyle({
+      border: {
+        width: 3,
+        style: "dashed",
+        gradient: {
+          type: "linear",
+          angle: 90,
+          stops: [
+            {
+              color: "#7c3aed",
+              position: 0,
+            },
+            {
+              color: "#06b6d4",
+              position: 100,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(result).toContain(
+      "border-image:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%) 1",
+    );
+
+    expect(countOccurrences(result, "border-width:")).toBe(1);
+
+    expect(countOccurrences(result, "border-style:")).toBe(1);
+
+    expect(countOccurrences(result, "border-color:")).toBe(1);
+
+    expect(countOccurrences(result, "border-image:")).toBe(1);
   });
   // ============================================================
   // BEGIN: TESTE DE DIMENSÕES DO CONTAINER

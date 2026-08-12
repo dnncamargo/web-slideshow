@@ -9,7 +9,31 @@ import {
   VerticalAlignmentSchema,
 } from "./primitives";
 
-import { BorderSchema, GradientSchema, ShadowSchema } from "./visual";
+import {
+  BorderSchema,
+  GradientSchema,
+  ShadowSchema,
+  TextStrokeSchema,
+} from "./visual";
+import {
+  FontFamilySchema,
+  FontStyleSchema,
+  FontWeightSchema,
+} from "./resources";
+
+export {
+  FontStyleSchema,
+  FontWeightSchema,
+};
+
+export const TextAlignSchema = z.enum([
+  "left",
+  "center",
+  "right",
+  "justify",
+]);
+
+export const LineHeightSchema = z.number().positive();
 
 export const ElementStyleSchema = z.object({
   width: LengthSchema.optional(),
@@ -43,6 +67,14 @@ export const ElementStyleSchema = z.object({
   background: ColorSchema.optional(),
   color: ColorSchema.optional(),
 
+  fontFamily: FontFamilySchema.optional(),
+  fontSize: LengthSchema.optional(),
+  fontWeight: FontWeightSchema.optional(),
+  fontStyle: FontStyleSchema.optional(),
+  textAlign: TextAlignSchema.optional(),
+  lineHeight: LineHeightSchema.optional(),
+  letterSpacing: LengthSchema.optional(),
+
   borderRadius: LengthSchema.optional(),
 
   opacity: z.number().min(0).max(1).optional(),
@@ -59,6 +91,8 @@ export const ElementStyleSchema = z.object({
   border: BorderSchema.optional(),
 
   shadow: ShadowSchema.optional(),
+
+  textStroke: TextStrokeSchema.optional(),
 });
 
 export type ElementStyle = z.infer<typeof ElementStyleSchema>;

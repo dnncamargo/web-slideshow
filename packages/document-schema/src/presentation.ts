@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   SlideSchema,
 } from "./slide";
+import { PresentationResourcesSchema } from "./resources";
 
 export const PresentationSchema =
   z.object({
@@ -18,6 +19,8 @@ export const PresentationSchema =
       "16:9",
       "4:3",
     ]).default("16:9"),
+
+    resources: PresentationResourcesSchema.optional(),
 
     slides: z.array(
       SlideSchema,
