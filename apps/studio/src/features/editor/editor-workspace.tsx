@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
-  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -23,7 +22,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
-import { resolveCanvasClickSelection } from "./canvas-selection-helpers";
+import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
   isCanvasDraggable,
   updatePlacementForCanvasDrag,
@@ -420,24 +419,6 @@ export function EditorWorkspace() {
   // procuramos o ancestral mais próximo com data-powershow-id.
   // ==========================================================
 
-  function handleCanvasClick(event: ReactMouseEvent<HTMLDivElement>) {
-    const target = event.target;
-
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    const selection = resolveCanvasClickSelection(target);
-
-    if (!selection) {
-      setSelectedElement(null);
-
-      return;
-    }
-
-    setSelectedElement(selection);
-  }
-
   function clearCanvasDragPreview() {
     const drag = canvasDragRef.current;
 
@@ -485,21 +466,29 @@ export function EditorWorkspace() {
     }
 
     const elementTarget = target.closest<HTMLElement>("[data-powershow-id]");
-    const id = elementTarget?.dataset.powershowId;
-    const type = elementTarget?.dataset.powershowType;
-    const documentElement = id ? findElementById(selectedSlide.elements, id) : null;
+    const selection = resolveCanvasPointerSelection(
+      elementTarget
+        ? {
+            id: elementTarget.dataset.powershowId,
+            type: elementTarget.dataset.powershowType,
+          }
+        : null,
+      selectedSlide.elements,
+    );
 
-    if (!elementTarget || !id || !type || !documentElement) {
+    if (!selection) {
+      setSelectedElement(null);
+
       return;
     }
 
-    setSelectedElement({ id, type });
+    setSelectedElement({ id: selection.id, type: selection.type });
 
-    if (!isCanvasDraggable(documentElement.style)) {
+    if (!isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
       return;
     }
 
-    const layoutParent = getCanvasLayoutParent(event.currentTarget, id);
+    const layoutParent = getCanvasLayoutParent(event.currentTarget, selection.id);
 
     if (!layoutParent) {
       return;
@@ -517,7 +506,7 @@ export function EditorWorkspace() {
     elementTarget.setPointerCapture(event.pointerId);
     canvasDragRef.current = {
       pointerId: event.pointerId,
-      elementId: id,
+      elementId: selection.id,
       target: elementTarget,
       initialTranslate: elementTarget.style.getPropertyValue("translate"),
       startClientX: event.clientX,
@@ -1534,7 +1523,6 @@ export function EditorWorkspace() {
             <div
                ref={slideCanvasRef}
                className={styles.slideCanvas}
-               onClick={handleCanvasClick}
                onPointerDown={handleCanvasPointerDown}
                onPointerMove={handleCanvasPointerMove}
                onPointerUp={handleCanvasPointerUp}
