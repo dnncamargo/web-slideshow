@@ -202,12 +202,6 @@ export function ElementPlacementSection({
           <button type="button" disabled={layerControls.index === 0} onClick={() => layerControls.onMoveTo(0)}>
             {t("inspector.sendToBack")}
           </button>
-          <button type="button" disabled={layerControls.index === 0} onClick={() => layerControls.onMoveTo(layerControls.index - 1)}>
-            {t("inspector.sendBackward")}
-          </button>
-          <button type="button" disabled={layerControls.index === layerControls.count - 1} onClick={() => layerControls.onMoveTo(layerControls.index + 1)}>
-            {t("inspector.bringForward")}
-          </button>
           <button type="button" disabled={layerControls.index === layerControls.count - 1} onClick={() => layerControls.onMoveTo(layerControls.count - 1)}>
             {t("inspector.bringToFront")}
           </button>

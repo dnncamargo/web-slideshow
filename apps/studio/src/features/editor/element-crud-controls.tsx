@@ -25,21 +25,9 @@ interface ElementCrudControlsProps {
   selectedElement:
     PowerShowElement | null;
 
-  canMoveUp:
-    boolean;
-
-  canMoveDown:
-    boolean;
-
   onAdd: (
     type: ElementCreateType,
   ) => void;
-
-  onMoveUp:
-    () => void;
-
-  onMoveDown:
-    () => void;
 
   onDuplicate:
     () => void;
@@ -58,11 +46,7 @@ interface ElementCrudControlsProps {
 
 export function ElementCrudControls({
   selectedElement,
-  canMoveUp,
-  canMoveDown,
   onAdd,
-  onMoveUp,
-  onMoveDown,
   onDuplicate,
   onDelete,
 }: ElementCrudControlsProps) {
@@ -191,58 +175,6 @@ export function ElementCrudControls({
           {insertionDescription}
         </span>
       </small>
-
-            {/* =====================================================
-          BEGIN: MOVE ELEMENT
-          ===================================================== */}
-
-      <div
-        className={
-          styles.elementCrudActions
-        }
-      >
-        <button
-          type="button"
-
-          disabled={
-            !canMoveUp
-          }
-
-          onClick={
-            onMoveUp
-          }
-
-          title={t("elementCrud.moveUpTitle")}
-        >
-          <span>
-            {t("elementCrud.up")}
-          </span>
-        </button>
-
-
-        <button
-          type="button"
-
-          disabled={
-            !canMoveDown
-          }
-
-          onClick={
-            onMoveDown
-          }
-
-          title={t("elementCrud.moveDownTitle")}
-        >
-          <span>
-            {t("elementCrud.down")}
-          </span>
-        </button>
-      </div>
-
-      {/* =====================================================
-          END: MOVE ELEMENT
-          ===================================================== */}
-
 
       {/* =====================================================
           BEGIN: DUPLICATE + DELETE

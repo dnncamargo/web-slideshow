@@ -76,9 +76,7 @@ import {
   duplicateElement,
   findElementSiblingPosition,
   insertElementAfterId,
-  moveElementById,
   moveElement,
-  moveElementOut,
   moveElementToSiblingIndexById,
   removeElementById,
 } from "./element-operations";
@@ -1018,34 +1016,6 @@ export function EditorWorkspace() {
   // tendo exatamente o mesmo ID.
   // ==========================================================
 
-  function moveSelectedElement(offset: -1 | 1) {
-    if (!selectedElement || !selectedElementPosition) {
-      return;
-    }
-
-    const targetIndex = selectedElementPosition.index + offset;
-
-    if (targetIndex < 0 || targetIndex >= selectedElementPosition.count) {
-      return;
-    }
-
-    setPresentation((current) => ({
-      ...current,
-
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
-
-        return {
-          ...slide,
-
-          elements: moveElementById(slide.elements, selectedElement.id, offset),
-        };
-      }),
-    }));
-  }
-
   function moveSelectedElementTo(targetIndex: number) {
     if (!selectedElement || !selectedElementPosition) {
       return;
@@ -1077,21 +1047,6 @@ export function EditorWorkspace() {
         }
 
         const result = moveElement(slide.elements, options);
-
-        return result.moved ? { ...slide, elements: result.elements } : slide;
-      }),
-    }));
-  }
-
-  function moveElementOutInTree(elementId: string) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
-
-        const result = moveElementOut(slide.elements, elementId);
 
         return result.moved ? { ...slide, elements: result.elements } : slide;
       }),
@@ -1446,7 +1401,6 @@ export function EditorWorkspace() {
                   setSelectedElement({ id: element.id, type: element.type });
                 }}
                 onMoveElement={moveElementInTree}
-                onMoveElementOut={moveElementOutInTree}
               />
             ) : (
               <>
@@ -1454,31 +1408,16 @@ export function EditorWorkspace() {
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
 
-            {/* ==========================================================
-    BEGIN: ELEMENT CRUD CONTROLS
-    ========================================================== */}
+             {/* ==========================================================
+     BEGIN: ELEMENT CRUD CONTROLS
+     ========================================================== */}
 
-            <ElementCrudControls
-              selectedElement={selectedDocumentElement}
-              canMoveUp={
-                selectedElementPosition !== null &&
-                selectedElementPosition.index > 0
-              }
-              canMoveDown={
-                selectedElementPosition !== null &&
-                selectedElementPosition.index <
-                  selectedElementPosition.count - 1
-              }
-              onAdd={addElement}
-              onMoveUp={() => {
-                moveSelectedElement(-1);
-              }}
-              onMoveDown={() => {
-                moveSelectedElement(1);
-              }}
-              onDuplicate={duplicateSelectedElement}
-              onDelete={deleteSelectedElement}
-            />
+             <ElementCrudControls
+               selectedElement={selectedDocumentElement}
+               onAdd={addElement}
+               onDuplicate={duplicateSelectedElement}
+               onDelete={deleteSelectedElement}
+             />
 
             {/* ==========================================================
     END: ELEMENT CRUD CONTROLS
