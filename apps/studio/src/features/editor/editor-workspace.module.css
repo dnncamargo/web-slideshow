@@ -1037,6 +1037,60 @@
   touch-action: none;
 }
 
+.canvasResizeOverlay {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  border: 1px solid #818cf8;
+}
+
+.canvasResizeHandle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid #eef2ff;
+  border-radius: 50%;
+  background: #6366f1;
+  pointer-events: auto;
+}
+
+.canvasResizeHandleN,
+.canvasResizeHandleS {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.canvasResizeHandleE,
+.canvasResizeHandleW {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.canvasResizeHandleNW,
+.canvasResizeHandleN,
+.canvasResizeHandleNE {
+  top: -6px;
+}
+
+.canvasResizeHandleSW,
+.canvasResizeHandleS,
+.canvasResizeHandleSE {
+  bottom: -6px;
+}
+
+.canvasResizeHandleNW,
+.canvasResizeHandleW,
+.canvasResizeHandleSW {
+  left: -6px;
+}
+
+.canvasResizeHandleNE,
+.canvasResizeHandleE,
+.canvasResizeHandleSE {
+  right: -6px;
+}
+
 /* ==========================================================
    END: SELEÇÃO PERSISTENTE NO CANVAS
    ========================================================== */

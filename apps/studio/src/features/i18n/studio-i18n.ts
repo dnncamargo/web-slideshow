@@ -299,12 +299,16 @@ const englishMessages = {
   "inspector.addLine": "+ Add line",
   "inspector.distribution": "Distribution",
   "inspector.layoutMode": "Layout mode",
+  "inspector.layoutModeHelp":
+    "Defines how child elements are arranged inside this container.",
   "inspector.flow": "Flow",
   "inspector.stack": "Stack",
   "inspector.distributionDisabledByStack":
     "Distribution is unavailable when children share the same area.",
   "inspector.placement": "Placement",
   "inspector.position": "Position",
+  "inspector.positionHelp":
+    "Defines how this container is positioned inside its parent.",
   "inspector.absolute": "Absolute",
   "inspector.anchor": "Anchor",
   "inspector.xOffset": "X offset",
@@ -672,12 +676,16 @@ const portugueseMessages = {
   "inspector.addLine": "+ Adicionar linha",
   "inspector.distribution": "Distribuição",
   "inspector.layoutMode": "Modo de layout",
+  "inspector.layoutModeHelp":
+    "Define como os elementos filhos são organizados dentro deste container.",
   "inspector.flow": "Fluxo",
   "inspector.stack": "Sobreposto",
   "inspector.distributionDisabledByStack":
     "A distribuição não está disponível quando os filhos compartilham a mesma área.",
   "inspector.placement": "Posicionamento",
   "inspector.position": "Posição",
+  "inspector.positionHelp":
+    "Define como este container é posicionado dentro do elemento pai.",
   "inspector.absolute": "Absoluto",
   "inspector.anchor": "Âncora",
   "inspector.xOffset": "Deslocamento X",

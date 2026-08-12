@@ -24,6 +24,15 @@ import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
+  getCanvasResizeCursor,
+  getCanvasResizeDeltas,
+  getCanvasResizePlacementAdjustment,
+  isCanvasResizable,
+  toLogicalCanvasResizeDelta,
+  type CanvasResizeDirection,
+  updateStyleForCanvasResize,
+} from "./canvas-resize-helpers";
+import {
   isCanvasDraggable,
   updatePlacementForCanvasDrag,
 } from "./inspector/sections/element-placement-helpers";
@@ -150,6 +159,43 @@ interface CanvasDragState {
   deltaY: number;
 }
 
+interface CanvasResizeOverlay {
+  elementId: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface CanvasResizeState {
+  pointerId: number;
+  elementId: string;
+  handle: HTMLElement;
+  direction: CanvasResizeDirection;
+  startClientX: number;
+  startClientY: number;
+  parentWidthPx: number;
+  parentHeightPx: number;
+  scaleX: number;
+  scaleY: number;
+  initialWidthPx: number;
+  initialHeightPx: number;
+  initialOverlay: CanvasResizeOverlay;
+  deltaX: number;
+  deltaY: number;
+}
+
+const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
+  "nw",
+  "n",
+  "ne",
+  "w",
+  "e",
+  "sw",
+  "s",
+  "se",
+];
+
 // ============================================================
 // END: TIPOS DO EDITOR
 // ============================================================
@@ -238,6 +284,9 @@ export function EditorWorkspace() {
 
   const slideCanvasRef = useRef<HTMLDivElement>(null);
   const canvasDragRef = useRef<CanvasDragState | null>(null);
+  const canvasResizeRef = useRef<CanvasResizeState | null>(null);
+  const [canvasResizeOverlay, setCanvasResizeOverlay] =
+    useState<CanvasResizeOverlay | null>(null);
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -382,6 +431,7 @@ export function EditorWorkspace() {
     });
 
     if (!selectedElement) {
+      setCanvasResizeOverlay(null);
       return;
     }
 
@@ -390,7 +440,22 @@ export function EditorWorkspace() {
     );
 
     target?.classList.add("powershow-editor-selected");
-  }, [locale, renderedSlide, selectedElement, selectedSlide]);
+
+    if (!target || !selectedDocumentElement || !isCanvasResizable(selectedDocumentElement)) {
+      setCanvasResizeOverlay(null);
+      return;
+    }
+
+    const bounds = target.getBoundingClientRect();
+
+    setCanvasResizeOverlay({
+      elementId: selectedDocumentElement.id,
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    });
+  }, [locale, renderedSlide, selectedDocumentElement, selectedElement, selectedSlide]);
 
   // ==========================================================
   // END: OUTLINE DO ELEMENTO SELECIONADO
@@ -573,6 +638,160 @@ export function EditorWorkspace() {
   function handleCanvasPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
     if (canvasDragRef.current?.pointerId === event.pointerId) {
       clearCanvasDragPreview();
+    }
+  }
+
+  function clearCanvasResizePreview() {
+    const resize = canvasResizeRef.current;
+
+    if (!resize) {
+      return;
+    }
+
+    setCanvasResizeOverlay(resize.initialOverlay);
+    canvasResizeRef.current = null;
+  }
+
+  function handleResizePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    direction: CanvasResizeDirection,
+  ) {
+    if (!selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+      return;
+    }
+
+    const canvas = slideCanvasRef.current;
+
+    if (!canvas || !isCanvasResizable(selectedDocumentElement)) {
+      return;
+    }
+
+    const target = Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
+      (candidate) => candidate.dataset.powershowId === selectedDocumentElement.id,
+    );
+    const layoutParent = getCanvasLayoutParent(canvas, selectedDocumentElement.id);
+
+    if (!target || !layoutParent) {
+      return;
+    }
+
+    const parentBounds = layoutParent.getBoundingClientRect();
+    const logicalWidth = layoutParent.offsetWidth || parentBounds.width;
+    const logicalHeight = layoutParent.offsetHeight || parentBounds.height;
+
+    if (logicalWidth <= 0 || logicalHeight <= 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    canvasResizeRef.current = {
+      pointerId: event.pointerId,
+      elementId: selectedDocumentElement.id,
+      handle: event.currentTarget,
+      direction,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      parentWidthPx: logicalWidth,
+      parentHeightPx: logicalHeight,
+      scaleX: parentBounds.width / logicalWidth || 1,
+      scaleY: parentBounds.height / logicalHeight || 1,
+      initialWidthPx: target.offsetWidth || target.getBoundingClientRect().width,
+      initialHeightPx: target.offsetHeight || target.getBoundingClientRect().height,
+      initialOverlay: canvasResizeOverlay,
+      deltaX: 0,
+      deltaY: 0,
+    };
+  }
+
+  function handleResizePointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    const resize = canvasResizeRef.current;
+
+    if (!resize || resize.pointerId !== event.pointerId) {
+      return;
+    }
+
+    resize.deltaX = toLogicalCanvasResizeDelta(
+      event.clientX - resize.startClientX,
+      resize.scaleX,
+    );
+    resize.deltaY = toLogicalCanvasResizeDelta(
+      event.clientY - resize.startClientY,
+      resize.scaleY,
+    );
+    const deltas = getCanvasResizeDeltas(
+      resize.direction,
+      resize.deltaX,
+      resize.deltaY,
+    );
+
+    setCanvasResizeOverlay({
+      ...resize.initialOverlay,
+      left: resize.initialOverlay.left + deltas.offsetX * resize.scaleX,
+      top: resize.initialOverlay.top + deltas.offsetY * resize.scaleY,
+      width: Math.max(1, resize.initialWidthPx + deltas.width) * resize.scaleX,
+      height: Math.max(1, resize.initialHeightPx + deltas.height) * resize.scaleY,
+    });
+  }
+
+  function commitCanvasResize() {
+    const resize = canvasResizeRef.current;
+
+    if (!resize || (resize.deltaX === 0 && resize.deltaY === 0)) {
+      clearCanvasResizePreview();
+      return;
+    }
+
+    canvasResizeRef.current = null;
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: updateElementById(slide.elements, resize.elementId, (element) => {
+                const resizedStyle = updateStyleForCanvasResize(
+                  element.style,
+                  resize.direction,
+                  resize.deltaX,
+                  resize.deltaY,
+                  resize.initialWidthPx,
+                  resize.initialHeightPx,
+                  resize.parentWidthPx,
+                  resize.parentHeightPx,
+                );
+                const adjustment = getCanvasResizePlacementAdjustment(
+                  resize.direction,
+                  resize.deltaX,
+                  resize.deltaY,
+                  element.style?.placement?.anchor,
+                );
+                const style = updatePlacementForCanvasDrag(
+                  resizedStyle,
+                  adjustment.x,
+                  adjustment.y,
+                  resize.parentWidthPx,
+                  resize.parentHeightPx,
+                );
+
+                return style === element.style ? element : { ...element, style };
+              }),
+            }
+          : slide,
+      ),
+    }));
+  }
+
+  function handleResizePointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (canvasResizeRef.current?.pointerId === event.pointerId) {
+      commitCanvasResize();
+    }
+  }
+
+  function handleResizePointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (canvasResizeRef.current?.pointerId === event.pointerId) {
+      clearCanvasResizePreview();
     }
   }
 
@@ -1532,6 +1751,33 @@ export function EditorWorkspace() {
                 __html: renderedSlide,
               }}
             />
+            {canvasResizeOverlay && (
+              <div
+                className={styles.canvasResizeOverlay}
+                style={{
+                  left: `${canvasResizeOverlay.left}px`,
+                  top: `${canvasResizeOverlay.top}px`,
+                  width: `${canvasResizeOverlay.width}px`,
+                  height: `${canvasResizeOverlay.height}px`,
+                }}
+              >
+                {CANVAS_RESIZE_DIRECTIONS.map((direction) => (
+                  <button
+                    key={direction}
+                    className={`${styles.canvasResizeHandle} ${styles[`canvasResizeHandle${direction.toUpperCase()}`]}`}
+                    type="button"
+                    aria-label={`Resize ${direction}`}
+                    title={`Resize ${direction}`}
+                    style={{ cursor: getCanvasResizeCursor(direction) }}
+                    onPointerDown={(event) => handleResizePointerDown(event, direction)}
+                    onPointerMove={handleResizePointerMove}
+                    onPointerUp={handleResizePointerUp}
+                    onPointerCancel={handleResizePointerCancel}
+                    onLostPointerCapture={handleResizePointerCancel}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
