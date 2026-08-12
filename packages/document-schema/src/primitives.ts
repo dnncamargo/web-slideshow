@@ -172,6 +172,11 @@ export const DirectionSchema = z.enum([
   "column",
 ]);
 
+export const LayoutModeSchema = z.enum([
+  "flow",
+  "stack",
+]);
+
 export const OverflowSchema = z.enum([
   "visible",
   "hidden",
