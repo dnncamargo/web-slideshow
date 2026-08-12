@@ -15,6 +15,7 @@ import type { UpdateElementStyle } from "../inspector-types";
 import {
   getPositionOffsetUnit,
   serializePositionOffset,
+  shouldShowPlacementLayerControls,
   updatePlacementAnchor,
   updatePlacementMode,
   updatePlacementOffset,
@@ -53,7 +54,7 @@ interface LayerControls {
 
 interface ElementPlacementSectionProps {
   element: PowerShowElement;
-  parent: ContainerElement;
+  parent: ContainerElement | null;
   onUpdateStyle: UpdateElementStyle;
   layerControls: LayerControls;
 }
@@ -118,12 +119,15 @@ export function ElementPlacementSection({
   const { t } = useStudioI18n();
   const placement = element.style?.placement;
   const isAbsolute = placement?.mode === "absolute";
-  const layerControlsVisible = isAbsolute || parent.layoutMode === "stack";
+  const layerControlsVisible = shouldShowPlacementLayerControls(
+    isAbsolute,
+    parent?.layoutMode,
+  );
 
   return (
     <InspectorSection title={t("inspector.placement")}>
       <label className={styles.field}>
-        <span>{t("inspector.position")}</span>
+        <span title={t("inspector.positionHelp")}>{t("inspector.position")}</span>
 
         <select
           id="element-placement-mode"

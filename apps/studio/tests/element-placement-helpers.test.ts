@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  shouldShowElementPlacement,
+  shouldShowPlacementLayerControls,
   updatePlacementAnchor,
   updatePlacementMode,
   updatePlacementOffset,
@@ -30,6 +32,23 @@ describe("element placement updates", () => {
 
     expect(anchored.placement?.offsetY).toBe("20px");
     expect(xUpdated.placement).toEqual({ mode: "absolute", anchor: "top-left", offsetX: "-10%", offsetY: "20px" });
+  });
+});
+
+describe("placement visibility for direct slide children", () => {
+  it("shows placement for direct Slide-root children with sibling/layer context", () => {
+    expect(shouldShowElementPlacement({ index: 0, count: 3, onMoveTo: () => {} })).toBe(true);
+    expect(shouldShowElementPlacement(null)).toBe(false);
+  });
+
+  it("does not infer a Stack parent for direct Slide-root children", () => {
+    expect(shouldShowPlacementLayerControls(false, undefined)).toBe(false);
+    expect(shouldShowPlacementLayerControls(true, undefined)).toBe(true);
+  });
+
+  it("keeps Stack-dependent layer behavior for nested Stack parents", () => {
+    expect(shouldShowPlacementLayerControls(false, "stack")).toBe(true);
+    expect(shouldShowPlacementLayerControls(false, "flow")).toBe(false);
   });
 });
 

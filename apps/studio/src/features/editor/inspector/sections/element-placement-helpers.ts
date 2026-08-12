@@ -11,6 +11,25 @@ import {
 
 export type PositionOffsetUnit = "px" | "%";
 
+export type ElementLayerControls = {
+  index: number;
+  count: number;
+  onMoveTo: (index: number) => void;
+};
+
+export function shouldShowElementPlacement(
+  layerControls: ElementLayerControls | null,
+): layerControls is ElementLayerControls {
+  return layerControls !== null;
+}
+
+export function shouldShowPlacementLayerControls(
+  isAbsolute: boolean,
+  parentLayoutMode: string | undefined,
+): boolean {
+  return isAbsolute || parentLayoutMode === "stack";
+}
+
 export function getPositionOffsetUnit(
   value: SignedLength | undefined,
 ): PositionOffsetUnit {

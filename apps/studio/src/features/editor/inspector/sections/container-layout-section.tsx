@@ -52,7 +52,7 @@ export function ContainerLayoutSection({
   return (
     <InspectorSection title={t("inspector.layout")} defaultOpen>
       <label className={styles.field}>
-        <span>{t("inspector.layoutMode")}</span>
+        <span title={t("inspector.layoutModeHelp")}>{t("inspector.layoutMode")}</span>
 
         <select
           id="container-layout-mode"

@@ -21,6 +21,7 @@ import type {
   FontResourceControls,
 } from "./inspector/inspector-types";
 import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
+import { shouldShowElementPlacement } from "./inspector/sections/element-placement-helpers";
 
 interface ElementInspectorProps {
   element: PowerShowElement;
@@ -150,7 +151,7 @@ export function ElementInspector({
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
       />
 
-      {parent && layerControls && (
+      {shouldShowElementPlacement(layerControls) && (
         <ElementPlacementSection
           element={element}
           parent={parent}
