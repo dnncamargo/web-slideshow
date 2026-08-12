@@ -23,7 +23,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
-import { shouldIgnoreCanvasBackgroundClick } from "./canvas-interaction-helpers";
+import { resolveCanvasClickSelection } from "./canvas-selection-helpers";
 import {
   isCanvasDraggable,
   updatePlacementForCanvasDrag,
@@ -239,7 +239,6 @@ export function EditorWorkspace() {
 
   const slideCanvasRef = useRef<HTMLDivElement>(null);
   const canvasDragRef = useRef<CanvasDragState | null>(null);
-  const capturedCanvasElementIdRef = useRef<string | null>(null);
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -422,37 +421,21 @@ export function EditorWorkspace() {
   // ==========================================================
 
   function handleCanvasClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (shouldIgnoreCanvasBackgroundClick(capturedCanvasElementIdRef.current)) {
-      capturedCanvasElementIdRef.current = null;
-      return;
-    }
-
     const target = event.target;
 
     if (!(target instanceof Element)) {
       return;
     }
 
-    const element = target.closest<HTMLElement>("[data-powershow-id]");
+    const selection = resolveCanvasClickSelection(target);
 
-    if (!element) {
+    if (!selection) {
       setSelectedElement(null);
 
       return;
     }
 
-    const id = element.dataset.powershowId;
-
-    const type = element.dataset.powershowType;
-
-    if (!id || !type) {
-      return;
-    }
-
-    setSelectedElement({
-      id,
-      type,
-    });
+    setSelectedElement(selection);
   }
 
   function clearCanvasDragPreview() {
@@ -531,8 +514,7 @@ export function EditorWorkspace() {
     }
 
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    capturedCanvasElementIdRef.current = id;
+    elementTarget.setPointerCapture(event.pointerId);
     canvasDragRef.current = {
       pointerId: event.pointerId,
       elementId: id,
@@ -596,19 +578,12 @@ export function EditorWorkspace() {
   function handleCanvasPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
     if (canvasDragRef.current?.pointerId === event.pointerId) {
       commitCanvasDrag();
-
-      // A captured pointer can retarget its release click to the canvas.
-      // Leave this transient guard in place for that click only.
-      window.setTimeout(() => {
-        capturedCanvasElementIdRef.current = null;
-      }, 0);
     }
   }
 
   function handleCanvasPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
     if (canvasDragRef.current?.pointerId === event.pointerId) {
       clearCanvasDragPreview();
-      capturedCanvasElementIdRef.current = null;
     }
   }
 
