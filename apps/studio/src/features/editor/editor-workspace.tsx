@@ -30,6 +30,11 @@ import {
   normalizeFontFamily,
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
+import {
+  addPaletteColor,
+  removePaletteColor,
+} from "./inspector/sections/color-palette-helpers";
+import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -84,6 +89,7 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
+  Color,
   FontFaceResource,
   PowerShowElement,
   Presentation,
@@ -551,6 +557,44 @@ export function EditorWorkspace() {
               : registeredFont,
           ),
         },
+      };
+    });
+  }
+
+  function addPresentationPaletteColor(color: Color) {
+    setPresentation((current) => {
+      const colors = addPaletteColor(current.palette?.colors ?? [], color);
+
+      if (colors === current.palette?.colors) {
+        return current;
+      }
+
+      return {
+        ...current,
+        palette: { colors: [...colors] },
+      };
+    });
+  }
+
+  function removePresentationPaletteColor(index: number) {
+    setPresentation((current) => {
+      const currentColors = current.palette?.colors;
+
+      if (!currentColors || index < 0 || index >= currentColors.length) {
+        return current;
+      }
+
+      const colors = removePaletteColor(currentColors, index);
+
+      if (colors.length === 0) {
+        const { palette: _palette, ...presentationWithoutPalette } = current;
+
+        return presentationWithoutPalette;
+      }
+
+      return {
+        ...current,
+        palette: { colors: [...colors] },
       };
     });
   }
@@ -1315,17 +1359,23 @@ export function EditorWorkspace() {
                 END: ELEMENT CRUD CONTROLS
                 ================================================= */}
             {selectedDocumentElement ? (
-              <ElementInspector
-                element={selectedDocumentElement}
-                onUpdate={updateSelectedElement}
-                fontResourceControls={{
-                  fontResources: presentation.resources?.fonts ?? [],
-                  onAddFontFace: addFontFace,
-                  onRemoveFontFace: removeFontFace,
-                  isFontFamilyInUse: (family) =>
-                    presentationUsesFontFamily(presentation, family),
-                }}
-              />
+              <PresentationColorPaletteProvider
+                colors={presentation.palette?.colors ?? []}
+                onAddColor={addPresentationPaletteColor}
+                onRemoveColor={removePresentationPaletteColor}
+              >
+                <ElementInspector
+                  element={selectedDocumentElement}
+                  onUpdate={updateSelectedElement}
+                  fontResourceControls={{
+                    fontResources: presentation.resources?.fonts ?? [],
+                    onAddFontFace: addFontFace,
+                    onRemoveFontFace: removeFontFace,
+                    isFontFamilyInUse: (family) =>
+                      presentationUsesFontFamily(presentation, family),
+                  }}
+                />
+              </PresentationColorPaletteProvider>
             ) : (
               <>
                 {/* =============================================

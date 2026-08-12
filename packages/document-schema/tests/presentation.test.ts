@@ -39,6 +39,27 @@ describe("PresentationSchema", () => {
       const result = PresentationSchema.parse(defaultsInput);
 
       expect(result).not.toHaveProperty("resources");
+      expect(result).not.toHaveProperty("palette");
+    });
+
+    it("accepts a presentation color palette", () => {
+      expect(
+        PresentationSchema.safeParse({
+          ...defaultsInput,
+          palette: {
+            colors: ["#7c3aed", "rgba(124, 58, 237, 0.5)"],
+          },
+        }).success,
+      ).toBe(true);
+    });
+
+    it("rejects unsupported palette colors", () => {
+      expect(
+        PresentationSchema.safeParse({
+          ...defaultsInput,
+          palette: { colors: ["hsl(260, 83%, 58%)"] },
+        }).success,
+      ).toBe(false);
     });
 
     it("accepts an empty presentation font registry", () => {
