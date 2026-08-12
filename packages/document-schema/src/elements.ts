@@ -5,6 +5,7 @@ import {
   DistributionSchema,
   ElementIdSchema,
   HorizontalAlignmentSchema,
+  LayoutModeSchema,
   LengthSchema,
   VerticalAlignmentSchema,
 } from "./primitives";
@@ -202,6 +203,11 @@ export type ContainerElement = {
     | "row"
     | "column";
 
+  layoutMode?:
+    | "flow"
+    | "stack"
+    | undefined;
+
 distribution?:
   | "packed"
   | "space-between"
@@ -282,6 +288,9 @@ export const PowerShowElementSchema:
 
         direction:
           DirectionSchema.default("column"),
+
+        layoutMode:
+          LayoutModeSchema.optional(),
 
         distribution:
           DistributionSchema.optional(),

@@ -298,6 +298,11 @@ const englishMessages = {
   "inspector.removeTerminalLine": "Remove terminal line {number}",
   "inspector.addLine": "+ Add line",
   "inspector.distribution": "Distribution",
+  "inspector.layoutMode": "Layout mode",
+  "inspector.flow": "Flow",
+  "inspector.stack": "Stack",
+  "inspector.distributionDisabledByStack":
+    "Distribution is unavailable when children share the same area.",
   "inspector.distributionHelp":
     "Controls spacing between children along the container's main axis.",
   "inspector.distribution.packed": "Packed",
@@ -638,6 +643,11 @@ const portugueseMessages = {
   "inspector.removeTerminalLine": "Remover linha de terminal {number}",
   "inspector.addLine": "+ Adicionar linha",
   "inspector.distribution": "Distribuição",
+  "inspector.layoutMode": "Modo de layout",
+  "inspector.flow": "Fluxo",
+  "inspector.stack": "Sobreposto",
+  "inspector.distributionDisabledByStack":
+    "A distribuição não está disponível quando os filhos compartilham a mesma área.",
   "inspector.distributionHelp":
     "Controla a distribuição dos elementos filhos ao longo do eixo principal do container.",
   "inspector.distribution.packed": "Agrupado",

@@ -4,13 +4,18 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
-import type { UpdateContainer } from "../container-inspector-helpers";
+import {
+  type UpdateContainer,
+  updateContainerLayoutMode,
+} from "../container-inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
 
 type ContainerDistribution = NonNullable<ContainerElement["distribution"]>;
 
 type ContainerDirection = ContainerElement["direction"];
+
+type ContainerLayoutMode = NonNullable<ContainerElement["layoutMode"]>;
 
 type ContainerHorizontalAlign = NonNullable<
   ContainerElement["horizontalAlign"]
@@ -36,6 +41,7 @@ export function ContainerLayoutSection({
 
   const hasDistributedMainAxis =
     (element.distribution ?? "packed") !== "packed";
+  const isStack = element.layoutMode === "stack";
 
   const isHorizontalAlignmentDisabled =
     element.direction === "row" && hasDistributedMainAxis;
@@ -45,6 +51,27 @@ export function ContainerLayoutSection({
 
   return (
     <InspectorSection title={t("inspector.layout")} defaultOpen>
+      <label className={styles.field}>
+        <span>{t("inspector.layoutMode")}</span>
+
+        <select
+          id="container-layout-mode"
+          name="containerLayoutMode"
+          value={element.layoutMode ?? "flow"}
+          onChange={(event) => {
+            const layoutMode = event.target.value as ContainerLayoutMode;
+
+            onUpdate((container) =>
+              updateContainerLayoutMode(container, layoutMode),
+            );
+          }}
+        >
+          <option value="flow">{t("inspector.flow")}</option>
+
+          <option value="stack">{t("inspector.stack")}</option>
+        </select>
+      </label>
+
       <label className={styles.field}>
         <span>{t("inspector.direction")}</span>
 
@@ -69,7 +96,13 @@ export function ContainerLayoutSection({
       </label>
 
       <label className={styles.field}>
-        <span title={t("inspector.distributionHelp")}>
+        <span
+          title={
+            isStack
+              ? t("inspector.distributionDisabledByStack")
+              : t("inspector.distributionHelp")
+          }
+        >
           {t("inspector.distribution")}
         </span>
 
@@ -77,6 +110,7 @@ export function ContainerLayoutSection({
           id="container-distribution"
           name="containerDistribution"
           value={element.distribution ?? "packed"}
+          disabled={isStack}
           onChange={(event) => {
             const value = event.target.value as ContainerDistribution;
 

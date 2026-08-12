@@ -45,6 +45,34 @@ function renderCrossAxisAlignment(value: Alignment): string {
   }
 }
 
+function renderGridAlignment(value: Alignment): string {
+  switch (value) {
+    case "start":
+      return "start";
+
+    case "center":
+      return "center";
+
+    case "end":
+      return "end";
+
+    case "stretch":
+      return "stretch";
+  }
+}
+
+function renderStackChild(child: string): string {
+  if (!child) {
+    return "";
+  }
+
+  const stackArea = "grid-area:1 / 1";
+
+  return child.includes(" style=")
+    ? child.replace(" style=\"", ` style=\"${stackArea};`)
+    : child.replace(/^(<[^\s>]+)/, `$1 style=\"${stackArea}\"`);
+}
+
 function getTagName(
   role: ContainerElement["role"],
 ): "div" | "main" | "header" | "footer" {
@@ -79,10 +107,15 @@ export function renderContainer(
     styles.push(baseStyle);
   }
 
-  styles.push("display:flex");
-  styles.push(`flex-direction:${element.direction}`);
+  const isStack = element.layoutMode === "stack";
 
-  if (element.gap !== undefined) {
+  styles.push(isStack ? "display:grid" : "display:flex");
+
+  if (!isStack) {
+    styles.push(`flex-direction:${element.direction}`);
+  }
+
+  if (!isStack && element.gap !== undefined) {
     styles.push(`gap:${renderLength(element.gap)}`);
   }
 
@@ -95,15 +128,24 @@ export function renderContainer(
 
   const verticalAlign = element.verticalAlign ?? element.style?.verticalAlign;
 
-  const distribution = element.distribution ?? "packed";
+  if (isStack) {
+    if (horizontalAlign) {
+      styles.push(`justify-items:${renderGridAlignment(horizontalAlign)}`);
+    }
 
-  const distributedMainAxis = renderDistribution(distribution);
+    if (verticalAlign) {
+      styles.push(`align-items:${renderGridAlignment(verticalAlign)}`);
+    }
+  } else {
+    const distribution = element.distribution ?? "packed";
 
-  // ============================================================
-  // BEGIN: CONTAINER ALIGNMENT + DISTRIBUTION
-  // ============================================================
+    const distributedMainAxis = renderDistribution(distribution);
 
-  if (element.direction === "row") {
+    // ============================================================
+    // BEGIN: CONTAINER ALIGNMENT + DISTRIBUTION
+    // ============================================================
+
+    if (element.direction === "row") {
     // ----------------------------------------------------------
     // MAIN AXIS = HORIZONTAL
     // ----------------------------------------------------------
@@ -123,7 +165,7 @@ export function renderContainer(
     if (verticalAlign) {
       styles.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
     }
-  } else {
+    } else {
     // ----------------------------------------------------------
     // CROSS AXIS = HORIZONTAL
     // ----------------------------------------------------------
@@ -141,13 +183,18 @@ export function renderContainer(
     } else if (verticalAlign) {
       styles.push(`justify-content:${renderMainAxisAlignment(verticalAlign)}`);
     }
+    }
+
+    // ============================================================
+    // END: CONTAINER ALIGNMENT + DISTRIBUTION
+    // ============================================================
   }
 
-  // ============================================================
-  // END: CONTAINER ALIGNMENT + DISTRIBUTION
-  // ============================================================
-
   const classes = ["powershow-element", "powershow-container"];
+
+  if (isStack) {
+    classes.push("powershow-container-stack");
+  }
 
   if (element.role) {
     classes.push(`powershow-container-${element.role}`);
@@ -161,7 +208,13 @@ export function renderContainer(
 
   const tag = getTagName(element.role);
 
-  const children = element.children.map(renderChild).join("");
+  const children = element.children
+    .map((child) => {
+      const renderedChild = renderChild(child);
+
+      return isStack ? renderStackChild(renderedChild) : renderedChild;
+    })
+    .join("");
 
   const roleAttribute = element.role
     ? ` data-powershow-role="${escapeHtml(element.role)}"`
