@@ -4,6 +4,10 @@ import type {
   PositionAnchor,
   SignedLength,
 } from "@powershow/document-schema";
+import {
+  normalizeAuthoringLengthValue,
+  parseAuthoringLength,
+} from "@powershow/theme/element-style-defaults";
 
 export type PositionOffsetUnit = "px" | "%";
 
@@ -54,4 +58,68 @@ export function updatePlacementOffset(
       ? { ...placement, offsetX: offset }
       : { ...placement, offsetY: offset },
   );
+}
+
+export function isCanvasDraggable(style: ElementStyle | undefined): boolean {
+  return style?.placement?.mode === "absolute";
+}
+
+function getDraggedOffset(
+  currentOffset: SignedLength | undefined,
+  deltaPx: number,
+  parentDimensionPx: number,
+): SignedLength | undefined {
+  if (deltaPx === 0) {
+    return currentOffset;
+  }
+
+  const unit = getPositionOffsetUnit(currentOffset);
+  const parsed =
+    currentOffset === undefined ? { value: 0, unit } : parseAuthoringLength(currentOffset);
+  const currentValue = parsed?.value ?? 0;
+  const delta =
+    unit === "%" && parentDimensionPx > 0
+      ? (deltaPx / parentDimensionPx) * 100
+      : deltaPx;
+
+  return serializePositionOffset(
+    normalizeAuthoringLengthValue(currentValue + delta),
+    unit,
+  );
+}
+
+export function updatePlacementForCanvasDrag(
+  style: ElementStyle | undefined,
+  deltaX: number,
+  deltaY: number,
+  parentWidthPx: number,
+  parentHeightPx: number,
+): ElementStyle | undefined {
+  const placement = style?.placement;
+
+  if (placement?.mode !== "absolute") {
+    return style;
+  }
+
+  const offsetX = getDraggedOffset(
+    placement.offsetX,
+    deltaX,
+    parentWidthPx,
+  );
+  const offsetY = getDraggedOffset(
+    placement.offsetY,
+    deltaY,
+    parentHeightPx,
+  );
+
+  return offsetX === placement.offsetX && offsetY === placement.offsetY
+    ? style
+    : {
+        ...style,
+        placement: {
+          ...placement,
+          ...(offsetX === placement.offsetX ? {} : { offsetX }),
+          ...(offsetY === placement.offsetY ? {} : { offsetY }),
+        },
+      };
 }

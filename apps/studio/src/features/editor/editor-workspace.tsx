@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type {
+  PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { renderFontResources, renderSlide } from "@powershow/renderer";
 
@@ -20,6 +22,11 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
+import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
+import {
+  isCanvasDraggable,
+  updatePlacementForCanvasDrag,
+} from "./inspector/sections/element-placement-helpers";
 
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
@@ -128,6 +135,21 @@ interface SelectedElementInfo {
   type: string;
 }
 
+interface CanvasDragState {
+  pointerId: number;
+  elementId: string;
+  target: HTMLElement;
+  initialTranslate: string;
+  startClientX: number;
+  startClientY: number;
+  parentWidthPx: number;
+  parentHeightPx: number;
+  scaleX: number;
+  scaleY: number;
+  deltaX: number;
+  deltaY: number;
+}
+
 // ============================================================
 // END: TIPOS DO EDITOR
 // ============================================================
@@ -215,6 +237,7 @@ export function EditorWorkspace() {
   // ==========================================================
 
   const slideCanvasRef = useRef<HTMLDivElement>(null);
+  const canvasDragRef = useRef<CanvasDragState | null>(null);
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -337,20 +360,37 @@ export function EditorWorkspace() {
       element.classList.remove("powershow-editor-selected");
     });
 
-    if (!selectedElement) {
-      return;
-    }
+    const previousDraggables = canvas.querySelectorAll(
+      ".powershow-editor-draggable",
+    );
+
+    previousDraggables.forEach((element) => {
+      element.classList.remove("powershow-editor-draggable");
+    });
 
     const candidates = canvas.querySelectorAll<HTMLElement>(
       "[data-powershow-id]",
     );
+
+    candidates.forEach((candidate) => {
+      const id = candidate.dataset.powershowId;
+      const documentElement = id ? findElementById(selectedSlide?.elements ?? [], id) : null;
+
+      if (documentElement && isCanvasDraggable(documentElement.style)) {
+        candidate.classList.add("powershow-editor-draggable");
+      }
+    });
+
+    if (!selectedElement) {
+      return;
+    }
 
     const target = Array.from(candidates).find(
       (element) => element.dataset.powershowId === selectedElement.id,
     );
 
     target?.classList.add("powershow-editor-selected");
-  }, [locale, renderedSlide, selectedElement]);
+  }, [locale, renderedSlide, selectedElement, selectedSlide]);
 
   // ==========================================================
   // END: OUTLINE DO ELEMENTO SELECIONADO
@@ -379,33 +419,161 @@ export function EditorWorkspace() {
   // procuramos o ancestral mais próximo com data-powershow-id.
   // ==========================================================
 
-  function handleCanvasClick(event: ReactMouseEvent<HTMLDivElement>) {
-    const target = event.target;
+  function clearCanvasDragPreview() {
+    const drag = canvasDragRef.current;
 
-    if (!(target instanceof Element)) {
+    if (!drag) {
       return;
     }
 
-    const element = target.closest<HTMLElement>("[data-powershow-id]");
+    if (drag.initialTranslate) {
+      drag.target.style.setProperty("translate", drag.initialTranslate);
+    } else {
+      drag.target.style.removeProperty("translate");
+    }
 
-    if (!element) {
+    canvasDragRef.current = null;
+  }
+
+  function getCanvasLayoutParent(
+    canvas: HTMLDivElement,
+    elementId: string,
+  ): HTMLElement | null {
+    if (!selectedSlide) {
+      return null;
+    }
+
+    const position = findElementSiblingPosition(selectedSlide.elements, elementId);
+
+    if (!position) {
+      return null;
+    }
+
+    if (position.parentId === null) {
+      return canvas.querySelector<HTMLElement>(".powershow-slide");
+    }
+
+    return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
+      (candidate) => candidate.dataset.powershowId === position.parentId,
+    ) ?? null;
+  }
+
+  function handleCanvasPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    const target = event.target;
+
+    if (!(target instanceof Element) || !selectedSlide) {
+      return;
+    }
+
+    const elementTarget = target.closest<HTMLElement>("[data-powershow-id]");
+    const selection = resolveCanvasPointerSelection(
+      elementTarget
+        ? {
+            id: elementTarget.dataset.powershowId,
+            type: elementTarget.dataset.powershowType,
+          }
+        : null,
+      selectedSlide.elements,
+    );
+
+    if (!selection) {
       setSelectedElement(null);
 
       return;
     }
 
-    const id = element.dataset.powershowId;
+    setSelectedElement({ id: selection.id, type: selection.type });
 
-    const type = element.dataset.powershowType;
-
-    if (!id || !type) {
+    if (!isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
       return;
     }
 
-    setSelectedElement({
-      id,
-      type,
-    });
+    const layoutParent = getCanvasLayoutParent(event.currentTarget, selection.id);
+
+    if (!layoutParent) {
+      return;
+    }
+
+    const parentBounds = layoutParent.getBoundingClientRect();
+    const logicalWidth = layoutParent.offsetWidth || parentBounds.width;
+    const logicalHeight = layoutParent.offsetHeight || parentBounds.height;
+
+    if (logicalWidth <= 0 || logicalHeight <= 0) {
+      return;
+    }
+
+    event.preventDefault();
+    elementTarget.setPointerCapture(event.pointerId);
+    canvasDragRef.current = {
+      pointerId: event.pointerId,
+      elementId: selection.id,
+      target: elementTarget,
+      initialTranslate: elementTarget.style.getPropertyValue("translate"),
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      parentWidthPx: logicalWidth,
+      parentHeightPx: logicalHeight,
+      scaleX: parentBounds.width / logicalWidth || 1,
+      scaleY: parentBounds.height / logicalHeight || 1,
+      deltaX: 0,
+      deltaY: 0,
+    };
+  }
+
+  function handleCanvasPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = canvasDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    drag.deltaX = (event.clientX - drag.startClientX) / drag.scaleX;
+    drag.deltaY = (event.clientY - drag.startClientY) / drag.scaleY;
+    drag.target.style.setProperty("translate", `${drag.deltaX}px ${drag.deltaY}px`);
+  }
+
+  function commitCanvasDrag() {
+    const drag = canvasDragRef.current;
+
+    if (!drag || (drag.deltaX === 0 && drag.deltaY === 0)) {
+      clearCanvasDragPreview();
+      return;
+    }
+
+    clearCanvasDragPreview();
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: updateElementById(slide.elements, drag.elementId, (element) => {
+                const style = updatePlacementForCanvasDrag(
+                  element.style,
+                  drag.deltaX,
+                  drag.deltaY,
+                  drag.parentWidthPx,
+                  drag.parentHeightPx,
+                );
+
+                return style === element.style ? element : { ...element, style };
+              }),
+            }
+          : slide,
+      ),
+    }));
+  }
+
+  function handleCanvasPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (canvasDragRef.current?.pointerId === event.pointerId) {
+      commitCanvasDrag();
+    }
+  }
+
+  function handleCanvasPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+    if (canvasDragRef.current?.pointerId === event.pointerId) {
+      clearCanvasDragPreview();
+    }
   }
 
   // ==========================================================
@@ -1353,10 +1521,14 @@ export function EditorWorkspace() {
             )}
 
             <div
-              ref={slideCanvasRef}
-              className={styles.slideCanvas}
-              onClick={handleCanvasClick}
-              dangerouslySetInnerHTML={{
+               ref={slideCanvasRef}
+               className={styles.slideCanvas}
+               onPointerDown={handleCanvasPointerDown}
+               onPointerMove={handleCanvasPointerMove}
+               onPointerUp={handleCanvasPointerUp}
+               onPointerCancel={handleCanvasPointerCancel}
+               onLostPointerCapture={handleCanvasPointerCancel}
+               dangerouslySetInnerHTML={{
                 __html: renderedSlide,
               }}
             />

@@ -1031,6 +1031,12 @@
     3px;
 }
 
+.slideCanvas
+  :global(.powershow-editor-draggable) {
+  cursor: move;
+  touch-action: none;
+}
+
 /* ==========================================================
    END: SELEÇÃO PERSISTENTE NO CANVAS
    ========================================================== */
