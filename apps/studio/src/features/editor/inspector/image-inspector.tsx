@@ -15,6 +15,8 @@ import { ElementAppearanceSection } from "./sections/element-appearance-section"
 
 import { ElementEffectsSection } from "./sections/element-effects-section";
 
+import { ImageSizeSection } from "./sections/image-size-section";
+
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
 // ============================================================
@@ -135,9 +137,11 @@ export function ImageInspector({
             <option value="fill">{t("image.fill")}</option>
           </select>
         </label>
-      </InspectorSection>
+       </InspectorSection>
 
-      <ElementAppearanceSection
+       <ImageSizeSection element={element} onUpdateStyle={updateStyle} />
+
+       <ElementAppearanceSection
         element={element}
         onUpdateStyle={updateStyle}
         controlPrefix="image"
