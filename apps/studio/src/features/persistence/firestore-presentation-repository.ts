@@ -88,6 +88,8 @@ export class FirestorePresentationRepository
 
       return summaries;
     } catch (error) {
+      console.error("Failed to list presentations", error);
+
       throw new FirestoreOperationError(
         "Failed to list presentations.",
         error,
@@ -108,6 +110,8 @@ export class FirestorePresentationRepository
 
       return parsePersistedPresentation(snapshot.data());
     } catch (error) {
+      console.error(`Failed to read presentation "${id}"`, error);
+
       throw new FirestoreOperationError(
         `Failed to read presentation "${id}".`,
         error,
@@ -129,6 +133,8 @@ export class FirestorePresentationRepository
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
+      console.error("Failed to create presentation", error);
+
       throw new FirestoreOperationError(
         "Failed to create presentation.",
         error,
@@ -149,6 +155,8 @@ export class FirestorePresentationRepository
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
+      console.error(`Failed to save presentation "${presentation.id}"`, error);
+
       throw new FirestoreOperationError(
         `Failed to save presentation "${presentation.id}".`,
         error,
@@ -165,6 +173,8 @@ export class FirestorePresentationRepository
         archivedAt: serverTimestamp(),
       });
     } catch (error) {
+      console.error(`Failed to archive presentation "${id}"`, error);
+
       throw new FirestoreOperationError(
         `Failed to archive presentation "${id}".`,
         error,

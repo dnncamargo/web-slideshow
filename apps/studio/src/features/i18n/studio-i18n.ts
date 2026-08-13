@@ -30,7 +30,7 @@ const englishMessages = {
   "locale.pt-BR": "Português",
 
   "topbar.editor": "Editor",
-  "topbar.localDraft": "Local draft",
+  "topbar.localDraft": "Draft",
 
   "slides.title": "Slides",
   "slides.new": "+ New slide",
@@ -392,6 +392,27 @@ const englishMessages = {
   "home.center": "center.",
   "home.deploy": "Deploy Now",
   "home.documentation": "Documentation",
+
+  "library.title": "Presentations",
+  "library.new": "+ New presentation",
+  "library.loading": "Loading presentations…",
+  "library.empty": "No presentations yet. Create your first presentation to get started.",
+  "library.couldNotLoad": "Could not load presentations.",
+  "library.retry": "Retry",
+  "library.creating": "Creating presentation…",
+  "library.couldNotCreate": "Could not create presentation.",
+  "library.open": "Open",
+  "library.opening": "Opening…",
+  "library.couldNotOpen": "Could not open presentation.",
+  "library.notFound": "Presentation not found.",
+  "library.archive": "Archive",
+  "library.archiving": "Archiving…",
+  "library.couldNotArchive": "Could not archive presentation.",
+  "library.untitled": "Untitled",
+
+  "public.noLive": "No live presentation",
+  "public.studio": "Studio",
+  "public.play": "Play",
 } as const;
 
 // ============================================================
@@ -412,7 +433,7 @@ const portugueseMessages = {
   "locale.pt-BR": "Português",
 
   "topbar.editor": "Editor",
-  "topbar.localDraft": "Rascunho local",
+  "topbar.localDraft": "Rascunho",
 
   "slides.title": "Slides",
   "slides.new": "+ Novo slide",
@@ -780,6 +801,27 @@ const portugueseMessages = {
   "home.center": ".",
   "home.deploy": "Implantar agora",
   "home.documentation": "Documentação",
+
+  "library.title": "Apresentações",
+  "library.new": "+ Nova apresentação",
+  "library.loading": "Carregando apresentações…",
+  "library.empty": "Nenhuma apresentação ainda. Crie sua primeira apresentação para começar.",
+  "library.couldNotLoad": "Não foi possível carregar as apresentações.",
+  "library.retry": "Tentar novamente",
+  "library.creating": "Criando apresentação…",
+  "library.couldNotCreate": "Não foi possível criar a apresentação.",
+  "library.open": "Abrir",
+  "library.opening": "Abrindo…",
+  "library.couldNotOpen": "Não foi possível abrir a apresentação.",
+  "library.notFound": "Apresentação não encontrada.",
+  "library.archive": "Arquivar",
+  "library.archiving": "Arquivando…",
+  "library.couldNotArchive": "Não foi possível arquivar a apresentação.",
+  "library.untitled": "Sem título",
+
+  "public.noLive": "Nenhuma apresentação ao vivo",
+  "public.studio": "Studio",
+  "public.play": "Apresentar",
 } satisfies StudioMessages;
 
 // ============================================================
