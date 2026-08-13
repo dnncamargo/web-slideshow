@@ -60,7 +60,9 @@ export function PresentationLibrary({
 
       setSummaries(items);
       setStatus("ready");
-    } catch {
+    } catch (error) {
+      console.error("Library: could not load presentations", error);
+
       if (mountedRef.current) {
         setLoadError(true);
         setStatus("error");
@@ -90,7 +92,9 @@ export function PresentationLibrary({
 
       storeOpenedPresentation(presentation);
       router.push("/studio/editor");
-    } catch {
+    } catch (error) {
+      console.error("Library: could not create presentation", error);
+
       if (mountedRef.current) {
         setCreateError(t("library.couldNotCreate"));
       }

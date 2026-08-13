@@ -1,20 +1,14 @@
-"use client";
-
-import { readOpenedPresentation } from "@/features/editor/opened-presentation-store";
-import {
-  EditorWorkspace,
-} from "@/features/editor/editor-workspace";
+import { StudioEditorMount } from "@/features/editor/studio-editor-mount";
 
 // ============================================================
 // BEGIN: STUDIO EDITOR PAGE
+//
+// Server-safe wrapper. All sessionStorage access happens in the
+// client-only StudioEditorMount component.
 // ============================================================
 
 export default function StudioEditorPage() {
-  return (
-    <EditorWorkspace
-      initialPresentation={readOpenedPresentation() ?? undefined}
-    />
-  );
+  return <StudioEditorMount />;
 }
 
 // ============================================================

@@ -30,7 +30,7 @@ const englishMessages = {
   "locale.pt-BR": "Português",
 
   "topbar.editor": "Editor",
-  "topbar.localDraft": "Local draft",
+  "topbar.localDraft": "Draft",
 
   "slides.title": "Slides",
   "slides.new": "+ New slide",
@@ -433,7 +433,7 @@ const portugueseMessages = {
   "locale.pt-BR": "Português",
 
   "topbar.editor": "Editor",
-  "topbar.localDraft": "Rascunho local",
+  "topbar.localDraft": "Rascunho",
 
   "slides.title": "Slides",
   "slides.new": "+ Novo slide",

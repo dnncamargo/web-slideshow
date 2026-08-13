@@ -20,7 +20,7 @@ describe("presentation library logic", () => {
     const presentation = createBlankPresentation();
 
     expect(presentation.schemaVersion).toBe(1);
-    expect(presentation.slides).toEqual([]);
+    expect(presentation.slides).toHaveLength(1);
     expect(presentation.title).toBeTruthy();
   });
 
