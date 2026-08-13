@@ -252,7 +252,11 @@ const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
 // element-inspector.tsx.
 // ============================================================
 
-export function EditorWorkspace() {
+export function EditorWorkspace({
+  initialPresentation,
+}: {
+  initialPresentation?: Presentation;
+} = {}) {
   const { locale, setLocale, t } = useStudioI18n();
 
   // ==========================================================
@@ -260,7 +264,9 @@ export function EditorWorkspace() {
   // ==========================================================
 
   const [presentation, setPresentation] = useState<Presentation>(() =>
-    structuredClone(editorDemoPresentation),
+    initialPresentation
+      ? structuredClone(initialPresentation)
+      : structuredClone(editorDemoPresentation),
   );
 
   // ==========================================================

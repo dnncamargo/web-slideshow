@@ -1,0 +1,141 @@
+.library {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: #0b0f17;
+  color: #cbd5e1;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #232a36;
+  background: #111620;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.content {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.primaryButton {
+  padding: 8px 14px;
+  border: 1px solid #0e7490;
+  border-radius: 6px;
+  background: #164e63;
+  color: #ecfeff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primaryButton:hover:not(:disabled) {
+  border-color: #22d3ee;
+  background: #0f394e;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stateBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  color: #94a3b8;
+}
+
+.errorText {
+  color: #f87171;
+}
+
+.stateBlock button {
+  padding: 6px 12px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #141a24;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #232a36;
+  border-radius: 8px;
+  background: #111620;
+}
+
+.cardInfo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.cardInfo strong {
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardInfo span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.cardActions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.cardActions button {
+  padding: 6px 10px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cardActions button:hover:not(:disabled) {
+  border-color: #475569;
+  background: #141a24;
+}
+
+.cardActions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
