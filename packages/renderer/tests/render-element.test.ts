@@ -86,6 +86,43 @@ describe("renderElement", () => {
     expect(html).toContain('alt="Example image"');
 
     expect(html).toContain("object-fit:contain");
+    expect(html).toContain("object-position:50% 50%");
+  });
+
+  it("renders an image focal point without changing fit or size styles", () => {
+    const html = renderElement({
+      type: "image",
+      id: "focal-image",
+      hidden: false,
+      src: "/assets/example.png",
+      alt: "Example image",
+      fit: "cover",
+      focalPoint: { x: 25, y: 70 },
+      style: { width: "60%", height: 200, borderRadius: 8 },
+    });
+
+    expect(html).toContain("object-fit:cover");
+    expect(html).toContain("object-position:25% 70%");
+    expect(html).toContain("width:60%");
+    expect(html).toContain("height:200px");
+    expect(html).toContain("border-radius:8px");
+  });
+
+  it.each([
+    [{ x: 0, y: 0 }, "object-position:0% 0%"],
+    [{ x: 100, y: 100 }, "object-position:100% 100%"],
+  ] as const)("renders extreme focal point %o", (focalPoint, expected) => {
+    const html = renderElement({
+      type: "image",
+      id: "focal-image",
+      hidden: false,
+      src: "/assets/example.png",
+      alt: "Example image",
+      fit: "cover",
+      focalPoint,
+    });
+
+    expect(html).toContain(expected);
   });
 
   it("escapes image attributes", () => {

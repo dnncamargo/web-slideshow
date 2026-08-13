@@ -64,6 +64,13 @@ export const ImageElementSchema =
       "cover",
       "fill",
     ]).default("contain"),
+
+    focalPoint: z
+      .object({
+        x: z.number().min(0).max(100),
+        y: z.number().min(0).max(100),
+      })
+      .optional(),
   });
 
 export type ImageElement =

@@ -1107,6 +1107,46 @@
   height: 1px;
 }
 
+.imageFocalPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 24px);
+  gap: 4px;
+}
+
+.imageFocalPreset {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: #141a24;
+  cursor: pointer;
+}
+
+.imageFocalPreset::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 5px;
+  margin: auto;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.imageFocalPresetActive {
+  border-color: #22d3ee;
+  background: #164e63;
+}
+
+.imageFocalPresetActive::after {
+  background: #ecfeff;
+}
+
+.imageFocalPreset:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ==========================================================
    END: SELEÇÃO PERSISTENTE NO CANVAS
    ========================================================== */

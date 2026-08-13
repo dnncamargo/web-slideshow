@@ -100,7 +100,7 @@ function renderImage(element: ImageElement): string {
   const attributes = buildAttributes(
     element,
     ["powershow-image"],
-    `object-fit:${element.fit}`,
+    `object-fit:${element.fit};object-position:${element.focalPoint?.x ?? 50}% ${element.focalPoint?.y ?? 50}%`,
   );
 
   return (
