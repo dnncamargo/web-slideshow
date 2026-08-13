@@ -49,8 +49,7 @@ function serializeResizedDimension(
   value: number,
   original: number | string | undefined,
   parentDimension: number,
-): number | string {
-  const parsed = original === undefined ? undefined : parseAuthoringLength(original);
+): number | string {  const parsed = original === undefined ? undefined : parseAuthoringLength(original);
   const normalized = normalizeAuthoringLengthValue(value);
 
   if (parsed?.unit === "%" && parentDimension > 0) {
@@ -130,6 +129,104 @@ export function updateStyleForCanvasResize(
     ...style,
     ...(deltas.width === 0 ? {} : { width }),
     ...(deltas.height === 0 ? {} : { height }),
+  };
+}
+
+const RATIO_EPSILON = 1e-9;
+
+export const DEFAULT_IMAGE_PROPORTION_PRESERVED = true as const;
+
+export const CANVAS_IMAGE_CORNER_DIRECTIONS: readonly CanvasResizeDirection[] = [
+  "nw",
+  "ne",
+  "sw",
+  "se",
+];
+
+export interface ProportionalResizeResult {
+  width: number;
+  height: number;
+  ratio: number;
+}
+
+/**
+ * Compute a deterministic proportional result for a locked corner resize.
+ *
+ * The gesture provides both horizontal and vertical logical deltas. The
+ * primary dimension is the one whose relative change is larger; the secondary
+ * dimension is derived from the fixed ratio. This keeps locking predictable
+ * and never distorts the box.
+ */
+export function resolveProportionalResize(
+  direction: CanvasResizeDirection,
+  deltaX: number,
+  deltaY: number,
+  initialWidthPx: number,
+  initialHeightPx: number,
+): ProportionalResizeResult {
+  const deltas = getCanvasResizeDeltas(direction, deltaX, deltaY);
+  const candidateWidth = Math.max(MINIMUM_SIZE_PX, initialWidthPx + deltas.width);
+  const candidateHeight = Math.max(
+    MINIMUM_SIZE_PX,
+    initialHeightPx + deltas.height,
+  );
+  const ratio =
+    initialHeightPx > RATIO_EPSILON
+      ? initialWidthPx / initialHeightPx
+      : 1;
+  const relativeWidth = (candidateWidth - initialWidthPx) / initialWidthPx;
+  const relativeHeight =
+    (candidateHeight - initialHeightPx) / initialHeightPx;
+  const primaryIsWidth = Math.abs(relativeWidth) >= Math.abs(relativeHeight);
+
+  let width: number;
+  let height: number;
+
+  if (primaryIsWidth) {
+    width = candidateWidth;
+    height = width / ratio;
+  } else {
+    height = candidateHeight;
+    width = height * ratio;
+  }
+
+  if (width < MINIMUM_SIZE_PX) {
+    width = MINIMUM_SIZE_PX;
+    height = width / ratio;
+  } else if (height < MINIMUM_SIZE_PX) {
+    height = MINIMUM_SIZE_PX;
+    width = height * ratio;
+  }
+
+  return { width, height, ratio };
+}
+
+export function updateStyleForProportionalResize(
+  style: ElementStyle | undefined,
+  direction: CanvasResizeDirection,
+  deltaX: number,
+  deltaY: number,
+  initialWidthPx: number,
+  initialHeightPx: number,
+  parentWidthPx: number,
+  parentHeightPx: number,
+): ElementStyle | undefined {
+  if (deltaX === 0 && deltaY === 0) {
+    return style;
+  }
+
+  const { width, height } = resolveProportionalResize(
+    direction,
+    deltaX,
+    deltaY,
+    initialWidthPx,
+    initialHeightPx,
+  );
+
+  return {
+    ...style,
+    width: serializeResizedDimension(width, style?.width, parentWidthPx),
+    height: serializeResizedDimension(height, style?.height, parentHeightPx),
   };
 }
 

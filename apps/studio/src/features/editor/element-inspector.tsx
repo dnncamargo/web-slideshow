@@ -30,6 +30,10 @@ interface ElementInspectorProps {
 
   fontResourceControls: FontResourceControls;
 
+  preserveImageProportion: boolean;
+
+  onPreserveImageProportionChange: (value: boolean) => void;
+
   parent: ContainerElement | null;
 
   layerControls: {
@@ -51,6 +55,8 @@ function ElementTypeInspector({
   element,
   onUpdate,
   fontResourceControls,
+  preserveImageProportion,
+  onPreserveImageProportionChange,
   unsupportedElementHint,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
@@ -84,7 +90,14 @@ function ElementTypeInspector({
       return <TerminalInspector element={element} onUpdate={onUpdate} />;
 
     case "image":
-      return <ImageInspector element={element} onUpdate={onUpdate} />;
+      return (
+        <ImageInspector
+          element={element}
+          onUpdate={onUpdate}
+          preserveImageProportion={preserveImageProportion}
+          onPreserveImageProportionChange={onPreserveImageProportionChange}
+        />
+      );
 
     case "table":
       return <TableInspector element={element} onUpdate={onUpdate} />;
@@ -113,6 +126,8 @@ export function ElementInspector({
   element,
   onUpdate,
   fontResourceControls,
+  preserveImageProportion,
+  onPreserveImageProportionChange,
   parent,
   layerControls,
 }: ElementInspectorProps) {
@@ -146,6 +161,8 @@ export function ElementInspector({
         element={element}
         onUpdate={onUpdate}
         fontResourceControls={fontResourceControls}
+        preserveImageProportion={preserveImageProportion}
+        onPreserveImageProportionChange={onPreserveImageProportionChange}
         parent={parent}
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}

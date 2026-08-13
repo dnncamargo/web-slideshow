@@ -31,13 +31,17 @@ import {
   type CanvasSnapGuide,
 } from "./canvas-snap-helpers";
 import {
+  CANVAS_IMAGE_CORNER_DIRECTIONS,
+  DEFAULT_IMAGE_PROPORTION_PRESERVED,
   getCanvasResizeCursor,
   getCanvasResizeDeltas,
   getCanvasResizePlacementAdjustment,
   isCanvasResizable,
+  resolveProportionalResize,
   toLogicalCanvasResizeDelta,
   type CanvasResizeDirection,
   updateStyleForCanvasResize,
+  updateStyleForProportionalResize,
 } from "./canvas-resize-helpers";
 import {
   isCanvasDraggable,
@@ -254,6 +258,10 @@ export function EditorWorkspace() {
 
   const [rightPanelView, setRightPanelView] = useState<"inspector" | "elements">(
     "inspector",
+  );
+
+  const [preserveImageProportion, setPreserveImageProportion] = useState<boolean>(
+    DEFAULT_IMAGE_PROPORTION_PRESERVED,
   );
 
   // ==========================================================
@@ -840,7 +848,9 @@ export function EditorWorkspace() {
         (guide): guide is CanvasSnapGuide => guide !== null,
       ),
     );
-    const deltas = getCanvasResizeDeltas(
+    const locked =
+      selectedDocumentElement?.type === "image" && preserveImageProportion;
+    const previewDeltas = locked ? null : getCanvasResizeDeltas(
       resize.direction,
       resize.deltaX,
       resize.deltaY,
@@ -848,10 +858,32 @@ export function EditorWorkspace() {
 
     setCanvasResizeOverlay({
       ...resize.initialOverlay,
-      left: resize.initialOverlay.left + deltas.offsetX * resize.scaleX,
-      top: resize.initialOverlay.top + deltas.offsetY * resize.scaleY,
-      width: Math.max(1, resize.initialWidthPx + deltas.width) * resize.scaleX,
-      height: Math.max(1, resize.initialHeightPx + deltas.height) * resize.scaleY,
+      left:
+        resize.initialOverlay.left +
+        getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY).offsetX * resize.scaleX,
+      top:
+        resize.initialOverlay.top +
+        getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY).offsetY * resize.scaleY,
+      width: (locked
+        ? resolveProportionalResize(
+            resize.direction,
+            resize.deltaX,
+            resize.deltaY,
+            resize.initialWidthPx,
+            resize.initialHeightPx,
+          ).width
+        : Math.max(1, resize.initialWidthPx + (previewDeltas?.width ?? 0))
+      ) * resize.scaleX,
+      height: (locked
+        ? resolveProportionalResize(
+            resize.direction,
+            resize.deltaX,
+            resize.deltaY,
+            resize.initialWidthPx,
+            resize.initialHeightPx,
+          ).height
+        : Math.max(1, resize.initialHeightPx + (previewDeltas?.height ?? 0))
+      ) * resize.scaleY,
     });
   }
 
@@ -872,16 +904,29 @@ export function EditorWorkspace() {
           ? {
               ...slide,
               elements: updateElementById(slide.elements, resize.elementId, (element) => {
-                const resizedStyle = updateStyleForCanvasResize(
-                  element.style,
-                  resize.direction,
-                  resize.deltaX,
-                  resize.deltaY,
-                  resize.initialWidthPx,
-                  resize.initialHeightPx,
-                  resize.parentWidthPx,
-                  resize.parentHeightPx,
-                );
+                const locked =
+                  element.type === "image" && preserveImageProportion;
+                const resizedStyle = locked
+                  ? updateStyleForProportionalResize(
+                      element.style,
+                      resize.direction,
+                      resize.deltaX,
+                      resize.deltaY,
+                      resize.initialWidthPx,
+                      resize.initialHeightPx,
+                      resize.parentWidthPx,
+                      resize.parentHeightPx,
+                    )
+                  : updateStyleForCanvasResize(
+                      element.style,
+                      resize.direction,
+                      resize.deltaX,
+                      resize.deltaY,
+                      resize.initialWidthPx,
+                      resize.initialHeightPx,
+                      resize.parentWidthPx,
+                      resize.parentHeightPx,
+                    );
                 const adjustment = getCanvasResizePlacementAdjustment(
                   resize.direction,
                   resize.deltaX,
@@ -1882,7 +1927,10 @@ export function EditorWorkspace() {
                   height: `${canvasResizeOverlay.height}px`,
                 }}
               >
-                {CANVAS_RESIZE_DIRECTIONS.map((direction) => (
+                {(selectedDocumentElement?.type === "image" && preserveImageProportion
+                  ? CANVAS_IMAGE_CORNER_DIRECTIONS
+                  : CANVAS_RESIZE_DIRECTIONS
+                ).map((direction) => (
                   <button
                     key={direction}
                     className={`${styles.canvasResizeHandle} ${styles[`canvasResizeHandle${direction.toUpperCase()}`]}`}
@@ -2010,6 +2058,8 @@ export function EditorWorkspace() {
                    <ElementInspector
                      element={selectedDocumentElement}
                      onUpdate={updateSelectedElement}
+                     preserveImageProportion={preserveImageProportion}
+                     onPreserveImageProportionChange={setPreserveImageProportion}
                       fontResourceControls={{
                        fontResources: presentation.resources?.fonts ?? [],
                        onAddFontFace: addFontFace,

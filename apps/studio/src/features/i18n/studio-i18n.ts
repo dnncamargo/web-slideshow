@@ -352,6 +352,9 @@ const englishMessages = {
   "image.contain": "Contain",
   "image.cover": "Cover",
   "image.fill": "Fill",
+  "image.preserveProportion": "Preserve proportion",
+  "image.preserveProportionHelp":
+    "Preserves the image proportion when resizing it directly on the Canvas.",
 
   "table.text": "Text",
   "table.number": "Number",
@@ -731,6 +734,9 @@ const portugueseMessages = {
   "image.contain": "Conter",
   "image.cover": "Cobrir",
   "image.fill": "Preencher",
+  "image.preserveProportion": "Preservar proporção",
+  "image.preserveProportionHelp":
+    "Preserva a proporção da imagem ao redimensioná-la diretamente no Canvas.",
 
   "table.text": "Texto",
   "table.number": "Número",

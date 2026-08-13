@@ -21,6 +21,10 @@ interface ImageSizeSectionProps {
   element: ImageElement;
 
   onUpdateStyle: UpdateElementStyle;
+
+  preserveImageProportion: boolean;
+
+  onPreserveImageProportionChange: (value: boolean) => void;
 }
 
 function getInitialUnit(
@@ -41,6 +45,8 @@ function getInitialUnit(
 export function ImageSizeSection({
   element,
   onUpdateStyle,
+  preserveImageProportion,
+  onPreserveImageProportionChange,
 }: ImageSizeSectionProps) {
   const { t } = useStudioI18n();
 
@@ -49,6 +55,22 @@ export function ImageSizeSection({
 
   return (
     <InspectorSection title={t("inspector.size")}>
+      <label className={styles.checkboxRow}>
+        <span title={t("image.preserveProportionHelp")}>
+          {t("image.preserveProportion")}
+        </span>
+
+        <input
+          id="image-preserve-proportion"
+          name="imagePreserveProportion"
+          type="checkbox"
+          checked={preserveImageProportion}
+          onChange={(event) => {
+            onPreserveImageProportionChange(event.target.checked);
+          }}
+        />
+      </label>
+
       <div className={styles.fieldGrid}>
         <label className={styles.field}>
           <span>{t("inspector.width")}</span>
