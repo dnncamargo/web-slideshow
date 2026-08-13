@@ -74,6 +74,38 @@
   white-space: nowrap;
 }
 
+.saveButton {
+  height: 28px;
+
+  padding: 0 14px;
+
+  border: 1px solid #0e7490;
+
+  border-radius: 6px;
+
+  background: #164e63;
+
+  color: #ecfeff;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.saveButton:hover:not(:disabled) {
+  border-color: #22d3ee;
+
+  background: #0f394e;
+}
+
+.saveButton:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
 /* ==========================================================
    BEGIN: STUDIO LANGUAGE SELECTOR
    ========================================================== */

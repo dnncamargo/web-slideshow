@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type {
   PointerEvent as ReactPointerEvent,
@@ -22,6 +22,11 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
+import {
+  editorSaveReducer,
+  isSaveEnabled,
+  resolveSaveStatus,
+} from "./editor-save-state";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
   getEffectiveImageFocalPoint,
@@ -254,8 +259,10 @@ const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
 
 export function EditorWorkspace({
   initialPresentation,
+  onSave,
 }: {
   initialPresentation?: Presentation;
+  onSave?: (presentation: Presentation) => Promise<void>;
 } = {}) {
   const { locale, setLocale, t } = useStudioI18n();
 
@@ -263,11 +270,23 @@ export function EditorWorkspace({
   // BEGIN: DOCUMENTO EDITÁVEL
   // ==========================================================
 
-  const [presentation, setPresentation] = useState<Presentation>(() =>
-    initialPresentation
+  const initialEditableRef = useRef<Presentation | null>(null);
+
+  if (initialEditableRef.current === null) {
+    initialEditableRef.current = initialPresentation
       ? structuredClone(initialPresentation)
-      : structuredClone(editorDemoPresentation),
+      : structuredClone(editorDemoPresentation);
+  }
+
+  const [presentation, setPresentation] = useState<Presentation>(
+    initialEditableRef.current,
   );
+
+  const [saveState, dispatchSave] = useReducer(editorSaveReducer, {
+    lastSavedPresentation: initialEditableRef.current,
+    isSaving: false,
+    hasSaveError: false,
+  });
 
   // ==========================================================
   // END: DOCUMENTO EDITÁVEL
@@ -1182,6 +1201,40 @@ export function EditorWorkspace({
     }));
   }
 
+  // ==========================================================
+  // BEGIN: EXPLICIT SAVE
+  // ==========================================================
+
+  const saveStatus = resolveSaveStatus(saveState, presentation);
+  const saveEnabled = isSaveEnabled(saveState, presentation, onSave !== undefined);
+
+  function handleSave() {
+    if (!onSave || saveState.isSaving) {
+      return;
+    }
+
+    if (presentation === saveState.lastSavedPresentation) {
+      return;
+    }
+
+    const snapshot = presentation;
+
+    dispatchSave({ type: "save-start" });
+
+    onSave(snapshot)
+      .then(() => {
+        dispatchSave({ type: "save-success", presentation: snapshot });
+      })
+      .catch((error) => {
+        console.error("Failed to save presentation", error);
+        dispatchSave({ type: "save-error" });
+      });
+  }
+
+  // ==========================================================
+  // END: EXPLICIT SAVE
+  // ==========================================================
+
   function addFontFace(family: string, face: FontFaceResource) {
     setPresentation((current) => {
       const parsedFace = FontFaceResourceSchema.safeParse(face);
@@ -1893,13 +1946,40 @@ export function EditorWorkspace({
         ====================================================== */}
 
           {/* ======================================================
-        BEGIN: LOCAL DRAFT STATUS
+        BEGIN: SAVE STATUS
         ====================================================== */}
 
-          <span className={styles.status}>{t("topbar.localDraft")}</span>
+          <span className={styles.status}>
+            {saveStatus === "saving"
+              ? t("topbar.saving")
+              : saveStatus === "error"
+                ? t("topbar.saveFailed")
+                : saveStatus === "dirty"
+                  ? t("topbar.unsavedChanges")
+                  : t("topbar.saved")}
+          </span>
 
           {/* ======================================================
-        END: LOCAL DRAFT STATUS
+        END: SAVE STATUS
+        ====================================================== */}
+
+          {/* ======================================================
+        BEGIN: SAVE BUTTON
+        ====================================================== */}
+
+          {onSave && (
+            <button
+              type="button"
+              className={styles.saveButton}
+              disabled={!saveEnabled}
+              onClick={handleSave}
+            >
+              {t("topbar.save")}
+            </button>
+          )}
+
+          {/* ======================================================
+        END: SAVE BUTTON
         ====================================================== */}
         </div>
 
