@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
-import { storeOpenedPresentation } from "@/features/editor/opened-presentation-store";
+import { buildStudioEditorHref } from "@/features/app/studio-routes";
 
 import {
   createBlankPresentation,
@@ -90,8 +90,7 @@ export function PresentationLibrary({
         return;
       }
 
-      storeOpenedPresentation(presentation);
-      router.push("/studio/editor");
+      router.push(buildStudioEditorHref(presentation.id));
     } catch (error) {
       console.error("Library: could not create presentation", error);
 
@@ -106,39 +105,15 @@ export function PresentationLibrary({
   }, [creating, repository, router, t]);
 
   const handleOpen = useCallback(
-    async (id: string) => {
+    (id: string) => {
       if (openingId !== null) {
         return;
       }
 
       setOpeningId(id);
-
-      try {
-        const presentation = await repository.getPresentation(id);
-
-        if (!mountedRef.current) {
-          return;
-        }
-
-        if (!presentation) {
-          setCreateError(t("library.notFound"));
-
-          return;
-        }
-
-        storeOpenedPresentation(presentation);
-        router.push("/studio/editor");
-      } catch {
-        if (mountedRef.current) {
-          setCreateError(t("library.couldNotOpen"));
-        }
-      } finally {
-        if (mountedRef.current) {
-          setOpeningId(null);
-        }
-      }
+      router.push(buildStudioEditorHref(id));
     },
-    [openingId, repository, router, t],
+    [openingId, router],
   );
 
   const handleArchive = useCallback(

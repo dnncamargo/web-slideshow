@@ -410,6 +410,10 @@ const englishMessages = {
   "library.couldNotArchive": "Could not archive presentation.",
   "library.untitled": "Untitled",
 
+  "editor.loading": "Loading presentation…",
+  "editor.couldNotLoad": "Could not load presentation.",
+  "editor.backToLibrary": "Back to Library",
+
   "public.noLive": "No live presentation",
   "public.studio": "Studio",
   "public.play": "Play",
@@ -818,6 +822,10 @@ const portugueseMessages = {
   "library.archiving": "Arquivando…",
   "library.couldNotArchive": "Não foi possível arquivar a apresentação.",
   "library.untitled": "Sem título",
+
+  "editor.loading": "Carregando apresentação…",
+  "editor.couldNotLoad": "Não foi possível carregar a apresentação.",
+  "editor.backToLibrary": "Voltar à biblioteca",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
   "public.studio": "Studio",

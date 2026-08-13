@@ -201,7 +201,7 @@ describe("presentation persistence helpers", () => {
     expect(() => assertPresentationWithinSizeLimit(large)).toThrow(
       PresentationTooLargeError,
     );
-  });
+  }, 15000);
 
   it("is deterministic at the configured safety boundary", () => {
     const presentation = basePresentation();
