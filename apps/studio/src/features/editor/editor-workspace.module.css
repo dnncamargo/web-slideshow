@@ -1107,6 +1107,27 @@
   height: 1px;
 }
 
+.canvasFocalMarker {
+  position: fixed;
+  z-index: 11;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #ecfeff;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.78);
+  color: #22d3ee;
+  font-size: 18px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+}
+
+.canvasFocalMarker:active {
+  cursor: grabbing;
+}
+
 .imageFocalPresetGrid {
   display: grid;
   grid-template-columns: repeat(3, 24px);

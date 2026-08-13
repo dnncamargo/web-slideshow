@@ -20,6 +20,7 @@ import {
   getEffectiveImageFocalPoint,
   getImageFocalPointPresetIndex,
   IMAGE_FOCAL_POINT_PRESETS,
+  isImageFocalPointResetAvailable,
   updateImageFocalPoint,
 } from "./sections/image-focal-point-helpers";
 
@@ -46,9 +47,13 @@ export function ImageInspector({
   onUpdate,
   preserveImageProportion,
   onPreserveImageProportionChange,
+  focalEditing,
+  onFocalEditingChange,
 }: TypedInspectorProps<ImageElement> & {
   preserveImageProportion: boolean;
   onPreserveImageProportionChange: (value: boolean) => void;
+  focalEditing: boolean;
+  onFocalEditingChange: (editing: boolean) => void;
 }) {
   const { t } = useStudioI18n();
 
@@ -67,7 +72,6 @@ export function ImageInspector({
   };
   const focalPoint = getEffectiveImageFocalPoint(element.focalPoint);
   const activeFocalPreset = getImageFocalPointPresetIndex(focalPoint);
-  const focalPointIsRelevant = element.fit === "cover";
 
   return (
     <>
@@ -167,7 +171,7 @@ export function ImageInspector({
         <div className={styles.field}>
           <span title={t("image.focalPointHelp")}>{t("image.focalPoint")}</span>
 
-          <div className={styles.imageFocalPresetGrid} aria-disabled={!focalPointIsRelevant}>
+          <div className={styles.imageFocalPresetGrid}>
             {IMAGE_FOCAL_POINT_PRESETS.map((preset, index) => (
               <button
                 key={`${preset.x}-${preset.y}`}
@@ -177,7 +181,6 @@ export function ImageInspector({
                     : styles.imageFocalPreset
                 }
                 type="button"
-                disabled={!focalPointIsRelevant}
                 aria-label={t(FOCAL_PRESET_LABEL_KEYS[index]!)}
                 aria-pressed={activeFocalPreset === index}
                 onClick={() => {
@@ -202,7 +205,6 @@ export function ImageInspector({
                     type="number"
                     min="0"
                     max="100"
-                    disabled={!focalPointIsRelevant}
                     value={focalPoint[axis]}
                     onChange={(event) => {
                       const value = Number(event.target.value);
@@ -234,7 +236,7 @@ export function ImageInspector({
           <button
             className={styles.secondaryButton}
             type="button"
-            disabled={!focalPointIsRelevant || element.focalPoint === undefined}
+            disabled={!isImageFocalPointResetAvailable(element.focalPoint)}
             onClick={() => {
               onUpdate((current) =>
                 current.type === "image"
@@ -244,6 +246,16 @@ export function ImageInspector({
             }}
           >
             {t("image.resetFocalPoint")}
+          </button>
+
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => {
+              onFocalEditingChange(!focalEditing);
+            }}
+          >
+            {t(focalEditing ? "image.doneFocalPoint" : "image.editFocalPointOnCanvas")}
           </button>
         </div>
        </InspectorSection>

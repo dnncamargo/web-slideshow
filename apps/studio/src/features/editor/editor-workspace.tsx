@@ -24,6 +24,11 @@ import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
+  getEffectiveImageFocalPoint,
+  getImageFocalPointFromClientPosition,
+  type ImageFocalPoint,
+} from "./inspector/sections/image-focal-point-helpers";
+import {
   buildCanvasSnapCandidates,
   resolveCanvasAxisSnap,
   type CanvasBounds,
@@ -201,6 +206,21 @@ interface CanvasResizeState {
   guideBounds: CanvasBounds;
 }
 
+interface CanvasFocalOverlay {
+  elementId: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface CanvasFocalDragState {
+  pointerId: number;
+  imageId: string;
+  handle: HTMLElement;
+  bounds: CanvasFocalOverlay;
+}
+
 const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
   "nw",
   "n",
@@ -263,6 +283,9 @@ export function EditorWorkspace() {
   const [preserveImageProportion, setPreserveImageProportion] = useState<boolean>(
     DEFAULT_IMAGE_PROPORTION_PRESERVED,
   );
+  const [focalEditingImageId, setFocalEditingImageId] = useState<string | null>(
+    null,
+  );
 
   // ==========================================================
   // END: SELEÇÃO
@@ -305,10 +328,15 @@ export function EditorWorkspace() {
   const slideCanvasRef = useRef<HTMLDivElement>(null);
   const canvasDragRef = useRef<CanvasDragState | null>(null);
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
+  const canvasFocalDragRef = useRef<CanvasFocalDragState | null>(null);
   const [canvasResizeOverlay, setCanvasResizeOverlay] =
     useState<CanvasResizeOverlay | null>(null);
   const [canvasGuides, setCanvasGuides] = useState<CanvasSnapGuide[]>([]);
   const [canvasGuideBounds, setCanvasGuideBounds] = useState<CanvasBounds | null>(null);
+  const [canvasFocalOverlay, setCanvasFocalOverlay] =
+    useState<CanvasFocalOverlay | null>(null);
+  const [canvasFocalPreview, setCanvasFocalPreview] =
+    useState<ImageFocalPoint | null>(null);
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -403,6 +431,11 @@ export function EditorWorkspace() {
     () => renderFontResources(presentation.resources?.fonts),
     [presentation.resources?.fonts],
   );
+  const displayedCanvasFocalPoint =
+    selectedDocumentElement?.type === "image"
+      ? (canvasFocalPreview ??
+        getEffectiveImageFocalPoint(selectedDocumentElement.focalPoint))
+      : null;
 
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
@@ -478,6 +511,60 @@ export function EditorWorkspace() {
       height: bounds.height,
     });
   }, [locale, renderedSlide, selectedDocumentElement, selectedElement, selectedSlide]);
+
+  useEffect(() => {
+    if (
+      !focalEditingImageId ||
+      selectedDocumentElement?.type !== "image" ||
+      selectedDocumentElement.id !== focalEditingImageId
+    ) {
+      setCanvasFocalOverlay(null);
+      setCanvasFocalPreview(null);
+
+      if (focalEditingImageId) {
+        setFocalEditingImageId(null);
+      }
+
+      return;
+    }
+
+    const canvas = slideCanvasRef.current;
+    const target = canvas
+      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
+          (candidate) => candidate.dataset.powershowId === focalEditingImageId,
+        )
+      : undefined;
+
+    if (!target) {
+      setCanvasFocalOverlay(null);
+      return;
+    }
+
+    const bounds = target.getBoundingClientRect();
+
+    setCanvasFocalOverlay({
+      elementId: focalEditingImageId,
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    });
+  }, [focalEditingImageId, renderedSlide, selectedDocumentElement]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFocalEditingImageId(null);
+        setCanvasFocalPreview(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   // ==========================================================
   // END: OUTLINE DO ELEMENTO SELECIONADO
@@ -958,6 +1045,92 @@ export function EditorWorkspace() {
   function handleResizePointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
     if (canvasResizeRef.current?.pointerId === event.pointerId) {
       clearCanvasResizePreview();
+    }
+  }
+
+  function getCanvasFocalPoint(
+    overlay: CanvasFocalOverlay,
+    clientX: number,
+    clientY: number,
+  ): ImageFocalPoint {
+    return getImageFocalPointFromClientPosition(overlay, clientX, clientY);
+  }
+
+  function handleFocalPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (!canvasFocalOverlay || !focalEditingImageId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    canvasFocalDragRef.current = {
+      pointerId: event.pointerId,
+      imageId: focalEditingImageId,
+      handle: event.currentTarget,
+      bounds: canvasFocalOverlay,
+    };
+  }
+
+  function handleFocalPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = canvasFocalDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setCanvasFocalPreview(
+      getCanvasFocalPoint(drag.bounds, event.clientX, event.clientY),
+    );
+  }
+
+  function commitCanvasFocalPoint(
+    focalPoint: ImageFocalPoint,
+    imageId: string,
+  ) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: updateElementById(slide.elements, imageId, (element) =>
+                element.type === "image"
+                  ? { ...element, focalPoint }
+                  : element,
+              ),
+            }
+          : slide,
+      ),
+    }));
+  }
+
+  function handleFocalPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = canvasFocalDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const focalPoint = getCanvasFocalPoint(
+      drag.bounds,
+      event.clientX,
+      event.clientY,
+    );
+
+    event.preventDefault();
+    event.stopPropagation();
+    canvasFocalDragRef.current = null;
+    setCanvasFocalPreview(null);
+    commitCanvasFocalPoint(focalPoint, drag.imageId);
+  }
+
+  function handleFocalPointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (canvasFocalDragRef.current?.pointerId === event.pointerId) {
+      canvasFocalDragRef.current = null;
+      setCanvasFocalPreview(null);
     }
   }
 
@@ -1970,6 +2143,27 @@ export function EditorWorkspace() {
                 }
               />
             ))}
+            {canvasFocalOverlay &&
+              displayedCanvasFocalPoint &&
+              focalEditingImageId === selectedDocumentElement?.id && (
+              <button
+                className={styles.canvasFocalMarker}
+                type="button"
+                aria-label={t("image.focalPoint")}
+                title={t("image.focalPoint")}
+                style={{
+                  left: `${canvasFocalOverlay.left + (displayedCanvasFocalPoint.x / 100) * canvasFocalOverlay.width}px`,
+                  top: `${canvasFocalOverlay.top + (displayedCanvasFocalPoint.y / 100) * canvasFocalOverlay.height}px`,
+                }}
+                onPointerDown={handleFocalPointerDown}
+                onPointerMove={handleFocalPointerMove}
+                onPointerUp={handleFocalPointerUp}
+                onPointerCancel={handleFocalPointerCancel}
+                onLostPointerCapture={handleFocalPointerCancel}
+              >
+                ⊕
+              </button>
+            )}
           </div>
         </section>
 
@@ -2058,8 +2252,10 @@ export function EditorWorkspace() {
                    <ElementInspector
                      element={selectedDocumentElement}
                      onUpdate={updateSelectedElement}
-                     preserveImageProportion={preserveImageProportion}
-                     onPreserveImageProportionChange={setPreserveImageProportion}
+                      preserveImageProportion={preserveImageProportion}
+                      onPreserveImageProportionChange={setPreserveImageProportion}
+                      focalEditingImageId={focalEditingImageId}
+                      onFocalEditingImageIdChange={setFocalEditingImageId}
                       fontResourceControls={{
                        fontResources: presentation.resources?.fonts ?? [],
                        onAddFontFace: addFontFace,
