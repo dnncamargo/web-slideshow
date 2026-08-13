@@ -26,7 +26,12 @@ type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 export function ImageInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<ImageElement>) {
+  preserveImageProportion,
+  onPreserveImageProportionChange,
+}: TypedInspectorProps<ImageElement> & {
+  preserveImageProportion: boolean;
+  onPreserveImageProportionChange: (value: boolean) => void;
+}) {
   const { t } = useStudioI18n();
 
   const updateStyle: UpdateElementStyle = (update) => {
@@ -139,7 +144,12 @@ export function ImageInspector({
         </label>
        </InspectorSection>
 
-       <ImageSizeSection element={element} onUpdateStyle={updateStyle} />
+       <ImageSizeSection
+         element={element}
+         onUpdateStyle={updateStyle}
+         preserveImageProportion={preserveImageProportion}
+         onPreserveImageProportionChange={onPreserveImageProportionChange}
+       />
 
        <ElementAppearanceSection
         element={element}
