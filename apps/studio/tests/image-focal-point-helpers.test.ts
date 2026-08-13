@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_IMAGE_FOCAL_POINT,
   getEffectiveImageFocalPoint,
+  getImageFocalPointFromClientPosition,
   getImageFocalPointPresetIndex,
+  getImageFocalPointUntilFit,
   IMAGE_FOCAL_POINT_PRESETS,
+  isImageFocalPointResetAvailable,
   updateImageFocalPoint,
 } from "../src/features/editor/inspector/sections/image-focal-point-helpers";
 
@@ -34,5 +37,44 @@ describe("image focal point helpers", () => {
   it("clamps numeric values to valid focal point bounds", () => {
     expect(updateImageFocalPoint(undefined, "x", -10)).toEqual({ x: 0, y: 50 });
     expect(updateImageFocalPoint(undefined, "y", 120)).toEqual({ x: 50, y: 100 });
+  });
+});
+
+describe("focal point canvas geometry", () => {
+  const bounds = { left: 100, top: 40, width: 400, height: 200 };
+
+  it("maps corners and center from client coordinates", () => {
+    expect(getImageFocalPointFromClientPosition(bounds, 100, 40)).toEqual({ x: 0, y: 0 });
+    expect(getImageFocalPointFromClientPosition(bounds, 300, 140)).toEqual({ x: 50, y: 50 });
+    expect(getImageFocalPointFromClientPosition(bounds, 500, 240)).toEqual({ x: 100, y: 100 });
+  });
+
+  it("maps arbitrary pointer positions to percentages", () => {
+    expect(getImageFocalPointFromClientPosition(bounds, 200, 100)).toEqual({ x: 25, y: 30 });
+    expect(getImageFocalPointFromClientPosition(bounds, 460, 220)).toEqual({ x: 90, y: 90 });
+  });
+
+  it("clamps coordinates outside bounds to 0 and 100", () => {
+    expect(getImageFocalPointFromClientPosition(bounds, 20, 10)).toEqual({ x: 0, y: 0 });
+    expect(getImageFocalPointFromClientPosition(bounds, 900, 600)).toEqual({ x: 100, y: 100 });
+  });
+
+  it("works with scaled Canvas bounds in the same client coordinate space", () => {
+    const scaled = { left: 200, top: 80, width: 800, height: 400 };
+    expect(getImageFocalPointFromClientPosition(scaled, 600, 280)).toEqual({ x: 50, y: 50 });
+    expect(getImageFocalPointFromClientPosition(scaled, 200, 80)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("focal point reset and fit preservation", () => {
+  it("enables reset only when a focal override exists", () => {
+    expect(isImageFocalPointResetAvailable(undefined)).toBe(false);
+    expect(isImageFocalPointResetAvailable({ x: 25, y: 70 })).toBe(true);
+  });
+
+  it("preserves focalPoint across fit changes", () => {
+    const authored = { x: 25, y: 70 };
+    expect(getImageFocalPointUntilFit(authored)).toEqual({ x: 25, y: 70 });
+    expect(getImageFocalPointUntilFit(undefined)).toBeUndefined();
   });
 });

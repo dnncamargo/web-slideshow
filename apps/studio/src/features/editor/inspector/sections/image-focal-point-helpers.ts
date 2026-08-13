@@ -53,3 +53,26 @@ export function updateImageFocalPoint(
     ? { ...current, x: clampImageFocalPointValue(value) }
     : { ...current, y: clampImageFocalPointValue(value) };
 }
+
+export function getImageFocalPointFromClientPosition(
+  bounds: { left: number; top: number; width: number; height: number },
+  clientX: number,
+  clientY: number,
+): ImageFocalPoint {
+  return {
+    x: clampImageFocalPointValue(((clientX - bounds.left) / bounds.width) * 100),
+    y: clampImageFocalPointValue(((clientY - bounds.top) / bounds.height) * 100),
+  };
+}
+
+export function getImageFocalPointUntilFit(
+  focalPoint: ImageElement["focalPoint"],
+): ImageElement["focalPoint"] {
+  return focalPoint;
+}
+
+export function isImageFocalPointResetAvailable(
+  focalPoint: ImageElement["focalPoint"],
+): boolean {
+  return focalPoint !== undefined;
+}

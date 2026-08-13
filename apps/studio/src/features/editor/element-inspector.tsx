@@ -34,6 +34,10 @@ interface ElementInspectorProps {
 
   onPreserveImageProportionChange: (value: boolean) => void;
 
+  focalEditingImageId: string | null;
+
+  onFocalEditingImageIdChange: (id: string | null) => void;
+
   parent: ContainerElement | null;
 
   layerControls: {
@@ -57,6 +61,8 @@ function ElementTypeInspector({
   fontResourceControls,
   preserveImageProportion,
   onPreserveImageProportionChange,
+  focalEditingImageId,
+  onFocalEditingImageIdChange,
   unsupportedElementHint,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
@@ -96,6 +102,10 @@ function ElementTypeInspector({
           onUpdate={onUpdate}
           preserveImageProportion={preserveImageProportion}
           onPreserveImageProportionChange={onPreserveImageProportionChange}
+          focalEditing={focalEditingImageId === element.id}
+          onFocalEditingChange={(editing) => {
+            onFocalEditingImageIdChange(editing ? element.id : null);
+          }}
         />
       );
 
@@ -128,6 +138,8 @@ export function ElementInspector({
   fontResourceControls,
   preserveImageProportion,
   onPreserveImageProportionChange,
+  focalEditingImageId,
+  onFocalEditingImageIdChange,
   parent,
   layerControls,
 }: ElementInspectorProps) {
@@ -163,6 +175,8 @@ export function ElementInspector({
         fontResourceControls={fontResourceControls}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
+        focalEditingImageId={focalEditingImageId}
+        onFocalEditingImageIdChange={onFocalEditingImageIdChange}
         parent={parent}
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
