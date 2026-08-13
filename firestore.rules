@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User presentation documents. Access is strictly limited to the
+    // authenticated owner of the user document.
+    match /users/{userId}/presentations/{presentationId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
