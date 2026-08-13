@@ -352,6 +352,10 @@ const englishMessages = {
   "image.contain": "Contain",
   "image.cover": "Cover",
   "image.fill": "Fill",
+  "image.focalPoint": "Focal point",
+  "image.focalPointHelp":
+    "Controls which part of the image stays in focus when the image is fitted inside its box.",
+  "image.resetFocalPoint": "Reset to center",
   "image.preserveProportion": "Preserve proportion",
   "image.preserveProportionHelp":
     "Preserves the image proportion when resizing it directly on the Canvas.",
@@ -734,6 +738,10 @@ const portugueseMessages = {
   "image.contain": "Conter",
   "image.cover": "Cobrir",
   "image.fill": "Preencher",
+  "image.focalPoint": "Ponto focal",
+  "image.focalPointHelp":
+    "Controla qual parte da imagem permanece em destaque ao ajustá-la dentro da caixa.",
+  "image.resetFocalPoint": "Redefinir ao centro",
   "image.preserveProportion": "Preservar proporção",
   "image.preserveProportionHelp":
     "Preserva a proporção da imagem ao redimensioná-la diretamente no Canvas.",
