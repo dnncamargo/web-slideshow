@@ -55,7 +55,7 @@ export function ImageSizeSection({
 
   return (
     <InspectorSection title={t("inspector.size")}>
-      <label className={styles.field}>
+      <label className={styles.checkboxRow}>
         <span title={t("image.preserveProportionHelp")}>
           {t("image.preserveProportion")}
         </span>
