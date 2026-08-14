@@ -69,16 +69,46 @@ export function subscribeRemoteControl(
   controller: PlayerController,
 ): () => void {
   const state = createRemoteControlState();
+  const subscriptionPath = `controlSpikes/${publicationId}`;
+
+  console.log(
+    "[PowerShow][remote-control] subscribing",
+    { path: subscriptionPath },
+  );
 
   const unsubscribe = onValue(
-    ref(database, `controlSpikes/${publicationId}`),
+    ref(database, subscriptionPath),
     (snapshot: DataSnapshot) => {
-      const decision = resolveRemoteCommand(snapshot.val(), state);
+      const value = snapshot.val();
+      const previousLastRevision = state.lastRevision;
+
+      const decision = resolveRemoteCommand(value, state);
       state.lastRevision = decision.lastRevision;
+
+      console.log(
+        "[PowerShow][remote-control] snapshot",
+        {
+          received:
+            typeof value === "object" && value !== null
+              ? { action: (value as Record<string, unknown>).action, revision: (value as Record<string, unknown>).revision }
+              : value,
+          previousLastRevision,
+          resolved: {
+            lastRevision: decision.lastRevision,
+            shouldNavigate: decision.shouldNavigate,
+            action: decision.action,
+          },
+        },
+      );
 
       if (!decision.shouldNavigate || decision.action === undefined) {
         return;
       }
+
+      console.log(
+        "[PowerShow][remote-control] applying",
+        { action: decision.action, revision: decision.lastRevision },
+      );
 
       if (decision.action === "next") {
         controller.next();
@@ -87,8 +117,7 @@ export function subscribeRemoteControl(
       }
     },
     (error: Error) => {
-      // Diagnóstico em desenvolvimento; o Player continua projetando.
-      console.error("Player: remote control subscription error", error);
+      console.error("[PowerShow][remote-control] subscription error", error);
     },
   );
 

@@ -71,8 +71,16 @@ function attachRemoteControl(publicationId: string): void {
     const database = getRealtimeDatabaseOrNull();
 
     if (!database) {
+      console.warn(
+        "[PowerShow][remote-control] RTDB unavailable – remote control not attached",
+      );
       return;
     }
+
+    console.log(
+      "[PowerShow][remote-control] attaching",
+      { publicationId },
+    );
 
     cleanupRemoteControl = subscribeRemoteControl(
       database,
