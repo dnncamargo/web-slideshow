@@ -67,14 +67,17 @@ export function subscribeRemoteControl(
   database: Database,
   publicationId: string,
   controller: PlayerController,
+  logsEnabled = false,
 ): () => void {
   const state = createRemoteControlState();
   const subscriptionPath = `controlSpikes/${publicationId}`;
 
-  console.log(
-    "[PowerShow][remote-control] subscribing",
-    { path: subscriptionPath },
-  );
+  if (logsEnabled) {
+    console.log(
+      "[PowerShow][remote-control] subscribing",
+      { path: subscriptionPath },
+    );
+  }
 
   const unsubscribe = onValue(
     ref(database, subscriptionPath),
@@ -85,30 +88,34 @@ export function subscribeRemoteControl(
       const decision = resolveRemoteCommand(value, state);
       state.lastRevision = decision.lastRevision;
 
-      console.log(
-        "[PowerShow][remote-control] snapshot",
-        {
-          received:
-            typeof value === "object" && value !== null
-              ? { action: (value as Record<string, unknown>).action, revision: (value as Record<string, unknown>).revision }
-              : value,
-          previousLastRevision,
-          resolved: {
-            lastRevision: decision.lastRevision,
-            shouldNavigate: decision.shouldNavigate,
-            action: decision.action,
+      if (logsEnabled) {
+        console.log(
+          "[PowerShow][remote-control] snapshot",
+          {
+            received:
+              typeof value === "object" && value !== null
+                ? { action: (value as Record<string, unknown>).action, revision: (value as Record<string, unknown>).revision }
+                : value,
+            previousLastRevision,
+            resolved: {
+              lastRevision: decision.lastRevision,
+              shouldNavigate: decision.shouldNavigate,
+              action: decision.action,
+            },
           },
-        },
-      );
+        );
+      }
 
       if (!decision.shouldNavigate || decision.action === undefined) {
         return;
       }
 
-      console.log(
-        "[PowerShow][remote-control] applying",
-        { action: decision.action, revision: decision.lastRevision },
-      );
+      if (logsEnabled) {
+        console.log(
+          "[PowerShow][remote-control] applying",
+          { action: decision.action, revision: decision.lastRevision },
+        );
+      }
 
       if (decision.action === "next") {
         controller.next();

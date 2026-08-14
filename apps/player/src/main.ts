@@ -62,7 +62,7 @@ function renderLoadState(message: string): void {
   `;
 }
 
-function attachRemoteControl(publicationId: string): void {
+function attachRemoteControl(publicationId: string, logsEnabled: boolean): void {
   if (!activeController) {
     return;
   }
@@ -71,21 +71,26 @@ function attachRemoteControl(publicationId: string): void {
     const database = getRealtimeDatabaseOrNull();
 
     if (!database) {
-      console.warn(
-        "[PowerShow][remote-control] RTDB unavailable – remote control not attached",
-      );
+      if (logsEnabled) {
+        console.warn(
+          "[PowerShow][remote-control] RTDB unavailable – remote control not attached",
+        );
+      }
       return;
     }
 
-    console.log(
-      "[PowerShow][remote-control] attaching",
-      { publicationId },
-    );
+    if (logsEnabled) {
+      console.log(
+        "[PowerShow][remote-control] attaching",
+        { publicationId },
+      );
+    }
 
     cleanupRemoteControl = subscribeRemoteControl(
       database,
       publicationId,
       activeController,
+      logsEnabled,
     );
   } catch (error) {
     // Falha de inicialização do controle remoto nunca derruba o Player.
@@ -93,7 +98,7 @@ function attachRemoteControl(publicationId: string): void {
   }
 }
 
-async function mountPublished(publicationId: string, versionId: string): Promise<void> {
+async function mountPublished(publicationId: string, versionId: string, logsEnabled: boolean): Promise<void> {
   renderLoadState("Loading presentation…");
 
   const result = await loadPublishedPresentation(publicationId, versionId);
@@ -101,7 +106,7 @@ async function mountPublished(publicationId: string, versionId: string): Promise
   if (result.kind === "ok") {
     activeController = mountPlayer(root, result.presentation, { controls });
 
-    attachRemoteControl(publicationId);
+    attachRemoteControl(publicationId, logsEnabled);
 
     return;
   }
@@ -137,9 +142,10 @@ const params = new URLSearchParams(window.location.search);
 
 const publicationId = params.get("publication");
 const versionId = params.get("version");
+const logsEnabled = params.get("logs") === "true";
 
 if (publicationId !== null && versionId !== null) {
-  void mountPublished(publicationId, versionId);
+  void mountPublished(publicationId, versionId, logsEnabled);
 } else {
   mountDemo();
 }
