@@ -68,7 +68,8 @@ export function isDocumentDirty(
 }
 
 /**
- * Save status priority: saving > error > dirty > clean.
+ * Save status priority: saving > error (current is the failed snapshot) >
+ * dirty > clean.
  */
 export function resolveSaveStatus(
   state: EditorSaveState,
@@ -78,7 +79,7 @@ export function resolveSaveStatus(
     return "saving";
   }
 
-  if (state.hasSaveError) {
+  if (state.hasSaveError && state.failedPresentation === current) {
     return "error";
   }
 

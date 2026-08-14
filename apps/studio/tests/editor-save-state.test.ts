@@ -155,3 +155,82 @@ describe("editor autosave save-state", () => {
     expect(resolveSaveStatus(afterRetry, b)).toBe("clean");
   });
 });
+
+describe("editor save status after failure", () => {
+  it("resolves failed B + current B to error", () => {
+    const a = makePresentation("a");
+    const b = makePresentation("b");
+    const afterError = editorSaveReducer(baseState(a), {
+      type: "save-error",
+      presentation: b,
+    });
+
+    expect(resolveSaveStatus(afterError, b)).toBe("error");
+  });
+
+  it("resolves failed B + current C to dirty", () => {
+    const a = makePresentation("a");
+    const b = makePresentation("b");
+    const c = makePresentation("c");
+    const afterError = editorSaveReducer(baseState(a), {
+      type: "save-error",
+      presentation: b,
+    });
+
+    expect(resolveSaveStatus(afterError, c)).toBe("dirty");
+  });
+
+  it("keeps a newer edited snapshot C autosave eligible after B failed", () => {
+    const a = makePresentation("a");
+    const b = makePresentation("b");
+    const c = makePresentation("c");
+    const afterError = editorSaveReducer(baseState(a), {
+      type: "save-error",
+      presentation: b,
+    });
+
+    expect(isAutosaveEligible(afterError, c, true)).toBe(true);
+  });
+
+  it("does not drop dirty/clean state just because an older snapshot failed", () => {
+    const a = makePresentation("a");
+    const b = makePresentation("b");
+    const c = makePresentation("c");
+    const afterError = editorSaveReducer(baseState(a), {
+      type: "save-error",
+      presentation: b,
+    });
+
+    expect(resolveSaveStatus(afterError, c)).toBe("dirty");
+    expect(isAutosaveEligible(afterError, c, true)).toBe(true);
+  });
+
+  it("gives saving priority over a prior failure when retrying B", () => {
+    const a = makePresentation("a");
+    const b = makePresentation("b");
+    const afterError = editorSaveReducer(baseState(a), {
+      type: "save-error",
+      presentation: b,
+    });
+    const retrying = editorSaveReducer(afterError, { type: "save-start" });
+
+    expect(resolveSaveStatus(retrying, b)).toBe("saving");
+  });
+
+  it("marks a newly failed C as the new failed snapshot and resolves error", () => {
+    const a = makePresentation("a");
+    const b = makePresentation("b");
+    const c = makePresentation("c");
+    const afterBFail = editorSaveReducer(baseState(a), {
+      type: "save-error",
+      presentation: b,
+    });
+    const afterCFail = editorSaveReducer(afterBFail, {
+      type: "save-error",
+      presentation: c,
+    });
+
+    expect(afterCFail.failedPresentation).toBe(c);
+    expect(resolveSaveStatus(afterCFail, c)).toBe("error");
+  });
+});
