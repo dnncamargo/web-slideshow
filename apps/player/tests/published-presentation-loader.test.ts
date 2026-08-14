@@ -3,14 +3,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema, type Presentation } from "@powershow/document-schema";
 
 const mocks = vi.hoisted(() => ({
-  initializeApp: vi.fn(() => ({})),
-  getFirestore: vi.fn(() => ({})),
+  initializeApp: vi.fn(),
+  getApp: vi.fn(),
+  getApps: vi.fn(),
+  getFirestore: vi.fn(),
   doc: vi.fn(),
   getDoc: vi.fn(),
 }));
 
 vi.mock("firebase/app", () => ({
   initializeApp: mocks.initializeApp,
+  getApp: mocks.getApp,
+  getApps: mocks.getApps,
 }));
 
 vi.mock("firebase/firestore/lite", () => ({
@@ -50,6 +54,19 @@ function setViteEnv(present: boolean) {
   }
 }
 
+function defaultAppMocks() {
+  mocks.initializeApp.mockReturnValue({ name: "fresh" });
+  mocks.getApps.mockReturnValue([]);
+  mocks.getFirestore.mockReturnValue({});
+  mocks.doc.mockReturnValue({ id: "ref" });
+
+  return {
+    getDoc: mocks.getDoc,
+    initializeApp: mocks.initializeApp,
+    getApps: mocks.getApps,
+  };
+}
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.clearAllMocks();
@@ -58,7 +75,7 @@ afterEach(() => {
 describe("published presentation loader", () => {
   it("resolves ok with a validated Presentation for a valid document", async () => {
     setViteEnv(true);
-    mocks.doc.mockReturnValue({ id: "ref" });
+    defaultAppMocks();
     mocks.getDoc.mockResolvedValue({
       exists: () => true,
       data: () => ({ presentation: validPresentation() }),
@@ -84,6 +101,7 @@ describe("published presentation loader", () => {
 
   it("returns not-found for a missing document", async () => {
     setViteEnv(true);
+    defaultAppMocks();
     mocks.getDoc.mockResolvedValue({ exists: () => false });
 
     const { loadPublishedPresentation } = await import(
@@ -94,8 +112,9 @@ describe("published presentation loader", () => {
     expect(result.kind).toBe("not-found");
   });
 
-  it("rejects a malformed Presentation", async () => {
+  it("rejects a malformed Presentation with error", async () => {
     setViteEnv(true);
+    defaultAppMocks();
     mocks.getDoc.mockResolvedValue({
       exists: () => true,
       data: () => ({ presentation: { schemaVersion: 999, slides: [] } }),
@@ -107,5 +126,48 @@ describe("published presentation loader", () => {
     const result = await loadPublishedPresentation("publication-1", "version-1");
 
     expect(result.kind).toBe("error");
+  });
+
+  it("returns error without rejecting when getDoc rejects", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.getDoc.mockRejectedValue(new Error("permission denied"));
+
+    const { loadPublishedPresentation } = await import(
+      "../src/published-presentation-loader"
+    );
+    const result = await loadPublishedPresentation("publication-1", "version-1");
+
+    expect(result).toEqual({ kind: "error" });
+  });
+
+  it("returns error without rejecting when Firebase initialization fails", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.initializeApp.mockImplementationOnce(() => {
+      throw new Error("bad config");
+    });
+
+    const { loadPublishedPresentation } = await import(
+      "../src/published-presentation-loader"
+    );
+    const result = await loadPublishedPresentation("publication-1", "version-1");
+
+    expect(result).toEqual({ kind: "error" });
+  });
+
+  it("reuses an existing Firebase app instead of initializing a new one", async () => {
+    setViteEnv(true);
+    const { getApps, initializeApp } = defaultAppMocks();
+    getApps.mockReturnValue([{ name: "existing" }]);
+    mocks.getDoc.mockResolvedValue({ exists: () => false });
+
+    const { loadPublishedPresentation } = await import(
+      "../src/published-presentation-loader"
+    );
+    await loadPublishedPresentation("publication-1", "version-1");
+
+    expect(initializeApp).not.toHaveBeenCalled();
+    expect(mocks.getFirestore).toHaveBeenCalledWith({ name: "existing" });
   });
 });

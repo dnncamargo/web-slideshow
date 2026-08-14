@@ -1,5 +1,5 @@
 import { PresentationSchema, type Presentation } from "@powershow/document-schema";
-import { initializeApp, type FirebaseOptions } from "firebase/app";
+import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import { doc, getDoc, getFirestore } from "firebase/firestore/lite";
 
 // ============================================================
@@ -22,7 +22,7 @@ export type PublishedLoadResult =
 // Nenhum Firebase Auth é inicializado aqui.
 // ============================================================
 
-function getFirebaseConfig() {
+function getFirebaseConfig(): FirebaseOptions {
   const entries: Array<[string, string | undefined]> = [
     ["apiKey", import.meta.env.VITE_FIREBASE_API_KEY as string | undefined],
     ["authDomain", import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined],
@@ -50,6 +50,24 @@ function isFirebaseConfigured(): boolean {
 }
 
 // ============================================================
+// BEGIN: OBTENÇÃO DO APP FIREBASE
+// ============================================================
+
+function getOrInitFirebaseApp(): FirebaseApp {
+  const existing = getApps()[0];
+
+  if (existing) {
+    return existing;
+  }
+
+  return initializeApp(getFirebaseConfig());
+}
+
+// ============================================================
+// END: OBTENÇÃO DO APP FIREBASE
+// ============================================================
+
+// ============================================================
 // BEGIN: CARREGAMENTO DE VERSÃO PUBLICADA
 //
 // Lê exatamente:
@@ -58,22 +76,26 @@ function isFirebaseConfigured(): boolean {
 //
 // usa getDoc() (sem listeners/query), valida o campo `presentation`
 // com PresentationSchema e devolve a Presentation canônica.
+//
+// Toda a inicialização/leitura está dentro do erro boundary:
+// qualquer falha de SDK/config/runtime é capturada, registrada e
+// convertida em { kind: "error" } — nunca rejeita para fora.
 // ============================================================
 
 export async function loadPublishedPresentation(
   publicationId: string,
   versionId: string,
 ): Promise<PublishedLoadResult> {
-  if (!isFirebaseConfigured()) {
-    console.error("Player: Firebase is not configured for published loading.");
-
-    return { kind: "error" };
-  }
-
-  const app = initializeApp(getFirebaseConfig());
-  const firestore = getFirestore(app);
-
   try {
+    if (!isFirebaseConfigured()) {
+      console.error("Player: Firebase is not configured for published loading.");
+
+      return { kind: "error" };
+    }
+
+    const app = getOrInitFirebaseApp();
+    const firestore = getFirestore(app);
+
     const ref = doc(
       firestore,
       "publishedPresentations",
