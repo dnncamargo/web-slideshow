@@ -5,7 +5,9 @@ export type {
   PresentationPersistenceEnvelope,
   PresentationPublicationMetadata,
   PresentationPublicationState,
+  PublishedPresentationVersion,
 } from "./presentation-persistence";
+export type { PresentationPublishResult } from "./presentation-repository";
 export {
   MAX_PRESENTATION_SAFE_BYTES,
   assertPresentationWithinSizeLimit,

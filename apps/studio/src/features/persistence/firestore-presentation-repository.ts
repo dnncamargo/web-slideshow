@@ -8,6 +8,7 @@ import {
   increment,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -15,15 +16,22 @@ import {
 
 import { ensureFirebaseUser } from "./firebase-anonymous-auth";
 import { getFirebaseFirestore } from "./firebase-client";
-import { FirestoreOperationError } from "./persistence-errors";
+import {
+  FirestoreOperationError,
+  PersistenceError,
+} from "./persistence-errors";
 import {
   assertPresentationWithinSizeLimit,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
+  normalizePersistenceMetadata,
   parsePersistedPresentation,
   type PresentationSummary,
 } from "./presentation-persistence";
-import type { PresentationRepository } from "./presentation-repository";
+import type {
+  PresentationPublishResult,
+  PresentationRepository,
+} from "./presentation-repository";
 
 function presentationsCollection(
   userId: string,
@@ -182,6 +190,96 @@ export class FirestorePresentationRepository
 
       throw new FirestoreOperationError(
         `Failed to archive presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  async publishPresentation(id: string): Promise<PresentationPublishResult> {
+    const user = await ensureFirebaseUser();
+    const firestore = getFirebaseFirestore();
+    const draftRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      return await runTransaction(firestore, async (transaction) => {
+        const draftSnapshot = await transaction.get(draftRef);
+
+        if (!draftSnapshot.exists()) {
+          throw new FirestoreOperationError(
+            `Cannot publish missing presentation "${id}".`,
+          );
+        }
+
+        const draftData = draftSnapshot.data();
+
+        if (
+          draftData.archivedAt !== undefined &&
+          draftData.archivedAt !== null
+        ) {
+          throw new FirestoreOperationError(
+            `Cannot publish archived presentation "${id}".`,
+          );
+        }
+
+        const presentation = parsePersistedPresentation(draftData);
+        assertPresentationWithinSizeLimit(presentation);
+
+        const metadata = normalizePersistenceMetadata(
+          draftData.draftRevision,
+          draftData.publication,
+        );
+
+        if (
+          metadata.publication &&
+          metadata.publication.publishedRevision === metadata.draftRevision
+        ) {
+          return {
+            publicationId: metadata.publication.publicationId,
+            versionId: metadata.publication.currentVersionId,
+            publishedRevision: metadata.draftRevision,
+            createdVersion: false,
+          };
+        }
+
+        const publicationId =
+          metadata.publication?.publicationId ??
+          doc(collection(firestore, "publishedPresentations")).id;
+        const versionRef = doc(
+          collection(firestore, "publishedPresentations", publicationId, "versions"),
+        );
+        const versionId = versionRef.id;
+
+        // The private draft is read above before either transaction write.
+        transaction.set(versionRef, {
+          presentation: makeFirestoreSafePresentation(presentation),
+          publishedRevision: metadata.draftRevision,
+          publishedAt: serverTimestamp(),
+        });
+        transaction.update(draftRef, {
+          publication: {
+            publicationId,
+            currentVersionId: versionId,
+            publishedRevision: metadata.draftRevision,
+            publishedAt: serverTimestamp(),
+          },
+        });
+
+        return {
+          publicationId,
+          versionId,
+          publishedRevision: metadata.draftRevision,
+          createdVersion: true,
+        };
+      });
+    } catch (error) {
+      console.error(`Failed to publish presentation "${id}"`, error);
+
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      throw new FirestoreOperationError(
+        `Failed to publish presentation "${id}".`,
         error,
       );
     }

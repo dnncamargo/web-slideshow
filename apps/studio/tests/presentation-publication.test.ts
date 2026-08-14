@@ -7,6 +7,7 @@ import {
 } from "../src/features/persistence/presentation-persistence";
 
 const publication = {
+  publicationId: "publication-1",
   currentVersionId: "v-1",
   publishedRevision: 2,
   publishedAt: "ts",
@@ -50,6 +51,7 @@ describe("persistence metadata normalization", () => {
 
   it("treats non-integer publishedRevision as malformed publication", () => {
     const result = normalizePersistenceMetadata(1, {
+      publicationId: "publication-1",
       currentVersionId: "v1",
       publishedRevision: 1.5,
       publishedAt: "ts",
@@ -60,8 +62,19 @@ describe("persistence metadata normalization", () => {
 
   it("treats missing publishedAt as malformed publication", () => {
     const result = normalizePersistenceMetadata(1, {
+      publicationId: "publication-1",
       currentVersionId: "v1",
       publishedRevision: 1,
+    });
+
+    expect(result.publication).toBeUndefined();
+  });
+
+  it("treats missing publicationId as malformed publication", () => {
+    const result = normalizePersistenceMetadata(1, {
+      currentVersionId: "v1",
+      publishedRevision: 1,
+      publishedAt: "ts",
     });
 
     expect(result.publication).toBeUndefined();

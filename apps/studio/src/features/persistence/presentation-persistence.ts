@@ -49,7 +49,14 @@ export interface PresentationSummary {
  * revision it was produced from.
  */
 export interface PresentationPublicationMetadata {
+  publicationId: string;
   currentVersionId: string;
+  publishedRevision: number;
+  publishedAt: unknown;
+}
+
+export interface PublishedPresentationVersion {
+  presentation: Presentation;
   publishedRevision: number;
   publishedAt: unknown;
 }
@@ -80,6 +87,8 @@ function normalizePublicationMetadata(value: unknown): PresentationPublicationMe
   const candidate = value as Record<string, unknown>;
 
   if (
+    typeof candidate.publicationId !== "string" ||
+    !candidate.publicationId ||
     typeof candidate.currentVersionId !== "string" ||
     !candidate.currentVersionId ||
     !isValidRevision(candidate.publishedRevision) ||
@@ -89,6 +98,7 @@ function normalizePublicationMetadata(value: unknown): PresentationPublicationMe
   }
 
   return {
+    publicationId: candidate.publicationId,
     currentVersionId: candidate.currentVersionId,
     publishedRevision: candidate.publishedRevision,
     publishedAt: candidate.publishedAt,
