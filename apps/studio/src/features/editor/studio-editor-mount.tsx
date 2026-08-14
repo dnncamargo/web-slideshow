@@ -12,6 +12,8 @@ import { EditorWorkspace } from "@/features/editor/editor-workspace";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { getDefaultPresentationRepository } from "@/features/persistence/presentation-repository-instance";
 
+const repository = getDefaultPresentationRepository();
+
 type EditorStatus =
   | { kind: "loading" }
   | { kind: "not-found" }
@@ -48,7 +50,7 @@ export function StudioEditorMount({
 
     setStatus({ kind: "loading" });
 
-    getDefaultPresentationRepository()
+    repository
       .getPresentation(presentationId)
       .then((presentation) => {
         if (cancelled) {
@@ -104,5 +106,10 @@ export function StudioEditorMount({
     );
   }
 
-  return <EditorWorkspace initialPresentation={status.presentation} />;
+  return (
+    <EditorWorkspace
+      initialPresentation={status.presentation}
+      onSave={(presentation) => repository.savePresentation(presentation)}
+    />
+  );
 }

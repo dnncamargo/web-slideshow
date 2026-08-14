@@ -98,6 +98,31 @@ describe("editor repository loading", () => {
   });
 });
 
+describe("editor save boundary", () => {
+  it("routes the current presentation to repository.savePresentation", async () => {
+    const presentation = createBlankPresentation("persisted-id");
+    const savePresentation = vi.fn(async () => {});
+    const { repository } = fakeRepository({ savePresentation });
+
+    // Emulates the onSave callback the StudioEditorMount passes to the Editor:
+    // onSave = (p) => repository.savePresentation(p)
+    await repository.savePresentation(presentation);
+
+    expect(savePresentation).toHaveBeenCalledTimes(1);
+    expect(savePresentation).toHaveBeenCalledWith(presentation);
+  });
+
+  it("exposes savePresentation on the default repository instance", async () => {
+    const { getDefaultPresentationRepository } = await import(
+      "../src/features/persistence/presentation-repository-instance"
+    );
+
+    expect(typeof getDefaultPresentationRepository().savePresentation).toBe(
+      "function",
+    );
+  });
+});
+
 function statusLoading(): EditorLoadStatus {
   return { kind: "loading" };
 }

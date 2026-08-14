@@ -1950,13 +1950,15 @@ export function EditorWorkspace({
         ====================================================== */}
 
           <span className={styles.status}>
-            {saveStatus === "saving"
-              ? t("topbar.saving")
-              : saveStatus === "error"
-                ? t("topbar.saveFailed")
-                : saveStatus === "dirty"
-                  ? t("topbar.unsavedChanges")
-                  : t("topbar.saved")}
+            {onSave === undefined
+              ? t("topbar.localDraft")
+              : saveStatus === "saving"
+                ? t("topbar.saving")
+                : saveStatus === "error"
+                  ? t("topbar.saveFailed")
+                  : saveStatus === "dirty"
+                    ? t("topbar.unsavedChanges")
+                    : t("topbar.saved")}
           </span>
 
           {/* ======================================================
