@@ -1,23 +1,27 @@
 import type { Presentation } from "@powershow/document-schema";
 
+export const EDITOR_AUTOSAVE_DELAY_MS = 1500;
+
 export type SaveStatus = "clean" | "dirty" | "saving" | "error";
 
 export interface EditorSaveState {
   lastSavedPresentation: Presentation | null;
   isSaving: boolean;
   hasSaveError: boolean;
+  failedPresentation: Presentation | null;
 }
 
 export type EditorSaveAction =
   | { type: "save-start" }
   | { type: "save-success"; presentation: Presentation }
-  | { type: "save-error" };
+  | { type: "save-error"; presentation: Presentation };
 
 export function createInitialEditorSaveState(): EditorSaveState {
   return {
     lastSavedPresentation: null,
     isSaving: false,
     hasSaveError: false,
+    failedPresentation: null,
   };
 }
 
@@ -27,6 +31,10 @@ export function createInitialEditorSaveState(): EditorSaveState {
  * `lastSavedPresentation` is the immutable root-snapshot identity the document
  * is compared against. Dirty is derived by root-reference inequality, never by
  * deep comparison.
+ *
+ * `failedPresentation` is the exact snapshot identity of the most recent failed
+ * save. Autosave uses it to avoid retrying the same failed snapshot, while a
+ * newly edited snapshot remains eligible.
  */
 export function editorSaveReducer(
   state: EditorSaveState,
@@ -40,9 +48,15 @@ export function editorSaveReducer(
         lastSavedPresentation: action.presentation,
         isSaving: false,
         hasSaveError: false,
+        failedPresentation: null,
       };
     case "save-error":
-      return { ...state, isSaving: false, hasSaveError: true };
+      return {
+        ...state,
+        isSaving: false,
+        hasSaveError: true,
+        failedPresentation: action.presentation,
+      };
   }
 }
 
@@ -85,4 +99,30 @@ export function isSaveEnabled(
   }
 
   return isDocumentDirty(current, state.lastSavedPresentation);
+}
+
+/**
+ * Whether the current dirty snapshot may be scheduled for autosave.
+ *
+ * A snapshot that already failed must not be automatically retried (no retry
+ * loop). A newer edited snapshot is eligible for a fresh debounced autosave.
+ */
+export function isAutosaveEligible(
+  state: EditorSaveState,
+  current: Presentation,
+  hasSaveCallback: boolean,
+): boolean {
+  if (!hasSaveCallback || state.isSaving) {
+    return false;
+  }
+
+  if (!isDocumentDirty(current, state.lastSavedPresentation)) {
+    return false;
+  }
+
+  if (state.hasSaveError && state.failedPresentation === current) {
+    return false;
+  }
+
+  return true;
 }

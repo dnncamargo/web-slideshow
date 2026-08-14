@@ -23,7 +23,9 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
 import {
+  EDITOR_AUTOSAVE_DELAY_MS,
   editorSaveReducer,
+  isAutosaveEligible,
   isSaveEnabled,
   resolveSaveStatus,
 } from "./editor-save-state";
@@ -286,6 +288,7 @@ export function EditorWorkspace({
     lastSavedPresentation: initialEditableRef.current,
     isSaving: false,
     hasSaveError: false,
+    failedPresentation: null,
   });
 
   // ==========================================================
@@ -1207,17 +1210,18 @@ export function EditorWorkspace({
 
   const saveStatus = resolveSaveStatus(saveState, presentation);
   const saveEnabled = isSaveEnabled(saveState, presentation, onSave !== undefined);
+  const autosaveEligible = isAutosaveEligible(
+    saveState,
+    presentation,
+    onSave !== undefined,
+  );
 
-  function handleSave() {
+  // Shared save pipeline. Both the explicit Save button and debounced
+  // autosave schedule the current Presentation snapshot through this function.
+  function requestSave(snapshot: Presentation) {
     if (!onSave || saveState.isSaving) {
       return;
     }
-
-    if (presentation === saveState.lastSavedPresentation) {
-      return;
-    }
-
-    const snapshot = presentation;
 
     dispatchSave({ type: "save-start" });
 
@@ -1227,9 +1231,34 @@ export function EditorWorkspace({
       })
       .catch((error) => {
         console.error("Failed to save presentation", error);
-        dispatchSave({ type: "save-error" });
+        dispatchSave({ type: "save-error", presentation: snapshot });
       });
   }
+
+  function handleSave() {
+    if (presentation === saveState.lastSavedPresentation || saveState.isSaving) {
+      return;
+    }
+
+    requestSave(presentation);
+  }
+
+  // Debounced autosave on canonical Presentation identity change. Resets on
+  // every new Presentation; only schedules when the snapshot is eligible.
+  useEffect(() => {
+    if (!autosaveEligible) {
+      return;
+    }
+
+    const snapshot = presentation;
+    const timer = window.setTimeout(() => {
+      requestSave(snapshot);
+    }, EDITOR_AUTOSAVE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [presentation, autosaveEligible]);
 
   // ==========================================================
   // END: EXPLICIT SAVE
