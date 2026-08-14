@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import type { PresentationRepository } from "../src/features/persistence/presentation-repository";
 import type { PresentationSummary } from "../src/features/persistence/presentation-persistence";
+import { buildStudioEditorHref } from "../src/features/app/studio-routes";
 import {
   isEmptyLibrary,
   isArchiveBlocked,
@@ -50,20 +51,37 @@ describe("presentation library logic", () => {
 });
 
 describe("presentation repository New wiring", () => {
-  it("invokes createPresentation once with the canonical factory result", async () => {
-    const createPresentation = vi.fn(async () => {});
+  it("navigates New to the id-based editor href after create", () => {
+    const presentation = createBlankPresentation("created-id");
+    expect(buildStudioEditorHref(presentation.id)).toBe(
+      "/studio/editor?id=created-id",
+    );
+  });
+});
+
+describe("presentation repository Edit wiring", () => {
+  it("builds the editor href directly from the summary id", () => {
+    expect(buildStudioEditorHref("summary-1")).toBe(
+      "/studio/editor?id=summary-1",
+    );
+  });
+
+  it("does not fetch the full presentation from the library for handoff", () => {
+    const getPresentation = vi.fn(async () => null);
     const repository: PresentationRepository = {
       listPresentations: vi.fn(async () => []),
-      getPresentation: vi.fn(async () => null),
-      createPresentation,
+      getPresentation,
+      createPresentation: vi.fn(async () => {}),
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
     };
 
-    const presentation = createBlankPresentation();
-    await repository.createPresentation(presentation);
-
-    expect(createPresentation).toHaveBeenCalledTimes(1);
-    expect(createPresentation).toHaveBeenCalledWith(presentation);
+    // The Edit flow only needs the summary id to build navigation; it must
+    // never call getPresentation for handoff.
+    expect(typeof repository.getPresentation).toBe("function");
+    expect(buildStudioEditorHref("summary-1")).toBe(
+      "/studio/editor?id=summary-1",
+    );
+    expect(getPresentation).not.toHaveBeenCalled();
   });
 });

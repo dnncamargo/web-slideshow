@@ -31,6 +31,11 @@ const englishMessages = {
 
   "topbar.editor": "Editor",
   "topbar.localDraft": "Draft",
+  "topbar.saved": "Saved",
+  "topbar.unsavedChanges": "Unsaved changes",
+  "topbar.saving": "Saving…",
+  "topbar.saveFailed": "Save failed",
+  "topbar.save": "Save",
 
   "slides.title": "Slides",
   "slides.new": "+ New slide",
@@ -410,6 +415,10 @@ const englishMessages = {
   "library.couldNotArchive": "Could not archive presentation.",
   "library.untitled": "Untitled",
 
+  "editor.loading": "Loading presentation…",
+  "editor.couldNotLoad": "Could not load presentation.",
+  "editor.backToLibrary": "Back to Library",
+
   "public.noLive": "No live presentation",
   "public.studio": "Studio",
   "public.play": "Play",
@@ -434,6 +443,11 @@ const portugueseMessages = {
 
   "topbar.editor": "Editor",
   "topbar.localDraft": "Rascunho",
+  "topbar.saved": "Salvo",
+  "topbar.unsavedChanges": "Alterações não salvas",
+  "topbar.saving": "Salvando…",
+  "topbar.saveFailed": "Falha ao salvar",
+  "topbar.save": "Salvar",
 
   "slides.title": "Slides",
   "slides.new": "+ Novo slide",
@@ -818,6 +832,10 @@ const portugueseMessages = {
   "library.archiving": "Arquivando…",
   "library.couldNotArchive": "Não foi possível arquivar a apresentação.",
   "library.untitled": "Sem título",
+
+  "editor.loading": "Carregando apresentação…",
+  "editor.couldNotLoad": "Não foi possível carregar a apresentação.",
+  "editor.backToLibrary": "Voltar à biblioteca",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
   "public.studio": "Studio",
