@@ -228,6 +228,9 @@ describe("presentation persistence helpers", () => {
       title: "Title",
       updatedAt: "ts",
       archived: false,
+      publicationState: "draft",
+      draftRevision: 0,
+      publication: undefined,
     });
   });
 

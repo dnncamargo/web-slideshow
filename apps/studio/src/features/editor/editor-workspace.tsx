@@ -29,6 +29,12 @@ import {
   isSaveEnabled,
   resolveSaveStatus,
 } from "./editor-save-state";
+import {
+  createInitialEditorPublishState,
+  editorPublishReducer,
+  isPublishEnabled,
+  resolvePublishButtonLabelStatus,
+} from "./editor-publish-state";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
   getEffectiveImageFocalPoint,
@@ -262,9 +268,11 @@ const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
 export function EditorWorkspace({
   initialPresentation,
   onSave,
+  onPublish,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
+  onPublish?: () => Promise<void>;
 } = {}) {
   const { locale, setLocale, t } = useStudioI18n();
 
@@ -290,6 +298,12 @@ export function EditorWorkspace({
     hasSaveError: false,
     failedPresentation: null,
   });
+
+  const [publishState, dispatchPublish] = useReducer(
+    editorPublishReducer,
+    undefined,
+    createInitialEditorPublishState,
+  );
 
   // ==========================================================
   // END: DOCUMENTO EDITÁVEL
@@ -1264,6 +1278,57 @@ export function EditorWorkspace({
   // END: EXPLICIT SAVE
   // ==========================================================
 
+  // ==========================================================
+  // BEGIN: EXPLICIT PUBLISH
+  // ==========================================================
+
+  const publishLabelStatus = resolvePublishButtonLabelStatus(
+    publishState,
+    presentation,
+  );
+  const publishEnabled = isPublishEnabled(
+    publishState,
+    saveStatus,
+    onPublish !== undefined,
+  );
+
+  // When the canonical Presentation root changes, a previous local publish
+  // success no longer reflects the current snapshot. Return to the normal
+  // idle action state.
+  useEffect(() => {
+    if (
+      publishState.status === "success" &&
+      presentation !== publishState.publishedPresentation
+    ) {
+      dispatchPublish({ type: "publish-reset" });
+    }
+  }, [presentation, publishState]);
+
+  function handlePublish() {
+    if (!onPublish || publishState.status === "publishing") {
+      return;
+    }
+
+    if (saveStatus !== "clean") {
+      return;
+    }
+
+    dispatchPublish({ type: "publish-start" });
+
+    onPublish()
+      .then(() => {
+        dispatchPublish({ type: "publish-success", presentation });
+      })
+      .catch((error) => {
+        console.error("Failed to publish presentation", error);
+        dispatchPublish({ type: "publish-error" });
+      });
+  }
+
+  // ==========================================================
+  // END: EXPLICIT PUBLISH
+  // ==========================================================
+
   function addFontFace(family: string, face: FontFaceResource) {
     setPresentation((current) => {
       const parsedFace = FontFaceResourceSchema.safeParse(face);
@@ -1931,10 +1996,12 @@ export function EditorWorkspace({
       ======================================================== */}
 
         <div className={styles.topbarControls}>
+
           {/* ======================================================
-        BEGIN: STUDIO LANGUAGE SELECTOR
+        BEGIN: STUDIO LANGUAGE SELECTOR 
         ====================================================== */}
 
+        
           <label className={styles.localeControl} title={t("locale.language")}>
             <span className={styles.localeIcon} aria-hidden="true">
               <svg
@@ -1971,8 +2038,10 @@ export function EditorWorkspace({
           </label>
 
           {/* ======================================================
-        END: STUDIO LANGUAGE SELECTOR
+        END: STUDIO LANGUAGE SELECTOR (separated divider)
         ====================================================== */}
+
+          <div className={styles.topbarDivider} aria-hidden="true" />
 
           {/* ======================================================
         BEGIN: SAVE STATUS
@@ -2012,6 +2081,37 @@ export function EditorWorkspace({
           {/* ======================================================
         END: SAVE BUTTON
         ====================================================== */}
+
+          {/* ======================================================
+        BEGIN: PUBLISH BUTTON
+        ====================================================== */}
+
+          {onPublish && (
+            <button
+              type="button"
+              className={
+                publishLabelStatus === "success"
+                  ? `${styles.publishButton} ${styles.publishButtonSuccess}`
+                  : styles.publishButton
+              }
+              disabled={!publishEnabled}
+              onClick={handlePublish}
+            >
+              {publishLabelStatus === "publishing"
+                ? t("topbar.publishing")
+                : publishLabelStatus === "success"
+                  ? t("topbar.published")
+                  : publishLabelStatus === "error"
+                    ? t("topbar.publishFailed")
+                    : t("topbar.publish")}
+            </button>
+          )}
+
+          {/* ======================================================
+        END: PUBLISH BUTTON
+        ====================================================== */}
+
+
         </div>
 
         {/* ========================================================

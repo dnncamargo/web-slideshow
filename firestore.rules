@@ -2,10 +2,84 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User presentation documents. Access is strictly limited to the
-    // authenticated owner of the user document.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isPrivatePresentationOwner(userId) {
+      // Private drafts remain readable/writable only by their authenticated
+      // owner. Anonymous Firebase Auth counts as authenticated.
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // A published version must contain EXACTLY: presentation, publishedRevision,
+    // publishedAt. Reject extra private/persistence fields.
+    function publishedVersionHasValidShape() {
+      let resource = request.resource.data;
+      return resource.keys().hasAll(['presentation', 'publishedRevision', 'publishedAt'])
+        && resource.keys().hasOnly(['presentation', 'publishedRevision', 'publishedAt'])
+        && resource.presentation is map
+        && resource.presentation.id is string
+        && resource.presentation.id.size() > 0
+        && resource.publishedRevision is int
+        && resource.publishedRevision >= 0
+        && resource.publishedAt == request.time;
+    }
+
+    // Authorization for public version creation.
+    //
+    // Uses getAfter() because the publish transaction atomically creates the
+    // public version AND updates the private draft publication pointer. The
+    // post-transaction private draft must reference this exact public version.
+    function publishedVersionMatchesAuthoritativeDraft(publicationId, versionId, userId) {
+      let resource = request.resource.data;
+      let draft = getAfter(
+        /databases/$(database)/documents/users/$(userId)/presentations/$(resource.presentation.id)
+      );
+      return draft != null
+        && draft.data.publication.publicationId == publicationId
+        && draft.data.publication.currentVersionId == versionId
+        && draft.data.publication.publishedRevision == resource.publishedRevision
+        && draft.data.publication.publishedAt == request.time
+        && draft.data.draftRevision == resource.publishedRevision
+        && resource.presentation.diff(draft.data.presentation).affectedKeys().size() == 0;
+    }
+
+    // ------------------------------------------------------------
+    // PRIVATE DRAFTS
+    // users/{userId}/presentations/{presentationId}
+    // ------------------------------------------------------------
     match /users/{userId}/presentations/{presentationId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isPrivatePresentationOwner(userId);
+    }
+
+    // ------------------------------------------------------------
+    // PUBLIC IMMUTABLE PUBLISHED VERSIONS
+    // publishedPresentations/{publicationId}/versions/{versionId}
+    // ------------------------------------------------------------
+    // The parent publishedPresentations/{publicationId} has no public document
+    // contract and is intentionally not matched; accesses there are denied by
+    // default.
+    match /publishedPresentations/{publicationId}/versions/{versionId} {
+      // Direct fetch of a known published version is intentionally public.
+      allow get: if true;
+
+      // Listing/querying published versions is never allowed.
+      allow list: if false;
+
+      // Creation is allowed only for a valid publish transaction verified
+      // against the author's private draft pointer and snapshot. Authentication
+      // and version shape are checked before the uid-based helper is evaluated.
+      allow create: if isSignedIn()
+        && publishedVersionHasValidShape()
+        && publishedVersionMatchesAuthoritativeDraft(
+          publicationId,
+          versionId,
+          request.auth.uid
+        );
+
+      // update and delete are intentionally omitted. They are denied by
+      // default: published versions are immutable.
     }
   }
 }

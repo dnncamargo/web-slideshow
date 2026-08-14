@@ -13,7 +13,15 @@ import {
 } from "../src/features/library/presentation-library-logic";
 
 function summary(id: string): PresentationSummary {
-  return { id, title: `Title ${id}`, updatedAt: "ts", archived: false };
+  return {
+    id,
+    title: `Title ${id}`,
+    updatedAt: "ts",
+    archived: false,
+    publicationState: "draft",
+    draftRevision: 1,
+    publication: undefined,
+  };
 }
 
 describe("presentation library logic", () => {
@@ -74,6 +82,12 @@ describe("presentation repository Edit wiring", () => {
       createPresentation: vi.fn(async () => {}),
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
+      publishPresentation: vi.fn(async () => ({
+        publicationId: "publication-id",
+        versionId: "version-id",
+        publishedRevision: 1,
+        createdVersion: true,
+      })),
     };
 
     // The Edit flow only needs the summary id to build navigation; it must

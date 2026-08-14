@@ -19,6 +19,9 @@ importers:
       '@powershow/theme':
         specifier: workspace:*
         version: link:../../packages/theme
+      firebase:
+        specifier: 12.17.1
+        version: 12.17.1
     devDependencies:
       jsdom:
         specifier: ^26.1.0

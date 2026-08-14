@@ -110,6 +110,9 @@ export function StudioEditorMount({
     <EditorWorkspace
       initialPresentation={status.presentation}
       onSave={(presentation) => repository.savePresentation(presentation)}
+      onPublish={async () => {
+        await repository.publishPresentation(status.presentation.id);
+      }}
     />
   );
 }

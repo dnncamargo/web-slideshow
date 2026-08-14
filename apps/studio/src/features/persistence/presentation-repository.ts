@@ -2,6 +2,13 @@ import type { Presentation } from "@powershow/document-schema";
 
 import type { PresentationSummary } from "./presentation-persistence";
 
+export interface PresentationPublishResult {
+  publicationId: string;
+  versionId: string;
+  publishedRevision: number;
+  createdVersion: boolean;
+}
+
 /**
  * Domain-facing Presentation repository abstraction.
  *
@@ -14,4 +21,5 @@ export interface PresentationRepository {
   createPresentation(presentation: Presentation): Promise<void>;
   savePresentation(presentation: Presentation): Promise<void>;
   archivePresentation(id: string): Promise<void>;
+  publishPresentation(id: string): Promise<PresentationPublishResult>;
 }

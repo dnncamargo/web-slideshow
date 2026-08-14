@@ -106,6 +106,71 @@
   cursor: not-allowed;
 }
 
+.publishButton {
+  height: 28px;
+
+  padding: 0 14px;
+
+  border: 1px solid #6d28d9;
+
+  border-radius: 6px;
+
+  background: #4c1d95;
+
+  color: #f3e8ff;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.publishButton:hover:not(:disabled) {
+  border-color: #a78bfa;
+
+  background: #5b21b6;
+}
+
+.publishButton:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
+.publishButtonSuccess,
+.publishButtonSuccess:disabled {
+  border: 1px solid #16a34a;
+
+  background: #14532d;
+
+  color: #dcfce7;
+
+  opacity: 1;
+
+  cursor: default;
+}
+
+.publishButtonSuccess:hover:not(:disabled) {
+  border-color: #16a34a;
+
+  background: #14532d;
+}
+
+.topbarDivider {
+  width: 1px;
+
+  height: 20px;
+
+  margin-left: 5px;
+
+  margin-right: 35px;
+
+  background: #232a36;
+
+  flex: none;
+}
+
 /* ==========================================================
    BEGIN: STUDIO LANGUAGE SELECTOR
    ========================================================== */
