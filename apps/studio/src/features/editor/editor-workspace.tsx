@@ -1996,10 +1996,12 @@ export function EditorWorkspace({
       ======================================================== */}
 
         <div className={styles.topbarControls}>
+
           {/* ======================================================
-        BEGIN: STUDIO LANGUAGE SELECTOR
+        BEGIN: STUDIO LANGUAGE SELECTOR 
         ====================================================== */}
 
+        
           <label className={styles.localeControl} title={t("locale.language")}>
             <span className={styles.localeIcon} aria-hidden="true">
               <svg
@@ -2036,8 +2038,10 @@ export function EditorWorkspace({
           </label>
 
           {/* ======================================================
-        END: STUDIO LANGUAGE SELECTOR
+        END: STUDIO LANGUAGE SELECTOR (separated divider)
         ====================================================== */}
+
+          <div className={styles.topbarDivider} aria-hidden="true" />
 
           {/* ======================================================
         BEGIN: SAVE STATUS
@@ -2085,7 +2089,11 @@ export function EditorWorkspace({
           {onPublish && (
             <button
               type="button"
-              className={styles.publishButton}
+              className={
+                publishLabelStatus === "success"
+                  ? `${styles.publishButton} ${styles.publishButtonSuccess}`
+                  : styles.publishButton
+              }
               disabled={!publishEnabled}
               onClick={handlePublish}
             >
@@ -2102,6 +2110,8 @@ export function EditorWorkspace({
           {/* ======================================================
         END: PUBLISH BUTTON
         ====================================================== */}
+
+
         </div>
 
         {/* ========================================================
