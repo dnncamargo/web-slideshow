@@ -430,6 +430,12 @@ const englishMessages = {
   "auth.signOut": "Sign out",
   "auth.signingOut": "Signing out…",
 
+  "control.previous": "Previous",
+  "control.next": "Next",
+  "control.sendFailed": "Could not send command.",
+  "control.missingPublication": "Missing publication.",
+  "control.unavailable": "Remote control is unavailable.",
+
   "public.noLive": "No live presentation",
   "public.studio": "Studio",
   "public.play": "Play",
@@ -858,6 +864,12 @@ const portugueseMessages = {
   "auth.loading": "Carregando…",
   "auth.signOut": "Sair",
   "auth.signingOut": "Saindo…",
+
+  "control.previous": "Anterior",
+  "control.next": "Próximo",
+  "control.sendFailed": "Não foi possível enviar o comando.",
+  "control.missingPublication": "Publicação ausente.",
+  "control.unavailable": "Controle remoto indisponível.",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
   "public.studio": "Studio",
