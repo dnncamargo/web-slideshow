@@ -36,6 +36,37 @@ describe("persistence metadata normalization", () => {
     expect(normalizePersistenceMetadata(-1, undefined).draftRevision).toBe(0);
   });
 
+  it("normalizes non-integer or non-finite draftRevision to zero", () => {
+    expect(normalizePersistenceMetadata(1.5, undefined).draftRevision).toBe(0);
+    expect(normalizePersistenceMetadata(NaN, undefined).draftRevision).toBe(0);
+    expect(normalizePersistenceMetadata(Infinity, undefined).draftRevision).toBe(0);
+  });
+
+  it("keeps valid integer draftRevision values unchanged", () => {
+    expect(normalizePersistenceMetadata(0, undefined).draftRevision).toBe(0);
+    expect(normalizePersistenceMetadata(1, undefined).draftRevision).toBe(1);
+    expect(normalizePersistenceMetadata(42, undefined).draftRevision).toBe(42);
+  });
+
+  it("treats non-integer publishedRevision as malformed publication", () => {
+    const result = normalizePersistenceMetadata(1, {
+      currentVersionId: "v1",
+      publishedRevision: 1.5,
+      publishedAt: "ts",
+    });
+
+    expect(result.publication).toBeUndefined();
+  });
+
+  it("treats missing publishedAt as malformed publication", () => {
+    const result = normalizePersistenceMetadata(1, {
+      currentVersionId: "v1",
+      publishedRevision: 1,
+    });
+
+    expect(result.publication).toBeUndefined();
+  });
+
   it("treats malformed publication metadata as absent", () => {
     const result = normalizePersistenceMetadata(1, { currentVersionId: 1 });
 

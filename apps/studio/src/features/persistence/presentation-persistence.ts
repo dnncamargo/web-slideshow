@@ -59,12 +59,17 @@ export type PresentationPublicationState =
   | "published"
   | "unpublished-changes";
 
-function normalizeDraftRevision(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-    return Math.floor(value);
-  }
+function isValidRevision(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= 0
+  );
+}
 
-  return 0;
+function normalizeDraftRevision(value: unknown): number {
+  return isValidRevision(value) ? value : 0;
 }
 
 function normalizePublicationMetadata(value: unknown): PresentationPublicationMetadata | undefined {
@@ -77,9 +82,8 @@ function normalizePublicationMetadata(value: unknown): PresentationPublicationMe
   if (
     typeof candidate.currentVersionId !== "string" ||
     !candidate.currentVersionId ||
-    typeof candidate.publishedRevision !== "number" ||
-    !Number.isFinite(candidate.publishedRevision) ||
-    candidate.publishedRevision < 0
+    !isValidRevision(candidate.publishedRevision) ||
+    !("publishedAt" in candidate)
   ) {
     return undefined;
   }
