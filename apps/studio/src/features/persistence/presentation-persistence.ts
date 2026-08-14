@@ -20,6 +20,8 @@ export interface PresentationPersistenceEnvelope {
   createdAt: unknown;
   updatedAt: unknown;
   archivedAt?: unknown;
+  draftRevision?: unknown;
+  publication?: unknown;
 }
 
 export interface PresentationSummarySource {
@@ -27,6 +29,8 @@ export interface PresentationSummarySource {
   title: string;
   updatedAt: unknown;
   archivedAt?: unknown;
+  draftRevision?: unknown;
+  publication?: unknown;
 }
 
 export interface PresentationSummary {
@@ -34,6 +38,82 @@ export interface PresentationSummary {
   title: string;
   updatedAt: unknown;
   archived: boolean;
+  publicationState: PresentationPublicationState;
+  draftRevision: number;
+  publication: PresentationPublicationMetadata | undefined;
+}
+
+/**
+ * Publication metadata contract. Not written in Round 4A; Round 4B populates
+ * it. Every field identifies the immutable published snapshot and the draft
+ * revision it was produced from.
+ */
+export interface PresentationPublicationMetadata {
+  currentVersionId: string;
+  publishedRevision: number;
+  publishedAt: unknown;
+}
+
+export type PresentationPublicationState =
+  | "draft"
+  | "published"
+  | "unpublished-changes";
+
+function normalizeDraftRevision(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value);
+  }
+
+  return 0;
+}
+
+function normalizePublicationMetadata(value: unknown): PresentationPublicationMetadata | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  if (
+    typeof candidate.currentVersionId !== "string" ||
+    !candidate.currentVersionId ||
+    typeof candidate.publishedRevision !== "number" ||
+    !Number.isFinite(candidate.publishedRevision) ||
+    candidate.publishedRevision < 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    currentVersionId: candidate.currentVersionId,
+    publishedRevision: candidate.publishedRevision,
+    publishedAt: candidate.publishedAt,
+  };
+}
+
+export function normalizePersistenceMetadata(
+  draftRevision: unknown,
+  publication: unknown,
+): { draftRevision: number; publication: PresentationPublicationMetadata | undefined } {
+  return {
+    draftRevision: normalizeDraftRevision(draftRevision),
+    publication: normalizePublicationMetadata(publication),
+  };
+}
+
+export function resolvePublicationState(
+  draftRevision: number,
+  publication: PresentationPublicationMetadata | undefined,
+): PresentationPublicationState {
+  if (!publication) {
+    return "draft";
+  }
+
+  if (publication.publishedRevision === draftRevision) {
+    return "published";
+  }
+
+  return "unpublished-changes";
 }
 
 function toFirestoreSafeValue(value: unknown): unknown {
@@ -106,12 +186,22 @@ export function extractPresentationSummary(
   data: PresentationSummarySource,
 ): PresentationSummary {
   const archivedAt = data.archivedAt;
+  const metadata = normalizePersistenceMetadata(
+    data.draftRevision,
+    data.publication,
+  );
 
   return {
     id: data.id,
     title: data.title,
     updatedAt: data.updatedAt,
     archived: archivedAt !== undefined && archivedAt !== null,
+    publicationState: resolvePublicationState(
+      metadata.draftRevision,
+      metadata.publication,
+    ),
+    draftRevision: metadata.draftRevision,
+    publication: metadata.publication,
   };
 }
 

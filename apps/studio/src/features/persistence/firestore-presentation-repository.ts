@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   orderBy,
   query,
   serverTimestamp,
@@ -82,6 +83,8 @@ export class FirestorePresentationRepository
             title: (presentation as { title: string }).title,
             updatedAt: data.updatedAt,
             archivedAt: archivedAt ?? undefined,
+            draftRevision: data.draftRevision,
+            publication: data.publication,
           }),
         );
       }
@@ -131,6 +134,7 @@ export class FirestorePresentationRepository
         presentation: makeFirestoreSafePresentation(presentation),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        draftRevision: 1,
       });
     } catch (error) {
       console.error("Failed to create presentation", error);
@@ -153,6 +157,7 @@ export class FirestorePresentationRepository
       await updateDoc(documentRef, {
         presentation: makeFirestoreSafePresentation(presentation),
         updatedAt: serverTimestamp(),
+        draftRevision: increment(1),
       });
     } catch (error) {
       console.error(`Failed to save presentation "${presentation.id}"`, error);

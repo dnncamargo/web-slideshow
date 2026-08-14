@@ -13,7 +13,15 @@ import {
 } from "../src/features/library/presentation-library-logic";
 
 function summary(id: string): PresentationSummary {
-  return { id, title: `Title ${id}`, updatedAt: "ts", archived: false };
+  return {
+    id,
+    title: `Title ${id}`,
+    updatedAt: "ts",
+    archived: false,
+    publicationState: "draft",
+    draftRevision: 1,
+    publication: undefined,
+  };
 }
 
 describe("presentation library logic", () => {
