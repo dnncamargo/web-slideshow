@@ -203,4 +203,28 @@ describe("transactional presentation publishing", () => {
     );
     expect(transaction.set).not.toHaveBeenCalled();
   });
+
+  it("adapts the mount publish callback to repository.publishPresentation(id)", async () => {
+    const presentation = createBlankPresentation("pres-mount");
+    mocks.doc.mockReturnValue({ id: "private-draft" });
+    const transaction = setupTransaction(
+      draftData({ presentation, draftRevision: 1 }),
+    );
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-auto" })
+      .mockReturnValueOnce({ id: "version-auto" });
+
+    // Emulates the StudioEditorMount onPublish contract:
+    // onPublish = async () => { await repository.publishPresentation(presentation.id); }
+    const onPublish = async () => {
+      await repository.publishPresentation(presentation.id);
+    };
+
+    await onPublish();
+
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.doc).toHaveBeenCalledWith(expect.anything(), "users", "user-1", "presentations", "pres-mount");
+    expect(transaction.set).toHaveBeenCalledTimes(1);
+  });
 });

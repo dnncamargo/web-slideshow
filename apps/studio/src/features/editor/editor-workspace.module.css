@@ -106,6 +106,38 @@
   cursor: not-allowed;
 }
 
+.publishButton {
+  height: 28px;
+
+  padding: 0 14px;
+
+  border: 1px solid #6d28d9;
+
+  border-radius: 6px;
+
+  background: #4c1d95;
+
+  color: #f3e8ff;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.publishButton:hover:not(:disabled) {
+  border-color: #a78bfa;
+
+  background: #5b21b6;
+}
+
+.publishButton:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
 /* ==========================================================
    BEGIN: STUDIO LANGUAGE SELECTOR
    ========================================================== */

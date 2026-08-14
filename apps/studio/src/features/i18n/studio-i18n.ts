@@ -36,6 +36,10 @@ const englishMessages = {
   "topbar.saving": "Saving…",
   "topbar.saveFailed": "Save failed",
   "topbar.save": "Save",
+  "topbar.publish": "Publish",
+  "topbar.publishing": "Publishing…",
+  "topbar.published": "Published",
+  "topbar.publishFailed": "Publish failed",
 
   "slides.title": "Slides",
   "slides.new": "+ New slide",
@@ -448,6 +452,10 @@ const portugueseMessages = {
   "topbar.saving": "Salvando…",
   "topbar.saveFailed": "Falha ao salvar",
   "topbar.save": "Salvar",
+  "topbar.publish": "Publicar",
+  "topbar.publishing": "Publicando…",
+  "topbar.published": "Publicado",
+  "topbar.publishFailed": "Falha ao publicar",
 
   "slides.title": "Slides",
   "slides.new": "+ Novo slide",
