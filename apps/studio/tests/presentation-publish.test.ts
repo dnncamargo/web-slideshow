@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   runTransaction: vi.fn(),
   serverTimestamp: vi.fn(),
   getFirebaseFirestore: vi.fn(() => ({})),
-  ensureFirebaseUser: vi.fn(async () => ({ uid: "user-1" })),
+  getCurrentNonAnonymousUser: vi.fn(() => ({ uid: "user-1", isAnonymous: false })),
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -27,8 +27,8 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
   getFirebaseFirestore: mocks.getFirebaseFirestore,
 }));
 
-vi.mock("../src/features/persistence/firebase-anonymous-auth", () => ({
-  ensureFirebaseUser: mocks.ensureFirebaseUser,
+vi.mock("../src/features/auth/firebase-auth", () => ({
+  getCurrentNonAnonymousUser: mocks.getCurrentNonAnonymousUser,
 }));
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
@@ -65,7 +65,7 @@ describe("transactional presentation publishing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getFirebaseFirestore.mockReturnValue({});
-    mocks.ensureFirebaseUser.mockResolvedValue({ uid: "user-1" });
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1", isAnonymous: false });
     mocks.collection.mockImplementation((...path: unknown[]) => ({ path }));
     mocks.serverTimestamp.mockReturnValue("server-ts");
   });

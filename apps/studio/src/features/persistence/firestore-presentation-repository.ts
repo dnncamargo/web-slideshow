@@ -14,8 +14,9 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-import { ensureFirebaseUser } from "./firebase-anonymous-auth";
 import { getFirebaseFirestore } from "./firebase-client";
+import { requireAuthenticatedFirebaseUser } from "./authenticated-user";
+import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
 import {
   FirestoreOperationError,
   PersistenceError,
@@ -56,8 +57,12 @@ function presentationDocumentRef(userId: string, presentationId: string) {
 export class FirestorePresentationRepository
   implements PresentationRepository
 {
+  private requireAuthenticatedUser() {
+    return requireAuthenticatedFirebaseUser(getCurrentNonAnonymousUser);
+  }
+
   async listPresentations(): Promise<PresentationSummary[]> {
-    const user = await ensureFirebaseUser();
+    const user = this.requireAuthenticatedUser();
     const presentationsRef = presentationsCollection(user.uid);
 
     try {
@@ -109,7 +114,7 @@ export class FirestorePresentationRepository
   }
 
   async getPresentation(id: string): Promise<Presentation | null> {
-    const user = await ensureFirebaseUser();
+    const user = this.requireAuthenticatedUser();
     const documentRef = presentationDocumentRef(user.uid, id);
 
     try {
@@ -131,7 +136,7 @@ export class FirestorePresentationRepository
   }
 
   async createPresentation(presentation: Presentation): Promise<void> {
-    const user = await ensureFirebaseUser();
+    const user = this.requireAuthenticatedUser();
 
     assertPresentationWithinSizeLimit(presentation);
 
@@ -155,7 +160,7 @@ export class FirestorePresentationRepository
   }
 
   async savePresentation(presentation: Presentation): Promise<void> {
-    const user = await ensureFirebaseUser();
+    const user = this.requireAuthenticatedUser();
 
     assertPresentationWithinSizeLimit(presentation);
 
@@ -178,7 +183,7 @@ export class FirestorePresentationRepository
   }
 
   async archivePresentation(id: string): Promise<void> {
-    const user = await ensureFirebaseUser();
+    const user = this.requireAuthenticatedUser();
     const documentRef = presentationDocumentRef(user.uid, id);
 
     try {
@@ -196,7 +201,7 @@ export class FirestorePresentationRepository
   }
 
   async publishPresentation(id: string): Promise<PresentationPublishResult> {
-    const user = await ensureFirebaseUser();
+    const user = this.requireAuthenticatedUser();
     const firestore = getFirebaseFirestore();
     const draftRef = presentationDocumentRef(user.uid, id);
 

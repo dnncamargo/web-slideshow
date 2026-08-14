@@ -31,6 +31,10 @@ import {
   StudioI18nProvider,
 } from "@/features/i18n/studio-i18n-context";
 
+import {
+  StudioAuthProvider,
+} from "@/features/auth/studio-auth-provider";
+
 // ============================================================
 // END: STUDIO I18N PROVIDER
 // ============================================================
@@ -70,7 +74,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <StudioI18nProvider>
-          {children}
+          <StudioAuthProvider>
+            {children}
+          </StudioAuthProvider>
         </StudioI18nProvider>
       </body>
     </html>
