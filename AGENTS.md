@@ -651,6 +651,8 @@ Editor
       ↓
 Firebase Persistence
       ↓
+Publishing
+      ↓
 Live Sessions
       ↓
 Control
@@ -675,3 +677,203 @@ The operating principle is:
 > Write as much code as useful. Make as few architectural decisions as possible.
 
 When the specification is insufficient to make a safe architectural decision, report the ambiguity instead of inventing a new convention.
+
+---
+
+# 25. PowerShow Agent Protocol (PSAP/1)
+
+PSAP/1 is the compact task protocol used to reduce repeated prompt context.
+
+It does not replace the architectural rules in this file. It assumes the agent has read and follows this file.
+
+A task may begin with:
+
+```text
+PSAP/1
+mode=<patch|implement|decide>
+model=<DS|TD|TP>
+base=<commit-or-current>
+scope=<files-or-area>
+rules=<compact-rules>
+validate=<commands-or-profile>
+```
+
+Model tags are advisory:
+
+```text
+DS = DeepSeek V4 Flash
+TD = GPT-5.6 Terra Default
+TP = GPT-5.6 Terra Pro
+```
+
+The model tag does not grant architectural authority.
+
+## `mode=patch`
+
+Use when the exact semantic change is already decided.
+
+The agent must:
+
+* apply only the stated delta;
+* avoid redesigning surrounding code;
+* resolve only direct syntax/type consequences;
+* avoid unrelated refactors.
+
+Example:
+
+```text
+PSAP/1
+mode=patch
+model=DS
+scope=firestore.rules
+rules=no-git,no-install,scope-strict,no-arch,diffcheck,report-short
+
+change:
+- helper receives validated userId
+- replace invalid Resource existence check with draft != null
+- auth guard occurs before request.auth.uid use
+
+keep:
+- existing publication invariants
+
+no-other-changes
+```
+
+## `mode=implement`
+
+Use when architecture and contract are already decided, but implementation is still required.
+
+Prefer this shape:
+
+```text
+goal:
+inputs:
+outputs:
+invariants:
+scope:
+tests:
+validate:
+```
+
+The agent may choose local implementation details only when they do not change the declared architecture or contract.
+
+## `mode=decide`
+
+Use only when a task explicitly delegates an architectural decision.
+
+Prefer this shape:
+
+```text
+problem:
+constraints:
+known-options:
+decision-required:
+```
+
+Do not infer `mode=decide` merely because implementation is difficult.
+
+---
+
+# 26. Compact Task Vocabulary
+
+Future prompts may use these tokens.
+
+```text
+no-git
+  apply the repository Git rules in this file
+
+no-install
+  do not install, upgrade, or migrate dependencies
+
+scope-strict
+  inspect/modify only declared scope except a concrete compile necessity
+
+no-arch
+  architecture is already decided; do not redesign
+
+no-ui
+  do not modify UI
+
+no-schema
+  do not modify the canonical document schema
+
+no-firebase-sdk
+  do not introduce direct Firebase SDK use outside persistence infrastructure
+
+no-player
+  do not touch Player/runtime delivery code
+
+no-autosave
+  do not add autosave, timers, or save-on-change effects
+
+no-fake-tests
+  tests must exercise production code or production helpers
+
+diffcheck
+  run git diff --check
+
+studio-check
+  run:
+  pnpm --filter @powershow/studio typecheck
+  pnpm --filter @powershow/studio test
+  git diff --check
+
+report-short
+  provide only files changed, behavior, validation, and a narrow unresolved concern if any
+```
+
+A task may combine them:
+
+```text
+rules=no-git,no-install,scope-strict,no-arch,no-fake-tests,studio-check,report-short
+```
+
+---
+
+# 27. Cost and Context Discipline
+
+Agents should not spend context rediscovering decisions that the task declares accepted.
+
+For continuation tasks:
+
+1. inspect the current working tree or named partial file first;
+2. continue from the existing implementation;
+3. do not restart the original round from scratch;
+4. do not re-evaluate accepted architectural decisions;
+5. do not broadly crawl the repository when scope is already known.
+
+If the task can be completed only by introducing a new architectural decision:
+
+1. stop before broad changes;
+2. report the exact ambiguity;
+3. identify the smallest decision required;
+4. wait for the architecture layer to resolve it.
+
+Prefer the cheapest execution mode that fits the task:
+
+```text
+patch
+  exact change already decided
+
+implement
+  contract decided; code remains
+
+decide
+  architecture explicitly delegated
+```
+
+The normal PowerShow workflow is:
+
+```text
+architecture/review
+      ↓
+small agent task
+      ↓
+WIP checkpoint
+      ↓
+code review
+      ↓
+next smaller task
+```
+
+The purpose is to keep diffs reviewable, reduce repeated context, and minimize unnecessary agent reasoning cost.
