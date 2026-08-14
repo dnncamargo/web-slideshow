@@ -31,14 +31,12 @@ service cloud.firestore {
     // Uses getAfter() because the publish transaction atomically creates the
     // public version AND updates the private draft publication pointer. The
     // post-transaction private draft must reference this exact public version.
-    function publishedVersionMatchesAuthoritativeDraft(publicationId, versionId) {
+    function publishedVersionMatchesAuthoritativeDraft(publicationId, versionId, userId) {
       let resource = request.resource.data;
       let draft = getAfter(
-        /databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(resource.presentation.id)
+        /databases/$(database)/documents/users/$(userId)/presentations/$(resource.presentation.id)
       );
-      return isSignedIn()
-        && draft.exists
-        && publishedVersionHasValidShape()
+      return draft != null
         && draft.data.publication.publicationId == publicationId
         && draft.data.publication.currentVersionId == versionId
         && draft.data.publication.publishedRevision == resource.publishedRevision
@@ -70,11 +68,15 @@ service cloud.firestore {
       allow list: if false;
 
       // Creation is allowed only for a valid publish transaction verified
-      // against the author's private draft pointer and snapshot.
-      allow create: if publishedVersionMatchesAuthoritativeDraft(
-        publicationId,
-        versionId
-      );
+      // against the author's private draft pointer and snapshot. Authentication
+      // and version shape are checked before the uid-based helper is evaluated.
+      allow create: if isSignedIn()
+        && publishedVersionHasValidShape()
+        && publishedVersionMatchesAuthoritativeDraft(
+          publicationId,
+          versionId,
+          request.auth.uid
+        );
 
       // update and delete are intentionally omitted. They are denied by
       // default: published versions are immutable.
