@@ -36,6 +36,24 @@ describe("editor publish-state", () => {
     ).toBe(true);
   });
 
+  it("blocks publish after a successful publish of the same snapshot", () => {
+    const a = makePresentation("a");
+    const success = editorPublishReducer(createInitialEditorPublishState(), {
+      type: "publish-success",
+      presentation: a,
+    });
+
+    expect(isPublishEnabled(success, "clean", true)).toBe(false);
+  });
+
+  it("allows error + clean for an explicit retry", () => {
+    const error = editorPublishReducer(createInitialEditorPublishState(), {
+      type: "publish-error",
+    });
+
+    expect(isPublishEnabled(error, "clean", true)).toBe(true);
+  });
+
   it("blocks a duplicate publish while publishing is in flight", () => {
     const publishing = editorPublishReducer(createInitialEditorPublishState(), {
       type: "publish-start",
@@ -68,6 +86,7 @@ describe("editor publish-state", () => {
     expect(afterReset.status).toBe("idle");
     expect(afterReset.publishedPresentation).toBeNull();
     expect(resolvePublishButtonLabelStatus(afterReset, b)).toBe("idle");
+    expect(isPublishEnabled(afterReset, "clean", true)).toBe(true);
   });
 
   it("allows retry after a failure", () => {

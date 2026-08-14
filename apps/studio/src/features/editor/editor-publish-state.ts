@@ -48,8 +48,13 @@ export function isPublishEnabled(
   saveStatus: string,
   hasPublishCallback: boolean,
 ): boolean {
-  // Never publish while a request is in flight or no callback exists.
+  // Never publish without a callback, while in flight, or after a successful
+  // publish of the current snapshot.
   if (!hasPublishCallback || state.status === "publishing") {
+    return false;
+  }
+
+  if (state.status === "success") {
     return false;
   }
 
