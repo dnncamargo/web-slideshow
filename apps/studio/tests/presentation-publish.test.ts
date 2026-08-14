@@ -95,6 +95,15 @@ describe("transactional presentation publishing", () => {
         publishedAt: "server-ts",
       }),
     );
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(versionPayload?.presentation).toEqual(expect.objectContaining({ id: "pres-1" }));
+    expect(versionPayload).not.toHaveProperty("draftRevision");
+    expect(versionPayload).not.toHaveProperty("createdAt");
+    expect(versionPayload).not.toHaveProperty("updatedAt");
+    expect(versionPayload).not.toHaveProperty("archivedAt");
+    expect(versionPayload).not.toHaveProperty("publication");
+    expect(versionPayload.presentation).not.toHaveProperty("publicationId");
+    expect(versionPayload.presentation).not.toHaveProperty("publishedRevision");
     expect(transaction.update).toHaveBeenCalledWith(
       { id: "private-draft" },
       {
