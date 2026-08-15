@@ -48,7 +48,10 @@ function draftData(overrides: Record<string, unknown> = {}) {
 
 function setupTransaction(data: Record<string, unknown>, exists = true) {
   const transaction = {
-    get: vi.fn(async () => ({ exists: () => exists, data: () => data })),
+    get: vi.fn(async () => ({
+      exists: () => exists,
+      data: () => data,
+    })),
     set: vi.fn(),
     update: vi.fn(),
   };
@@ -70,12 +73,13 @@ describe("transactional presentation publishing", () => {
     mocks.serverTimestamp.mockReturnValue("server-ts");
   });
 
-  it("creates an opaque publication and immutable version on first publish", async () => {
+  it("creates an opaque publication, immutable version, and public pointer on first publish", async () => {
     const transaction = setupTransaction(draftData());
     mocks.doc
       .mockReturnValueOnce({ id: "private-draft" })
       .mockReturnValueOnce({ id: "publication-auto" })
-      .mockReturnValueOnce({ id: "version-auto" });
+      .mockReturnValueOnce({ id: "version-auto" })
+      .mockReturnValueOnce({ id: "pointer-auto" });
 
     const result = await repository.publishPresentation("pres-1");
 
@@ -104,6 +108,15 @@ describe("transactional presentation publishing", () => {
     expect(versionPayload).not.toHaveProperty("publication");
     expect(versionPayload.presentation).not.toHaveProperty("publicationId");
     expect(versionPayload.presentation).not.toHaveProperty("publishedRevision");
+    // Public pointer is written with the same version/revision/timestamp.
+    expect(transaction.set).toHaveBeenCalledWith(
+      { id: "pointer-auto" },
+      {
+        currentVersionId: "version-auto",
+        publishedRevision: 3,
+        publishedAt: "server-ts",
+      },
+    );
     expect(transaction.update).toHaveBeenCalledWith(
       { id: "private-draft" },
       {
@@ -117,7 +130,7 @@ describe("transactional presentation publishing", () => {
     );
   });
 
-  it("reuses publicationId and creates a new version after a newer draft", async () => {
+  it("reuses publicationId and advances pointer after a newer draft", async () => {
     const transaction = setupTransaction(
       draftData({
         draftRevision: 4,
@@ -131,7 +144,8 @@ describe("transactional presentation publishing", () => {
     );
     mocks.doc
       .mockReturnValueOnce({ id: "private-draft" })
-      .mockReturnValueOnce({ id: "version-new" });
+      .mockReturnValueOnce({ id: "version-new" })
+      .mockReturnValueOnce({ id: "pointer-existing" });
 
     const result = await repository.publishPresentation("pres-1");
 
@@ -141,7 +155,21 @@ describe("transactional presentation publishing", () => {
       publishedRevision: 4,
       createdVersion: true,
     });
-    expect(transaction.set).toHaveBeenCalledTimes(1);
+    expect(transaction.set).toHaveBeenCalledWith(
+      { id: "version-new" },
+      expect.objectContaining({
+        publishedRevision: 4,
+        publishedAt: "server-ts",
+      }),
+    );
+    expect(transaction.set).toHaveBeenCalledWith(
+      { id: "pointer-existing" },
+      {
+        currentVersionId: "version-new",
+        publishedRevision: 4,
+        publishedAt: "server-ts",
+      },
+    );
     expect(transaction.update).toHaveBeenCalledWith(
       { id: "private-draft" },
       expect.objectContaining({
@@ -154,7 +182,7 @@ describe("transactional presentation publishing", () => {
     );
   });
 
-  it("is idempotent when the draft revision is already published", async () => {
+  it("is idempotent when the draft revision is already published: zero writes", async () => {
     const transaction = setupTransaction(
       draftData({
         publication: {
@@ -177,6 +205,8 @@ describe("transactional presentation publishing", () => {
     });
     expect(transaction.set).not.toHaveBeenCalled();
     expect(transaction.update).not.toHaveBeenCalled();
+    // No pointer read — only the draft read.
+    expect(transaction.get).toHaveBeenCalledTimes(1);
   });
 
   it("rejects missing, archived, and invalid drafts without public writes", async () => {
@@ -213,7 +243,8 @@ describe("transactional presentation publishing", () => {
     mocks.doc
       .mockReturnValueOnce({ id: "private-draft" })
       .mockReturnValueOnce({ id: "publication-auto" })
-      .mockReturnValueOnce({ id: "version-auto" });
+      .mockReturnValueOnce({ id: "version-auto" })
+      .mockReturnValueOnce({ id: "pointer-mount" });
 
     // Emulates the StudioEditorMount onPublish contract:
     // onPublish = async () => { await repository.publishPresentation(presentation.id); }
@@ -225,6 +256,6 @@ describe("transactional presentation publishing", () => {
 
     expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
     expect(mocks.doc).toHaveBeenCalledWith(expect.anything(), "users", "user-1", "presentations", "pres-mount");
-    expect(transaction.set).toHaveBeenCalledTimes(1);
+    expect(transaction.set).toHaveBeenCalledTimes(2);
   });
 });

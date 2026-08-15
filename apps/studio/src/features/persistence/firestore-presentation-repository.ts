@@ -234,6 +234,7 @@ export class FirestorePresentationRepository
           draftData.publication,
         );
 
+        // No new revision to publish — leave everything unchanged.
         if (
           metadata.publication &&
           metadata.publication.publishedRevision === metadata.draftRevision
@@ -253,19 +254,31 @@ export class FirestorePresentationRepository
           collection(firestore, "publishedPresentations", publicationId, "versions"),
         );
         const versionId = versionRef.id;
+        const pointerRef = doc(
+          firestore,
+          "publishedPresentations",
+          publicationId,
+        );
+        // Reuse ONE timestamp for version, pointer, and private draft.
+        const publishedAt = serverTimestamp();
 
         // The private draft is read above before either transaction write.
         transaction.set(versionRef, {
           presentation: makeFirestoreSafePresentation(presentation),
           publishedRevision: metadata.draftRevision,
-          publishedAt: serverTimestamp(),
+          publishedAt,
+        });
+        transaction.set(pointerRef, {
+          currentVersionId: versionId,
+          publishedRevision: metadata.draftRevision,
+          publishedAt,
         });
         transaction.update(draftRef, {
           publication: {
             publicationId,
             currentVersionId: versionId,
             publishedRevision: metadata.draftRevision,
-            publishedAt: serverTimestamp(),
+            publishedAt,
           },
         });
 
