@@ -68,14 +68,16 @@ function getOrInitFirebaseApp(): FirebaseApp {
 // ============================================================
 
 // ============================================================
-// BEGIN: CARREGAMENTO DE VERSÃO PUBLICADA
+// BEGIN: CARREGAMENTO DE VERSÃO PUBLICADA VIA POINTER
 //
 // Lê exatamente:
 //
-//   publishedPresentations/{publicationId}/versions/{versionId}
+//   1. publishedPresentations/{publicationId}           (pointer)
+//   2. publishedPresentations/{publicationId}/versions/{currentVersionId}
 //
-// usa getDoc() (sem listeners/query), valida o campo `presentation`
-// com PresentationSchema e devolve a Presentation canônica.
+// usa getDoc() (sem listeners/query), extrai currentVersionId do
+// pointer, resolve a versão imutável apontada e valida o campo
+// `presentation` com PresentationSchema.
 //
 // Toda a inicialização/leitura está dentro do erro boundary:
 // qualquer falha de SDK/config/runtime é capturada, registrada e
@@ -84,7 +86,6 @@ function getOrInitFirebaseApp(): FirebaseApp {
 
 export async function loadPublishedPresentation(
   publicationId: string,
-  versionId: string,
 ): Promise<PublishedLoadResult> {
   try {
     if (!isFirebaseConfigured()) {
@@ -96,27 +97,55 @@ export async function loadPublishedPresentation(
     const app = getOrInitFirebaseApp();
     const firestore = getFirestore(app);
 
-    const ref = doc(
+    // 1. Resolve o pointer público
+    const pointerRef = doc(
+      firestore,
+      "publishedPresentations",
+      publicationId,
+    );
+    const pointerSnapshot = await getDoc(pointerRef);
+
+    if (!pointerSnapshot.exists()) {
+      return { kind: "not-found" };
+    }
+
+    const pointerData = pointerSnapshot.data();
+
+    if (
+      typeof pointerData !== "object" ||
+      pointerData === null ||
+      typeof (pointerData as { currentVersionId?: unknown }).currentVersionId !== "string" ||
+      (pointerData as { currentVersionId: string }).currentVersionId.trim() === ""
+    ) {
+      console.error("Player: publication pointer is malformed.");
+
+      return { kind: "error" };
+    }
+
+    const currentVersionId = (pointerData as { currentVersionId: string }).currentVersionId.trim();
+
+    // 2. Lê a versão imutável apontada
+    const versionRef = doc(
       firestore,
       "publishedPresentations",
       publicationId,
       "versions",
-      versionId,
+      currentVersionId,
     );
-    const snapshot = await getDoc(ref);
+    const versionSnapshot = await getDoc(versionRef);
 
-    if (!snapshot.exists()) {
+    if (!versionSnapshot.exists()) {
       return { kind: "not-found" };
     }
 
-    const data = snapshot.data();
+    const versionData = versionSnapshot.data();
 
-    if (typeof data !== "object" || data === null) {
+    if (typeof versionData !== "object" || versionData === null) {
       return { kind: "not-found" };
     }
 
     const parsed = PresentationSchema.safeParse(
-      (data as { presentation?: unknown }).presentation,
+      (versionData as { presentation?: unknown }).presentation,
     );
 
     if (!parsed.success) {

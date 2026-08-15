@@ -30,24 +30,26 @@ function validPresentation(): Presentation {
     title: "Published",
     description: "",
     aspectRatio: "16:9",
-    slides: [
-      {
-        id: "slide-1",
-        title: "",
-        summary: "",
-        speakerNotes: "",
-        elements: [],
-      },
-    ],
+    slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [] }],
   });
 }
 
+function pointerDoc(currentVersionId = "version-current") {
+  return {
+    exists: () => true,
+    data: () => ({ currentVersionId, publishedRevision: 3, publishedAt: "ts" }),
+  };
+}
+
+function versionDoc(presentation: unknown) {
+  return {
+    exists: () => true,
+    data: () => ({ presentation }),
+  };
+}
+
 function setViteEnv(present: boolean) {
-  const keys = [
-    "VITE_FIREBASE_API_KEY",
-    "VITE_FIREBASE_AUTH_DOMAIN",
-    "VITE_FIREBASE_PROJECT_ID",
-  ] as const;
+  const keys = ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_AUTH_DOMAIN", "VITE_FIREBASE_PROJECT_ID"] as const;
 
   for (const key of keys) {
     vi.stubEnv(key, present ? "set" : "");
@@ -58,13 +60,7 @@ function defaultAppMocks() {
   mocks.initializeApp.mockReturnValue({ name: "fresh" });
   mocks.getApps.mockReturnValue([]);
   mocks.getFirestore.mockReturnValue({});
-  mocks.doc.mockReturnValue({ id: "ref" });
-
-  return {
-    getDoc: mocks.getDoc,
-    initializeApp: mocks.initializeApp,
-    getApps: mocks.getApps,
-  };
+  return { initializeApp: mocks.initializeApp, getApps: mocks.getApps };
 }
 
 afterEach(() => {
@@ -72,71 +68,129 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("published presentation loader", () => {
-  it("resolves ok with a validated Presentation for a valid document", async () => {
+describe("published presentation loader via pointer", () => {
+  it("resolves ok when the pointer and version both exist with a valid presentation", async () => {
     setViteEnv(true);
     defaultAppMocks();
-    mocks.getDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ presentation: validPresentation() }),
-    });
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-current"))
+      .mockResolvedValueOnce(versionDoc(validPresentation()));
 
-    const { loadPublishedPresentation } = await import(
-      "../src/published-presentation-loader"
-    );
-    const result = await loadPublishedPresentation("publication-1", "version-1");
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
 
     expect(result.kind).toBe("ok");
     if (result.kind === "ok") {
       expect(result.presentation.id).toBe("pres-1");
     }
-    expect(mocks.doc).toHaveBeenCalledWith(
+    expect(mocks.doc).toHaveBeenNthCalledWith(1, expect.anything(), "publishedPresentations", "publication-1");
+    expect(mocks.doc).toHaveBeenNthCalledWith(
+      2,
       expect.anything(),
       "publishedPresentations",
       "publication-1",
       "versions",
-      "version-1",
+      "version-current",
     );
   });
 
-  it("returns not-found for a missing document", async () => {
+  it("returns not-found when the pointer does not exist", async () => {
     setViteEnv(true);
     defaultAppMocks();
-    mocks.getDoc.mockResolvedValue({ exists: () => false });
+    mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
+    mocks.getDoc.mockResolvedValueOnce({ exists: () => false });
 
-    const { loadPublishedPresentation } = await import(
-      "../src/published-presentation-loader"
-    );
-    const result = await loadPublishedPresentation("publication-1", "version-1");
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
 
-    expect(result.kind).toBe("not-found");
+    expect(result).toEqual({ kind: "not-found" });
+    // Second doc for version must NOT be called.
+    expect(mocks.doc).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects a malformed Presentation with error", async () => {
+  it("returns error for a malformed pointer (missing, empty, or non-string currentVersionId)", async () => {
     setViteEnv(true);
     defaultAppMocks();
-    mocks.getDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ presentation: { schemaVersion: 999, slides: [] } }),
-    });
+    mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
 
-    const { loadPublishedPresentation } = await import(
-      "../src/published-presentation-loader"
-    );
-    const result = await loadPublishedPresentation("publication-1", "version-1");
+    for (const data of [
+      {},
+      { currentVersionId: "" },
+      { currentVersionId: "   " },
+      { currentVersionId: 42 },
+    ]) {
+      vi.clearAllMocks();
+      defaultAppMocks();
+      mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
+      mocks.getDoc.mockResolvedValueOnce({ exists: () => true, data: () => data });
 
-    expect(result.kind).toBe("error");
+      const { loadPublishedPresentation: reload } = await import("../src/published-presentation-loader");
+      const result = await reload("publication-1");
+
+      expect(result).toEqual({ kind: "error" });
+    }
+  });
+
+  it("returns not-found when the referenced version does not exist", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-current"))
+      .mockResolvedValueOnce({ exists: () => false });
+
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
+
+    expect(result).toEqual({ kind: "not-found" });
+  });
+
+  it("rejects a malformed presentation with error", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-current"))
+      .mockResolvedValueOnce(versionDoc({ schemaVersion: 999, slides: [] }));
+
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
+
+    expect(result).toEqual({ kind: "error" });
   });
 
   it("returns error without rejecting when getDoc rejects", async () => {
     setViteEnv(true);
     defaultAppMocks();
-    mocks.getDoc.mockRejectedValue(new Error("permission denied"));
+    mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
+    mocks.getDoc.mockRejectedValueOnce(new Error("permission denied"));
 
-    const { loadPublishedPresentation } = await import(
-      "../src/published-presentation-loader"
-    );
-    const result = await loadPublishedPresentation("publication-1", "version-1");
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
+
+    expect(result).toEqual({ kind: "error" });
+  });
+
+  it("returns error without rejecting when the version read rejects after a valid pointer", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-current"))
+      .mockRejectedValueOnce(new Error("version read failed"));
+
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "error" });
   });
@@ -144,14 +198,10 @@ describe("published presentation loader", () => {
   it("returns error without rejecting when Firebase initialization fails", async () => {
     setViteEnv(true);
     defaultAppMocks();
-    mocks.initializeApp.mockImplementationOnce(() => {
-      throw new Error("bad config");
-    });
+    mocks.initializeApp.mockImplementationOnce(() => { throw new Error("bad config"); });
 
-    const { loadPublishedPresentation } = await import(
-      "../src/published-presentation-loader"
-    );
-    const result = await loadPublishedPresentation("publication-1", "version-1");
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "error" });
   });
@@ -160,12 +210,11 @@ describe("published presentation loader", () => {
     setViteEnv(true);
     const { getApps, initializeApp } = defaultAppMocks();
     getApps.mockReturnValue([{ name: "existing" }]);
-    mocks.getDoc.mockResolvedValue({ exists: () => false });
+    mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
+    mocks.getDoc.mockResolvedValueOnce({ exists: () => false });
 
-    const { loadPublishedPresentation } = await import(
-      "../src/published-presentation-loader"
-    );
-    await loadPublishedPresentation("publication-1", "version-1");
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    await loadPublishedPresentation("publication-1");
 
     expect(initializeApp).not.toHaveBeenCalled();
     expect(mocks.getFirestore).toHaveBeenCalledWith({ name: "existing" });
