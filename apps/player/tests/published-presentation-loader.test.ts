@@ -220,3 +220,64 @@ describe("published presentation loader via pointer", () => {
     expect(mocks.getFirestore).toHaveBeenCalledWith({ name: "existing" });
   });
 });
+
+describe("published presentation loader by exact version", () => {
+  it("loads the exact version directly without resolving the pointer", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc.mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc.mockResolvedValueOnce(versionDoc(validPresentation()));
+
+    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedVersion("publication-1", "version-exact");
+
+    expect(result.kind).toBe("ok");
+    if (result.kind === "ok") {
+      expect(result.presentation.id).toBe("pres-1");
+    }
+    expect(mocks.doc).toHaveBeenCalledTimes(1);
+    expect(mocks.doc).toHaveBeenCalledWith(
+      expect.anything(),
+      "publishedPresentations",
+      "publication-1",
+      "versions",
+      "version-exact",
+    );
+  });
+
+  it("returns not-found when the exact version does not exist", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc.mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc.mockResolvedValueOnce({ exists: () => false });
+
+    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedVersion("publication-1", "version-missing");
+
+    expect(result).toEqual({ kind: "not-found" });
+  });
+
+  it("returns error when the exact version is malformed", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc.mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc.mockResolvedValueOnce(versionDoc({ schemaVersion: 999, slides: [] }));
+
+    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedVersion("publication-1", "version-bad");
+
+    expect(result).toEqual({ kind: "error" });
+  });
+
+  it("returns error without rejecting when the exact version read fails", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc.mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc.mockRejectedValueOnce(new Error("version read failed"));
+
+    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedVersion("publication-1", "version-exact");
+
+    expect(result).toEqual({ kind: "error" });
+  });
+});
