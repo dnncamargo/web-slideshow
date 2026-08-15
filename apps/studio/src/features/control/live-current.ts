@@ -2,8 +2,8 @@ import {
   get,
   onValue,
   ref,
-  remove,
   runTransaction,
+  update,
   type DataSnapshot,
   type Database,
 } from "firebase/database";
@@ -52,6 +52,10 @@ function parseLiveCurrent(snapshot: DataSnapshot): LiveCurrent | null {
     currentVersionId: v.currentVersionId.trim(),
     revision: v.revision as number,
   };
+}
+
+function parseActivationRevision(value: unknown): number | null {
+  return isNonNegativeInteger(value) ? (value as number) : null;
 }
 
 export async function readLiveCurrent(): Promise<LiveCurrent | null> {
@@ -109,21 +113,44 @@ export async function activateLivePresentation(
     throw new Error("Activation requires a currentVersionId.");
   }
 
-  const liveRef = ref(db, LIVE_PATH);
+  const liveRef = ref(db, "live");
 
-  await runTransaction(liveRef, (current) => {
-    const baseline = parseLiveCurrent({ val: () => current } as unknown as DataSnapshot);
+  const result = await runTransaction(liveRef, (current) => {
+    const currentRecord =
+      typeof current === "object" && current !== null
+        ? (current as Record<string, unknown>)
+        : null;
+
+    const baseline = parseActivationRevision(currentRecord?.activationRevision);
+    const newActivationRevision = baseline === null ? 1 : baseline + 1;
+
     return {
-      publicationId: trimmedPublicationId,
-      currentVersionId: trimmedCurrentVersionId,
-      revision: baseline ? baseline.revision + 1 : 1,
+      activationRevision: newActivationRevision,
+      current: {
+        publicationId: trimmedPublicationId,
+        currentVersionId: trimmedCurrentVersionId,
+        revision: newActivationRevision,
+      },
+      slideCommand: null,
+      slideAck: null,
     };
   });
+
+  if (result.committed !== true) {
+    throw new Error("Live activation transaction did not commit.");
+  }
 }
 
 export async function endLivePresentation(): Promise<void> {
   requireAuth();
   const db = getRealtimeDatabaseOrNull();
   if (!db) return;
-  await remove(ref(db, LIVE_PATH));
+
+  const liveRef = ref(db, "live");
+
+  await update(liveRef, {
+    current: null,
+    slideCommand: null,
+    slideAck: null,
+  });
 }

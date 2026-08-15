@@ -149,7 +149,12 @@ export type LiveMountResult =
   | { kind: "no-active" }
   | { kind: "error" }
   | { kind: "not-found" }
-  | { kind: "ok"; publicationId: string; presentation: Presentation };
+  | {
+      kind: "ok";
+      publicationId: string;
+      activationRevision: number;
+      presentation: Presentation;
+    };
 
 export type LoadPublishedVersionFn = (
   publicationId: string,
@@ -170,7 +175,8 @@ export async function resolveLiveMount(
     return { kind: "error" };
   }
 
-  const { publicationId, currentVersionId } = liveResult.live;
+  const live = liveResult.live;
+  const { publicationId, currentVersionId } = live;
 
   const versionResult = await loadVersion(publicationId, currentVersionId);
 
@@ -182,7 +188,12 @@ export async function resolveLiveMount(
     return { kind: "error" };
   }
 
-  return { kind: "ok", publicationId, presentation: versionResult.presentation };
+  return {
+    kind: "ok",
+    publicationId,
+    activationRevision: live.revision,
+    presentation: versionResult.presentation,
+  };
 }
 
 // ============================================================

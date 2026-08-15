@@ -1,6 +1,6 @@
 "use client";
 
-import { ref, set } from "firebase/database";
+import { ref, runTransaction, set, type Database } from "firebase/database";
 
 import {
   FirebaseAuthenticationError,
@@ -10,7 +10,9 @@ import {
 import {
   buildControlCommand,
   buildControlPath,
+  buildSlideCommandPath,
   type ControlAction,
+  type SlideCommand,
 } from "./control-commands";
 import {
   getRealtimeDatabaseOrNull,
@@ -70,4 +72,69 @@ export async function writeControlCommand(
       error,
     );
   }
+}
+
+function isNonNegativeInteger(value: unknown): boolean {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= 0
+  );
+}
+
+function parseSlideCommand(value: unknown): SlideCommand | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (!isNonNegativeInteger(record.activationRevision)) return null;
+  if (!isNonNegativeInteger(record.revision) || (record.revision as number) < 1) {
+    return null;
+  }
+  if (!isNonNegativeInteger(record.slideIndex)) return null;
+  return {
+    activationRevision: record.activationRevision as number,
+    revision: record.revision as number,
+    slideIndex: record.slideIndex as number,
+  };
+}
+
+/**
+ * Write an absolute slide target to `live/slideCommand`.
+ *
+ * Commands are scoped to an activation. Within the same activation the command
+ * revision increments; a different/absent activation restarts at 1. Returns the
+ * committed command.
+ */
+export async function writeSlideCommand(
+  database: Database,
+  activationRevision: number,
+  slideIndex: number,
+): Promise<SlideCommand> {
+  if (!isRealtimeDatabaseConfigured()) {
+    throw new Error("Realtime Database is not configured.");
+  }
+
+  getCurrentUserIdForControl();
+
+  const commandRef = ref(database, buildSlideCommandPath());
+
+  const result = await runTransaction(commandRef, (current) => {
+    const previous = parseSlideCommand(current);
+    const revision =
+      previous !== null && previous.activationRevision === activationRevision
+        ? previous.revision + 1
+        : 1;
+    return { activationRevision, revision, slideIndex };
+  });
+
+  if (result.committed !== true) {
+    throw new Error("Slide command transaction did not commit.");
+  }
+
+  const committed = parseSlideCommand(result.snapshot.val());
+  if (committed === null) {
+    throw new Error("Slide command transaction committed a malformed value.");
+  }
+
+  return committed;
 }

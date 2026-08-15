@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   set: vi.fn(),
   remove: vi.fn(),
+  update: vi.fn(),
   runTransaction: vi.fn(),
   onValue: vi.fn(),
   getApps: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock("firebase/database", () => ({
   get: mocks.get,
   set: mocks.set,
   remove: mocks.remove,
+  update: mocks.update,
   runTransaction: mocks.runTransaction,
   onValue: mocks.onValue,
 }));
@@ -52,8 +54,12 @@ beforeEach(() => {
   mocks.get.mockResolvedValue({ exists: () => false, val: () => null });
   mocks.set.mockResolvedValue(undefined);
   mocks.remove.mockResolvedValue(undefined);
+  mocks.update.mockResolvedValue(undefined);
   mocks.runTransaction.mockImplementation(
-    async (_ref: unknown, updater: (current: unknown) => unknown) => updater(null),
+    async (_ref: unknown, updater: (current: unknown) => unknown) => ({
+      committed: true,
+      snapshot: { val: () => updater(null) },
+    }),
   );
   mocks.onValue.mockReturnValue(vi.fn());
 });
@@ -70,57 +76,143 @@ import {
 } from "../src/features/control/live-current";
 
 describe("live-current activation", () => {
-  it("uses runTransaction and writes revision 1 when no existing state", async () => {
+  it("runs a single transaction at /live for activation", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      const result = updater(null);
-      expect(result).toEqual({ publicationId: "pub-1", currentVersionId: "ver-1", revision: 1 });
+      const result = updater(null) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => result } };
     });
 
     await activateLivePresentation("pub-1", "ver-1");
 
-    expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live");
   });
 
-  it("writes revision N+1 when existing revision is N", async () => {
+  it("first activation writes activationRevision 1 and current revision 1", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+    const box: { committed: Record<string, unknown> | null } = { committed: null };
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      const result = updater({
-        publicationId: "pub-old",
-        currentVersionId: "ver-old",
-        revision: 5,
-      }) as Record<string, unknown>;
-      expect(result?.revision).toBe(6);
-    });
-
-    await activateLivePresentation("pub-new", "ver-new");
-  });
-
-  it("activates same presentation again with incremented revision", async () => {
-    setupEnv();
-    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
-    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      const result = updater({
-        publicationId: "pub-1",
-        currentVersionId: "ver-1",
-        revision: 3,
-      }) as Record<string, unknown>;
-      expect(result?.revision).toBe(4);
-      expect(result?.publicationId).toBe("pub-1");
+      box.committed = updater(null) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => box.committed } };
     });
 
     await activateLivePresentation("pub-1", "ver-1");
+
+    const committed = box.committed as Record<string, unknown>;
+    const current = committed.current as Record<string, unknown>;
+    expect(committed.activationRevision).toBe(1);
+    expect(current.publicationId).toBe("pub-1");
+    expect(current.currentVersionId).toBe("ver-1");
+    expect(current.revision).toBe(1);
   });
 
-  it("end removes live/current", async () => {
+  it("malformed activationRevision yields 1", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+    const box: { committed: Record<string, unknown> | null } = { committed: null };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      box.committed = updater({ activationRevision: "bad", current: {} }) as Record<
+        string,
+        unknown
+      >;
+      return { committed: true, snapshot: { val: () => box.committed } };
+    });
+
+    await activateLivePresentation("pub-1", "ver-1");
+
+    const committed = box.committed as Record<string, unknown>;
+    expect(committed.activationRevision).toBe(1);
+  });
+
+  it("existing activationRevision 4 increments to 5", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+    const box: { committed: Record<string, unknown> | null } = { committed: null };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      box.committed = updater({ activationRevision: 4 }) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => box.committed } };
+    });
+
+    await activateLivePresentation("pub-1", "ver-1");
+
+    const committed = box.committed as Record<string, unknown>;
+    expect(committed.activationRevision).toBe(5);
+  });
+
+  it("resulting transaction value atomically contains the full live structure", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+    const box: { committed: Record<string, unknown> | null } = { committed: null };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      box.committed = updater({ activationRevision: 3, current: {} }) as Record<
+        string,
+        unknown
+      >;
+      return { committed: true, snapshot: { val: () => box.committed } };
+    });
+
+    await activateLivePresentation("pub-1", "ver-1");
+
+    const committed = box.committed as Record<string, unknown>;
+    const current = committed.current as Record<string, unknown>;
+    expect(Object.keys(committed).sort()).toEqual([
+      "activationRevision",
+      "current",
+      "slideAck",
+      "slideCommand",
+    ]);
+    expect(committed.activationRevision).toBe(4);
+    expect(current.revision).toBe(4);
+    expect(current.publicationId).toBe("pub-1");
+    expect(current.currentVersionId).toBe("ver-1");
+    expect(committed.slideCommand).toBeNull();
+    expect(committed.slideAck).toBeNull();
+  });
+
+  it("rejects when the activation transaction does not commit", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+    mocks.runTransaction.mockResolvedValue({
+      committed: false,
+      snapshot: { val: () => null },
+    });
+
+    await expect(activateLivePresentation("pub-1", "ver-1")).rejects.toThrow(
+      /commit/,
+    );
+  });
+
+  it("continues incrementing activationRevision after an end that preserves it", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
     await endLivePresentation();
 
-    expect(mocks.remove).toHaveBeenCalledWith({ path: "live/current" });
+    const box: { committed: Record<string, unknown> | null } = { committed: null };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      box.committed = updater({ activationRevision: 4 }) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => box.committed } };
+    });
+
+    await activateLivePresentation("pub-1", "ver-1");
+
+    const committed = box.committed as Record<string, unknown>;
+    expect(committed.activationRevision).toBe(5);
+  });
+
+  it("end clears current, slideCommand and slideAck but preserves activationRevision", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+
+    await endLivePresentation();
+
+    expect(mocks.update).toHaveBeenCalledWith(
+      { path: "live" },
+      { current: null, slideCommand: null, slideAck: null },
+    );
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
   });
 });
 
