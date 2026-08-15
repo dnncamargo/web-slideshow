@@ -41,19 +41,26 @@ service cloud.firestore {
 
     // Find the private draft for the canonical presentation of the referenced
     // version, then validate the post-transaction pointer against that draft.
+    //
+    // existsAfter() establishes that the referenced immutable version and the
+    // authenticated user's private draft exist before their data is evaluated,
+    // so the Rules compiler never treats the document resources as nullable.
     function publishedPointerMatchesAuthoritativeDraft(publicationId, userId) {
       let resource = request.resource.data;
-      let version = getAfter(
-        /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(resource.currentVersionId)
-      );
-      let draft = version != null
-        ? getAfter(
-            /databases/$(database)/documents/users/$(userId)/presentations/$(version.data.presentation.id)
-          )
-        : null;
-      return version != null
-        && draft != null
-        && draft.data.publication.publicationId == publicationId
+      let versionPath = /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(resource.currentVersionId);
+      return existsAfter(versionPath)
+        && publishedPointerMatchesExistingVersion(publicationId, userId, getAfter(versionPath));
+    }
+
+    function publishedPointerMatchesExistingVersion(publicationId, userId, version) {
+      let resource = request.resource.data;
+      let draftPath = /databases/$(database)/documents/users/$(userId)/presentations/$(version.data.presentation.id);
+      return existsAfter(draftPath)
+        && publishedPointerMatchesValidDraft(publicationId, getAfter(draftPath), version, resource);
+    }
+
+    function publishedPointerMatchesValidDraft(publicationId, draft, version, resource) {
+      return draft.data.publication.publicationId == publicationId
         && draft.data.publication.currentVersionId == resource.currentVersionId
         && draft.data.publication.publishedRevision == resource.publishedRevision
         && draft.data.publication.publishedAt == resource.publishedAt
