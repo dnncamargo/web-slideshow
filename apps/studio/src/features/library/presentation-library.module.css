@@ -183,3 +183,68 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.cardActions button:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+.presentButton,
+.controlButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #0e7490;
+  border-radius: 5px;
+  background: #164e63;
+  color: #ecfeff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.presentButton:hover:not(:disabled),
+.controlButton:hover {
+  border-color: #22d3ee;
+  background: #0f394e;
+}
+
+.presentButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controlButton {
+  border-color: #22d3ee;
+  background: #0e7490;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.2),
+    0 0 10px rgba(34, 211, 238, 0.3);
+}
+
+.controlButton:hover {
+  border-color: #67e8f9;
+  background: #155e75;
+}
+
+.buttonIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.endButton {
+  padding: 6px 10px;
+  border: 1px solid #7f1d1d;
+  border-radius: 5px;
+  background: transparent;
+  color: #fca5a5;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.endButton:hover {
+  border-color: #ef4444;
+  background: #200b0d;
+}
