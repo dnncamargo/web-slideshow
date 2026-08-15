@@ -280,20 +280,40 @@ export function PresentationLibrary({
 
                   {liveState.kind === "active" && liveState.live.publicationId === summary.publication?.publicationId ? (
                     <>
-                      <button type="button" onClick={() => router.push(STUDIO_ROUTES.control)}>
+                      <button
+                        type="button"
+                        className={styles.controlButton}
+                        onClick={() => router.push(STUDIO_ROUTES.control)}
+                      >
                         {t("library.control")}
                       </button>
-                      <button type="button" onClick={() => void handleEnd()}>
+                      <button
+                        type="button"
+                        className={styles.endButton}
+                        onClick={() => void handleEnd()}
+                      >
                         {t("library.end")}
                       </button>
                     </>
                   ) : (
                     <button
                       type="button"
+                      className={styles.presentButton}
                       disabled={!summary.publication}
                       title={!summary.publication ? t("library.publishBefore") : undefined}
                       onClick={() => void handlePresent(summary)}
                     >
+                      <span className={styles.buttonIcon} aria-hidden="true">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="12"
+                          height="12"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <polygon points="6 3 20 12 6 21 6 3" />
+                        </svg>
+                      </span>
                       {t("library.present")}
                     </button>
                   )}
