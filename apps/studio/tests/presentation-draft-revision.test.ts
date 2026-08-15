@@ -17,8 +17,8 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
   getFirebaseFirestore: vi.fn(() => ({})),
 }));
 
-vi.mock("../src/features/persistence/firebase-anonymous-auth", () => ({
-  ensureFirebaseUser: vi.fn(async () => ({ uid: "user-1" })),
+vi.mock("../src/features/auth/firebase-auth", () => ({
+  getCurrentNonAnonymousUser: vi.fn(() => ({ uid: "user-1", isAnonymous: false })),
 }));
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
@@ -32,7 +32,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { getFirebaseFirestore } from "../src/features/persistence/firebase-client";
-import { ensureFirebaseUser } from "../src/features/persistence/firebase-anonymous-auth";
+import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
 
 const mockedSetDoc = vi.mocked(setDoc);
 const mockedUpdateDoc = vi.mocked(updateDoc);
@@ -40,7 +40,7 @@ const mockedIncrement = vi.mocked(increment);
 const mockedServerTimestamp = vi.mocked(serverTimestamp);
 const mockedDoc = vi.mocked(doc);
 const mockedGetFirestore = vi.mocked(getFirebaseFirestore);
-const mockedEnsureUser = vi.mocked(ensureFirebaseUser);
+const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 
 const repository = new FirestorePresentationRepository();
 
@@ -48,7 +48,7 @@ describe("draft revision persistence wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetFirestore.mockReturnValue({} as never);
-    mockedEnsureUser.mockResolvedValue({ uid: "user-1" } as never);
+    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
     mockedDoc.mockReturnValue({ id: "pres-1" } as never);
     mockedServerTimestamp.mockReturnValue("server-ts" as never);
     mockedIncrement.mockImplementation(((n: number) => ({ __increment: n })) as never);
@@ -82,5 +82,27 @@ describe("draft revision persistence wiring", () => {
     expect(payload?.draftRevision).toEqual({ __increment: 1 });
     expect(payload).not.toHaveProperty("publication");
     expect(payload).not.toHaveProperty("createdAt");
+  });
+
+  it("rejects write when no authenticated non-anonymous user exists", async () => {
+    const presentation = createBlankPresentation("pres-1");
+
+    mockedGetCurrentUser.mockReturnValue(null as never);
+
+    await expect(repository.createPresentation(presentation)).rejects.toThrow(
+      /Unauthenticated/,
+    );
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+  });
+
+  it("rejects write when the current user is anonymous", async () => {
+    const presentation = createBlankPresentation("pres-1");
+
+    mockedGetCurrentUser.mockReturnValue({ uid: "anon", isAnonymous: true } as never);
+
+    await expect(repository.savePresentation(presentation)).rejects.toThrow(
+      /anonymous/,
+    );
+    expect(mockedUpdateDoc).not.toHaveBeenCalled();
   });
 });

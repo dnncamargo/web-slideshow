@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
+import { useStudioAuth } from "@/features/auth/studio-auth-provider";
+
 import { buildStudioEditorHref } from "@/features/app/studio-routes";
 
 import {
@@ -28,6 +30,7 @@ export function PresentationLibrary({
 }: PresentationLibraryProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
+  const { user, signOut } = useStudioAuth();
 
   const [status, setStatus] = useState<LibraryStatus>("loading");
   const [summaries, setSummaries] = useState<PresentationSummary[]>([]);
@@ -36,8 +39,27 @@ export function PresentationLibrary({
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const mountedRef = useRef(true);
+
+  function handleSignOut() {
+    if (signingOut) {
+      return;
+    }
+
+    setSigningOut(true);
+
+    signOut()
+      .catch((cause) => {
+        console.error("Library: sign out failed", cause);
+      })
+      .finally(() => {
+        if (mountedRef.current) {
+          setSigningOut(false);
+        }
+      });
+  }
 
   useEffect(() => {
     mountedRef.current = true;
@@ -154,16 +176,34 @@ export function PresentationLibrary({
   return (
     <div className={styles.library}>
       <header className={styles.header}>
-        <h1>{t("library.title")}</h1>
+        <div className={styles.headerTitle}>
+          <h1>{t("library.title")}</h1>
 
-        <button
-          type="button"
-          className={styles.primaryButton}
-          disabled={creating}
-          onClick={() => void handleNew()}
-        >
-          {creating ? t("library.creating") : t("library.new")}
-        </button>
+          {user?.displayName ?? user?.email ? (
+            <span className={styles.headerUser}>
+              {user?.displayName ?? user?.email}
+            </span>
+          ) : null}
+        </div>
+
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={creating}
+            onClick={() => void handleNew()}
+          >
+            {creating ? t("library.creating") : t("library.new")}
+          </button>
+
+          <button
+            type="button"
+            disabled={signingOut}
+            onClick={handleSignOut}
+          >
+            {signingOut ? t("auth.signingOut") : t("auth.signOut")}
+          </button>
+        </div>
       </header>
 
       {createError && <p className={styles.errorText}>{createError}</p>}

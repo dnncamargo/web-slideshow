@@ -5,7 +5,10 @@ import { demoPresentation } from "./demo-presentation";
 
 import { loadPublishedPresentation } from "./published-presentation-loader";
 
-import { mountPlayer } from "./player";
+import { getRealtimeDatabaseOrNull } from "./realtime-db";
+import { subscribeRemoteControl } from "./remote-control";
+
+import { mountPlayer, type PlayerController } from "./player";
 
 const rootElement = document.querySelector<HTMLElement>("#app");
 
@@ -33,6 +36,9 @@ const controls = {
   animation: "fade",
 } as const;
 
+let activeController: PlayerController | undefined;
+let cleanupRemoteControl: (() => void) | undefined;
+
 // ============================================================
 // MODO DEMO (sem parâmetros de publicação)
 //
@@ -41,7 +47,7 @@ const controls = {
 // ============================================================
 
 function mountDemo(): void {
-  mountPlayer(root, demoPresentation, { controls });
+  activeController = mountPlayer(root, demoPresentation, { controls });
 }
 
 // ============================================================
@@ -56,13 +62,51 @@ function renderLoadState(message: string): void {
   `;
 }
 
-async function mountPublished(publicationId: string, versionId: string): Promise<void> {
+function attachRemoteControl(publicationId: string, logsEnabled: boolean): void {
+  if (!activeController) {
+    return;
+  }
+
+  try {
+    const database = getRealtimeDatabaseOrNull();
+
+    if (!database) {
+      if (logsEnabled) {
+        console.warn(
+          "[PowerShow][remote-control] RTDB unavailable – remote control not attached",
+        );
+      }
+      return;
+    }
+
+    if (logsEnabled) {
+      console.log(
+        "[PowerShow][remote-control] attaching",
+        { publicationId },
+      );
+    }
+
+    cleanupRemoteControl = subscribeRemoteControl(
+      database,
+      publicationId,
+      activeController,
+      logsEnabled,
+    );
+  } catch (error) {
+    // Falha de inicialização do controle remoto nunca derruba o Player.
+    console.error("Player: remote control initialization failed", error);
+  }
+}
+
+async function mountPublished(publicationId: string, versionId: string, logsEnabled: boolean): Promise<void> {
   renderLoadState("Loading presentation…");
 
   const result = await loadPublishedPresentation(publicationId, versionId);
 
   if (result.kind === "ok") {
-    mountPlayer(root, result.presentation, { controls });
+    activeController = mountPlayer(root, result.presentation, { controls });
+
+    attachRemoteControl(publicationId, logsEnabled);
 
     return;
   }
@@ -77,6 +121,20 @@ async function mountPublished(publicationId: string, versionId: string): Promise
 }
 
 // ============================================================
+// LIMPEZA DE CICLO DE VIDA DA PÁGINA
+// ============================================================
+
+window.addEventListener("pagehide", () => {
+  cleanupRemoteControl?.();
+
+  cleanupRemoteControl = undefined;
+
+  activeController?.destroy();
+
+  activeController = undefined;
+});
+
+// ============================================================
 // SELEÇÃO DE URL
 // ============================================================
 
@@ -84,9 +142,10 @@ const params = new URLSearchParams(window.location.search);
 
 const publicationId = params.get("publication");
 const versionId = params.get("version");
+const logsEnabled = params.get("logs") === "true";
 
 if (publicationId !== null && versionId !== null) {
-  void mountPublished(publicationId, versionId);
+  void mountPublished(publicationId, versionId, logsEnabled);
 } else {
   mountDemo();
 }

@@ -423,6 +423,19 @@ const englishMessages = {
   "editor.couldNotLoad": "Could not load presentation.",
   "editor.backToLibrary": "Back to Library",
 
+  "auth.continueWithGoogle": "Continue with Google",
+  "auth.signingIn": "Signing in…",
+  "auth.signInFailed": "Could not sign in. Please try again.",
+  "auth.loading": "Loading…",
+  "auth.signOut": "Sign out",
+  "auth.signingOut": "Signing out…",
+
+  "control.previous": "Previous",
+  "control.next": "Next",
+  "control.sendFailed": "Could not send command.",
+  "control.missingPublication": "Missing publication.",
+  "control.unavailable": "Remote control is unavailable.",
+
   "public.noLive": "No live presentation",
   "public.studio": "Studio",
   "public.play": "Play",
@@ -844,6 +857,19 @@ const portugueseMessages = {
   "editor.loading": "Carregando apresentação…",
   "editor.couldNotLoad": "Não foi possível carregar a apresentação.",
   "editor.backToLibrary": "Voltar à biblioteca",
+
+  "auth.continueWithGoogle": "Continuar com Google",
+  "auth.signingIn": "Entrando…",
+  "auth.signInFailed": "Não foi possível entrar. Tente novamente.",
+  "auth.loading": "Carregando…",
+  "auth.signOut": "Sair",
+  "auth.signingOut": "Saindo…",
+
+  "control.previous": "Anterior",
+  "control.next": "Próximo",
+  "control.sendFailed": "Não foi possível enviar o comando.",
+  "control.missingPublication": "Publicação ausente.",
+  "control.unavailable": "Controle remoto indisponível.",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
   "public.studio": "Studio",

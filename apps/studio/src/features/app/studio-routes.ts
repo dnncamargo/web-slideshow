@@ -1,8 +1,10 @@
 export const STUDIO_ROUTES = {
   root: "/",
   studio: "/studio",
+  login: "/login",
   library: "/studio/library",
   editor: "/studio/editor",
+  control: "/control",
 } as const;
 
 export function buildStudioEditorHref(presentationId: string): string {

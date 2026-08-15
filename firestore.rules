@@ -26,6 +26,58 @@ service cloud.firestore {
         && resource.publishedAt == request.time;
     }
 
+    // The public publication pointer must contain EXACTLY: currentVersionId,
+    // publishedRevision, publishedAt. Reject extra fields.
+    function publishedPointerHasValidShape() {
+      let resource = request.resource.data;
+      return resource.keys().hasAll(['currentVersionId', 'publishedRevision', 'publishedAt'])
+        && resource.keys().hasOnly(['currentVersionId', 'publishedRevision', 'publishedAt'])
+        && resource.currentVersionId is string
+        && resource.currentVersionId.size() > 0
+        && resource.publishedRevision is int
+        && resource.publishedRevision >= 0
+        && resource.publishedAt is timestamp;
+    }
+
+    // Find the private draft for the canonical presentation of the referenced
+    // version, then validate the post-transaction pointer against that draft.
+    //
+    // existsAfter() establishes that the referenced immutable version and the
+    // authenticated user's private draft exist before their data is evaluated,
+    // so the Rules compiler never treats the document resources as nullable.
+    function publishedPointerMatchesAuthoritativeDraft(publicationId, userId) {
+      let resource = request.resource.data;
+      let versionPath = /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(resource.currentVersionId);
+      return existsAfter(versionPath)
+        && publishedPointerMatchesExistingVersion(publicationId, userId, getAfter(versionPath));
+    }
+
+    function publishedPointerMatchesExistingVersion(publicationId, userId, version) {
+      let resource = request.resource.data;
+      let draftPath = /databases/$(database)/documents/users/$(userId)/presentations/$(version.data.presentation.id);
+      return existsAfter(draftPath)
+        && publishedPointerMatchesValidDraft(publicationId, getAfter(draftPath), version, resource);
+    }
+
+    function publishedPointerMatchesValidDraft(publicationId, draft, version, resource) {
+      return draft.data.publication.publicationId == publicationId
+        && draft.data.publication.currentVersionId == resource.currentVersionId
+        && draft.data.publication.publishedRevision == resource.publishedRevision
+        && draft.data.publication.publishedAt == resource.publishedAt
+        && draft.data.draftRevision == resource.publishedRevision
+        && version.data.publishedRevision == resource.publishedRevision
+        && version.data.publishedAt == resource.publishedAt
+        && version.data.presentation.diff(draft.data.presentation).affectedKeys().size() == 0;
+    }
+
+    // The public pointer create/update is authorized when it is valid and
+    // authoritative against the private draft.
+    function publishedPointerIsAuthoritative(publicationId, userId) {
+      return isSignedIn()
+        && publishedPointerHasValidShape()
+        && publishedPointerMatchesAuthoritativeDraft(publicationId, userId);
+    }
+
     // Authorization for public version creation.
     //
     // Uses getAfter() because the publish transaction atomically creates the
@@ -45,6 +97,19 @@ service cloud.firestore {
         && resource.presentation.diff(draft.data.presentation).affectedKeys().size() == 0;
     }
 
+    // A newly created version must atomically advance the public pointer so the
+    // pointer's post-transaction currentVersionId points at this version.
+    function publishedVersionMatchesNewPointer(publicationId, versionId) {
+      let resource = request.resource.data;
+      let pointer = getAfter(
+        /databases/$(database)/documents/publishedPresentations/$(publicationId)
+      );
+      return pointer != null
+        && pointer.data.currentVersionId == versionId
+        && pointer.data.publishedRevision == resource.publishedRevision
+        && pointer.data.publishedAt == resource.publishedAt;
+    }
+
     // ------------------------------------------------------------
     // PRIVATE DRAFTS
     // users/{userId}/presentations/{presentationId}
@@ -54,12 +119,31 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // PUBLIC PUBLICATION POINTER
+    // publishedPresentations/{publicationId}
+    // ------------------------------------------------------------
+    match /publishedPresentations/{publicationId} {
+      allow get: if true;
+
+      allow list: if false;
+
+      allow create: if publishedPointerIsAuthoritative(
+        publicationId,
+        request.auth.uid
+      );
+
+      allow update: if publishedPointerIsAuthoritative(
+        publicationId,
+        request.auth.uid
+      );
+
+      // delete is intentionally omitted: the public pointer is never deleted.
+    }
+
+    // ------------------------------------------------------------
     // PUBLIC IMMUTABLE PUBLISHED VERSIONS
     // publishedPresentations/{publicationId}/versions/{versionId}
     // ------------------------------------------------------------
-    // The parent publishedPresentations/{publicationId} has no public document
-    // contract and is intentionally not matched; accesses there are denied by
-    // default.
     match /publishedPresentations/{publicationId}/versions/{versionId} {
       // Direct fetch of a known published version is intentionally public.
       allow get: if true;
@@ -68,15 +152,16 @@ service cloud.firestore {
       allow list: if false;
 
       // Creation is allowed only for a valid publish transaction verified
-      // against the author's private draft pointer and snapshot. Authentication
-      // and version shape are checked before the uid-based helper is evaluated.
+      // against the author's private draft pointer and snapshot, and only when
+      // the atomically-advanced public pointer targets this exact version.
       allow create: if isSignedIn()
         && publishedVersionHasValidShape()
         && publishedVersionMatchesAuthoritativeDraft(
           publicationId,
           versionId,
           request.auth.uid
-        );
+        )
+        && publishedVersionMatchesNewPointer(publicationId, versionId);
 
       // update and delete are intentionally omitted. They are denied by
       // default: published versions are immutable.

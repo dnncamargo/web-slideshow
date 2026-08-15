@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "controlSpikes": {
+      "$publicationId": {
+        ".read": true,
+        ".write": "auth != null && newData.hasChildren(['action', 'revision']) && newData.child('revision').isNumber() && (newData.child('action').val() === 'next' || newData.child('action').val() === 'previous')",
+        "action": {
+          ".validate": "newData.isString() && (newData.val() === 'next' || newData.val() === 'previous')"
+        },
+        "revision": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
