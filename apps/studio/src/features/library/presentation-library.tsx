@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 
 import { useStudioAuth } from "@/features/auth/studio-auth-provider";
 
@@ -16,6 +17,8 @@ import {
 } from "@/features/persistence/presentation-repository-instance";
 import type { PresentationRepository } from "@/features/persistence/presentation-repository";
 import type { PresentationSummary } from "@/features/persistence/presentation-persistence";
+
+import { subscribeLiveCurrent, activateLivePresentation, endLivePresentation, type LiveState } from "@/features/control/live-current";
 
 import styles from "./presentation-library.module.css";
 
@@ -40,6 +43,7 @@ export function PresentationLibrary({
   const [createError, setCreateError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
 
   const mountedRef = useRef(true);
 
@@ -95,6 +99,11 @@ export function PresentationLibrary({
   useEffect(() => {
     void loadPresentations();
   }, [loadPresentations]);
+
+  useEffect(() => {
+    const unsub = subscribeLiveCurrent(setLiveState);
+    return () => unsub?.();
+  }, []);
 
   const handleNew = useCallback(async () => {
     if (creating) {
@@ -173,6 +182,29 @@ export function PresentationLibrary({
     [archivingId, repository, summaries, t],
   );
 
+  const handlePresent = useCallback(
+    async (summary: PresentationSummary) => {
+      if (!summary.publication) return;
+      try {
+        await activateLivePresentation(summary.publication.publicationId, summary.publication.currentVersionId);
+        router.push(STUDIO_ROUTES.control);
+      } catch (err) {
+        console.error("Library: present failed", err);
+        setCreateError(t("library.couldNotActivate"));
+      }
+    },
+    [router, t],
+  );
+
+  const handleEnd = useCallback(async () => {
+    try {
+      await endLivePresentation();
+    } catch (err) {
+      console.error("Library: end failed", err);
+      setCreateError(t("library.couldNotEnd"));
+    }
+  }, [t]);
+
   return (
     <div className={styles.library}>
       <header className={styles.header}>
@@ -243,8 +275,28 @@ export function PresentationLibrary({
                   >
                     {openingId === summary.id
                       ? t("library.opening")
-                      : t("library.open")}
+                      : t("library.edit")}
                   </button>
+
+                  {liveState.kind === "active" && liveState.live.publicationId === summary.publication?.publicationId ? (
+                    <>
+                      <button type="button" onClick={() => router.push(STUDIO_ROUTES.control)}>
+                        {t("library.control")}
+                      </button>
+                      <button type="button" onClick={() => void handleEnd()}>
+                        {t("library.end")}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!summary.publication}
+                      title={!summary.publication ? t("library.publishBefore") : undefined}
+                      onClick={() => void handlePresent(summary)}
+                    >
+                      {t("library.present")}
+                    </button>
+                  )}
 
                   <button
                     type="button"
