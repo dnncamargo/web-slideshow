@@ -5,7 +5,7 @@ import { loadPublishedVersion } from "./published-presentation-loader";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 import { parseEntrySearch, resolveLiveMount } from "./live-entry";
-import { subscribeRemoteControl } from "./remote-control";
+import { subscribeLiveSlideAck } from "./live-slide-ack";
 
 import { mountPlayer, type PlayerController } from "./player";
 
@@ -32,7 +32,7 @@ const controls = {
 } as const;
 
 let activeController: PlayerController | undefined;
-let cleanupRemoteControl: (() => void) | undefined;
+let cleanupLiveSlideAck: (() => void) | undefined;
 
 // ============================================================
 // ESTADOS DE CARGA / ERRO
@@ -55,10 +55,13 @@ function renderNoActive(): void {
 }
 
 // ============================================================
-// CONTROLE REMOTO
+// SLIDE STATE LIVE (ACK)
 // ============================================================
 
-function attachRemoteControl(publicationId: string, logsEnabled: boolean): void {
+function attachLiveSlideAck(
+  activationRevision: number,
+  logsEnabled: boolean,
+): void {
   if (!activeController) {
     return;
   }
@@ -69,28 +72,21 @@ function attachRemoteControl(publicationId: string, logsEnabled: boolean): void 
     if (!database) {
       if (logsEnabled) {
         console.warn(
-          "[PowerShow][remote-control] RTDB unavailable – remote control not attached",
+          "[PowerShow][live-slide-ack] RTDB unavailable – live slide ACK not attached",
         );
       }
       return;
     }
 
-    if (logsEnabled) {
-      console.log(
-        "[PowerShow][remote-control] attaching",
-        { publicationId },
-      );
-    }
-
-    cleanupRemoteControl = subscribeRemoteControl(
+    cleanupLiveSlideAck = subscribeLiveSlideAck(
       database,
-      publicationId,
+      activationRevision,
       activeController,
       logsEnabled,
     );
   } catch (error) {
-    // Falha de inicialização do controle remoto nunca derruba o Player.
-    console.error("Player: remote control initialization failed", error);
+    // Falha de inicialização do slide ACK nunca derruba o Player.
+    console.error("Player: live slide ACK initialization failed", error);
   }
 }
 
@@ -102,7 +98,7 @@ function attachRemoteControl(publicationId: string, logsEnabled: boolean): void 
 //   2. valida publicationId / currentVersionId / revision;
 //   3. carrega a versão exata em Firestore;
 //   4. valida a Presentation com o schema canônico;
-//   5. monta o Player e inicia o controle remoto.
+//   5. monta o Player e inicia o slide state (live ACK).
 //
 // Não resolve o pointer público. Não assina/polling live/current.
 // Sem fallback para a demo ou para parâmetros legados.
@@ -130,7 +126,7 @@ async function mountLive(): Promise<void> {
   if (result.kind === "ok") {
     activeController = mountPlayer(root, result.presentation, { controls });
 
-    attachRemoteControl(result.publicationId, logsEnabled);
+    attachLiveSlideAck(result.activationRevision, logsEnabled);
 
     return;
   }
@@ -149,9 +145,9 @@ async function mountLive(): Promise<void> {
 // ============================================================
 
 window.addEventListener("pagehide", () => {
-  cleanupRemoteControl?.();
+  cleanupLiveSlideAck?.();
 
-  cleanupRemoteControl = undefined;
+  cleanupLiveSlideAck = undefined;
 
   activeController?.destroy();
 
