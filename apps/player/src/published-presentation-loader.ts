@@ -84,6 +84,76 @@ function getOrInitFirebaseApp(): FirebaseApp {
 // convertida em { kind: "error" } — nunca rejeita para fora.
 // ============================================================
 
+// ============================================================
+// BEGIN: CARREGAMENTO DE VERSÃO EXATA
+//
+// Lê exatamente:
+//
+//   publishedPresentations/{publicationId}/versions/{versionId}
+//
+// usa getDoc() (sem listeners/query), valida o campo `presentation`
+// com PresentationSchema e reutiliza o erro boundary do loader.
+//
+// Toda a inicialização/leitura está dentro do erro boundary:
+// qualquer falha de SDK/config/runtime é capturada, registrada e
+// convertida em { kind: "error" } — nunca rejeita para fora.
+// ============================================================
+
+export async function loadPublishedVersion(
+  publicationId: string,
+  versionId: string,
+): Promise<PublishedLoadResult> {
+  try {
+    if (!isFirebaseConfigured()) {
+      console.error("Player: Firebase is not configured for published loading.");
+
+      return { kind: "error" };
+    }
+
+    const app = getOrInitFirebaseApp();
+    const firestore = getFirestore(app);
+
+    const versionRef = doc(
+      firestore,
+      "publishedPresentations",
+      publicationId,
+      "versions",
+      versionId,
+    );
+    const versionSnapshot = await getDoc(versionRef);
+
+    if (!versionSnapshot.exists()) {
+      return { kind: "not-found" };
+    }
+
+    const versionData = versionSnapshot.data();
+
+    if (typeof versionData !== "object" || versionData === null) {
+      return { kind: "not-found" };
+    }
+
+    const parsed = PresentationSchema.safeParse(
+      (versionData as { presentation?: unknown }).presentation,
+    );
+
+    if (!parsed.success) {
+      console.error("Player: published presentation failed schema validation.");
+
+      return { kind: "error" };
+    }
+
+    return { kind: "ok", presentation: parsed.data };
+  } catch (error) {
+    console.error("Player: could not load published presentation", error);
+
+    return { kind: "error" };
+  }
+}
+
+// ============================================================
+// END: CARREGAMENTO DE VERSÃO EXATA
+// ============================================================
+
 export async function loadPublishedPresentation(
   publicationId: string,
 ): Promise<PublishedLoadResult> {
@@ -124,37 +194,8 @@ export async function loadPublishedPresentation(
 
     const currentVersionId = (pointerData as { currentVersionId: string }).currentVersionId.trim();
 
-    // 2. Lê a versão imutável apontada
-    const versionRef = doc(
-      firestore,
-      "publishedPresentations",
-      publicationId,
-      "versions",
-      currentVersionId,
-    );
-    const versionSnapshot = await getDoc(versionRef);
-
-    if (!versionSnapshot.exists()) {
-      return { kind: "not-found" };
-    }
-
-    const versionData = versionSnapshot.data();
-
-    if (typeof versionData !== "object" || versionData === null) {
-      return { kind: "not-found" };
-    }
-
-    const parsed = PresentationSchema.safeParse(
-      (versionData as { presentation?: unknown }).presentation,
-    );
-
-    if (!parsed.success) {
-      console.error("Player: published presentation failed schema validation.");
-
-      return { kind: "error" };
-    }
-
-    return { kind: "ok", presentation: parsed.data };
+    // 2. Lê a versão imutável apontada, reutilizando a validação exata.
+    return loadPublishedVersion(publicationId, currentVersionId);
   } catch (error) {
     console.error("Player: could not load published presentation", error);
 

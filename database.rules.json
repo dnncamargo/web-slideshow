@@ -2,7 +2,7 @@
   "rules": {
     "live": {
       "current": {
-        ".read": "auth != null",
+        ".read": true,
         ".write": "auth != null",
         ".validate": "newData.hasChildren(['publicationId', 'currentVersionId', 'revision']) && newData.child('publicationId').isString() && newData.child('publicationId').val().length > 0 && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0",
         "publicationId": {

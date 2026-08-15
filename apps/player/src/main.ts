@@ -1,11 +1,10 @@
 import "@powershow/theme/index.css";
 import "./player.css";
 
-import { demoPresentation } from "./demo-presentation";
-
-import { loadPublishedPresentation } from "./published-presentation-loader";
+import { loadPublishedVersion } from "./published-presentation-loader";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
+import { parseEntrySearch, resolveLiveMount } from "./live-entry";
 import { subscribeRemoteControl } from "./remote-control";
 
 import { mountPlayer, type PlayerController } from "./player";
@@ -23,10 +22,6 @@ const root = rootElement;
 // ============================================================
 
 const controls = {
-  // ======================================================
-  // TESTE VISUAL TEMPORÁRIO
-  // ======================================================
-
   position: "bottom-right",
 
   style: "compact",
@@ -40,18 +35,7 @@ let activeController: PlayerController | undefined;
 let cleanupRemoteControl: (() => void) | undefined;
 
 // ============================================================
-// MODO DEMO (sem parâmetros de publicação)
-//
-// Preserva exatamente o comportamento antigo: renderiza a
-// demoPresentation imediatamente.
-// ============================================================
-
-function mountDemo(): void {
-  activeController = mountPlayer(root, demoPresentation, { controls });
-}
-
-// ============================================================
-// CARGA DE VERSÃO PUBLICADA
+// ESTADOS DE CARGA / ERRO
 // ============================================================
 
 function renderLoadState(message: string): void {
@@ -61,6 +45,18 @@ function renderLoadState(message: string): void {
     </div>
   `;
 }
+
+function renderNoActive(): void {
+  root.innerHTML = `
+    <div class="powershow-player-load-state">
+      No active presentation.
+    </div>
+  `;
+}
+
+// ============================================================
+// CONTROLE REMOTO
+// ============================================================
 
 function attachRemoteControl(publicationId: string, logsEnabled: boolean): void {
   if (!activeController) {
@@ -98,15 +94,43 @@ function attachRemoteControl(publicationId: string, logsEnabled: boolean): void 
   }
 }
 
-async function mountPublished(publicationId: string, logsEnabled: boolean): Promise<void> {
+// ============================================================
+// ENTRADA LIVE
+//
+// Fluxo:
+//   1. lê live/current uma única vez;
+//   2. valida publicationId / currentVersionId / revision;
+//   3. carrega a versão exata em Firestore;
+//   4. valida a Presentation com o schema canônico;
+//   5. monta o Player e inicia o controle remoto.
+//
+// Não resolve o pointer público. Não assina/polling live/current.
+// Sem fallback para a demo ou para parâmetros legados.
+// ============================================================
+
+async function mountLive(): Promise<void> {
   renderLoadState("Loading presentation…");
 
-  const result = await loadPublishedPresentation(publicationId);
+  const database = getRealtimeDatabaseOrNull();
+
+  if (!database) {
+    renderLoadState("Could not load presentation.");
+
+    return;
+  }
+
+  const result = await resolveLiveMount(database, loadPublishedVersion);
+
+  if (result.kind === "no-active") {
+    renderNoActive();
+
+    return;
+  }
 
   if (result.kind === "ok") {
     activeController = mountPlayer(root, result.presentation, { controls });
 
-    attachRemoteControl(publicationId, logsEnabled);
+    attachRemoteControl(result.publicationId, logsEnabled);
 
     return;
   }
@@ -135,16 +159,12 @@ window.addEventListener("pagehide", () => {
 });
 
 // ============================================================
-// SELEÇÃO DE URL
+// INICIALIZAÇÃO
+//
+// A entrada padrão "/" resolve sempre a partir de live/current.
+// Parâmetros legados (?publication=, ?version=) são ignorados.
 // ============================================================
 
-const params = new URLSearchParams(window.location.search);
+const { logsEnabled } = parseEntrySearch(window.location.search);
 
-const publicationId = params.get("publication");
-const logsEnabled = params.get("logs") === "true";
-
-if (publicationId !== null) {
-  void mountPublished(publicationId, logsEnabled);
-} else {
-  mountDemo();
-}
+void mountLive();
