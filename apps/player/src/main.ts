@@ -98,10 +98,10 @@ function attachRemoteControl(publicationId: string, logsEnabled: boolean): void 
   }
 }
 
-async function mountPublished(publicationId: string, versionId: string, logsEnabled: boolean): Promise<void> {
+async function mountPublished(publicationId: string, logsEnabled: boolean): Promise<void> {
   renderLoadState("Loading presentation…");
 
-  const result = await loadPublishedPresentation(publicationId, versionId);
+  const result = await loadPublishedPresentation(publicationId);
 
   if (result.kind === "ok") {
     activeController = mountPlayer(root, result.presentation, { controls });
@@ -141,11 +141,10 @@ window.addEventListener("pagehide", () => {
 const params = new URLSearchParams(window.location.search);
 
 const publicationId = params.get("publication");
-const versionId = params.get("version");
 const logsEnabled = params.get("logs") === "true";
 
-if (publicationId !== null && versionId !== null) {
-  void mountPublished(publicationId, versionId, logsEnabled);
+if (publicationId !== null) {
+  void mountPublished(publicationId, logsEnabled);
 } else {
   mountDemo();
 }
