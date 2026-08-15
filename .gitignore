@@ -82,3 +82,8 @@ Desktop.ini
 *.key
 service-account*.json
 firebase-admin*.json
+
+# User scripts and output logs
+scripts/*
+.opencode-output/*
+git-review.txt
