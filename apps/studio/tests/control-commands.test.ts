@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   set: vi.fn(),
   ref: vi.fn(),
   getDatabase: vi.fn(),
+  runTransaction: vi.fn(),
   initializeApp: vi.fn(() => ({})),
   getApps: vi.fn(() => []),
   getCurrentNonAnonymousUser: vi.fn(),
@@ -13,6 +14,7 @@ vi.mock("firebase/database", () => ({
   set: mocks.set,
   ref: mocks.ref,
   getDatabase: mocks.getDatabase,
+  runTransaction: mocks.runTransaction,
 }));
 
 vi.mock("firebase/app", () => ({
@@ -28,9 +30,15 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 import {
   buildControlCommand,
   buildControlPath,
+  buildSlideCommand,
+  buildSlideCommandPath,
+  buildSlideAckPath,
   type ControlAction,
 } from "../src/features/control/control-commands";
-import { writeControlCommand } from "../src/features/control/control-command-writer";
+import {
+  writeControlCommand,
+  writeSlideCommand,
+} from "../src/features/control/control-command-writer";
 
 describe("control command helpers", () => {
   it("builds the exact RTDB path", () => {
@@ -42,6 +50,16 @@ describe("control command helpers", () => {
     expect(buildControlCommand("previous", 4)).toEqual({
       action: "previous",
       revision: 4,
+    });
+  });
+
+  it("builds the live slide command path and shape", () => {
+    expect(buildSlideCommandPath()).toBe("live/slideCommand");
+    expect(buildSlideAckPath()).toBe("live/slideAck");
+    expect(buildSlideCommand(2, 1, 3)).toEqual({
+      activationRevision: 2,
+      revision: 1,
+      slideIndex: 3,
     });
   });
 });
@@ -61,6 +79,10 @@ describe("control command writer", () => {
     mocks.getDatabase.mockReturnValue({});
     mocks.ref.mockImplementation((_db, path: string) => ({ path }));
     mocks.set.mockResolvedValue(undefined);
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => ({
+      committed: true,
+      snapshot: { val: () => updater(null) },
+    }));
   });
 
   afterEach(() => {
@@ -114,5 +136,107 @@ describe("control command actions", () => {
     const actions: ControlAction[] = ["next", "previous"];
 
     expect(actions).toHaveLength(2);
+  });
+});
+
+describe("slide command writer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "key");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "domain");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "project");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "bucket");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "sender");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_APP_ID", "app");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_DATABASE_URL", "https://example.firebaseio.com");
+    mocks.getApps.mockReturnValue([]);
+    mocks.initializeApp.mockReturnValue({});
+    mocks.getDatabase.mockReturnValue({});
+    mocks.ref.mockImplementation((_db, path: string) => ({ path }));
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => ({
+      committed: true,
+      snapshot: { val: () => updater(null) },
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("writes to the live/slideCommand path with revision 1 on a new activation", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater(null) as Record<string, unknown>;
+      expect(result).toEqual({ activationRevision: 2, revision: 1, slideIndex: 3 });
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    const committed = await writeSlideCommand({} as never, 2, 3);
+
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/slideCommand");
+    expect(committed).toEqual({ activationRevision: 2, revision: 1, slideIndex: 3 });
+  });
+
+  it("increments the command revision within the same activation", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater({
+        activationRevision: 2,
+        revision: 4,
+        slideIndex: 1,
+      }) as Record<string, unknown>;
+      expect(result).toEqual({ activationRevision: 2, revision: 5, slideIndex: 2 });
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    const committed = await writeSlideCommand({} as never, 2, 2);
+
+    expect(committed).toEqual({ activationRevision: 2, revision: 5, slideIndex: 2 });
+  });
+
+  it("restarts the command revision at 1 when the activation differs", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater({
+        activationRevision: 9,
+        revision: 4,
+        slideIndex: 1,
+      }) as Record<string, unknown>;
+      expect(result).toEqual({ activationRevision: 2, revision: 1, slideIndex: 0 });
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    const committed = await writeSlideCommand({} as never, 2, 0);
+
+    expect(committed).toEqual({ activationRevision: 2, revision: 1, slideIndex: 0 });
+  });
+
+  it("fails before any SDK write when unauthenticated", async () => {
+    mocks.getCurrentNonAnonymousUser.mockReturnValue(null);
+
+    await expect(writeSlideCommand({} as never, 1, 0)).rejects.toThrow(
+      /anonymous/,
+    );
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the transaction does not commit", async () => {
+    mocks.runTransaction.mockResolvedValue({
+      committed: false,
+      snapshot: { val: () => ({ activationRevision: 2, revision: 1, slideIndex: 0 }) },
+    });
+
+    await expect(writeSlideCommand({} as never, 2, 0)).rejects.toThrow(
+      /did not commit/,
+    );
+  });
+
+  it("rejects when the committed snapshot is malformed", async () => {
+    mocks.runTransaction.mockResolvedValue({
+      committed: true,
+      snapshot: { val: () => ({ activationRevision: 2, revision: "x", slideIndex: 0 }) },
+    });
+
+    await expect(writeSlideCommand({} as never, 2, 0)).rejects.toThrow(
+      /malformed/,
+    );
   });
 });

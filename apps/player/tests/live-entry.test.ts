@@ -249,6 +249,7 @@ describe("resolveLiveMount", () => {
     expect(result.kind).toBe("ok");
     if (result.kind === "ok") {
       expect(result.publicationId).toBe("pub-1");
+      expect(result.activationRevision).toBe(4);
       expect(result.presentation.id).toBe("pres-1");
     }
   });

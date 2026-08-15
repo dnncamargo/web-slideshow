@@ -443,6 +443,9 @@ const englishMessages = {
   "control.sendFailed": "Could not send command.",
   "control.missingPublication": "Missing publication.",
   "control.unavailable": "Remote control is unavailable.",
+  "control.awaitingPlayer": "Waiting for Player…",
+  "control.syncing": "Syncing…",
+  "control.synced": "Synced",
 
   "public.noLive": "No live presentation",
   "public.studio": "Studio",
@@ -886,6 +889,9 @@ const portugueseMessages = {
   "control.sendFailed": "Não foi possível enviar o comando.",
   "control.missingPublication": "Publicação ausente.",
   "control.unavailable": "Controle remoto indisponível.",
+  "control.awaitingPlayer": "Aguardando Player…",
+  "control.syncing": "Sincronizando…",
+  "control.synced": "Sincronizado",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
   "public.studio": "Studio",
