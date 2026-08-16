@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 
 import { useStudioAuth } from "@/features/auth/studio-auth-provider";
@@ -219,6 +220,8 @@ export function PresentationLibrary({
         </div>
 
         <div className={styles.headerActions}>
+          <LocaleSelector />
+
           <button
             type="button"
             className={styles.primaryButton}
