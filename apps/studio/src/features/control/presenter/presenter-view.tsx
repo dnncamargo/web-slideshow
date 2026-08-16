@@ -1,11 +1,17 @@
 "use client";
 
+import { useMemo } from "react";
+
+import { renderFontResources } from "@powershow/renderer";
+
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import type { LiveControlView } from "../live-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
+import { PresenterSlidePreview } from "./presenter-slide-preview";
 
 import styles from "../control-page.module.css";
+import presenterStyles from "./presenter-view.module.css";
 
 function describeStatus(
   t: StudioTranslate,
@@ -67,10 +73,61 @@ export function PresenterView({
     confirmedIndex >= 0 &&
     confirmedIndex < slideCount;
 
+  const currentSlide =
+    presentationState.kind === "ready" &&
+    confirmedIndex !== null &&
+    confirmedIndex >= 0 &&
+    confirmedIndex < presentationState.presentation.slides.length
+      ? presentationState.presentation.slides[confirmedIndex]
+      : null;
+
+  const nextSlide =
+    presentationState.kind === "ready" &&
+    confirmedIndex !== null &&
+    confirmedIndex >= 0 &&
+    confirmedIndex + 1 < presentationState.presentation.slides.length
+      ? presentationState.presentation.slides[confirmedIndex + 1]
+      : null;
+
+  const aspectRatio =
+    presentationState.kind === "ready"
+      ? presentationState.presentation.aspectRatio
+      : null;
+
+  const fontResourcesCss = useMemo(
+    () =>
+      presentationState.kind === "ready"
+        ? renderFontResources(presentationState.presentation.resources?.fonts)
+        : "",
+    [presentationState],
+  );
+
   return (
     <main className={styles.page}>
       <div className={styles.card}>
         <h1>PowerShow Control</h1>
+
+        {fontResourcesCss && (
+          <style data-powershow-font-resources>{fontResourcesCss}</style>
+        )}
+
+        <div className={presenterStyles.previews}>
+          {currentSlide && aspectRatio && (
+            <PresenterSlidePreview
+              slide={currentSlide}
+              aspectRatio={aspectRatio}
+              variant="current"
+            />
+          )}
+
+          {nextSlide && aspectRatio && (
+            <PresenterSlidePreview
+              slide={nextSlide}
+              aspectRatio={aspectRatio}
+              variant="next"
+            />
+          )}
+        </div>
 
         <p className={styles.status}>
           {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
@@ -91,7 +148,9 @@ export function PresenterView({
           </button>
         </div>
 
-        {sendFailed && <p className={styles.error}>{t("control.sendFailed")}</p>}
+        {sendFailed && (
+          <p className={styles.error}>{t("control.sendFailed")}</p>
+        )}
       </div>
     </main>
   );

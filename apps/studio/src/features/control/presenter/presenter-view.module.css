@@ -1,0 +1,39 @@
+.previews {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+}
+
+.preview {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #232a36;
+  border-radius: 8px;
+  background: #0b0f17;
+}
+
+.previewCurrent {
+  width: 640px;
+  max-width: 100%;
+}
+
+.previewNext {
+  width: 240px;
+  max-width: 30%;
+}
+
+.preview {
+  position: relative;
+  overflow: hidden;
+  ...
+}
+
+.previewCurrent {
+  width: 640px;
+}
+
+.previewNext {
+  width: 240px;
+}
