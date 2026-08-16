@@ -1,4 +1,4 @@
-import { get, ref, type Database } from "firebase/database";
+import { get, onValue, ref, type Database } from "firebase/database";
 
 import type { PublishedLoadResult } from "./published-presentation-loader";
 import type { Presentation } from "@powershow/document-schema";
@@ -78,6 +78,61 @@ export function parseLiveCurrent(value: unknown): LiveCurrent | null {
 //   - leitura/inicialização falha  → { kind: "error" }
 //
 // Nenhuma falha rejeita para fora do módulo.
+// ============================================================
+
+// ============================================================
+// BEGIN: SUBSCRIÇÃO DE live/current
+//
+// Observa live/current continuamente com o mesmo contrato de
+// validação usado pela resolução one-shot. Representa:
+//   - active  → estado Live válido
+//   - no-active → sem sessão ativa (nó ausente)
+//   - error   → falha de leitura/validação
+//
+// Retorna uma função de cleanup que cancela o listener.
+// ============================================================
+
+export type LiveCurrentEvent =
+  | { kind: "active"; live: LiveCurrent }
+  | { kind: "no-active" }
+  | { kind: "error" };
+
+export function subscribeLiveCurrent(
+  database: Database,
+  onEvent: (event: LiveCurrentEvent) => void,
+): () => void {
+  const unsubscribe = onValue(
+    ref(database, "live/current"),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onEvent({ kind: "no-active" });
+        return;
+      }
+
+      const live = parseLiveCurrent(snapshot.val());
+
+      if (live === null) {
+        console.error("Player: live/current is malformed.");
+
+        onEvent({ kind: "error" });
+
+        return;
+      }
+
+      onEvent({ kind: "active", live });
+    },
+    (error: unknown) => {
+      console.error("Player: could not observe live/current", error);
+
+      onEvent({ kind: "error" });
+    },
+  );
+
+  return unsubscribe;
+}
+
+// ============================================================
+// END: SUBSCRIÇÃO DE live/current
 // ============================================================
 
 export async function readLiveCurrent(
@@ -160,6 +215,47 @@ export type LoadPublishedVersionFn = (
   publicationId: string,
   versionId: string,
 ) => Promise<PublishedLoadResult>;
+
+export type LiveMountIdentityResult =
+  | { kind: "error" }
+  | { kind: "not-found" }
+  | {
+      kind: "ok";
+      publicationId: string;
+      activationRevision: number;
+      presentation: Presentation;
+    };
+
+/**
+ * Loads the presentation for an already-resolved Live identity.
+ *
+ * Never re-reads live/current; the identity supplied by the caller is the
+ * authoritative source. Reuses the same version-loading and error mapping as
+ * resolveLiveMount.
+ */
+export async function resolveLiveIdentityMount(
+  live: LiveCurrent,
+  loadVersion: LoadPublishedVersionFn,
+): Promise<LiveMountIdentityResult> {
+  const { publicationId, currentVersionId } = live;
+
+  const versionResult = await loadVersion(publicationId, currentVersionId);
+
+  if (versionResult.kind === "not-found") {
+    return { kind: "not-found" };
+  }
+
+  if (versionResult.kind === "error") {
+    return { kind: "error" };
+  }
+
+  return {
+    kind: "ok",
+    publicationId,
+    activationRevision: live.revision,
+    presentation: versionResult.presentation,
+  };
+}
 
 export async function resolveLiveMount(
   database: Database,
