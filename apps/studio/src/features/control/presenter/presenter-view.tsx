@@ -8,7 +8,9 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import type { LiveControlView } from "../live-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
+import { usePresenterNotes } from "./use-presenter-notes";
 import { PresenterSlidePreview } from "./presenter-slide-preview";
+import { PresenterSlideList } from "./presenter-slide-list";
 
 import styles from "../control-page.module.css";
 import presenterStyles from "./presenter-view.module.css";
@@ -94,6 +96,16 @@ export function PresenterView({
       ? presentationState.presentation.aspectRatio
       : null;
 
+  const presentation =
+    presentationState.kind === "ready" ? presentationState.presentation : null;
+
+  const notesState = usePresenterNotes(presentation);
+
+  const currentSlideNote =
+    currentSlide !== null && notesState.kind === "ready"
+      ? (notesState.notes.bySlideId[currentSlide.id] ?? "")
+      : "";
+
   const fontResourcesCss = useMemo(
     () =>
       presentationState.kind === "ready"
@@ -128,6 +140,21 @@ export function PresenterView({
             />
           )}
         </div>
+
+        {presentation && (
+          <PresenterSlideList
+            presentation={presentation}
+            confirmedIndex={confirmedIndex}
+          />
+        )}
+
+        {currentSlide && currentSlideNote !== "" && (
+          <p className={presenterStyles.note}>{currentSlideNote}</p>
+        )}
+
+        {notesState.kind === "error" && (
+          <p className={styles.error}>{t("notes.loadError")}</p>
+        )}
 
         <p className={styles.status}>
           {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
