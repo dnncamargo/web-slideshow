@@ -27,6 +27,115 @@
   font-weight: 600;
 }
 
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #0b0f17;
+  color: #cbd5e1;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid #232a36;
+  background: #111620;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.headerNav {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.navButton {
+  padding: 8px 14px;
+  border: 1px solid #303847;
+  border-radius: 6px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.navButton:hover:not(:disabled) {
+  border-color: #475569;
+  background: #141a24;
+}
+
+.navButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.navButton:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+.endButton {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid #7f1d1d;
+  border-radius: 6px;
+  margin-left: auto;
+  background: transparent;
+  color: #fca5a5;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.endButton:hover {
+  border-color: #ef4444;
+  background: #200b0d;
+}
+
+.body {
+  display: grid;
+  gap: 16px;
+  padding: 16px 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (min-width: 900px) {
+  .body {
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(220px, 320px);
+    align-items: start;
+  }
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  border-top: 1px solid #232a36;
+  background: #111620;
+}
+
+.footerStatus {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 .buttons {
   display: flex;
   gap: 12px;
@@ -60,9 +169,10 @@
 }
 
 .counter {
+  flex: none;
   margin: 0;
   color: #f8fafc;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
 }
 
