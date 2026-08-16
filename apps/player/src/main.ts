@@ -4,7 +4,13 @@ import "./player.css";
 import { loadPublishedVersion } from "./published-presentation-loader";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
-import { parseEntrySearch, resolveLiveMount } from "./live-entry";
+import {
+  parseEntrySearch,
+  resolveLiveIdentityMount,
+  subscribeLiveCurrent,
+  type LiveCurrent,
+  type LiveCurrentEvent,
+} from "./live-entry";
 import { subscribeLiveSlideAck } from "./live-slide-ack";
 
 import { mountPlayer, type PlayerController } from "./player";
@@ -33,6 +39,12 @@ const controls = {
 
 let activeController: PlayerController | undefined;
 let cleanupLiveSlideAck: (() => void) | undefined;
+let cleanupLiveCurrent: (() => void) | undefined;
+
+// Identidade da sessão Live atualmente montada e token de carga.
+// O token invalida cargas assíncronas obsoletas quando a sessão muda.
+let currentSessionKey: string | null = null;
+let loadToken = 0;
 
 // ============================================================
 // ESTADOS DE CARGA / ERRO
@@ -94,32 +106,70 @@ function attachLiveSlideAck(
 // ENTRADA LIVE
 //
 // Fluxo:
-//   1. lê live/current uma única vez;
-//   2. valida publicationId / currentVersionId / revision;
+//   1. assina live/current continuamente (fonte canônica de sessão);
+//   2. a cada snapshot valida publicationId / currentVersionId / revision;
 //   3. carrega a versão exata em Firestore;
 //   4. valida a Presentation com o schema canônico;
 //   5. monta o Player e inicia o slide state (live ACK).
 //
-// Não resolve o pointer público. Não assina/polling live/current.
-// Sem fallback para a demo ou para parâmetros legados.
+// Uma sessão ativa nova re-monta o Player com a activationRevision atual.
+// Quando live/current fica ausente, a sessão é encerrada imediatamente.
+// Não resolve o pointer público. Sem fallback para a demo.
 // ============================================================
 
-async function mountLive(): Promise<void> {
-  renderLoadState("Loading presentation…");
+function liveSessionKey(live: LiveCurrent): string {
+  return `${live.publicationId}|${live.currentVersionId}|${live.revision}`;
+}
 
-  const database = getRealtimeDatabaseOrNull();
+function teardownLiveSession(): void {
+  // Invalida qualquer carga assíncrona ainda em andamento.
+  loadToken += 1;
+  currentSessionKey = null;
 
-  if (!database) {
-    renderLoadState("Could not load presentation.");
+  cleanupLiveSlideAck?.();
+  cleanupLiveSlideAck = undefined;
+
+  activeController?.destroy();
+  activeController = undefined;
+}
+
+async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
+  if (event.kind === "no-active") {
+    teardownLiveSession();
+
+    renderNoActive();
 
     return;
   }
 
-  const result = await resolveLiveMount(database, loadPublishedVersion);
+  if (event.kind === "error") {
+    // Em erro transitório de leitura/validação, mantém uma sessão saudável.
+    // Sem sessão montada, mostra o estado de carga/erro como na entrada one-shot.
+    if (activeController === undefined) {
+      renderLoadState("Could not load presentation.");
+    }
 
-  if (result.kind === "no-active") {
-    renderNoActive();
+    return;
+  }
 
+  const key = liveSessionKey(event.live);
+
+  // Mesma identidade reemitida → não remonta nem duplica subscriptions.
+  if (key === currentSessionKey) {
+    return;
+  }
+
+  teardownLiveSession();
+
+  currentSessionKey = key;
+  loadToken += 1;
+  const token = loadToken;
+
+  renderLoadState("Loading presentation…");
+
+  const result = await resolveLiveIdentityMount(event.live, loadPublishedVersion);
+
+  if (token !== loadToken) {
     return;
   }
 
@@ -130,6 +180,8 @@ async function mountLive(): Promise<void> {
 
     return;
   }
+
+  currentSessionKey = null;
 
   if (result.kind === "not-found") {
     renderLoadState("Presentation not found.");
@@ -145,22 +197,30 @@ async function mountLive(): Promise<void> {
 // ============================================================
 
 window.addEventListener("pagehide", () => {
-  cleanupLiveSlideAck?.();
+  cleanupLiveCurrent?.();
+  cleanupLiveCurrent = undefined;
 
-  cleanupLiveSlideAck = undefined;
-
-  activeController?.destroy();
-
-  activeController = undefined;
+  teardownLiveSession();
 });
 
 // ============================================================
 // INICIALIZAÇÃO
 //
-// A entrada padrão "/" resolve sempre a partir de live/current.
+// A entrada padrão "/" resolve sempre a partir de live/current,
+// agora de forma reativa (assinatura contínua).
 // Parâmetros legados (?publication=, ?version=) são ignorados.
 // ============================================================
 
 const { logsEnabled } = parseEntrySearch(window.location.search);
 
-void mountLive();
+const database = getRealtimeDatabaseOrNull();
+
+if (!database) {
+  renderLoadState("Could not load presentation.");
+} else {
+  renderLoadState("Loading presentation…");
+
+  cleanupLiveCurrent = subscribeLiveCurrent(database, (event) => {
+    void handleLiveEvent(event);
+  });
+}
