@@ -99,6 +99,16 @@ export function PresenterView({
   const presentation =
     presentationState.kind === "ready" ? presentationState.presentation : null;
 
+  const canGoPrevious =
+    !disabled && confirmedIndex !== null && confirmedIndex > 0;
+
+  const canGoNext =
+    !disabled &&
+    confirmedIndex !== null &&
+    confirmedIndex >= 0 &&
+    presentation !== null &&
+    confirmedIndex < presentation.slides.length - 1;
+
   const notesState = usePresenterNotes(presentation);
 
   const currentSlideNote =
@@ -160,7 +170,9 @@ export function PresenterView({
 
         <div className={presenterStyles.liveStatus}>
           <p className={styles.status}>
-            {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
+            {view
+              ? describeStatus(t, view.status)
+              : t("control.awaitingPlayer")}
           </p>
 
           {showCounter && (
@@ -171,10 +183,10 @@ export function PresenterView({
         </div>
 
         <div className={styles.buttons}>
-          <button type="button" disabled={disabled} onClick={previous}>
+          <button type="button" disabled={!canGoPrevious} onClick={previous}>
             {t("control.previous")}
           </button>
-          <button type="button" disabled={disabled} onClick={next}>
+          <button type="button" disabled={!canGoNext} onClick={next}>
             {t("control.next")}
           </button>
         </div>
