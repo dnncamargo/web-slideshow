@@ -25,6 +25,7 @@ export function isStudioLocale(value: string | null): value is StudioLocale {
 // ============================================================
 
 const englishMessages = {
+  "control.summary": "Summary",
   "locale.language": "Language",
   "locale.en": "English",
   "locale.pt-BR": "Português",
@@ -450,6 +451,7 @@ const englishMessages = {
   "control.next": "Next",
   "control.fullscreen": "Fullscreen",
   "control.end": "End",
+  "control.library": "Library",
   "control.sendFailed": "Could not send command.",
   "control.missingPublication": "Missing publication.",
   "control.unavailable": "Remote control is unavailable.",
@@ -475,6 +477,7 @@ type StudioMessages = Record<StudioMessageKey, string>;
 // ============================================================
 
 const portugueseMessages = {
+  "control.summary": "Sumário",
   "locale.language": "Idioma",
   "locale.en": "English",
   "locale.pt-BR": "Português",
@@ -906,6 +909,7 @@ const portugueseMessages = {
   "control.next": "Próximo",
   "control.fullscreen": "Tela cheia",
   "control.end": "Encerrar",
+  "control.library": "Biblioteca",
   "control.sendFailed": "Não foi possível enviar o comando.",
   "control.missingPublication": "Publicação ausente.",
   "control.unavailable": "Controle remoto indisponível.",

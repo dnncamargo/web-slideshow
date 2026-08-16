@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import Link from "next/link";
+
 import { renderFontResources } from "@powershow/renderer";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
+import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import type { LiveControlView } from "../live-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
@@ -68,14 +71,15 @@ export interface PresenterViewProps {
  * both are available and the confirmed index is in range, and only changes
  * after a Player ACK updates confirmedIndex.
  *
- * The shell follows the Studio Editor as its visual baseline: a 52px top bar
- * (brand, centered presentation title, Locale + End) over a three-column body
- * (slide list / current preview / next preview + notes), a centered row of
- * Previous/Next arrow controls beneath the current slide with a secondary
- * Fullscreen control, and an unobtrusive footer (local clock, sync/latency,
- * ACK-confirmed counter). Fullscreen stays disabled: it is not wired to any
- * remote/protocol action.
+ * The shell follows the Studio Editor visual structure: a 52px top bar with
+ * PowerShow Control branding, centered presentation title, Locale selector,
+ * local clock, Live sync/latency status and End action. The body contains the
+ * slide summary, current preview and next preview + notes. Previous/Next,
+ * Fullscreen and the ACK-confirmed slide counter belong to the control row
+ * below the current slide. Fullscreen stays disabled until its protocol is
+ * implemented. There is no footer.
  */
+
 export function PresenterView({
   view,
   sendFailed,
@@ -154,30 +158,79 @@ export function PresenterView({
 
   return (
     <main className={styles.shell}>
-      <header className={styles.header}>
-        <div className={styles.brand}>
+      <header className={styles.topbar}>
+        {/* ========================================================
+      BEGIN: BRAND
+      ======================================================== */}
+
+        <div>
           <strong>
             <span>PowerShow</span>
           </strong>
 
-          <span className={styles.brandSection}>Control</span>
+          <span className={styles.topbarSection}>Control</span>
         </div>
 
-        <div className={styles.headerTitle} title={presentation?.title ?? ""}>
+        {/* ========================================================
+      END: BRAND
+      ======================================================== */}
+
+        {/* ========================================================
+      BEGIN: PRESENTATION TITLE
+      ======================================================== */}
+
+        <div
+          className={styles.presentationTitle}
+          title={presentation?.title ?? ""}
+        >
           <span>{presentation?.title ?? ""}</span>
         </div>
 
-        <div className={styles.headerActions}>
+        {/* ========================================================
+      END: PRESENTATION TITLE
+      ======================================================== */}
+
+        {/* ========================================================
+      BEGIN: TOPBAR CONTROLS
+      ======================================================== */}
+
+        <div className={styles.topbarControls}>
           <LocaleSelector />
+
+          <div className={styles.topbarDivider} aria-hidden="true" />
+
+          <span className={styles.status}>{clock}</span>
+
+          {sendFailed && (
+            <span className={styles.error}>{t("control.sendFailed")}</span>
+          )}
+
+          <span className={styles.topbarStatus}>
+            {view
+              ? describeStatus(t, view.status)
+              : t("control.awaitingPlayer")}
+          </span>
 
           <button type="button" className={styles.endButton} onClick={end}>
             {t("control.end")}
           </button>
         </div>
+
+        {/* ========================================================
+      END: TOPBAR CONTROLS
+      ======================================================== */}
+
+        <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
+          {t("control.library")}
+        </Link>
       </header>
 
       <div className={styles.body}>
         <aside className={presenterStyles.summaryColumn}>
+          <div className={presenterStyles.panelHeader}>
+            {t("control.summary")}
+          </div>
+
           {presentation && (
             <PresenterSlideList
               presentation={presentation}
@@ -190,7 +243,6 @@ export function PresenterView({
           {fontResourcesCss && (
             <style data-powershow-font-resources>{fontResourcesCss}</style>
           )}
-
           {currentSlide && aspectRatio ? (
             <PresenterSlidePreview
               slide={currentSlide}
@@ -200,8 +252,14 @@ export function PresenterView({
           ) : (
             <p className={styles.status}>{t("control.awaitingPlayer")}</p>
           )}
+        </section>
 
-          <div className={presenterStyles.centerControls}>
+        <div className={presenterStyles.centerControls}>
+          <div className={presenterStyles.controlPrimary}>
+            <div className={presenterStyles.mobileLocale}>
+              <LocaleSelector />
+            </div>
+
             <button
               type="button"
               className={presenterStyles.arrowButton}
@@ -268,10 +326,49 @@ export function PresenterView({
                 <path d="M3 16v3a2 2 0 0 0 2 2h3" />
                 <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
               </svg>
-              {t("control.fullscreen")}
+
+              <span className={presenterStyles.fullscreenLabel}>
+                {t("control.fullscreen")}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={presenterStyles.mobileEndButton}
+              onClick={end}
+            >
+              {t("control.end")}
             </button>
           </div>
-        </section>
+
+          <div className={presenterStyles.controlMeta}>
+            {/* Future session timer slot. Renders only the ACK-confirmed
+                slide counter until a canonical startedAt exists. */}
+            <div className={styles.controlDivider} aria-hidden="true" />
+
+            {showCounter && (
+              <span className={styles.counter}>
+                {confirmedIndex + 1} / {slideCount}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className={presenterStyles.mobileLiveStatus}>
+          <span className={styles.status}>{clock}</span>
+
+          <div className={styles.controlDivider} aria-hidden="true" />
+
+          {sendFailed && (
+            <span className={styles.error}>{t("control.sendFailed")}</span>
+          )}
+
+          <span className={styles.topbarStatus}>
+            {view
+              ? describeStatus(t, view.status)
+              : t("control.awaitingPlayer")}
+          </span>
+        </div>
 
         <aside className={presenterStyles.nextColumn}>
           {nextSlide && aspectRatio && (
@@ -293,28 +390,6 @@ export function PresenterView({
           </div>
         </aside>
       </div>
-
-      <footer className={styles.footer}>
-        <div className={styles.footerLeft}>
-          <span className={styles.clock}>{clock}</span>
-
-          <span className={styles.footerDivider} aria-hidden="true" />
-
-          {sendFailed && (
-            <span className={styles.error}>{t("control.sendFailed")}</span>
-          )}
-
-          <span className={styles.footerStatus}>
-            {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
-          </span>
-        </div>
-
-        {showCounter && (
-          <span className={styles.counter}>
-            {confirmedIndex + 1} / {slideCount}
-          </span>
-        )}
-      </footer>
     </main>
   );
 }
