@@ -1,5 +1,14 @@
 export { FirestorePresentationRepository } from "./firestore-presentation-repository";
 export type { PresentationRepository } from "./presentation-repository";
+export { FirestorePresentationNotesRepository } from "./firestore-presentation-notes-repository";
+export type { PresentationNotesRepository } from "./presentation-notes-repository";
+export {
+  applySlideNote,
+  createEmptyNotes,
+  makeFirestoreSafeNotes,
+  normalizePersistedNotes,
+  type PresentationNotes,
+} from "./presentation-notes";
 export type {
   PresentationSummary,
   PresentationPersistenceEnvelope,

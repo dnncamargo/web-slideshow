@@ -11,8 +11,10 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { EditorWorkspace } from "@/features/editor/editor-workspace";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { getDefaultPresentationRepository } from "@/features/persistence/presentation-repository-instance";
+import { getDefaultPresentationNotesRepository } from "@/features/persistence/presentation-notes-repository-instance";
 
 const repository = getDefaultPresentationRepository();
+const notesRepository = getDefaultPresentationNotesRepository();
 
 type EditorStatus =
   | { kind: "loading" }
@@ -113,6 +115,7 @@ export function StudioEditorMount({
       onPublish={async () => {
         await repository.publishPresentation(status.presentation.id);
       }}
+      notesRepository={notesRepository}
     />
   );
 }

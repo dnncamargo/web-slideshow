@@ -1,0 +1,92 @@
+/* ==========================================================
+   BEGIN: NOTES WORKSPACE
+   ========================================================== */
+
+.notesWorkspace {
+  min-width: 0;
+  min-height: 0;
+
+  display: grid;
+
+  grid-template-rows:
+    44px
+    minmax(0, 1fr);
+
+  overflow: hidden;
+
+  background: #111620;
+}
+
+.notesHeader {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 0 16px;
+
+  border-bottom: 1px solid #232a36;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.notesStatus {
+  color: #7f8998;
+
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+
+  white-space: nowrap;
+}
+
+.notesStatus[data-error] {
+  color: #f87171;
+}
+
+.notesContent {
+  min-height: 0;
+
+  display: flex;
+
+  padding: 16px;
+}
+
+.notesTextarea {
+  flex: 1;
+
+  width: 100%;
+  min-height: 0;
+
+  resize: none;
+
+  border: 1px solid #303847;
+
+  border-radius: 6px;
+
+  background: #0b0f17;
+
+  color: #cbd5e1;
+
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+
+  padding: 12px;
+}
+
+.notesTextarea:disabled {
+  opacity: 0.6;
+}
+
+/* ==========================================================
+   END: NOTES WORKSPACE
+   ========================================================== */

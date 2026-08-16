@@ -119,6 +119,18 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // PRIVATE PRESENTATION NOTES
+    // users/{userId}/presentations/{presentationId}/private/notes
+    //
+    // Private per-presentation notes, isolated from the canonical
+    // Presentation document so notes writes can never affect
+    // draftRevision, publication state, or published versions.
+    // ------------------------------------------------------------
+    match /users/{userId}/presentations/{presentationId}/private/notes {
+      allow read, write: if isPrivatePresentationOwner(userId);
+    }
+
+    // ------------------------------------------------------------
     // PUBLIC PUBLICATION POINTER
     // publishedPresentations/{publicationId}
     // ------------------------------------------------------------

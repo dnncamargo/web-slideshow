@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import type {
-  PointerEvent as ReactPointerEvent,
-} from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { renderFontResources, renderSlide } from "@powershow/renderer";
 
@@ -35,6 +33,9 @@ import {
   isPublishEnabled,
   resolvePublishButtonLabelStatus,
 } from "./editor-publish-state";
+import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
+import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
+import { useEditorNotes } from "./notes/use-editor-notes";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
   getEffectiveImageFocalPoint,
@@ -269,10 +270,12 @@ export function EditorWorkspace({
   initialPresentation,
   onSave,
   onPublish,
+  notesRepository,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
   onPublish?: () => Promise<void>;
+  notesRepository?: PresentationNotesRepository;
 } = {}) {
   const { locale, setLocale, t } = useStudioI18n();
 
@@ -318,13 +321,14 @@ export function EditorWorkspace({
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
 
-  const [rightPanelView, setRightPanelView] = useState<"inspector" | "elements">(
-    "inspector",
-  );
+  const [rightPanelView, setRightPanelView] = useState<
+    "inspector" | "elements"
+  >("inspector");
 
-  const [preserveImageProportion, setPreserveImageProportion] = useState<boolean>(
-    DEFAULT_IMAGE_PROPORTION_PRESERVED,
-  );
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+
+  const [preserveImageProportion, setPreserveImageProportion] =
+    useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
   const [focalEditingImageId, setFocalEditingImageId] = useState<string | null>(
     null,
   );
@@ -374,7 +378,8 @@ export function EditorWorkspace({
   const [canvasResizeOverlay, setCanvasResizeOverlay] =
     useState<CanvasResizeOverlay | null>(null);
   const [canvasGuides, setCanvasGuides] = useState<CanvasSnapGuide[]>([]);
-  const [canvasGuideBounds, setCanvasGuideBounds] = useState<CanvasBounds | null>(null);
+  const [canvasGuideBounds, setCanvasGuideBounds] =
+    useState<CanvasBounds | null>(null);
   const [canvasFocalOverlay, setCanvasFocalOverlay] =
     useState<CanvasFocalOverlay | null>(null);
   const [canvasFocalPreview, setCanvasFocalPreview] =
@@ -392,6 +397,26 @@ export function EditorWorkspace({
 
   // ==========================================================
   // END: SLIDE ATUAL
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: NOTAS PRIVADAS
+  //
+  // O ciclo de vida das notas (carregamento, edição local,
+  // autosave e persistência) vive em useEditorNotes. Este
+  // componente apenas conecta o hook ao slide selecionado e
+  // decide se o workspace de Notas substitui a coluna direita.
+  // ==========================================================
+
+  const editorNotes = useEditorNotes({
+    presentationId: presentation.id,
+    notesRepository,
+    selectedSlideId: selectedSlide?.id ?? "",
+    enabled: isNotesOpen,
+  });
+
+  // ==========================================================
+  // END: NOTAS PRIVADAS
   // ==========================================================
 
   // ==========================================================
@@ -520,7 +545,9 @@ export function EditorWorkspace({
 
     candidates.forEach((candidate) => {
       const id = candidate.dataset.powershowId;
-      const documentElement = id ? findElementById(selectedSlide?.elements ?? [], id) : null;
+      const documentElement = id
+        ? findElementById(selectedSlide?.elements ?? [], id)
+        : null;
 
       if (documentElement && isCanvasDraggable(documentElement.style)) {
         candidate.classList.add("powershow-editor-draggable");
@@ -538,7 +565,11 @@ export function EditorWorkspace({
 
     target?.classList.add("powershow-editor-selected");
 
-    if (!target || !selectedDocumentElement || !isCanvasResizable(selectedDocumentElement)) {
+    if (
+      !target ||
+      !selectedDocumentElement ||
+      !isCanvasResizable(selectedDocumentElement)
+    ) {
       setCanvasResizeOverlay(null);
       return;
     }
@@ -552,7 +583,13 @@ export function EditorWorkspace({
       width: bounds.width,
       height: bounds.height,
     });
-  }, [locale, renderedSlide, selectedDocumentElement, selectedElement, selectedSlide]);
+  }, [
+    locale,
+    renderedSlide,
+    selectedDocumentElement,
+    selectedElement,
+    selectedSlide,
+  ]);
 
   useEffect(() => {
     if (
@@ -572,7 +609,9 @@ export function EditorWorkspace({
 
     const canvas = slideCanvasRef.current;
     const target = canvas
-      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
+      ? Array.from(
+          canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
+        ).find(
           (candidate) => candidate.dataset.powershowId === focalEditingImageId,
         )
       : undefined;
@@ -660,7 +699,10 @@ export function EditorWorkspace({
       return null;
     }
 
-    const position = findElementSiblingPosition(selectedSlide.elements, elementId);
+    const position = findElementSiblingPosition(
+      selectedSlide.elements,
+      elementId,
+    );
 
     if (!position) {
       return null;
@@ -670,9 +712,13 @@ export function EditorWorkspace({
       return canvas.querySelector<HTMLElement>(".powershow-slide");
     }
 
-    return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
-      (candidate) => candidate.dataset.powershowId === position.parentId,
-    ) ?? null;
+    return (
+      Array.from(
+        canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
+      ).find(
+        (candidate) => candidate.dataset.powershowId === position.parentId,
+      ) ?? null
+    );
   }
 
   function getCanvasBounds(element: HTMLElement): CanvasBounds {
@@ -692,11 +738,16 @@ export function EditorWorkspace({
   ): { candidates: CanvasSnapCandidate[]; parentBounds: CanvasBounds } {
     const parentBounds = getCanvasBounds(parent);
     const siblings = Array.from(parent.children).flatMap((child) => {
-      if (!(child instanceof HTMLElement) || child.dataset.powershowId === selectedId) {
+      if (
+        !(child instanceof HTMLElement) ||
+        child.dataset.powershowId === selectedId
+      ) {
         return [];
       }
 
-      return child.matches("[data-powershow-id]") ? [getCanvasBounds(child)] : [];
+      return child.matches("[data-powershow-id]")
+        ? [getCanvasBounds(child)]
+        : [];
     });
 
     return {
@@ -740,7 +791,10 @@ export function EditorWorkspace({
       return;
     }
 
-    const layoutParent = getCanvasLayoutParent(event.currentTarget, selection.id);
+    const layoutParent = getCanvasLayoutParent(
+      event.currentTarget,
+      selection.id,
+    );
 
     if (!layoutParent) {
       return;
@@ -814,7 +868,10 @@ export function EditorWorkspace({
         (guide): guide is CanvasSnapGuide => guide !== null,
       ),
     );
-    drag.target.style.setProperty("translate", `${drag.deltaX}px ${drag.deltaY}px`);
+    drag.target.style.setProperty(
+      "translate",
+      `${drag.deltaX}px ${drag.deltaY}px`,
+    );
   }
 
   function commitCanvasDrag() {
@@ -832,17 +889,23 @@ export function EditorWorkspace({
         index === selectedSlideIndex
           ? {
               ...slide,
-              elements: updateElementById(slide.elements, drag.elementId, (element) => {
-                const style = updatePlacementForCanvasDrag(
-                  element.style,
-                  drag.deltaX,
-                  drag.deltaY,
-                  drag.parentWidthPx,
-                  drag.parentHeightPx,
-                );
+              elements: updateElementById(
+                slide.elements,
+                drag.elementId,
+                (element) => {
+                  const style = updatePlacementForCanvasDrag(
+                    element.style,
+                    drag.deltaX,
+                    drag.deltaY,
+                    drag.parentWidthPx,
+                    drag.parentHeightPx,
+                  );
 
-                return style === element.style ? element : { ...element, style };
-              }),
+                  return style === element.style
+                    ? element
+                    : { ...element, style };
+                },
+              ),
             }
           : slide,
       ),
@@ -887,10 +950,16 @@ export function EditorWorkspace({
       return;
     }
 
-    const target = Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]")).find(
-      (candidate) => candidate.dataset.powershowId === selectedDocumentElement.id,
+    const target = Array.from(
+      canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
+    ).find(
+      (candidate) =>
+        candidate.dataset.powershowId === selectedDocumentElement.id,
     );
-    const layoutParent = getCanvasLayoutParent(canvas, selectedDocumentElement.id);
+    const layoutParent = getCanvasLayoutParent(
+      canvas,
+      selectedDocumentElement.id,
+    );
 
     if (!target || !layoutParent) {
       return;
@@ -907,7 +976,10 @@ export function EditorWorkspace({
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
-    const snap = getCanvasSnapCandidates(layoutParent, selectedDocumentElement.id);
+    const snap = getCanvasSnapCandidates(
+      layoutParent,
+      selectedDocumentElement.id,
+    );
     setCanvasGuideBounds(snap.parentBounds);
     canvasResizeRef.current = {
       pointerId: event.pointerId,
@@ -920,8 +992,10 @@ export function EditorWorkspace({
       parentHeightPx: logicalHeight,
       scaleX: parentBounds.width / logicalWidth || 1,
       scaleY: parentBounds.height / logicalHeight || 1,
-      initialWidthPx: target.offsetWidth || target.getBoundingClientRect().width,
-      initialHeightPx: target.offsetHeight || target.getBoundingClientRect().height,
+      initialWidthPx:
+        target.offsetWidth || target.getBoundingClientRect().width,
+      initialHeightPx:
+        target.offsetHeight || target.getBoundingClientRect().height,
       initialOverlay: canvasResizeOverlay,
       deltaX: 0,
       deltaY: 0,
@@ -930,7 +1004,9 @@ export function EditorWorkspace({
     };
   }
 
-  function handleResizePointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+  function handleResizePointerMove(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
     const resize = canvasResizeRef.current;
 
     if (!resize || resize.pointerId !== event.pointerId) {
@@ -948,7 +1024,11 @@ export function EditorWorkspace({
       movesWest
         ? [resize.initialOverlay.left + rawClientX]
         : movesEast
-          ? [resize.initialOverlay.left + resize.initialOverlay.width + rawClientX]
+          ? [
+              resize.initialOverlay.left +
+                resize.initialOverlay.width +
+                rawClientX,
+            ]
           : [],
       resize.candidates,
       event.altKey,
@@ -958,7 +1038,11 @@ export function EditorWorkspace({
       movesNorth
         ? [resize.initialOverlay.top + rawClientY]
         : movesSouth
-          ? [resize.initialOverlay.top + resize.initialOverlay.height + rawClientY]
+          ? [
+              resize.initialOverlay.top +
+                resize.initialOverlay.height +
+                rawClientY,
+            ]
           : [],
       resize.candidates,
       event.altKey,
@@ -979,40 +1063,46 @@ export function EditorWorkspace({
     );
     const locked =
       selectedDocumentElement?.type === "image" && preserveImageProportion;
-    const previewDeltas = locked ? null : getCanvasResizeDeltas(
-      resize.direction,
-      resize.deltaX,
-      resize.deltaY,
-    );
+    const previewDeltas = locked
+      ? null
+      : getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY);
 
     setCanvasResizeOverlay({
       ...resize.initialOverlay,
       left:
         resize.initialOverlay.left +
-        getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY).offsetX * resize.scaleX,
+        getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY)
+          .offsetX *
+          resize.scaleX,
       top:
         resize.initialOverlay.top +
-        getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY).offsetY * resize.scaleY,
-      width: (locked
-        ? resolveProportionalResize(
-            resize.direction,
-            resize.deltaX,
-            resize.deltaY,
-            resize.initialWidthPx,
-            resize.initialHeightPx,
-          ).width
-        : Math.max(1, resize.initialWidthPx + (previewDeltas?.width ?? 0))
-      ) * resize.scaleX,
-      height: (locked
-        ? resolveProportionalResize(
-            resize.direction,
-            resize.deltaX,
-            resize.deltaY,
-            resize.initialWidthPx,
-            resize.initialHeightPx,
-          ).height
-        : Math.max(1, resize.initialHeightPx + (previewDeltas?.height ?? 0))
-      ) * resize.scaleY,
+        getCanvasResizeDeltas(resize.direction, resize.deltaX, resize.deltaY)
+          .offsetY *
+          resize.scaleY,
+      width:
+        (locked
+          ? resolveProportionalResize(
+              resize.direction,
+              resize.deltaX,
+              resize.deltaY,
+              resize.initialWidthPx,
+              resize.initialHeightPx,
+            ).width
+          : Math.max(1, resize.initialWidthPx + (previewDeltas?.width ?? 0))) *
+        resize.scaleX,
+      height:
+        (locked
+          ? resolveProportionalResize(
+              resize.direction,
+              resize.deltaX,
+              resize.deltaY,
+              resize.initialWidthPx,
+              resize.initialHeightPx,
+            ).height
+          : Math.max(
+              1,
+              resize.initialHeightPx + (previewDeltas?.height ?? 0),
+            )) * resize.scaleY,
     });
   }
 
@@ -1032,46 +1122,52 @@ export function EditorWorkspace({
         index === selectedSlideIndex
           ? {
               ...slide,
-              elements: updateElementById(slide.elements, resize.elementId, (element) => {
-                const locked =
-                  element.type === "image" && preserveImageProportion;
-                const resizedStyle = locked
-                  ? updateStyleForProportionalResize(
-                      element.style,
-                      resize.direction,
-                      resize.deltaX,
-                      resize.deltaY,
-                      resize.initialWidthPx,
-                      resize.initialHeightPx,
-                      resize.parentWidthPx,
-                      resize.parentHeightPx,
-                    )
-                  : updateStyleForCanvasResize(
-                      element.style,
-                      resize.direction,
-                      resize.deltaX,
-                      resize.deltaY,
-                      resize.initialWidthPx,
-                      resize.initialHeightPx,
-                      resize.parentWidthPx,
-                      resize.parentHeightPx,
-                    );
-                const adjustment = getCanvasResizePlacementAdjustment(
-                  resize.direction,
-                  resize.deltaX,
-                  resize.deltaY,
-                  element.style?.placement?.anchor,
-                );
-                const style = updatePlacementForCanvasDrag(
-                  resizedStyle,
-                  adjustment.x,
-                  adjustment.y,
-                  resize.parentWidthPx,
-                  resize.parentHeightPx,
-                );
+              elements: updateElementById(
+                slide.elements,
+                resize.elementId,
+                (element) => {
+                  const locked =
+                    element.type === "image" && preserveImageProportion;
+                  const resizedStyle = locked
+                    ? updateStyleForProportionalResize(
+                        element.style,
+                        resize.direction,
+                        resize.deltaX,
+                        resize.deltaY,
+                        resize.initialWidthPx,
+                        resize.initialHeightPx,
+                        resize.parentWidthPx,
+                        resize.parentHeightPx,
+                      )
+                    : updateStyleForCanvasResize(
+                        element.style,
+                        resize.direction,
+                        resize.deltaX,
+                        resize.deltaY,
+                        resize.initialWidthPx,
+                        resize.initialHeightPx,
+                        resize.parentWidthPx,
+                        resize.parentHeightPx,
+                      );
+                  const adjustment = getCanvasResizePlacementAdjustment(
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    element.style?.placement?.anchor,
+                  );
+                  const style = updatePlacementForCanvasDrag(
+                    resizedStyle,
+                    adjustment.x,
+                    adjustment.y,
+                    resize.parentWidthPx,
+                    resize.parentHeightPx,
+                  );
 
-                return style === element.style ? element : { ...element, style };
-              }),
+                  return style === element.style
+                    ? element
+                    : { ...element, style };
+                },
+              ),
             }
           : slide,
       ),
@@ -1084,7 +1180,9 @@ export function EditorWorkspace({
     }
   }
 
-  function handleResizePointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+  function handleResizePointerCancel(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
     if (canvasResizeRef.current?.pointerId === event.pointerId) {
       clearCanvasResizePreview();
     }
@@ -1139,9 +1237,7 @@ export function EditorWorkspace({
           ? {
               ...slide,
               elements: updateElementById(slide.elements, imageId, (element) =>
-                element.type === "image"
-                  ? { ...element, focalPoint }
-                  : element,
+                element.type === "image" ? { ...element, focalPoint } : element,
               ),
             }
           : slide,
@@ -1169,7 +1265,9 @@ export function EditorWorkspace({
     commitCanvasFocalPoint(focalPoint, drag.imageId);
   }
 
-  function handleFocalPointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+  function handleFocalPointerCancel(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
     if (canvasFocalDragRef.current?.pointerId === event.pointerId) {
       canvasFocalDragRef.current = null;
       setCanvasFocalPreview(null);
@@ -1223,7 +1321,11 @@ export function EditorWorkspace({
   // ==========================================================
 
   const saveStatus = resolveSaveStatus(saveState, presentation);
-  const saveEnabled = isSaveEnabled(saveState, presentation, onSave !== undefined);
+  const saveEnabled = isSaveEnabled(
+    saveState,
+    presentation,
+    onSave !== undefined,
+  );
   const autosaveEligible = isAutosaveEligible(
     saveState,
     presentation,
@@ -1250,7 +1352,10 @@ export function EditorWorkspace({
   }
 
   function handleSave() {
-    if (presentation === saveState.lastSavedPresentation || saveState.isSaving) {
+    if (
+      presentation === saveState.lastSavedPresentation ||
+      saveState.isSaving
+    ) {
       return;
     }
 
@@ -1457,9 +1562,7 @@ export function EditorWorkspace({
         resources: {
           ...current.resources,
           fonts: currentFonts.map((registeredFont, index) =>
-            index === fontResourceIndex
-              ? updatedResource.data
-              : registeredFont,
+            index === fontResourceIndex ? updatedResource.data : registeredFont,
           ),
         },
       };
@@ -1996,12 +2099,10 @@ export function EditorWorkspace({
       ======================================================== */}
 
         <div className={styles.topbarControls}>
-
           {/* ======================================================
         BEGIN: STUDIO LANGUAGE SELECTOR 
         ====================================================== */}
 
-        
           <label className={styles.localeControl} title={t("locale.language")}>
             <span className={styles.localeIcon} aria-hidden="true">
               <svg
@@ -2110,8 +2211,6 @@ export function EditorWorkspace({
           {/* ======================================================
         END: PUBLISH BUTTON
         ====================================================== */}
-
-
         </div>
 
         {/* ========================================================
@@ -2200,9 +2299,7 @@ export function EditorWorkspace({
               BEGIN: SLIDE ACTIONS
               ================================================= */}
 
-          <form
-            autoComplete="off"
-            className={styles.slideActions}>
+          <form autoComplete="off" className={styles.slideActions}>
             {/* ===============================================
                 MOVE UP
                 =============================================== */}
@@ -2285,7 +2382,24 @@ export function EditorWorkspace({
                 : t("canvas.noElementSelected")}
             </span>
 
-            <span>{presentation.aspectRatio}</span>
+            <span className={styles.canvasToolbarRight}>
+              <button
+                type="button"
+                className={
+                  isNotesOpen
+                    ? `${styles.notesToggle} ${styles.notesToggleActive}`
+                    : styles.notesToggle
+                }
+                aria-pressed={isNotesOpen}
+                onClick={() => {
+                  setIsNotesOpen((current) => !current);
+                }}
+              >
+                {t("notes.toggle")}
+              </button>
+
+              <span>{presentation.aspectRatio}</span>
+            </span>
           </div>
 
           <div className={styles.canvasViewport}>
@@ -2296,14 +2410,14 @@ export function EditorWorkspace({
             )}
 
             <div
-               ref={slideCanvasRef}
-               className={styles.slideCanvas}
-               onPointerDown={handleCanvasPointerDown}
-               onPointerMove={handleCanvasPointerMove}
-               onPointerUp={handleCanvasPointerUp}
-               onPointerCancel={handleCanvasPointerCancel}
-               onLostPointerCapture={handleCanvasPointerCancel}
-               dangerouslySetInnerHTML={{
+              ref={slideCanvasRef}
+              className={styles.slideCanvas}
+              onPointerDown={handleCanvasPointerDown}
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+              onPointerCancel={handleCanvasPointerCancel}
+              onLostPointerCapture={handleCanvasPointerCancel}
+              dangerouslySetInnerHTML={{
                 __html: renderedSlide,
               }}
             />
@@ -2317,7 +2431,8 @@ export function EditorWorkspace({
                   height: `${canvasResizeOverlay.height}px`,
                 }}
               >
-                {(selectedDocumentElement?.type === "image" && preserveImageProportion
+                {(selectedDocumentElement?.type === "image" &&
+                preserveImageProportion
                   ? CANVAS_IMAGE_CORNER_DIRECTIONS
                   : CANVAS_RESIZE_DIRECTIONS
                 ).map((direction) => (
@@ -2328,7 +2443,9 @@ export function EditorWorkspace({
                     aria-label={`Resize ${direction}`}
                     title={`Resize ${direction}`}
                     style={{ cursor: getCanvasResizeCursor(direction) }}
-                    onPointerDown={(event) => handleResizePointerDown(event, direction)}
+                    onPointerDown={(event) =>
+                      handleResizePointerDown(event, direction)
+                    }
                     onPointerMove={handleResizePointerMove}
                     onPointerUp={handleResizePointerUp}
                     onPointerCancel={handleResizePointerCancel}
@@ -2337,50 +2454,51 @@ export function EditorWorkspace({
                 ))}
               </div>
             )}
-            {canvasGuideBounds && canvasGuides.map((guide) => (
-              <div
-                key={`${guide.axis}-${guide.value}`}
-                className={
-                  guide.axis === "x"
-                    ? styles.canvasGuideVertical
-                    : styles.canvasGuideHorizontal
-                }
-                style={
-                  guide.axis === "x"
-                    ? {
-                        left: `${guide.value}px`,
-                        top: `${canvasGuideBounds.top}px`,
-                        height: `${canvasGuideBounds.height}px`,
-                      }
-                    : {
-                        left: `${canvasGuideBounds.left}px`,
-                        top: `${guide.value}px`,
-                        width: `${canvasGuideBounds.width}px`,
-                      }
-                }
-              />
-            ))}
+            {canvasGuideBounds &&
+              canvasGuides.map((guide) => (
+                <div
+                  key={`${guide.axis}-${guide.value}`}
+                  className={
+                    guide.axis === "x"
+                      ? styles.canvasGuideVertical
+                      : styles.canvasGuideHorizontal
+                  }
+                  style={
+                    guide.axis === "x"
+                      ? {
+                          left: `${guide.value}px`,
+                          top: `${canvasGuideBounds.top}px`,
+                          height: `${canvasGuideBounds.height}px`,
+                        }
+                      : {
+                          left: `${canvasGuideBounds.left}px`,
+                          top: `${guide.value}px`,
+                          width: `${canvasGuideBounds.width}px`,
+                        }
+                  }
+                />
+              ))}
             {canvasFocalOverlay &&
               displayedCanvasFocalPoint &&
               focalEditingImageId === selectedDocumentElement?.id && (
-              <button
-                className={styles.canvasFocalMarker}
-                type="button"
-                aria-label={t("image.focalPoint")}
-                title={t("image.focalPoint")}
-                style={{
-                  left: `${canvasFocalOverlay.left + (displayedCanvasFocalPoint.x / 100) * canvasFocalOverlay.width}px`,
-                  top: `${canvasFocalOverlay.top + (displayedCanvasFocalPoint.y / 100) * canvasFocalOverlay.height}px`,
-                }}
-                onPointerDown={handleFocalPointerDown}
-                onPointerMove={handleFocalPointerMove}
-                onPointerUp={handleFocalPointerUp}
-                onPointerCancel={handleFocalPointerCancel}
-                onLostPointerCapture={handleFocalPointerCancel}
-              >
-                ⊕
-              </button>
-            )}
+                <button
+                  className={styles.canvasFocalMarker}
+                  type="button"
+                  aria-label={t("image.focalPoint")}
+                  title={t("image.focalPoint")}
+                  style={{
+                    left: `${canvasFocalOverlay.left + (displayedCanvasFocalPoint.x / 100) * canvasFocalOverlay.width}px`,
+                    top: `${canvasFocalOverlay.top + (displayedCanvasFocalPoint.y / 100) * canvasFocalOverlay.height}px`,
+                  }}
+                  onPointerDown={handleFocalPointerDown}
+                  onPointerMove={handleFocalPointerMove}
+                  onPointerUp={handleFocalPointerUp}
+                  onPointerCancel={handleFocalPointerCancel}
+                  onLostPointerCapture={handleFocalPointerCancel}
+                >
+                  ⊕
+                </button>
+              )}
           </div>
         </section>
 
@@ -2392,10 +2510,23 @@ export function EditorWorkspace({
             BEGIN: INSPECTOR
             =================================================== */}
 
-        <aside className={styles.inspector}>
+        {isNotesOpen ? (
+          <SlideNotesWorkspace
+            note={editorNotes.note}
+            status={editorNotes.status}
+            isSaving={editorNotes.isSaving}
+            hasSaveError={editorNotes.hasSaveError}
+            onChange={editorNotes.onChange}
+          />
+        ) : (
+          <aside className={styles.inspector}>
           <div className={styles.panelHeader}>
             <button
-              className={rightPanelView === "inspector" ? styles.rightPanelTabActive : styles.rightPanelTab}
+              className={
+                rightPanelView === "inspector"
+                  ? styles.rightPanelTabActive
+                  : styles.rightPanelTab
+              }
               type="button"
               aria-pressed={rightPanelView === "inspector"}
               onClick={() => setRightPanelView("inspector")}
@@ -2403,7 +2534,11 @@ export function EditorWorkspace({
               {t("inspector.title")}
             </button>
             <button
-              className={rightPanelView === "elements" ? styles.rightPanelTabActive : styles.rightPanelTab}
+              className={
+                rightPanelView === "elements"
+                  ? styles.rightPanelTabActive
+                  : styles.rightPanelTab
+              }
               type="button"
               aria-pressed={rightPanelView === "elements"}
               onClick={() => setRightPanelView("elements")}
@@ -2425,136 +2560,139 @@ export function EditorWorkspace({
               />
             ) : (
               <>
-            {/* =================================================
+                {/* =================================================
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
 
-             {/* ==========================================================
+                {/* ==========================================================
      BEGIN: ELEMENT CRUD CONTROLS
      ========================================================== */}
 
-             <ElementCrudControls
-               selectedElement={selectedDocumentElement}
-               onAdd={addElement}
-               onDuplicate={duplicateSelectedElement}
-               onDelete={deleteSelectedElement}
-             />
+                <ElementCrudControls
+                  selectedElement={selectedDocumentElement}
+                  onAdd={addElement}
+                  onDuplicate={duplicateSelectedElement}
+                  onDelete={deleteSelectedElement}
+                />
 
-            {/* ==========================================================
+                {/* ==========================================================
     END: ELEMENT CRUD CONTROLS
     ========================================================== */}
 
-{/* =================================================
+                {/* =================================================
                  END: ELEMENT CRUD CONTROLS
                  ================================================= */}
-             {selectedDocumentElement ? (
-               <RecentColorsProvider
-                 colors={[]}
-                 onAddColor={(color) => {
-                   // Recent colors are managed locally in ColorControl
-                 }}
-                 onClearColors={() => {
-                   // Clear handled in ColorControl
-                 }}
-                 onMoveColor={(index, direction) => {
-                   // Move handled in ColorControl
-                 }}
-               >
-                 <PresentationColorPaletteProvider
-                   colors={presentation.palette?.colors ?? []}
-                   onAddColor={addPresentationPaletteColor}
-                   onRemoveColor={removePresentationPaletteColor}
-                   onMoveColor={movePresentationPaletteColor}
-                 >
-                   <ElementInspector
-                     element={selectedDocumentElement}
-                     onUpdate={updateSelectedElement}
-                      preserveImageProportion={preserveImageProportion}
-                      onPreserveImageProportionChange={setPreserveImageProportion}
-                      focalEditingImageId={focalEditingImageId}
-                      onFocalEditingImageIdChange={setFocalEditingImageId}
-                      fontResourceControls={{
-                       fontResources: presentation.resources?.fonts ?? [],
-                       onAddFontFace: addFontFace,
-                       onRemoveFontFace: removeFontFace,
-                       isFontFamilyInUse: (family) =>
-                         presentationUsesFontFamily(presentation, family),
-                      }}
-                      parent={selectedElementParent}
-                      layerControls={
-                        selectedElementPosition
-                          ? {
-                              index: selectedElementPosition.index,
-                              count: selectedElementPosition.count,
-                              onMoveTo: moveSelectedElementTo,
-                            }
-                          : null
-                      }
-                    />
-                 </PresentationColorPaletteProvider>
-               </RecentColorsProvider>
-             ) : (
-              <>
-                {/* =============================================
+                {selectedDocumentElement ? (
+                  <RecentColorsProvider
+                    colors={[]}
+                    onAddColor={(color) => {
+                      // Recent colors are managed locally in ColorControl
+                    }}
+                    onClearColors={() => {
+                      // Clear handled in ColorControl
+                    }}
+                    onMoveColor={(index, direction) => {
+                      // Move handled in ColorControl
+                    }}
+                  >
+                    <PresentationColorPaletteProvider
+                      colors={presentation.palette?.colors ?? []}
+                      onAddColor={addPresentationPaletteColor}
+                      onRemoveColor={removePresentationPaletteColor}
+                      onMoveColor={movePresentationPaletteColor}
+                    >
+                      <ElementInspector
+                        element={selectedDocumentElement}
+                        onUpdate={updateSelectedElement}
+                        preserveImageProportion={preserveImageProportion}
+                        onPreserveImageProportionChange={
+                          setPreserveImageProportion
+                        }
+                        focalEditingImageId={focalEditingImageId}
+                        onFocalEditingImageIdChange={setFocalEditingImageId}
+                        fontResourceControls={{
+                          fontResources: presentation.resources?.fonts ?? [],
+                          onAddFontFace: addFontFace,
+                          onRemoveFontFace: removeFontFace,
+                          isFontFamilyInUse: (family) =>
+                            presentationUsesFontFamily(presentation, family),
+                        }}
+                        parent={selectedElementParent}
+                        layerControls={
+                          selectedElementPosition
+                            ? {
+                                index: selectedElementPosition.index,
+                                count: selectedElementPosition.count,
+                                onMoveTo: moveSelectedElementTo,
+                              }
+                            : null
+                        }
+                      />
+                    </PresentationColorPaletteProvider>
+                  </RecentColorsProvider>
+                ) : (
+                  <>
+                    {/* =============================================
                     BEGIN: SLIDE INSPECTOR
                     ============================================= */}
 
-                {/* ===========================================
+                    {/* ===========================================
                     BEGIN: SLIDE TITLE
                     =========================================== */}
 
-                <label className={styles.field}>
-                  <span>{t("inspector.titleField")}</span>
+                    <label className={styles.field}>
+                      <span>{t("inspector.titleField")}</span>
 
-                  <input
-                    type="text"
-                    value={selectedSlide.title}
-                    placeholder={t("slides.untitled")}
-                    onChange={(event) => {
-                      const title = event.target.value;
+                      <input
+                        type="text"
+                        value={selectedSlide.title}
+                        placeholder={t("slides.untitled")}
+                        onChange={(event) => {
+                          const title = event.target.value;
 
-                      updateSelectedSlide((slide) => ({
-                        ...slide,
+                          updateSelectedSlide((slide) => ({
+                            ...slide,
 
-                        title,
-                      }));
-                    }}
-                  />
-                </label>
+                            title,
+                          }));
+                        }}
+                      />
+                    </label>
 
-                {/* ===========================================
+                    {/* ===========================================
                     END: SLIDE TITLE
                     =========================================== */}
 
-                <div className={styles.inspectorGroup}>
-                  <span className={styles.inspectorLabel}>
-                    {t("inspector.id")}
-                  </span>
+                    <div className={styles.inspectorGroup}>
+                      <span className={styles.inspectorLabel}>
+                        {t("inspector.id")}
+                      </span>
 
-                  <code>{selectedSlide.id}</code>
-                </div>
+                      <code>{selectedSlide.id}</code>
+                    </div>
 
-                <div className={styles.inspectorGroup}>
-                  <span className={styles.inspectorLabel}>
-                    {t("inspector.rootElements")}
-                  </span>
+                    <div className={styles.inspectorGroup}>
+                      <span className={styles.inspectorLabel}>
+                        {t("inspector.rootElements")}
+                      </span>
 
-                  <strong>{selectedSlide.elements.length}</strong>
-                </div>
+                      <strong>{selectedSlide.elements.length}</strong>
+                    </div>
 
-                <div className={styles.nextStep}>
-                  <span>{t("inspector.selectElementHint")}</span>
-                </div>
+                    <div className={styles.nextStep}>
+                      <span>{t("inspector.selectElementHint")}</span>
+                    </div>
 
-                {/* =============================================
+                    {/* =============================================
                     END: SLIDE INSPECTOR
                     ============================================= */}
-              </>
-            )}
+                  </>
+                )}
               </>
             )}
           </div>
         </aside>
+        )}
 
         {/* ===================================================
             END: INSPECTOR
