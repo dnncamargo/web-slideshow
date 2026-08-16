@@ -123,22 +123,24 @@ export function PresenterView({
           <style data-powershow-font-resources>{fontResourcesCss}</style>
         )}
 
-        <div className={presenterStyles.previews}>
-          {currentSlide && aspectRatio && (
-            <PresenterSlidePreview
-              slide={currentSlide}
-              aspectRatio={aspectRatio}
-              variant="current"
-            />
-          )}
+        <div className={presenterStyles.previewsRegion}>
+          <div className={presenterStyles.previews}>
+            {currentSlide && aspectRatio && (
+              <PresenterSlidePreview
+                slide={currentSlide}
+                aspectRatio={aspectRatio}
+                variant="current"
+              />
+            )}
 
-          {nextSlide && aspectRatio && (
-            <PresenterSlidePreview
-              slide={nextSlide}
-              aspectRatio={aspectRatio}
-              variant="next"
-            />
-          )}
+            {nextSlide && aspectRatio && (
+              <PresenterSlidePreview
+                slide={nextSlide}
+                aspectRatio={aspectRatio}
+                variant="next"
+              />
+            )}
+          </div>
         </div>
 
         {presentation && (
@@ -156,15 +158,17 @@ export function PresenterView({
           <p className={styles.error}>{t("notes.loadError")}</p>
         )}
 
-        <p className={styles.status}>
-          {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
-        </p>
-
-        {showCounter && (
-          <p className={styles.counter}>
-            {confirmedIndex + 1} / {slideCount}
+        <div className={presenterStyles.liveStatus}>
+          <p className={styles.status}>
+            {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
           </p>
-        )}
+
+          {showCounter && (
+            <p className={styles.counter}>
+              {confirmedIndex + 1} / {slideCount}
+            </p>
+          )}
+        </div>
 
         <div className={styles.buttons}>
           <button type="button" disabled={disabled} onClick={previous}>

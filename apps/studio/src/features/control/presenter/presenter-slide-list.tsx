@@ -32,6 +32,7 @@ export function PresenterSlideList({
         return (
           <li
             key={slide.id}
+            aria-current={isCurrent ? "step" : undefined}
             className={`${styles.slideListItem}${isCurrent ? ` ${styles.slideListItemCurrent}` : ""}`}
           >
             {slideLabel(slide, index)}
