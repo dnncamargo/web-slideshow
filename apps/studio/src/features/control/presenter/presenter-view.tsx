@@ -170,9 +170,7 @@ export function PresenterView({
 
         <div className={presenterStyles.liveStatus}>
           <p className={styles.status}>
-            {view
-              ? describeStatus(t, view.status)
-              : t("control.awaitingPlayer")}
+            {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
           </p>
 
           {showCounter && (
