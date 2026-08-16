@@ -23,8 +23,7 @@ describe("editor private notes state", () => {
     expect(state.status).toBe("idle");
     expect(state.notes).toEqual(createEmptyNotes());
     expect(state.isSaving).toBe(false);
-    expect(state.hasSaveError).toBe(false);
-    expect(state.failedNote).toBeNull();
+    expect(state.failedSlideIds).toEqual([]);
   });
 
   it("loads notes into separate state without touching presentation", () => {
@@ -108,8 +107,7 @@ describe("editor private notes state", () => {
     expect(isDocumentDirty(current, lastSaved)).toBe(false);
 
     expect(getNoteForSlide(saved.notes, "slide-1")).toBe("edited note");
-    expect(saved.isSaving).toBe(false);
-    expect(saved.hasSaveError).toBe(false);
+    expect(saved.failedSlideIds).toEqual([]);
 
     expect(current).toBe(lastSaved);
   });
@@ -143,12 +141,9 @@ describe("editor private notes state", () => {
       note: "lost note",
     });
 
-    expect(failed.hasSaveError).toBe(true);
     expect(failed.isSaving).toBe(false);
-    expect(failed.failedNote).toEqual({
-      slideId: "slide-1",
-      note: "lost note",
-    });
+    expect(failed.failedSlideIds).toEqual(["slide-1"]);
+    expect(failed.isSaving).toBe(false);
     expect(isDocumentDirty(current, lastSaved)).toBe(false);
     expect(getNoteForSlide(failed.notes, "slide-1")).toBe("lost note");
   });
@@ -159,6 +154,8 @@ describe("editor private notes state", () => {
       slideId: "slide-1",
       note: "x",
     });
+
+    expect(failed.failedSlideIds).toEqual(["slide-1"]);
 
     const retryEdited = editorNotesReducer(failed, {
       type: "note-edit",
@@ -178,8 +175,7 @@ describe("editor private notes state", () => {
       note: "retried",
     });
 
-    expect(retried.hasSaveError).toBe(false);
-    expect(retried.failedNote).toBeNull();
+    expect(retried.failedSlideIds).toEqual([]);
     expect(getNoteForSlide(retried.notes, "slide-1")).toBe("retried");
   });
 

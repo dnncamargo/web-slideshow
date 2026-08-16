@@ -74,6 +74,14 @@ const englishMessages = {
 
   "canvas.noElementSelected": "No element selected",
 
+  "notes.toggle": "Notes",
+  "notes.title": "Notes",
+  "notes.placeholder": "Write private notes for this slide…",
+  "notes.loading": "Loading notes…",
+  "notes.loadError": "Could not load notes.",
+  "notes.saving": "Saving…",
+  "notes.saveError": "Could not save note.",
+
   "inspector.title": "Inspector",
   "inspector.element": "Element",
   "inspector.slide": "Slide",
@@ -513,6 +521,14 @@ const portugueseMessages = {
   "slides.emptyPresentation": "A apresentação não possui slides.",
 
   "canvas.noElementSelected": "Nenhum elemento selecionado",
+
+  "notes.toggle": "Notas",
+  "notes.title": "Notas",
+  "notes.placeholder": "Escreva notas privadas para este slide…",
+  "notes.loading": "Carregando notas…",
+  "notes.loadError": "Não foi possível carregar as notas.",
+  "notes.saving": "Salvando…",
+  "notes.saveError": "Não foi possível salvar a nota.",
 
   "inspector.title": "Inspetor",
   "inspector.element": "Elemento",

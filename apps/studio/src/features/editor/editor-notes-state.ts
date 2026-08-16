@@ -18,8 +18,7 @@ export interface EditorNotesState {
   notes: PresentationNotes;
   status: EditorNotesStatus;
   isSaving: boolean;
-  hasSaveError: boolean;
-  failedNote: { slideId: string; note: string } | null;
+  failedSlideIds: string[];
 }
 
 export type EditorNotesAction =
@@ -36,8 +35,7 @@ export function createInitialEditorNotesState(): EditorNotesState {
     notes: createEmptyNotes(),
     status: "idle",
     isSaving: false,
-    hasSaveError: false,
-    failedNote: null,
+    failedSlideIds: [],
   };
 }
 
@@ -53,7 +51,7 @@ export function editorNotesReducer(
         ...state,
         notes: action.notes,
         status: "ready",
-        hasSaveError: false,
+        failedSlideIds: [],
       };
     case "notes-load-error":
       return { ...state, status: "error" };
@@ -67,27 +65,24 @@ export function editorNotesReducer(
       return {
         ...state,
         isSaving: true,
-        hasSaveError: false,
-        failedNote: null,
       };
 
     case "note-save-success":
       return {
         ...state,
         isSaving: false,
-        hasSaveError: false,
-        failedNote: null,
+        failedSlideIds: state.failedSlideIds.filter(
+          (slideId) => slideId !== action.slideId,
+        ),
       };
 
     case "note-save-error":
       return {
         ...state,
         isSaving: false,
-        hasSaveError: true,
-        failedNote: {
-          slideId: action.slideId,
-          note: action.note,
-        },
+        failedSlideIds: state.failedSlideIds.includes(action.slideId)
+          ? state.failedSlideIds
+          : [...state.failedSlideIds, action.slideId],
       };
   }
 }

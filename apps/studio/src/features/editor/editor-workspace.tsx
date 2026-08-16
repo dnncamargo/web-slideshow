@@ -33,12 +33,9 @@ import {
   isPublishEnabled,
   resolvePublishButtonLabelStatus,
 } from "./editor-publish-state";
-import {
-  createInitialEditorNotesState,
-  editorNotesReducer,
-  getNoteForSlide,
-} from "./editor-notes-state";
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
+import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
+import { useEditorNotes } from "./notes/use-editor-notes";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
 import {
   getEffectiveImageFocalPoint,
@@ -312,23 +309,6 @@ export function EditorWorkspace({
   );
 
   // ==========================================================
-  // BEGIN: NOTAS PRIVADAS
-  //
-  // Estado separado do documento canônico. Não marca a
-  // Presentation como suja e não afeta draftRevision/publicação.
-  // ==========================================================
-
-  const [notesState, dispatchNotes] = useReducer(
-    editorNotesReducer,
-    undefined,
-    createInitialEditorNotesState,
-  );
-
-  // ==========================================================
-  // END: NOTAS PRIVADAS
-  // ==========================================================
-
-  // ==========================================================
   // END: DOCUMENTO EDITÁVEL
   // ==========================================================
 
@@ -344,6 +324,8 @@ export function EditorWorkspace({
   const [rightPanelView, setRightPanelView] = useState<
     "inspector" | "elements"
   >("inspector");
+
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
 
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
@@ -418,78 +400,23 @@ export function EditorWorkspace({
   // ==========================================================
 
   // ==========================================================
-  // BEGIN: NOTAS PRIVADAS — CARREGAMENTO E AÇÃO
+  // BEGIN: NOTAS PRIVADAS
   //
-  // O carregamento das notas é independente do carregamento da
-  // Presentation e falhas aqui nunca quebram a edição canônica.
+  // O ciclo de vida das notas (carregamento, edição local,
+  // autosave e persistência) vive em useEditorNotes. Este
+  // componente apenas conecta o hook ao slide selecionado e
+  // decide se o workspace de Notas substitui a coluna direita.
   // ==========================================================
 
-  useEffect(() => {
-    if (!notesRepository) {
-      return;
-    }
-
-    let cancelled = false;
-
-    dispatchNotes({ type: "notes-load-start" });
-
-    notesRepository
-      .getNotes(presentation.id)
-      .then((notes) => {
-        if (!cancelled) {
-          dispatchNotes({ type: "notes-load-success", notes });
-        }
-      })
-      .catch((error) => {
-        console.error(`Failed to load notes for "${presentation.id}"`, error);
-
-        if (!cancelled) {
-          dispatchNotes({ type: "notes-load-error" });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [presentation.id, notesRepository]);
-
-  const currentSlideNote = useMemo(() => {
-    const slideId = selectedSlide?.id ?? "";
-    return getNoteForSlide(notesState.notes, slideId);
-  }, [selectedSlide, notesState.notes]);
-
-  function handleEditSelectedSlideNote(note: string) {
-    const slideId = selectedSlide?.id;
-
-    if (!slideId) {
-      return;
-    }
-
-    dispatchNotes({
-      type: "note-edit",
-      slideId,
-      note,
-    });
-  }
-
-  async function handleSaveSlideNote(slideId: string, note: string) {
-    if (!notesRepository) {
-      return;
-    }
-
-    dispatchNotes({ type: "note-save-start", slideId, note });
-
-    try {
-      await notesRepository.setSlideNote(presentation.id, slideId, note);
-      dispatchNotes({ type: "note-save-success", slideId, note });
-    } catch (error) {
-      console.error("Failed to save slide note", error);
-      dispatchNotes({ type: "note-save-error", slideId, note });
-    }
-  }
+  const editorNotes = useEditorNotes({
+    presentationId: presentation.id,
+    notesRepository,
+    selectedSlideId: selectedSlide?.id ?? "",
+    enabled: isNotesOpen,
+  });
 
   // ==========================================================
-  // END: NOTAS PRIVADAS — CARREGAMENTO E AÇÃO
+  // END: NOTAS PRIVADAS
   // ==========================================================
 
   // ==========================================================
@@ -2455,7 +2382,24 @@ export function EditorWorkspace({
                 : t("canvas.noElementSelected")}
             </span>
 
-            <span>{presentation.aspectRatio}</span>
+            <span className={styles.canvasToolbarRight}>
+              <button
+                type="button"
+                className={
+                  isNotesOpen
+                    ? `${styles.notesToggle} ${styles.notesToggleActive}`
+                    : styles.notesToggle
+                }
+                aria-pressed={isNotesOpen}
+                onClick={() => {
+                  setIsNotesOpen((current) => !current);
+                }}
+              >
+                {t("notes.toggle")}
+              </button>
+
+              <span>{presentation.aspectRatio}</span>
+            </span>
           </div>
 
           <div className={styles.canvasViewport}>
@@ -2566,7 +2510,16 @@ export function EditorWorkspace({
             BEGIN: INSPECTOR
             =================================================== */}
 
-        <aside className={styles.inspector}>
+        {isNotesOpen ? (
+          <SlideNotesWorkspace
+            note={editorNotes.note}
+            status={editorNotes.status}
+            isSaving={editorNotes.isSaving}
+            hasSaveError={editorNotes.hasSaveError}
+            onChange={editorNotes.onChange}
+          />
+        ) : (
+          <aside className={styles.inspector}>
           <div className={styles.panelHeader}>
             <button
               className={
@@ -2739,6 +2692,7 @@ export function EditorWorkspace({
             )}
           </div>
         </aside>
+        )}
 
         {/* ===================================================
             END: INSPECTOR
