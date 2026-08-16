@@ -14,9 +14,9 @@ import {
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
-import type { StudioLocale } from "@/features/i18n/studio-i18n";
-
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+
+import { LocaleSelector } from "@/features/i18n/locale-selector";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
@@ -277,7 +277,7 @@ export function EditorWorkspace({
   onPublish?: () => Promise<void>;
   notesRepository?: PresentationNotesRepository;
 } = {}) {
-  const { locale, setLocale, t } = useStudioI18n();
+  const { locale, t } = useStudioI18n();
 
   // ==========================================================
   // BEGIN: DOCUMENTO EDITÁVEL
@@ -2100,43 +2100,10 @@ export function EditorWorkspace({
 
         <div className={styles.topbarControls}>
           {/* ======================================================
-        BEGIN: STUDIO LANGUAGE SELECTOR 
+        BEGIN: STUDIO LANGUAGE SELECTOR
         ====================================================== */}
 
-          <label className={styles.localeControl} title={t("locale.language")}>
-            <span className={styles.localeIcon} aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                width="15"
-                height="15"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="9" />
-
-                <path d="M3 12h18" />
-
-                <path d="M12 3a15 15 0 0 1 0 18" />
-
-                <path d="M12 3a15 15 0 0 0 0 18" />
-              </svg>
-            </span>
-
-            <select
-              value={locale}
-              aria-label={t("locale.language")}
-              onChange={(event) => {
-                setLocale(event.target.value as StudioLocale);
-              }}
-            >
-              <option value="en">US</option>
-
-              <option value="pt-BR">PT</option>
-            </select>
-          </label>
+          <LocaleSelector />
 
           {/* ======================================================
         END: STUDIO LANGUAGE SELECTOR (separated divider)
