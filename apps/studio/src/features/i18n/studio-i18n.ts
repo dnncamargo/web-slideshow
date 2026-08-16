@@ -448,6 +448,8 @@ const englishMessages = {
 
   "control.previous": "Previous",
   "control.next": "Next",
+  "control.fullscreen": "Fullscreen",
+  "control.end": "End",
   "control.sendFailed": "Could not send command.",
   "control.missingPublication": "Missing publication.",
   "control.unavailable": "Remote control is unavailable.",
@@ -902,6 +904,8 @@ const portugueseMessages = {
 
   "control.previous": "Anterior",
   "control.next": "Próximo",
+  "control.fullscreen": "Tela cheia",
+  "control.end": "Encerrar",
   "control.sendFailed": "Não foi possível enviar o comando.",
   "control.missingPublication": "Publicação ausente.",
   "control.unavailable": "Controle remoto indisponível.",

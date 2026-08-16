@@ -10,6 +10,7 @@ import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
+import { endLivePresentation } from "./live-current";
 
 import styles from "./control-page.module.css";
 
@@ -20,6 +21,12 @@ export function ControlPage() {
     useLiveSessionControl();
   const presentationState = usePresenterPresentation(liveState);
   const [available] = useState(() => isRealtimeDatabaseConfigured());
+
+  const end = () => {
+    void endLivePresentation().catch((error: unknown) => {
+      console.error("Control: end failed", error);
+    });
+  };
 
   if (!available) {
     return (
@@ -76,6 +83,7 @@ export function ControlPage() {
       presentationState={presentationState}
       previous={previous}
       next={next}
+      end={end}
     />
   );
 }

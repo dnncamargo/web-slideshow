@@ -40,6 +40,7 @@ export interface PresenterViewProps {
   presentationState: PresenterPresentationState;
   previous(): void;
   next(): void;
+  end(): void;
 }
 
 /**
@@ -50,6 +51,12 @@ export interface PresenterViewProps {
  * and the loaded published Presentation's slide count. It is shown only when
  * both are available and the confirmed index is in range, and only changes
  * after a Player ACK updates confirmedIndex.
+ *
+ * The shell is split into a header (title + Previous/Next/Fullscreen + End),
+ * a three-column body (slide list / current preview / next preview + notes),
+ * and a footer (Live status left, slide counter right). Fullscreen is not
+ * wired to any remote/protocol action; it stays disabled until a directly
+ * reusable safe action exists.
  */
 export function PresenterView({
   view,
@@ -57,6 +64,7 @@ export function PresenterView({
   presentationState,
   previous,
   next,
+  end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
 
@@ -125,74 +133,109 @@ export function PresenterView({
   );
 
   return (
-    <main className={styles.page}>
-      <div className={styles.card}>
-        <h1>PowerShow Control</h1>
+    <main className={styles.shell}>
+      <header className={styles.header}>
+        <h1 className={styles.headerTitle}>PowerShow Control</h1>
 
-        {fontResourcesCss && (
-          <style data-powershow-font-resources>{fontResourcesCss}</style>
-        )}
+        <div className={styles.headerNav}>
+          <button
+            type="button"
+            className={styles.navButton}
+            disabled={!canGoPrevious}
+            onClick={previous}
+          >
+            {t("control.previous")}
+          </button>
 
-        <div className={presenterStyles.previewsRegion}>
-          <div className={presenterStyles.previews}>
-            {currentSlide && aspectRatio && (
-              <PresenterSlidePreview
-                slide={currentSlide}
-                aspectRatio={aspectRatio}
-                variant="current"
-              />
-            )}
+          <button
+            type="button"
+            className={styles.navButton}
+            disabled={!canGoNext}
+            onClick={next}
+          >
+            {t("control.next")}
+          </button>
 
-            {nextSlide && aspectRatio && (
-              <PresenterSlidePreview
-                slide={nextSlide}
-                aspectRatio={aspectRatio}
-                variant="next"
-              />
-            )}
-          </div>
+          <button type="button" className={styles.navButton} disabled>
+            {t("control.fullscreen")}
+          </button>
         </div>
 
-        {presentation && (
-          <PresenterSlideList
-            presentation={presentation}
-            confirmedIndex={confirmedIndex}
-          />
-        )}
+        <button
+          type="button"
+          className={styles.endButton}
+          onClick={end}
+        >
+          {t("control.end")}
+        </button>
+      </header>
 
-        {currentSlide && currentSlideNote !== "" && (
-          <p className={presenterStyles.note}>{currentSlideNote}</p>
-        )}
+      <div className={styles.body}>
+        <aside className={presenterStyles.summaryColumn}>
+          {presentation && (
+            <PresenterSlideList
+              presentation={presentation}
+              confirmedIndex={confirmedIndex}
+            />
+          )}
+        </aside>
 
-        {notesState.kind === "error" && (
-          <p className={styles.error}>{t("notes.loadError")}</p>
-        )}
+        <section className={presenterStyles.currentColumn}>
+          {fontResourcesCss && (
+            <style data-powershow-font-resources>{fontResourcesCss}</style>
+          )}
 
-        <div className={presenterStyles.liveStatus}>
+          {currentSlide && aspectRatio ? (
+            <PresenterSlidePreview
+              slide={currentSlide}
+              aspectRatio={aspectRatio}
+              variant="current"
+            />
+          ) : (
+            <p className={styles.status}>
+              {t("control.awaitingPlayer")}
+            </p>
+          )}
+        </section>
+
+        <aside className={presenterStyles.nextColumn}>
+          {nextSlide && aspectRatio && (
+            <PresenterSlidePreview
+              slide={nextSlide}
+              aspectRatio={aspectRatio}
+              variant="next"
+            />
+          )}
+
+          <div className={presenterStyles.notesRegion}>
+            {currentSlide && currentSlideNote !== "" && (
+              <p className={presenterStyles.note}>{currentSlideNote}</p>
+            )}
+
+            {notesState.kind === "error" && (
+              <p className={styles.error}>{t("notes.loadError")}</p>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      <footer className={styles.footer}>
+        <div className={styles.footerStatus}>
+          {sendFailed && (
+            <p className={styles.error}>{t("control.sendFailed")}</p>
+          )}
+
           <p className={styles.status}>
             {view ? describeStatus(t, view.status) : t("control.awaitingPlayer")}
           </p>
-
-          {showCounter && (
-            <p className={styles.counter}>
-              {confirmedIndex + 1} / {slideCount}
-            </p>
-          )}
         </div>
 
-        <div className={styles.buttons}>
-          <button type="button" disabled={!canGoPrevious} onClick={previous}>
-            {t("control.previous")}
-          </button>
-          <button type="button" disabled={!canGoNext} onClick={next}>
-            {t("control.next")}
-          </button>
-        </div>
-
-        {sendFailed && (
-          <p className={styles.error}>{t("control.sendFailed")}</p>
+        {showCounter && (
+          <p className={styles.counter}>
+            {confirmedIndex + 1} / {slideCount}
+          </p>
         )}
-      </div>
+      </footer>
     </main>
   );
 }
