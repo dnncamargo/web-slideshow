@@ -35,7 +35,8 @@ export function PresenterSlideList({
             aria-current={isCurrent ? "step" : undefined}
             className={`${styles.slideListItem}${isCurrent ? ` ${styles.slideListItemCurrent}` : ""}`}
           >
-            {slideLabel(slide, index)}
+            <span className={styles.slideNumber}>{index + 1}</span>
+            <span className={styles.slideTitle}>{slideLabel(slide, index)}</span>
           </li>
         );
       })}
