@@ -195,8 +195,8 @@
     minmax(200px, 320px);
 
   grid-template-rows:
-    minmax(0, 1fr)
-    auto;
+    auto
+    minmax(96px, 1fr);
 
   align-items: stretch;
 

@@ -37,19 +37,23 @@
 }
 
 .panelHeader {
+  height: 44px;
+
   display: flex;
   align-items: center;
 
-  padding: 0 16px;
+  padding: 0 14px;
 
   border-bottom: 1px solid #232a36;
 
   color: #94a3b8;
 
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 600;
+
   text-transform: uppercase;
+
+  letter-spacing: 0.08em;
 }
 
 .summaryColumn {
@@ -275,25 +279,69 @@
 }
 
 .slideList {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
+  min-height: 0;
 
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  margin: 0;
+  padding: 10px;
+
+  list-style: none;
+
+  overflow-x: hidden;
   overflow-y: auto;
+
+  overscroll-behavior: contain;
+}
+
+.slideListItem,
+.slideListItemCurrent {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    28px
+    1fr;
+
+  align-items: center;
+
+  gap: 8px;
+
+  padding:
+    10px
+    12px;
+
+  border:
+    1px solid transparent;
+
+  border-radius: 8px;
+
+  color: #cbd5e1;
+
+  text-align: left;
 }
 
 .slideListItem {
-  padding: 6px 10px;
-  font-size: 13px;
-  color: #94a3b8;
-
+  background: transparent;
 }
 
 .slideListItemCurrent {
-  background: #4c1d95;
-  color: #f3e8ff;
-  font-weight: 600;
+  border-color: #4f46e5;
+  background: #24213d;
+}
+
+.slideNumber {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.slideTitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .note {
