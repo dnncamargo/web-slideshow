@@ -22,9 +22,29 @@ export type PresenterPresentationState =
   | {
       kind: "ready";
       presentation: LoadedPresenterVersions["previewPresentation"];
+      livePresentation: LoadedPresenterVersions["livePresentation"];
       displayIndex: number | null;
       pendingVersion: PendingPublishedVersion | null;
     };
+
+/**
+ * Resolve the pageId for an outgoing Live navigation target.
+ *
+ * A queued navigation is scoped to `live/current.currentVersionId`, which is
+ * always the immutable live presentation. It must never be resolved against the
+ * newer staged preview (`presentation`), even when the Control UI is already
+ * previewing it.
+ */
+export function resolveLivePageId(
+  state: PresenterPresentationState | null,
+  pageIndex: number,
+): string | null {
+  if (state?.kind !== "ready") {
+    return null;
+  }
+
+  return state.livePresentation.slides[pageIndex]?.id ?? null;
+}
 
 interface PointerResult {
   publicationId: string;
@@ -169,6 +189,7 @@ export function usePresenterPresentation(
 
   return {
     kind: "ready",
+    livePresentation: result.versions.livePresentation,
     ...projectPresenterVersions(result.versions, confirmedPageIndex),
   };
 }

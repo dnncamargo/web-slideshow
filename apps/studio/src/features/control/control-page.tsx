@@ -12,6 +12,7 @@ import { usePresenterPresentation } from "./presenter/use-presenter-presentation
 import { PresenterView } from "./presenter/presenter-view";
 import { endLivePresentation } from "./live-current";
 import type { PresenterPresentationState } from "./presenter/use-presenter-presentation";
+import { resolveLivePageId } from "./presenter/use-presenter-presentation";
 
 import styles from "./control-page.module.css";
 
@@ -19,15 +20,11 @@ export function ControlPage() {
   const { t } = useStudioI18n();
   const router = useRouter();
   const presentationStateRef = useRef<PresenterPresentationState | null>(null);
-  const resolvePageId = useCallback((pageIndex: number) => {
-    const state = presentationStateRef.current;
-
-    if (state?.kind !== "ready") {
-      return null;
-    }
-
-    return state.presentation.slides[pageIndex]?.id ?? null;
-  }, []);
+  const resolvePageId = useCallback(
+    (pageIndex: number) =>
+      resolveLivePageId(presentationStateRef.current, pageIndex),
+    [],
+  );
   const {
     liveState,
     view,

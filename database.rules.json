@@ -28,7 +28,7 @@
       "slideCommand": {
         ".read": true,
         ".write": "auth != null",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'slideIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('slideIndex').isNumber() && (newData.child('slideIndex').val() % 1 == 0) && newData.child('slideIndex').val() >= 0",
+        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0",
         "activationRevision": {
           ".validate": "newData.isNumber()"
         },
@@ -38,8 +38,8 @@
         "revision": {
           ".validate": "newData.isNumber()"
         },
-        "slideIndex": {
-          ".validate": "newData.isNumber()"
+        "pageId": {
+          ".validate": "newData.isString() && newData.val().length > 0"
         },
         "$other": {
           ".validate": false
@@ -48,7 +48,7 @@
       "slideAck": {
         ".read": "auth != null",
         ".write": "auth != null || newData.exists()",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'slideIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0 && newData.child('slideIndex').isNumber() && (newData.child('slideIndex').val() % 1 == 0) && newData.child('slideIndex').val() >= 0 && ((newData.child('revision').val() === 0 && !root.hasChild('live/slideCommand')) || (newData.child('revision').val() > 0 && newData.child('activationRevision').val() === root.child('live/slideCommand/activationRevision').val() && newData.child('currentVersionId').val() === root.child('live/slideCommand/currentVersionId').val() && newData.child('revision').val() === root.child('live/slideCommand/revision').val()))",
+        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'pageIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('pageIndex').isNumber() && (newData.child('pageIndex').val() % 1 == 0) && newData.child('pageIndex').val() >= 0 && ((newData.child('revision').val() === 0 && !root.hasChild('live/slideCommand')) || (newData.child('revision').val() > 0 && newData.child('activationRevision').val() === root.child('live/slideCommand/activationRevision').val() && newData.child('currentVersionId').val() === root.child('live/slideCommand/currentVersionId').val() && newData.child('revision').val() === root.child('live/slideCommand/revision').val()))",
         "activationRevision": {
           ".validate": "newData.isNumber()"
         },
@@ -58,7 +58,10 @@
         "revision": {
           ".validate": "newData.isNumber()"
         },
-        "slideIndex": {
+        "pageId": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "pageIndex": {
           ".validate": "newData.isNumber()"
         },
         "$other": {

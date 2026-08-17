@@ -25,7 +25,10 @@ vi.mock(
   }),
 );
 
-import { usePresenterPresentation } from "../src/features/control/presenter/use-presenter-presentation";
+import {
+  resolveLivePageId,
+  usePresenterPresentation,
+} from "../src/features/control/presenter/use-presenter-presentation";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -124,5 +127,67 @@ describe("usePresenterPresentation", () => {
         projectedSlideRemoved: false,
       },
     });
+  });
+
+  it("resolves outgoing Live navigation pageId against the immutable V1 live presentation, not the reordered V2 preview", async () => {
+    const v1 = {
+      ...createBlankPresentation("presentation-1"),
+      slides: ["A", "B", "C"].map((id) => createBlankSlide(id)),
+    };
+    const v2 = {
+      ...createBlankPresentation("presentation-1"),
+      slides: ["C", "A", "B"].map((id) => createBlankSlide(id)),
+    };
+    reader.getVersion.mockImplementation(
+      (_publicationId: string, versionId: string) =>
+        Promise.resolve(versionId === "version-1" ? v1 : v2),
+    );
+
+    function Harness() {
+      state = usePresenterPresentation(
+        {
+          kind: "active",
+          live: {
+            publicationId: "publication-1",
+            currentVersionId: "version-1",
+            revision: 13,
+          },
+        },
+        1,
+      );
+      return null;
+    }
+
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <Harness />
+        </StrictMode>,
+      ),
+    );
+
+    await act(async () => {
+      onPointer?.({ currentVersionId: "version-2", publishedRevision: 2 });
+    });
+
+    if (state?.kind !== "ready") {
+      throw new Error("expected ready state");
+    }
+
+    // The Control UI previews the reordered V2...
+    expect(state.presentation.slides.map((slide) => slide.id)).toEqual([
+      "C",
+      "A",
+      "B",
+    ]);
+    // ...but the outgoing command is still scoped to live/current V1, so the
+    // queued index 1 must resolve to V1's "B", never V2's "A".
+    expect(state.livePresentation.slides.map((slide) => slide.id)).toEqual([
+      "A",
+      "B",
+      "C",
+    ]);
+    expect(resolveLivePageId(state, 1)).toBe("B");
+    expect(resolveLivePageId(state, 1)).not.toBe("A");
   });
 });
