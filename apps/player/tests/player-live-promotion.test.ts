@@ -141,7 +141,7 @@ describe("Player live version promotion", () => {
     });
     await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
 
-    const confirmV1 = mocks.subscribeLiveSlideAck.mock.calls[0]?.[5] as (
+    const confirmV1 = mocks.subscribeLiveSlideAck.mock.calls[0]?.[6] as (
       index: number,
     ) => void;
     confirmV1(1);
@@ -188,6 +188,7 @@ describe("Player live version promotion", () => {
       expect.anything(),
       5,
       "version-3",
+      latest,
       promotedController,
       false,
       expect.any(Function),

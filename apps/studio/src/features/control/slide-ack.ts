@@ -15,7 +15,7 @@ function isNonNegativeInteger(value: unknown): boolean {
 export function parseSlideAck(value: unknown): SlideAck | null {
   if (typeof value !== "object" || value === null) return null;
   const record = value as Record<string, unknown>;
-  if (Object.keys(record).length !== 4) return null;
+  if (Object.keys(record).length !== 5) return null;
   if (!isNonNegativeInteger(record.activationRevision)) return null;
   if (
     typeof record.currentVersionId !== "string" ||
@@ -23,13 +23,17 @@ export function parseSlideAck(value: unknown): SlideAck | null {
   ) {
     return null;
   }
+  if (typeof record.pageId !== "string" || record.pageId.trim() === "") {
+    return null;
+  }
   if (!isNonNegativeInteger(record.revision)) return null;
-  if (!isNonNegativeInteger(record.slideIndex)) return null;
+  if (!isNonNegativeInteger(record.pageIndex)) return null;
   return {
     activationRevision: record.activationRevision as number,
     currentVersionId: record.currentVersionId.trim(),
     revision: record.revision as number,
-    slideIndex: record.slideIndex as number,
+    pageId: record.pageId.trim(),
+    pageIndex: record.pageIndex as number,
   };
 }
 

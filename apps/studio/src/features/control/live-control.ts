@@ -9,14 +9,15 @@ export type LiveControlStatus =
 
 export interface LiveControlView {
   enabled: boolean;
-  confirmedIndex: number;
+  confirmedPageId: string | null;
+  confirmedPageIndex: number;
   status: LiveControlStatus;
 }
 
 export interface LiveControlOptions {
   activationRevision: number;
   currentVersionId: string;
-  writeCommand(slideIndex: number): Promise<SlideCommand>;
+  writeCommand(pageIndex: number): Promise<SlideCommand>;
   now(): number;
   schedule(callback: () => void, delayMs: number): () => void;
   onViewChange(view: LiveControlView): void;
@@ -32,13 +33,14 @@ interface PendingCommand {
 /**
  * Drives the live slide protocol for the Studio Control surface.
  *
- * Confirmed index only ever comes from a matching Player ACK. The desired index
- * derives from the confirmed index and coalesces user input. At most one
+ * Confirmed page index only ever comes from a matching Player ACK. The desired
+ * page index derives from the confirmed page index and coalesces user input. At most one
  * unacknowledged command is in flight at a time.
  */
 export class LiveControl {
-  private confirmedIndex = 0;
-  private desiredIndex = 0;
+  private confirmedPageId: string | null = null;
+  private confirmedPageIndex = 0;
+  private desiredPageIndex = 0;
   private hasBaseline = false;
   private latencyMs: number | undefined;
   private pending: PendingCommand | null = null;
@@ -52,11 +54,11 @@ export class LiveControl {
   }
 
   previous(): void {
-    this.requestTarget(Math.max(0, this.desiredIndex - 1));
+    this.requestTarget(Math.max(0, this.desiredPageIndex - 1));
   }
 
   next(): void {
-    this.requestTarget(this.desiredIndex + 1);
+    this.requestTarget(this.desiredPageIndex + 1);
   }
 
   private applyPendingAck(ack: SlideAck): void {
@@ -67,10 +69,11 @@ export class LiveControl {
     this.lastAcceptedAckRevision = ack.revision;
     this.latencyMs = Math.max(0, this.options.now() - this.pending.startedAt);
 
-    this.confirmedIndex = ack.slideIndex;
+    this.confirmedPageId = ack.pageId;
+    this.confirmedPageIndex = ack.pageIndex;
 
-    if (ack.slideIndex !== this.pending.target) {
-      this.desiredIndex = ack.slideIndex;
+    if (ack.pageIndex !== this.pending.target) {
+      this.desiredPageIndex = ack.pageIndex;
     }
 
     this.pending = null;
@@ -78,7 +81,7 @@ export class LiveControl {
 
     this.notify();
 
-    if (this.desiredIndex !== this.confirmedIndex) {
+    if (this.desiredPageIndex !== this.confirmedPageIndex) {
       this.scheduleTrailing();
     }
   }
@@ -106,8 +109,9 @@ export class LiveControl {
     if (this.pending === null) {
       this.hasBaseline = true;
       this.lastAcceptedAckRevision = ack.revision;
-      this.confirmedIndex = ack.slideIndex;
-      this.desiredIndex = ack.slideIndex;
+      this.confirmedPageId = ack.pageId;
+      this.confirmedPageIndex = ack.pageIndex;
+      this.desiredPageIndex = ack.pageIndex;
       this.latencyMs = undefined;
       this.cancelTrailing();
       this.notify();
@@ -142,7 +146,7 @@ export class LiveControl {
       return;
     }
 
-    this.desiredIndex = index;
+    this.desiredPageIndex = index;
 
     if (this.pending !== null) {
       this.notify();
@@ -172,11 +176,11 @@ export class LiveControl {
       return;
     }
 
-    if (this.desiredIndex === this.confirmedIndex) {
+    if (this.desiredPageIndex === this.confirmedPageIndex) {
       return;
     }
 
-    const target = this.desiredIndex;
+    const target = this.desiredPageIndex;
 
     this.pending = {
       target,
@@ -217,7 +221,7 @@ export class LiveControl {
       if (this.pending?.target === target) {
         this.pending = null;
         this.earlyAck = null;
-        this.desiredIndex = this.confirmedIndex;
+        this.desiredPageIndex = this.confirmedPageIndex;
         this.options.onCommandError();
         this.notify();
       }
@@ -230,7 +234,8 @@ export class LiveControl {
     }
     this.options.onViewChange({
       enabled: this.hasBaseline,
-      confirmedIndex: this.confirmedIndex,
+      confirmedPageId: this.confirmedPageId,
+      confirmedPageIndex: this.confirmedPageIndex,
       status: this.computeStatus(),
     });
   }

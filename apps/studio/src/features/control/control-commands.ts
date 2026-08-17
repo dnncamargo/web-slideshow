@@ -20,14 +20,15 @@ export interface SlideCommand {
   activationRevision: number;
   currentVersionId: string;
   revision: number;
-  slideIndex: number;
+  pageId: string;
 }
 
 export interface SlideAck {
   activationRevision: number;
   currentVersionId: string;
   revision: number;
-  slideIndex: number;
+  pageId: string;
+  pageIndex: number;
 }
 
 export function buildSlideCommandPath(): string {
@@ -42,7 +43,7 @@ export function buildSlideCommand(
   activationRevision: number,
   currentVersionId: string,
   revision: number,
-  slideIndex: number,
+  pageId: string,
 ): SlideCommand {
-  return { activationRevision, currentVersionId, revision, slideIndex };
+  return { activationRevision, currentVersionId, revision, pageId };
 }

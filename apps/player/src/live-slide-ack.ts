@@ -6,6 +6,7 @@ import {
   type Database,
 } from "firebase/database";
 
+import type { Presentation } from "@powershow/document-schema";
 import type { PlayerController } from "./player";
 
 const SLIDE_COMMAND_PATH = "live/slideCommand";
@@ -21,7 +22,7 @@ const BASELINE_REVISION = 0;
 //   - activationRevision: inteiro >= 0
 //   - currentVersionId: string não-vazia
 //   - revision: inteiro >= 1
-//   - slideIndex: inteiro >= 0
+//   - pageId: string não-vazia
 //
 // Retorna null para qualquer valor que não atenda ao contrato.
 // ============================================================
@@ -30,7 +31,7 @@ export interface SlideCommand {
   activationRevision: number;
   currentVersionId: string;
   revision: number;
-  slideIndex: number;
+  pageId: string;
 }
 
 export function parseSlideCommand(value: unknown): SlideCommand | null {
@@ -44,12 +45,16 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
     return null;
   }
 
-  const { activationRevision, currentVersionId, revision, slideIndex } = record;
+  const { activationRevision, currentVersionId, revision, pageId } = record;
 
   if (
     typeof currentVersionId !== "string" ||
     currentVersionId.trim() === ""
   ) {
+    return null;
+  }
+
+  if (typeof pageId !== "string" || pageId.trim() === "") {
     return null;
   }
 
@@ -69,19 +74,11 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
     return null;
   }
 
-  if (
-    typeof slideIndex !== "number" ||
-    !Number.isInteger(slideIndex) ||
-    slideIndex < 0
-  ) {
-    return null;
-  }
-
   return {
     activationRevision,
     currentVersionId: currentVersionId.trim(),
     revision,
-    slideIndex,
+    pageId: pageId.trim(),
   };
 }
 
@@ -94,13 +91,13 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
  *
  * Após a montagem grava um ACK baseline:
  *   live/slideAck = { activationRevision, currentVersionId, revision: 0,
- *                     slideIndex: atual }
+ *                     pageId, pageIndex }
  *
  * Assina live/slideCommand e aplica comandos mais novos:
- *   - malformados / activationRevision incorreto / revisões antigas → ignora;
- *   - revisão igual → não navega de novo, apenas re-ACK do índice atual;
- *   - revisão mais nova → goTo(slideIndex), lembra a revisão e ACK no próximo
- *     requestAnimationFrame usando o índice real.
+ *   - malformados / activationRevision incorreto / revisões antigas -> ignora;
+ *   - revisão igual -> não navega de novo, apenas re-ACK do alvo atual;
+ *   - revisão mais nova -> resolve pageId -> goTo(pageIndex), lembra a
+ *     revisão e ACK no próximo requestAnimationFrame usando o índice real.
  *
  * Se um comando mais novo chegar antes do frame pendente, apenas a revisão
  * mais nova é ACKada (o frame lê o estado no momento em que dispara).
@@ -109,9 +106,10 @@ export function subscribeLiveSlideAck(
   database: Database,
   activationRevision: number,
   currentVersionId: string,
+  presentation: Presentation,
   controller: PlayerController,
   logsEnabled = false,
-  onAckConfirmed: (slideIndex: number) => void = () => undefined,
+  onAckConfirmed: (pageIndex: number) => void = () => undefined,
 ): () => void {
   let lastAppliedRevision = BASELINE_REVISION;
 
@@ -120,16 +118,25 @@ export function subscribeLiveSlideAck(
   let tornDown = false;
 
   function writeAck(revision: number): void {
-    const slideIndex = controller.getCurrentIndex();
+    const pageIndex = controller.getCurrentIndex();
+    const pageId = presentation.slides[pageIndex]?.id ?? null;
+
+    if (pageId === null) {
+      console.error(
+        "[PowerShow][live-slide-ack] could not resolve a pageId for the current page",
+      );
+      return;
+    }
 
     set(ref(database, SLIDE_ACK_PATH), {
       activationRevision,
       currentVersionId,
       revision,
-      slideIndex,
+      pageId,
+      pageIndex,
     })
       .then(() => {
-        if (!tornDown) onAckConfirmed(slideIndex);
+        if (!tornDown) onAckConfirmed(pageIndex);
       })
       .catch((error: unknown) => {
         console.error("[PowerShow][live-slide-ack] ack write failed", error);
@@ -189,7 +196,20 @@ export function subscribeLiveSlideAck(
         return;
       }
 
-      controller.goTo(command.slideIndex);
+      const pageIndex = presentation.slides.findIndex(
+        (slide) => slide.id === command.pageId,
+      );
+
+      if (pageIndex < 0) {
+        console.warn(
+          "[PowerShow][live-slide-ack] ignoring command for unknown pageId",
+          command.pageId,
+        );
+
+        return;
+      }
+
+      controller.goTo(pageIndex);
 
       lastAppliedRevision = command.revision;
 

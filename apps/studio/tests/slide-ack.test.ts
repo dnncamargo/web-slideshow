@@ -52,13 +52,15 @@ describe("parseSlideAck", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 3,
-        slideIndex: 5,
+        pageId: "slide-5",
+        pageIndex: 5,
       }),
     ).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 3,
-      slideIndex: 5,
+      pageId: "slide-5",
+      pageIndex: 5,
     });
   });
 
@@ -68,13 +70,15 @@ describe("parseSlideAck", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 0,
-        slideIndex: 0,
+        pageId: "slide-0",
+        pageIndex: 0,
       }),
     ).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 0,
-      slideIndex: 0,
+      pageId: "slide-0",
+      pageIndex: 0,
     });
   });
 
@@ -84,7 +88,8 @@ describe("parseSlideAck", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 3,
-        slideIndex: 5,
+        pageId: "slide-5",
+        pageIndex: 5,
         extra: true,
       }),
     ).toBeNull();
@@ -93,7 +98,8 @@ describe("parseSlideAck", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 0,
-        slideIndex: 0,
+        pageId: "slide-0",
+        pageIndex: 0,
         stale: 1,
       }),
     ).toBeNull();
@@ -104,10 +110,11 @@ describe("parseSlideAck", () => {
       null,
       {},
       { activationRevision: 2, revision: 3 },
-      { activationRevision: 2, revision: -1, slideIndex: 0 },
-      { activationRevision: "x", revision: 3, slideIndex: 0 },
-      { activationRevision: 2, revision: 1.5, slideIndex: 0 },
-      { activationRevision: 2, revision: 3, slideIndex: -1 },
+      { activationRevision: 2, revision: -1, pageId: "slide-0", pageIndex: 0 },
+      { activationRevision: "x", revision: 3, pageId: "slide-0", pageIndex: 0 },
+      { activationRevision: 2, revision: 1.5, pageId: "slide-0", pageIndex: 0 },
+      { activationRevision: 2, revision: 3, pageId: "slide-0", pageIndex: -1 },
+      { activationRevision: 2, revision: 3, pageId: "", pageIndex: 0 },
     ]) {
       expect(parseSlideAck(value)).toBeNull();
     }
@@ -130,12 +137,15 @@ describe("subscribeSlideAck", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 1,
-        slideIndex: 4,
+        pageId: "slide-4",
+        pageIndex: 4,
       }),
     });
     expect(cb).toHaveBeenCalledTimes(1);
 
-    handler({ val: () => ({ activationRevision: 2, revision: "x", slideIndex: 0 }) });
+    handler({
+      val: () => ({ activationRevision: 2, revision: "x", pageId: "slide-0", pageIndex: 0 }),
+    });
     expect(cb).toHaveBeenCalledTimes(1);
   });
 

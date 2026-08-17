@@ -56,11 +56,11 @@ describe("control command helpers", () => {
   it("builds the live slide command path and shape", () => {
     expect(buildSlideCommandPath()).toBe("live/slideCommand");
     expect(buildSlideAckPath()).toBe("live/slideAck");
-    expect(buildSlideCommand(2, "version-1", 1, 3)).toEqual({
+    expect(buildSlideCommand(2, "version-1", 1, "slide-3")).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 3,
+      pageId: "slide-3",
     });
   });
 });
@@ -172,7 +172,7 @@ describe("slide command writer", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 1,
-        slideIndex: 3,
+        pageId: "slide-3",
       });
       return { committed: true, snapshot: { val: () => result } };
     });
@@ -181,7 +181,7 @@ describe("slide command writer", () => {
       {} as never,
       2,
       "version-1",
-      3,
+      "slide-3",
     );
 
     expect(mocks.ref).toHaveBeenCalledWith({}, "live/slideCommand");
@@ -189,7 +189,7 @@ describe("slide command writer", () => {
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 3,
+      pageId: "slide-3",
     });
   });
 
@@ -199,13 +199,13 @@ describe("slide command writer", () => {
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 4,
-        slideIndex: 1,
+        pageId: "slide-1",
       }) as Record<string, unknown>;
       expect(result).toEqual({
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 5,
-        slideIndex: 2,
+        pageId: "slide-2",
       });
       return { committed: true, snapshot: { val: () => result } };
     });
@@ -214,14 +214,14 @@ describe("slide command writer", () => {
       {} as never,
       2,
       "version-1",
-      2,
+      "slide-2",
     );
 
     expect(committed).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 5,
-      slideIndex: 2,
+      pageId: "slide-2",
     });
   });
 
@@ -231,13 +231,13 @@ describe("slide command writer", () => {
         activationRevision: 9,
         currentVersionId: "version-old",
         revision: 4,
-        slideIndex: 1,
+        pageId: "slide-1",
       }) as Record<string, unknown>;
       expect(result).toEqual({
         activationRevision: 2,
         currentVersionId: "version-1",
         revision: 1,
-        slideIndex: 0,
+        pageId: "slide-0",
       });
       return { committed: true, snapshot: { val: () => result } };
     });
@@ -246,14 +246,14 @@ describe("slide command writer", () => {
       {} as never,
       2,
       "version-1",
-      0,
+      "slide-0",
     );
 
     expect(committed).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 0,
+      pageId: "slide-0",
     });
   });
 
@@ -263,19 +263,19 @@ describe("slide command writer", () => {
         activationRevision: 2,
         currentVersionId: "version-old",
         revision: 4,
-        slideIndex: 1,
+        pageId: "slide-1",
       }) as Record<string, unknown>;
       expect(result).toEqual({
         activationRevision: 2,
         currentVersionId: "version-new",
         revision: 1,
-        slideIndex: 2,
+        pageId: "slide-2",
       });
       return { committed: true, snapshot: { val: () => result } };
     });
 
     await expect(
-      writeSlideCommand({} as never, 2, "version-new", 2),
+      writeSlideCommand({} as never, 2, "version-new", "slide-2"),
     ).resolves.toMatchObject({ revision: 1 });
   });
 
@@ -283,7 +283,7 @@ describe("slide command writer", () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue(null);
 
     await expect(
-      writeSlideCommand({} as never, 1, "version-1", 0),
+      writeSlideCommand({} as never, 1, "version-1", "slide-0"),
     ).rejects.toThrow(
       /anonymous/,
     );
@@ -298,13 +298,13 @@ describe("slide command writer", () => {
           activationRevision: 2,
           currentVersionId: "version-1",
           revision: 1,
-          slideIndex: 0,
+          pageId: "slide-0",
         }),
       },
     });
 
     await expect(
-      writeSlideCommand({} as never, 2, "version-1", 0),
+      writeSlideCommand({} as never, 2, "version-1", "slide-0"),
     ).rejects.toThrow(
       /did not commit/,
     );
@@ -318,13 +318,13 @@ describe("slide command writer", () => {
           activationRevision: 2,
           currentVersionId: "version-1",
           revision: "x",
-          slideIndex: 0,
+          pageId: "slide-0",
         }),
       },
     });
 
     await expect(
-      writeSlideCommand({} as never, 2, "version-1", 0),
+      writeSlideCommand({} as never, 2, "version-1", "slide-0"),
     ).rejects.toThrow(
       /malformed/,
     );

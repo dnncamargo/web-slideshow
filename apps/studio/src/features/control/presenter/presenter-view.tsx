@@ -69,7 +69,7 @@ export interface PresenterViewProps {
  * Owns the /control presentation markup. Receives already-resolved Live and
  * published-presentation data from ControlPage.
  *
- * The slide counter uses LiveControlView.confirmedIndex (ACK-authoritative)
+ * The slide counter uses LiveControlView.confirmedPageIndex (ACK-authoritative)
  * and the loaded published Presentation's slide count. It is shown only when
  * both are available and the confirmed index is in range, and only changes
  * after a Player ACK updates confirmedIndex.
@@ -105,7 +105,7 @@ export function PresenterView({
       ? presentationState.presentation.slides.length
       : null;
 
-  const confirmedIndex =
+  const confirmedPageIndex =
     presentationState.kind === "ready"
       ? presentationState.displayIndex
       : null;
@@ -124,27 +124,27 @@ export function PresenterView({
 
   const showCounter =
     slideCount !== null &&
-    confirmedIndex !== null &&
-    confirmedIndex >= 0 &&
-    confirmedIndex < slideCount;
+    confirmedPageIndex !== null &&
+    confirmedPageIndex >= 0 &&
+    confirmedPageIndex < slideCount;
 
   const presentation =
     presentationState.kind === "ready" ? presentationState.presentation : null;
 
   const currentSlide =
     presentationState.kind === "ready" &&
-    confirmedIndex !== null &&
-    confirmedIndex >= 0 &&
-    confirmedIndex < presentationState.presentation.slides.length
-      ? presentationState.presentation.slides[confirmedIndex]
+    confirmedPageIndex !== null &&
+    confirmedPageIndex >= 0 &&
+    confirmedPageIndex < presentationState.presentation.slides.length
+      ? presentationState.presentation.slides[confirmedPageIndex]
       : null;
 
   const nextSlide =
     presentationState.kind === "ready" &&
-    confirmedIndex !== null &&
-    confirmedIndex >= 0 &&
-    confirmedIndex + 1 < presentationState.presentation.slides.length
-      ? presentationState.presentation.slides[confirmedIndex + 1]
+    confirmedPageIndex !== null &&
+    confirmedPageIndex >= 0 &&
+    confirmedPageIndex + 1 < presentationState.presentation.slides.length
+      ? presentationState.presentation.slides[confirmedPageIndex + 1]
       : null;
 
   const aspectRatio =
@@ -155,16 +155,16 @@ export function PresenterView({
   const canGoPrevious =
     pendingVersion === null &&
     !disabled &&
-    confirmedIndex !== null &&
-    confirmedIndex > 0;
+    confirmedPageIndex !== null &&
+    confirmedPageIndex > 0;
 
   const canGoNext =
     pendingVersion === null &&
     !disabled &&
-    confirmedIndex !== null &&
-    confirmedIndex >= 0 &&
+    confirmedPageIndex !== null &&
+    confirmedPageIndex >= 0 &&
     presentation !== null &&
-    confirmedIndex < presentation.slides.length - 1;
+    confirmedPageIndex < presentation.slides.length - 1;
 
   const notesState = usePresenterNotes(presentation);
 
@@ -259,7 +259,7 @@ export function PresenterView({
           {presentation && (
             <PresenterSlideList
               presentation={presentation}
-              confirmedIndex={confirmedIndex}
+              confirmedPageIndex={confirmedPageIndex}
             />
           )}
         </aside>
@@ -373,7 +373,7 @@ export function PresenterView({
 
             {showCounter && (
               <span className={styles.counter}>
-                {confirmedIndex + 1} / {slideCount}
+                {confirmedPageIndex + 1} / {slideCount}
               </span>
             )}
 

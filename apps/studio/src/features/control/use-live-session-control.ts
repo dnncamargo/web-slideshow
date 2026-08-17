@@ -24,6 +24,10 @@ export interface UseLiveSessionControlResult {
   updatePlayer(targetVersionId: string): void;
 }
 
+export interface UseLiveSessionControlOptions {
+  resolvePageId(pageIndex: number): string | null;
+}
+
 interface PromotionAttempt {
   source: LiveCurrent;
   targetVersionId: string;
@@ -47,7 +51,9 @@ function sameLiveIdentity(a: LiveCurrent, b: LiveCurrent): boolean {
  * actions without leaking the LiveControl instance, the database handle, or
  * ACK internals.
  */
-export function useLiveSessionControl(): UseLiveSessionControlResult {
+export function useLiveSessionControl({
+  resolvePageId,
+}: UseLiveSessionControlOptions): UseLiveSessionControlResult {
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
   const [view, setView] = useState<LiveControlView | null>(null);
   const [sendFailed, setSendFailed] = useState(false);
@@ -85,8 +91,20 @@ export function useLiveSessionControl(): UseLiveSessionControlResult {
     const control = new LiveControl({
       activationRevision,
       currentVersionId,
-      writeCommand: (slideIndex) =>
-        writeSlideCommand(db, activationRevision, currentVersionId, slideIndex),
+      writeCommand: (pageIndex) => {
+        const pageId = resolvePageId(pageIndex);
+
+        if (pageId === null) {
+          throw new Error("Unable to resolve a pageId for live navigation.");
+        }
+
+        return writeSlideCommand(
+          db,
+          activationRevision,
+          currentVersionId,
+          pageId,
+        );
+      },
       now: () => performance.now(),
       schedule: (callback, delay) => {
         const id = window.setTimeout(callback, delay);
@@ -105,7 +123,7 @@ export function useLiveSessionControl(): UseLiveSessionControlResult {
       control.destroy();
       controlRef.current = null;
     };
-  }, [liveState]);
+  }, [liveState, resolvePageId]);
 
   const previous = useCallback(() => {
     const control = controlRef.current;
