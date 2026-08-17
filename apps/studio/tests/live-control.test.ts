@@ -44,7 +44,8 @@ function createHarness(activationRevision = 1): Harness {
       activationRevision,
       currentVersionId,
       revision: 1,
-      slideIndex: 0,
+      pageId: "slide-0",
+      pageIndex: 0,
       ...overrides,
     });
   };
@@ -77,11 +78,12 @@ describe("LiveControl", () => {
     expect(h.views.at(-1)).toMatchObject({ enabled: false });
     expect(h.views.at(-1)?.status).toEqual({ kind: "awaiting-player" });
 
-    h.ack({ revision: 0, slideIndex: 2 });
+    h.ack({ revision: 0, pageId: "slide-2", pageIndex: 2 });
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedIndex: 2,
+      confirmedPageId: "slide-2",
+      confirmedPageIndex: 2,
     });
     expect(h.views.at(-1)?.status).toEqual({ kind: "synced" });
   });
@@ -94,7 +96,8 @@ describe("LiveControl", () => {
       activationRevision: 2,
       currentVersionId: "version-1",
       revision: 0,
-      slideIndex: 4,
+      pageId: "slide-4",
+      pageIndex: 4,
     });
 
     expect(h.views.at(-1)?.enabled).toBe(false);
@@ -109,7 +112,8 @@ describe("LiveControl", () => {
       activationRevision: 3,
       currentVersionId: "version-old",
       revision: 0,
-      slideIndex: 4,
+      pageId: "slide-4",
+      pageIndex: 4,
     });
 
     expect(h.views.at(-1)?.enabled).toBe(false);
@@ -119,7 +123,7 @@ describe("LiveControl", () => {
   it("coalesces rapid desired targets into a single command", () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
 
     h.control.next();
     h.control.next();
@@ -134,11 +138,12 @@ describe("LiveControl", () => {
   it("keeps at most one unacknowledged command in flight", async () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
     h.writeCommand.mockImplementation(async () => ({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 1,
+      pageId: "slide-1",
     }));
 
     h.control.next();
@@ -154,11 +159,12 @@ describe("LiveControl", () => {
   it("retains clicks received while a command is pending", async () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
     h.writeCommand.mockImplementation(async () => ({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 1,
+      pageId: "slide-1",
     }));
 
     h.control.next();
@@ -168,7 +174,7 @@ describe("LiveControl", () => {
     h.control.next();
     h.control.next();
 
-    h.ack({ revision: 1, slideIndex: 1 });
+    h.ack({ revision: 1, pageId: "slide-1", pageIndex: 1 });
 
     h.runTimers();
 
@@ -179,11 +185,12 @@ describe("LiveControl", () => {
   it("clears pending on a matching ack", async () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
     h.writeCommand.mockImplementation(async () => ({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 2,
+      pageId: "slide-2",
     }));
 
     h.control.next();
@@ -191,10 +198,11 @@ describe("LiveControl", () => {
     h.runTimers();
     await h.writeCommand.mock.results[0]?.value;
 
-    h.ack({ revision: 1, slideIndex: 2 });
+    h.ack({ revision: 1, pageId: "slide-2", pageIndex: 2 });
 
     expect(h.views.at(-1)).toMatchObject({
-      confirmedIndex: 2,
+      confirmedPageId: "slide-2",
+      confirmedPageIndex: 2,
       enabled: true,
     });
     expect(h.views.at(-1)?.status).toEqual({
@@ -210,24 +218,25 @@ describe("LiveControl", () => {
   it("does not clear a newer pending command on a stale ack", async () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
-    h.writeCommand.mockImplementation(async (slideIndex) => ({
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
+    h.writeCommand.mockImplementation(async (pageIndex) => ({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: h.writeCommand.mock.calls.length,
-      slideIndex,
+      pageId: `slide-${pageIndex}`,
     }));
 
     h.control.next();
     h.runTimers();
     await h.writeCommand.mock.results[0]?.value;
-    h.ack({ revision: 1, slideIndex: 1 });
+    h.ack({ revision: 1, pageId: "slide-1", pageIndex: 1 });
 
     h.control.next();
     h.runTimers();
     await h.writeCommand.mock.results[1]?.value;
 
     const beforeStale = h.writeCommand.mock.calls.length;
-    h.ack({ revision: 1, slideIndex: 1 });
+    h.ack({ revision: 1, pageId: "slide-1", pageIndex: 1 });
 
     expect(h.writeCommand.mock.calls.length).toBe(beforeStale);
     expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
@@ -236,20 +245,22 @@ describe("LiveControl", () => {
   it("resets desired to the player's actual index when the ack differs", async () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
     h.writeCommand.mockImplementation(async () => ({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 5,
+      pageId: "slide-5",
     }));
 
     h.control.next();
     h.runTimers();
     await h.writeCommand.mock.results[0]?.value;
 
-    h.ack({ revision: 1, slideIndex: 3 });
+    h.ack({ revision: 1, pageId: "slide-3", pageIndex: 3 });
 
-    expect(h.views.at(-1)?.confirmedIndex).toBe(3);
+    expect(h.views.at(-1)?.confirmedPageIndex).toBe(3);
+    expect(h.views.at(-1)?.confirmedPageId).toBe("slide-3");
 
     h.runTimers();
     expect(h.writeCommand).toHaveBeenCalledTimes(1);
@@ -258,12 +269,13 @@ describe("LiveControl", () => {
   it("calculates latency on the matching ack", async () => {
     vi.useFakeTimers();
     const h = createHarness();
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
 
     h.writeCommand.mockImplementation(async () => ({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 1,
+      pageId: "slide-1",
     }));
 
     h.control.next();
@@ -271,61 +283,71 @@ describe("LiveControl", () => {
     await h.writeCommand.mock.results[0]?.value;
 
     h.advanceTime(45);
-    h.ack({ revision: 1, slideIndex: 1 });
+    h.ack({ revision: 1, pageId: "slide-1", pageIndex: 1 });
 
     expect(h.views.at(-1)?.status).toEqual({ kind: "synced", latencyMs: 45 });
   });
+
   it("initializes from an existing non-zero ACK", () => {
     vi.useFakeTimers();
     const h = createHarness();
 
     h.ack({
       revision: 5,
-      slideIndex: 3,
+      pageId: "slide-3",
+      pageIndex: 3,
     });
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedIndex: 3,
+      confirmedPageId: "slide-3",
+      confirmedPageIndex: 3,
     });
 
     expect(h.views.at(-1)?.status).toEqual({
       kind: "synced",
     });
   });
+
   it("does not regress confirmed state from an older ACK", () => {
     vi.useFakeTimers();
     const h = createHarness();
 
     h.ack({
       revision: 5,
-      slideIndex: 4,
+      pageId: "slide-4",
+      pageIndex: 4,
     });
 
     h.ack({
       revision: 4,
-      slideIndex: 1,
+      pageId: "slide-1",
+      pageIndex: 1,
     });
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedIndex: 4,
+      confirmedPageId: "slide-4",
+      confirmedPageIndex: 4,
     });
   });
+
   it("reconciles an ACK that arrives before writeCommand resolves", async () => {
     vi.useFakeTimers();
     const h = createHarness();
 
     h.ack({
       revision: 0,
-      slideIndex: 0,
+      pageId: "slide-0",
+      pageIndex: 0,
     });
 
     let resolveWrite:
       | ((command: {
           activationRevision: number;
+          currentVersionId: string;
           revision: number;
-          slideIndex: number;
+          pageId: string;
         }) => void)
       | undefined;
 
@@ -347,7 +369,8 @@ describe("LiveControl", () => {
     // Player ACK arrives before the command transaction Promise resolves.
     h.ack({
       revision: 1,
-      slideIndex: 1,
+      pageId: "slide-1",
+      pageIndex: 1,
     });
 
     expect(h.views.at(-1)?.status).toEqual({
@@ -356,15 +379,17 @@ describe("LiveControl", () => {
 
     resolveWrite?.({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 1,
+      pageId: "slide-1",
     });
 
     await Promise.resolve();
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedIndex: 1,
+      confirmedPageId: "slide-1",
+      confirmedPageIndex: 1,
     });
 
     expect(h.views.at(-1)?.status).toEqual({
@@ -372,13 +397,15 @@ describe("LiveControl", () => {
       latencyMs: expect.any(Number),
     });
   });
+
   it("resets desired state and reports an error when writeCommand fails", async () => {
     vi.useFakeTimers();
     const h = createHarness();
 
     h.ack({
       revision: 0,
-      slideIndex: 2,
+      pageId: "slide-2",
+      pageIndex: 2,
     });
 
     h.writeCommand.mockRejectedValue(new Error("write failed"));
@@ -393,7 +420,8 @@ describe("LiveControl", () => {
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedIndex: 2,
+      confirmedPageId: "slide-2",
+      confirmedPageIndex: 2,
     });
 
     expect(h.views.at(-1)?.status).toEqual({
@@ -406,20 +434,23 @@ describe("LiveControl", () => {
 
     expect(h.writeCommand).toHaveBeenLastCalledWith(3);
   });
+
   it("does not let an older ACK replace the retained early ACK", async () => {
     vi.useFakeTimers();
     const h = createHarness();
 
     h.ack({
       revision: 5,
-      slideIndex: 0,
+      pageId: "slide-0",
+      pageIndex: 0,
     });
 
     let resolveWrite:
       | ((command: {
           activationRevision: number;
+          currentVersionId: string;
           revision: number;
-          slideIndex: number;
+          pageId: string;
         }) => void)
       | undefined;
 
@@ -436,26 +467,30 @@ describe("LiveControl", () => {
     // Correct ACK arrives first.
     h.ack({
       revision: 6,
-      slideIndex: 1,
+      pageId: "slide-1",
+      pageIndex: 1,
     });
 
     // Then an older duplicate arrives before the writer resolves.
     h.ack({
       revision: 5,
-      slideIndex: 0,
+      pageId: "slide-0",
+      pageIndex: 0,
     });
 
     resolveWrite?.({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 6,
-      slideIndex: 1,
+      pageId: "slide-1",
     });
 
     await Promise.resolve();
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedIndex: 1,
+      confirmedPageId: "slide-1",
+      confirmedPageIndex: 1,
     });
 
     expect(h.views.at(-1)?.status).toEqual({
@@ -463,17 +498,19 @@ describe("LiveControl", () => {
       latencyMs: expect.any(Number),
     });
   });
+
   it("does not publish state after destroy while writeCommand is in flight", async () => {
     vi.useFakeTimers();
     const h = createHarness();
 
-    h.ack({ revision: 0, slideIndex: 0 });
+    h.ack({ revision: 0, pageId: "slide-0", pageIndex: 0 });
 
     let resolveWrite:
       | ((command: {
           activationRevision: number;
+          currentVersionId: string;
           revision: number;
-          slideIndex: number;
+          pageId: string;
         }) => void)
       | undefined;
 
@@ -493,8 +530,9 @@ describe("LiveControl", () => {
 
     resolveWrite?.({
       activationRevision: 1,
+      currentVersionId: "version-1",
       revision: 1,
-      slideIndex: 1,
+      pageId: "slide-1",
     });
 
     await Promise.resolve();

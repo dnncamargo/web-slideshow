@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
@@ -11,12 +11,20 @@ import { useLiveSessionControl } from "./use-live-session-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
 import { endLivePresentation } from "./live-current";
+import type { PresenterPresentationState } from "./presenter/use-presenter-presentation";
+import { resolveLivePageId } from "./presenter/use-presenter-presentation";
 
 import styles from "./control-page.module.css";
 
 export function ControlPage() {
   const { t } = useStudioI18n();
   const router = useRouter();
+  const presentationStateRef = useRef<PresenterPresentationState | null>(null);
+  const resolvePageId = useCallback(
+    (pageIndex: number) =>
+      resolveLivePageId(presentationStateRef.current, pageIndex),
+    [],
+  );
   const {
     liveState,
     view,
@@ -26,12 +34,16 @@ export function ControlPage() {
     previous,
     next,
     updatePlayer,
-  } = useLiveSessionControl();
+  } = useLiveSessionControl({ resolvePageId });
   const presentationState = usePresenterPresentation(
     liveState,
-    view?.enabled === true ? view.confirmedIndex : null,
+    view?.enabled === true ? view.confirmedPageIndex : null,
   );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
+
+  useEffect(() => {
+    presentationStateRef.current = presentationState;
+  }, [presentationState]);
 
   const end = () => {
     void endLivePresentation().catch((error: unknown) => {

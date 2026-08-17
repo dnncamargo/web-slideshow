@@ -92,16 +92,18 @@ function parseSlideCommand(value: unknown): SlideCommand | null {
   ) {
     return null;
   }
+  if (typeof record.pageId !== "string" || record.pageId.trim() === "") {
+    return null;
+  }
   if (!isNonNegativeInteger(record.activationRevision)) return null;
   if (!isNonNegativeInteger(record.revision) || (record.revision as number) < 1) {
     return null;
   }
-  if (!isNonNegativeInteger(record.slideIndex)) return null;
   return {
     activationRevision: record.activationRevision as number,
     currentVersionId: record.currentVersionId.trim(),
     revision: record.revision as number,
-    slideIndex: record.slideIndex as number,
+    pageId: record.pageId.trim(),
   };
 }
 
@@ -116,7 +118,7 @@ export async function writeSlideCommand(
   database: Database,
   activationRevision: number,
   currentVersionId: string,
-  slideIndex: number,
+  pageId: string,
 ): Promise<SlideCommand> {
   if (!isRealtimeDatabaseConfigured()) {
     throw new Error("Realtime Database is not configured.");
@@ -127,6 +129,10 @@ export async function writeSlideCommand(
   const trimmedCurrentVersionId = currentVersionId.trim();
   if (trimmedCurrentVersionId === "") {
     throw new Error("Slide command requires a currentVersionId.");
+  }
+  const trimmedPageId = pageId.trim();
+  if (trimmedPageId === "") {
+    throw new Error("Slide command requires a pageId.");
   }
 
   const commandRef = ref(database, buildSlideCommandPath());
@@ -143,7 +149,7 @@ export async function writeSlideCommand(
       activationRevision,
       currentVersionId: trimmedCurrentVersionId,
       revision,
-      slideIndex,
+      pageId: trimmedPageId,
     };
   });
 

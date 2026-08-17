@@ -78,6 +78,7 @@ function renderNoActive(): void {
 
 function attachLiveSlideAck(
   live: LiveCurrent,
+  presentation: Presentation,
   logsEnabled: boolean,
 ): void {
   if (!activeController) {
@@ -100,6 +101,7 @@ function attachLiveSlideAck(
       database,
       live.revision,
       live.currentVersionId,
+      presentation,
       activeController,
       logsEnabled,
       (slideIndex) => {
@@ -233,7 +235,7 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
     activeLive = event.live;
     confirmedSlideIndex = undefined;
 
-    attachLiveSlideAck(event.live, logsEnabled);
+    attachLiveSlideAck(event.live, result.presentation, logsEnabled);
 
     return;
   }
