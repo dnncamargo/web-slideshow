@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   doc: vi.fn(),
   getDoc: vi.fn(),
+  onSnapshot: vi.fn(),
   getFirebaseFirestore: vi.fn(() => ({})),
 }));
 
 vi.mock("firebase/firestore", () => ({
   doc: mocks.doc,
   getDoc: mocks.getDoc,
+  onSnapshot: mocks.onSnapshot,
 }));
 
 vi.mock("../src/features/persistence/firebase-client", () => ({
@@ -41,6 +43,89 @@ describe("published presentation reader", () => {
     vi.clearAllMocks();
     mocks.getFirebaseFirestore.mockReturnValue({});
     mocks.doc.mockImplementation((...path: unknown[]) => ({ path }));
+    mocks.onSnapshot.mockReturnValue(vi.fn());
+  });
+
+  it("observes the public pointer and returns the Firestore unsubscribe", () => {
+    const onPointer = vi.fn();
+    const unsubscribe = vi.fn();
+    mocks.onSnapshot.mockReturnValue(unsubscribe);
+
+    const cleanup = reader.subscribePointer(
+      "publication-1",
+      onPointer,
+      vi.fn(),
+    );
+
+    expect(mocks.doc).toHaveBeenCalledWith(
+      expect.anything(),
+      "publishedPresentations",
+      "publication-1",
+    );
+
+    const handler = mocks.onSnapshot.mock.calls[0]?.[1] as (
+      value: ReturnType<typeof snapshot>,
+    ) => void;
+    handler(
+      snapshot(true, {
+        currentVersionId: " version-9 ",
+        publishedRevision: 7,
+        publishedAt: "ignored-by-domain-boundary",
+      }),
+    );
+
+    expect(onPointer).toHaveBeenCalledWith({
+      currentVersionId: "version-9",
+      publishedRevision: 7,
+    });
+
+    cleanup();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it("reports a missing pointer as null", () => {
+    const onPointer = vi.fn();
+    reader.subscribePointer("publication-1", onPointer, vi.fn());
+
+    const handler = mocks.onSnapshot.mock.calls[0]?.[1] as (
+      value: ReturnType<typeof snapshot>,
+    ) => void;
+    handler(snapshot(false, null));
+
+    expect(onPointer).toHaveBeenCalledWith(null);
+  });
+
+  it.each([
+    null,
+    {},
+    { currentVersionId: "", publishedRevision: 1 },
+    { currentVersionId: "version-1", publishedRevision: -1 },
+    { currentVersionId: "version-1", publishedRevision: 1.5 },
+  ])("reports a malformed pointer through onError", (value) => {
+    const onPointer = vi.fn();
+    const onError = vi.fn();
+    reader.subscribePointer("publication-1", onPointer, onError);
+
+    const handler = mocks.onSnapshot.mock.calls[0]?.[1] as (
+      valueSnapshot: ReturnType<typeof snapshot>,
+    ) => void;
+    handler(snapshot(true, value));
+
+    expect(onPointer).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it("reports Firestore listener errors through onError", () => {
+    const onError = vi.fn();
+    reader.subscribePointer("publication-1", vi.fn(), onError);
+
+    const errorHandler = mocks.onSnapshot.mock.calls[0]?.[2] as (
+      error: unknown,
+    ) => void;
+    const cause = new Error("permission denied");
+    errorHandler(cause);
+
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it("returns the canonical Presentation for a valid published version", async () => {

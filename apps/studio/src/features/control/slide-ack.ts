@@ -15,12 +15,19 @@ function isNonNegativeInteger(value: unknown): boolean {
 export function parseSlideAck(value: unknown): SlideAck | null {
   if (typeof value !== "object" || value === null) return null;
   const record = value as Record<string, unknown>;
-  if (Object.keys(record).length !== 3) return null;
+  if (Object.keys(record).length !== 4) return null;
   if (!isNonNegativeInteger(record.activationRevision)) return null;
+  if (
+    typeof record.currentVersionId !== "string" ||
+    record.currentVersionId.trim() === ""
+  ) {
+    return null;
+  }
   if (!isNonNegativeInteger(record.revision)) return null;
   if (!isNonNegativeInteger(record.slideIndex)) return null;
   return {
     activationRevision: record.activationRevision as number,
+    currentVersionId: record.currentVersionId.trim(),
     revision: record.revision as number,
     slideIndex: record.slideIndex as number,
   };

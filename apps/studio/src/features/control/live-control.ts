@@ -15,6 +15,7 @@ export interface LiveControlView {
 
 export interface LiveControlOptions {
   activationRevision: number;
+  currentVersionId: string;
   writeCommand(slideIndex: number): Promise<SlideCommand>;
   now(): number;
   schedule(callback: () => void, delayMs: number): () => void;
@@ -87,6 +88,9 @@ export class LiveControl {
       return;
     }
     if (ack.activationRevision !== this.options.activationRevision) {
+      return;
+    }
+    if (ack.currentVersionId !== this.options.currentVersionId) {
       return;
     }
 

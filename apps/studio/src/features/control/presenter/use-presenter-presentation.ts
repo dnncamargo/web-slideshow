@@ -1,103 +1,174 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-import type { Presentation } from "@powershow/document-schema";
+import { useEffect, useState } from "react";
 
 import { getDefaultPublishedPresentationReader } from "@/features/persistence/published-presentation-reader-instance";
+import type { PublishedPresentationPointer } from "@/features/persistence/published-presentation-reader";
 
 import type { LiveState } from "../live-current";
+import {
+  PresenterVersionLoader,
+  canUsePointerObservation,
+  projectPresenterVersions,
+  type LoadedPresenterVersions,
+  type PendingPublishedVersion,
+  type PresenterVersionIdentity,
+} from "./presenter-version-state";
 
 export type PresenterPresentationState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "error" }
-  | { kind: "ready"; presentation: Presentation };
+  | {
+      kind: "ready";
+      presentation: LoadedPresenterVersions["previewPresentation"];
+      displayIndex: number | null;
+      pendingVersion: PendingPublishedVersion | null;
+    };
+
+interface PointerResult {
+  publicationId: string;
+  observedForLiveVersionId: string;
+  pointer: PublishedPresentationPointer | null;
+}
 
 interface PresentationResult {
-  publicationId: string;
-  currentVersionId: string;
-  presentation: Presentation | null;
+  identity: PresenterVersionIdentity;
+  versions: LoadedPresenterVersions | null;
   error: boolean;
 }
 
-function sameVersion(
-  a: { publicationId: string; currentVersionId: string },
-  b: { publicationId: string; currentVersionId: string },
+function sameIdentity(
+  a: PresenterVersionIdentity,
+  b: PresenterVersionIdentity,
 ): boolean {
   return (
     a.publicationId === b.publicationId &&
-    a.currentVersionId === b.currentVersionId
+    a.liveVersionId === b.liveVersionId &&
+    a.previewVersionId === b.previewVersionId
   );
 }
 
 /**
- * Resolves the immutable published Presentation currently active in Live.
- *
- * Reads exactly the active version (live publicationId + currentVersionId)
- * through the PublishedPresentationReader. It never loads a private draft,
- * never subscribes to Firestore, never caches versions, and never writes.
- *
- * The exposed state is derived from the current LiveState and the identity of
- * the most recently resolved result, so a stale async result can never replace
- * a newer active version and no synchronous state reset is needed inside the
- * effect body.
+ * Resolves both persisted identities needed by Control: the version in
+ * live/current and the newest version in the public publication pointer.
+ * Pointer updates survive reload and converge across Control clients because
+ * no pending state is kept in local storage or cross-tab messaging.
  */
 export function usePresenterPresentation(
   liveState: LiveState,
+  confirmedIndex: number | null,
 ): PresenterPresentationState {
+  const reader = getDefaultPublishedPresentationReader();
+  const [loader] = useState(() => new PresenterVersionLoader(reader));
+
+  const [pointerResult, setPointerResult] = useState<PointerResult | null>(null);
   const [result, setResult] = useState<PresentationResult | null>(null);
-  const requestRef = useRef<{
-    publicationId: string;
-    currentVersionId: string;
-  } | null>(null);
+
+  const publicationId =
+    liveState.kind === "active" ? liveState.live.publicationId : null;
+  const liveVersionId =
+    liveState.kind === "active" ? liveState.live.currentVersionId : null;
 
   useEffect(() => {
-    if (liveState.kind !== "active") {
-      requestRef.current = null;
+    if (publicationId === null || liveVersionId === null) return;
+
+    let active = true;
+    const unsubscribe = reader.subscribePointer(
+      publicationId,
+      (pointer) => {
+        if (active) {
+          setPointerResult({
+            publicationId,
+            observedForLiveVersionId: liveVersionId,
+            pointer,
+          });
+        }
+      },
+      () => {
+        // Keep the last valid pointer on a listener error. With no prior value,
+        // Control safely falls back to the version in live/current.
+      },
+    );
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [liveVersionId, publicationId, reader]);
+
+  const pointer =
+    publicationId !== null &&
+    liveVersionId !== null &&
+    pointerResult?.publicationId === publicationId &&
+    canUsePointerObservation(
+      pointerResult.observedForLiveVersionId,
+      liveVersionId,
+      pointerResult.pointer?.currentVersionId ?? null,
+    )
+      ? pointerResult.pointer
+      : null;
+  const previewVersionId =
+    liveVersionId === null
+      ? null
+      : (pointer?.currentVersionId ?? liveVersionId);
+
+  useEffect(() => {
+    if (
+      publicationId === null ||
+      liveVersionId === null ||
+      previewVersionId === null
+    ) {
+      loader.cancel();
       return;
     }
 
-    const identity = {
-      publicationId: liveState.live.publicationId,
-      currentVersionId: liveState.live.currentVersionId,
+    const identity: PresenterVersionIdentity = {
+      publicationId,
+      liveVersionId,
+      previewVersionId,
     };
-    requestRef.current = identity;
+    let active = true;
 
-    getDefaultPublishedPresentationReader()
-      .getVersion(identity.publicationId, identity.currentVersionId)
-      .then((presentation) => {
-        const request = requestRef.current;
-        if (request === null || !sameVersion(request, identity)) {
-          return;
+    void loader
+      .load(identity)
+      .then((versions) => {
+        if (active && versions !== null) {
+          setResult({ identity, versions, error: false });
         }
-        setResult({ ...identity, presentation, error: false });
       })
       .catch(() => {
-        const request = requestRef.current;
-        if (request === null || !sameVersion(request, identity)) {
-          return;
+        if (active) {
+          setResult({ identity, versions: null, error: true });
         }
-        setResult({ ...identity, presentation: null, error: true });
       });
-  }, [liveState]);
+
+    return () => {
+      active = false;
+      loader.cancel();
+    };
+  }, [loader, liveVersionId, previewVersionId, publicationId]);
 
   if (liveState.kind !== "active") {
     return { kind: "idle" };
   }
 
-  const identity = {
+  const identity: PresenterVersionIdentity = {
     publicationId: liveState.live.publicationId,
-    currentVersionId: liveState.live.currentVersionId,
+    liveVersionId: liveState.live.currentVersionId,
+    previewVersionId: previewVersionId ?? liveState.live.currentVersionId,
   };
 
-  if (result === null || !sameVersion(result, identity)) {
+  if (result === null || !sameIdentity(result.identity, identity)) {
     return { kind: "loading" };
   }
 
-  if (result.error || result.presentation === null) {
+  if (result.error || result.versions === null) {
     return { kind: "error" };
   }
 
-  return { kind: "ready", presentation: result.presentation };
+  return {
+    kind: "ready",
+    ...projectPresenterVersions(result.versions, confirmedIndex),
+  };
 }

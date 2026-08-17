@@ -60,7 +60,12 @@ function command(
   revision: number,
   slideIndex: number,
 ): SlideCommand {
-  return { activationRevision, revision, slideIndex };
+  return {
+    activationRevision,
+    currentVersionId: "version-1",
+    revision,
+    slideIndex,
+  };
 }
 
 function controllerWith(index: number) {
@@ -92,6 +97,7 @@ describe("parseSlideCommand", () => {
   it("accepts a well-formed command", () => {
     expect(parseSlideCommand(command(3, 7, 2))).toEqual({
       activationRevision: 3,
+      currentVersionId: "version-1",
       revision: 7,
       slideIndex: 2,
     });
@@ -147,11 +153,16 @@ describe("live slide ACK subscription", () => {
   it("writes a baseline ACK on mount and subscribes to live/slideCommand", () => {
     const controller = controllerWith(0);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     expect(mocks.set).toHaveBeenCalledWith(
       { path: "live/slideAck" },
-      { activationRevision: 7, revision: 0, slideIndex: 0 },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 0,
+        slideIndex: 0,
+      },
     );
 
     expect(mocks.onValue).toHaveBeenCalledWith(
@@ -161,10 +172,26 @@ describe("live slide ACK subscription", () => {
     );
   });
 
+  it("writes the baseline ACK from the already-positioned promoted slide", () => {
+    const controller = controllerWith(2);
+
+    subscribeLiveSlideAck({} as never, 7, "version-2", controller);
+
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "live/slideAck" },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-2",
+        revision: 0,
+        slideIndex: 2,
+      },
+    );
+  });
+
   it("navigates with goTo and ACKs on the next frame using the actual index", () => {
     const controller = controllerWith(0);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     mocks.set.mockClear();
 
@@ -181,16 +208,38 @@ describe("live slide ACK subscription", () => {
 
     expect(mocks.set).toHaveBeenCalledWith(
       { path: "live/slideAck" },
-      { activationRevision: 7, revision: 1, slideIndex: 3 },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        slideIndex: 3,
+      },
     );
   });
 
   it("ignores a command with the wrong activationRevision", () => {
     const controller = controllerWith(0);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     handler()(snapshot(command(99, 1, 3)));
+
+    expect(controller.goTo).not.toHaveBeenCalled();
+    expect(rafCallbacks.size).toBe(0);
+    expect(ackCalls()).toHaveLength(1);
+  });
+
+  it("ignores a stale command from another published version", () => {
+    const controller = controllerWith(0);
+
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
+
+    handler()(
+      snapshot({
+        ...command(7, 1, 3),
+        currentVersionId: "version-old",
+      }),
+    );
 
     expect(controller.goTo).not.toHaveBeenCalled();
     expect(rafCallbacks.size).toBe(0);
@@ -200,7 +249,7 @@ describe("live slide ACK subscription", () => {
   it("ignores a revision older than the last applied", () => {
     const controller = controllerWith(0);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     handler()(snapshot(command(7, 2, 3)));
 
@@ -216,7 +265,7 @@ describe("live slide ACK subscription", () => {
   it("does not navigate again and re-ACKs the current index for an equal revision", () => {
     const controller = controllerWith(3);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     mocks.set.mockClear();
 
@@ -232,14 +281,19 @@ describe("live slide ACK subscription", () => {
     expect(controller.goTo).toHaveBeenCalledTimes(1);
     expect(mocks.set).toHaveBeenCalledWith(
       { path: "live/slideAck" },
-      { activationRevision: 7, revision: 5, slideIndex: 3 },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 5,
+        slideIndex: 3,
+      },
     );
   });
 
   it("ACKs only the newest revision when a newer command arrives before the frame", () => {
     const controller = controllerWith(0);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     mocks.set.mockClear();
 
@@ -256,14 +310,19 @@ describe("live slide ACK subscription", () => {
     expect(ackCalls()).toHaveLength(1);
     expect(mocks.set).toHaveBeenCalledWith(
       { path: "live/slideAck" },
-      { activationRevision: 7, revision: 2, slideIndex: 4 },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 2,
+        slideIndex: 4,
+      },
     );
   });
 
   it("ignores malformed commands", () => {
     const controller = controllerWith(0);
 
-    subscribeLiveSlideAck({} as never, 7, controller);
+    subscribeLiveSlideAck({} as never, 7, "version-1", controller);
 
     handler()(
       snapshot({ activationRevision: 7, revision: "x", slideIndex: 0 }),
@@ -278,7 +337,12 @@ describe("live slide ACK subscription", () => {
   it("suppresses a stale ACK after teardown", () => {
     const controller = controllerWith(0);
 
-    const cleanup = subscribeLiveSlideAck({} as never, 7, controller);
+    const cleanup = subscribeLiveSlideAck(
+      {} as never,
+      7,
+      "version-1",
+      controller,
+    );
 
     handler()(snapshot(command(7, 1, 2)));
 
@@ -292,6 +356,7 @@ describe("live slide ACK subscription", () => {
     expect(mocks.set).toHaveBeenCalledTimes(1);
     expect(mocks.set.mock.calls[0]?.[1]).toEqual({
       activationRevision: 7,
+      currentVersionId: "version-1",
       revision: 0,
       slideIndex: 0,
     });
@@ -303,7 +368,12 @@ describe("live slide ACK subscription", () => {
     const unsubscribe = vi.fn();
     mocks.onValue.mockReturnValue(unsubscribe);
 
-    const cleanup = subscribeLiveSlideAck({} as never, 7, controller);
+    const cleanup = subscribeLiveSlideAck(
+      {} as never,
+      7,
+      "version-1",
+      controller,
+    );
 
     handler()(snapshot(command(7, 1, 2)));
 
