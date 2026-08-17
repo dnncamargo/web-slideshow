@@ -1,200 +1,65 @@
 # PowerShow
 
-PowerShow is a web-based platform for creating, publishing, presenting, and remotely controlling interactive presentations.
+PowerShow is a web platform for authoring, publishing, presenting, and remotely controlling interactive slide presentations.
 
-The project combines a visual presentation editor with a lightweight presentation runtime designed for screens, projectors, interactive displays, Chromebooks, tablets, and phones.
+The project is designed around a practical presentation setup: the authenticated Studio runs on the operator's computer or mobile device, while the public Player runs on the projection screen, projector, TV, or second display.
 
-Repository: **`web-slideshow`**
+> PowerShow is under active development.
 
-> PowerShow is currently under active development.
+## Product surfaces
 
----
-
-## Overview
-
-PowerShow separates presentation authoring from presentation playback.
+PowerShow is organized as a suite:
 
 ```text
-                ┌──────────────┐
-                │    Studio    │
-                │ presentations│
-                └──────┬───────┘
-                       │
-                       ▼
-                ┌──────────────┐
-                │    Editor    │
-                │ slide author │
-                └──────┬───────┘
-                       │
-                    Publish
-                       │
-                       ▼
-                ┌──────────────┐
-                │   Version    │
-                │  immutable   │
-                └──────┬───────┘
-                       │
-                       ▼
-                ┌──────────────┐
-                │ Live Session │
-                └───┬────┬─────┘
-                    │    │
-             ┌──────┘    └─────────┐
-             ▼                     ▼
-       ┌────────────┐        ┌────────────┐
-       │   Player   │        │  Control   │
-       │ projector  │        │ phone / PC │
-       └────────────┘        └────────────┘
-             │
-             └───────────────┐
-                             ▼
-                      ┌────────────┐
-                      │  Audience  │
-                      │ read-only  │
-                      └────────────┘
+PowerShow Suite
+├── PowerShow Studio   — presentation library / home
+├── PowerShow Editor   — slide authoring
+├── PowerShow Control  — live presenter console
+└── PowerShow Player   — public projection runtime
+
+Future public surface:
+└── PowerShow Watch / Audience
 ```
 
----
+Studio, Editor, and Control belong to the authenticated Studio application. The Player is a separate public runtime.
 
-## Main Interfaces
+The normal operator workflow does not require Studio Library and Control to be open simultaneously, but the system must remain coherent when multiple tabs or devices are open.
 
-### Studio
-
-The central presentation library.
-
-Studio will provide actions such as:
-
-* create;
-* edit;
-* present;
-* organize;
-* duplicate;
-* archive;
-* publish;
-* manage versions;
-* open presentation control.
-
----
-
-### Editor
-
-The visual slide authoring environment.
-
-PowerShow uses configurable hierarchical containers instead of rigid templates.
-
-A typical slide may look like:
+## Architecture overview
 
 ```text
-Slide
-├── Header
-├── Main
-│   ├── Column
-│   │   └── Image
-│   │
-│   └── Column
-│       ├── Textbox
-│       ├── Terminal
-│       └── Chart
-│
-└── Footer
+Private draft
+    │
+    │ Publish
+    ▼
+Immutable published version
+    │
+    ├──────────────► Public publication pointer
+    │
+    └──────────────► Live session
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+        PowerShow Control      PowerShow Player
+        presenter console      projection runtime
+              │                     │
+              └──── commands ───────┘
+                     + ACK
 ```
 
-Columns are generic containers and may contain mixed elements.
+PowerShow deliberately separates authoring, publication, and live projection.
 
-For example, the same column may contain:
+A draft may keep changing without mutating an already published version. Published versions are immutable. Live session state is kept separately from the published document.
 
-* text;
-* images;
-* textboxes;
-* source code;
-* terminal output;
-* tables;
-* charts;
-* interactive objects.
+## Presentation documents
 
-Layout presets only provide an initial structure.
-
-Users remain free to modify the resulting slide.
-
----
-
-### Player
-
-The Player is the main presentation display.
-
-It is designed to be:
-
-* lightweight;
-* fullscreen-friendly;
-* touchscreen-compatible;
-* keyboard-compatible;
-* cache-friendly;
-* resilient to temporary network interruptions.
-
-The Player does not expose normal application navigation.
-
-Its responsibility is to present the slide deck.
-
----
-
-### Control
-
-Control is the presenter's remote interface.
-
-It is intended for devices such as:
-
-* Chromebooks;
-* notebooks;
-* phones;
-* tablets.
-
-Control will provide:
-
-* current slide preview;
-* previous/next navigation;
-* next slide preview;
-* slide index;
-* presentation summary;
-* speaker notes;
-* connection status;
-* audience count;
-* QR code access.
-
-Selecting a slide in Control updates the main Player.
-
----
-
-### Audience
-
-Audience is a read-only presentation view.
-
-Viewers may scan a QR code and follow the presentation from their own device.
-
-Audience users cannot change the shared presentation state.
-
-When enabled, viewers may navigate locally and later return to the presenter's current slide.
-
----
-
-### Player Legacy
-
-PowerShow also includes a compatibility runtime intended for older browsers and constrained presentation hardware.
-
-Legacy playback may simplify advanced effects while preserving the meaning and structure of the presentation.
-
----
-
-# Presentation Documents
-
-PowerShow presentations are authored as structured JSON documents.
+Presentations are structured JSON documents validated by `@powershow/document-schema`.
 
 Current schema version:
 
 ```text
 schemaVersion: 1
 ```
-
-The document model is validated with Zod.
 
 Conceptually:
 
@@ -214,231 +79,195 @@ Presentation
             └── Elements
 ```
 
-Containers are recursive.
+Containers are recursive. Layout presets create starting structures rather than rigid templates.
 
-This makes layouts flexible without creating a different schema for every slide template.
-
----
-
-## Example Structure
-
-A media/content slide may start as:
-
-```text
-┌───────────────────────┬───────────────────────┐
-│                       │                       │
-│         IMAGE         │        CONTENT        │
-│                       │                       │
-└───────────────────────┴───────────────────────┘
-│                    FOOTER                     │
-└───────────────────────────────────────────────┘
-```
-
-But the content column may contain several different elements:
-
-```text
-┌───────────────────────┬───────────────────────┐
-│                       │ Textbox               │
-│                       │                       │
-│         IMAGE         │ Terminal              │
-│                       │                       │
-│                       │ Chart                 │
-└───────────────────────┴───────────────────────┘
-│                    FOOTER                     │
-└───────────────────────────────────────────────┘
-```
-
-The reverse arrangement is equally valid.
-
----
-
-# Layout Presets
-
-Planned presets include:
-
-* Media + Content
-* Content + Media
-* Single Centered Column
-* Three Centered Columns
-* Title + Content
-* Hero
-* Code
-* Terminal
-* Table
-* Chart
-* Technical Demonstration
-* Interactive Demonstration
-
-Presets are starting points rather than fixed templates.
-
----
-
-# Interactive Content
-
-PowerShow is designed to support interactive educational and technical presentations.
-
-Planned components include:
-
-### Mathematics
-
-* sine functions;
-* linear functions;
-* quadratic functions;
-* function plots;
-* geometric transformations;
-* coordinate geometry.
-
-### Electronics
-
-* PWM demonstrations;
-* square waves;
-* electrical circuits;
-* animated electrical current;
-* component diagrams.
-
-### Technical Content
-
-* source code;
-* terminal simulations;
-* tables;
-* charts;
-* diagrams;
-* interactive widgets.
-
-Interactive elements are represented as structured presentation data and rendered by PowerShow runtimes.
-
-Arbitrary user JavaScript will require explicit sandboxing.
-
----
-
-# Rendering Architecture
+## Rendering
 
 PowerShow follows the principle:
 
 > Structured for authoring. Native for presenting.
 
-The general pipeline is:
-
 ```text
-PowerShow JSON
+PowerShow document
       │
       ▼
-Schema Validation
+Schema validation
       │
       ▼
-Renderer
+@powershow/renderer
       │
       ▼
 HTML + CSS + lightweight JavaScript
       │
       ▼
-Player
+Editor preview / Control preview / Player
 ```
 
-The JSON document is not intended to replace native browser rendering.
+The Player is intentionally lightweight and favors standard browser primitives, small runtime modules, and event-driven behavior.
 
-It provides a structured and editable representation from which optimized presentation output can be generated.
+## Persistence boundaries
 
----
+PowerShow keeps private authoring data, public published data, and live control state separate.
 
-# Performance
-
-Player performance is a core requirement.
-
-The presentation runtime should favor:
-
-* standard HTML;
-* CSS;
-* SVG;
-* event-driven JavaScript;
-* small runtime modules;
-* minimal dependencies.
-
-Interactive elements should pause when their slide is inactive.
-
-A static slide should consume virtually no CPU while waiting for user interaction.
-
----
-
-# Publishing
-
-Editing and presenting are intentionally separated.
+### Private mutable draft
 
 ```text
-Draft
-  │
-  ▼
-Publish
-  │
-  ▼
-Version 1
-  │
-  └──────────────▶ Live Session
-
-Continue editing
-  │
-  ▼
-New Draft
-  │
-  ▼
-Publish
-  │
-  ▼
-Version 2
+users/{uid}/presentations/{presentationId}
 ```
 
-A running presentation remains attached to the version with which it was started.
+The authenticated Studio edits and saves the canonical draft here.
 
-Publishing or editing later content should not unexpectedly modify an active presentation.
-
----
-
-# Offline Resilience
-
-PowerShow is designed with presentation reliability in mind.
-
-A presentation should not require a network request for every slide transition.
-
-Published presentation data and assets should be suitable for browser caching.
-
-If connectivity is temporarily lost, local Player navigation should continue whenever possible.
-
----
-
-# Planned Infrastructure
-
-The current architecture is designed around:
-
-* GitHub;
-* Vercel;
-* Firebase Authentication;
-* Cloud Firestore;
-* Firebase Realtime Database;
-* Firebase Storage.
-
-Expected responsibilities:
+### Immutable published versions
 
 ```text
-Firestore
-├── presentations
-├── slides / documents
-├── metadata
-└── versions
-
-Realtime Database
-└── live session state
-
-Storage
-├── images
-├── media
-└── published assets
+publishedPresentations/{publicationId}/versions/{versionId}
 ```
 
-Live session synchronization should exchange presentation state rather than retransmit slide content on every navigation event.
+A publish creates an immutable snapshot when the draft revision changed.
 
----
+### Public publication pointer
 
-# Monorepo
+```text
+publishedPresentations/{publicationId}
+```
+
+The pointer identifies the latest published version:
+
+```text
+{
+  currentVersionId,
+  publishedRevision,
+  publishedAt
+}
+```
+
+### Private slide notes
+
+```text
+users/{uid}/presentations/{presentationId}/private/notes
+```
+
+Presenter notes remain private and are not read by the public Player.
+
+### Live session state
+
+Firebase Realtime Database carries the active live state:
+
+```text
+live/current
+live/slideCommand
+live/slideAck
+```
+
+`live/current` identifies the version currently released to the Player. Slide navigation uses command/ACK synchronization.
+
+## Live control invariants
+
+The Player ACK is authoritative for the slide that is actually confirmed on screen.
+
+The Control does not invent a local "current slide" state. Its current preview, next preview, counter, Summary highlight, and Notes are derived from the ACK-confirmed slide.
+
+The Summary is read-only. Previous/Next are live commands, not local preview navigation.
+
+The current Live protocol is activation-scoped. Reloading Control or Player must recover from persisted Live state without requiring a new session.
+
+## Current Control
+
+PowerShow Control currently provides:
+
+- current slide preview;
+- next slide preview;
+- ACK-authoritative Previous/Next navigation;
+- current / total slide counter;
+- read-only slide Summary;
+- private per-slide Notes;
+- sync / latency status;
+- local clock;
+- End presentation;
+- responsive desktop and mobile layouts;
+- shared Studio locale selection.
+
+The Control visual language follows the Editor: flat orthogonal regions, dividers, shared typography, and compact interactive controls.
+
+Fullscreen is currently a disabled placeholder. A canonical session timer is also deferred until a real persisted session start time exists.
+
+## Staged Live Publish — next milestone
+
+The next functional milestone changes how a new publication interacts with an already running live session.
+
+The intended model is:
+
+```text
+Publish V2
+    │
+    ├── public publication pointer → V2
+    │
+    └── Control automatically previews V2
+
+Player remains on V1
+    │
+    ▼
+Control shows an inline pending-version state
+    │
+    └── [Update Player]
+             │
+             ▼
+        live/current → V2
+             │
+             ▼
+        Player reloads V2
+        preserving the logical current slide when possible
+```
+
+Key rules:
+
+- Control follows the latest published version automatically.
+- Player changes version only after explicit operator authorization.
+- No modal is required.
+- The existing excess space in the Control action area is used for version messages and the **Update Player** action.
+- If slide order, insertion, or removal changed, Control shows a compact structural warning.
+- While Control and Player are on different versions, Previous/Next are disabled to avoid sending absolute indices against different slide orders.
+- The logical current slide is preserved by `slide.id` when possible.
+- Multiple publishes before Player promotion collapse to the latest published version; no update queue is required.
+
+See [`ROADMAP.md`](./ROADMAP.md) for the execution plan.
+
+## Typical authoring structure
+
+A slide may contain hierarchical containers with mixed content:
+
+```text
+Slide
+├── Header
+├── Main
+│   ├── Container
+│   │   └── Image
+│   └── Container
+│       ├── Textbox
+│       ├── Terminal
+│       └── Chart
+└── Footer
+```
+
+Columns are containers, not special element types. A footer belongs to the slide root rather than to an individual column.
+
+## Interactive content
+
+PowerShow is intended to support educational and technical interactive content, including:
+
+- mathematical graphs;
+- geometric demonstrations;
+- PWM and waveform demonstrations;
+- electrical circuit visualizations;
+- source code;
+- terminal simulations;
+- tables;
+- charts;
+- diagrams and interactive widgets.
+
+Arbitrary user JavaScript requires explicit sandboxing and is not treated as ordinary presentation content.
+
+## Monorepo
 
 PowerShow uses a pnpm workspace.
 
@@ -451,56 +280,27 @@ web-slideshow/
 │
 ├── packages/
 │   ├── document-schema/
-│   ├── renderer/
 │   ├── firebase/
+│   ├── renderer/
+│   ├── theme/
 │   └── ui/
 │
 ├── AGENTS.md
-├── README.md
+├── readme.md
 ├── package.json
-├── pnpm-workspace.yaml
-└── tsconfig.base.json
+└── pnpm-workspace.yaml
 ```
 
----
+## Development
 
-# Current Package
-
-## `@powershow/document-schema`
-
-The first implemented package defines the PowerShow document contract.
-
-It currently covers:
-
-* presentations;
-* slides;
-* recursive containers;
-* text;
-* textboxes;
-* images;
-* code;
-* terminal content;
-* tables;
-* charts;
-* interactive element placeholders;
-* basic element styling.
-
-The schema is written in TypeScript and validated with Zod.
-
----
-
-# Development
-
-## Requirements
-
-Current development environment:
+Requirements:
 
 ```text
-Node.js 24
+Node.js >=24 <25
 pnpm
 TypeScript
-Zod
 Vitest
+Firebase
 ```
 
 Install dependencies:
@@ -509,121 +309,57 @@ Install dependencies:
 pnpm install
 ```
 
-Run all available type checks:
+Run workspace checks:
 
 ```bash
 pnpm typecheck
-```
-
-Run tests:
-
-```bash
 pnpm test
+pnpm build
 ```
 
-For the document schema package:
+Focused Studio checks commonly use:
 
 ```bash
-pnpm --filter @powershow/document-schema typecheck
+pnpm --filter @powershow/studio typecheck
+pnpm --filter @powershow/studio test
 ```
 
-```bash
-pnpm --filter @powershow/document-schema test
-```
-
----
-
-# Current Status
-
-The initial document schema is operational.
-
-Current automated checks confirm:
-
-* valid presentations are accepted;
-* invalid schema versions are rejected;
-* required identifiers are validated;
-* nested containers work;
-* a slide may contain `main` and `footer` as independent sibling containers.
-
-Development is currently focused on expanding schema coverage and beginning the presentation renderer.
-
----
-
-# Development Roadmap
-
-```text
-Document Schema
-      ↓
-Tests & Fixtures
-      ↓
-Renderer
-      ↓
-Minimal Player
-      ↓
-Layout Presets
-      ↓
-Studio
-      ↓
-Editor
-      ↓
-Firebase Persistence
-      ↓
-Live Sessions
-      ↓
-Control
-      ↓
-Audience
-      ↓
-Legacy Runtime Expansion
-```
-
----
-
-# First Milestone
-
-The first functional milestone is:
-
-```text
-PowerShow JSON
-      ↓
-Renderer
-      ↓
-Browser
-      ↓
-Visible Slide
-```
-
-This proves the complete foundation before cloud persistence and remote-control functionality are introduced.
-
----
-
-# AI-Assisted Development
-
-AI coding agents may be used to accelerate:
-
-* tests;
-* fixtures;
-* repetitive implementation;
-* mechanical refactoring;
-* verification;
-* build troubleshooting.
-
-Architecture and major contracts remain explicitly reviewed.
-
-Agents must read:
+Agents and contributors must read:
 
 ```text
 AGENTS.md
 ```
 
-before modifying the repository.
+before changing the repository.
 
----
+## Current status
 
-# Project Status
+The project already includes:
 
-PowerShow is in early development.
+- canonical presentation schema and fixtures;
+- shared renderer;
+- theme support;
+- authenticated Studio;
+- private draft persistence;
+- immutable publishing and public publication pointer;
+- private slide Notes;
+- reactive Live sessions;
+- Player remote navigation with ACK;
+- presenter current/next previews;
+- responsive PowerShow Control;
+- live session termination and reload recovery.
 
-The current codebase should be considered experimental and not yet production-ready.
+The immediate priority is no longer visual organization. It is making live publishing safe and useful during an active presentation, followed by richer Control commands.
 
-Schemas, internal APIs, and package boundaries may evolve while the foundation is being established.
+## Roadmap summary
+
+```text
+P8   Control shell + responsive presenter          ✅ complete
+P9   Live presentation operations                 ← next
+P10  Audience presence
+P11  PowerShow Studio / Library redesign
+P12  Folders + persistence
+P13  Saved Styles / reusable libraries
+```
+
+Detailed checkpoints and acceptance criteria live in [`ROADMAP.md`](./ROADMAP.md).
