@@ -6,12 +6,14 @@ import {
   type LiveControlView,
 } from "../src/features/control/live-control";
 
-function controlState(overrides: Partial<{
-  activationRevision: number;
-  currentVersionId: string;
-  revision: number;
-  pageId: string;
-}> = {}) {
+function controlState(
+  overrides: Partial<{
+    activationRevision: number;
+    currentVersionId: string;
+    revision: number;
+    pageId: string;
+  }> = {},
+) {
   return {
     activationRevision: 1,
     currentVersionId: "version-1",
@@ -21,13 +23,15 @@ function controlState(overrides: Partial<{
   };
 }
 
-function playerState(overrides: Partial<{
-  activationRevision: number;
-  currentVersionId: string;
-  appliedControlRevision: number;
-  pageId: string;
-  pageIndex: number;
-}> = {}) {
+function playerState(
+  overrides: Partial<{
+    activationRevision: number;
+    currentVersionId: string;
+    appliedControlRevision: number;
+    pageId: string;
+    pageIndex: number;
+  }> = {},
+) {
   return {
     activationRevision: 1,
     currentVersionId: "version-1",
@@ -109,7 +113,11 @@ describe("LiveControl", () => {
       controlState({ revision: 8, pageId: "page-b" }),
     );
     first.control.handlePlayerState(
-      playerState({ appliedControlRevision: 7, pageId: "page-a", pageIndex: 0 }),
+      playerState({
+        appliedControlRevision: 7,
+        pageId: "page-a",
+        pageIndex: 0,
+      }),
     );
 
     expect(first.views.at(-1)).toMatchObject({
@@ -123,7 +131,11 @@ describe("LiveControl", () => {
     const second = createHarness();
 
     second.control.handlePlayerState(
-      playerState({ appliedControlRevision: 7, pageId: "page-a", pageIndex: 0 }),
+      playerState({
+        appliedControlRevision: 7,
+        pageId: "page-a",
+        pageIndex: 0,
+      }),
     );
     second.control.handleControlState(
       controlState({ revision: 8, pageId: "page-b" }),
@@ -141,7 +153,9 @@ describe("LiveControl", () => {
   it("treats a new Player baseline as current truth even after a higher confirmed revision", () => {
     const h = createHarness();
 
-    h.control.handleControlState(controlState({ revision: 8, pageId: "page-b" }));
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
     h.control.handlePlayerState(
       playerState({
         appliedControlRevision: 8,
@@ -169,7 +183,9 @@ describe("LiveControl", () => {
     const h = createHarness();
 
     h.control.handlePlayerState(playerState());
-    h.control.handleControlState(controlState({ revision: 8, pageId: "page-b" }));
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
 
     expect(h.writeControlState).not.toHaveBeenCalled();
     expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
@@ -179,7 +195,9 @@ describe("LiveControl", () => {
     vi.useFakeTimers();
 
     const h = createHarness();
-    h.control.handleControlState(controlState({ revision: 8, pageId: "page-b" }));
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
     h.control.handlePlayerState(
       playerState({
         appliedControlRevision: 7,
@@ -188,7 +206,8 @@ describe("LiveControl", () => {
       }),
     );
 
-    const committed = deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+    const committed =
+      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
     h.writeControlState.mockReturnValue(committed.promise);
 
     h.control.next();
@@ -218,6 +237,69 @@ describe("LiveControl", () => {
 
     expect(h.writeControlState).toHaveBeenCalledTimes(1);
     expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+  });
+
+  it("rechecks convergence before a scheduled trailing write", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        pageId: "page-b",
+        pageIndex: 1,
+      }),
+    );
+
+    const committed =
+      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+
+    h.writeControlState.mockReturnValue(committed.promise);
+
+    // B -> C schedules the trailing write.
+    h.control.next();
+
+    // Before the timer fires, a new Player runtime establishes A / rev 0.
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 0,
+        pageId: "page-a",
+        pageIndex: 0,
+      }),
+    );
+
+    h.advance(COALESCE_DELAY_MS);
+
+    // rev 8 is no longer confirmed, so rev 9 must not be written yet.
+    expect(h.writeControlState).not.toHaveBeenCalled();
+
+    // The new Player runtime reapplies the persisted desired rev 8 / B.
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        pageId: "page-b",
+        pageIndex: 1,
+      }),
+    );
+
+    // Confirmation schedules the retained C target again.
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+
+    committed.resolve({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-c",
+    });
+
+    await Promise.resolve();
   });
 
   it("coalesces user input and keeps a single unconfirmed write in flight", () => {
@@ -275,7 +357,8 @@ describe("LiveControl", () => {
     const h = createHarness();
     h.control.handlePlayerState(playerState());
 
-    const committed = deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+    const committed =
+      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
     h.writeControlState.mockReturnValue(committed.promise);
 
     h.control.next();
@@ -317,8 +400,10 @@ describe("LiveControl", () => {
     const control = new LiveControl({
       activationRevision: 1,
       currentVersionId: "version-1",
-      resolvePageId: (pageIndex) => ["page-a", "page-b", "page-c"][pageIndex] ?? null,
-      resolvePageIndex: (pageId) => ["page-a", "page-b", "page-c"].findIndex((id) => id === pageId),
+      resolvePageId: (pageIndex) =>
+        ["page-a", "page-b", "page-c"][pageIndex] ?? null,
+      resolvePageIndex: (pageId) =>
+        ["page-a", "page-b", "page-c"].findIndex((id) => id === pageId),
       writeControlState,
       now: () => currentTime,
       schedule: (callback, delay) => {
@@ -349,7 +434,9 @@ describe("LiveControl", () => {
   it("ignores stale activation and version snapshots", () => {
     const h = createHarness();
     h.control.handlePlayerState(playerState());
-    h.control.handleControlState(controlState({ revision: 8, pageId: "page-b" }));
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
 
     const before = h.views.at(-1);
 
@@ -374,7 +461,8 @@ describe("LiveControl", () => {
     const h = createHarness();
     h.control.handlePlayerState(playerState());
 
-    const committed = deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+    const committed =
+      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
     h.writeControlState.mockReturnValue(committed.promise);
 
     h.control.next();
@@ -398,7 +486,9 @@ describe("LiveControl", () => {
   it("does not converge when the revision matches but the pageId is wrong", () => {
     const h = createHarness();
     h.control.handlePlayerState(playerState());
-    h.control.handleControlState(controlState({ revision: 3, pageId: "page-b" }));
+    h.control.handleControlState(
+      controlState({ revision: 3, pageId: "page-b" }),
+    );
 
     h.control.handlePlayerState(
       playerState({

@@ -1,7 +1,4 @@
-import type {
-  LiveControlState,
-  LivePlayerState,
-} from "../live/live-state";
+import type { LiveControlState, LivePlayerState } from "../live/live-state";
 
 export const COALESCE_DELAY_MS = 75;
 
@@ -236,7 +233,10 @@ export class LiveControl {
 
     this.draftTargetPageId = pageId;
     this.draftTargetPageIndex = index;
-    this.draftDirty = !samePageId(this.persistedDesired?.pageId ?? null, pageId);
+    this.draftDirty = !samePageId(
+      this.persistedDesired?.pageId ?? null,
+      pageId,
+    );
 
     if (this.pending !== null) {
       this.latencyMs = undefined;
@@ -314,6 +314,10 @@ export class LiveControl {
       return;
     }
 
+    if (!this.isPersistedDesiredConfirmed()) {
+      return;
+    }
+
     const targetPageId = this.draftTargetPageId;
     const targetPageIndex = this.draftTargetPageIndex;
 
@@ -377,10 +381,11 @@ export class LiveControl {
         this.pending = null;
         this.earlyConfirmedPlayerState = null;
         this.draftDirty = false;
-        this.draftTargetPageId = this.persistedDesired?.pageId ?? this.actual?.pageId ?? null;
+        this.draftTargetPageId =
+          this.persistedDesired?.pageId ?? this.actual?.pageId ?? null;
         this.draftTargetPageIndex = this.persistedDesired
           ? this.options.resolvePageIndex(this.persistedDesired.pageId)
-          : this.actual?.pageIndex ?? null;
+          : (this.actual?.pageIndex ?? null);
         this.latencyMs = undefined;
         this.options.onCommandError();
         this.notify();
