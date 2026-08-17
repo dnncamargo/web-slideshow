@@ -458,6 +458,14 @@ const englishMessages = {
   "control.awaitingPlayer": "Waiting for Player…",
   "control.syncing": "Syncing…",
   "control.synced": "Synced",
+  "control.newVersionPublished": "New version published",
+  "control.presentationStructureChanged":
+    "Slide order or structure changed.",
+  "control.projectedSlideRemoved":
+    "The currently projected slide was removed.",
+  "control.updatePlayer": "Update Player",
+  "control.updatingPlayer": "Updating Player…",
+  "control.updatePlayerFailed": "Could not update Player.",
 
   "public.noLive": "No live presentation",
   "public.studio": "Studio",
@@ -916,6 +924,14 @@ const portugueseMessages = {
   "control.awaitingPlayer": "Aguardando Player…",
   "control.syncing": "Sincronizando…",
   "control.synced": "Sincronizado",
+  "control.newVersionPublished": "Nova versão publicada",
+  "control.presentationStructureChanged":
+    "A ordem ou a estrutura dos slides mudou.",
+  "control.projectedSlideRemoved":
+    "O slide atualmente projetado foi removido.",
+  "control.updatePlayer": "Atualizar Player",
+  "control.updatingPlayer": "Atualizando Player…",
+  "control.updatePlayerFailed": "Não foi possível atualizar o Player.",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
   "public.studio": "Studio",

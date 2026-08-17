@@ -87,3 +87,4 @@ firebase-admin*.json
 scripts/*
 .opencode-output/*
 git-review.txt
+DS.RULES.md

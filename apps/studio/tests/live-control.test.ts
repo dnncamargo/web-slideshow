@@ -18,6 +18,7 @@ interface Harness {
 }
 
 function createHarness(activationRevision = 1): Harness {
+  const currentVersionId = "version-1";
   let currentTime = 0;
   const views: LiveControlView[] = [];
   const writeCommand = vi.fn();
@@ -25,6 +26,7 @@ function createHarness(activationRevision = 1): Harness {
 
   const control = new LiveControl({
     activationRevision,
+    currentVersionId,
     writeCommand,
     now: () => currentTime,
     schedule: (callback, delay) => {
@@ -40,6 +42,7 @@ function createHarness(activationRevision = 1): Harness {
   const ack = (overrides: Partial<SlideAck> = {}) => {
     control.handleAck({
       activationRevision,
+      currentVersionId,
       revision: 1,
       slideIndex: 0,
       ...overrides,
@@ -87,7 +90,27 @@ describe("LiveControl", () => {
     vi.useFakeTimers();
     const h = createHarness(3);
 
-    h.control.handleAck({ activationRevision: 2, revision: 0, slideIndex: 4 });
+    h.control.handleAck({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 0,
+      slideIndex: 4,
+    });
+
+    expect(h.views.at(-1)?.enabled).toBe(false);
+    expect(h.views.at(-1)?.status).toEqual({ kind: "awaiting-player" });
+  });
+
+  it("ignores a stale ack from another published version", () => {
+    vi.useFakeTimers();
+    const h = createHarness(3);
+
+    h.control.handleAck({
+      activationRevision: 3,
+      currentVersionId: "version-old",
+      revision: 0,
+      slideIndex: 4,
+    });
 
     expect(h.views.at(-1)?.enabled).toBe(false);
     expect(h.views.at(-1)?.status).toEqual({ kind: "awaiting-player" });

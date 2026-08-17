@@ -56,8 +56,9 @@ describe("control command helpers", () => {
   it("builds the live slide command path and shape", () => {
     expect(buildSlideCommandPath()).toBe("live/slideCommand");
     expect(buildSlideAckPath()).toBe("live/slideAck");
-    expect(buildSlideCommand(2, 1, 3)).toEqual({
+    expect(buildSlideCommand(2, "version-1", 1, 3)).toEqual({
       activationRevision: 2,
+      currentVersionId: "version-1",
       revision: 1,
       slideIndex: 3,
     });
@@ -167,52 +168,123 @@ describe("slide command writer", () => {
   it("writes to the live/slideCommand path with revision 1 on a new activation", async () => {
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
       const result = updater(null) as Record<string, unknown>;
-      expect(result).toEqual({ activationRevision: 2, revision: 1, slideIndex: 3 });
+      expect(result).toEqual({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 1,
+        slideIndex: 3,
+      });
       return { committed: true, snapshot: { val: () => result } };
     });
 
-    const committed = await writeSlideCommand({} as never, 2, 3);
+    const committed = await writeSlideCommand(
+      {} as never,
+      2,
+      "version-1",
+      3,
+    );
 
     expect(mocks.ref).toHaveBeenCalledWith({}, "live/slideCommand");
-    expect(committed).toEqual({ activationRevision: 2, revision: 1, slideIndex: 3 });
+    expect(committed).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 1,
+      slideIndex: 3,
+    });
   });
 
   it("increments the command revision within the same activation", async () => {
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
       const result = updater({
         activationRevision: 2,
+        currentVersionId: "version-1",
         revision: 4,
         slideIndex: 1,
       }) as Record<string, unknown>;
-      expect(result).toEqual({ activationRevision: 2, revision: 5, slideIndex: 2 });
+      expect(result).toEqual({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 5,
+        slideIndex: 2,
+      });
       return { committed: true, snapshot: { val: () => result } };
     });
 
-    const committed = await writeSlideCommand({} as never, 2, 2);
+    const committed = await writeSlideCommand(
+      {} as never,
+      2,
+      "version-1",
+      2,
+    );
 
-    expect(committed).toEqual({ activationRevision: 2, revision: 5, slideIndex: 2 });
+    expect(committed).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 5,
+      slideIndex: 2,
+    });
   });
 
   it("restarts the command revision at 1 when the activation differs", async () => {
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
       const result = updater({
         activationRevision: 9,
+        currentVersionId: "version-old",
         revision: 4,
         slideIndex: 1,
       }) as Record<string, unknown>;
-      expect(result).toEqual({ activationRevision: 2, revision: 1, slideIndex: 0 });
+      expect(result).toEqual({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 1,
+        slideIndex: 0,
+      });
       return { committed: true, snapshot: { val: () => result } };
     });
 
-    const committed = await writeSlideCommand({} as never, 2, 0);
+    const committed = await writeSlideCommand(
+      {} as never,
+      2,
+      "version-1",
+      0,
+    );
 
-    expect(committed).toEqual({ activationRevision: 2, revision: 1, slideIndex: 0 });
+    expect(committed).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 1,
+      slideIndex: 0,
+    });
+  });
+
+  it("restarts the command revision when the live version changes", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater({
+        activationRevision: 2,
+        currentVersionId: "version-old",
+        revision: 4,
+        slideIndex: 1,
+      }) as Record<string, unknown>;
+      expect(result).toEqual({
+        activationRevision: 2,
+        currentVersionId: "version-new",
+        revision: 1,
+        slideIndex: 2,
+      });
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    await expect(
+      writeSlideCommand({} as never, 2, "version-new", 2),
+    ).resolves.toMatchObject({ revision: 1 });
   });
 
   it("fails before any SDK write when unauthenticated", async () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue(null);
 
-    await expect(writeSlideCommand({} as never, 1, 0)).rejects.toThrow(
+    await expect(
+      writeSlideCommand({} as never, 1, "version-1", 0),
+    ).rejects.toThrow(
       /anonymous/,
     );
     expect(mocks.runTransaction).not.toHaveBeenCalled();
@@ -221,10 +293,19 @@ describe("slide command writer", () => {
   it("rejects when the transaction does not commit", async () => {
     mocks.runTransaction.mockResolvedValue({
       committed: false,
-      snapshot: { val: () => ({ activationRevision: 2, revision: 1, slideIndex: 0 }) },
+      snapshot: {
+        val: () => ({
+          activationRevision: 2,
+          currentVersionId: "version-1",
+          revision: 1,
+          slideIndex: 0,
+        }),
+      },
     });
 
-    await expect(writeSlideCommand({} as never, 2, 0)).rejects.toThrow(
+    await expect(
+      writeSlideCommand({} as never, 2, "version-1", 0),
+    ).rejects.toThrow(
       /did not commit/,
     );
   });
@@ -232,10 +313,19 @@ describe("slide command writer", () => {
   it("rejects when the committed snapshot is malformed", async () => {
     mocks.runTransaction.mockResolvedValue({
       committed: true,
-      snapshot: { val: () => ({ activationRevision: 2, revision: "x", slideIndex: 0 }) },
+      snapshot: {
+        val: () => ({
+          activationRevision: 2,
+          currentVersionId: "version-1",
+          revision: "x",
+          slideIndex: 0,
+        }),
+      },
     });
 
-    await expect(writeSlideCommand({} as never, 2, 0)).rejects.toThrow(
+    await expect(
+      writeSlideCommand({} as never, 2, "version-1", 0),
+    ).rejects.toThrow(
       /malformed/,
     );
   });

@@ -17,9 +17,20 @@ import styles from "./control-page.module.css";
 export function ControlPage() {
   const { t } = useStudioI18n();
   const router = useRouter();
-  const { liveState, view, sendFailed, previous, next } =
-    useLiveSessionControl();
-  const presentationState = usePresenterPresentation(liveState);
+  const {
+    liveState,
+    view,
+    sendFailed,
+    promotingVersionId,
+    failedPromotionVersionId,
+    previous,
+    next,
+    updatePlayer,
+  } = useLiveSessionControl();
+  const presentationState = usePresenterPresentation(
+    liveState,
+    view?.enabled === true ? view.confirmedIndex : null,
+  );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
 
   const end = () => {
@@ -83,6 +94,9 @@ export function ControlPage() {
       presentationState={presentationState}
       previous={previous}
       next={next}
+      updatePlayer={updatePlayer}
+      promotingVersionId={promotingVersionId}
+      failedPromotionVersionId={failedPromotionVersionId}
       end={end}
     />
   );

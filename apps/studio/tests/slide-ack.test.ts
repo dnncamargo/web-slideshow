@@ -47,16 +47,32 @@ afterEach(() => {
 
 describe("parseSlideAck", () => {
   it("accepts a well-formed ack", () => {
-    expect(parseSlideAck({ activationRevision: 2, revision: 3, slideIndex: 5 })).toEqual({
+    expect(
+      parseSlideAck({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 3,
+        slideIndex: 5,
+      }),
+    ).toEqual({
       activationRevision: 2,
+      currentVersionId: "version-1",
       revision: 3,
       slideIndex: 5,
     });
   });
 
   it("accepts a revision-zero baseline ack", () => {
-    expect(parseSlideAck({ activationRevision: 2, revision: 0, slideIndex: 0 })).toEqual({
+    expect(
+      parseSlideAck({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 0,
+        slideIndex: 0,
+      }),
+    ).toEqual({
       activationRevision: 2,
+      currentVersionId: "version-1",
       revision: 0,
       slideIndex: 0,
     });
@@ -64,10 +80,22 @@ describe("parseSlideAck", () => {
 
   it("rejects an otherwise-valid ack with an extra field", () => {
     expect(
-      parseSlideAck({ activationRevision: 2, revision: 3, slideIndex: 5, extra: true }),
+      parseSlideAck({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 3,
+        slideIndex: 5,
+        extra: true,
+      }),
     ).toBeNull();
     expect(
-      parseSlideAck({ activationRevision: 2, revision: 0, slideIndex: 0, stale: 1 }),
+      parseSlideAck({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 0,
+        slideIndex: 0,
+        stale: 1,
+      }),
     ).toBeNull();
   });
 
@@ -97,7 +125,14 @@ describe("subscribeSlideAck", () => {
 
     const handler = mocks.onValue.mock.calls[0]?.[1] as (snapshot: unknown) => void;
 
-    handler({ val: () => ({ activationRevision: 2, revision: 1, slideIndex: 4 }) });
+    handler({
+      val: () => ({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 1,
+        slideIndex: 4,
+      }),
+    });
     expect(cb).toHaveBeenCalledTimes(1);
 
     handler({ val: () => ({ activationRevision: 2, revision: "x", slideIndex: 0 }) });

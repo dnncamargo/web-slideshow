@@ -1,6 +1,8 @@
 import "@powershow/theme/index.css";
 import "./player.css";
 
+import type { Presentation } from "@powershow/document-schema";
+
 import { loadPublishedVersion } from "./published-presentation-loader";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
@@ -12,6 +14,7 @@ import {
   type LiveCurrentEvent,
 } from "./live-entry";
 import { subscribeLiveSlideAck } from "./live-slide-ack";
+import { mapPromotedSlideIndex } from "./live-version-mapping";
 
 import { mountPlayer, type PlayerController } from "./player";
 
@@ -40,6 +43,9 @@ const controls = {
 let activeController: PlayerController | undefined;
 let cleanupLiveSlideAck: (() => void) | undefined;
 let cleanupLiveCurrent: (() => void) | undefined;
+let activePresentation: Presentation | undefined;
+let activeLive: LiveCurrent | undefined;
+let confirmedSlideIndex: number | undefined;
 
 // Identidade da sessão Live atualmente montada e token de carga.
 // O token invalida cargas assíncronas obsoletas quando a sessão muda.
@@ -71,7 +77,7 @@ function renderNoActive(): void {
 // ============================================================
 
 function attachLiveSlideAck(
-  activationRevision: number,
+  live: LiveCurrent,
   logsEnabled: boolean,
 ): void {
   if (!activeController) {
@@ -92,9 +98,15 @@ function attachLiveSlideAck(
 
     cleanupLiveSlideAck = subscribeLiveSlideAck(
       database,
-      activationRevision,
+      live.revision,
+      live.currentVersionId,
       activeController,
       logsEnabled,
+      (slideIndex) => {
+        if (activeLive && liveSessionKey(activeLive) === liveSessionKey(live)) {
+          confirmedSlideIndex = slideIndex;
+        }
+      },
     );
   } catch (error) {
     // Falha de inicialização do slide ACK nunca derruba o Player.
@@ -121,16 +133,31 @@ function liveSessionKey(live: LiveCurrent): string {
   return `${live.publicationId}|${live.currentVersionId}|${live.revision}`;
 }
 
+function isVersionPromotion(previous: LiveCurrent, next: LiveCurrent): boolean {
+  return (
+    previous.publicationId === next.publicationId &&
+    previous.revision === next.revision &&
+    previous.currentVersionId !== next.currentVersionId
+  );
+}
+
+function detachLiveSlideAck(): void {
+  cleanupLiveSlideAck?.();
+  cleanupLiveSlideAck = undefined;
+}
+
 function teardownLiveSession(): void {
   // Invalida qualquer carga assíncrona ainda em andamento.
   loadToken += 1;
   currentSessionKey = null;
 
-  cleanupLiveSlideAck?.();
-  cleanupLiveSlideAck = undefined;
+  detachLiveSlideAck();
 
   activeController?.destroy();
   activeController = undefined;
+  activePresentation = undefined;
+  activeLive = undefined;
+  confirmedSlideIndex = undefined;
 }
 
 async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
@@ -159,13 +186,28 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
     return;
   }
 
-  teardownLiveSession();
+  const promotion =
+    activeController !== undefined &&
+    activePresentation !== undefined &&
+    activeLive !== undefined &&
+    isVersionPromotion(activeLive, event.live);
+
+  if (promotion) {
+    // Stop V1 commands/ACKs immediately, but keep its rendered frame visible
+    // while the promoted immutable version is loading.
+    detachLiveSlideAck();
+    loadToken += 1;
+  } else {
+    teardownLiveSession();
+  }
 
   currentSessionKey = key;
   loadToken += 1;
   const token = loadToken;
 
-  renderLoadState("Loading presentation…");
+  if (!promotion) {
+    renderLoadState("Loading presentation…");
+  }
 
   const result = await resolveLiveIdentityMount(event.live, loadPublishedVersion);
 
@@ -174,14 +216,34 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
   }
 
   if (result.kind === "ok") {
-    activeController = mountPlayer(root, result.presentation, { controls });
+    const promotedIndex =
+      promotion && activePresentation && activeController
+        ? mapPromotedSlideIndex(
+            activePresentation,
+            result.presentation,
+            confirmedSlideIndex ?? activeController.getCurrentIndex(),
+          )
+        : 0;
 
-    attachLiveSlideAck(result.activationRevision, logsEnabled);
+    activeController?.destroy();
+    activeController = mountPlayer(root, result.presentation, { controls });
+    if (promotion) activeController.goTo(promotedIndex);
+
+    activePresentation = result.presentation;
+    activeLive = event.live;
+    confirmedSlideIndex = undefined;
+
+    attachLiveSlideAck(event.live, logsEnabled);
 
     return;
   }
 
   currentSessionKey = null;
+
+  if (promotion) {
+    console.error("Player: could not load promoted live version.");
+    return;
+  }
 
   if (result.kind === "not-found") {
     renderLoadState("Presentation not found.");

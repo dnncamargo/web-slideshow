@@ -668,257 +668,562 @@ Do not implement later layers merely because they appear straightforward.
 
 # 24. Working Principle
 
-The project uses AI agents primarily for execution and verification.
-
-Architectural decisions are reviewed separately.
+AI agents are expected to reason about the current code, not merely apply
+literal edits.
 
 The operating principle is:
 
-> Write as much code as useful. Make as few architectural decisions as possible.
+> Preserve frozen architecture. Use sound engineering judgment inside it.
 
-When the specification is insufficient to make a safe architectural decision, report the ambiguity instead of inventing a new convention.
+For implementation work, an agent may autonomously:
+
+* inspect the relevant implementation and nearby dependencies;
+* choose local implementation details;
+* reuse or introduce small internal helpers when justified;
+* make minimal adjacent changes required for correctness;
+* adapt tests to an explicitly changed contract;
+* fix direct type, lint, build, or test consequences of its patch;
+* identify simpler implementations that preserve the accepted architecture.
+
+Task scope describes the intended change, not necessarily an exhaustive list
+of every file that may be touched.
+
+Do not broaden a task into unrelated cleanup or redesign.
+
+Architectural and product decisions explicitly declared frozen remain
+constraints. If the implementation reveals a genuine conflict with one of
+them, report the conflict rather than silently changing the architecture.
 
 ---
+
 # 25. PowerShow Agent Protocol (PSAP/1)
 
-PSAP/1 is the compact execution protocol used for agent tasks in PowerShow.
+PSAP/1 is a compact task description format.
 
-Its purpose is to minimize repeated prompt context while keeping implementation
-scope, architecture, tests, and repository behavior under strict control.
+It exists to communicate the delta for the current checkpoint without
+repeating repository policy.
 
-This protocol does not replace the architectural rules in this file.
-It assumes the agent has read and follows all preceding sections of `AGENTS.md`.
-
----
-
-## 25.1 Task header
-
-A task should normally begin with:
+A task may begin with:
 
 ```text
 PSAP/1
-mode=<patch|implement|decide|review>
-model=<DS|TD|TP>
-scope=<files-or-area>
+mode=<patch|implement|review|decide>
+scope=<expected-files-or-area>
 validate=<profile-or-commands>
 rules=<optional-task-specific-rules>
+base=<optional-commit-or-current>
 ```
 
-Optional fields:
+Fields may be omitted when they do not add useful information.
 
-```text
-base=<commit-or-current>
-```
+The protocol is model-neutral. Model selection, reasoning effort, and execution
+cost are concerns of the execution environment, not repository architecture.
 
-Model tags are advisory:
+## 25.1 Scope behavior
 
-```text
-DS = DeepSeek V4 Flash
-TD = GPT-5.6 Terra Default
-TP = GPT-5.6 Terra Pro
-```
+By default, `scope` describes the expected implementation boundary, not an
+absolute file whitelist.
 
-The model tag does not grant architectural authority.
+The agent should keep changes focused and reviewable.
 
-`DS` should normally be used for narrow, mechanical, already-decided work.
+If correctness requires a small adjacent change outside the expected scope,
+the agent may make it when all of the following are true:
 
-`TD` or `TP` may be used when the task explicitly requires broader reasoning,
-but architecture is still controlled by `mode` and by the task contract.
+* it is a direct consequence of the requested change;
+* it preserves established architecture and external contracts;
+* it does not expand product behavior;
+* it is reported in the final summary.
 
----
+Do not use this permission for opportunistic refactoring.
 
-## 25.2 Default execution contract
+When a task uses `scope-strict`, scope becomes a closed modification boundary.
 
-Unless a task explicitly overrides a rule below, every PSAP/1 task inherits
-these defaults.
+## 25.2 Architecture
 
-These defaults do not need to be repeated in individual prompts.
+Existing architectural invariants remain binding unless the task explicitly
+delegates a change to them.
 
-### Closed scope
-
-The declared `scope` is a closed modification boundary.
-
-The agent must:
-
-* modify only files explicitly included in scope;
-* treat a scoped directory as permission only for files genuinely required by
-  the stated goal;
-* avoid modifying adjacent files merely because they appear related;
-* avoid creating helper files unless the task explicitly permits them;
-* avoid renaming or moving files unless explicitly requested;
-* stop the conflicting part and report it if the requested change requires
-  leaving scope.
-
-The agent must never silently broaden scope.
-
-### Minimal delta
-
-Implement the smallest code change that satisfies the stated goal and
-invariants.
-
-Do not perform unrelated cleanup while touching a file.
-
-Do not change code merely because another implementation appears cleaner,
-newer, more generic, or more elegant.
-
-A successful patch is measured by correctness and narrowness, not by how much
-surrounding code was improved.
-
-### No opportunistic refactoring
-
-Unless explicitly requested, do not:
-
-* reorganize modules;
-* rename unrelated symbols;
-* split unrelated components;
-* merge unrelated components;
-* introduce new abstractions;
-* generalize code for possible future requirements;
-* replace established patterns;
-* reorder unrelated code;
-* reformat unrelated regions;
-* rewrite working code for style;
-* move code outside the requested extraction boundary;
-* refactor another subsystem encountered during implementation.
-
-If the task asks for an extraction, move only the specified responsibility.
-
-An extraction is not permission to redesign the surrounding architecture.
-
-### Preserve behavior by default
-
-Unless the task explicitly requests a behavior change, all behavior outside the
-stated delta must remain unchanged.
-
-Preserve existing:
-
-* public APIs;
-* component contracts;
-* UI markup;
-* labels and translations;
-* CSS behavior;
-* routing;
-* persistence behavior;
-* publication semantics;
-* authentication and authorization behavior;
-* Live protocol behavior;
-* renderer ownership;
-* loading behavior;
-* error behavior;
-* timing behavior;
-* debounce behavior;
-* scheduling behavior;
-* cleanup behavior.
-
-Do not bundle product improvements into a behavior-neutral implementation task.
-
-### Architecture is frozen unless delegated
-
-`mode=patch` and `mode=implement` do not grant architectural authority.
-
-The agent must not independently change:
+Agents may reason freely about local implementation details that do not alter:
 
 * document schema or schema versions;
 * persistence boundaries;
 * Firebase architecture;
-* Firestore paths;
-* publication/version architecture;
-* authentication architecture;
-* authorization boundaries;
+* publication/version semantics;
+* authentication or authorization boundaries;
 * Studio/Player separation;
 * public/private data boundaries;
 * Live protocol semantics;
-* ACK semantics;
+* ACK authority;
 * renderer ownership;
+* canonical state ownership.
+
+Difficulty alone is not a reason to redesign architecture.
+
+## 25.3 Existing implementation
+
+For continuation work:
+
+1. inspect the current implementation before editing;
+2. understand existing contracts and tests;
+3. preserve accepted behavior outside the requested delta;
+4. prefer integration with existing patterns over parallel infrastructure;
+5. do not rebuild working code merely because another design is possible.
+
+The current repository is evidence and context for the implementation.
+
+## 25.4 Tests
+
+Tests are contract evidence.
+
+Do not weaken a valid requirement test merely to obtain a passing suite.
+
+Tests may be changed when:
+
+* the task intentionally changes the behavior being tested;
+* new behavior requires new coverage; or
+* the existing test is demonstrably inconsistent with the accepted contract.
+
+When validation fails, determine whether the current change caused the
+failure. Fix failures caused by the patch when doing so remains within the
+accepted architecture.
+
+Do not silently repair unrelated pre-existing failures.
+
+## 25.5 Modes
+
+### `mode=review`
+
+Inspect and report.
+
+Do not modify files unless the task explicitly asks for changes after the
+review.
+
+Use for:
+
+* repository reconnaissance;
+* code review;
+* architecture mapping;
+* checkpoint analysis;
+* implementation-path discovery.
+
+Prefer concrete findings from the current repository over generic advice.
+
+### `mode=patch`
+
+Use when the semantic change is precise and localized.
+
+Preserve surrounding behavior, but use normal engineering judgment for direct
+implementation consequences.
+
+### `mode=implement`
+
+Use when desired behavior and architecture are known but implementation still
+requires engineering work.
+
+The agent may:
+
+* choose local implementation details;
+* introduce small internal helpers when justified;
+* make minimal adjacent changes required for correctness;
+* adapt tests to the explicitly changed contract;
+* resolve direct type, lint, build, and test consequences of the change.
+
+Do not interpret `mode=implement` as permission for unrelated redesign.
+
+### `mode=decide`
+
+Use when the task explicitly delegates an architectural or product decision.
+
+The result should state:
+
+1. the chosen approach;
+2. relevant tradeoffs;
+3. resulting invariants;
+4. affected implementation boundaries.
+
+A decision made and accepted at this stage becomes an invariant for subsequent
+implementation work until explicitly revised.
+
+---
+
+# 26. Optional Task Rules
+
+`rules=` is used only for restrictions or execution constraints that are
+specific to the current task.
+
+Do not repeat repository-wide rules unnecessarily.
+
+Task rules refine execution behavior. They do not override architectural,
+security, persistence, or product invariants defined elsewhere in this file.
+
+Available rules:
+
+### `scope-strict`
+
+Treat the declared `scope` as a closed modification boundary.
+
+The agent may inspect adjacent code when necessary to understand contracts,
+but must not modify files outside the declared scope.
+
+If correctness requires an out-of-scope modification, report the requirement
+instead of making the change.
+
+Use this primarily for tightly controlled mechanical tasks.
+
+---
+
+### `no-arch`
+
+Architecture and product behavior are already decided.
+
+The agent may make local implementation choices, but must not change:
+
+* architectural boundaries;
+* persistence ownership;
+* public/private data boundaries;
 * canonical state ownership;
-* established feature/module boundaries.
+* protocol semantics;
+* publication/version semantics;
+* renderer ownership;
+* authentication or authorization structure.
 
-If implementation exposes an unresolved architectural decision:
+A local helper, internal type, or implementation strategy is not considered
+an architectural change when it preserves these contracts.
 
-1. implement any unambiguous portion that remains inside the task contract;
-2. stop before making the architectural decision;
-3. report the decision point.
+---
 
-Only `mode=decide` explicitly delegates an architectural decision.
+### `no-git`
 
-### Existing implementation is the starting point
+Do not perform Git write operations.
 
-For continuation and checkpoint work:
+This includes:
 
-1. inspect the current worktree before editing;
-2. inspect the relevant existing implementation before proposing changes;
-3. treat previously accepted architecture as frozen;
-4. continue the current implementation instead of rebuilding it from another
-   design;
-5. do not re-solve decisions already made;
-6. preserve existing WIP unless the task explicitly replaces it;
-7. keep the diff narrow.
-
-Do not discard an existing implementation simply because another approach
-would also work.
-
-### Tests are contract evidence
-
-Existing tests must not be weakened merely to make an implementation pass.
-
-When a test expectation represents:
-
-* an explicit task requirement;
-* an established PowerShow invariant;
-* documented existing behavior;
-* behavior intentionally preserved by a behavior-neutral task;
-
-the implementation must be fixed instead of changing the expectation.
-
-Do not:
-
-* delete failing assertions to obtain green tests;
-* replace strict expectations with weaker expectations;
-* redefine expected behavior to match an incorrect implementation;
-* remove edge-case coverage because the implementation does not support it;
-* rewrite a test simply because production code changed shape;
-* duplicate production logic inside a test to manufacture agreement.
-
-A test may be changed when:
-
-* the task explicitly changes the behavior it covers; or
-* the test is demonstrably incorrect relative to the frozen contract.
-
-If there is uncertainty, report the conflict instead of silently redefining
-the behavior.
-
-### Dependencies
-
-Do not install packages or add dependencies unless explicitly authorized.
-
-Do not introduce a new test library, state library, utility package, or runtime
-dependency merely to complete a checkpoint.
-
-Prefer the libraries and patterns already used in the repository.
-
-### Git
-
-Agents leave implementation uncommitted unless a task explicitly says
-otherwise.
-
-Do not:
-
-* stage files;
+* stage;
 * commit;
 * push;
 * merge;
 * rebase;
-* switch branches;
-* checkout another branch;
 * stash;
 * reset;
-* restore files;
-* amend commits;
-* alter Git history.
+* restore;
+* amend;
+* branch creation;
+* branch switching;
+* history rewriting.
 
-Read-only Git commands are allowed when useful, including:
+Read-only Git inspection remains allowed when useful.
+
+---
+
+### `no-install`
+
+Do not install, remove, upgrade, downgrade, or migrate dependencies.
+
+Use only packages and tooling already available in the repository.
+
+If a new dependency appears genuinely necessary, report the reason instead of
+adding it.
+
+---
+
+### `no-ui`
+
+Do not change user-facing UI.
+
+This includes:
+
+* visible markup;
+* labels;
+* translations;
+* layout;
+* styling;
+* interaction behavior.
+
+Internal state or infrastructure may change only when it does not alter the
+visible experience.
+
+---
+
+### `no-schema`
+
+Do not modify the canonical PowerShow document schema, schema version, element
+types, persisted document shape, or serialization contract.
+
+---
+
+### `no-player`
+
+Do not modify Player or Player Legacy runtime code.
+
+Public presentation behavior must remain unchanged unless another task
+explicitly covers it.
+
+---
+
+### `no-firebase-sdk`
+
+Do not introduce direct Firebase SDK access outside the established persistence
+or live infrastructure boundaries.
+
+Prefer existing repositories, readers, services, and adapters.
+
+---
+
+### `behavior-neutral`
+
+Preserve externally observable behavior except for the exact delta requested
+by the task.
+
+This includes, where applicable:
+
+* UI behavior;
+* persistence behavior;
+* routing;
+* protocol semantics;
+* timing;
+* loading states;
+* error behavior;
+* cleanup behavior;
+* authentication;
+* authorization.
+
+Internal implementation may change when the observable contract remains the
+same.
+
+---
+
+### `extract-only`
+
+Move only the explicitly identified responsibility into the requested
+boundary.
+
+Do not use the extraction as an opportunity to redesign adjacent code,
+generalize unrelated behavior, or introduce broader abstractions.
+
+---
+
+### `no-new-files`
+
+Do not create new files unless the task explicitly names or authorizes them.
+
+---
+
+### `no-test-changes`
+
+Do not modify existing test files.
+
+Use only when the current tests already encode the desired behavior and no new
+coverage is required.
+
+This rule must never be used to avoid updating tests for an intentionally
+changed contract.
+
+---
+
+### `report-conflicts`
+
+When a requested change conflicts with an established invariant, architecture,
+test contract, security boundary, or declared scope, identify the conflict
+explicitly.
+
+Complete any unambiguous portion that remains valid, but do not invent a
+workaround that changes the contract.
+
+---
+
+### `report-short`
+
+Keep the completion report concise.
+
+Include only:
+
+* files changed;
+* behavior implemented;
+* validation executed;
+* deviations or unresolved issues.
+
+---
+
+Rules may be combined:
 
 ```text
+rules=scope-strict,no-arch,no-git,no-install,report-short
+```
+
+Use restrictive combinations when the execution environment benefits from a
+tightly bounded task.
+
+For agents capable of broader reasoning, prefer only the restrictions that are
+actually necessary for the checkpoint.
+
+---
+
+# 27. Context and Execution Discipline
+
+Use reasoning where it improves correctness, but do not spend context
+rediscovering decisions that the task or repository already establishes.
+
+For continuation work:
+
+1. inspect the current worktree and relevant implementation first;
+2. continue from the existing code rather than reconstructing the feature
+   from assumptions;
+3. treat accepted architectural decisions as constraints unless the task
+   explicitly reopens them;
+4. inspect adjacent code when it is useful to understand contracts or direct
+   consequences;
+5. avoid broad repository exploration when the relevant boundary is already
+   clear;
+6. distinguish between a local implementation choice and a genuine
+   architectural decision.
+
+Deep reasoning is encouraged for:
+
+* implementation quality;
+* debugging;
+* edge cases;
+* concurrency;
+* lifecycle behavior;
+* asynchronous behavior;
+* cleanup;
+* integration consequences;
+* maintainability within established boundaries.
+
+Do not use additional reasoning as justification for unrelated redesign.
+
+When the task already establishes a contract, spend reasoning on implementing
+and validating that contract rather than repeatedly proposing alternatives.
+
+When a genuine architectural conflict appears:
+
+1. complete any unambiguous work that remains valid;
+2. identify the exact conflict;
+3. explain its consequences;
+4. stop before silently changing the frozen architecture.
+
+A task should not be artificially fragmented merely to prevent an agent from
+making ordinary local engineering decisions.
+
+At the same time, checkpoints should remain coherent and reviewable. Prefer a
+small complete responsibility over a broad bundle of loosely related changes.
+
+---
+
+# 28. Validation, Git, and Completion Reporting
+
+Validation should be proportional to the risk and surface area of the change.
+
+The goal is not to run every available command after every edit. The goal is
+to obtain sufficient evidence that the requested behavior is correct and that
+the patch did not introduce relevant regressions.
+
+## 28.1 Validation principles
+
+Run the most relevant focused validation first.
+
+Examples include:
+
+* focused unit tests for the affected behavior;
+* package or application typecheck;
+* focused linting;
+* integration tests for affected boundaries;
+* build validation when bundling, framework behavior, or runtime integration
+  may be affected.
+
+Run broader validation when:
+
+* the change crosses multiple modules;
+* shared contracts changed;
+* persistence or protocol behavior changed;
+* the affected code has wide reuse;
+* focused validation cannot provide sufficient confidence;
+* the task explicitly requests it.
+
+Do not run expensive validation merely by habit when it adds no useful signal.
+
+Never report a test, typecheck, lint, or build as passing unless the command
+was actually executed successfully.
+
+## 28.2 Tests are evidence
+
+Existing tests are evidence of established contracts.
+
+Do not weaken, delete, or rewrite valid expectations merely to obtain a green
+suite.
+
+Tests may be changed when:
+
+* the requested behavior intentionally changes the contract;
+* new behavior requires new coverage;
+* an existing test is demonstrably incorrect relative to the accepted
+  architecture or product requirement.
+
+When implementation and a valid requirement test disagree, fix the
+implementation.
+
+Do not reproduce production logic inside tests merely to make both sides agree.
+
+## 28.3 Validation failures
+
+When validation fails:
+
+1. determine whether the failure was introduced by the current change;
+2. fix failures caused by the current patch when the fix remains within the
+   accepted architecture and task intent;
+3. distinguish pre-existing failures from patch regressions;
+4. do not broaden the feature merely to obtain an all-green repository;
+5. report unresolved or unrelated failures clearly.
+
+A failing command must not be described as passing because the failure appears
+unrelated.
+
+## 28.4 Typical validation
+
+For narrow Studio work, useful commands may include:
+
+```bash
+pnpm --filter @powershow/studio test -- <focused-test>
+pnpm --filter @powershow/studio typecheck
+git diff --check
+```
+
+For broader Studio work:
+
+```bash
+pnpm --filter @powershow/studio test
+pnpm --filter @powershow/studio typecheck
+pnpm --filter @powershow/studio lint
+pnpm --filter @powershow/studio build
+git diff --check
+```
+
+Use repository or package-specific commands appropriate to the affected area.
+
+The task may explicitly define a smaller or larger validation set.
+
+## 28.5 Git behavior
+
+Unless a task explicitly authorizes Git write operations, implementation
+agents must leave changes uncommitted.
+
+Do not:
+
+* stage;
+* commit;
+* push;
+* merge;
+* rebase;
+* amend;
+* stash;
+* reset;
+* restore;
+* switch branches;
+* rewrite history.
+
+Read-only commands are allowed and encouraged when they help understand or
+review the current worktree, including:
+
+```bash
 git status
 git diff
 git diff --check
@@ -927,558 +1232,71 @@ git show
 git branch --show-current
 ```
 
-### Conflict rule
+The user or explicitly authorized workflow remains responsible for checkpoint
+commits, pushes, pull requests, and merges.
 
-Never reinterpret a requirement merely to make implementation easier.
+## 28.6 Diff discipline
 
-If the requested change conflicts with:
+Before completion, inspect the resulting diff.
 
-* the declared scope;
-* an established invariant;
-* existing architecture;
-* an existing test that encodes required behavior;
-* a public/private boundary;
-* a protocol contract;
+Check for:
 
-do not resolve the conflict by broadening scope or redefining behavior.
+* unintended files;
+* unrelated formatting;
+* accidental generated files;
+* debug output;
+* temporary code;
+* weakened tests;
+* unexpected dependency changes;
+* accidental secrets;
+* unnecessary scope expansion.
 
-Stop the conflicting portion and report the conflict explicitly.
+Use:
 
----
-
-## 25.3 Modes
-
-### `mode=patch`
-
-Use when the exact semantic change is already decided.
-
-The agent acts as a narrow executor.
-
-The agent may:
-
-* apply the stated delta;
-* resolve direct syntax consequences;
-* resolve direct TypeScript consequences;
-* update imports directly caused by the patch;
-* update tests directly covering the changed contract when authorized.
-
-The agent may not:
-
-* redesign the surrounding code;
-* create additional abstractions unless explicitly requested;
-* expand the feature;
-* improve adjacent behavior;
-* make architectural decisions.
-
-Prefer this task shape:
-
-```text
-PSAP/1
-mode=patch
-model=DS
-scope=<exact files>
-validate=<profile>
-
-goal:
-<one precise outcome>
-
-change:
-- <required delta>
-- <required delta>
-
-keep:
-- <behavior/invariant that must not change>
-
-expected-semantic-difference:
-<none or exact intended difference>
-```
-
-For extraction tasks, prefer:
-
-```text
-rules=extract-only,behavior-neutral
-```
-
----
-
-### `mode=implement`
-
-Use when architecture and product behavior are already decided, but a bounded
-implementation still needs to be created.
-
-The agent may choose local implementation details only when those choices do
-not alter the declared architecture, external contract, or established module
-boundaries.
-
-Prefer this shape:
-
-```text
-PSAP/1
-mode=implement
-model=DS
-scope=<files-or-bounded-area>
-validate=<profile>
-
-goal:
-<implementation outcome>
-
-inputs:
-- <existing inputs/contracts>
-
-outputs:
-- <required outputs/files/API>
-
-invariants:
-- <must remain true>
-- <must remain true>
-
-implementation:
-- <required responsibility>
-- <required responsibility>
-
-keep:
-- <existing behavior that must remain unchanged>
-```
-
-Do not use `mode=implement` as permission for exploratory redesign.
-
-If architecture is not sufficiently decided, stop at the unresolved decision
-instead of inventing it.
-
----
-
-### `mode=review`
-
-Use for inspection, code review, architecture mapping, or checkpoint analysis
-where no files should be modified.
-
-The agent must not edit files.
-
-Prefer this shape:
-
-```text
-PSAP/1
-mode=review
-model=DS
-scope=<area to inspect>
-
-goal:
-<what must be understood>
-
-inspect:
-- <specific concern>
-- <specific concern>
-
-report:
-- <specific requested findings>
-```
-
-Review tasks should prefer concrete findings from the current repository over
-generic recommendations.
-
-Do not propose unrelated refactors.
-
-If asked to identify an implementation path, distinguish clearly between:
-
-* reuse unchanged;
-* extraction required;
-* new code required;
-* architectural conflict.
-
----
-
-### `mode=decide`
-
-Use only when the task explicitly delegates an architectural decision.
-
-Do not infer `mode=decide` merely because implementation is difficult.
-
-Prefer:
-
-```text
-PSAP/1
-mode=decide
-model=<TD|TP>
-
-problem:
-<decision to make>
-
-constraints:
-- <frozen constraint>
-- <frozen constraint>
-
-known-options:
-- <option>
-- <option>
-
-decision-required:
-<exact decision>
-```
-
-The result must:
-
-1. state the chosen option;
-2. explain the relevant tradeoff;
-3. state resulting invariants;
-4. identify the implementation boundary;
-5. avoid implementing unrelated work unless explicitly requested.
-
-Architecture decided in `mode=decide` becomes frozen for subsequent
-`mode=implement` and `mode=patch` checkpoints unless later explicitly revised.
-
----
-
-## 25.4 Compact rule tokens
-
-`rules=` is for restrictions that are specific to the current checkpoint.
-
-Do not repeat defaults from section 25.2 unnecessarily.
-
-### `extract-only`
-
-Move only the explicitly identified responsibility into the requested
-boundary.
-
-Do not:
-
-* perform adjacent cleanup;
-* redesign the code;
-* extract additional responsibilities;
-* rename unrelated APIs;
-* introduce generalized infrastructure.
-
-### `behavior-neutral`
-
-No externally observable behavior may change beyond the explicitly stated task
-delta.
-
-Existing UI, protocol, persistence, timing, error, and cleanup behavior must
-remain unchanged.
-
-### `no-new-files`
-
-Do not create files beyond those explicitly listed in scope.
-
-### `no-test-changes`
-
-Production code may change, but existing test files must remain unchanged.
-
-Use only when existing tests already represent the desired contract and no new
-coverage is required.
-
-### `report-conflicts`
-
-If any part of the requested change cannot be completed without violating the
-declared scope or invariants, leave that part unchanged and report the conflict.
-
-Do not invent a workaround outside the contract.
-
----
-
-## 25.5 Validation profiles
-
-When `validate=` references a named profile, the agent must run the commands in
-that profile unless a command is unavailable or clearly unrelated.
-
-Do not claim a validation passed unless it was actually executed.
-
-### `studio-check`
-
-Run:
-
-1. Studio typecheck;
-2. existing focused tests relevant to the changed area, when such tests exist;
-3. full Studio test suite;
-4. focused eslint for changed Studio source files when practical;
-5. `git diff --check`.
-
-Typical commands:
-
-```text
-pnpm --filter @powershow/studio typecheck
-pnpm --filter @powershow/studio test
+```bash
 git diff --check
 ```
 
-Use existing focused Vitest commands where appropriate.
+when appropriate to detect whitespace errors.
 
-Do not introduce new testing infrastructure to satisfy this profile.
+A correct implementation with an unnecessarily broad diff should be narrowed
+when practical.
 
-### `focused-check`
+## 28.7 Completion report
 
-Run only:
-
-1. typecheck for the affected package/app when applicable;
-2. relevant focused tests;
-3. `git diff --check`.
-
-Use for narrow mechanical checkpoints where the task explicitly does not
-require the full suite.
-
-### `diffcheck`
-
-Run:
-
-```text
-git diff --check
-```
-
-Use only for changes where broader execution validation is explicitly
-unnecessary.
-
----
-
-## 25.6 Validation behavior
-
-When validation fails:
-
-1. determine whether the failure was introduced by the current patch;
-2. fix failures caused by the current patch when the fix remains in scope;
-3. do not fix unrelated pre-existing failures;
-4. report unrelated pre-existing failures separately;
-5. do not broaden scope merely to obtain an all-green repository.
-
-If a focused test reveals that implementation violates a task invariant, fix
-the implementation.
-
-Do not weaken the test.
-
----
-
-## 25.7 Final report
-
-For `mode=patch` and `mode=implement`, keep the final report concise.
-
-Report:
+At the end of an implementation task, report concisely:
 
 ```text
 changed:
-- <files>
+- <files created or modified>
 
 implemented:
-- <actual completed delta>
+- <actual behavior delivered>
+
+local-decisions:
+- <relevant implementation choices, only when useful>
 
 validation:
 - <command>: PASS|FAIL
 - <command>: PASS|FAIL
 
-diff-check:
-PASS|FAIL
-
-semantic-deviation:
-none
+deviations:
+- none
 ```
 
-If there is a conflict or incomplete portion, add:
+If applicable, also report:
 
 ```text
-conflict:
-- <exact unresolved issue>
+unresolved:
+- <specific issue>
+
+out-of-scope:
+- <necessary follow-up intentionally not implemented>
 ```
 
-Do not repeat the entire prompt or provide a long architecture recap.
+Do not repeat the entire task specification or provide a long architecture
+summary unless the result revealed something that materially changes the next
+step.
 
-For extraction checkpoints, also report the net line change in the original
-file when useful.
-
----
-
-## 25.8 DeepSeek execution guidance
-
-When `model=DS`, assume the architecture and contract are already decided
-unless `mode=review` is used for inspection.
-
-DeepSeek should prefer:
-
-* literal interpretation of the requested delta;
-* existing repository patterns;
-* narrow diffs;
-* direct code reuse;
-* local implementation over generalized infrastructure;
-* compiler/test feedback for mechanical corrections.
-
-DeepSeek must not compensate for uncertainty by:
-
-* broadening scope;
-* redesigning architecture;
-* adding abstractions;
-* changing tests to match its implementation;
-* creating fallback behavior not requested;
-* performing unrelated cleanup.
-
-When uncertain about a requirement, preserve existing behavior and report the
-uncertainty instead of inventing a new contract.
-
-For PowerShow, a smaller correct patch is preferred over a broader
-architecturally ambitious patch.
-
----
-
-## 25.9 Prompt minimization principle
-
-PSAP/1 prompts should describe the checkpoint delta, not repeat repository
-policy.
-
-A good task prompt should normally contain only:
-
-```text
-PSAP/1
-mode=
-model=
-scope=
-validate=
-rules=
-
-goal:
-
-change: / implementation: / inspect:
-
-keep:
-
-expected-semantic-difference:
-```
-
-Do not repeat rules already defined by PSAP/1 unless the task requires an
-exception or unusually important emphasis.
-
-Example:
-
-```text
-PSAP/1
-mode=patch
-model=DS
-scope=
-  apps/studio/src/features/control/control-page.tsx
-  apps/studio/src/features/control/use-live-session-control.ts
-validate=studio-check
-rules=extract-only,behavior-neutral
-
-goal:
-Extract the existing Studio Control Live lifecycle into
-useLiveSessionControl.
-
-change:
-- move live/current subscription lifecycle
-- move activation-scoped ACK subscription lifecycle
-- move LiveControl creation/destruction
-- move command writer wiring
-- expose existing previous/next actions
-- expose existing send-failure state
-
-keep:
-- ControlPage JSX
-- current UI behavior
-- existing LiveControl semantics
-- existing ACK semantics
-
-expected-semantic-difference:
-none
-```
-
-This is the preferred PSAP/1 style for narrow DeepSeek checkpoints.
-
----
-
-# 26. Compact Task Vocabulary
-
-Future prompts may use these tokens.
-
-```text
-no-git
-  apply the repository Git rules in this file
-
-no-install
-  do not install, upgrade, or migrate dependencies
-
-scope-strict
-  inspect/modify only declared scope except a concrete compile necessity
-
-no-arch
-  architecture is already decided; do not redesign
-
-no-ui
-  do not modify UI
-
-no-schema
-  do not modify the canonical document schema
-
-no-firebase-sdk
-  do not introduce direct Firebase SDK use outside persistence infrastructure
-
-no-player
-  do not touch Player/runtime delivery code
-
-no-autosave
-  do not add autosave, timers, or save-on-change effects
-
-no-fake-tests
-  tests must exercise production code or production helpers
-
-diffcheck
-  run git diff --check
-
-studio-check
-  run:
-  pnpm --filter @powershow/studio typecheck
-  pnpm --filter @powershow/studio test
-  git diff --check
-
-report-short
-  provide only files changed, behavior, validation, and a narrow unresolved concern if any
-```
-
-A task may combine them:
-
-```text
-rules=no-git,no-install,scope-strict,no-arch,no-fake-tests,studio-check,report-short
-```
-
----
-
-# 27. Cost and Context Discipline
-
-Agents should not spend context rediscovering decisions that the task declares accepted.
-
-For continuation tasks:
-
-1. inspect the current working tree or named partial file first;
-2. continue from the existing implementation;
-3. do not restart the original round from scratch;
-4. do not re-evaluate accepted architectural decisions;
-5. do not broadly crawl the repository when scope is already known.
-
-If the task can be completed only by introducing a new architectural decision:
-
-1. stop before broad changes;
-2. report the exact ambiguity;
-3. identify the smallest decision required;
-4. wait for the architecture layer to resolve it.
-
-Prefer the cheapest execution mode that fits the task:
-
-```text
-patch
-  exact change already decided
-
-implement
-  contract decided; code remains
-
-decide
-  architecture explicitly delegated
-```
-
-The normal PowerShow workflow is:
-
-```text
-architecture/review
-      ↓
-small agent task
-      ↓
-WIP checkpoint
-      ↓
-code review
-      ↓
-next smaller task
-```
-
-The purpose is to keep diffs reviewable, reduce repeated context, and minimize unnecessary agent reasoning cost.
+For review-only tasks, report findings rather than pretending implementation
+occurred.

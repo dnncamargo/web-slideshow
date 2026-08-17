@@ -5,7 +5,6 @@ import {
   runTransaction,
   update,
   type DataSnapshot,
-  type Database,
 } from "firebase/database";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
@@ -40,8 +39,7 @@ function isNonNegativeInteger(value: unknown): boolean {
   );
 }
 
-function parseLiveCurrent(snapshot: DataSnapshot): LiveCurrent | null {
-  const val = snapshot.val();
+function parseLiveCurrentValue(val: unknown): LiveCurrent | null {
   if (typeof val !== "object" || val === null) return null;
   const v = val as Record<string, unknown>;
   if (typeof v.publicationId !== "string" || !v.publicationId.trim()) return null;
@@ -52,6 +50,10 @@ function parseLiveCurrent(snapshot: DataSnapshot): LiveCurrent | null {
     currentVersionId: v.currentVersionId.trim(),
     revision: v.revision as number,
   };
+}
+
+function parseLiveCurrent(snapshot: DataSnapshot): LiveCurrent | null {
+  return parseLiveCurrentValue(snapshot.val());
 }
 
 function parseActivationRevision(value: unknown): number | null {
@@ -139,6 +141,108 @@ export async function activateLivePresentation(
   if (result.committed !== true) {
     throw new Error("Live activation transaction did not commit.");
   }
+}
+
+/**
+ * Promote an active Live session to a newer immutable published version.
+ * The activation revision is preserved and stale command/ACK state is cleared
+ * in the same transaction. A retry after the target is already active is a
+ * no-op so it cannot clear fresh state from the promoted Player.
+ */
+export async function promoteLivePresentationVersion(
+  expectedLive: LiveCurrent,
+  targetVersionId: string,
+): Promise<void> {
+  requireAuth();
+  const db = getRealtimeDatabaseOrNull();
+  if (!db) throw new Error("Realtime Database is not configured.");
+
+  const trimmedTargetVersionId = targetVersionId.trim();
+  if (trimmedTargetVersionId === "") {
+    throw new Error("Live promotion requires a currentVersionId.");
+  }
+
+  if (trimmedTargetVersionId === expectedLive.currentVersionId) {
+    return;
+  }
+
+  const outcome: {
+    kind:
+      | "pending"
+      | "uncached"
+      | "promoted"
+      | "already-promoted"
+      | "stale";
+  } = { kind: "pending" };
+
+  const result = await runTransaction(
+    ref(db, "live"),
+    (current) => {
+      if (current === null) {
+        // RTDB may call the updater with an uncached local null before retrying
+        // with the server value. Returning undefined here would abort before
+        // the compare-and-swap can observe that value. A null proposal cannot
+        // create or promote a session; if null is also current on the server,
+        // the completed no-op is classified as stale below.
+        outcome.kind = "uncached";
+        return null;
+      }
+
+      if (typeof current !== "object") {
+        outcome.kind = "stale";
+        return undefined;
+      }
+
+      const currentRecord = current as Record<string, unknown>;
+      const live = parseLiveCurrentValue(currentRecord.current);
+
+      if (
+        live !== null &&
+        live.publicationId === expectedLive.publicationId &&
+        live.revision === expectedLive.revision &&
+        live.currentVersionId === trimmedTargetVersionId
+      ) {
+        outcome.kind = "already-promoted";
+        return undefined;
+      }
+
+      if (
+        live === null ||
+        live.publicationId !== expectedLive.publicationId ||
+        live.currentVersionId !== expectedLive.currentVersionId ||
+        live.revision !== expectedLive.revision
+      ) {
+        outcome.kind = "stale";
+        return undefined;
+      }
+
+      outcome.kind = "promoted";
+      return {
+        ...currentRecord,
+        current: {
+          publicationId: live.publicationId,
+          currentVersionId: trimmedTargetVersionId,
+          revision: live.revision,
+        },
+        slideCommand: null,
+        slideAck: null,
+      };
+    },
+    { applyLocally: false },
+  );
+
+  if (
+    outcome.kind === "already-promoted" ||
+    (result.committed === true && outcome.kind === "promoted")
+  ) {
+    return;
+  }
+
+  if (outcome.kind === "stale" || outcome.kind === "uncached") {
+    throw new Error("Live session changed before version promotion.");
+  }
+
+  throw new Error("Live version promotion transaction did not commit.");
 }
 
 export async function endLivePresentation(): Promise<void> {

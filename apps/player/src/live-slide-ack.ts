@@ -19,6 +19,7 @@ const BASELINE_REVISION = 0;
 //
 // Um comando válido exige:
 //   - activationRevision: inteiro >= 0
+//   - currentVersionId: string não-vazia
 //   - revision: inteiro >= 1
 //   - slideIndex: inteiro >= 0
 //
@@ -27,6 +28,7 @@ const BASELINE_REVISION = 0;
 
 export interface SlideCommand {
   activationRevision: number;
+  currentVersionId: string;
   revision: number;
   slideIndex: number;
 }
@@ -38,11 +40,18 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
 
   const record = value as Record<string, unknown>;
 
-  if (Object.keys(record).length !== 3) {
+  if (Object.keys(record).length !== 4) {
     return null;
   }
 
-  const { activationRevision, revision, slideIndex } = record;
+  const { activationRevision, currentVersionId, revision, slideIndex } = record;
+
+  if (
+    typeof currentVersionId !== "string" ||
+    currentVersionId.trim() === ""
+  ) {
+    return null;
+  }
 
   if (
     typeof activationRevision !== "number" ||
@@ -68,7 +77,12 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
     return null;
   }
 
-  return { activationRevision, revision, slideIndex };
+  return {
+    activationRevision,
+    currentVersionId: currentVersionId.trim(),
+    revision,
+    slideIndex,
+  };
 }
 
 // ============================================================
@@ -79,7 +93,8 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
  * Substitui o antigo fluxo de controlSpikes.
  *
  * Após a montagem grava um ACK baseline:
- *   live/slideAck = { activationRevision, revision: 0, slideIndex: atual }
+ *   live/slideAck = { activationRevision, currentVersionId, revision: 0,
+ *                     slideIndex: atual }
  *
  * Assina live/slideCommand e aplica comandos mais novos:
  *   - malformados / activationRevision incorreto / revisões antigas → ignora;
@@ -93,8 +108,10 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
 export function subscribeLiveSlideAck(
   database: Database,
   activationRevision: number,
+  currentVersionId: string,
   controller: PlayerController,
   logsEnabled = false,
+  onAckConfirmed: (slideIndex: number) => void = () => undefined,
 ): () => void {
   let lastAppliedRevision = BASELINE_REVISION;
 
@@ -103,13 +120,20 @@ export function subscribeLiveSlideAck(
   let tornDown = false;
 
   function writeAck(revision: number): void {
+    const slideIndex = controller.getCurrentIndex();
+
     set(ref(database, SLIDE_ACK_PATH), {
       activationRevision,
+      currentVersionId,
       revision,
-      slideIndex: controller.getCurrentIndex(),
-    }).catch((error: unknown) => {
-      console.error("[PowerShow][live-slide-ack] ack write failed", error);
-    });
+      slideIndex,
+    })
+      .then(() => {
+        if (!tornDown) onAckConfirmed(slideIndex);
+      })
+      .catch((error: unknown) => {
+        console.error("[PowerShow][live-slide-ack] ack write failed", error);
+      });
   }
 
   function scheduleAck(): void {
@@ -132,6 +156,7 @@ export function subscribeLiveSlideAck(
     console.log("[PowerShow][live-slide-ack] subscribing", {
       path: SLIDE_COMMAND_PATH,
       activationRevision,
+      currentVersionId,
     });
   }
 
@@ -147,6 +172,10 @@ export function subscribeLiveSlideAck(
       }
 
       if (command.activationRevision !== activationRevision) {
+        return;
+      }
+
+      if (command.currentVersionId !== currentVersionId) {
         return;
       }
 

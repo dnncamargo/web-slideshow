@@ -57,8 +57,11 @@ export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
   presentationState: PresenterPresentationState;
+  promotingVersionId: string | null;
+  failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  updatePlayer(targetVersionId: string): void;
   end(): void;
 }
 
@@ -84,8 +87,11 @@ export function PresenterView({
   view,
   sendFailed,
   presentationState,
+  promotingVersionId,
+  failedPromotionVersionId,
   previous,
   next,
+  updatePlayer,
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
@@ -99,7 +105,22 @@ export function PresenterView({
       ? presentationState.presentation.slides.length
       : null;
 
-  const confirmedIndex = view?.confirmedIndex ?? null;
+  const confirmedIndex =
+    presentationState.kind === "ready"
+      ? presentationState.displayIndex
+      : null;
+
+  const pendingVersion =
+    presentationState.kind === "ready"
+      ? presentationState.pendingVersion
+      : null;
+
+  const promotingVersion =
+    pendingVersion !== null &&
+    promotingVersionId === pendingVersion.targetVersionId;
+  const promotionFailed =
+    pendingVersion !== null &&
+    failedPromotionVersionId === pendingVersion.targetVersionId;
 
   const showCounter =
     slideCount !== null &&
@@ -132,9 +153,13 @@ export function PresenterView({
       : null;
 
   const canGoPrevious =
-    !disabled && confirmedIndex !== null && confirmedIndex > 0;
+    pendingVersion === null &&
+    !disabled &&
+    confirmedIndex !== null &&
+    confirmedIndex > 0;
 
   const canGoNext =
+    pendingVersion === null &&
     !disabled &&
     confirmedIndex !== null &&
     confirmedIndex >= 0 &&
@@ -350,6 +375,46 @@ export function PresenterView({
               <span className={styles.counter}>
                 {confirmedIndex + 1} / {slideCount}
               </span>
+            )}
+
+            {pendingVersion && (
+              <div
+                className={
+                  pendingVersion.projectedSlideRemoved
+                    ? presenterStyles.publishedUpdateRemoved
+                    : presenterStyles.publishedUpdate
+                }
+                role="status"
+              >
+                <div className={presenterStyles.publishedUpdateCopy}>
+                  <strong>{t("control.newVersionPublished")}</strong>
+
+                  {pendingVersion.projectedSlideRemoved ? (
+                    <span>{t("control.projectedSlideRemoved")}</span>
+                  ) : pendingVersion.structuralChange ? (
+                    <span>{t("control.presentationStructureChanged")}</span>
+                  ) : null}
+
+                  {promotionFailed && (
+                    <span className={styles.error}>
+                      {t("control.updatePlayerFailed")}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className={presenterStyles.updatePlayerButton}
+                  disabled={promotingVersion}
+                  onClick={() =>
+                    updatePlayer(pendingVersion.targetVersionId)
+                  }
+                >
+                  {promotingVersion
+                    ? t("control.updatingPlayer")
+                    : t("control.updatePlayer")}
+                </button>
+              </div>
             )}
           </div>
         </div>

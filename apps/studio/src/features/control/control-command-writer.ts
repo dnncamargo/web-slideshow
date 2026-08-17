@@ -86,6 +86,12 @@ function isNonNegativeInteger(value: unknown): boolean {
 function parseSlideCommand(value: unknown): SlideCommand | null {
   if (typeof value !== "object" || value === null) return null;
   const record = value as Record<string, unknown>;
+  if (
+    typeof record.currentVersionId !== "string" ||
+    record.currentVersionId.trim() === ""
+  ) {
+    return null;
+  }
   if (!isNonNegativeInteger(record.activationRevision)) return null;
   if (!isNonNegativeInteger(record.revision) || (record.revision as number) < 1) {
     return null;
@@ -93,6 +99,7 @@ function parseSlideCommand(value: unknown): SlideCommand | null {
   if (!isNonNegativeInteger(record.slideIndex)) return null;
   return {
     activationRevision: record.activationRevision as number,
+    currentVersionId: record.currentVersionId.trim(),
     revision: record.revision as number,
     slideIndex: record.slideIndex as number,
   };
@@ -108,6 +115,7 @@ function parseSlideCommand(value: unknown): SlideCommand | null {
 export async function writeSlideCommand(
   database: Database,
   activationRevision: number,
+  currentVersionId: string,
   slideIndex: number,
 ): Promise<SlideCommand> {
   if (!isRealtimeDatabaseConfigured()) {
@@ -116,15 +124,27 @@ export async function writeSlideCommand(
 
   getCurrentUserIdForControl();
 
+  const trimmedCurrentVersionId = currentVersionId.trim();
+  if (trimmedCurrentVersionId === "") {
+    throw new Error("Slide command requires a currentVersionId.");
+  }
+
   const commandRef = ref(database, buildSlideCommandPath());
 
   const result = await runTransaction(commandRef, (current) => {
     const previous = parseSlideCommand(current);
     const revision =
-      previous !== null && previous.activationRevision === activationRevision
+      previous !== null &&
+      previous.activationRevision === activationRevision &&
+      previous.currentVersionId === trimmedCurrentVersionId
         ? previous.revision + 1
         : 1;
-    return { activationRevision, revision, slideIndex };
+    return {
+      activationRevision,
+      currentVersionId: trimmedCurrentVersionId,
+      revision,
+      slideIndex,
+    };
   });
 
   if (result.committed !== true) {

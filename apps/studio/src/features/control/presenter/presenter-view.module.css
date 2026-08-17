@@ -159,6 +159,60 @@
   gap: 12px;
 }
 
+.publishedUpdate,
+.publishedUpdateRemoved {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #854d0e;
+  border-radius: 8px;
+  background: #291b0b;
+  color: #fde68a;
+  font-size: 12px;
+}
+
+.publishedUpdateRemoved {
+  border-color: #991b1b;
+  background: #2a1114;
+  color: #fecaca;
+}
+
+.publishedUpdateCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.updatePlayerButton {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: #92400e;
+  color: #fff7ed;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.updatePlayerButton:hover:not(:disabled) {
+  background: #b45309;
+}
+
+.updatePlayerButton:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.updatePlayerButton:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
 .arrowButton {
   display: inline-flex;
   align-items: center;
@@ -442,6 +496,12 @@
     gap: 12px;
 
     width: 100%;
+  }
+
+  .publishedUpdate,
+  .publishedUpdateRemoved {
+    flex: 1;
+    justify-content: space-between;
   }
 
   .mobileLocale {
