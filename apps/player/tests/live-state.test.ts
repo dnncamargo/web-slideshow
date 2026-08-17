@@ -196,6 +196,7 @@ describe("subscribeLiveProjectionState", () => {
     expect(frame).toBeDefined();
 
     (frame as FrameRequestCallback)(0);
+    rafCallbacks.clear();
 
     expect(mocks.set).toHaveBeenCalledWith(
       { path: "live/playerState" },
@@ -293,14 +294,6 @@ describe("subscribeLiveProjectionState", () => {
       snapshot({
         activationRevision: 7,
         currentVersionId: "version-1",
-        revision: 1,
-        pageId: "page-b",
-      }),
-    );
-    handler(
-      snapshot({
-        activationRevision: 7,
-        currentVersionId: "version-1",
         revision: 0,
         pageId: "page-a",
       }),
@@ -350,5 +343,74 @@ describe("subscribeLiveProjectionState", () => {
     );
 
     expect(liveController.goTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("republishes the current playerState for an already-applied revision without navigating again", () => {
+    const liveController = controller(0);
+
+    subscribeLiveProjectionState(
+      {} as never,
+      7,
+      "version-1",
+      presentation(["page-a", "page-b", "page-c"]),
+      liveController,
+    );
+
+    mocks.set.mockClear();
+
+    const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
+      val: () => unknown;
+    }) => void;
+
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      }),
+    );
+
+    const firstFrame = [...rafCallbacks.values()][0];
+    (firstFrame as FrameRequestCallback)(0);
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "live/playerState" },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        appliedControlRevision: 1,
+        pageId: "page-b",
+        pageIndex: 1,
+      },
+    );
+    rafCallbacks.clear();
+
+    mocks.set.mockClear();
+
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      }),
+    );
+
+    expect(liveController.goTo).toHaveBeenCalledTimes(1);
+
+    const secondFrame = [...rafCallbacks.values()][0];
+    expect(secondFrame).toBeDefined();
+    (secondFrame as FrameRequestCallback)(0);
+
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "live/playerState" },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        appliedControlRevision: 1,
+        pageId: "page-b",
+        pageIndex: 1,
+      },
+    );
   });
 });

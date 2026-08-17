@@ -69,7 +69,6 @@ export class LiveControl {
   private latencyMs: number | undefined;
   private pending: PendingCommand | null = null;
   private trailingCancel: (() => void) | null = null;
-  private lastConfirmedPlayerRevision: number | null = null;
   private earlyConfirmedPlayerState: LivePlayerState | null = null;
   private destroyed = false;
 
@@ -154,13 +153,6 @@ export class LiveControl {
       return;
     }
 
-    if (
-      this.lastConfirmedPlayerRevision !== null &&
-      state.appliedControlRevision <= this.lastConfirmedPlayerRevision
-    ) {
-      return;
-    }
-
     this.hasPlayerBaseline = true;
     this.actual = {
       pageId: state.pageId,
@@ -176,7 +168,6 @@ export class LiveControl {
       this.draftTargetPageId = state.pageId;
       this.draftTargetPageIndex = state.pageIndex;
       this.draftDirty = false;
-      this.lastConfirmedPlayerRevision = 0;
       this.latencyMs = undefined;
       this.cancelTrailing();
       this.notify();
@@ -206,14 +197,19 @@ export class LiveControl {
 
     const isPersistedExact =
       this.pending === null &&
-      this.draftDirty === false &&
+      this.persistedDesired !== null &&
+      this.actual !== null &&
       this.persistedDesired.pageId === state.pageId &&
       this.persistedDesired.revision === state.appliedControlRevision;
 
     if (isPersistedExact) {
-      this.lastConfirmedPlayerRevision = state.appliedControlRevision;
       this.latencyMs = undefined;
       this.notify();
+
+      if (this.draftDirty) {
+        this.scheduleTrailing();
+      }
+
       return;
     }
 
@@ -255,7 +251,25 @@ export class LiveControl {
     }
 
     this.latencyMs = undefined;
+
+    if (!this.isPersistedDesiredConfirmed()) {
+      this.cancelTrailing();
+      this.notify();
+      return;
+    }
+
     this.scheduleTrailing();
+  }
+
+  private isPersistedDesiredConfirmed(): boolean {
+    if (this.persistedDesired === null || this.actual === null) {
+      return false;
+    }
+
+    return (
+      this.persistedDesired.pageId === this.actual.pageId &&
+      this.persistedDesired.revision === this.actual.appliedControlRevision
+    );
   }
 
   private getNavigationBaseIndex(): number | null {
@@ -383,7 +397,6 @@ export class LiveControl {
       return;
     }
 
-    this.lastConfirmedPlayerRevision = state.appliedControlRevision;
     this.latencyMs = Math.max(0, this.options.now() - this.pending.startedAt);
     this.actual = {
       pageId: state.pageId,

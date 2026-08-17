@@ -417,25 +417,30 @@ describe("control state writer", () => {
     });
   });
 
-  it("restarts the control revision when the live version changes", async () => {
+  it("aborts the control revision transaction when the live identity changes", async () => {
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
       const result = updater({
         activationRevision: 2,
         currentVersionId: "version-old",
         revision: 8,
         pageId: "page-a",
-      }) as Record<string, unknown>;
-      expect(result).toEqual({
-        activationRevision: 2,
-        currentVersionId: "version-new",
-        revision: 1,
-        pageId: "page-a",
       });
-      return { committed: true, snapshot: { val: () => result } };
+      expect(result).toBeUndefined();
+      return {
+        committed: false,
+        snapshot: {
+          val: () => ({
+            activationRevision: 2,
+            currentVersionId: "version-old",
+            revision: 8,
+            pageId: "page-a",
+          }),
+        },
+      };
     });
 
     await expect(
       writeControlState({} as never, 2, "version-new", "page-a"),
-    ).resolves.toMatchObject({ revision: 1 });
+    ).rejects.toThrow(/did not commit/);
   });
 });

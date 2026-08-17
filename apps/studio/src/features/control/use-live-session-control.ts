@@ -95,6 +95,21 @@ export function useLiveSessionControl({
 
     const activationRevision = liveState.live.revision;
     const currentVersionId = liveState.live.currentVersionId;
+    setView(null);
+    let sawControlState = false;
+    let sawPlayerState = false;
+    let hydrated = false;
+    let pendingView: LiveControlView | null = null;
+
+    const flushHydratedView = (): void => {
+      if (!hydrated && sawControlState && sawPlayerState) {
+        hydrated = true;
+        if (pendingView !== null) {
+          setView(pendingView);
+        }
+      }
+    };
+
     const control = new LiveControl({
       activationRevision,
       currentVersionId,
@@ -119,7 +134,13 @@ export function useLiveSessionControl({
         const id = window.setTimeout(callback, delay);
         return () => window.clearTimeout(id);
       },
-      onViewChange: setView,
+      onViewChange: (nextView) => {
+        pendingView = nextView;
+
+        if (hydrated) {
+          setView(nextView);
+        }
+      },
       onCommandError: () => setSendFailed(true),
     });
 
@@ -129,6 +150,7 @@ export function useLiveSessionControl({
       ref(db, buildControlStatePath()),
       (snapshot) => {
         const state = parseLiveControlState(snapshot.val());
+        sawControlState = true;
 
         if (
           state !== null &&
@@ -137,6 +159,8 @@ export function useLiveSessionControl({
         ) {
           control.handleControlState(state);
         }
+
+        flushHydratedView();
       },
     );
 
@@ -144,6 +168,7 @@ export function useLiveSessionControl({
       ref(db, buildPlayerStatePath()),
       (snapshot) => {
         const state = parseLivePlayerState(snapshot.val());
+        sawPlayerState = true;
 
         if (
           state !== null &&
@@ -152,6 +177,8 @@ export function useLiveSessionControl({
         ) {
           control.handlePlayerState(state);
         }
+
+        flushHydratedView();
       },
     );
 

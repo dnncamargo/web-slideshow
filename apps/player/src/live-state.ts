@@ -203,7 +203,7 @@ export function subscribeLiveProjectionState(
         return;
       }
 
-      if (controlState.revision <= lastAppliedControlRevision) {
+      if (controlState.revision < lastAppliedControlRevision) {
         return;
       }
 
@@ -219,11 +219,14 @@ export function subscribeLiveProjectionState(
         return;
       }
 
-      if (controller.getCurrentIndex() !== pageIndex) {
-        controller.goTo(pageIndex);
+      if (controlState.revision > lastAppliedControlRevision) {
+        if (controller.getCurrentIndex() !== pageIndex) {
+          controller.goTo(pageIndex);
+        }
+
+        lastAppliedControlRevision = controlState.revision;
       }
 
-      lastAppliedControlRevision = controlState.revision;
       pendingAppliedControlState = {
         revision: controlState.revision,
       };

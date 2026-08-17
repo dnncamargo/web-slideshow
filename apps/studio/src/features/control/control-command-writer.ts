@@ -202,12 +202,17 @@ export async function writeControlState(
 
   const result = await runTransaction(controlRef, (current) => {
     const previous = parseLiveControlState(current);
-    const revision =
+
+    if (
       previous !== null &&
-      previous.activationRevision === activationRevision &&
-      previous.currentVersionId === trimmedCurrentVersionId
-        ? previous.revision + 1
-        : 1;
+      (previous.activationRevision !== activationRevision ||
+        previous.currentVersionId !== trimmedCurrentVersionId)
+    ) {
+      return;
+    }
+
+    const revision =
+      previous !== null ? previous.revision + 1 : 1;
 
     return {
       activationRevision,
