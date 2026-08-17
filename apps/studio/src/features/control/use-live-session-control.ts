@@ -86,12 +86,7 @@ export function useLiveSessionControl(): UseLiveSessionControlResult {
       activationRevision,
       currentVersionId,
       writeCommand: (slideIndex) =>
-        writeSlideCommand(
-          db,
-          activationRevision,
-          currentVersionId,
-          slideIndex,
-        ),
+        writeSlideCommand(db, activationRevision, currentVersionId, slideIndex),
       now: () => performance.now(),
       schedule: (callback, delay) => {
         const id = window.setTimeout(callback, delay);
@@ -135,17 +130,24 @@ export function useLiveSessionControl(): UseLiveSessionControlResult {
       if (target === "" || target === source.currentVersionId) return;
 
       const token = ++promotionTokenRef.current;
-      setPromotionAttempt({ source, targetVersionId: target, status: "pending" });
-
-      void promoteLivePresentationVersion(source, target).catch(() => {
-        if (promotionTokenRef.current === token) {
-          setPromotionAttempt({
-            source,
-            targetVersionId: target,
-            status: "failed",
-          });
-        }
+      setPromotionAttempt({
+        source,
+        targetVersionId: target,
+        status: "pending",
       });
+
+      void promoteLivePresentationVersion(source, target).catch(
+        (error: unknown) => {
+          console.error("Control: live version promotion failed", error);
+          if (promotionTokenRef.current === token) {
+            setPromotionAttempt({
+              source,
+              targetVersionId: target,
+              status: "failed",
+            });
+          }
+        },
+      );
     },
     [liveState],
   );

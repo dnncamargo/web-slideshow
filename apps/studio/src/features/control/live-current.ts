@@ -167,56 +167,78 @@ export async function promoteLivePresentationVersion(
   }
 
   const outcome: {
-    kind: "pending" | "promoted" | "already-promoted" | "stale";
+    kind:
+      | "pending"
+      | "uncached"
+      | "promoted"
+      | "already-promoted"
+      | "stale";
   } = { kind: "pending" };
 
-  const result = await runTransaction(ref(db, "live"), (current) => {
-    if (typeof current !== "object" || current === null) {
-      outcome.kind = "stale";
-      return undefined;
-    }
+  const result = await runTransaction(
+    ref(db, "live"),
+    (current) => {
+      if (current === null) {
+        // RTDB may call the updater with an uncached local null before retrying
+        // with the server value. Returning undefined here would abort before
+        // the compare-and-swap can observe that value. A null proposal cannot
+        // create or promote a session; if null is also current on the server,
+        // the completed no-op is classified as stale below.
+        outcome.kind = "uncached";
+        return null;
+      }
 
-    const currentRecord = current as Record<string, unknown>;
-    const live = parseLiveCurrentValue(currentRecord.current);
+      if (typeof current !== "object") {
+        outcome.kind = "stale";
+        return undefined;
+      }
 
-    if (
-      live !== null &&
-      live.publicationId === expectedLive.publicationId &&
-      live.revision === expectedLive.revision &&
-      live.currentVersionId === trimmedTargetVersionId
-    ) {
-      outcome.kind = "already-promoted";
-      return undefined;
-    }
+      const currentRecord = current as Record<string, unknown>;
+      const live = parseLiveCurrentValue(currentRecord.current);
 
-    if (
-      live === null ||
-      live.publicationId !== expectedLive.publicationId ||
-      live.currentVersionId !== expectedLive.currentVersionId ||
-      live.revision !== expectedLive.revision
-    ) {
-      outcome.kind = "stale";
-      return undefined;
-    }
+      if (
+        live !== null &&
+        live.publicationId === expectedLive.publicationId &&
+        live.revision === expectedLive.revision &&
+        live.currentVersionId === trimmedTargetVersionId
+      ) {
+        outcome.kind = "already-promoted";
+        return undefined;
+      }
 
-    outcome.kind = "promoted";
-    return {
-      ...currentRecord,
-      current: {
-        publicationId: live.publicationId,
-        currentVersionId: trimmedTargetVersionId,
-        revision: live.revision,
-      },
-      slideCommand: null,
-      slideAck: null,
-    };
-  });
+      if (
+        live === null ||
+        live.publicationId !== expectedLive.publicationId ||
+        live.currentVersionId !== expectedLive.currentVersionId ||
+        live.revision !== expectedLive.revision
+      ) {
+        outcome.kind = "stale";
+        return undefined;
+      }
 
-  if (result.committed === true || outcome.kind === "already-promoted") {
+      outcome.kind = "promoted";
+      return {
+        ...currentRecord,
+        current: {
+          publicationId: live.publicationId,
+          currentVersionId: trimmedTargetVersionId,
+          revision: live.revision,
+        },
+        slideCommand: null,
+        slideAck: null,
+      };
+    },
+    { applyLocally: false },
+  );
+
+  if (
+    outcome.kind === "already-promoted" ||
+    (result.committed === true && outcome.kind === "promoted")
+  ) {
     return;
   }
 
-  if (outcome.kind === "stale") {
+  if (outcome.kind === "stale" || outcome.kind === "uncached") {
     throw new Error("Live session changed before version promotion.");
   }
 

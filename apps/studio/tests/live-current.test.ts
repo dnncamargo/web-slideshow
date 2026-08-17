@@ -253,6 +253,104 @@ describe("live-current activation", () => {
     });
   });
 
+  it("continues an uncached transaction after the initial local null", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({
+      uid: "u1",
+      isAnonymous: false,
+    });
+    const previous = {
+      activationRevision: 13,
+      current: {
+        publicationId: "pub-1",
+        currentVersionId: "ver-1",
+        revision: 13,
+      },
+      slideCommand: { revision: 4 },
+      slideAck: { revision: 4 },
+    };
+    let committed: unknown;
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
+      committed = updater(previous);
+      return { committed: true, snapshot: { val: () => committed } };
+    });
+
+    await promoteLivePresentationVersion(previous.current, "ver-2");
+
+    expect(mocks.runTransaction).toHaveBeenCalledWith(
+      { path: "live" },
+      expect.any(Function),
+      { applyLocally: false },
+    );
+    expect(committed).toEqual({
+      activationRevision: 13,
+      current: {
+        publicationId: "pub-1",
+        currentVersionId: "ver-2",
+        revision: 13,
+      },
+      slideCommand: null,
+      slideAck: null,
+    });
+  });
+
+  it("rejects when the server also has no active session after an uncached null", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({
+      uid: "u1",
+      isAnonymous: false,
+    });
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
+      return { committed: true, snapshot: { val: () => null } };
+    });
+
+    await expect(
+      promoteLivePresentationVersion(
+        {
+          publicationId: "pub-1",
+          currentVersionId: "ver-1",
+          revision: 13,
+        },
+        "ver-2",
+      ),
+    ).rejects.toThrow(/changed/);
+  });
+
+  it("still rejects a changed server session after an uncached null", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({
+      uid: "u1",
+      isAnonymous: false,
+    });
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
+      expect(
+        updater({
+          activationRevision: 14,
+          current: {
+            publicationId: "pub-1",
+            currentVersionId: "ver-1",
+            revision: 14,
+          },
+        }),
+      ).toBeUndefined();
+      return { committed: false, snapshot: { val: () => null } };
+    });
+
+    await expect(
+      promoteLivePresentationVersion(
+        {
+          publicationId: "pub-1",
+          currentVersionId: "ver-1",
+          revision: 13,
+        },
+        "ver-2",
+      ),
+    ).rejects.toThrow(/changed/);
+  });
+
   it("treats a retry after the target is active as a no-op", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({
@@ -271,6 +369,7 @@ describe("live-current activation", () => {
     };
     let updateResult: unknown = "not-called";
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
       updateResult = updater(current);
       return { committed: false, snapshot: { val: () => current } };
     });

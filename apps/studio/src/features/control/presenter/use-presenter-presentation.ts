@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { getDefaultPublishedPresentationReader } from "@/features/persistence/published-presentation-reader-instance";
-import type { PublishedPresentationPointer } from "@/features/persistence/published-presentation-reader";
+import { getDefaultPublishedPresentationReader } from "../../persistence/published-presentation-reader-instance";
+import type { PublishedPresentationPointer } from "../../persistence/published-presentation-reader";
 
 import type { LiveState } from "../live-current";
 import {
