@@ -2,7 +2,7 @@
   "rules": {
     "live": {
       ".read": "auth != null",
-      ".write": "auth != null && newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0",
+      ".write": "auth != null && ((newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0) || (!newData.child('current').exists() && !newData.child('controlState').exists() && !newData.child('playerState').exists() && !newData.child('slideCommand').exists() && !newData.child('slideAck').exists()))",
       "current": {
         ".read": true,
         ".write": "auth != null",

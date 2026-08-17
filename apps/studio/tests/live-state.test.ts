@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { PresentationSchema } from "@powershow/document-schema";
+
 import {
   buildControlStatePath,
   buildPlayerStatePath,
   parseLiveControlState,
   parseLivePlayerState,
 } from "../src/features/live/live-state";
+import { resolveLivePageId } from "../src/features/control/presenter/use-presenter-presentation";
 
 describe("live-state path helpers", () => {
   it("exposes the exact RTDB paths", () => {
@@ -159,5 +162,41 @@ describe("parseLivePlayerState", () => {
     ]) {
       expect(parseLivePlayerState(value)).toBeNull();
     }
+  });
+});
+
+describe("resolveLivePageId", () => {
+  it("resolves against the live presentation rather than the staged preview", () => {
+    const state = {
+      kind: "ready" as const,
+      presentation: PresentationSchema.parse({
+        schemaVersion: 1,
+        id: "preview",
+        title: "Preview",
+        description: "",
+        aspectRatio: "16:9",
+        slides: [
+          { id: "preview-a", title: "", summary: "", speakerNotes: "", elements: [] },
+          { id: "preview-b", title: "", summary: "", speakerNotes: "", elements: [] },
+        ],
+      }),
+      livePresentation: PresentationSchema.parse({
+        schemaVersion: 1,
+        id: "live",
+        title: "Live",
+        description: "",
+        aspectRatio: "16:9",
+        slides: [
+          { id: "page-a", title: "", summary: "", speakerNotes: "", elements: [] },
+          { id: "page-b", title: "", summary: "", speakerNotes: "", elements: [] },
+          { id: "page-c", title: "", summary: "", speakerNotes: "", elements: [] },
+        ],
+      }),
+      displayIndex: 1,
+      pendingVersion: null,
+    };
+
+    expect(resolveLivePageId(state, 1)).toBe("page-b");
+    expect(resolveLivePageId(state, 2)).toBe("page-c");
   });
 });

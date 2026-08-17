@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(() => ({})),
   subscribeLiveCurrent: vi.fn(),
   resolveLiveIdentityMount: vi.fn(),
-  subscribeLiveSlideAck: vi.fn(),
+  subscribeLiveProjectionState: vi.fn(),
   mountPlayer: vi.fn(),
   liveHandler: undefined as
     | ((event: {
@@ -39,8 +39,8 @@ vi.mock("../src/live-entry", () => ({
   resolveLiveIdentityMount: mocks.resolveLiveIdentityMount,
 }));
 
-vi.mock("../src/live-slide-ack", () => ({
-  subscribeLiveSlideAck: mocks.subscribeLiveSlideAck,
+vi.mock("../src/live-state", () => ({
+  subscribeLiveProjectionState: mocks.subscribeLiveProjectionState,
 }));
 
 vi.mock("../src/player", () => ({
@@ -107,7 +107,7 @@ describe("Player live version promotion", () => {
           : loaded;
       },
     );
-    mocks.subscribeLiveSlideAck.mockReturnValue(vi.fn());
+    mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
   });
 
   it("keeps V1 visible, discards stale V2, maps V3, then attaches its baseline ACK", async () => {
@@ -140,11 +140,6 @@ describe("Player live version promotion", () => {
       },
     });
     await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
-
-    const confirmV1 = mocks.subscribeLiveSlideAck.mock.calls[0]?.[6] as (
-      index: number,
-    ) => void;
-    confirmV1(1);
 
     mocks.liveHandler?.({
       kind: "active",
@@ -184,19 +179,18 @@ describe("Player live version promotion", () => {
       expect.anything(),
     );
     expect(promotedController.goTo).toHaveBeenCalledWith(2);
-    expect(mocks.subscribeLiveSlideAck).toHaveBeenLastCalledWith(
+    expect(mocks.subscribeLiveProjectionState).toHaveBeenLastCalledWith(
       expect.anything(),
       5,
       "version-3",
       latest,
       promotedController,
       false,
-      expect.any(Function),
     );
     expect(
       promotedController.goTo.mock.invocationCallOrder[0],
     ).toBeLessThan(
-      mocks.subscribeLiveSlideAck.mock.invocationCallOrder[1] ?? Infinity,
+      mocks.subscribeLiveProjectionState.mock.invocationCallOrder[1] ?? Infinity,
     );
   });
 });

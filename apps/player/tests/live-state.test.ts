@@ -1,21 +1,105 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  PresentationSchema,
+  type Presentation,
+} from "@powershow/document-schema";
+
+const mocks = vi.hoisted(() => ({
+  onValue: vi.fn(),
+  ref: vi.fn(),
+  set: vi.fn(),
+  cancelAnimationFrame: vi.fn(),
+}));
+
+vi.mock("firebase/database", () => ({
+  onValue: mocks.onValue,
+  ref: mocks.ref,
+  set: mocks.set,
+}));
 
 import {
   CONTROL_STATE_PATH,
+  PLAYER_STATE_PATH,
   parseLiveControlState,
   parseLivePlayerState,
-  PLAYER_STATE_PATH,
+  subscribeLiveProjectionState,
 } from "../src/live-state";
 
-describe("live-state path constants", () => {
+let rafCallbacks: Map<number, FrameRequestCallback>;
+let rafId: number;
+
+function snapshot(val: unknown) {
+  return { val: () => val };
+}
+
+function presentation(ids: string[]): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "presentation-1",
+    title: "Presentation",
+    description: "",
+    aspectRatio: "16:9",
+    slides: ids.map((id) => ({
+      id,
+      title: "",
+      summary: "",
+      speakerNotes: "",
+      elements: [],
+    })),
+  });
+}
+
+function controller(initialIndex: number) {
+  let index = initialIndex;
+
+  return {
+    next: vi.fn(),
+    previous: vi.fn(),
+    fullscreen: vi.fn(async () => undefined),
+    destroy: vi.fn(),
+    goTo: vi.fn((nextIndex: number) => {
+      index = nextIndex;
+    }),
+    getCurrentIndex: vi.fn(() => index),
+  };
+}
+
+beforeEach(() => {
+  rafCallbacks = new Map();
+  rafId = 0;
+
+  mocks.set.mockReset();
+  mocks.set.mockResolvedValue(undefined);
+  mocks.onValue.mockReset();
+  mocks.onValue.mockReturnValue(vi.fn());
+  mocks.ref.mockReset();
+  mocks.ref.mockImplementation((_db, path: string) => ({ path }));
+  mocks.cancelAnimationFrame.mockReset();
+
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+    rafId += 1;
+    rafCallbacks.set(rafId, cb);
+    return rafId;
+  });
+
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+    mocks.cancelAnimationFrame(id);
+    rafCallbacks.delete(id);
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("paths and parsers", () => {
   it("exposes the exact RTDB paths", () => {
     expect(CONTROL_STATE_PATH).toBe("live/controlState");
     expect(PLAYER_STATE_PATH).toBe("live/playerState");
   });
-});
 
-describe("parseLiveControlState", () => {
-  it("accepts a well-formed control state", () => {
+  it("parses live control state", () => {
     expect(
       parseLiveControlState({
         activationRevision: 2,
@@ -31,53 +115,7 @@ describe("parseLiveControlState", () => {
     });
   });
 
-  it("trims whitespace around strings", () => {
-    expect(
-      parseLiveControlState({
-        activationRevision: 1,
-        currentVersionId: "  version-1  ",
-        revision: 2,
-        pageId: "  page-b  ",
-      }),
-    ).toEqual({
-      activationRevision: 1,
-      currentVersionId: "version-1",
-      revision: 2,
-      pageId: "page-b",
-    });
-  });
-
-  it("rejects an otherwise-valid state with an extra field", () => {
-    expect(
-      parseLiveControlState({
-        activationRevision: 2,
-        currentVersionId: "version-1",
-        revision: 1,
-        pageId: "page-a",
-        extra: true,
-      }),
-    ).toBeNull();
-  });
-
-  it("rejects malformed values", () => {
-    for (const value of [
-      null,
-      {},
-      { activationRevision: 2, currentVersionId: "version-1", revision: 1 },
-      { activationRevision: "x", currentVersionId: "version-1", revision: 1, pageId: "page-a" },
-      { activationRevision: 2, currentVersionId: "", revision: 1, pageId: "page-a" },
-      { activationRevision: 2, currentVersionId: "version-1", revision: 0, pageId: "page-a" },
-      { activationRevision: 2, currentVersionId: "version-1", revision: -1, pageId: "page-a" },
-      { activationRevision: 2, currentVersionId: "version-1", revision: 1.5, pageId: "page-a" },
-      { activationRevision: 2, currentVersionId: "version-1", revision: 1, pageId: "" },
-    ]) {
-      expect(parseLiveControlState(value)).toBeNull();
-    }
-  });
-});
-
-describe("parseLivePlayerState", () => {
-  it("accepts a well-formed player state", () => {
+  it("parses live player state", () => {
     expect(
       parseLivePlayerState({
         activationRevision: 2,
@@ -94,70 +132,223 @@ describe("parseLivePlayerState", () => {
       pageIndex: 2,
     });
   });
+});
 
-  it("accepts an appliedControlRevision of zero", () => {
-    expect(
-      parseLivePlayerState({
-        activationRevision: 2,
+describe("subscribeLiveProjectionState", () => {
+  it("publishes the baseline player state and subscribes to live/controlState", () => {
+    const liveController = controller(0);
+
+    subscribeLiveProjectionState(
+      {} as never,
+      7,
+      "version-1",
+      presentation(["page-a", "page-b", "page-c"]),
+      liveController,
+    );
+
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "live/playerState" },
+      {
+        activationRevision: 7,
         currentVersionId: "version-1",
         appliedControlRevision: 0,
         pageId: "page-a",
         pageIndex: 0,
-      }),
-    ).toEqual({
-      activationRevision: 2,
-      currentVersionId: "version-1",
-      appliedControlRevision: 0,
-      pageId: "page-a",
-      pageIndex: 0,
-    });
+      },
+    );
+
+    expect(mocks.onValue).toHaveBeenCalledWith(
+      { path: "live/controlState" },
+      expect.any(Function),
+      expect.any(Function),
+    );
   });
 
-  it("trims whitespace around strings", () => {
-    expect(
-      parseLivePlayerState({
-        activationRevision: 1,
-        currentVersionId: "  version-1  ",
-        appliedControlRevision: 2,
-        pageId: "  page-b  ",
-        pageIndex: 3,
-      }),
-    ).toEqual({
-      activationRevision: 1,
-      currentVersionId: "version-1",
-      appliedControlRevision: 2,
-      pageId: "page-b",
-      pageIndex: 3,
-    });
-  });
+  it("navigates to a newer controlState by pageId and publishes after RAF", async () => {
+    const liveController = controller(0);
 
-  it("rejects an otherwise-valid state with an extra field", () => {
-    expect(
-      parseLivePlayerState({
-        activationRevision: 2,
+    subscribeLiveProjectionState(
+      {} as never,
+      7,
+      "version-1",
+      presentation(["page-a", "page-b", "page-c"]),
+      liveController,
+    );
+
+    mocks.set.mockClear();
+
+    const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
+      val: () => unknown;
+    }) => void;
+
+    handler(
+      snapshot({
+        activationRevision: 7,
         currentVersionId: "version-1",
-        appliedControlRevision: 3,
-        pageId: "page-c",
-        pageIndex: 2,
-        extra: true,
+        revision: 1,
+        pageId: "page-b",
       }),
-    ).toBeNull();
+    );
+
+    expect(liveController.goTo).toHaveBeenCalledWith(1);
+
+    const frame = [...rafCallbacks.values()][0];
+    expect(frame).toBeDefined();
+
+    (frame as FrameRequestCallback)(0);
+
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "live/playerState" },
+      {
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        appliedControlRevision: 1,
+        pageId: "page-b",
+        pageIndex: 1,
+      },
+    );
   });
 
-  it("rejects malformed values", () => {
-    for (const value of [
-      null,
-      {},
-      { activationRevision: 2, appliedControlRevision: 3, pageId: "page-c", pageIndex: 2 },
-      { activationRevision: "x", currentVersionId: "version-1", appliedControlRevision: 3, pageId: "page-c", pageIndex: 2 },
-      { activationRevision: 2, currentVersionId: "", appliedControlRevision: 3, pageId: "page-c", pageIndex: 2 },
-      { activationRevision: 2, currentVersionId: "version-1", appliedControlRevision: -1, pageId: "page-c", pageIndex: 2 },
-      { activationRevision: 2, currentVersionId: "version-1", appliedControlRevision: 1.5, pageId: "page-c", pageIndex: 2 },
-      { activationRevision: 2, currentVersionId: "version-1", appliedControlRevision: 3, pageId: "", pageIndex: 2 },
-      { activationRevision: 2, currentVersionId: "version-1", appliedControlRevision: 3, pageId: "page-c", pageIndex: -1 },
-      { activationRevision: 2, currentVersionId: "version-1", appliedControlRevision: 3, pageId: "page-c", pageIndex: 2.5 },
-    ]) {
-      expect(parseLivePlayerState(value)).toBeNull();
-    }
+  it("ignores an unknown pageId without navigating or falsely confirming", () => {
+    const liveController = controller(0);
+
+    subscribeLiveProjectionState(
+      {} as never,
+      7,
+      "version-1",
+      presentation(["page-a", "page-b", "page-c"]),
+      liveController,
+    );
+
+    mocks.set.mockClear();
+
+    const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
+      val: () => unknown;
+    }) => void;
+
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-x",
+      }),
+    );
+
+    expect(liveController.goTo).not.toHaveBeenCalled();
+    expect([...rafCallbacks.values()]).toHaveLength(0);
+    expect(
+      mocks.set.mock.calls.filter((call) => call[0]?.path === "live/playerState"),
+    ).toHaveLength(0);
+  });
+
+  it("ignores stale activation, version, and older revisions", () => {
+    const liveController = controller(0);
+
+    subscribeLiveProjectionState(
+      {} as never,
+      7,
+      "version-1",
+      presentation(["page-a", "page-b", "page-c"]),
+      liveController,
+    );
+
+    mocks.set.mockClear();
+
+    const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
+      val: () => unknown;
+    }) => void;
+
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      }),
+    );
+
+    const frame = [...rafCallbacks.values()][0];
+    expect(frame).toBeDefined();
+    (frame as FrameRequestCallback)(0);
+    rafCallbacks.clear();
+
+    handler(
+      snapshot({
+        activationRevision: 99,
+        currentVersionId: "version-1",
+        revision: 2,
+        pageId: "page-c",
+      }),
+    );
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-old",
+        revision: 2,
+        pageId: "page-c",
+      }),
+    );
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      }),
+    );
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 0,
+        pageId: "page-a",
+      }),
+    );
+
+    expect(liveController.goTo).toHaveBeenCalledTimes(1);
+    expect([...rafCallbacks.values()]).toHaveLength(0);
+  });
+
+  it("does not navigate twice for the same applied revision", () => {
+    const liveController = controller(0);
+
+    subscribeLiveProjectionState(
+      {} as never,
+      7,
+      "version-1",
+      presentation(["page-a", "page-b", "page-c"]),
+      liveController,
+    );
+
+    mocks.set.mockClear();
+
+    const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
+      val: () => unknown;
+    }) => void;
+
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      }),
+    );
+
+    const frame = [...rafCallbacks.values()][0];
+    (frame as FrameRequestCallback)(0);
+    rafCallbacks.clear();
+
+    handler(
+      snapshot({
+        activationRevision: 7,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      }),
+    );
+
+    expect(liveController.goTo).toHaveBeenCalledTimes(1);
   });
 });

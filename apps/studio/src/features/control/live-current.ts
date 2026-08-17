@@ -126,16 +126,18 @@ export async function activateLivePresentation(
     const baseline = parseActivationRevision(currentRecord?.activationRevision);
     const newActivationRevision = baseline === null ? 1 : baseline + 1;
 
-    return {
-      activationRevision: newActivationRevision,
-      current: {
-        publicationId: trimmedPublicationId,
-        currentVersionId: trimmedCurrentVersionId,
-        revision: newActivationRevision,
-      },
-      slideCommand: null,
-      slideAck: null,
-    };
+      return {
+        activationRevision: newActivationRevision,
+        current: {
+          publicationId: trimmedPublicationId,
+          currentVersionId: trimmedCurrentVersionId,
+          revision: newActivationRevision,
+        },
+        controlState: null,
+        playerState: null,
+        slideCommand: null,
+        slideAck: null,
+      };
   });
 
   if (result.committed !== true) {
@@ -224,6 +226,8 @@ export async function promoteLivePresentationVersion(
           currentVersionId: trimmedTargetVersionId,
           revision: live.revision,
         },
+        controlState: null,
+        playerState: null,
         slideCommand: null,
         slideAck: null,
       };
@@ -254,6 +258,8 @@ export async function endLivePresentation(): Promise<void> {
 
   await update(liveRef, {
     current: null,
+    controlState: null,
+    playerState: null,
     slideCommand: null,
     slideAck: null,
   });

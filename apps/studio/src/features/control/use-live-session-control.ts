@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onValue, ref } from "firebase/database";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
-import { writeSlideCommand } from "./control-command-writer";
-import { subscribeSlideAck } from "./slide-ack";
+import { writeControlState as writeLiveControlState } from "./control-command-writer";
 import {
   promoteLivePresentationVersion,
   subscribeLiveCurrent,
@@ -12,6 +12,12 @@ import {
   type LiveState,
 } from "./live-current";
 import { LiveControl, type LiveControlView } from "./live-control";
+import {
+  buildControlStatePath,
+  buildPlayerStatePath,
+  parseLiveControlState,
+  parseLivePlayerState,
+} from "../live/live-state";
 
 export interface UseLiveSessionControlResult {
   liveState: LiveState;
@@ -26,6 +32,7 @@ export interface UseLiveSessionControlResult {
 
 export interface UseLiveSessionControlOptions {
   resolvePageId(pageIndex: number): string | null;
+  resolvePageIndex(pageId: string): number | null;
 }
 
 interface PromotionAttempt {
@@ -46,13 +53,13 @@ function sameLiveIdentity(a: LiveCurrent, b: LiveCurrent): boolean {
  * Owns the Studio Control live session lifecycle.
  *
  * Subscribes to the active presentation, creates/destroys the activation-scoped
- * LiveControl, subscribes to the Player slide ACK stream, and wires the slide
- * command writer. Exposes the ACK-authoritative view and the Previous/Next
- * actions without leaking the LiveControl instance, the database handle, or
- * ACK internals.
+ * LiveControl, and wires the control/player projection-state streams. Exposes
+ * the ACK-authoritative view and the Previous/Next actions without leaking the
+ * LiveControl instance, the database handle, or the RTDB listeners.
  */
 export function useLiveSessionControl({
   resolvePageId,
+  resolvePageIndex,
 }: UseLiveSessionControlOptions): UseLiveSessionControlResult {
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
   const [view, setView] = useState<LiveControlView | null>(null);
@@ -91,14 +98,16 @@ export function useLiveSessionControl({
     const control = new LiveControl({
       activationRevision,
       currentVersionId,
-      writeCommand: (pageIndex) => {
+      resolvePageId,
+      resolvePageIndex,
+      writeControlState: (pageIndex) => {
         const pageId = resolvePageId(pageIndex);
 
         if (pageId === null) {
           throw new Error("Unable to resolve a pageId for live navigation.");
         }
 
-        return writeSlideCommand(
+        return writeLiveControlState(
           db,
           activationRevision,
           currentVersionId,
@@ -116,14 +125,43 @@ export function useLiveSessionControl({
 
     controlRef.current = control;
 
-    const unsubAck = subscribeSlideAck((ack) => control.handleAck(ack));
+    const controlStateUnsub = onValue(
+      ref(db, buildControlStatePath()),
+      (snapshot) => {
+        const state = parseLiveControlState(snapshot.val());
+
+        if (
+          state !== null &&
+          state.activationRevision === activationRevision &&
+          state.currentVersionId === currentVersionId
+        ) {
+          control.handleControlState(state);
+        }
+      },
+    );
+
+    const playerStateUnsub = onValue(
+      ref(db, buildPlayerStatePath()),
+      (snapshot) => {
+        const state = parseLivePlayerState(snapshot.val());
+
+        if (
+          state !== null &&
+          state.activationRevision === activationRevision &&
+          state.currentVersionId === currentVersionId
+        ) {
+          control.handlePlayerState(state);
+        }
+      },
+    );
 
     return () => {
-      unsubAck?.();
+      controlStateUnsub();
+      playerStateUnsub();
       control.destroy();
       controlRef.current = null;
     };
-  }, [liveState, resolvePageId]);
+  }, [liveState, resolvePageId, resolvePageIndex]);
 
   const previous = useCallback(() => {
     const control = controlRef.current;

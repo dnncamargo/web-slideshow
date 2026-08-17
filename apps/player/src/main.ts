@@ -13,8 +13,8 @@ import {
   type LiveCurrent,
   type LiveCurrentEvent,
 } from "./live-entry";
-import { subscribeLiveSlideAck } from "./live-slide-ack";
 import { mapPromotedSlideIndex } from "./live-version-mapping";
+import { subscribeLiveProjectionState } from "./live-state";
 
 import { mountPlayer, type PlayerController } from "./player";
 
@@ -41,11 +41,10 @@ const controls = {
 } as const;
 
 let activeController: PlayerController | undefined;
-let cleanupLiveSlideAck: (() => void) | undefined;
+let cleanupLiveProjection: (() => void) | undefined;
 let cleanupLiveCurrent: (() => void) | undefined;
 let activePresentation: Presentation | undefined;
 let activeLive: LiveCurrent | undefined;
-let confirmedSlideIndex: number | undefined;
 
 // Identidade da sessão Live atualmente montada e token de carga.
 // O token invalida cargas assíncronas obsoletas quando a sessão muda.
@@ -73,10 +72,10 @@ function renderNoActive(): void {
 }
 
 // ============================================================
-// SLIDE STATE LIVE (ACK)
+// SLIDE STATE LIVE
 // ============================================================
 
-function attachLiveSlideAck(
+function attachLiveProjection(
   live: LiveCurrent,
   presentation: Presentation,
   logsEnabled: boolean,
@@ -91,28 +90,23 @@ function attachLiveSlideAck(
     if (!database) {
       if (logsEnabled) {
         console.warn(
-          "[PowerShow][live-slide-ack] RTDB unavailable – live slide ACK not attached",
+          "[PowerShow][live-state] RTDB unavailable – live projection state not attached",
         );
       }
       return;
     }
 
-    cleanupLiveSlideAck = subscribeLiveSlideAck(
+    cleanupLiveProjection = subscribeLiveProjectionState(
       database,
       live.revision,
       live.currentVersionId,
       presentation,
       activeController,
       logsEnabled,
-      (slideIndex) => {
-        if (activeLive && liveSessionKey(activeLive) === liveSessionKey(live)) {
-          confirmedSlideIndex = slideIndex;
-        }
-      },
     );
   } catch (error) {
-    // Falha de inicialização do slide ACK nunca derruba o Player.
-    console.error("Player: live slide ACK initialization failed", error);
+    // Falha de inicialização da projeção live nunca derruba o Player.
+    console.error("Player: live projection state initialization failed", error);
   }
 }
 
@@ -144,8 +138,8 @@ function isVersionPromotion(previous: LiveCurrent, next: LiveCurrent): boolean {
 }
 
 function detachLiveSlideAck(): void {
-  cleanupLiveSlideAck?.();
-  cleanupLiveSlideAck = undefined;
+  cleanupLiveProjection?.();
+  cleanupLiveProjection = undefined;
 }
 
 function teardownLiveSession(): void {
@@ -159,7 +153,6 @@ function teardownLiveSession(): void {
   activeController = undefined;
   activePresentation = undefined;
   activeLive = undefined;
-  confirmedSlideIndex = undefined;
 }
 
 async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
@@ -223,7 +216,7 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
         ? mapPromotedSlideIndex(
             activePresentation,
             result.presentation,
-            confirmedSlideIndex ?? activeController.getCurrentIndex(),
+            activeController.getCurrentIndex(),
           )
         : 0;
 
@@ -233,9 +226,8 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
 
     activePresentation = result.presentation;
     activeLive = event.live;
-    confirmedSlideIndex = undefined;
 
-    attachLiveSlideAck(event.live, result.presentation, logsEnabled);
+    attachLiveProjection(event.live, result.presentation, logsEnabled);
 
     return;
   }
