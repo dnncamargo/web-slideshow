@@ -1,7 +1,17 @@
 import type {
+  ContentSlot,
   PowerShowElement,
   Slide,
+  TopicItem,
+  TopicsElement,
 } from "@powershow/document-schema";
+
+import {
+  collectAuthoringIds,
+  findElementLocation,
+  getElementsForParentRef,
+  type ElementParentRef,
+} from "./element-hierarchy";
 
 
 // ============================================================
@@ -34,20 +44,7 @@ function collectElementIds(
   ids: Set<string>,
 ) {
   for (const element of elements) {
-    ids.add(
-      element.id,
-    );
-
-
-    if (
-      element.type ===
-      "container"
-    ) {
-      collectElementIds(
-        element.children,
-        ids,
-      );
-    }
+    collectAuthoringIds(element, ids);
   }
 }
 
@@ -358,241 +355,392 @@ export function createElement(
 // BEGIN: CLONE COM IDS ÚNICOS
 // ============================================================
 
-function cloneElementWithUniqueIds(
-  source: PowerShowElement,
+function cloneContentSlotWithUniqueIds(
+  slot: ContentSlot,
   usedIds: Set<string>,
-): PowerShowElement {
-  const clone =
-    structuredClone(
-      source,
-    );
-
-
-  const id =
-    createUniqueId(
-      `${source.id}-copy`,
-      usedIds,
-    );
-
-
-  usedIds.add(
-    id,
-  );
-
-
-  if (
-    clone.type ===
-    "container"
-  ) {
-    return {
-      ...clone,
-
-      id,
-
-      children:
-        clone.children.map(
-          (child) =>
-            cloneElementWithUniqueIds(
-              child,
-              usedIds,
-            ),
-        ),
-    };
-  }
-
+): ContentSlot {
+  const id = createUniqueId(`${slot.id}-copy`, usedIds);
+  usedIds.add(id);
 
   return {
-    ...clone,
-
+    ...slot,
     id,
+    children: slot.children.map((child) =>
+      clonePowerShowElementWithUniqueIds(child, usedIds),
+    ),
   };
 }
 
+function cloneTopicItemWithUniqueIds(
+  item: TopicItem,
+  usedIds: Set<string>,
+): TopicItem {
+  const id = createUniqueId(`${item.id}-copy`, usedIds);
+  usedIds.add(id);
+
+  return {
+    ...item,
+    id,
+    content: cloneContentSlotWithUniqueIds(item.content, usedIds),
+    children: item.children.map((child) => cloneTopicItemWithUniqueIds(child, usedIds)),
+  };
+}
+
+function clonePowerShowElementWithUniqueIds(
+  source: PowerShowElement,
+  usedIds: Set<string>,
+): PowerShowElement {
+  const clone = structuredClone(source);
+  const id = createUniqueId(`${source.id}-copy`, usedIds);
+  usedIds.add(id);
+
+  if (clone.type === "container") {
+    return {
+      ...clone,
+      id,
+      children: clone.children.map((child) =>
+        clonePowerShowElementWithUniqueIds(child, usedIds),
+      ),
+    };
+  }
+
+  if (clone.type === "topics") {
+    return {
+      ...clone,
+      id,
+      items: clone.items.map((item) => cloneTopicItemWithUniqueIds(item, usedIds)),
+    } satisfies TopicsElement;
+  }
+
+  return {
+    ...clone,
+    id,
+  };
+}
 
 export function duplicateElement(
   source: PowerShowElement,
   slides: readonly Slide[],
 ): PowerShowElement {
-  const usedIds =
-    collectPresentationElementIds(
-      slides,
-    );
+  const usedIds = collectPresentationElementIds(slides);
 
-
-  return cloneElementWithUniqueIds(
-    source,
-    usedIds,
-  );
+  return clonePowerShowElementWithUniqueIds(source, usedIds);
 }
 
 // ============================================================
 // END: CLONE COM IDS ÚNICOS
 // ============================================================
 
-
 // ============================================================
 // BEGIN: INSERIR APÓS ELEMENTO
-//
-// Procura recursivamente o elemento e insere o novo elemento
-// como irmão imediatamente depois dele.
 // ============================================================
+
+function insertElementAfterIdInTopicItems(
+  items: readonly TopicItem[],
+  targetId: string,
+  newElement: PowerShowElement,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems: TopicItem[] = items.map((item) => {
+    const children = insertElementAfterId(item.content.children, targetId, newElement);
+    const nestedChildren = insertElementAfterIdInTopicItems(item.children, targetId, newElement);
+
+    if (children === item.content.children && nestedChildren === item.children) {
+      return item;
+    }
+
+    changed = true;
+
+    return {
+      ...item,
+      content:
+        children === item.content.children
+          ? item.content
+          : {
+              ...item.content,
+              children,
+            },
+      children: nestedChildren,
+    };
+  });
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
 
 export function insertElementAfterId(
   elements: PowerShowElement[],
   targetId: string,
   newElement: PowerShowElement,
 ): PowerShowElement[] {
-  const result:
-    PowerShowElement[] = [];
-
+  let changed = false;
+  const result: PowerShowElement[] = [];
 
   for (const element of elements) {
-    result.push(
-      element,
-    );
+    result.push(element);
 
-
-    if (
-      element.id ===
-      targetId
-    ) {
-      result.push(
-        newElement,
-      );
-
+    if (element.id === targetId) {
+      result.push(newElement);
+      changed = true;
       continue;
     }
 
+    if (element.type === "container") {
+      const children = insertElementAfterId(element.children, targetId, newElement);
 
-    if (
-      element.type ===
-      "container"
-    ) {
-      const children =
-        insertElementAfterId(
-          element.children,
-          targetId,
-          newElement,
-        );
+      if (children !== element.children) {
+        result[result.length - 1] = { ...element, children };
+        changed = true;
+      }
+      continue;
+    }
 
+    if (element.type === "topics") {
+      const items = insertElementAfterIdInTopicItems(element.items, targetId, newElement);
 
-      if (
-        children !==
-        element.children
-      ) {
-        result[
-          result.length - 1
-        ] = {
-          ...element,
-
-          children,
-        };
+      if (items !== element.items) {
+        result[result.length - 1] = { ...element, items };
+        changed = true;
       }
     }
   }
 
-
-  return result;
+  return changed ? result : elements;
 }
 
 // ============================================================
 // END: INSERIR APÓS ELEMENTO
 // ============================================================
 
+// ============================================================
+// BEGIN: APPEND EM CONTAINER / CONTENT SLOT
+// ============================================================
 
-// ============================================================
-// BEGIN: APPEND EM CONTAINER
-// ============================================================
+function appendElementToContainerInTopicItems(
+  items: readonly TopicItem[],
+  containerId: string,
+  newElement: PowerShowElement,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems: TopicItem[] = items.map((item) => {
+    const children = appendElementToContainer(item.content.children, containerId, newElement);
+    const nestedChildren = appendElementToContainerInTopicItems(item.children, containerId, newElement);
+
+    if (children === item.content.children && nestedChildren === item.children) {
+      return item;
+    }
+
+    changed = true;
+
+    return {
+      ...item,
+      content:
+        children === item.content.children
+          ? item.content
+          : {
+              ...item.content,
+              children,
+            },
+      children: nestedChildren,
+    };
+  });
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
 
 export function appendElementToContainer(
   elements: PowerShowElement[],
   containerId: string,
   newElement: PowerShowElement,
 ): PowerShowElement[] {
-  return elements.map(
-    (element) => {
-      if (
-        element.id ===
-          containerId &&
-        element.type ===
-          "container"
-      ) {
-        return {
-          ...element,
+  let changed = false;
 
-          children: [
-            ...element.children,
+  const nextElements: PowerShowElement[] = elements.map((element) => {
+    if (element.type === "container" && element.id === containerId) {
+      changed = true;
+      return { ...element, children: [...element.children, newElement] };
+    }
 
-            newElement,
-          ],
-        };
+    if (element.type === "container") {
+      const children = appendElementToContainer(element.children, containerId, newElement);
+
+      if (children !== element.children) {
+        changed = true;
+        return { ...element, children };
       }
-
-
-      if (
-        element.type ===
-        "container"
-      ) {
-        return {
-          ...element,
-
-          children:
-            appendElementToContainer(
-              element.children,
-              containerId,
-              newElement,
-            ),
-        };
-      }
-
-
       return element;
-    },
-  );
+    }
+
+    if (element.type === "topics") {
+      const items = appendElementToContainerInTopicItems(element.items, containerId, newElement);
+
+      if (items !== element.items) {
+        changed = true;
+        return { ...element, items };
+      }
+    }
+
+    return element;
+  });
+
+  return changed ? nextElements : (elements as PowerShowElement[]);
+}
+
+function appendElementToContentSlotInTopicItems(
+  items: readonly TopicItem[],
+  contentSlotId: string,
+  newElement: PowerShowElement,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems: TopicItem[] = items.map((item) => {
+    if (item.content.id === contentSlotId) {
+      changed = true;
+
+      return {
+        ...item,
+        content: {
+          ...item.content,
+          children: [...item.content.children, newElement],
+        },
+      };
+    }
+
+    const children = appendElementToContentSlot(item.content.children, contentSlotId, newElement);
+    const nestedChildren = appendElementToContentSlotInTopicItems(item.children, contentSlotId, newElement);
+
+    if (children === item.content.children && nestedChildren === item.children) {
+      return item;
+    }
+
+    changed = true;
+
+    return {
+      ...item,
+      content:
+        children === item.content.children
+          ? item.content
+          : {
+              ...item.content,
+              children,
+            },
+      children: nestedChildren,
+    };
+  });
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
+
+export function appendElementToContentSlot(
+  elements: PowerShowElement[],
+  contentSlotId: string,
+  newElement: PowerShowElement,
+): PowerShowElement[] {
+  let changed = false;
+
+  const nextElements: PowerShowElement[] = elements.map((element) => {
+    if (element.type === "container") {
+      const children = appendElementToContentSlot(element.children, contentSlotId, newElement);
+
+      if (children !== element.children) {
+        changed = true;
+        return { ...element, children };
+      }
+      return element;
+    }
+
+    if (element.type === "topics") {
+      const items = appendElementToContentSlotInTopicItems(element.items, contentSlotId, newElement);
+
+      if (items !== element.items) {
+        changed = true;
+        return { ...element, items };
+      }
+    }
+
+    return element;
+  });
+
+  return changed ? nextElements : (elements as PowerShowElement[]);
 }
 
 // ============================================================
-// END: APPEND EM CONTAINER
+// END: APPEND EM CONTAINER / CONTENT SLOT
 // ============================================================
-
 
 // ============================================================
 // BEGIN: DELETE ELEMENT
-//
-// Se um container for removido, todo o subtree dele desaparece
-// naturalmente junto com o container.
 // ============================================================
+
+function removeElementByIdInTopicItems(
+  items: readonly TopicItem[],
+  id: string,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems: TopicItem[] = items.map((item) => {
+    const children = removeElementById(item.content.children, id);
+    const nestedChildren = removeElementByIdInTopicItems(item.children, id);
+
+    if (children === item.content.children && nestedChildren === item.children) {
+      return item;
+    }
+
+    changed = true;
+
+    return {
+      ...item,
+      content:
+        children === item.content.children
+          ? item.content
+          : {
+              ...item.content,
+              children,
+            },
+      children: nestedChildren,
+    };
+  });
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
 
 export function removeElementById(
   elements: PowerShowElement[],
   id: string,
 ): PowerShowElement[] {
-  return elements
-    .filter(
-      (element) =>
-        element.id !== id,
-    )
-    .map(
-      (element) => {
-        if (
-          element.type !==
-          "container"
-        ) {
-          return element;
-        }
+  let changed = false;
 
+  const nextElements: PowerShowElement[] = elements.flatMap((element): PowerShowElement[] => {
+    if (element.id === id) {
+      changed = true;
+      return [];
+    }
 
-        return {
-          ...element,
+    if (element.type === "container") {
+      const children = removeElementById(element.children, id);
 
-          children:
-            removeElementById(
-              element.children,
-              id,
-            ),
-        };
-      },
-    );
+      if (children !== element.children) {
+        changed = true;
+        return [{ ...element, children }];
+      }
+
+      return [element];
+    }
+
+    if (element.type === "topics") {
+      const items = removeElementByIdInTopicItems(element.items, id);
+
+      if (items !== element.items) {
+        changed = true;
+        return [{ ...element, items }];
+      }
+    }
+
+    return [element];
+  });
+
+  return changed ? nextElements : (elements as PowerShowElement[]);
 }
 
 // ============================================================
@@ -601,106 +749,35 @@ export function removeElementById(
 
 // ============================================================
 // BEGIN: ELEMENT SIBLING POSITION
-//
-// Localiza um elemento e informa sua posição dentro da lista
-// de irmãos.
-//
-// parentId:
-//
-// null
-//   → elemento está na raiz do slide
-//
-// string
-//   → elemento é filho daquele container
-//
-// Essa informação será usada para habilitar/desabilitar
-// Move Up e Move Down no Editor.
 // ============================================================
 
 export interface ElementSiblingPosition {
   index: number;
-
   count: number;
-
-  parentId:
-    | string
-    | null;
+  parentRef: ElementParentRef;
 }
-
 
 export function findElementSiblingPosition(
   elements: readonly PowerShowElement[],
   id: string,
-  parentId:
-    | string
-    | null = null,
 ): ElementSiblingPosition | null {
-  for (
-    let index = 0;
-    index < elements.length;
-    index += 1
-  ) {
-    const element =
-      elements[index];
+  const location = findElementLocation(elements, id);
 
-
-    if (!element) {
-      continue;
-    }
-
-
-    if (
-      element.id === id
-    ) {
-      return {
-        index,
-
-        count:
-          elements.length,
-
-        parentId,
-      };
-    }
-
-
-    if (
-      element.type ===
-      "container"
-    ) {
-      const found =
-        findElementSiblingPosition(
-          element.children,
-          id,
-          element.id,
-        );
-
-
-      if (found) {
-        return found;
+  return location
+    ? {
+        index: location.index,
+        count: location.count,
+        parentRef: location.parentRef,
       }
-    }
-  }
-
-
-  return null;
+    : null;
 }
 
 // ============================================================
 // END: ELEMENT SIBLING POSITION
 // ============================================================
 
-
 // ============================================================
 // BEGIN: MOVE ELEMENT
-//
-// Move somente dentro da lista atual de irmãos.
-//
-// offset:
-//
-// -1 → uma posição para cima
-// +1 → uma posição para baixo
-//
-// Não atravessamos boundaries de containers nesta fase.
 // ============================================================
 
 export function moveElementById(
@@ -708,126 +785,13 @@ export function moveElementById(
   id: string,
   offset: -1 | 1,
 ): PowerShowElement[] {
-  // ----------------------------------------------------------
-  // Primeiro verificamos se o elemento está neste nível.
-  // ----------------------------------------------------------
+  const location = findElementLocation(elements, id);
 
-  const currentIndex =
-    elements.findIndex(
-      (element) =>
-        element.id === id,
-    );
-
-
-  if (
-    currentIndex !== -1
-  ) {
-    const targetIndex =
-      currentIndex +
-      offset;
-
-
-    // --------------------------------------------------------
-    // Está no início/fim da lista.
-    // Nenhuma alteração.
-    // --------------------------------------------------------
-
-    if (
-      targetIndex < 0 ||
-      targetIndex >=
-        elements.length
-    ) {
-      return elements;
-    }
-
-
-    const nextElements = [
-      ...elements,
-    ];
-
-
-    const [
-      movedElement,
-    ] =
-      nextElements.splice(
-        currentIndex,
-        1,
-      );
-
-
-    if (!movedElement) {
-      return elements;
-    }
-
-
-    nextElements.splice(
-      targetIndex,
-      0,
-      movedElement,
-    );
-
-
-    return nextElements;
+  if (!location) {
+    return elements;
   }
 
-
-  // ----------------------------------------------------------
-  // Não está neste nível.
-  // Procuramos recursivamente nos containers.
-  // ----------------------------------------------------------
-
-  let changed =
-    false;
-
-
-  const nextElements =
-    elements.map(
-      (element) => {
-        if (
-          element.type !==
-          "container"
-        ) {
-          return element;
-        }
-
-
-        const children =
-          moveElementById(
-            element.children,
-            id,
-            offset,
-          );
-
-
-        // ----------------------------------------------------
-        // Nenhuma mudança ocorreu neste subtree.
-        // Preservamos a referência original.
-        // ----------------------------------------------------
-
-        if (
-          children ===
-          element.children
-        ) {
-          return element;
-        }
-
-
-        changed =
-          true;
-
-
-        return {
-          ...element,
-
-          children,
-        };
-      },
-    );
-
-
-  return changed
-    ? nextElements
-    : elements;
+  return moveElementToSiblingIndexById(elements, id, location.index + offset);
 }
 
 export function moveElementToSiblingIndexById(
@@ -835,52 +799,33 @@ export function moveElementToSiblingIndexById(
   id: string,
   targetIndex: number,
 ): PowerShowElement[] {
-  const currentIndex = elements.findIndex((element) => element.id === id);
+  const location = findElementLocation(elements, id);
 
-  if (currentIndex !== -1) {
-    if (targetIndex < 0 || targetIndex >= elements.length || targetIndex === currentIndex) {
-      return elements;
-    }
-
-    const nextElements = [...elements];
-    const [movedElement] = nextElements.splice(currentIndex, 1);
-
-    if (!movedElement) {
-      return elements;
-    }
-
-    nextElements.splice(targetIndex, 0, movedElement);
-
-    return nextElements;
+  if (!location) {
+    return elements;
   }
 
-  let changed = false;
-  const nextElements = elements.map((element) => {
-    if (element.type !== "container") {
-      return element;
-    }
+  const siblings = getElementsForParentRef(elements, location.parentRef);
 
-    const children = moveElementToSiblingIndexById(
-      element.children,
-      id,
-      targetIndex,
-    );
+  if (!siblings || targetIndex < 0 || targetIndex >= siblings.length || targetIndex === location.index) {
+    return elements;
+  }
 
-    if (children === element.children) {
-      return element;
-    }
+  const withoutSource = removeElementById(elements, id);
+  const targetElements = getElementsForParentRef(withoutSource, location.parentRef);
 
-    changed = true;
+  if (!targetElements) {
+    return elements;
+  }
 
-    return { ...element, children };
-  });
+  const insertIndex = Math.min(targetIndex, targetElements.length);
 
-  return changed ? nextElements : elements;
+  return insertElementIntoParentRef(withoutSource, location.parentRef, insertIndex, location.element);
 }
 
 export interface MoveElementOptions {
   elementId: string;
-  targetParentId: string | null;
+  targetParentRef: ElementParentRef;
   targetIndex?: number;
 }
 
@@ -897,90 +842,24 @@ export interface MoveElementResult {
   error?: MoveElementError;
 }
 
-interface ElementLocation {
-  element: PowerShowElement;
-  parentId: string | null;
-  index: number;
-}
-
-function findElementLocation(
-  elements: readonly PowerShowElement[],
-  id: string,
-  parentId: string | null = null,
-): ElementLocation | null {
-  for (let index = 0; index < elements.length; index += 1) {
-    const element = elements[index];
-
-    if (!element) {
-      continue;
-    }
-
-    if (element.id === id) {
-      return { element, parentId, index };
-    }
-
-    if (element.type === "container") {
-      const found = findElementLocation(element.children, id, element.id);
-
-      if (found) {
-        return found;
-      }
-    }
-  }
-
-  return null;
-}
-
-function findContainerById(
-  elements: readonly PowerShowElement[],
-  id: string,
-): Extract<PowerShowElement, { type: "container" }> | null {
-  const location = findElementLocation(elements, id);
-
-  return location?.element.type === "container" ? location.element : null;
-}
-
 function collectDescendantIds(element: PowerShowElement, ids: Set<string>): void {
-  ids.add(element.id);
-
-  if (element.type === "container") {
-    for (const child of element.children) {
-      collectDescendantIds(child, ids);
-    }
-  }
+  collectAuthoringIds(element, ids);
 }
 
 function removeElementFromHierarchy(
   elements: PowerShowElement[],
   id: string,
 ): PowerShowElement[] {
-  const nextElements: PowerShowElement[] = [];
-
-  for (const element of elements) {
-    if (element.id === id) {
-      continue;
-    }
-
-    if (element.type !== "container") {
-      nextElements.push(element);
-      continue;
-    }
-
-    const children = removeElementFromHierarchy(element.children, id);
-
-    nextElements.push(children === element.children ? element : { ...element, children });
-  }
-
-  return nextElements;
+  return removeElementById(elements, id);
 }
 
-function insertElementIntoParent(
+function insertElementIntoParentRef(
   elements: PowerShowElement[],
-  parentId: string | null,
+  parentRef: ElementParentRef,
   index: number,
   elementToInsert: PowerShowElement,
 ): PowerShowElement[] {
-  if (parentId === null) {
+  if (parentRef.kind === "slide") {
     return [
       ...elements.slice(0, index),
       elementToInsert,
@@ -988,12 +867,12 @@ function insertElementIntoParent(
     ];
   }
 
-  return elements.map((element) => {
-    if (element.type !== "container") {
-      return element;
-    }
+  let changed = false;
 
-    if (element.id === parentId) {
+  const nextElements: PowerShowElement[] = elements.map((element) => {
+    if (parentRef.kind === "container" && element.type === "container" && element.id === parentRef.id) {
+      changed = true;
+
       return {
         ...element,
         children: [
@@ -1004,26 +883,109 @@ function insertElementIntoParent(
       };
     }
 
-    const children = insertElementIntoParent(
-      element.children,
-      parentId,
+    if (element.type === "container") {
+      const children = insertElementIntoParentRef(
+        element.children,
+        parentRef,
+        index,
+        elementToInsert,
+      );
+
+      if (children !== element.children) {
+        changed = true;
+        return { ...element, children };
+      }
+
+      return element;
+    }
+
+    if (element.type === "topics") {
+      const items = insertIntoTopicItems(
+        element.items,
+        parentRef,
+        index,
+        elementToInsert,
+      );
+
+      if (items !== element.items) {
+        changed = true;
+        return { ...element, items };
+      }
+    }
+
+    return element;
+  });
+
+  return changed ? nextElements : elements;
+}
+
+function insertIntoTopicItems(
+  items: readonly TopicItem[],
+  parentRef: ElementParentRef,
+  index: number,
+  elementToInsert: PowerShowElement,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems: TopicItem[] = items.map((item) => {
+    if (parentRef.kind === "content-slot" && item.content.id === parentRef.id) {
+      changed = true;
+
+      return {
+        ...item,
+        content: {
+          ...item.content,
+          children: [
+            ...item.content.children.slice(0, index),
+            elementToInsert,
+            ...item.content.children.slice(index),
+          ],
+        },
+      };
+    }
+
+    const contentChildren = insertElementIntoParentRef(
+      item.content.children,
+      parentRef,
+      index,
+      elementToInsert,
+    );
+    const nestedChildren = insertIntoTopicItems(
+      item.children,
+      parentRef,
       index,
       elementToInsert,
     );
 
-    return children === element.children ? element : { ...element, children };
+    if (
+      contentChildren === item.content.children &&
+      nestedChildren === item.children
+    ) {
+      return item;
+    }
+
+    changed = true;
+    return {
+      ...item,
+      content:
+        contentChildren === item.content.children
+          ? item.content
+          : {
+              ...item.content,
+              children: contentChildren,
+            },
+      children: nestedChildren,
+    };
   });
+
+  return changed ? nextItems : (items as TopicItem[]);
 }
 
-function getElementsForParent(
+function getTargetElementsForParentRef(
   elements: PowerShowElement[],
-  parentId: string | null,
+  parentRef: ElementParentRef,
 ): PowerShowElement[] | null {
-  if (parentId === null) {
-    return elements;
-  }
-
-  return findContainerById(elements, parentId)?.children ?? null;
+  return getElementsForParentRef(elements, parentRef) as PowerShowElement[] | null;
 }
 
 export function moveElement(
@@ -1036,38 +998,36 @@ export function moveElement(
     return { elements, moved: false, error: "element-not-found" };
   }
 
-  if (options.targetParentId !== null) {
-    const targetParent = findContainerById(elements, options.targetParentId);
+  const targetElements = getTargetElementsForParentRef(elements, options.targetParentRef);
 
-    if (!targetParent) {
-      return { elements, moved: false, error: "target-parent-not-found" };
-    }
+  if (!targetElements) {
+    return { elements, moved: false, error: "target-parent-not-found" };
+  }
 
-    const forbiddenIds = new Set<string>();
-    collectDescendantIds(source.element, forbiddenIds);
+  const forbiddenIds = new Set<string>();
+  collectDescendantIds(source.element, forbiddenIds);
 
-    if (forbiddenIds.has(targetParent.id)) {
-      return { elements, moved: false, error: "cycle" };
-    }
+  if (options.targetParentRef.kind !== "slide" && forbiddenIds.has(options.targetParentRef.id)) {
+    return { elements, moved: false, error: "cycle" };
   }
 
   const withoutSource = removeElementFromHierarchy(elements, options.elementId);
-  const targetElements = getElementsForParent(withoutSource, options.targetParentId);
+  const nextTargetElements = getTargetElementsForParentRef(withoutSource, options.targetParentRef);
 
-  if (!targetElements) {
+  if (!nextTargetElements) {
     return { elements, moved: false, error: "invalid-target-parent" };
   }
 
-  const targetIndex = options.targetIndex ?? targetElements.length;
+  const targetIndex = options.targetIndex ?? nextTargetElements.length;
 
-  if (targetIndex < 0 || targetIndex > targetElements.length) {
+  if (targetIndex < 0 || targetIndex > nextTargetElements.length) {
     return { elements, moved: false, error: "invalid-target-index" };
   }
 
   return {
-    elements: insertElementIntoParent(
+    elements: insertElementIntoParentRef(
       withoutSource,
-      options.targetParentId,
+      options.targetParentRef,
       targetIndex,
       source.element,
     ),
@@ -1081,19 +1041,19 @@ export function moveElementOut(
 ): MoveElementResult {
   const source = findElementLocation(elements, elementId);
 
-  if (!source || source.parentId === null) {
+  if (!source || source.parentRef.kind !== "container") {
     return { elements, moved: false, error: "invalid-target-parent" };
   }
 
-  const parent = findElementLocation(elements, source.parentId);
+  const parent = findElementLocation(elements, source.parentRef.id);
 
-  if (!parent || parent.element.type !== "container") {
+  if (!parent) {
     return { elements, moved: false, error: "invalid-target-parent" };
   }
 
   return moveElement(elements, {
     elementId,
-    targetParentId: parent.parentId,
+    targetParentRef: parent.parentRef,
     targetIndex: parent.index + 1,
   });
 }

@@ -185,7 +185,7 @@ export function ElementTreePanel({
     ? getTreeActionState(
         selectedPosition.index,
         selectedPosition.count,
-        selectedPosition.parentId,
+        selectedPosition.parentRef,
       )
     : null;
 
@@ -289,15 +289,15 @@ export function ElementTreePanel({
           aria-label={t("tree.moveUp")}
           title={t("tree.moveUp")}
           disabled={!selectedElementId || !selectedPosition || !selectedActionState?.canMoveUp}
-          onClick={() => {
-            if (selectedElementId && selectedPosition) {
-              onMoveElement({
-                elementId: selectedElementId,
-                targetParentId: selectedPosition.parentId,
-                targetIndex: selectedPosition.index - 1,
-              });
-            }
-          }}
+              onClick={() => {
+                if (selectedElementId && selectedPosition) {
+                  onMoveElement({
+                    elementId: selectedElementId,
+                    targetParentRef: selectedPosition.parentRef,
+                    targetIndex: selectedPosition.index - 1,
+                  });
+                }
+              }}
         >
           ▲
         </button>
@@ -306,15 +306,15 @@ export function ElementTreePanel({
           aria-label={t("tree.moveDown")}
           title={t("tree.moveDown")}
           disabled={!selectedElementId || !selectedPosition || !selectedActionState?.canMoveDown}
-          onClick={() => {
-            if (selectedElementId && selectedPosition) {
-              onMoveElement({
-                elementId: selectedElementId,
-                targetParentId: selectedPosition.parentId,
-                targetIndex: selectedPosition.index + 1,
-              });
-            }
-          }}
+              onClick={() => {
+                if (selectedElementId && selectedPosition) {
+                  onMoveElement({
+                    elementId: selectedElementId,
+                    targetParentRef: selectedPosition.parentRef,
+                    targetIndex: selectedPosition.index + 1,
+                  });
+                }
+              }}
         >
           ▼
         </button>
@@ -325,7 +325,13 @@ export function ElementTreePanel({
           onChange={(event) => {
             if (selectedElementId) {
               const targetParentId = event.target.value || null;
-              onMoveElement({ elementId: selectedElementId, targetParentId });
+              onMoveElement({
+                elementId: selectedElementId,
+                targetParentRef:
+                  targetParentId === null
+                    ? { kind: "slide" }
+                    : { kind: "container", id: targetParentId },
+              });
             }
           }}
         >
