@@ -3,8 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FontFaceResourceSchema,
   getFontResourceFaces,
+  type FontFaceResource,
 } from "@powershow/document-schema";
 
+import {
+  chooseRecommendedFontFace,
+  type WebFontFaceSelection,
+} from "@/features/fonts/web-font-face-selection";
 import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type {
@@ -25,8 +30,10 @@ import styles from "../../editor-workspace.module.css";
 import { getControlName } from "../inspector-helpers";
 import type { FontResourceControls } from "../inspector-types";
 
-interface WebFontSearchControlProps
-  extends Pick<FontResourceControls, "fontResources" | "onAddFontFace"> {
+interface WebFontSearchControlProps extends Pick<
+  FontResourceControls,
+  "fontResources" | "onAddFontFace"
+> {
   provider: WebFontProviderId;
   onFontAdded: (family: string) => void;
 }
@@ -34,10 +41,9 @@ interface WebFontSearchControlProps
 type SearchState = "idle" | "searching" | "results" | "empty" | "error";
 type ProviderAvailability = "checking" | "available" | "unavailable";
 
-interface FaceSelection {
-  weight: number;
-  style: "normal" | "italic";
-  subset: string;
+interface PendingAction {
+  key: string;
+  kind: "adding" | "customizing";
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -96,51 +102,22 @@ function readStatusResponse(
     : undefined;
 }
 
-function chooseFaceSelection(
-  family: ResolvedWebFontFamily,
-  preferred: Partial<FaceSelection> = {},
-): FaceSelection | undefined {
-  const weights = [...new Set(family.faces.map((face) => face.weight))];
-  const weight =
-    preferred.weight !== undefined && weights.includes(preferred.weight)
-      ? preferred.weight
-      : weights[0];
-
-  if (weight === undefined) {
-    return undefined;
-  }
-
-  const weightFaces = family.faces.filter((face) => face.weight === weight);
-  const styles = [...new Set(weightFaces.map((face) => face.style))];
-  const style =
-    preferred.style !== undefined && styles.includes(preferred.style)
-      ? preferred.style
-      : styles[0];
-
-  if (style === undefined) {
-    return undefined;
-  }
-
-  const variantFaces = weightFaces.filter((face) => face.style === style);
-  const subsets = [
-    ...new Set(variantFaces.map((face) => face.subset ?? "")),
-  ];
-  const preferredSubset =
-    preferred.subset ??
-    family.defaultSubset ??
-    (subsets.includes("latin") ? "latin" : undefined);
-  const subset =
-    preferredSubset !== undefined && subsets.includes(preferredSubset)
-      ? preferredSubset
-      : (subsets[0] ?? "");
-
-  return { weight, style, subset };
-}
-
 function providerErrorMessage(error: string): StudioMessageKey {
   return error === "provider_not_configured"
     ? "inspector.webFonts.googleNotConfigured"
     : "inspector.webFonts.searchError";
+}
+
+function findFamilyFace(
+  family: ResolvedWebFontFamily,
+  selection: WebFontFaceSelection,
+): FontFaceResource | undefined {
+  return family.faces.find(
+    (face) =>
+      face.weight === selection.weight &&
+      face.style === selection.style &&
+      (face.subset ?? "") === selection.subset,
+  );
 }
 
 export function WebFontSearchControl({
@@ -153,6 +130,7 @@ export function WebFontSearchControl({
   const searchController = useRef<AbortController | null>(null);
   const familyController = useRef<AbortController | null>(null);
   const requestSequence = useRef(0);
+  const familyCache = useRef<Map<string, ResolvedWebFontFamily>>(new Map());
   const [providerAvailability, setProviderAvailability] =
     useState<ProviderAvailability>(
       provider === "fontsource" ? "available" : "checking",
@@ -160,10 +138,15 @@ export function WebFontSearchControl({
   const [query, setQuery] = useState("");
   const [searchState, setSearchState] = useState<SearchState>("idle");
   const [results, setResults] = useState<WebFontSummary[]>([]);
-  const [selectedFamily, setSelectedFamily] =
-    useState<ResolvedWebFontFamily>();
-  const [selection, setSelection] = useState<FaceSelection>();
-  const [familyLoadingId, setFamilyLoadingId] = useState<string>();
+  const [pendingAction, setPendingAction] = useState<PendingAction>();
+  const [customize, setCustomize] = useState<{
+    family: ResolvedWebFontFamily;
+    selection: WebFontFaceSelection;
+  }>();
+  const [lastAdded, setLastAdded] = useState<{
+    id: string;
+    family: ResolvedWebFontFamily;
+  }>();
   const [error, setError] = useState<StudioMessageKey | null>(null);
 
   useEffect(() => {
@@ -186,7 +169,9 @@ export function WebFontSearchControl({
         setProviderAvailability(body.available ? "available" : "unavailable");
       })
       .catch((requestError: unknown) => {
-        if (!(requestError instanceof Error && requestError.name === "AbortError")) {
+        if (
+          !(requestError instanceof Error && requestError.name === "AbortError")
+        ) {
           setProviderAvailability("unavailable");
         }
       });
@@ -200,10 +185,7 @@ export function WebFontSearchControl({
 
     const normalizedQuery = query.trim();
 
-    if (
-      normalizedQuery.length < 2 ||
-      providerAvailability !== "available"
-    ) {
+    if (normalizedQuery.length < 2 || providerAvailability !== "available") {
       return;
     }
 
@@ -238,7 +220,10 @@ export function WebFontSearchControl({
         .catch((requestError: unknown) => {
           if (
             sequence === requestSequence.current &&
-            !(requestError instanceof Error && requestError.name === "AbortError")
+            !(
+              requestError instanceof Error &&
+              requestError.name === "AbortError"
+            )
           ) {
             setError("inspector.webFonts.searchError");
             setSearchState("error");
@@ -265,16 +250,19 @@ export function WebFontSearchControl({
     [],
   );
 
-  async function selectFamily(summary: WebFontSummary) {
+  async function resolveFamily(
+    summary: WebFontSummary,
+  ): Promise<ResolvedWebFontFamily | undefined> {
+    const cached = familyCache.current.get(summary.id);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
     familyController.current?.abort();
     const controller = new AbortController();
     familyController.current = controller;
     const sequence = ++requestSequence.current;
-
-    setFamilyLoadingId(summary.id);
-    setSelectedFamily(undefined);
-    setSelection(undefined);
-    setError(null);
 
     try {
       const response = await fetch(
@@ -284,109 +272,200 @@ export function WebFontSearchControl({
       const body = readFamilyResponse(await response.json());
 
       if (sequence !== requestSequence.current || !body) {
-        return;
+        return undefined;
       }
 
       if (!body.ok) {
         setError(providerErrorMessage(body.error));
-        return;
+        return undefined;
       }
 
-      setSelectedFamily(body.family);
-      setSelection(chooseFaceSelection(body.family));
+      familyCache.current.set(summary.id, body.family);
+
+      return body.family;
     } catch (requestError) {
-      if (!(requestError instanceof Error && requestError.name === "AbortError")) {
+      if (
+        !(requestError instanceof Error && requestError.name === "AbortError")
+      ) {
         setError("inspector.webFonts.searchError");
       }
+
+      return undefined;
     } finally {
       if (familyController.current === controller) {
         familyController.current = null;
-        setFamilyLoadingId(undefined);
       }
     }
   }
 
-  const weightOptions = useMemo(
-    () =>
-      selectedFamily
-        ? [...new Set(selectedFamily.faces.map((face) => face.weight))]
-        : [],
-    [selectedFamily],
-  );
-  const styleOptions = useMemo(
-    () =>
-      selectedFamily && selection
-        ? [
-            ...new Set(
-              selectedFamily.faces
-                .filter((face) => face.weight === selection.weight)
-                .map((face) => face.style),
-            ),
-          ]
-        : [],
-    [selectedFamily, selection],
-  );
-  const subsetOptions = useMemo(
-    () =>
-      selectedFamily && selection
-        ? [
-            ...new Set(
-              selectedFamily.faces
-                .filter(
-                  (face) =>
-                    face.weight === selection.weight &&
-                    face.style === selection.style,
-                )
-                .map((face) => face.subset ?? ""),
-            ),
-          ]
-        : [],
-    [selectedFamily, selection],
-  );
-  const selectedFace =
-    selectedFamily && selection
-      ? selectedFamily.faces.find(
-          (face) =>
-            face.weight === selection.weight &&
-            face.style === selection.style &&
-            (face.subset ?? "") === selection.subset,
-        )
-      : undefined;
+  function commitFaceSelection(
+    family: ResolvedWebFontFamily,
+    selection: WebFontFaceSelection,
+  ): boolean {
+    const face = findFamilyFace(family, selection);
 
-  function addSelectedFace() {
-    if (!selectedFamily || !selectedFace) {
-      return;
+    if (!face) {
+      return false;
     }
 
-    const parsedFace = FontFaceResourceSchema.safeParse(selectedFace);
+    const parsedFace = FontFaceResourceSchema.safeParse(face);
 
     if (!parsedFace.success) {
       setError("inspector.webFonts.searchError");
-      return;
+      return false;
     }
 
-    const normalizedFamily = normalizeFontFamily(selectedFamily.family);
-    const existingResource = fontResources.find(
+    const normalizedFamily = normalizeFontFamily(family.family);
+    const existingFamily = fontResources.find(
       (fontResource) =>
         normalizeFontFamily(fontResource.family) === normalizedFamily,
     );
-    const duplicate = existingResource
-      ? getFontResourceFaces(existingResource).some((face) =>
-          areFontFacesEquivalent(face, parsedFace.data),
+    const duplicate = existingFamily
+      ? getFontResourceFaces(existingFamily).some((registeredFace) =>
+          areFontFacesEquivalent(registeredFace, parsedFace.data),
         )
       : false;
 
     if (duplicate) {
       setError("inspector.fontFaceExists");
+      return false;
+    }
+
+    const canonicalFamily = existingFamily?.family ?? family.family;
+
+    onAddFontFace(canonicalFamily, parsedFace.data);
+    onFontAdded(canonicalFamily);
+    setError(null);
+
+    return true;
+  }
+
+  async function addRecommendedFace(summary: WebFontSummary) {
+    const pendingKey = summary.id;
+    setPendingAction({ key: pendingKey, kind: "adding" });
+    setError(null);
+
+    try {
+      const family = await resolveFamily(summary);
+
+      if (!family) {
+        return;
+      }
+
+      const recommendation = chooseRecommendedFontFace(family);
+
+      if (!recommendation) {
+        setError("inspector.webFonts.searchError");
+        return;
+      }
+
+      if (commitFaceSelection(family, recommendation)) {
+        setLastAdded({ id: summary.id, family });
+      }
+    } finally {
+      setPendingAction((current) =>
+        current?.key === pendingKey ? undefined : current,
+      );
+    }
+  }
+
+  async function openCustomizer(summary: WebFontSummary) {
+    const pendingKey = summary.id;
+    setPendingAction({ key: pendingKey, kind: "customizing" });
+    setError(null);
+
+    try {
+      const family = await resolveFamily(summary);
+
+      if (!family) {
+        return;
+      }
+
+      const selection = chooseRecommendedFontFace(family);
+
+      if (!selection) {
+        setError("inspector.webFonts.searchError");
+        return;
+      }
+
+      setCustomize({ family, selection });
+    } finally {
+      setPendingAction((current) =>
+        current?.key === pendingKey ? undefined : current,
+      );
+    }
+  }
+
+  function reopenLastAdded() {
+    if (!lastAdded) {
       return;
     }
 
-    const family = existingResource?.family ?? selectedFamily.family;
+    const selection = chooseRecommendedFontFace(lastAdded.family);
 
-    onAddFontFace(family, parsedFace.data);
-    onFontAdded(family);
+    if (!selection) {
+      return;
+    }
+
+    setError(null);
+    setCustomize({ family: lastAdded.family, selection });
+  }
+
+  function closeCustomize() {
+    setCustomize(undefined);
     setError(null);
   }
+
+  const weightOptions = useMemo(
+    () =>
+      customize
+        ? [...new Set(customize.family.faces.map((face) => face.weight))].sort(
+            (a, b) => a - b,
+          )
+        : [],
+    [customize],
+  );
+
+  const styleOptions = useMemo(
+    () =>
+      customize
+        ? [
+            ...new Set(
+              customize.family.faces
+                .filter((face) => face.weight === customize.selection.weight)
+                .map((face) => face.style),
+            ),
+          ].sort((a, b) => {
+            if (a === b) return 0;
+            if (a === "normal") return -1;
+            if (b === "normal") return 1;
+            return a < b ? -1 : 1;
+          })
+        : [],
+    [customize],
+  );
+
+  const subsetOptions = useMemo(
+    () =>
+      customize
+        ? [
+            ...new Set(
+              customize.family.faces
+                .filter(
+                  (face) =>
+                    face.weight === customize.selection.weight &&
+                    face.style === customize.selection.style,
+                )
+                .map((face) => face.subset ?? ""),
+            ),
+          ]
+        : [],
+    [customize],
+  );
+  const selectedFace =
+    customize !== undefined
+      ? findFamilyFace(customize.family, customize.selection)
+      : undefined;
 
   return (
     <div className={styles.fontSourcePanel}>
@@ -407,9 +486,9 @@ export function WebFontSearchControl({
             setQuery(event.target.value);
             setSearchState("idle");
             setResults([]);
-            setSelectedFamily(undefined);
-            setSelection(undefined);
-            setFamilyLoadingId(undefined);
+            setPendingAction(undefined);
+            setCustomize(undefined);
+            setLastAdded(undefined);
             setError(null);
           }}
         />
@@ -441,46 +520,80 @@ export function WebFontSearchControl({
 
       {results.length > 0 && (
         <div className={styles.webFontResults}>
-          {results.map((result) => (
-            <div
-              className={styles.webFontResult}
-              key={`${result.provider}:${result.id}`}
-            >
-              <div className={styles.webFontResultMeta}>
-                <strong>{result.family}</strong>
-                {result.category && <span>{result.category}</span>}
-                <span>
-                  {result.weights.join(", ")} ·{" "}
-                  {result.styles
-                    .map((style) => t(`inspector.fontStyle.${style}`))
-                    .join(", ")}
-                </span>
-              </div>
+          {results.map((result) => {
+            const pendingForResult = pendingAction?.key === result.id;
 
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                disabled={familyLoadingId !== undefined}
-                onClick={() => void selectFamily(result)}
+            return (
+              <div
+                className={styles.webFontResult}
+                key={`${result.provider}:${result.id}`}
               >
-                {familyLoadingId === result.id
-                  ? t("inspector.webFonts.loadingFamily")
-                  : t("inspector.webFonts.select")}
-              </button>
-            </div>
-          ))}
+                <div className={styles.webFontResultMeta}>
+                  <strong>{result.family}</strong>
+                  {result.category && <span>{result.category}</span>}
+                  <span>
+                    {result.weights.join(", ")} ·{" "}
+                    {result.styles
+                      .map((style) => t(`inspector.fontStyle.${style}`))
+                      .join(", ")}
+                  </span>
+                </div>
+
+                <div className={styles.webFontResultActions}>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    disabled={pendingForResult}
+                    onClick={() => {
+                      void addRecommendedFace(result);
+                    }}
+                  >
+                    {pendingForResult && pendingAction.kind === "adding"
+                      ? t("inspector.webFonts.adding")
+                      : t("inspector.webFonts.addFont")}
+                  </button>
+
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    disabled={pendingForResult}
+                    onClick={() => {
+                      void openCustomizer(result);
+                    }}
+                  >
+                    {pendingForResult && pendingAction.kind === "customizing"
+                      ? t("inspector.webFonts.loadingFamily")
+                      : t("inspector.webFonts.customize")}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {error && searchState !== "error" && !selectedFamily && (
+      {lastAdded && (
+        <div className={styles.webFontAddVariantRow}>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            disabled={pendingAction !== undefined}
+            onClick={reopenLastAdded}
+          >
+            {t("inspector.webFonts.addAnotherVariant")}
+          </button>
+        </div>
+      )}
+
+      {error && searchState !== "error" && !customize && (
         <span className={styles.validationMessage} role="alert">
           {t(error)}
         </span>
       )}
 
-      {selectedFamily && selection && (
+      {customize && (
         <div className={styles.webFontSelection}>
-          <strong>{selectedFamily.family}</strong>
+          <strong>{customize.family.family}</strong>
 
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
@@ -489,13 +602,17 @@ export function WebFontSearchControl({
               <select
                 id="presentation-font-search-weight"
                 name={getControlName("presentation", "FontSearchWeight")}
-                value={selection.weight}
+                value={customize.selection.weight}
                 onChange={(event) => {
-                  const next = chooseFaceSelection(selectedFamily, {
-                    ...selection,
+                  const next = chooseRecommendedFontFace(customize.family, {
+                    ...customize.selection,
                     weight: Number(event.target.value),
                   });
-                  setSelection(next);
+                  setCustomize(
+                    next
+                      ? { family: customize.family, selection: next }
+                      : undefined,
+                  );
                 }}
               >
                 {weightOptions.map((weight) => (
@@ -512,16 +629,19 @@ export function WebFontSearchControl({
               <select
                 id="presentation-font-search-style"
                 name={getControlName("presentation", "FontSearchStyle")}
-                value={selection.style}
+                value={customize.selection.style}
                 onChange={(event) => {
                   const style = event.target.value;
 
                   if (style === "normal" || style === "italic") {
-                    setSelection(
-                      chooseFaceSelection(selectedFamily, {
-                        ...selection,
-                        style,
-                      }),
+                    const next = chooseRecommendedFontFace(customize.family, {
+                      ...customize.selection,
+                      style,
+                    });
+                    setCustomize(
+                      next
+                        ? { family: customize.family, selection: next }
+                        : undefined,
                     );
                   }
                 }}
@@ -541,9 +661,15 @@ export function WebFontSearchControl({
             <select
               id="presentation-font-search-subset"
               name={getControlName("presentation", "FontSearchSubset")}
-              value={selection.subset}
+              value={customize.selection.subset}
               onChange={(event) => {
-                setSelection({ ...selection, subset: event.target.value });
+                setCustomize({
+                  family: customize.family,
+                  selection: {
+                    ...customize.selection,
+                    subset: event.target.value,
+                  },
+                });
               }}
             >
               {subsetOptions.map((subset) => (
@@ -554,16 +680,38 @@ export function WebFontSearchControl({
             </select>
           </label>
 
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            disabled={!selectedFace}
-            onClick={addSelectedFace}
-          >
-            {t("inspector.webFonts.add")}
-          </button>
+          <div className={styles.webFontVariantActions}>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              disabled={!selectedFace}
+              onClick={() => {
+                const added = commitFaceSelection(
+                  customize.family,
+                  customize.selection,
+                );
 
-          {error && searchState !== "error" && (
+                if (added) {
+                  setLastAdded({
+                    id: customize.family.id,
+                    family: customize.family,
+                  });
+                }
+              }}
+            >
+              {t("inspector.webFonts.addVariant")}
+            </button>
+
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={closeCustomize}
+            >
+              {t("inspector.webFonts.back")}
+            </button>
+          </div>
+
+          {error && (
             <span className={styles.validationMessage} role="alert">
               {t(error)}
             </span>

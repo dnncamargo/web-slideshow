@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { FontManagerSource } from "@/features/fonts/web-font-types";
 
+import { normalizeFontFamily } from "../../font-resource-helpers";
 import styles from "../../editor-workspace.module.css";
 
 import { getControlName } from "../inspector-helpers";
@@ -15,7 +16,14 @@ import { WebFontSearchControl } from "./web-font-search-control";
 
 interface PresentationFontManagerProps extends FontResourceControls {
   id: string;
-  onFontAdded: (family: string) => void;
+  selectedElementId: string;
+  selectedFontFamily: string | undefined;
+  onApplyFontFamily: (family: string) => void;
+}
+
+interface AddedFontState {
+  elementId: string;
+  family: string;
 }
 
 function isFontManagerSource(value: string): value is FontManagerSource {
@@ -26,7 +34,9 @@ function isFontManagerSource(value: string): value is FontManagerSource {
 
 export function PresentationFontManager({
   id,
-  onFontAdded,
+  selectedElementId,
+  selectedFontFamily,
+  onApplyFontFamily,
   fontResources,
   onAddFontFace,
   onRemoveFontFace,
@@ -34,6 +44,19 @@ export function PresentationFontManager({
 }: PresentationFontManagerProps) {
   const { t } = useStudioI18n();
   const [source, setSource] = useState<FontManagerSource>("fontsource");
+  const [addedFont, setAddedFont] = useState<AddedFontState>();
+
+  // The added state is scoped to the element it was created for. A different
+  // selection must never inherit the "added"/"applied" feedback of a
+  // previously selected element: the panel only renders for the matching
+  // elementId, and the applied claim always derives from the canonical
+  // style.fontFamily of the currently selected element.
+  const activeAddedFont =
+    addedFont?.elementId === selectedElementId ? addedFont : undefined;
+  const addedFamilyApplied =
+    activeAddedFont !== undefined &&
+    normalizeFontFamily(selectedFontFamily ?? "") ===
+      normalizeFontFamily(activeAddedFont.family);
 
   return (
     <div
@@ -75,7 +98,9 @@ export function PresentationFontManager({
           provider="fontsource"
           fontResources={fontResources}
           onAddFontFace={onAddFontFace}
-          onFontAdded={onFontAdded}
+          onFontAdded={(family) => {
+            setAddedFont({ elementId: selectedElementId, family });
+          }}
         />
       )}
 
@@ -86,13 +111,17 @@ export function PresentationFontManager({
             provider="google-fonts"
             fontResources={fontResources}
             onAddFontFace={onAddFontFace}
-            onFontAdded={onFontAdded}
+            onFontAdded={(family) => {
+              setAddedFont({ elementId: selectedElementId, family });
+            }}
           />
 
           <GoogleFontImportControl
             fontResources={fontResources}
             onAddFontFace={onAddFontFace}
-            onFontAdded={onFontAdded}
+            onFontAdded={(family) => {
+              setAddedFont({ elementId: selectedElementId, family });
+            }}
           />
         </div>
       )}
@@ -101,8 +130,34 @@ export function PresentationFontManager({
         <ManualFontControl
           fontResources={fontResources}
           onAddFontFace={onAddFontFace}
-          onFontAdded={onFontAdded}
+          onFontAdded={(family) => {
+            setAddedFont({ elementId: selectedElementId, family });
+          }}
         />
+      )}
+
+      {activeAddedFont && (
+        <div className={styles.fontApplySuggestion} role="status" aria-live="polite">
+          <span>
+            {t("inspector.fontAddedToPresentation", {
+              family: activeAddedFont.family,
+            })}
+          </span>
+
+          {addedFamilyApplied ? (
+            <strong>{t("inspector.appliedToSelectedText")}</strong>
+          ) : (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => {
+                onApplyFontFamily(activeAddedFont.family);
+              }}
+            >
+              {t("inspector.applyToSelectedText")}
+            </button>
+          )}
+        </div>
       )}
 
       <RegisteredFontsControl
