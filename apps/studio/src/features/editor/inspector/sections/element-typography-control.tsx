@@ -39,12 +39,6 @@ interface ElementTypographyControlProps {
   fontResourceControls: FontResourceControls;
 }
 
-interface FontApplySuggestion {
-  elementId: string;
-  family: string;
-  applied: boolean;
-}
-
 function readFontWeightSelection(
   fontWeight: ElementStyle["fontWeight"],
 ): string {
@@ -189,8 +183,6 @@ export function ElementTypographyControl({
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
   const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
-  const [fontApplySuggestion, setFontApplySuggestion] =
-    useState<FontApplySuggestion>();
 
   const fontWeightSelection = readFontWeightSelection(style?.fontWeight);
 
@@ -204,10 +196,6 @@ export function ElementTypographyControl({
       (fontResource) => fontResource.family === currentFontFamily,
     );
   const fontManagerId = `${controlPrefix}-presentation-font-manager`;
-  const activeFontApplySuggestion =
-    fontApplySuggestion?.elementId === selectedElementId
-      ? fontApplySuggestion
-      : undefined;
   const effectiveFontSizePx =
     style?.fontSize === undefined
       ? effectiveDefaults.fontSize
@@ -271,50 +259,17 @@ export function ElementTypographyControl({
       {isFontManagerOpen && (
         <PresentationFontManager
           id={fontManagerId}
-          onFontAdded={(family) => {
-            setFontApplySuggestion({
-              elementId: selectedElementId,
-              family,
-              applied: false,
-            });
+          selectedElementId={selectedElementId}
+          selectedFontFamily={currentFontFamily}
+          onApplyFontFamily={(family) => {
+            onUpdateStyle((currentStyle) => ({
+              ...currentStyle,
+
+              fontFamily: family,
+            }));
           }}
           {...fontResourceControls}
         />
-      )}
-
-      {activeFontApplySuggestion && (
-        <div className={styles.fontApplySuggestion} aria-live="polite">
-          <span>
-            {t("inspector.fontAddedToPresentation", {
-              family: activeFontApplySuggestion.family,
-            })}
-          </span>
-
-          {activeFontApplySuggestion.applied ? (
-            <strong>{t("inspector.appliedToSelectedText")}</strong>
-          ) : (
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={() => {
-                if (activeFontApplySuggestion.elementId !== selectedElementId) {
-                  return;
-                }
-
-                onUpdateStyle((currentStyle) => ({
-                  ...currentStyle,
-                  fontFamily: activeFontApplySuggestion.family,
-                }));
-                setFontApplySuggestion({
-                  ...activeFontApplySuggestion,
-                  applied: true,
-                });
-              }}
-            >
-              {t("inspector.applyToSelectedText")}
-            </button>
-          )}
-        </div>
       )}
 
       <div className={styles.fieldGrid}>

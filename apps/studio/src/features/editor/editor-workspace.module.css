@@ -1716,6 +1716,79 @@
 }
 
 
+.webFontResultActions {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: stretch;
+
+  gap: 6px;
+}
+
+
+.webFontAddVariantRow {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+}
+
+
+.webFontVariantActions {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: flex-end;
+
+  gap: 8px;
+}
+
+
+.registeredFontsToggle {
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  width: 100%;
+
+  padding: 6px 4px;
+
+  border: none;
+
+  border-radius: 6px;
+
+  background: transparent;
+
+  color: #94a3b8;
+
+  font: inherit;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  letter-spacing: 0.04em;
+
+  text-align: left;
+
+  text-transform: uppercase;
+
+  cursor: pointer;
+}
+
+
+.registeredFontsToggle:hover {
+  background: #141a24;
+
+  color: #cbd5e1;
+}
+
+
 .webFontSelection {
   padding: 9px;
 
