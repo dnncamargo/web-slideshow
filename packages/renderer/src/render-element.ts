@@ -1,5 +1,6 @@
 import { renderCode } from "./render-code";
 import { renderTable } from "./render-table";
+import { renderTopics } from "./render-topics";
 import { renderTerminal } from "./render-terminal";
 
 import type {
@@ -259,6 +260,9 @@ export function renderElement(element: PowerShowElement): string {
 
     case "table":
       return renderTable(element);
+
+    case "topics":
+      return renderTopics(element, renderElement);
 
     case "chart":
     case "interactive":
