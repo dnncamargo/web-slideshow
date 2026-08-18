@@ -1,6 +1,7 @@
 export * from "./primitives";
 export * from "./resources";
 export * from "./style";
+export * from "./links";
 export * from "./elements";
 export * from "./slide";
 export * from "./presentation";
