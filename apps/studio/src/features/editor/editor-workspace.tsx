@@ -4,6 +4,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
 
+import type { MouseEvent as ReactMouseEvent } from "react";
+
 import { renderFontResources, renderSlide } from "@powershow/renderer";
 
 import {
@@ -37,6 +39,7 @@ import type { PresentationNotesRepository } from "@/features/persistence/present
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
 import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
+import { isAuthoredPowerShowLink } from "./canvas-link-interception";
 import {
   getEffectiveImageFocalPoint,
   getImageFocalPointFromClientPosition,
@@ -923,6 +926,28 @@ export function EditorWorkspace({
       clearCanvasDragPreview();
     }
   }
+
+  // ==========================================================
+  // BEGIN: LINK ACTIVATION SUPPRESSION
+  //
+  // Authored PowerShow links render as native anchors through the
+  // shared renderer. Inside the Editor they must not navigate, but
+  // the href stays in the document so Player and Watch continue to
+  // use native anchor behavior. Selection, drag and resize use
+  // pointer events and are unaffected by click suppression.
+  // ==========================================================
+
+  function handleCanvasLinkClick(
+    event: ReactMouseEvent<HTMLDivElement>,
+  ) {
+    if (isAuthoredPowerShowLink(event.target)) {
+      event.preventDefault();
+    }
+  }
+
+  // ==========================================================
+  // END: LINK ACTIVATION SUPPRESSION
+  // ==========================================================
 
   function clearCanvasResizePreview() {
     const resize = canvasResizeRef.current;
@@ -2384,6 +2409,7 @@ export function EditorWorkspace({
               onPointerUp={handleCanvasPointerUp}
               onPointerCancel={handleCanvasPointerCancel}
               onLostPointerCapture={handleCanvasPointerCancel}
+              onClick={handleCanvasLinkClick}
               dangerouslySetInnerHTML={{
                 __html: renderedSlide,
               }}

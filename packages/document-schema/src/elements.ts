@@ -14,6 +14,10 @@ import {
   ElementStyleSchema,
 } from "./style";
 
+import {
+  ElementLinkSchema,
+} from "./links";
+
 const BaseElementSchema = z.object({
   id: ElementIdSchema,
 
@@ -34,6 +38,8 @@ export const TextElementSchema =
       "subtitle",
       "caption",
     ]).default("body"),
+
+    link: ElementLinkSchema.optional(),
   });
 
 export type TextElement =
@@ -46,6 +52,8 @@ export const TextboxElementSchema =
     content: z.string(),
 
     preset: z.string().optional(),
+
+    link: ElementLinkSchema.optional(),
   });
 
 export type TextboxElement =

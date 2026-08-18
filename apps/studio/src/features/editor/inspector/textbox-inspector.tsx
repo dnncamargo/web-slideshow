@@ -13,6 +13,8 @@ import type {
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementInteractionSection } from "./sections/element-interaction-section";
+
 import { ElementEffectsSection } from "./sections/element-effects-section";
 
 type TextboxElement = Extract<PowerShowElement, { type: "textbox" }>;
@@ -74,6 +76,12 @@ export function TextboxInspector({
           />
         </label>
       </InspectorSection>
+
+      <ElementInteractionSection
+        element={element}
+        onUpdate={onUpdate}
+        controlPrefix="textbox"
+      />
 
       <ElementAppearanceSection
         element={element}

@@ -3,6 +3,7 @@ import { renderTable } from "./render-table";
 import { renderTerminal } from "./render-terminal";
 
 import type {
+  ElementLink,
   ImageElement,
   PowerShowElement,
   TextboxElement,
@@ -12,6 +13,35 @@ import type {
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
 import { renderStyle } from "./render-style";
+
+const AUTHORED_LINK_APPEARANCE =
+  "color:inherit;text-decoration:inherit";
+
+function renderLinkContent(
+  content: string,
+  link: ElementLink | undefined,
+): string {
+  if (!link) {
+    return content;
+  }
+
+  const attributes: string[] = [
+    `href="${escapeHtml(link.href)}"`,
+    'data-powershow-link="true"',
+    `style="${AUTHORED_LINK_APPEARANCE}"`,
+  ];
+
+  if (link.target === "_blank") {
+    attributes.push(
+      'target="_blank"',
+      'rel="noopener noreferrer"',
+    );
+  } else if (link.target === "_self") {
+    attributes.push('target="_self"');
+  }
+
+  return `<a ${attributes.join(" ")}>${content}</a>`;
+}
 
 function buildAttributes(
   element: PowerShowElement,
@@ -54,7 +84,10 @@ function renderText(element: TextElement): string {
     return "";
   }
 
-  const content = escapeHtml(element.content);
+  const content = renderLinkContent(
+    escapeHtml(element.content),
+    element.link,
+  );
 
   const attributes = buildAttributes(element, [
     "powershow-text",
@@ -89,7 +122,11 @@ function renderTextbox(element: TextboxElement): string {
 
   const attributes = buildAttributes(element, classes);
 
-  return `<div ${attributes}>` + escapeHtml(element.content) + "</div>";
+  return (
+    `<div ${attributes}>` +
+    renderLinkContent(escapeHtml(element.content), element.link) +
+    "</div>"
+  );
 }
 
 function renderImage(element: ImageElement): string {
