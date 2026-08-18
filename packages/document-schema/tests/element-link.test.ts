@@ -27,6 +27,18 @@ function textboxElement(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function imageElement(overrides: Record<string, unknown> = {}) {
+  return {
+    type: "image",
+    id: "image-1",
+    hidden: false,
+    src: "/assets/example.png",
+    alt: "Example image",
+    fit: "contain",
+    ...overrides,
+  };
+}
+
 describe("isAbsoluteHttpHref URL validation policy", () => {
   it.each([
     "http://example.com",
@@ -222,6 +234,184 @@ describe("Text and Textbox element links", () => {
   });
 });
 
+describe("Image element links", () => {
+  it("accepts an Image element with a valid https link", () => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+        },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        type: "image",
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+        },
+      });
+    }
+  });
+
+  it("accepts an Image element with a valid http link", () => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href: "http://example.com/photo",
+        },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        type: "image",
+        link: {
+          kind: "url",
+          href: "http://example.com/photo",
+        },
+      });
+    }
+  });
+
+  it("accepts an Image element link with an explicit _self target", () => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+          target: "_self",
+        },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        type: "image",
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+          target: "_self",
+        },
+      });
+    }
+  });
+
+  it("accepts an Image element link with a _blank target", () => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+          target: "_blank",
+        },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        type: "image",
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+          target: "_blank",
+        },
+      });
+    }
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "file:///etc/passwd",
+  ] as const)("rejects unsafe Image link scheme %s", (href) => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href,
+        },
+      }),
+    );
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each([
+    "example.com",
+    "/relative/path",
+    " https://example.com ",
+  ] as const)("rejects malformed Image link URL %s", (href) => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href,
+        },
+      }),
+    );
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an Image element link with an invalid target", () => {
+    const result = PowerShowElementSchema.safeParse(
+      imageElement({
+        link: {
+          kind: "url",
+          href: "https://example.com/photo",
+          target: "_parent",
+        },
+      }),
+    );
+
+    expect(result.success).toBe(false);
+  });
+
+  it("still accepts an Image without a link (backward compatibility)", () => {
+    expect(PowerShowElementSchema.safeParse(imageElement()).success).toBe(true);
+  });
+});
+
+describe("unsupported element types and links", () => {
+  it.each([
+    ["code", { type: "code", id: "code-1", hidden: false, code: "x" }],
+    ["terminal", { type: "terminal", id: "term-1", hidden: false, lines: [] }],
+    ["table", { type: "table", id: "table-1", hidden: false, columns: [], rows: [] }],
+    ["chart", { type: "chart", id: "chart-1", hidden: false, chartType: "line", series: [] }],
+    ["interactive", { type: "interactive", id: "int-1", hidden: false, widget: "function-plot", config: {} }],
+    ["container", { type: "container", id: "container-1", hidden: false, direction: "column", children: [] }],
+  ] as const)(
+    "drops a link property from a %s element per schema strictness conventions",
+    (_type, element) => {
+      const result = PowerShowElementSchema.safeParse({
+        ...element,
+        link: {
+          kind: "url",
+          href: "https://example.com",
+        },
+      });
+
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data).not.toHaveProperty("link");
+      }
+    },
+  );
+});
+
 describe("no-link backward compatibility", () => {
   it("parses legacy Text elements without a link property", () => {
     const legacy = PowerShowElementSchema.parse(textElement());
@@ -262,6 +452,24 @@ describe("link parse/roundtrip", () => {
           kind: "url",
           href: "http://example.com",
           target: "_self",
+        },
+      }),
+    );
+
+    const restored = PowerShowElementSchema.parse(
+      JSON.parse(JSON.stringify(source)),
+    );
+
+    expect(restored).toEqual(source);
+  });
+
+  it("roundtrips a linked Image element through JSON serialization", () => {
+    const source = PowerShowElementSchema.parse(
+      imageElement({
+        link: {
+          kind: "url",
+          href: "https://example.com/photo?size=large#crop",
+          target: "_blank",
         },
       }),
     );

@@ -14,7 +14,10 @@ import { InspectorSection } from "../inspector-section";
 
 import type { ElementInspectorUpdate } from "../inspector-types";
 
-type LinkableElement = Extract<PowerShowElement, { type: "text" | "textbox" }>;
+type LinkableElement = Extract<
+  PowerShowElement,
+  { type: "text" | "textbox" | "image" }
+>;
 
 type OpenInSelection = "same" | "new";
 
@@ -24,6 +27,16 @@ interface ElementInteractionSectionProps {
   onUpdate: ElementInspectorUpdate;
 
   controlPrefix: string;
+}
+
+function isLinkableElement(
+  element: PowerShowElement,
+): element is LinkableElement {
+  return (
+    element.type === "text" ||
+    element.type === "textbox" ||
+    element.type === "image"
+  );
 }
 
 function getOpenInSelection(link: ElementLink | undefined): OpenInSelection {
@@ -50,7 +63,8 @@ function elementWithoutLink(element: LinkableElement): LinkableElement {
 // ============================================================
 // BEGIN: ELEMENT INTERACTION SECTION
 //
-// Shared semantic Interaction control used by Text and Textbox.
+// Shared semantic Interaction control used by Text, Textbox and
+// Image.
 //
 // The section never creates a link just by mounting. URL commits
 // happen on blur or Enter; invalid drafts are never written to
@@ -122,7 +136,7 @@ export function ElementInteractionSection({
       }
 
       onUpdate((current) => {
-        if (current.type !== "text" && current.type !== "textbox") {
+        if (!isLinkableElement(current)) {
           return current;
         }
 
@@ -137,7 +151,7 @@ export function ElementInteractionSection({
       setUrlDraft(href);
 
       onUpdate((current) => {
-        if (current.type !== "text" && current.type !== "textbox") {
+        if (!isLinkableElement(current)) {
           return current;
         }
 
@@ -185,7 +199,7 @@ export function ElementInteractionSection({
     }
 
     onUpdate((current) => {
-      if (current.type !== "text" && current.type !== "textbox") {
+      if (!isLinkableElement(current)) {
         return current;
       }
 
@@ -203,7 +217,7 @@ export function ElementInteractionSection({
 
   function handleRemoveLink(): void {
     onUpdate((current) => {
-      if (current.type !== "text" && current.type !== "textbox") {
+      if (!isLinkableElement(current)) {
         return current;
       }
 

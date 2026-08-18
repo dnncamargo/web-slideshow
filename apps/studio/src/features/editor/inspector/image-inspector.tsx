@@ -6,6 +6,8 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
+import { ElementInteractionSection } from "./sections/element-interaction-section";
+
 import type {
   TypedInspectorProps,
   UpdateElementStyle,
@@ -259,6 +261,12 @@ export function ImageInspector({
           </button>
         </div>
        </InspectorSection>
+
+       <ElementInteractionSection
+         element={element}
+         onUpdate={onUpdate}
+         controlPrefix="image"
+       />
 
        <ImageSizeSection
          element={element}
