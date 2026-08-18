@@ -262,6 +262,10 @@ distribution?:
 
   hidden: boolean;
 
+  link?:
+    | z.infer<typeof ElementLinkSchema>
+    | undefined;
+
   children: PowerShowElement[];
 };
 
@@ -321,6 +325,8 @@ export const PowerShowElementSchema:
           VerticalAlignmentSchema.optional(),
 
         width: LengthSchema.optional(),
+
+        link: ElementLinkSchema.optional(),
 
         children: z.array(
           PowerShowElementSchema,

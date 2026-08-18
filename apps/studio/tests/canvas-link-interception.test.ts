@@ -103,6 +103,51 @@ describe("isAuthoredPowerShowLink", () => {
     expect(media).not.toBeNull();
     expect(isAuthoredPowerShowLink(media)).toBe(false);
   });
+
+  it("recognizes the linked Container surface through its renderer markers", () => {
+    const canvas = createCanvas(
+      '<div class="powershow-element powershow-container"' +
+        ' data-powershow-id="container-1" data-powershow-type="container">' +
+        '<p class="powershow-element powershow-text">Child</p>' +
+        '<a href="https://example.com" data-powershow-link="true"' +
+        ' data-powershow-container-link-surface="true"' +
+        ' style="position:absolute;inset:0;z-index:100"></a>' +
+        "</div>",
+    );
+
+    const surface = canvas.querySelector(
+      '[data-powershow-container-link-surface="true"]',
+    );
+    const container = canvas.querySelector(
+      '[data-powershow-id="container-1"]',
+    );
+
+    expect(surface).not.toBeNull();
+    expect(container).not.toBeNull();
+
+    expect(isAuthoredPowerShowLink(surface)).toBe(true);
+
+    // The surface is a sibling overlay, not a wrapper. The Container
+    // root and ordinary children are not inside an authored anchor.
+    expect(isAuthoredPowerShowLink(container)).toBe(false);
+  });
+
+  it("ignores an unlinked Container (no overlay) in the canvas", () => {
+    const canvas = createCanvas(
+      '<div class="powershow-element powershow-container"' +
+        ' data-powershow-id="container-1" data-powershow-type="container">' +
+        "<p>Plain child</p>" +
+        "</div>",
+    );
+
+    const container = canvas.querySelector(
+      '[data-powershow-id="container-1"]',
+    );
+    const child = canvas.querySelector("p");
+
+    expect(isAuthoredPowerShowLink(container)).toBe(false);
+    expect(isAuthoredPowerShowLink(child)).toBe(false);
+  });
 });
 
 describe("canvas click interception", () => {
@@ -149,6 +194,66 @@ describe("canvas click interception", () => {
       ?.dispatchEvent(click);
 
     expect(click.defaultPrevented).toBe(true);
+  });
+
+  it("prevents navigation when the linked Container surface is clicked", () => {
+    const canvas = createCanvas(
+      '<div class="powershow-element powershow-container"' +
+        ' data-powershow-id="container-1" data-powershow-type="container">' +
+        "<p>Child</p>" +
+        '<a href="https://example.com" data-powershow-link="true"' +
+        ' data-powershow-container-link-surface="true"' +
+        ' style="position:absolute;inset:0;z-index:100"></a>' +
+        "</div>",
+    );
+
+    const surface = canvas.querySelector(
+      '[data-powershow-container-link-surface="true"]',
+    );
+
+    expect(surface).not.toBeNull();
+
+    const handleClick = createCanvasClickHandler();
+
+    const click = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+
+    canvas.addEventListener("click", handleClick);
+    surface?.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+  });
+
+  it("does not suppress a click on a sibling child of a linked Container", () => {
+    const canvas = createCanvas(
+      '<div class="powershow-element powershow-container"' +
+        ' data-powershow-id="container-1" data-powershow-type="container">' +
+        '<img class="powershow-image-media" src="/assets/example.png"' +
+        ' alt="Example">' +
+        '<a href="https://example.com" data-powershow-link="true"' +
+        ' data-powershow-container-link-surface="true"' +
+        ' style="position:absolute;inset:0;z-index:100"></a>' +
+        "</div>",
+    );
+
+    const handleClick = createCanvasClickHandler();
+
+    const click = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+
+    canvas.addEventListener("click", handleClick);
+
+    // In authoring the overlay is pointer-events:none (Studio CSS), so
+    // clicks land on the child itself, which is not inside an authored
+    // anchor. The click must not be suppressed so selection keeps
+    // working on descendants.
+    canvas.querySelector(".powershow-image-media")?.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(false);
   });
 
   it("does not block non-link canvas clicks", () => {

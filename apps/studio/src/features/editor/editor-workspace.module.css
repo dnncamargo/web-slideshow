@@ -1059,6 +1059,21 @@
   outline-offset: 2px;
 }
 
+/*
+ * A linked Container renders an internal transparent anchor surface
+ * (data-powershow-container-link-surface) that captures the whole
+ * box in Player and Watch. Inside the authoring canvas that overlay
+ * must not intercept the pointer, otherwise it would block selecting,
+ * dragging and editing descendant elements. The neutralization is
+ * scoped ONLY to the Studio canvas; the shared renderer output keeps
+ * the href and native anchor behavior for the presentation runtime.
+ */
+
+.slideCanvas
+  :global([data-powershow-container-link-surface="true"]) {
+  pointer-events: none;
+}
+
 /* ==========================================================
    END: INTERAÇÃO DO CANVAS
    ========================================================== */
