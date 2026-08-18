@@ -1,11 +1,13 @@
 import type {
   CodeElement,
   ContainerElement,
+  ImageElement,
   Presentation,
   Slide,
   TableElement,
   TerminalElement,
   TextElement,
+  TextboxElement,
 } from "@powershow/document-schema";
 
 export function createCodeElement(
@@ -57,6 +59,32 @@ export function createTextElement(
     hidden: false,
     variant: "body",
     content: "Fixture text",
+    ...overrides,
+  };
+}
+
+export function createTextboxElement(
+  overrides: Partial<TextboxElement> = {},
+): TextboxElement {
+  return {
+    type: "textbox",
+    id: "textbox-fixture",
+    hidden: false,
+    content: "Fixture textbox",
+    ...overrides,
+  };
+}
+
+export function createImageElement(
+  overrides: Partial<ImageElement> = {},
+): ImageElement {
+  return {
+    type: "image",
+    id: "image-fixture",
+    hidden: false,
+    src: "/assets/example.png",
+    alt: "Fixture image",
+    fit: "contain",
     ...overrides,
   };
 }

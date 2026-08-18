@@ -1,5 +1,6 @@
 import type {
   ContainerElement,
+  ElementLink,
   PowerShowElement,
 } from "@powershow/document-schema";
 
@@ -12,6 +13,29 @@ import { renderLength } from "./render-length";
 type RenderChild = (element: PowerShowElement) => string;
 
 type Alignment = "start" | "center" | "end" | "stretch";
+
+// ============================================================
+// BEGIN: CONTAINER LINK SURFACE
+//
+// A linked Container renders one clickable surface covering its
+// whole box. The surface is an internal transparent anchor overlay
+// owned by the renderer; the Container keeps its semantic root
+// (<div>, <main>, <header> or <footer>).
+//
+// The overlay is positioned against the Container box and must win
+// pointer input over rendered descendants, including linked child
+// elements. The linked Container root therefore creates a stacking
+// context (z-index:0) that traps descendant layers, and the surface
+// itself uses a deterministic overlay z-index owned by the renderer.
+// One pointer click still produces at most one navigation because
+// only the topmost native anchor at the clicked point activates.
+// ============================================================
+
+const CONTAINER_LINK_SURFACE_Z_INDEX = 100;
+
+// ============================================================
+// END: CONTAINER LINK SURFACE
+// ============================================================
 
 function renderMainAxisAlignment(value: Alignment): string {
   switch (value) {
@@ -92,6 +116,44 @@ function getTagName(
   }
 }
 
+// The Container box is the containing block for the absolute link
+// surface. Absolute placement and explicit non-static positioning
+// already establish a containing block; anything else needs the
+// smallest renderer-only requirement: position:relative.
+function establishesContainingBlock(
+  element: ContainerElement,
+  hasAbsoluteChild: boolean,
+): boolean {
+  if (hasAbsoluteChild) {
+    return true;
+  }
+
+  if (element.style?.placement?.mode === "absolute") {
+    return true;
+  }
+
+  const position = element.style?.position;
+
+  return position !== undefined && position !== "static";
+}
+
+function renderContainerLinkSurface(link: ElementLink): string {
+  const attributes: string[] = [
+    `href="${escapeHtml(link.href)}"`,
+    'data-powershow-link="true"',
+    'data-powershow-container-link-surface="true"',
+    `style="position:absolute;inset:0;z-index:${CONTAINER_LINK_SURFACE_Z_INDEX}"`,
+  ];
+
+  if (link.target === "_blank") {
+    attributes.push('target="_blank"', 'rel="noopener noreferrer"');
+  } else if (link.target === "_self") {
+    attributes.push('target="_self"');
+  }
+
+  return `<a ${attributes.join(" ")}></a>`;
+}
+
 export function renderContainer(
   element: ContainerElement,
   renderChild: RenderChild,
@@ -113,10 +175,29 @@ export function renderContainer(
     isAbsolutePlacement(child.style?.placement),
   );
 
+  const isLinked = element.link !== undefined;
+
   styles.push(isStack ? "display:grid" : "display:flex");
 
   if (hasAbsoluteChild) {
     styles.push("position:relative");
+  }
+
+  // A linked Container becomes the containing block for its internal
+  // link-surface overlay. If the container is not already positioned
+  // by canonical style/placement, add the smallest renderer-only
+  // requirement (position:relative). Preserve canonical positioning
+  // otherwise.
+  if (isLinked && !establishesContainingBlock(element, hasAbsoluteChild)) {
+    styles.push("position:relative");
+  }
+
+  // The linked Container root establishes a stacking context so
+  // descendant positioned layers (including nested linked surfaces)
+  // are trapped beneath the renderer-owned overlay z-index. This is
+  // what makes the largest linked Container capture the pointer.
+  if (isLinked) {
+    styles.push("z-index:0");
   }
 
   if (!isStack) {
@@ -237,6 +318,7 @@ export function renderContainer(
     ` style="${escapeHtml(styles.join(";"))}"` +
     `>` +
     children +
+    (element.link ? renderContainerLinkSurface(element.link) : "") +
     `</${tag}>`
   );
 }

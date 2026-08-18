@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  ContainerElement,
   ElementLink,
   ImageElement,
   PowerShowElement,
@@ -14,6 +15,7 @@ import type {
 
 import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { ImageInspector } from "../src/features/editor/inspector/image-inspector";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
 import { TextboxInspector } from "../src/features/editor/inspector/textbox-inspector";
@@ -30,7 +32,7 @@ const FONT_RESOURCES: FontResourceControls = {
 
 type LinkableElement = Extract<
   PowerShowElement,
-  { type: "text" | "textbox" | "image" }
+  { type: "text" | "textbox" | "image" | "container" }
 >;
 
 function textElement(
@@ -68,6 +70,19 @@ function imageElement(
     src: "/assets/example.png",
     alt: "Example image",
     fit: "contain",
+    ...overrides,
+  };
+}
+
+function containerElement(
+  overrides: Partial<Omit<ContainerElement, "type" | "hidden">> = {},
+): ContainerElement {
+  return {
+    type: "container",
+    id: "container-1",
+    hidden: false,
+    direction: "column",
+    children: [],
     ...overrides,
   };
 }
@@ -138,7 +153,9 @@ describe("ElementInteractionSection", () => {
               ? "text"
               : elementState.type === "textbox"
                 ? "textbox"
-                : "image"
+                : elementState.type === "image"
+                  ? "image"
+                  : "container"
           }
           onUpdate={(update) => {
             const next = update(elementState);
@@ -168,7 +185,8 @@ describe("ElementInteractionSection", () => {
     return (
       element.type === "text" ||
       element.type === "textbox" ||
-      element.type === "image"
+      element.type === "image" ||
+      element.type === "container"
     );
   }
 
@@ -793,6 +811,282 @@ describe("ElementInteractionSection", () => {
 
     expect(targetSelect(container, "image").value).toBe("new");
   });
+
+  it("mounting the section for a Container writes no canonical link", async () => {
+    await act(async () => {
+      mount(containerElement());
+    });
+
+    expect(updates).toHaveLength(0);
+    expect(elementState).not.toHaveProperty("link");
+  });
+
+  it("commits a valid Container URL as a canonical link on blur", async () => {
+    await act(async () => {
+      mount(containerElement());
+    });
+
+    await act(async () => {
+      changeInput(
+        urlInput(container, "container"),
+        "https://example.com/hero-section",
+      );
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "container"));
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(elementState).toMatchObject({
+      type: "container",
+      link: {
+        kind: "url",
+        href: "https://example.com/hero-section",
+      },
+    });
+  });
+
+  it("rejects a whitespace-padded Container URL without changing canonical state", async () => {
+    await act(async () => {
+      mount(containerElement());
+    });
+
+    await act(async () => {
+      changeInput(
+        urlInput(container, "container"),
+        "  https://example.com  ",
+      );
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "container"));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "container").value).toBe("");
+  });
+
+  it("does not write an invalid URL to the canonical Container element", async () => {
+    await act(async () => {
+      mount(containerElement());
+    });
+
+    await act(async () => {
+      changeInput(urlInput(container, "container"), "javascript:alert(1)");
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "container"));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "container").value).toBe("");
+  });
+
+  it("does not create a Container link from target selection alone", async () => {
+    await act(async () => {
+      mount(containerElement());
+    });
+
+    await act(async () => {
+      changeSelect(targetSelect(container, "container"), "new");
+    });
+
+    expect(updates).toHaveLength(0);
+    expect(elementState).not.toHaveProperty("link");
+
+    await act(async () => {
+      changeInput(urlInput(container, "container"), "https://example.com");
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "container"));
+    });
+
+    expect(elementState).toMatchObject({
+      type: "container",
+      link: {
+        kind: "url",
+        href: "https://example.com",
+        target: "_blank",
+      },
+    });
+  });
+
+  it("removes the canonical link from a Container via the remove action", async () => {
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+            target: "_blank",
+          },
+        }),
+      );
+    });
+
+    const removeButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Remove link"),
+    );
+
+    expect(removeButton).toBeDefined();
+
+    await act(async () => {
+      removeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "container").value).toBe("");
+    expect(targetSelect(container, "container").value).toBe("same");
+  });
+
+  it("clears the Container canonical link when the URL field is cleared", async () => {
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      changeInput(urlInput(container, "container"), "");
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "container"));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "container").value).toBe("");
+  });
+
+  it("updates the target of an existing Container canonical link", async () => {
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      changeSelect(targetSelect(container, "container"), "new");
+    });
+
+    expect(elementState).toMatchObject({
+      type: "container",
+      link: {
+        kind: "url",
+        href: "https://example.com",
+        target: "_blank",
+      },
+    });
+  });
+
+  it("hydrates the Container form from an existing canonical link", async () => {
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com/hydrated",
+            target: "_blank",
+          },
+        }),
+      );
+    });
+
+    expect(urlInput(container, "container").value).toBe(
+      "https://example.com/hydrated",
+    );
+
+    expect(targetSelect(container, "container").value).toBe("new");
+  });
+
+  it("preserves the local draft when the Container link is recreated with equal values", async () => {
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+            target: "_blank",
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      changeInput(
+        urlInput(container, "container"),
+        "https://draft.example.com",
+      );
+    });
+
+    expect(urlInput(container, "container").value).toBe(
+      "https://draft.example.com",
+    );
+
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+            target: "_blank",
+          },
+        }),
+      );
+    });
+
+    expect(urlInput(container, "container").value).toBe(
+      "https://draft.example.com",
+    );
+  });
+
+  it("rehydrates the Container form when the canonical href actually changes", async () => {
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com/old",
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      changeInput(
+        urlInput(container, "container"),
+        "https://draft.example.com",
+      );
+    });
+
+    await act(async () => {
+      mount(
+        containerElement({
+          link: {
+            kind: "url",
+            href: "https://example.com/new",
+          },
+        }),
+      );
+    });
+
+    expect(urlInput(container, "container").value).toBe(
+      "https://example.com/new",
+    );
+  });
 });
 
 describe("shared Interaction control in inspectors", () => {
@@ -865,5 +1159,21 @@ describe("shared Interaction control in inspectors", () => {
 
     expect(urlInput(container, "image")).toBeDefined();
     expect(targetSelect(container, "image")).toBeDefined();
+  });
+
+  it("ContainerInspector renders the same Interaction section", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <ContainerInspector
+            element={containerElement()}
+            onUpdate={() => {}}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    expect(urlInput(container, "container")).toBeDefined();
+    expect(targetSelect(container, "container")).toBeDefined();
   });
 });

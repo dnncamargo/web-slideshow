@@ -13,6 +13,8 @@ import { ContainerSpacingSection } from "./sections/container-spacing-section";
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
+import { ElementInteractionSection } from "./sections/element-interaction-section";
+
 import { ElementEffectsSection } from "./sections/element-effects-section";
 
 import type { UpdateElementStyle } from "./inspector-types";
@@ -70,6 +72,12 @@ export function ContainerInspector({
         showRoundedCorners
         showOpacity
         showBorder
+      />
+
+      <ElementInteractionSection
+        element={element}
+        onUpdate={onUpdate}
+        controlPrefix="container"
       />
 
       <ElementEffectsSection
