@@ -107,6 +107,7 @@ const englishMessages = {
   "element.table": "Table",
   "element.chart": "Chart",
   "element.interactive": "Interactive",
+  "element.topics": "Topics",
   "element.container": "Container",
 
   "elementCrud.add": "+ Add",
@@ -606,6 +607,7 @@ const portugueseMessages = {
   "element.table": "Tabela",
   "element.chart": "Gráfico",
   "element.interactive": "Interativo",
+  "element.topics": "Tópicos",
   "element.container": "Contêiner",
 
   "elementCrud.add": "+ Adicionar",
@@ -1063,6 +1065,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   table: "element.table",
   chart: "element.chart",
   interactive: "element.interactive",
+  topics: "element.topics",
   container: "element.container",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 

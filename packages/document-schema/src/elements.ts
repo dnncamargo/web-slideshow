@@ -224,6 +224,57 @@ export const ContentSlotSchema:
     ),
   });
 
+export type TopicItem = {
+  id: string;
+
+  content: ContentSlot;
+
+  children: TopicItem[];
+};
+
+export const TopicItemSchema:
+  z.ZodType<TopicItem> =
+  z.lazy(() =>
+    z.object({
+      id: ElementIdSchema,
+
+      content: ContentSlotSchema,
+
+      children: z.array(
+        z.lazy(() => TopicItemSchema),
+      ),
+    }),
+  );
+
+export type TopicsElement = {
+  id: string;
+
+  type: "topics";
+
+  kind: "unordered" | "ordered";
+
+  items: TopicItem[];
+
+  style?:
+    | z.infer<typeof ElementStyleSchema>
+    | undefined;
+
+  hidden: boolean;
+};
+
+export const TopicsElementSchema:
+  z.ZodType<TopicsElement> =
+  BaseElementSchema.extend({
+    type: z.literal("topics"),
+
+    kind: z.enum([
+      "unordered",
+      "ordered",
+    ]),
+
+    items: z.array(TopicItemSchema),
+  });
+
 export type ContainerElement = {
   id: string;
 
@@ -300,6 +351,7 @@ export type PowerShowElement =
   | TableElement
   | ChartElement
   | InteractiveElement
+  | TopicsElement
   | ContainerElement;
 
 export const PowerShowElementSchema:
@@ -314,6 +366,7 @@ export const PowerShowElementSchema:
       TableElementSchema,
       ChartElementSchema,
       InteractiveElementSchema,
+      TopicsElementSchema,
 
       BaseElementSchema.extend({
         type: z.literal("container"),

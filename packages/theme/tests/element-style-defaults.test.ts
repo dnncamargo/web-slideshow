@@ -114,6 +114,9 @@ describe("element style authoring defaults", () => {
     expect(
       resolveEffectiveElementStyleDefaults({ type: "terminal" }).borderRadius,
     ).toBe(14);
+    expect(
+      resolveEffectiveElementStyleDefaults({ type: "topics" }).borderRadius,
+    ).toBe(0);
   });
 });
 
