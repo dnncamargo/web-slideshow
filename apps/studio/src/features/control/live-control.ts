@@ -1,52 +1,86 @@
-import type { SlideAck, SlideCommand } from "./control-commands";
+import type { LiveControlState, LivePlayerState } from "../live/live-state";
 
 export const COALESCE_DELAY_MS = 75;
 
 export type LiveControlStatus =
   | { kind: "awaiting-player" }
   | { kind: "syncing" }
+  | { kind: "player-changed" }
   | { kind: "synced"; latencyMs?: number };
 
 export interface LiveControlView {
   enabled: boolean;
-  confirmedPageId: string | null;
-  confirmedPageIndex: number;
+  desiredPageId: string | null;
+  desiredPageIndex: number | null;
+  actualPageId: string | null;
+  actualPageIndex: number | null;
   status: LiveControlStatus;
 }
 
 export interface LiveControlOptions {
   activationRevision: number;
   currentVersionId: string;
-  writeCommand(pageIndex: number): Promise<SlideCommand>;
+  resolvePageId(pageIndex: number): string | null;
+  resolvePageIndex(pageId: string): number | null;
+  writeControlState(pageIndex: number): Promise<LiveControlState>;
   now(): number;
   schedule(callback: () => void, delayMs: number): () => void;
   onViewChange(view: LiveControlView): void;
   onCommandError(): void;
 }
 
-interface PendingCommand {
-  target: number;
-  revision: number | null;
+interface PersistedDesiredState {
+  pageId: string;
+  revision: number;
+}
+
+interface ActualPlayerState {
+  pageId: string;
+  appliedControlRevision: number;
+}
+
+/** A controlState write whose RTDB transaction has not resolved yet. */
+interface InFlightWrite {
+  targetPageId: string;
   startedAt: number;
 }
 
+/** Latency probe for the current persisted desired revision until confirmed. */
+interface ConfirmationWindow {
+  revision: number;
+  pageId: string;
+  startedAt: number;
+}
+
+function samePageId(a: string | null, b: string | null): boolean {
+  return a !== null && b !== null && a === b;
+}
+
 /**
- * Drives the live slide protocol for the Studio Control surface.
+ * Drives the live projection contract for the Studio Control surface.
  *
- * Confirmed page index only ever comes from a matching Player ACK. The desired
- * page index derives from the confirmed page index and coalesces user input. At most one
- * unacknowledged command is in flight at a time.
+ * `controlState` is the persisted desired target. `playerState` is the actual
+ * applied target. `pageId` is the canonical identity throughout; `pageIndex`
+ * is always derived through `resolvePageIndex(pageId)` and never trusted from
+ * a reported `playerState.pageIndex`. Control stays fully navigable while
+ * Syncing: a committed write becomes `persistedDesired` as soon as its RTDB
+ * transaction resolves, without waiting for Player confirmation. Navigation
+ * always proceeds from the latest local draft desired, then the latest
+ * persisted desired, then the actual Player page. At most one write Promise is
+ * in flight at a time; a newer dirty draft is flushed after the coalescing
+ * window once the current write resolves.
  */
 export class LiveControl {
-  private confirmedPageId: string | null = null;
-  private confirmedPageIndex = 0;
-  private desiredPageIndex = 0;
-  private hasBaseline = false;
+  private persistedDesired: PersistedDesiredState | null = null;
+  private draftTargetPageId: string | null = null;
+  private draftDirty = false;
+  private actual: ActualPlayerState | null = null;
+  private hasPlayerBaseline = false;
   private latencyMs: number | undefined;
-  private pending: PendingCommand | null = null;
+  private writeInFlight: InFlightWrite | null = null;
+  private confirmationWindow: ConfirmationWindow | null = null;
   private trailingCancel: (() => void) | null = null;
-  private lastAcceptedAckRevision: number | null = null;
-  private earlyAck: SlideAck | null = null;
+  private earlyConfirmedPlayerState: LivePlayerState | null = null;
   private destroyed = false;
 
   constructor(private readonly options: LiveControlOptions) {
@@ -54,106 +88,219 @@ export class LiveControl {
   }
 
   previous(): void {
-    this.requestTarget(Math.max(0, this.desiredPageIndex - 1));
+    const baseIndex = this.getNavigationBaseIndex();
+
+    if (baseIndex === null) {
+      return;
+    }
+
+    this.requestTarget(Math.max(0, baseIndex - 1));
   }
 
   next(): void {
-    this.requestTarget(this.desiredPageIndex + 1);
-  }
+    const baseIndex = this.getNavigationBaseIndex();
 
-  private applyPendingAck(ack: SlideAck): void {
-    if (this.pending === null || this.pending.revision !== ack.revision) {
+    if (baseIndex === null) {
       return;
     }
 
-    this.lastAcceptedAckRevision = ack.revision;
-    this.latencyMs = Math.max(0, this.options.now() - this.pending.startedAt);
-
-    this.confirmedPageId = ack.pageId;
-    this.confirmedPageIndex = ack.pageIndex;
-
-    if (ack.pageIndex !== this.pending.target) {
-      this.desiredPageIndex = ack.pageIndex;
-    }
-
-    this.pending = null;
-    this.earlyAck = null;
-
-    this.notify();
-
-    if (this.desiredPageIndex !== this.confirmedPageIndex) {
-      this.scheduleTrailing();
-    }
+    this.requestTarget(baseIndex + 1);
   }
 
-  handleAck(ack: SlideAck): void {
+  /**
+   * Create a new desired generation targeting the Player's actual page. Used
+   * by the player-changed "Follow Player" action. Does not silently mutate the
+   * existing desired state; it writes a fresh controlState revision.
+   *
+   * The target index is resolved from the canonical `actual.pageId`. A
+   * mismatched reported `playerState.pageIndex` is never used, and an
+   * unresolvable pageId fails closed without writing.
+   */
+  followPlayer(): void {
+    if (!this.hasPlayerBaseline || this.actual === null) {
+      return;
+    }
+
+    const index = this.options.resolvePageIndex(this.actual.pageId);
+
+    if (index === null) {
+      return;
+    }
+
+    this.requestTarget(index);
+  }
+
+  handleControlState(state: LiveControlState): void {
     if (this.destroyed) {
       return;
     }
-    if (ack.activationRevision !== this.options.activationRevision) {
+
+    if (state.activationRevision !== this.options.activationRevision) {
       return;
     }
-    if (ack.currentVersionId !== this.options.currentVersionId) {
+
+    if (state.currentVersionId !== this.options.currentVersionId) {
       return;
     }
 
     if (
-      this.lastAcceptedAckRevision !== null &&
-      ack.revision < this.lastAcceptedAckRevision
+      this.persistedDesired !== null &&
+      state.revision < this.persistedDesired.revision
     ) {
       return;
     }
 
-    // Control recém-aberto / recarregado:
-    // qualquer ACK atual válido estabelece o estado confirmado.
-    if (this.pending === null) {
-      this.hasBaseline = true;
-      this.lastAcceptedAckRevision = ack.revision;
-      this.confirmedPageId = ack.pageId;
-      this.confirmedPageIndex = ack.pageIndex;
-      this.desiredPageIndex = ack.pageIndex;
+    const nextDesired = {
+      pageId: state.pageId,
+      revision: state.revision,
+    };
+
+    const changed = !this.persistedDesired
+      ? true
+      : this.persistedDesired.pageId !== nextDesired.pageId ||
+        this.persistedDesired.revision !== nextDesired.revision;
+
+    this.persistedDesired = nextDesired;
+
+    if (!this.draftDirty && this.writeInFlight === null) {
+      this.draftTargetPageId = state.pageId;
+    }
+
+    if (changed) {
+      this.latencyMs = undefined;
+    }
+
+    this.notify();
+  }
+
+  handlePlayerState(state: LivePlayerState): void {
+    if (this.destroyed) {
+      return;
+    }
+
+    if (state.activationRevision !== this.options.activationRevision) {
+      return;
+    }
+
+    if (state.currentVersionId !== this.options.currentVersionId) {
+      return;
+    }
+
+    this.hasPlayerBaseline = true;
+    this.actual = {
+      pageId: state.pageId,
+      appliedControlRevision: state.appliedControlRevision,
+    };
+
+    if (this.persistedDesired === null) {
+      this.persistedDesired = {
+        pageId: state.pageId,
+        revision: 0,
+      };
+      this.draftTargetPageId = state.pageId;
+      this.draftDirty = false;
       this.latencyMs = undefined;
       this.cancelTrailing();
       this.notify();
       return;
     }
 
-    // Comando já foi iniciado, mas o writer ainda não devolveu revision.
-    if (this.pending.revision === null) {
-      if (this.earlyAck === null || ack.revision >= this.earlyAck.revision) {
-        this.earlyAck = ack;
-      }
-
+    // A Player confirmation of the in-flight write's target before the writer
+    // resolves is retained so latency can be measured once the revision is
+    // known.
+    if (
+      this.writeInFlight !== null &&
+      this.writeInFlight.targetPageId === state.pageId
+    ) {
+      this.earlyConfirmedPlayerState = state;
+      this.notify();
       return;
     }
 
-    if (ack.revision !== this.pending.revision) {
+    // Confirmation of the current persisted desired revision/page.
+    if (
+      this.confirmationWindow !== null &&
+      this.confirmationWindow.revision === state.appliedControlRevision &&
+      this.confirmationWindow.pageId === state.pageId
+    ) {
+      this.latencyMs = Math.max(
+        0,
+        this.options.now() - this.confirmationWindow.startedAt,
+      );
+      this.confirmationWindow = null;
+      this.notify();
       return;
     }
 
-    this.applyPendingAck(ack);
+    this.notify();
   }
 
   destroy(): void {
     this.destroyed = true;
     this.cancelTrailing();
-    this.pending = null;
-    this.earlyAck = null;
+    this.writeInFlight = null;
+    this.confirmationWindow = null;
+    this.earlyConfirmedPlayerState = null;
   }
 
   private requestTarget(index: number): void {
-    if (!this.hasBaseline) {
+    if (!this.hasPlayerBaseline) {
       return;
     }
 
-    this.desiredPageIndex = index;
+    const pageId = this.options.resolvePageId(index);
 
-    if (this.pending !== null) {
+    if (pageId === null) {
+      return;
+    }
+
+    this.draftTargetPageId = pageId;
+    this.draftDirty = !samePageId(
+      this.persistedDesired?.pageId ?? null,
+      pageId,
+    );
+
+    if (!this.draftDirty) {
+      this.cancelTrailing();
+      this.notify();
+      return;
+    }
+
+    this.latencyMs = undefined;
+
+    if (this.writeInFlight !== null) {
+      // A newer draft is retained; it will be flushed once the current write
+      // resolves, without waiting for Player confirmation.
       this.notify();
       return;
     }
 
     this.scheduleTrailing();
+    this.notify();
+  }
+
+  private getNavigationBaseIndex(): number | null {
+    if (this.draftTargetPageId !== null) {
+      const index = this.options.resolvePageIndex(this.draftTargetPageId);
+
+      if (index !== null) {
+        return index;
+      }
+    }
+
+    if (this.persistedDesired !== null) {
+      const index = this.options.resolvePageIndex(this.persistedDesired.pageId);
+
+      if (index !== null) {
+        return index;
+      }
+    }
+
+    if (this.actual !== null) {
+      return this.options.resolvePageIndex(this.actual.pageId);
+    }
+
+    return null;
   }
 
   private scheduleTrailing(): void {
@@ -172,87 +319,174 @@ export class LiveControl {
   }
 
   private async flush(): Promise<void> {
-    if (this.destroyed || this.pending !== null) {
+    if (this.destroyed || this.writeInFlight !== null) {
       return;
     }
 
-    if (this.desiredPageIndex === this.confirmedPageIndex) {
+    if (!this.draftDirty || this.draftTargetPageId === null) {
       return;
     }
 
-    const target = this.desiredPageIndex;
+    const targetPageId = this.draftTargetPageId;
 
-    this.pending = {
-      target,
-      revision: null,
-      startedAt: this.options.now(),
+    if (samePageId(this.persistedDesired?.pageId ?? null, targetPageId)) {
+      this.draftDirty = false;
+      return;
+    }
+
+    const targetIndex = this.options.resolvePageIndex(targetPageId);
+
+    if (targetIndex === null) {
+      // The canonical target page cannot be mapped; fail closed without
+      // writing from any reported pageIndex.
+      return;
+    }
+
+    const startedAt = this.options.now();
+    this.writeInFlight = {
+      targetPageId,
+      startedAt,
     };
 
+    this.notify();
+
     try {
-      const writePromise = this.options.writeCommand(target);
-
-      this.notify();
-
-      const committed = await writePromise;
+      const committed = await this.options.writeControlState(targetIndex);
 
       if (this.destroyed) {
         return;
       }
 
-      if (this.pending?.target !== target) {
+      if (this.writeInFlight?.targetPageId !== targetPageId) {
         return;
       }
 
-      this.pending = {
-        ...this.pending,
+      this.writeInFlight = null;
+      this.persistedDesired = {
+        pageId: committed.pageId,
         revision: committed.revision,
       };
+      this.draftDirty = !samePageId(this.draftTargetPageId, committed.pageId);
+      this.confirmationWindow = {
+        revision: committed.revision,
+        pageId: committed.pageId,
+        startedAt,
+      };
+      this.latencyMs = undefined;
 
-      const earlyAck = this.earlyAck;
+      const earlyConfirmed = this.earlyConfirmedPlayerState;
 
-      if (earlyAck !== null && earlyAck.revision === committed.revision) {
-        this.applyPendingAck(earlyAck);
+      if (
+        earlyConfirmed !== null &&
+        earlyConfirmed.appliedControlRevision === committed.revision &&
+        earlyConfirmed.pageId === committed.pageId
+      ) {
+        this.latencyMs = Math.max(0, this.options.now() - startedAt);
+        this.confirmationWindow = null;
+      }
+
+      this.earlyConfirmedPlayerState = null;
+      this.notify();
+
+      if (this.draftDirty) {
+        this.scheduleTrailing();
       }
     } catch {
       if (this.destroyed) {
         return;
       }
 
-      if (this.pending?.target === target) {
-        this.pending = null;
-        this.earlyAck = null;
-        this.desiredPageIndex = this.confirmedPageIndex;
+      if (this.writeInFlight?.targetPageId === targetPageId) {
+        this.writeInFlight = null;
+        this.earlyConfirmedPlayerState = null;
+        this.draftDirty = false;
+        this.draftTargetPageId =
+          this.persistedDesired?.pageId ?? this.actual?.pageId ?? null;
+        this.latencyMs = undefined;
         this.options.onCommandError();
         this.notify();
       }
     }
   }
 
+  private computeDesiredPageId(): string | null {
+    if (this.draftTargetPageId !== null) {
+      return this.draftTargetPageId;
+    }
+
+    return this.persistedDesired?.pageId ?? null;
+  }
+
+  private computeDesiredPageIndex(): number | null {
+    const pageId = this.computeDesiredPageId();
+
+    if (pageId === null) {
+      return null;
+    }
+
+    return this.options.resolvePageIndex(pageId);
+  }
+
+  private computeActualPageIndex(): number | null {
+    if (this.actual === null) {
+      return null;
+    }
+
+    return this.options.resolvePageIndex(this.actual.pageId);
+  }
+
   private notify(): void {
     if (this.destroyed) {
       return;
     }
+
     this.options.onViewChange({
-      enabled: this.hasBaseline,
-      confirmedPageId: this.confirmedPageId,
-      confirmedPageIndex: this.confirmedPageIndex,
+      enabled: this.hasPlayerBaseline,
+      desiredPageId: this.computeDesiredPageId(),
+      desiredPageIndex: this.computeDesiredPageIndex(),
+      actualPageId: this.actual?.pageId ?? null,
+      actualPageIndex: this.computeActualPageIndex(),
       status: this.computeStatus(),
     });
   }
 
   private computeStatus(): LiveControlStatus {
-    if (!this.hasBaseline) {
+    if (!this.hasPlayerBaseline) {
       return { kind: "awaiting-player" };
     }
 
-    if (this.pending !== null) {
+    const hasNewerDesired =
+      this.draftDirty ||
+      this.writeInFlight !== null ||
+      (this.persistedDesired !== null &&
+        this.actual !== null &&
+        this.actual.appliedControlRevision < this.persistedDesired.revision);
+
+    if (hasNewerDesired) {
       return { kind: "syncing" };
     }
 
-    if (this.latencyMs !== undefined) {
-      return { kind: "synced", latencyMs: this.latencyMs };
+    if (this.persistedDesired === null || this.actual === null) {
+      return { kind: "syncing" };
     }
 
-    return { kind: "synced" };
+    const revisionMatch =
+      this.actual.appliedControlRevision === this.persistedDesired.revision;
+
+    if (revisionMatch && this.actual.pageId === this.persistedDesired.pageId) {
+      if (this.latencyMs !== undefined) {
+        return { kind: "synced", latencyMs: this.latencyMs };
+      }
+
+      return { kind: "synced" };
+    }
+
+    if (revisionMatch) {
+      // Player applied the latest Control generation but its visual page
+      // changed independently afterwards.
+      return { kind: "player-changed" };
+    }
+
+    return { kind: "syncing" };
   }
 }

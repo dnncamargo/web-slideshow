@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onValue, ref } from "firebase/database";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
-import { writeSlideCommand } from "./control-command-writer";
-import { subscribeSlideAck } from "./slide-ack";
+import { writeControlState as writeLiveControlState } from "./control-command-writer";
 import {
   promoteLivePresentationVersion,
   subscribeLiveCurrent,
@@ -12,6 +12,12 @@ import {
   type LiveState,
 } from "./live-current";
 import { LiveControl, type LiveControlView } from "./live-control";
+import {
+  buildControlStatePath,
+  buildPlayerStatePath,
+  parseLiveControlState,
+  parseLivePlayerState,
+} from "../live/live-state";
 
 export interface UseLiveSessionControlResult {
   liveState: LiveState;
@@ -21,11 +27,13 @@ export interface UseLiveSessionControlResult {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
 }
 
 export interface UseLiveSessionControlOptions {
   resolvePageId(pageIndex: number): string | null;
+  resolvePageIndex(pageId: string): number | null;
 }
 
 interface PromotionAttempt {
@@ -46,13 +54,14 @@ function sameLiveIdentity(a: LiveCurrent, b: LiveCurrent): boolean {
  * Owns the Studio Control live session lifecycle.
  *
  * Subscribes to the active presentation, creates/destroys the activation-scoped
- * LiveControl, subscribes to the Player slide ACK stream, and wires the slide
- * command writer. Exposes the ACK-authoritative view and the Previous/Next
- * actions without leaking the LiveControl instance, the database handle, or
- * ACK internals.
+ * LiveControl, and wires the control/player projection-state streams. Exposes
+ * the desired/actual view and the Previous/Next/Follow Player actions without
+ * leaking the LiveControl instance, the database handle, or the RTDB
+ * listeners.
  */
 export function useLiveSessionControl({
   resolvePageId,
+  resolvePageIndex,
 }: UseLiveSessionControlOptions): UseLiveSessionControlResult {
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
   const [view, setView] = useState<LiveControlView | null>(null);
@@ -88,17 +97,34 @@ export function useLiveSessionControl({
 
     const activationRevision = liveState.live.revision;
     const currentVersionId = liveState.live.currentVersionId;
+    setView(null);
+    let sawControlState = false;
+    let sawPlayerState = false;
+    let hydrated = false;
+    let pendingView: LiveControlView | null = null;
+
+    const flushHydratedView = (): void => {
+      if (!hydrated && sawControlState && sawPlayerState) {
+        hydrated = true;
+        if (pendingView !== null) {
+          setView(pendingView);
+        }
+      }
+    };
+
     const control = new LiveControl({
       activationRevision,
       currentVersionId,
-      writeCommand: (pageIndex) => {
+      resolvePageId,
+      resolvePageIndex,
+      writeControlState: (pageIndex) => {
         const pageId = resolvePageId(pageIndex);
 
         if (pageId === null) {
           throw new Error("Unable to resolve a pageId for live navigation.");
         }
 
-        return writeSlideCommand(
+        return writeLiveControlState(
           db,
           activationRevision,
           currentVersionId,
@@ -110,20 +136,61 @@ export function useLiveSessionControl({
         const id = window.setTimeout(callback, delay);
         return () => window.clearTimeout(id);
       },
-      onViewChange: setView,
+      onViewChange: (nextView) => {
+        pendingView = nextView;
+
+        if (hydrated) {
+          setView(nextView);
+        }
+      },
       onCommandError: () => setSendFailed(true),
     });
 
     controlRef.current = control;
 
-    const unsubAck = subscribeSlideAck((ack) => control.handleAck(ack));
+    const controlStateUnsub = onValue(
+      ref(db, buildControlStatePath()),
+      (snapshot) => {
+        const state = parseLiveControlState(snapshot.val());
+        sawControlState = true;
+
+        if (
+          state !== null &&
+          state.activationRevision === activationRevision &&
+          state.currentVersionId === currentVersionId
+        ) {
+          control.handleControlState(state);
+        }
+
+        flushHydratedView();
+      },
+    );
+
+    const playerStateUnsub = onValue(
+      ref(db, buildPlayerStatePath()),
+      (snapshot) => {
+        const state = parseLivePlayerState(snapshot.val());
+        sawPlayerState = true;
+
+        if (
+          state !== null &&
+          state.activationRevision === activationRevision &&
+          state.currentVersionId === currentVersionId
+        ) {
+          control.handlePlayerState(state);
+        }
+
+        flushHydratedView();
+      },
+    );
 
     return () => {
-      unsubAck?.();
+      controlStateUnsub();
+      playerStateUnsub();
       control.destroy();
       controlRef.current = null;
     };
-  }, [liveState, resolvePageId]);
+  }, [liveState, resolvePageId, resolvePageIndex]);
 
   const previous = useCallback(() => {
     const control = controlRef.current;
@@ -137,6 +204,13 @@ export function useLiveSessionControl({
     if (!control) return;
     setSendFailed(false);
     control.next();
+  }, []);
+
+  const followPlayer = useCallback(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    setSendFailed(false);
+    control.followPlayer();
   }, []);
 
   const updatePlayer = useCallback(
@@ -189,6 +263,7 @@ export function useLiveSessionControl({
         : null,
     previous,
     next,
+    followPlayer,
     updatePlayer,
   };
 }

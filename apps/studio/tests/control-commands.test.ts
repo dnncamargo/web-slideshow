@@ -37,6 +37,7 @@ import {
 } from "../src/features/control/control-commands";
 import {
   writeControlCommand,
+  writeControlState,
   writeSlideCommand,
 } from "../src/features/control/control-command-writer";
 
@@ -328,5 +329,118 @@ describe("slide command writer", () => {
     ).rejects.toThrow(
       /malformed/,
     );
+  });
+});
+
+describe("control state writer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "key");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "domain");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "project");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "bucket");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "sender");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_APP_ID", "app");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_DATABASE_URL", "https://example.firebaseio.com");
+    mocks.getApps.mockReturnValue([]);
+    mocks.initializeApp.mockReturnValue({});
+    mocks.getDatabase.mockReturnValue({});
+    mocks.ref.mockImplementation((_db, path: string) => ({ path }));
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => ({
+      committed: true,
+      snapshot: { val: () => updater(null) },
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("writes to the live/controlState path with revision 1 on a new activation", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater(null) as Record<string, unknown>;
+      expect(result).toEqual({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      });
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    const committed = await writeControlState(
+      {} as never,
+      2,
+      "version-1",
+      "page-b",
+    );
+
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/controlState");
+    expect(committed).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-b",
+    });
+  });
+
+  it("increments the control revision within the same activation", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 8,
+        pageId: "page-a",
+      }) as Record<string, unknown>;
+      expect(result).toEqual({
+        activationRevision: 2,
+        currentVersionId: "version-1",
+        revision: 9,
+        pageId: "page-c",
+      });
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    const committed = await writeControlState(
+      {} as never,
+      2,
+      "version-1",
+      "page-c",
+    );
+
+    expect(committed).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-c",
+    });
+  });
+
+  it("aborts the control revision transaction when the live identity changes", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const result = updater({
+        activationRevision: 2,
+        currentVersionId: "version-old",
+        revision: 8,
+        pageId: "page-a",
+      });
+      expect(result).toBeUndefined();
+      return {
+        committed: false,
+        snapshot: {
+          val: () => ({
+            activationRevision: 2,
+            currentVersionId: "version-old",
+            revision: 8,
+            pageId: "page-a",
+          }),
+        },
+      };
+    });
+
+    await expect(
+      writeControlState({} as never, 2, "version-new", "page-a"),
+    ).rejects.toThrow(/did not commit/);
   });
 });

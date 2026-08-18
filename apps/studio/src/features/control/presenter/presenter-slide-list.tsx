@@ -6,7 +6,7 @@ import styles from "./presenter-view.module.css";
 
 export interface PresenterSlideListProps {
   presentation: Presentation;
-  confirmedPageIndex: number | null;
+  desiredPageIndex: number | null;
 }
 
 function slideLabel(slide: Presentation["slides"][number], index: number): string {
@@ -14,20 +14,20 @@ function slideLabel(slide: Presentation["slides"][number], index: number): strin
 }
 
 /**
- * Read-only ordered slide summary for the confirmed current slide.
+ * Read-only ordered slide summary for the Control's desired current slide.
  *
- * Highlights the ACK-confirmed slide (presentation.slides[confirmedPageIndex]) and
+ * Highlights the desired slide (presentation.slides[desiredPageIndex]) and
  * does nothing else: it does not navigate on click, send Live commands, own
  * Live state, or render slide previews.
  */
 export function PresenterSlideList({
   presentation,
-  confirmedPageIndex,
+  desiredPageIndex,
 }: PresenterSlideListProps) {
   return (
     <ol className={styles.slideList}>
       {presentation.slides.map((slide, index) => {
-        const isCurrent = confirmedPageIndex === index;
+        const isCurrent = desiredPageIndex === index;
 
         return (
           <li

@@ -19,6 +19,11 @@ import {
   isRealtimeDatabaseConfigured,
 } from "./realtime-db";
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
+import {
+  buildControlStatePath,
+  parseLiveControlState,
+  type LiveControlState,
+} from "../live/live-state";
 
 function getCurrentUserIdForControl(): string {
   const user = getCurrentNonAnonymousUser();
@@ -160,6 +165,71 @@ export async function writeSlideCommand(
   const committed = parseSlideCommand(result.snapshot.val());
   if (committed === null) {
     throw new Error("Slide command transaction committed a malformed value.");
+  }
+
+  return committed;
+}
+
+/**
+ * Write the desired live control state to `live/controlState` transactionally.
+ *
+ * Revision starts at 1 for a fresh Live identity and increments only within
+ * the same activation/current-version pair.
+ */
+export async function writeControlState(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  pageId: string,
+): Promise<LiveControlState> {
+  if (!isRealtimeDatabaseConfigured()) {
+    throw new Error("Realtime Database is not configured.");
+  }
+
+  getCurrentUserIdForControl();
+
+  const trimmedCurrentVersionId = currentVersionId.trim();
+  if (trimmedCurrentVersionId === "") {
+    throw new Error("Control state requires a currentVersionId.");
+  }
+
+  const trimmedPageId = pageId.trim();
+  if (trimmedPageId === "") {
+    throw new Error("Control state requires a pageId.");
+  }
+
+  const controlRef = ref(database, buildControlStatePath());
+
+  const result = await runTransaction(controlRef, (current) => {
+    const previous = parseLiveControlState(current);
+
+    if (
+      previous !== null &&
+      (previous.activationRevision !== activationRevision ||
+        previous.currentVersionId !== trimmedCurrentVersionId)
+    ) {
+      return;
+    }
+
+    const revision =
+      previous !== null ? previous.revision + 1 : 1;
+
+    return {
+      activationRevision,
+      currentVersionId: trimmedCurrentVersionId,
+      revision,
+      pageId: trimmedPageId,
+    };
+  });
+
+  if (result.committed !== true) {
+    throw new Error("Control state transaction did not commit.");
+  }
+
+  const committed = parseLiveControlState(result.snapshot.val());
+
+  if (committed === null) {
+    throw new Error("Control state transaction committed a malformed value.");
   }
 
   return committed;

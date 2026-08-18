@@ -458,6 +458,10 @@ const englishMessages = {
   "control.awaitingPlayer": "Waiting for Player…",
   "control.syncing": "Syncing…",
   "control.synced": "Synced",
+  "control.playerChanged": "Player changed",
+  "control.playerChangedMessage":
+    "The Player moved to the slide being presented. Do you want to follow?",
+  "control.followPlayer": "Follow Player",
   "control.newVersionPublished": "New version published",
   "control.presentationStructureChanged":
     "Slide order or structure changed.",
@@ -924,6 +928,10 @@ const portugueseMessages = {
   "control.awaitingPlayer": "Aguardando Player…",
   "control.syncing": "Sincronizando…",
   "control.synced": "Sincronizado",
+  "control.playerChanged": "Player alterou",
+  "control.playerChangedMessage":
+    "O Player alterou para o slide em apresentação. Deseja acompanhar?",
+  "control.followPlayer": "Acompanhar Player",
   "control.newVersionPublished": "Nova versão publicada",
   "control.presentationStructureChanged":
     "A ordem ou a estrutura dos slides mudou.",

@@ -25,6 +25,20 @@ export function ControlPage() {
       resolveLivePageId(presentationStateRef.current, pageIndex),
     [],
   );
+  const resolvePageIndex = useCallback((pageId: string) => {
+    const livePresentation =
+      presentationStateRef.current?.kind === "ready"
+        ? presentationStateRef.current.livePresentation
+        : null;
+
+    if (!livePresentation) {
+      return null;
+    }
+
+    const index = livePresentation.slides.findIndex((slide) => slide.id === pageId);
+
+    return index >= 0 ? index : null;
+  }, []);
   const {
     liveState,
     view,
@@ -33,11 +47,12 @@ export function ControlPage() {
     failedPromotionVersionId,
     previous,
     next,
+    followPlayer,
     updatePlayer,
-  } = useLiveSessionControl({ resolvePageId });
+  } = useLiveSessionControl({ resolvePageId, resolvePageIndex });
   const presentationState = usePresenterPresentation(
     liveState,
-    view?.enabled === true ? view.confirmedPageIndex : null,
+    view?.enabled === true ? view.desiredPageId : null,
   );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
 
@@ -106,6 +121,7 @@ export function ControlPage() {
       presentationState={presentationState}
       previous={previous}
       next={next}
+      followPlayer={followPlayer}
       updatePlayer={updatePlayer}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}

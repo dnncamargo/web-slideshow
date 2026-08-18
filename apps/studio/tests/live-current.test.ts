@@ -160,7 +160,9 @@ describe("live-current activation", () => {
     const current = committed.current as Record<string, unknown>;
     expect(Object.keys(committed).sort()).toEqual([
       "activationRevision",
+      "controlState",
       "current",
+      "playerState",
       "slideAck",
       "slideCommand",
     ]);
@@ -203,7 +205,7 @@ describe("live-current activation", () => {
     expect(committed.activationRevision).toBe(5);
   });
 
-  it("end clears current, slideCommand and slideAck but preserves activationRevision", async () => {
+  it("end clears current, controlState, playerState, slideCommand and slideAck but preserves activationRevision", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
@@ -211,7 +213,13 @@ describe("live-current activation", () => {
 
     expect(mocks.update).toHaveBeenCalledWith(
       { path: "live" },
-      { current: null, slideCommand: null, slideAck: null },
+      {
+        current: null,
+        controlState: null,
+        playerState: null,
+        slideCommand: null,
+        slideAck: null,
+      },
     );
     expect(mocks.runTransaction).not.toHaveBeenCalled();
   });
@@ -229,6 +237,8 @@ describe("live-current activation", () => {
         currentVersionId: "ver-1",
         revision: 7,
       },
+      controlState: { revision: 4 },
+      playerState: { revision: 4 },
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
     };
@@ -248,6 +258,8 @@ describe("live-current activation", () => {
         currentVersionId: "ver-2",
         revision: 7,
       },
+      controlState: null,
+      playerState: null,
       slideCommand: null,
       slideAck: null,
     });
@@ -266,6 +278,8 @@ describe("live-current activation", () => {
         currentVersionId: "ver-1",
         revision: 13,
       },
+      controlState: { revision: 4 },
+      playerState: { revision: 4 },
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
     };
@@ -290,6 +304,8 @@ describe("live-current activation", () => {
         currentVersionId: "ver-2",
         revision: 13,
       },
+      controlState: null,
+      playerState: null,
       slideCommand: null,
       slideAck: null,
     });
@@ -364,6 +380,8 @@ describe("live-current activation", () => {
         currentVersionId: "ver-2",
         revision: 7,
       },
+      controlState: null,
+      playerState: null,
       slideCommand: { currentVersionId: "ver-2", revision: 1 },
       slideAck: { currentVersionId: "ver-2", revision: 1 },
     };

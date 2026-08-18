@@ -63,9 +63,9 @@ export function hasStructuralSlideChange(
 export function mapSlideAcrossVersions(
   oldPresentation: Presentation,
   newPresentation: Presentation,
-  confirmedIndex: number,
+  liveIndex: number,
 ): SlideVersionMapping {
-  const oldSlide = oldPresentation.slides[confirmedIndex];
+  const oldSlide = oldPresentation.slides[liveIndex];
   const matchingIndex = oldSlide
     ? newPresentation.slides.findIndex((slide) => slide.id === oldSlide.id)
     : -1;
@@ -74,7 +74,7 @@ export function mapSlideAcrossVersions(
     index:
       matchingIndex >= 0
         ? matchingIndex
-        : clampIndex(confirmedIndex, newPresentation.slides.length),
+        : clampIndex(liveIndex, newPresentation.slides.length),
     structuralChange: hasStructuralSlideChange(
       oldPresentation,
       newPresentation,
@@ -83,14 +83,36 @@ export function mapSlideAcrossVersions(
   };
 }
 
+/**
+ * Resolve the live slide index for a canonical desired pageId against the
+ * immutable Live presentation.
+ *
+ * Returns null when the pageId is null or absent from the Live version; the
+ * Presenter must never fall back to a numeric index for an unresolved pageId.
+ */
+export function resolveLiveSlideIndex(
+  versions: LoadedPresenterVersions,
+  desiredPageId: string | null,
+): number | null {
+  if (desiredPageId === null) {
+    return null;
+  }
+
+  const index = versions.livePresentation.slides.findIndex(
+    (slide) => slide.id === desiredPageId,
+  );
+
+  return index >= 0 ? index : null;
+}
+
 export function projectPresenterVersions(
   versions: LoadedPresenterVersions,
-  confirmedIndex: number | null,
+  liveIndex: number | null,
 ): PresenterVersionProjection {
   if (versions.liveVersionId === versions.previewVersionId) {
     return {
       presentation: versions.previewPresentation,
-      displayIndex: confirmedIndex,
+      displayIndex: liveIndex,
       pendingVersion: null,
     };
   }
@@ -100,12 +122,12 @@ export function projectPresenterVersions(
     versions.previewPresentation,
   );
   const mapping =
-    confirmedIndex === null
+    liveIndex === null
       ? null
       : mapSlideAcrossVersions(
           versions.livePresentation,
           versions.previewPresentation,
-          confirmedIndex,
+          liveIndex,
         );
 
   return {

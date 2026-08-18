@@ -31,6 +31,10 @@ function describeStatus(
     return t("control.syncing");
   }
 
+  if (status.kind === "player-changed") {
+    return t("control.playerChanged");
+  }
+
   if (status.latencyMs !== undefined) {
     return `${t("control.synced")} • ${Math.round(status.latencyMs)} ms`;
   }
@@ -61,6 +65,7 @@ export interface PresenterViewProps {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
   end(): void;
 }
@@ -69,18 +74,24 @@ export interface PresenterViewProps {
  * Owns the /control presentation markup. Receives already-resolved Live and
  * published-presentation data from ControlPage.
  *
- * The slide counter uses LiveControlView.confirmedPageIndex (ACK-authoritative)
- * and the loaded published Presentation's slide count. It is shown only when
- * both are available and the confirmed index is in range, and only changes
- * after a Player ACK updates confirmedIndex.
+ * The slide counter uses the Control desired position (`presentationState
+ * .displayIndex`, projected from the Control's desired live page across the
+ * staged preview version) and the loaded published Presentation's slide count.
+ * It is shown only when both are available and the desired index is in range,
+ * and changes as soon as Control projects a new desired target, independent of
+ * the lagging Player actual position.
+ *
+ * When status is `player-changed` the Control shows a contextual message and a
+ * single "Follow Player" action; the displayed slide remains the Control's
+ * desired slide until the operator chooses to follow.
  *
  * The shell follows the Studio Editor visual structure: a 52px top bar with
  * PowerShow Control branding, centered presentation title, Locale selector,
  * local clock, Live sync/latency status and End action. The body contains the
  * slide summary, current preview and next preview + notes. Previous/Next,
- * Fullscreen and the ACK-confirmed slide counter belong to the control row
- * below the current slide. Fullscreen stays disabled until its protocol is
- * implemented. There is no footer.
+ * Fullscreen and the desired slide counter belong to the control row below the
+ * current slide. Fullscreen stays disabled until its protocol is implemented.
+ * There is no footer.
  */
 
 export function PresenterView({
@@ -91,6 +102,7 @@ export function PresenterView({
   failedPromotionVersionId,
   previous,
   next,
+  followPlayer,
   updatePlayer,
   end,
 }: PresenterViewProps) {
@@ -105,7 +117,7 @@ export function PresenterView({
       ? presentationState.presentation.slides.length
       : null;
 
-  const confirmedPageIndex =
+  const displayIndex =
     presentationState.kind === "ready"
       ? presentationState.displayIndex
       : null;
@@ -124,27 +136,27 @@ export function PresenterView({
 
   const showCounter =
     slideCount !== null &&
-    confirmedPageIndex !== null &&
-    confirmedPageIndex >= 0 &&
-    confirmedPageIndex < slideCount;
+    displayIndex !== null &&
+    displayIndex >= 0 &&
+    displayIndex < slideCount;
 
   const presentation =
     presentationState.kind === "ready" ? presentationState.presentation : null;
 
   const currentSlide =
     presentationState.kind === "ready" &&
-    confirmedPageIndex !== null &&
-    confirmedPageIndex >= 0 &&
-    confirmedPageIndex < presentationState.presentation.slides.length
-      ? presentationState.presentation.slides[confirmedPageIndex]
+    displayIndex !== null &&
+    displayIndex >= 0 &&
+    displayIndex < presentationState.presentation.slides.length
+      ? presentationState.presentation.slides[displayIndex]
       : null;
 
   const nextSlide =
     presentationState.kind === "ready" &&
-    confirmedPageIndex !== null &&
-    confirmedPageIndex >= 0 &&
-    confirmedPageIndex + 1 < presentationState.presentation.slides.length
-      ? presentationState.presentation.slides[confirmedPageIndex + 1]
+    displayIndex !== null &&
+    displayIndex >= 0 &&
+    displayIndex + 1 < presentationState.presentation.slides.length
+      ? presentationState.presentation.slides[displayIndex + 1]
       : null;
 
   const aspectRatio =
@@ -155,16 +167,18 @@ export function PresenterView({
   const canGoPrevious =
     pendingVersion === null &&
     !disabled &&
-    confirmedPageIndex !== null &&
-    confirmedPageIndex > 0;
+    displayIndex !== null &&
+    displayIndex > 0;
 
   const canGoNext =
     pendingVersion === null &&
     !disabled &&
-    confirmedPageIndex !== null &&
-    confirmedPageIndex >= 0 &&
+    displayIndex !== null &&
+    displayIndex >= 0 &&
     presentation !== null &&
-    confirmedPageIndex < presentation.slides.length - 1;
+    displayIndex < presentation.slides.length - 1;
+
+  const isPlayerChanged = view?.status.kind === "player-changed";
 
   const notesState = usePresenterNotes(presentation);
 
@@ -259,7 +273,7 @@ export function PresenterView({
           {presentation && (
             <PresenterSlideList
               presentation={presentation}
-              confirmedPageIndex={confirmedPageIndex}
+              desiredPageIndex={displayIndex}
             />
           )}
         </aside>
@@ -367,14 +381,30 @@ export function PresenterView({
           </div>
 
           <div className={presenterStyles.controlMeta}>
-            {/* Future session timer slot. Renders only the ACK-confirmed
-                slide counter until a canonical startedAt exists. */}
+            {/* Future session timer slot. Renders only the desired slide
+                counter until a canonical startedAt exists. */}
             <div className={styles.controlDivider} aria-hidden="true" />
 
             {showCounter && (
               <span className={styles.counter}>
-                {confirmedPageIndex + 1} / {slideCount}
+                {displayIndex + 1} / {slideCount}
               </span>
+            )}
+
+            {isPlayerChanged && (
+              <div
+                className={presenterStyles.playerChanged}
+                role="status"
+              >
+                <span>{t("control.playerChangedMessage")}</span>
+                <button
+                  type="button"
+                  className={presenterStyles.followPlayerButton}
+                  onClick={followPlayer}
+                >
+                  {t("control.followPlayer")}
+                </button>
+              </div>
             )}
 
             {pendingVersion && (
