@@ -27,6 +27,7 @@ export interface UseLiveSessionControlResult {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
 }
 
@@ -54,8 +55,9 @@ function sameLiveIdentity(a: LiveCurrent, b: LiveCurrent): boolean {
  *
  * Subscribes to the active presentation, creates/destroys the activation-scoped
  * LiveControl, and wires the control/player projection-state streams. Exposes
- * the ACK-authoritative view and the Previous/Next actions without leaking the
- * LiveControl instance, the database handle, or the RTDB listeners.
+ * the desired/actual view and the Previous/Next/Follow Player actions without
+ * leaking the LiveControl instance, the database handle, or the RTDB
+ * listeners.
  */
 export function useLiveSessionControl({
   resolvePageId,
@@ -204,6 +206,13 @@ export function useLiveSessionControl({
     control.next();
   }, []);
 
+  const followPlayer = useCallback(() => {
+    const control = controlRef.current;
+    if (!control) return;
+    setSendFailed(false);
+    control.followPlayer();
+  }, []);
+
   const updatePlayer = useCallback(
     (targetVersionId: string) => {
       if (liveState.kind !== "active") return;
@@ -254,6 +263,7 @@ export function useLiveSessionControl({
         : null,
     previous,
     next,
+    followPlayer,
     updatePlayer,
   };
 }

@@ -77,7 +77,7 @@ function sameIdentity(
  */
 export function usePresenterPresentation(
   liveState: LiveState,
-  confirmedPageIndex: number | null,
+  desiredPageIndex: number | null,
 ): PresenterPresentationState {
   const reader = getDefaultPublishedPresentationReader();
   const [loader] = useState(() => new PresenterVersionLoader(reader));
@@ -190,6 +190,6 @@ export function usePresenterPresentation(
   return {
     kind: "ready",
     livePresentation: result.versions.livePresentation,
-    ...projectPresenterVersions(result.versions, confirmedPageIndex),
+    ...projectPresenterVersions(result.versions, desiredPageIndex),
   };
 }

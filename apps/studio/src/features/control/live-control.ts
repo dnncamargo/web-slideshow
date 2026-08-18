@@ -5,12 +5,15 @@ export const COALESCE_DELAY_MS = 75;
 export type LiveControlStatus =
   | { kind: "awaiting-player" }
   | { kind: "syncing" }
+  | { kind: "player-changed" }
   | { kind: "synced"; latencyMs?: number };
 
 export interface LiveControlView {
   enabled: boolean;
-  confirmedPageId: string | null;
-  confirmedPageIndex: number;
+  desiredPageId: string | null;
+  desiredPageIndex: number | null;
+  actualPageId: string | null;
+  actualPageIndex: number | null;
   status: LiveControlStatus;
 }
 
@@ -33,14 +36,19 @@ interface PersistedDesiredState {
 
 interface ActualPlayerState {
   pageId: string;
-  pageIndex: number;
   appliedControlRevision: number;
 }
 
-interface PendingCommand {
+/** A controlState write whose RTDB transaction has not resolved yet. */
+interface InFlightWrite {
   targetPageId: string;
-  targetPageIndex: number | null;
-  revision: number | null;
+  startedAt: number;
+}
+
+/** Latency probe for the current persisted desired revision until confirmed. */
+interface ConfirmationWindow {
+  revision: number;
+  pageId: string;
   startedAt: number;
 }
 
@@ -52,19 +60,25 @@ function samePageId(a: string | null, b: string | null): boolean {
  * Drives the live projection contract for the Studio Control surface.
  *
  * `controlState` is the persisted desired target. `playerState` is the actual
- * applied target. The class keeps one local draft target in flight at a time,
- * preserves the existing coalescing window, and only marks a write as
- * converged when Player publishes the same revision and pageId.
+ * applied target. `pageId` is the canonical identity throughout; `pageIndex`
+ * is always derived through `resolvePageIndex(pageId)` and never trusted from
+ * a reported `playerState.pageIndex`. Control stays fully navigable while
+ * Syncing: a committed write becomes `persistedDesired` as soon as its RTDB
+ * transaction resolves, without waiting for Player confirmation. Navigation
+ * always proceeds from the latest local draft desired, then the latest
+ * persisted desired, then the actual Player page. At most one write Promise is
+ * in flight at a time; a newer dirty draft is flushed after the coalescing
+ * window once the current write resolves.
  */
 export class LiveControl {
   private persistedDesired: PersistedDesiredState | null = null;
   private draftTargetPageId: string | null = null;
-  private draftTargetPageIndex: number | null = null;
   private draftDirty = false;
   private actual: ActualPlayerState | null = null;
   private hasPlayerBaseline = false;
   private latencyMs: number | undefined;
-  private pending: PendingCommand | null = null;
+  private writeInFlight: InFlightWrite | null = null;
+  private confirmationWindow: ConfirmationWindow | null = null;
   private trailingCancel: (() => void) | null = null;
   private earlyConfirmedPlayerState: LivePlayerState | null = null;
   private destroyed = false;
@@ -91,6 +105,29 @@ export class LiveControl {
     }
 
     this.requestTarget(baseIndex + 1);
+  }
+
+  /**
+   * Create a new desired generation targeting the Player's actual page. Used
+   * by the player-changed "Follow Player" action. Does not silently mutate the
+   * existing desired state; it writes a fresh controlState revision.
+   *
+   * The target index is resolved from the canonical `actual.pageId`. A
+   * mismatched reported `playerState.pageIndex` is never used, and an
+   * unresolvable pageId fails closed without writing.
+   */
+  followPlayer(): void {
+    if (!this.hasPlayerBaseline || this.actual === null) {
+      return;
+    }
+
+    const index = this.options.resolvePageIndex(this.actual.pageId);
+
+    if (index === null) {
+      return;
+    }
+
+    this.requestTarget(index);
   }
 
   handleControlState(state: LiveControlState): void {
@@ -125,9 +162,8 @@ export class LiveControl {
 
     this.persistedDesired = nextDesired;
 
-    if (!this.draftDirty && this.pending === null) {
+    if (!this.draftDirty && this.writeInFlight === null) {
       this.draftTargetPageId = state.pageId;
-      this.draftTargetPageIndex = this.options.resolvePageIndex(state.pageId);
     }
 
     if (changed) {
@@ -153,7 +189,6 @@ export class LiveControl {
     this.hasPlayerBaseline = true;
     this.actual = {
       pageId: state.pageId,
-      pageIndex: state.pageIndex,
       appliedControlRevision: state.appliedControlRevision,
     };
 
@@ -163,7 +198,6 @@ export class LiveControl {
         revision: 0,
       };
       this.draftTargetPageId = state.pageId;
-      this.draftTargetPageIndex = state.pageIndex;
       this.draftDirty = false;
       this.latencyMs = undefined;
       this.cancelTrailing();
@@ -171,42 +205,30 @@ export class LiveControl {
       return;
     }
 
+    // A Player confirmation of the in-flight write's target before the writer
+    // resolves is retained so latency can be measured once the revision is
+    // known.
     if (
-      this.pending !== null &&
-      this.pending.revision === null &&
-      this.pending.targetPageId === state.pageId &&
-      this.pending.targetPageIndex === state.pageIndex
+      this.writeInFlight !== null &&
+      this.writeInFlight.targetPageId === state.pageId
     ) {
       this.earlyConfirmedPlayerState = state;
       this.notify();
       return;
     }
 
+    // Confirmation of the current persisted desired revision/page.
     if (
-      this.pending !== null &&
-      this.pending.revision !== null &&
-      this.pending.revision === state.appliedControlRevision &&
-      this.pending.targetPageId === state.pageId
+      this.confirmationWindow !== null &&
+      this.confirmationWindow.revision === state.appliedControlRevision &&
+      this.confirmationWindow.pageId === state.pageId
     ) {
-      this.confirmPending(state);
-      return;
-    }
-
-    const isPersistedExact =
-      this.pending === null &&
-      this.persistedDesired !== null &&
-      this.actual !== null &&
-      this.persistedDesired.pageId === state.pageId &&
-      this.persistedDesired.revision === state.appliedControlRevision;
-
-    if (isPersistedExact) {
-      this.latencyMs = undefined;
+      this.latencyMs = Math.max(
+        0,
+        this.options.now() - this.confirmationWindow.startedAt,
+      );
+      this.confirmationWindow = null;
       this.notify();
-
-      if (this.draftDirty) {
-        this.scheduleTrailing();
-      }
-
       return;
     }
 
@@ -216,7 +238,8 @@ export class LiveControl {
   destroy(): void {
     this.destroyed = true;
     this.cancelTrailing();
-    this.pending = null;
+    this.writeInFlight = null;
+    this.confirmationWindow = null;
     this.earlyConfirmedPlayerState = null;
   }
 
@@ -232,17 +255,10 @@ export class LiveControl {
     }
 
     this.draftTargetPageId = pageId;
-    this.draftTargetPageIndex = index;
     this.draftDirty = !samePageId(
       this.persistedDesired?.pageId ?? null,
       pageId,
     );
-
-    if (this.pending !== null) {
-      this.latencyMs = undefined;
-      this.notify();
-      return;
-    }
 
     if (!this.draftDirty) {
       this.cancelTrailing();
@@ -252,42 +268,39 @@ export class LiveControl {
 
     this.latencyMs = undefined;
 
-    if (!this.isPersistedDesiredConfirmed()) {
-      this.cancelTrailing();
+    if (this.writeInFlight !== null) {
+      // A newer draft is retained; it will be flushed once the current write
+      // resolves, without waiting for Player confirmation.
       this.notify();
       return;
     }
 
     this.scheduleTrailing();
-  }
-
-  private isPersistedDesiredConfirmed(): boolean {
-    if (this.persistedDesired === null || this.actual === null) {
-      return false;
-    }
-
-    return (
-      this.persistedDesired.pageId === this.actual.pageId &&
-      this.persistedDesired.revision === this.actual.appliedControlRevision
-    );
+    this.notify();
   }
 
   private getNavigationBaseIndex(): number | null {
-    const draftIndex =
-      this.draftTargetPageIndex ??
-      (this.draftTargetPageId !== null
-        ? this.options.resolvePageIndex(this.draftTargetPageId)
-        : null);
+    if (this.draftTargetPageId !== null) {
+      const index = this.options.resolvePageIndex(this.draftTargetPageId);
 
-    if (draftIndex !== null) {
-      return draftIndex;
+      if (index !== null) {
+        return index;
+      }
     }
 
     if (this.persistedDesired !== null) {
-      return this.options.resolvePageIndex(this.persistedDesired.pageId);
+      const index = this.options.resolvePageIndex(this.persistedDesired.pageId);
+
+      if (index !== null) {
+        return index;
+      }
     }
 
-    return this.actual?.pageIndex ?? null;
+    if (this.actual !== null) {
+      return this.options.resolvePageIndex(this.actual.pageId);
+    }
+
+    return null;
   }
 
   private scheduleTrailing(): void {
@@ -306,7 +319,7 @@ export class LiveControl {
   }
 
   private async flush(): Promise<void> {
-    if (this.destroyed || this.pending !== null) {
+    if (this.destroyed || this.writeInFlight !== null) {
       return;
     }
 
@@ -314,53 +327,51 @@ export class LiveControl {
       return;
     }
 
-    if (!this.isPersistedDesiredConfirmed()) {
-      return;
-    }
-
     const targetPageId = this.draftTargetPageId;
-    const targetPageIndex = this.draftTargetPageIndex;
 
     if (samePageId(this.persistedDesired?.pageId ?? null, targetPageId)) {
       this.draftDirty = false;
       return;
     }
 
-    this.pending = {
+    const targetIndex = this.options.resolvePageIndex(targetPageId);
+
+    if (targetIndex === null) {
+      // The canonical target page cannot be mapped; fail closed without
+      // writing from any reported pageIndex.
+      return;
+    }
+
+    const startedAt = this.options.now();
+    this.writeInFlight = {
       targetPageId,
-      targetPageIndex,
-      revision: null,
-      startedAt: this.options.now(),
+      startedAt,
     };
 
+    this.notify();
+
     try {
-      const writePromise = this.options.writeControlState(
-        targetPageIndex ?? this.actual?.pageIndex ?? 0,
-      );
-
-      this.notify();
-
-      const committed = await writePromise;
+      const committed = await this.options.writeControlState(targetIndex);
 
       if (this.destroyed) {
         return;
       }
 
-      if (this.pending?.targetPageId !== targetPageId) {
+      if (this.writeInFlight?.targetPageId !== targetPageId) {
         return;
       }
 
-      this.pending = {
-        ...this.pending,
-        revision: committed.revision,
-      };
-
+      this.writeInFlight = null;
       this.persistedDesired = {
         pageId: committed.pageId,
         revision: committed.revision,
       };
-
       this.draftDirty = !samePageId(this.draftTargetPageId, committed.pageId);
+      this.confirmationWindow = {
+        revision: committed.revision,
+        pageId: committed.pageId,
+        startedAt,
+      };
       this.latencyMs = undefined;
 
       const earlyConfirmed = this.earlyConfirmedPlayerState;
@@ -370,22 +381,27 @@ export class LiveControl {
         earlyConfirmed.appliedControlRevision === committed.revision &&
         earlyConfirmed.pageId === committed.pageId
       ) {
-        this.confirmPending(earlyConfirmed);
+        this.latencyMs = Math.max(0, this.options.now() - startedAt);
+        this.confirmationWindow = null;
+      }
+
+      this.earlyConfirmedPlayerState = null;
+      this.notify();
+
+      if (this.draftDirty) {
+        this.scheduleTrailing();
       }
     } catch {
       if (this.destroyed) {
         return;
       }
 
-      if (this.pending?.targetPageId === targetPageId) {
-        this.pending = null;
+      if (this.writeInFlight?.targetPageId === targetPageId) {
+        this.writeInFlight = null;
         this.earlyConfirmedPlayerState = null;
         this.draftDirty = false;
         this.draftTargetPageId =
           this.persistedDesired?.pageId ?? this.actual?.pageId ?? null;
-        this.draftTargetPageIndex = this.persistedDesired
-          ? this.options.resolvePageIndex(this.persistedDesired.pageId)
-          : (this.actual?.pageIndex ?? null);
         this.latencyMs = undefined;
         this.options.onCommandError();
         this.notify();
@@ -393,29 +409,30 @@ export class LiveControl {
     }
   }
 
-  private confirmPending(state: LivePlayerState): void {
-    if (
-      this.pending === null ||
-      this.pending.revision !== state.appliedControlRevision ||
-      this.pending.targetPageId !== state.pageId
-    ) {
-      return;
+  private computeDesiredPageId(): string | null {
+    if (this.draftTargetPageId !== null) {
+      return this.draftTargetPageId;
     }
 
-    this.latencyMs = Math.max(0, this.options.now() - this.pending.startedAt);
-    this.actual = {
-      pageId: state.pageId,
-      pageIndex: state.pageIndex,
-      appliedControlRevision: state.appliedControlRevision,
-    };
-    this.pending = null;
-    this.earlyConfirmedPlayerState = null;
+    return this.persistedDesired?.pageId ?? null;
+  }
 
-    this.notify();
+  private computeDesiredPageIndex(): number | null {
+    const pageId = this.computeDesiredPageId();
 
-    if (this.draftDirty) {
-      this.scheduleTrailing();
+    if (pageId === null) {
+      return null;
     }
+
+    return this.options.resolvePageIndex(pageId);
+  }
+
+  private computeActualPageIndex(): number | null {
+    if (this.actual === null) {
+      return null;
+    }
+
+    return this.options.resolvePageIndex(this.actual.pageId);
   }
 
   private notify(): void {
@@ -425,8 +442,10 @@ export class LiveControl {
 
     this.options.onViewChange({
       enabled: this.hasPlayerBaseline,
-      confirmedPageId: this.actual?.pageId ?? null,
-      confirmedPageIndex: this.actual?.pageIndex ?? 0,
+      desiredPageId: this.computeDesiredPageId(),
+      desiredPageIndex: this.computeDesiredPageIndex(),
+      actualPageId: this.actual?.pageId ?? null,
+      actualPageIndex: this.computeActualPageIndex(),
       status: this.computeStatus(),
     });
   }
@@ -436,21 +455,36 @@ export class LiveControl {
       return { kind: "awaiting-player" };
     }
 
-    if (this.pending !== null) {
+    const hasNewerDesired =
+      this.draftDirty ||
+      this.writeInFlight !== null ||
+      (this.persistedDesired !== null &&
+        this.actual !== null &&
+        this.actual.appliedControlRevision < this.persistedDesired.revision);
+
+    if (hasNewerDesired) {
       return { kind: "syncing" };
     }
 
-    if (
-      this.persistedDesired !== null &&
-      this.actual !== null &&
-      this.actual.pageId === this.persistedDesired.pageId &&
-      this.actual.appliedControlRevision === this.persistedDesired.revision
-    ) {
+    if (this.persistedDesired === null || this.actual === null) {
+      return { kind: "syncing" };
+    }
+
+    const revisionMatch =
+      this.actual.appliedControlRevision === this.persistedDesired.revision;
+
+    if (revisionMatch && this.actual.pageId === this.persistedDesired.pageId) {
       if (this.latencyMs !== undefined) {
         return { kind: "synced", latencyMs: this.latencyMs };
       }
 
       return { kind: "synced" };
+    }
+
+    if (revisionMatch) {
+      // Player applied the latest Control generation but its visual page
+      // changed independently afterwards.
+      return { kind: "player-changed" };
     }
 
     return { kind: "syncing" };

@@ -160,8 +160,10 @@ describe("useLiveSessionControl hydration", () => {
 
     expect(result?.view).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
       status: { kind: "syncing" },
     });
     expect(mocks.writeControlState).not.toHaveBeenCalled();
@@ -198,8 +200,10 @@ describe("useLiveSessionControl hydration", () => {
 
     expect(result?.view).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
       status: { kind: "syncing" },
     });
     expect(mocks.writeControlState).not.toHaveBeenCalled();
@@ -221,8 +225,10 @@ describe("useLiveSessionControl hydration", () => {
 
     expect(result?.view).toMatchObject({
       enabled: false,
-      confirmedPageId: null,
-      confirmedPageIndex: 0,
+      desiredPageId: null,
+      desiredPageIndex: null,
+      actualPageId: null,
+      actualPageIndex: null,
       status: { kind: "awaiting-player" },
     });
     expect(mocks.writeControlState).not.toHaveBeenCalled();

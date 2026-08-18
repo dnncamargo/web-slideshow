@@ -47,11 +47,12 @@ export function ControlPage() {
     failedPromotionVersionId,
     previous,
     next,
+    followPlayer,
     updatePlayer,
   } = useLiveSessionControl({ resolvePageId, resolvePageIndex });
   const presentationState = usePresenterPresentation(
     liveState,
-    view?.enabled === true ? view.confirmedPageIndex : null,
+    view?.enabled === true ? view.desiredPageIndex : null,
   );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
 
@@ -120,6 +121,7 @@ export function ControlPage() {
       presentationState={presentationState}
       previous={previous}
       next={next}
+      followPlayer={followPlayer}
       updatePlayer={updatePlayer}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}

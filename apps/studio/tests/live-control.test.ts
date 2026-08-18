@@ -43,7 +43,7 @@ function playerState(
 }
 
 function createHarness() {
-  const livePageIds = ["page-a", "page-b", "page-c"];
+  const livePageIds = ["page-a", "page-b", "page-c", "page-d"];
   let currentTime = 0;
   const views: LiveControlView[] = [];
   const writeControlState = vi.fn();
@@ -100,8 +100,10 @@ describe("LiveControl", () => {
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-a",
+      desiredPageIndex: 0,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
     });
     expect(h.views.at(-1)?.status).toEqual({ kind: "synced" });
   });
@@ -122,8 +124,10 @@ describe("LiveControl", () => {
 
     expect(first.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
     });
     expect(first.views.at(-1)?.status).toEqual({ kind: "syncing" });
     expect(first.writeControlState).not.toHaveBeenCalled();
@@ -143,14 +147,16 @@ describe("LiveControl", () => {
 
     expect(second.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
     });
     expect(second.views.at(-1)?.status).toEqual({ kind: "syncing" });
     expect(second.writeControlState).not.toHaveBeenCalled();
   });
 
-  it("treats a new Player baseline as current truth even after a higher confirmed revision", () => {
+  it("treats a restarted Player baseline behind desired as syncing", () => {
     const h = createHarness();
 
     h.control.handleControlState(
@@ -173,8 +179,10 @@ describe("LiveControl", () => {
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
     });
     expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
   });
@@ -191,7 +199,99 @@ describe("LiveControl", () => {
     expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
   });
 
-  it("retains a trailing target until the current persisted desired revision is confirmed", async () => {
+  it("A: synced Next persists B while actual remains A", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handlePlayerState(playerState());
+
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-b",
+    });
+
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+
+    await Promise.resolve();
+
+    expect(h.views.at(-1)).toMatchObject({
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
+    });
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+  });
+
+  it("B: persists C while B is unconfirmed by Player", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handlePlayerState(playerState());
+
+    h.writeControlState
+      .mockResolvedValueOnce({
+        activationRevision: 1,
+        currentVersionId: "version-1",
+        revision: 1,
+        pageId: "page-b",
+      })
+      .mockResolvedValueOnce({
+        activationRevision: 1,
+        currentVersionId: "version-1",
+        revision: 2,
+        pageId: "page-c",
+      });
+
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+    await Promise.resolve();
+
+    // B is persisted but Player has not confirmed it.
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(2);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-c");
+    expect(h.views.at(-1)?.actualPageId).toBe("page-a");
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+  });
+
+  it("C: B -> C -> D navigation while Player is stale keeps latest desired", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handlePlayerState(playerState());
+
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-d",
+    });
+
+    h.control.next();
+    h.control.next();
+    h.control.next();
+
+    h.advance(COALESCE_DELAY_MS);
+
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(3);
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-d");
+    expect(h.views.at(-1)?.actualPageId).toBe("page-a");
+  });
+
+  it("D: navigation base while syncing is latest desired, never actual", async () => {
     vi.useFakeTimers();
 
     const h = createHarness();
@@ -206,64 +306,206 @@ describe("LiveControl", () => {
       }),
     );
 
-    const committed =
-      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
-    h.writeControlState.mockReturnValue(committed.promise);
-
-    h.control.next();
-    h.advance(COALESCE_DELAY_MS);
-
-    expect(h.writeControlState).not.toHaveBeenCalled();
-
-    h.control.handlePlayerState(
-      playerState({
-        appliedControlRevision: 8,
-        pageId: "page-b",
-        pageIndex: 1,
-      }),
-    );
-
-    expect(h.writeControlState).not.toHaveBeenCalled();
-
-    h.advance(COALESCE_DELAY_MS);
-    committed.resolve({
+    h.writeControlState.mockResolvedValue({
       activationRevision: 1,
       currentVersionId: "version-1",
       revision: 9,
       pageId: "page-c",
     });
 
-    await Promise.resolve();
+    // Must navigate from desired B to C, not from lagging actual A to B.
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
 
     expect(h.writeControlState).toHaveBeenCalledTimes(1);
     expect(h.writeControlState).toHaveBeenLastCalledWith(2);
   });
 
-  it("rechecks convergence before a scheduled trailing write", async () => {
+  it("E: rapid input inside the window coalesces to the latest target", async () => {
     vi.useFakeTimers();
 
     const h = createHarness();
+    h.control.handlePlayerState(playerState());
 
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-c",
+    });
+
+    h.control.next();
+    h.advance(20);
+    h.control.next();
+    h.advance(20);
+    h.control.next();
+
+    h.advance(COALESCE_DELAY_MS);
+
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(3);
+  });
+
+  it("F: a newer draft waits for the write to resolve, not Player confirmation", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handlePlayerState(playerState());
+
+    const committedB =
+      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+    h.writeControlState
+      .mockReturnValueOnce(committedB.promise)
+      .mockResolvedValueOnce({
+        activationRevision: 1,
+        currentVersionId: "version-1",
+        revision: 2,
+        pageId: "page-c",
+      });
+
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+
+    // Navigate to C while the B write is still resolving. No second write yet.
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+
+    // The write completes; the newer draft is flushed after the coalescing
+    // window without waiting for a Player confirmation of B.
+    committedB.resolve({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-b",
+    });
+
+    await Promise.resolve();
+
+    h.advance(COALESCE_DELAY_MS);
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(2);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+  });
+
+  it("G: reload rev8/C + rev5/A reconstructs without a write, Next persists D", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
     h.control.handleControlState(
-      controlState({ revision: 8, pageId: "page-b" }),
+      controlState({ revision: 8, pageId: "page-c" }),
+    );
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 5,
+        pageId: "page-a",
+        pageIndex: 0,
+      }),
+    );
+
+    expect(h.views.at(-1)).toMatchObject({
+      enabled: true,
+      desiredPageId: "page-c",
+      desiredPageIndex: 2,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
+    });
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+    expect(h.writeControlState).not.toHaveBeenCalled();
+
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-d",
+    });
+
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(3);
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-d");
+  });
+
+  it("H: a stale/older Player confirmation does not revert desired or display", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-c" }),
+    );
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 7,
+        pageId: "page-a",
+        pageIndex: 0,
+      }),
+    );
+
+    const committedD =
+      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+    h.writeControlState.mockReturnValue(committedD.promise);
+
+    h.control.next();
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).toHaveBeenCalledWith(3);
+
+    // Player confirms the older rev8/C generation while D is being written.
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        pageId: "page-c",
+        pageIndex: 2,
+      }),
+    );
+
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-d");
+    expect(h.views.at(-1)?.actualPageId).toBe("page-c");
+
+    committedD.resolve({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-d",
+    });
+
+    await Promise.resolve();
+
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-d");
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+  });
+
+  it("I: the exact latest confirmation yields Synced", () => {
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-c" }),
     );
     h.control.handlePlayerState(
       playerState({
         appliedControlRevision: 8,
-        pageId: "page-b",
-        pageIndex: 1,
+        pageId: "page-c",
+        pageIndex: 2,
       }),
     );
 
-    const committed =
-      deferred<Awaited<ReturnType<typeof h.writeControlState>>>();
+    expect(h.views.at(-1)?.status).toEqual({ kind: "synced" });
+  });
 
-    h.writeControlState.mockReturnValue(committed.promise);
-
-    // B -> C schedules the trailing write.
-    h.control.next();
-
-    // Before the timer fires, a new Player runtime establishes A / rev 0.
+  it("J: a restarted Player baseline rev0 behind desired remains Syncing", () => {
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-c" }),
+    );
     h.control.handlePlayerState(
       playerState({
         appliedControlRevision: 0,
@@ -272,37 +514,159 @@ describe("LiveControl", () => {
       }),
     );
 
-    h.advance(COALESCE_DELAY_MS);
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+  });
 
-    // rev 8 is no longer confirmed, so rev 9 must not be written yet.
-    expect(h.writeControlState).not.toHaveBeenCalled();
-
-    // The new Player runtime reapplies the persisted desired rev 8 / B.
+  it("K: independent Player movement yields player-changed, display stays desired", () => {
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
     h.control.handlePlayerState(
       playerState({
         appliedControlRevision: 8,
-        pageId: "page-b",
-        pageIndex: 1,
+        pageId: "page-c",
+        pageIndex: 2,
       }),
     );
 
-    // Confirmation schedules the retained C target again.
-    h.advance(COALESCE_DELAY_MS);
+    expect(h.views.at(-1)?.status).toEqual({ kind: "player-changed" });
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-b");
+    expect(h.views.at(-1)?.desiredPageIndex).toBe(1);
+    expect(h.views.at(-1)?.actualPageId).toBe("page-c");
+    expect(h.views.at(-1)?.actualPageIndex).toBe(2);
+  });
 
-    expect(h.writeControlState).toHaveBeenCalledTimes(1);
-    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+  it("L: Follow Player creates a newer desired generation and converges", async () => {
+    vi.useFakeTimers();
 
-    committed.resolve({
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        pageId: "page-c",
+        pageIndex: 2,
+      }),
+    );
+
+    expect(h.views.at(-1)?.status).toEqual({ kind: "player-changed" });
+
+    h.writeControlState.mockResolvedValue({
       activationRevision: 1,
       currentVersionId: "version-1",
       revision: 9,
       pageId: "page-c",
     });
 
+    h.control.followPlayer();
+
+    expect(h.views.at(-1)?.desiredPageId).toBe("page-c");
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+
+    h.advance(COALESCE_DELAY_MS);
     await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledWith(2);
+    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 9,
+        pageId: "page-c",
+        pageIndex: 2,
+      }),
+    );
+
+    expect(h.views.at(-1)?.status).toMatchObject({ kind: "synced" });
   });
 
-  it("coalesces user input and keeps a single unconfirmed write in flight", () => {
+  it("M: Previous/Next remain operational in player-changed from the desired position", async () => {
+    vi.useFakeTimers();
+
+    const previousHarness = createHarness();
+    previousHarness.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
+    previousHarness.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        pageId: "page-c",
+        pageIndex: 2,
+      }),
+    );
+
+    expect(previousHarness.views.at(-1)?.status).toEqual({
+      kind: "player-changed",
+    });
+
+    previousHarness.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-a",
+    });
+
+    // Previous from desired B (index 1) -> A (index 0).
+    previousHarness.control.previous();
+    previousHarness.advance(COALESCE_DELAY_MS);
+
+    expect(previousHarness.writeControlState).toHaveBeenLastCalledWith(0);
+
+    const nextHarness = createHarness();
+    nextHarness.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
+    nextHarness.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        pageId: "page-c",
+        pageIndex: 2,
+      }),
+    );
+
+    nextHarness.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-c",
+    });
+
+    // Next from desired B (index 1) -> C (index 2).
+    nextHarness.control.next();
+    nextHarness.advance(COALESCE_DELAY_MS);
+
+    expect(nextHarness.writeControlState).toHaveBeenLastCalledWith(2);
+  });
+
+  it("N: the view exposes desired and actual positions independently while syncing", () => {
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-c" }),
+    );
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 5,
+        pageId: "page-a",
+        pageIndex: 0,
+      }),
+    );
+
+    const view = h.views.at(-1);
+
+    expect(view).toMatchObject({
+      desiredPageId: "page-c",
+      desiredPageIndex: 2,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
+      status: { kind: "syncing" },
+    });
+    expect(view?.desiredPageIndex).not.toBe(view?.actualPageIndex);
+  });
+
+  it("coalesces user input and keeps a single write in flight", () => {
     vi.useFakeTimers();
     const h = createHarness();
     h.control.handlePlayerState(playerState());
@@ -316,7 +680,7 @@ describe("LiveControl", () => {
     h.advance(COALESCE_DELAY_MS);
 
     expect(h.writeControlState).toHaveBeenCalledTimes(1);
-    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(3);
     expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
   });
 
@@ -401,9 +765,11 @@ describe("LiveControl", () => {
       activationRevision: 1,
       currentVersionId: "version-1",
       resolvePageId: (pageIndex) =>
-        ["page-a", "page-b", "page-c"][pageIndex] ?? null,
+        ["page-a", "page-b", "page-c", "page-d"][pageIndex] ?? null,
       resolvePageIndex: (pageId) =>
-        ["page-a", "page-b", "page-c"].findIndex((id) => id === pageId),
+        ["page-a", "page-b", "page-c", "page-d"].findIndex(
+          (id) => id === pageId,
+        ),
       writeControlState,
       now: () => currentTime,
       schedule: (callback, delay) => {
@@ -425,8 +791,10 @@ describe("LiveControl", () => {
     expect(onCommandError).toHaveBeenCalledTimes(1);
     expect(views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-a",
-      confirmedPageIndex: 0,
+      desiredPageId: "page-a",
+      desiredPageIndex: 0,
+      actualPageId: "page-a",
+      actualPageIndex: 0,
     });
     expect(views.at(-1)?.status).toEqual({ kind: "synced" });
   });
@@ -483,7 +851,7 @@ describe("LiveControl", () => {
     expect(h.views).toHaveLength(beforeDestroyCount);
   });
 
-  it("does not converge when the revision matches but the pageId is wrong", () => {
+  it("classifies an independently moved Player as player-changed when revision matches", () => {
     const h = createHarness();
     h.control.handlePlayerState(playerState());
     h.control.handleControlState(
@@ -500,9 +868,154 @@ describe("LiveControl", () => {
 
     expect(h.views.at(-1)).toMatchObject({
       enabled: true,
-      confirmedPageId: "page-c",
-      confirmedPageIndex: 2,
+      desiredPageId: "page-b",
+      desiredPageIndex: 1,
+      actualPageId: "page-c",
+      actualPageIndex: 2,
     });
-    expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
+    expect(h.views.at(-1)?.status).toEqual({ kind: "player-changed" });
+  });
+
+  it("A: Follow Player resolves the canonical index from pageId, ignoring a mismatched reported pageIndex", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handleControlState(
+      controlState({ revision: 8, pageId: "page-b" }),
+    );
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 8,
+        // Deliberately inconsistent: page-c is index 2 in the mapping.
+        pageId: "page-c",
+        pageIndex: 1,
+      }),
+    );
+
+    expect(h.views.at(-1)?.status).toEqual({ kind: "player-changed" });
+
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 9,
+      pageId: "page-c",
+    });
+
+    h.control.followPlayer();
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+  });
+
+  it("B: navigation from a Player baseline uses the canonical pageId, not the reported pageIndex", async () => {
+    vi.useFakeTimers();
+
+    const previousHarness = createHarness();
+    previousHarness.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 0,
+        pageId: "page-c",
+        pageIndex: 1,
+      }),
+    );
+
+    expect(previousHarness.views.at(-1)).toMatchObject({
+      desiredPageId: "page-c",
+      desiredPageIndex: 2,
+      actualPageId: "page-c",
+      actualPageIndex: 2,
+    });
+
+    previousHarness.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-b",
+    });
+
+    // Previous from canonical page-c (index 2) -> page-b (index 1).
+    previousHarness.control.previous();
+    previousHarness.advance(COALESCE_DELAY_MS);
+
+    expect(previousHarness.writeControlState).toHaveBeenCalledTimes(1);
+    expect(previousHarness.writeControlState).toHaveBeenLastCalledWith(1);
+
+    const nextHarness = createHarness();
+    nextHarness.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 0,
+        pageId: "page-c",
+        pageIndex: 1,
+      }),
+    );
+
+    nextHarness.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-d",
+    });
+
+    // Next from canonical page-c (index 2) -> page-d (index 3), the next
+    // canonical page after page-c.
+    nextHarness.control.next();
+    nextHarness.advance(COALESCE_DELAY_MS);
+
+    expect(nextHarness.writeControlState).toHaveBeenCalledTimes(1);
+    expect(nextHarness.writeControlState).toHaveBeenLastCalledWith(3);
+  });
+
+  it("C: the derived actual index corresponds to page-c and never exposes the inconsistent reported index", () => {
+    const h = createHarness();
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 0,
+        pageId: "page-c",
+        pageIndex: 1,
+      }),
+    );
+
+    const view = h.views.at(-1);
+
+    expect(view?.actualPageId).toBe("page-c");
+    expect(view?.actualPageIndex).toBe(2);
+    expect(view?.actualPageIndex).not.toBe(1);
+    expect(view?.desiredPageId).toBe("page-c");
+    expect(view?.desiredPageIndex).toBe(2);
+  });
+
+  it("D: an unknown actual pageId fails closed for navigation and follow", async () => {
+    vi.useFakeTimers();
+
+    const h = createHarness();
+    h.control.handlePlayerState(
+      playerState({
+        appliedControlRevision: 0,
+        pageId: "unknown-page",
+        pageIndex: 2,
+      }),
+    );
+
+    const view = h.views.at(-1);
+
+    expect(view?.actualPageId).toBe("unknown-page");
+    expect(view?.actualPageIndex).toBeNull();
+    expect(view?.desiredPageId).toBe("unknown-page");
+    expect(view?.desiredPageIndex).toBeNull();
+
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "unknown-page",
+    });
+
+    h.control.previous();
+    h.control.next();
+    h.control.followPlayer();
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).not.toHaveBeenCalled();
   });
 });
