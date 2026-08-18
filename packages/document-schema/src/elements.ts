@@ -202,6 +202,28 @@ export const InteractiveElementSchema =
 export type InteractiveElement =
   z.infer<typeof InteractiveElementSchema>;
 
+export type ContentSlot = {
+  id: string;
+
+  style?:
+    | z.infer<typeof ElementStyleSchema>
+    | undefined;
+
+  children: PowerShowElement[];
+};
+
+export const ContentSlotSchema:
+  z.ZodType<ContentSlot> =
+  z.object({
+    id: ElementIdSchema,
+
+    style: ElementStyleSchema.optional(),
+
+    children: z.array(
+      z.lazy(() => PowerShowElementSchema),
+    ),
+  });
+
 export type ContainerElement = {
   id: string;
 
