@@ -52,7 +52,7 @@ export function ControlPage() {
   } = useLiveSessionControl({ resolvePageId, resolvePageIndex });
   const presentationState = usePresenterPresentation(
     liveState,
-    view?.enabled === true ? view.desiredPageIndex : null,
+    view?.enabled === true ? view.desiredPageId : null,
   );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
 

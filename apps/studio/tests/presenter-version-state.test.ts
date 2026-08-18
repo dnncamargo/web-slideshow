@@ -11,6 +11,7 @@ import {
   canUsePointerObservation,
   mapSlideAcrossVersions,
   projectPresenterVersions,
+  resolveLiveSlideIndex,
 } from "../src/features/control/presenter/presenter-version-state";
 
 function presentation(ids: string[], title = "Presentation"): Presentation {
@@ -128,6 +129,51 @@ describe("presenter slide mapping", () => {
       structuralChange: true,
       projectedSlideRemoved: false,
     });
+  });
+
+  it("resolves a known desired pageId to its index in the Live presentation", () => {
+    expect(
+      resolveLiveSlideIndex(
+        {
+          publicationId: "publication-1",
+          liveVersionId: "version-1",
+          previewVersionId: "version-1",
+          livePresentation: presentation(["page-a", "page-b", "page-c"]),
+          previewPresentation: presentation(["page-a", "page-b", "page-c"]),
+        },
+        "page-b",
+      ),
+    ).toBe(1);
+  });
+
+  it("returns null for an unknown desired pageId instead of a numeric index", () => {
+    expect(
+      resolveLiveSlideIndex(
+        {
+          publicationId: "publication-1",
+          liveVersionId: "version-1",
+          previewVersionId: "version-1",
+          livePresentation: presentation(["page-a", "page-b", "page-c"]),
+          previewPresentation: presentation(["page-a", "page-b", "page-c"]),
+        },
+        "unknown-page",
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null when no desired pageId is set", () => {
+    expect(
+      resolveLiveSlideIndex(
+        {
+          publicationId: "publication-1",
+          liveVersionId: "version-1",
+          previewVersionId: "version-1",
+          livePresentation: presentation(["page-a", "page-b", "page-c"]),
+          previewPresentation: presentation(["page-a", "page-b", "page-c"]),
+        },
+        null,
+      ),
+    ).toBeNull();
   });
 });
 

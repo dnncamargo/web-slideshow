@@ -10,6 +10,7 @@ import {
   PresenterVersionLoader,
   canUsePointerObservation,
   projectPresenterVersions,
+  resolveLiveSlideIndex,
   type LoadedPresenterVersions,
   type PendingPublishedVersion,
   type PresenterVersionIdentity,
@@ -74,10 +75,18 @@ function sameIdentity(
  * live/current and the newest version in the public publication pointer.
  * Pointer updates survive reload and converge across Control clients because
  * no pending state is kept in local storage or cross-tab messaging.
+ *
+ * The Presenter derives its display position from the canonical desired
+ * pageId: the live slide index is resolved against the immutable Live
+ * presentation once it loads, and is then mapped into the staged preview
+ * version. This must not depend on a LiveControl-derived numeric index, which
+ * can be null while the Presentation is still loading and never refresh once
+ * the document becomes available. An unknown or absent desiredPageId yields a
+ * null display index; no numeric fallback is used.
  */
 export function usePresenterPresentation(
   liveState: LiveState,
-  desiredPageIndex: number | null,
+  desiredPageId: string | null,
 ): PresenterPresentationState {
   const reader = getDefaultPublishedPresentationReader();
   const [loader] = useState(() => new PresenterVersionLoader(reader));
@@ -190,6 +199,9 @@ export function usePresenterPresentation(
   return {
     kind: "ready",
     livePresentation: result.versions.livePresentation,
-    ...projectPresenterVersions(result.versions, desiredPageIndex),
+    ...projectPresenterVersions(
+      result.versions,
+      resolveLiveSlideIndex(result.versions, desiredPageId),
+    ),
   };
 }
