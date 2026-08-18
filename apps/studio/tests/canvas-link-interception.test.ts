@@ -70,6 +70,39 @@ describe("isAuthoredPowerShowLink", () => {
     expect(isAuthoredPowerShowLink(null)).toBe(false);
     expect(isAuthoredPowerShowLink(undefined)).toBe(false);
   });
+
+  it("recognizes the linked Image renderer output through its anchor marker", () => {
+    const canvas = createCanvas(
+      '<a href="https://example.com" data-powershow-link="true"' +
+        ' class="powershow-element powershow-image"' +
+        ' data-powershow-id="image-1" data-powershow-type="image"' +
+        ' style="color:inherit;text-decoration:inherit">' +
+        '<img class="powershow-image-media" src="/assets/example.png"' +
+        ' alt="Example image"></a>',
+    );
+
+    const anchor = canvas.querySelector("a");
+    const media = canvas.querySelector<HTMLImageElement>(".powershow-image-media");
+
+    expect(anchor).not.toBeNull();
+    expect(media).not.toBeNull();
+
+    expect(isAuthoredPowerShowLink(anchor)).toBe(true);
+    expect(isAuthoredPowerShowLink(media)).toBe(true);
+  });
+
+  it("ignores an unlinked Image (plain img) in the canvas", () => {
+    const canvas = createCanvas(
+      '<img class="powershow-element powershow-image"' +
+        ' data-powershow-id="image-1" data-powershow-type="image"' +
+        ' src="/assets/example.png" alt="Example">',
+    );
+
+    const media = canvas.querySelector("img");
+
+    expect(media).not.toBeNull();
+    expect(isAuthoredPowerShowLink(media)).toBe(false);
+  });
 });
 
 describe("canvas click interception", () => {
@@ -92,6 +125,28 @@ describe("canvas click interception", () => {
 
     canvas.addEventListener("click", handleClick);
     anchor?.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+  });
+
+  it("prevents navigation when the linked Image canvas surface is clicked", () => {
+    const canvas = createCanvas(
+      '<a href="https://example.com" data-powershow-link="true">' +
+        '<img class="powershow-image-media" src="/assets/example.png"' +
+        ' alt="Example"></a>',
+    );
+
+    const handleClick = createCanvasClickHandler();
+
+    const click = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+
+    canvas.addEventListener("click", handleClick);
+    canvas
+      .querySelector(".powershow-image-media")
+      ?.dispatchEvent(click);
 
     expect(click.defaultPrevented).toBe(true);
   });

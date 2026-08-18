@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ElementLink,
+  ImageElement,
   PowerShowElement,
   TextboxElement,
   TextElement,
@@ -13,6 +14,7 @@ import type {
 
 import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { ImageInspector } from "../src/features/editor/inspector/image-inspector";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
 import { TextboxInspector } from "../src/features/editor/inspector/textbox-inspector";
 import { ElementInteractionSection } from "../src/features/editor/inspector/sections/element-interaction-section";
@@ -26,7 +28,10 @@ const FONT_RESOURCES: FontResourceControls = {
   isFontFamilyInUse: () => false,
 };
 
-type LinkableElement = Extract<PowerShowElement, { type: "text" | "textbox" }>;
+type LinkableElement = Extract<
+  PowerShowElement,
+  { type: "text" | "textbox" | "image" }
+>;
 
 function textElement(
   overrides: Partial<Omit<TextElement, "type" | "hidden">> = {},
@@ -49,6 +54,20 @@ function textboxElement(
     id: "textbox-1",
     hidden: false,
     content: "A highlighted explanation",
+    ...overrides,
+  };
+}
+
+function imageElement(
+  overrides: Partial<Omit<ImageElement, "type" | "hidden">> = {},
+): ImageElement {
+  return {
+    type: "image",
+    id: "image-1",
+    hidden: false,
+    src: "/assets/example.png",
+    alt: "Example image",
+    fit: "contain",
     ...overrides,
   };
 }
@@ -114,11 +133,17 @@ describe("ElementInteractionSection", () => {
       <StudioI18nProvider>
         <ElementInteractionSection
           element={elementState}
-          controlPrefix={elementState.type === "text" ? "text" : "textbox"}
+          controlPrefix={
+            elementState.type === "text"
+              ? "text"
+              : elementState.type === "textbox"
+                ? "textbox"
+                : "image"
+          }
           onUpdate={(update) => {
             const next = update(elementState);
 
-            if (next.type !== "text" && next.type !== "textbox") {
+            if (!isLinkableElementType(next)) {
               return;
             }
 
@@ -135,6 +160,16 @@ describe("ElementInteractionSection", () => {
     elementState = initial;
     updates = [];
     renderSection();
+  }
+
+  function isLinkableElementType(
+    element: PowerShowElement,
+  ): element is LinkableElement {
+    return (
+      element.type === "text" ||
+      element.type === "textbox" ||
+      element.type === "image"
+    );
   }
 
   beforeEach(() => {
@@ -578,6 +613,186 @@ describe("ElementInteractionSection", () => {
 
     expect(urlInput(container, "text").value).toBe("https://example.com/new");
   });
+
+  it("mounting the section for an Image writes no canonical link", async () => {
+    await act(async () => {
+      mount(imageElement());
+    });
+
+    expect(updates).toHaveLength(0);
+    expect(elementState).not.toHaveProperty("link");
+  });
+
+  it("commits a valid Image URL as a canonical link on blur", async () => {
+    await act(async () => {
+      mount(imageElement());
+    });
+
+    await act(async () => {
+      changeInput(
+        urlInput(container, "image"),
+        "https://example.com/photo?size=large",
+      );
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "image"));
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(elementState).toMatchObject({
+      type: "image",
+      link: {
+        kind: "url",
+        href: "https://example.com/photo?size=large",
+      },
+    });
+  });
+
+  it("does not write an invalid URL to the canonical Image element", async () => {
+    await act(async () => {
+      mount(imageElement());
+    });
+
+    await act(async () => {
+      changeInput(urlInput(container, "image"), "javascript:alert(1)");
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "image"));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "image").value).toBe("");
+  });
+
+  it("commits an Image link with target _blank when New tab is selected", async () => {
+    await act(async () => {
+      mount(imageElement());
+    });
+
+    await act(async () => {
+      changeSelect(targetSelect(container, "image"), "new");
+    });
+
+    // Selecting a target alone never creates a link.
+    expect(updates).toHaveLength(0);
+
+    await act(async () => {
+      changeInput(urlInput(container, "image"), "https://example.com");
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "image"));
+    });
+
+    expect(elementState).toMatchObject({
+      type: "image",
+      link: {
+        kind: "url",
+        href: "https://example.com",
+        target: "_blank",
+      },
+    });
+  });
+
+  it("removes the canonical link from an Image element via the remove action", async () => {
+    await act(async () => {
+      mount(
+        imageElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+            target: "_blank",
+          },
+        }),
+      );
+    });
+
+    const removeButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Remove link"),
+    );
+
+    expect(removeButton).toBeDefined();
+
+    await act(async () => {
+      removeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "image").value).toBe("");
+    expect(targetSelect(container, "image").value).toBe("same");
+  });
+
+  it("clears the Image canonical link when the URL field is cleared", async () => {
+    await act(async () => {
+      mount(
+        imageElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      changeInput(urlInput(container, "image"), "");
+    });
+
+    await act(async () => {
+      blurInput(urlInput(container, "image"));
+    });
+
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "image").value).toBe("");
+  });
+
+  it("updates the target of an existing Image canonical link", async () => {
+    await act(async () => {
+      mount(
+        imageElement({
+          link: {
+            kind: "url",
+            href: "https://example.com",
+          },
+        }),
+      );
+    });
+
+    await act(async () => {
+      changeSelect(targetSelect(container, "image"), "new");
+    });
+
+    expect(elementState).toMatchObject({
+      type: "image",
+      link: {
+        kind: "url",
+        href: "https://example.com",
+        target: "_blank",
+      },
+    });
+  });
+
+  it("hydrates the Image form from an existing canonical link", async () => {
+    await act(async () => {
+      mount(
+        imageElement({
+          link: {
+            kind: "url",
+            href: "https://example.com/hydrated",
+            target: "_blank",
+          },
+        }),
+      );
+    });
+
+    expect(urlInput(container, "image").value).toBe(
+      "https://example.com/hydrated",
+    );
+
+    expect(targetSelect(container, "image").value).toBe("new");
+  });
 });
 
 describe("shared Interaction control in inspectors", () => {
@@ -630,5 +845,25 @@ describe("shared Interaction control in inspectors", () => {
 
     expect(urlInput(container, "textbox")).toBeDefined();
     expect(targetSelect(container, "textbox")).toBeDefined();
+  });
+
+  it("ImageInspector renders the same Interaction section", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <ImageInspector
+            element={imageElement()}
+            onUpdate={() => {}}
+            preserveImageProportion={false}
+            onPreserveImageProportionChange={() => {}}
+            focalEditing={false}
+            onFocalEditingChange={() => {}}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    expect(urlInput(container, "image")).toBeDefined();
+    expect(targetSelect(container, "image")).toBeDefined();
   });
 });

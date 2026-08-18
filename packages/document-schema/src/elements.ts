@@ -79,6 +79,8 @@ export const ImageElementSchema =
         y: z.number().min(0).max(100),
       })
       .optional(),
+
+    link: ElementLinkSchema.optional(),
   });
 
 export type ImageElement =
