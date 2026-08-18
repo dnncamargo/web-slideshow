@@ -431,6 +431,23 @@ export const validStyleFixtures = [
       },
     ]),
   },
+  {
+    name: "text capability typography styles",
+    input: makePresentation([
+      makeSlide([
+        {
+          ...textElement,
+          style: {
+            textTransform: "uppercase",
+            whiteSpace: "pre-line",
+            textWrapStyle: "balance",
+            overflowWrap: "break-word",
+            textDecorationLine: "underline",
+          },
+        },
+      ]),
+    ]),
+  },
 ] satisfies readonly SchemaFixture[];
 
 export const defaultsInput = makePresentation([

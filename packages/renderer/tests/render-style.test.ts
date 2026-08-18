@@ -85,6 +85,76 @@ describe("renderStyle", () => {
     expect(result).not.toContain("line-height:1.5px");
   });
 
+  it.each([
+    ["none transform", { textTransform: "none" }, "text-transform:none"],
+    ["uppercase transform", { textTransform: "uppercase" }, "text-transform:uppercase"],
+    ["lowercase transform", { textTransform: "lowercase" }, "text-transform:lowercase"],
+    ["capitalize transform", { textTransform: "capitalize" }, "text-transform:capitalize"],
+    ["normal whitespace", { whiteSpace: "normal" }, "white-space:normal"],
+    ["nowrap whitespace", { whiteSpace: "nowrap" }, "white-space:nowrap"],
+    ["pre-line whitespace", { whiteSpace: "pre-line" }, "white-space:pre-line"],
+    ["pre-wrap whitespace", { whiteSpace: "pre-wrap" }, "white-space:pre-wrap"],
+    ["auto text-wrap-style", { textWrapStyle: "auto" }, "text-wrap-style:auto"],
+    ["balance text-wrap-style", { textWrapStyle: "balance" }, "text-wrap-style:balance"],
+    ["pretty text-wrap-style", { textWrapStyle: "pretty" }, "text-wrap-style:pretty"],
+    ["normal overflow-wrap", { overflowWrap: "normal" }, "overflow-wrap:normal"],
+    ["break-word overflow-wrap", { overflowWrap: "break-word" }, "overflow-wrap:break-word"],
+    ["anywhere overflow-wrap", { overflowWrap: "anywhere" }, "overflow-wrap:anywhere"],
+    ["underline decoration", { textDecorationLine: "underline" }, "text-decoration-line:underline"],
+    ["overline decoration", { textDecorationLine: "overline" }, "text-decoration-line:overline"],
+    ["line-through decoration", { textDecorationLine: "line-through" }, "text-decoration-line:line-through"],
+  ] satisfies readonly [string, ElementStyle, string][])(
+    "renders %s",
+    (_name, style, expected) => {
+      expect(renderStyle(style)).toContain(expected);
+    },
+  );
+
+  it("renders a combined text-capability style", () => {
+    const result = renderStyle({
+      textTransform: "uppercase",
+      whiteSpace: "pre-wrap",
+      textWrapStyle: "balance",
+      overflowWrap: "break-word",
+      textDecorationLine: "underline",
+    });
+
+    expect(result).toBe(
+      "text-transform:uppercase;white-space:pre-wrap;text-wrap-style:balance;" +
+        "overflow-wrap:break-word;text-decoration-line:underline",
+    );
+  });
+
+  it("keeps white-space and text-wrap-style independent", () => {
+    const result = renderStyle({
+      whiteSpace: "nowrap",
+      textWrapStyle: "balance",
+    });
+
+    expect(result).toContain("white-space:nowrap");
+    expect(result).toContain("text-wrap-style:balance");
+    expect(result).not.toContain("text-wrap:balance");
+  });
+
+  it("does not emit the text-wrap shorthand", () => {
+    const result = renderStyle({
+      textWrapStyle: "pretty",
+    });
+
+    expect(result).toContain("text-wrap-style:pretty");
+    expect(result).not.toMatch(/text-wrap:/);
+  });
+
+  it("does not emit text-capability declarations when undefined", () => {
+    const result = renderStyle({});
+
+    expect(result).not.toContain("text-transform");
+    expect(result).not.toContain("white-space");
+    expect(result).not.toContain("text-wrap-style");
+    expect(result).not.toContain("overflow-wrap");
+    expect(result).not.toContain("text-decoration-line");
+  });
+
   it("renders combined typography overrides", () => {
     const result = renderStyle({
       fontFamily: "Inter",

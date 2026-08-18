@@ -96,6 +96,79 @@ function parseTextAlignSelection(
   }
 }
 
+function parseTextTransformSelection(
+  value: string,
+): ElementStyle["textTransform"] {
+  switch (value) {
+    case "none":
+    case "uppercase":
+    case "lowercase":
+    case "capitalize":
+      return value;
+
+    default:
+      return undefined;
+  }
+}
+
+function parseWhiteSpaceSelection(
+  value: string,
+): ElementStyle["whiteSpace"] {
+  switch (value) {
+    case "normal":
+    case "nowrap":
+    case "pre-line":
+    case "pre-wrap":
+      return value;
+
+    default:
+      return undefined;
+  }
+}
+
+function parseTextWrapStyleSelection(
+  value: string,
+): ElementStyle["textWrapStyle"] {
+  switch (value) {
+    case "auto":
+    case "balance":
+    case "pretty":
+      return value;
+
+    default:
+      return undefined;
+  }
+}
+
+function parseOverflowWrapSelection(
+  value: string,
+): ElementStyle["overflowWrap"] {
+  switch (value) {
+    case "normal":
+    case "break-word":
+    case "anywhere":
+      return value;
+
+    default:
+      return undefined;
+  }
+}
+
+function parseTextDecorationLineSelection(
+  value: string,
+): ElementStyle["textDecorationLine"] {
+  switch (value) {
+    case "none":
+    case "underline":
+    case "overline":
+    case "line-through":
+      return value;
+
+    default:
+      return undefined;
+  }
+}
+
 function parseOptionalPositiveNumber(value: string): number | undefined {
   const number = parseOptionalNumber(value);
 
@@ -436,6 +509,169 @@ export function ElementTypographyControl({
             }}
           />
         </div>
+
+        <label className={styles.field}>
+          <span>{t("inspector.textCase")}</span>
+
+          <select
+            id={`${controlPrefix}-text-transform`}
+            name={getControlName(controlPrefix, "TextTransform")}
+            value={style?.textTransform ?? "none"}
+            onChange={(event) => {
+              const textTransform = parseTextTransformSelection(
+                event.target.value,
+              );
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                textTransform,
+              }));
+            }}
+          >
+            <option value="none">{t("inspector.textCase.none")}</option>
+
+            <option value="uppercase">
+              {t("inspector.textCase.uppercase")}
+            </option>
+
+            <option value="lowercase">
+              {t("inspector.textCase.lowercase")}
+            </option>
+
+            <option value="capitalize">
+              {t("inspector.textCase.capitalize")}
+            </option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.whiteSpace")}</span>
+
+          <select
+            id={`${controlPrefix}-white-space`}
+            name={getControlName(controlPrefix, "WhiteSpace")}
+            value={style?.whiteSpace ?? "normal"}
+            onChange={(event) => {
+              const whiteSpace = parseWhiteSpaceSelection(event.target.value);
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                whiteSpace,
+              }));
+            }}
+          >
+            <option value="normal">{t("inspector.whiteSpace.normal")}</option>
+
+            <option value="nowrap">{t("inspector.whiteSpace.nowrap")}</option>
+
+            <option value="pre-line">
+              {t("inspector.whiteSpace.preLine")}
+            </option>
+
+            <option value="pre-wrap">
+              {t("inspector.whiteSpace.preWrap")}
+            </option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.textWrap")}</span>
+
+          <select
+            id={`${controlPrefix}-text-wrap-style`}
+            name={getControlName(controlPrefix, "TextWrapStyle")}
+            value={style?.textWrapStyle ?? "auto"}
+            onChange={(event) => {
+              const textWrapStyle = parseTextWrapStyleSelection(
+                event.target.value,
+              );
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                textWrapStyle,
+              }));
+            }}
+          >
+            <option value="auto">{t("inspector.textWrap.wrap")}</option>
+
+            <option value="balance">{t("inspector.textWrap.balance")}</option>
+
+            <option value="pretty">{t("inspector.textWrap.pretty")}</option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.overflowWrap")}</span>
+
+          <select
+            id={`${controlPrefix}-overflow-wrap`}
+            name={getControlName(controlPrefix, "OverflowWrap")}
+            value={style?.overflowWrap ?? "normal"}
+            onChange={(event) => {
+              const overflowWrap = parseOverflowWrapSelection(
+                event.target.value,
+              );
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                overflowWrap,
+              }));
+            }}
+          >
+            <option value="normal">
+              {t("inspector.overflowWrap.normal")}
+            </option>
+
+            <option value="break-word">
+              {t("inspector.overflowWrap.breakWord")}
+            </option>
+
+            <option value="anywhere">
+              {t("inspector.overflowWrap.anywhere")}
+            </option>
+          </select>
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.textDecorationLine")}</span>
+
+          <select
+            id={`${controlPrefix}-text-decoration-line`}
+            name={getControlName(controlPrefix, "TextDecorationLine")}
+            value={style?.textDecorationLine ?? "none"}
+            onChange={(event) => {
+              const textDecorationLine = parseTextDecorationLineSelection(
+                event.target.value,
+              );
+
+              onUpdateStyle((currentStyle) => ({
+                ...currentStyle,
+
+                textDecorationLine,
+              }));
+            }}
+          >
+            <option value="none">
+              {t("inspector.textDecorationLine.none")}
+            </option>
+
+            <option value="underline">
+              {t("inspector.textDecorationLine.underline")}
+            </option>
+
+            <option value="overline">
+              {t("inspector.textDecorationLine.overline")}
+            </option>
+
+            <option value="line-through">
+              {t("inspector.textDecorationLine.lineThrough")}
+            </option>
+          </select>
+        </label>
       </div>
     </div>
   );

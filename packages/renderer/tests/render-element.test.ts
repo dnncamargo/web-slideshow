@@ -39,6 +39,31 @@ describe("renderElement", () => {
     expect(html).toContain(">PowerShow</h1>");
   });
 
+  it.each([
+    ["uppercase", "uppercase"],
+    ["lowercase", "lowercase"],
+    ["capitalize", "capitalize"],
+  ] as const)(
+    "does not rewrite element content for %s text-transform",
+    (_name, textTransform) => {
+      const element: PowerShowElement = {
+        type: "text",
+        id: "case-text",
+        hidden: false,
+        variant: "body",
+        content: "PowerShow Example",
+        style: { textTransform },
+      };
+
+      const html = renderElement(element);
+
+      // The stored content is preserved exactly; only CSS text-transform is
+      // emitted, and the browser applies the casing visually.
+      expect(html).toContain(">PowerShow Example</p>");
+      expect(html).toContain(`text-transform:${textTransform}`);
+    },
+  );
+
   it("escapes text content", () => {
     const element: PowerShowElement = {
       type: "text",
