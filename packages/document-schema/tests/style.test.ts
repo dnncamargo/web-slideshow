@@ -53,6 +53,81 @@ describe("ElementStyleSchema typography", () => {
   });
 
   it.each([
+    ["none transform", { textTransform: "none" }],
+    ["uppercase transform", { textTransform: "uppercase" }],
+    ["lowercase transform", { textTransform: "lowercase" }],
+    ["capitalize transform", { textTransform: "capitalize" }],
+    ["normal whitespace", { whiteSpace: "normal" }],
+    ["nowrap whitespace", { whiteSpace: "nowrap" }],
+    ["pre-line whitespace", { whiteSpace: "pre-line" }],
+    ["pre-wrap whitespace", { whiteSpace: "pre-wrap" }],
+    ["auto text-wrap-style", { textWrapStyle: "auto" }],
+    ["balance text-wrap-style", { textWrapStyle: "balance" }],
+    ["pretty text-wrap-style", { textWrapStyle: "pretty" }],
+    ["normal overflow-wrap", { overflowWrap: "normal" }],
+    ["break-word overflow-wrap", { overflowWrap: "break-word" }],
+    ["anywhere overflow-wrap", { overflowWrap: "anywhere" }],
+    ["none decoration", { textDecorationLine: "none" }],
+    ["underline decoration", { textDecorationLine: "underline" }],
+    ["overline decoration", { textDecorationLine: "overline" }],
+    ["line-through decoration", { textDecorationLine: "line-through" }],
+  ])("accepts %s", (_name, style) => {
+    expect(ElementStyleSchema.safeParse(style).success).toBe(true);
+  });
+
+  it("accepts a combined text-capability style", () => {
+    expect(
+      ElementStyleSchema.safeParse({
+        textTransform: "uppercase",
+        whiteSpace: "pre-wrap",
+        textWrapStyle: "balance",
+        overflowWrap: "break-word",
+        textDecorationLine: "underline",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("round-trips text-capability properties through the schema", () => {
+    expect(
+      ElementStyleSchema.parse({
+        textTransform: "uppercase",
+        whiteSpace: "pre-line",
+        textWrapStyle: "pretty",
+        overflowWrap: "anywhere",
+        textDecorationLine: "line-through",
+      }),
+    ).toEqual({
+      textTransform: "uppercase",
+      whiteSpace: "pre-line",
+      textWrapStyle: "pretty",
+      overflowWrap: "anywhere",
+      textDecorationLine: "line-through",
+    });
+  });
+
+  it("accepts auto as the canonical wrap-style default value", () => {
+    expect(ElementStyleSchema.parse({ textWrapStyle: "auto" })).toEqual({
+      textWrapStyle: "auto",
+    });
+  });
+
+  it("rejects the CSS text-wrap shorthand value wrap", () => {
+    expect(ElementStyleSchema.safeParse({ textWrapStyle: "wrap" }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["camelCase transform", { textTransform: "upperCase" }],
+    ["padded whitespace", { whiteSpace: " pre-wrap " }],
+    ["unknown text-wrap-style", { textWrapStyle: "wrap" }],
+    ["unknown overflow-wrap", { overflowWrap: "break-all" }],
+    ["unknown decoration", { textDecorationLine: "strike" }],
+  ])("rejects %s", (_name, style) => {
+    expect(ElementStyleSchema.safeParse(style).success).toBe(false);
+  });
+
+  it.each([
     ["font weight 350", { fontWeight: 350 }],
     ["font weight 950", { fontWeight: 950 }],
     ["oblique font style", { fontStyle: "oblique" }],

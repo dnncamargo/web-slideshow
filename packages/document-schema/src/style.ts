@@ -37,6 +37,39 @@ export const TextAlignSchema = z.enum([
 
 export const LineHeightSchema = z.number().positive();
 
+export const TextTransformSchema = z.enum([
+  "none",
+  "uppercase",
+  "lowercase",
+  "capitalize",
+]);
+
+export const WhiteSpaceSchema = z.enum([
+  "normal",
+  "nowrap",
+  "pre-line",
+  "pre-wrap",
+]);
+
+export const TextWrapStyleSchema = z.enum([
+  "auto",
+  "balance",
+  "pretty",
+]);
+
+export const OverflowWrapSchema = z.enum([
+  "normal",
+  "break-word",
+  "anywhere",
+]);
+
+export const TextDecorationLineSchema = z.enum([
+  "none",
+  "underline",
+  "overline",
+  "line-through",
+]);
+
 export const ElementPlacementSchema = z.object({
   mode: z.enum(["flow", "absolute"]),
   anchor: PositionAnchorSchema.optional(),
@@ -87,6 +120,11 @@ export const ElementStyleSchema = z.object({
   textAlign: TextAlignSchema.optional(),
   lineHeight: LineHeightSchema.optional(),
   letterSpacing: LengthSchema.optional(),
+  textTransform: TextTransformSchema.optional(),
+  whiteSpace: WhiteSpaceSchema.optional(),
+  textWrapStyle: TextWrapStyleSchema.optional(),
+  overflowWrap: OverflowWrapSchema.optional(),
+  textDecorationLine: TextDecorationLineSchema.optional(),
 
   borderRadius: LengthSchema.optional(),
 

@@ -111,6 +111,16 @@ export function renderStyle(style: ElementStyle | undefined): string {
 
   addLength(output, "letter-spacing", style.letterSpacing);
 
+  addStyle(output, "text-transform", style.textTransform);
+
+  addStyle(output, "white-space", style.whiteSpace);
+
+  addStyle(output, "text-wrap-style", style.textWrapStyle);
+
+  addStyle(output, "overflow-wrap", style.overflowWrap);
+
+  addStyle(output, "text-decoration-line", style.textDecorationLine);
+
   addLength(output, "border-radius", style.borderRadius);
 
   addStyle(output, "opacity", style.opacity);
