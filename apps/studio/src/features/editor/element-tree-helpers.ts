@@ -1,14 +1,48 @@
-import type { PowerShowElement, Slide } from "@powershow/document-schema";
+import type {
+  PowerShowElement,
+  Slide,
+  TopicItem,
+} from "@powershow/document-schema";
 
 import {
   findElementSiblingPosition,
   type MoveElementOptions,
 } from "./element-operations";
+import {
+  collectAuthoringIds,
+  collectContainerIds as collectContainerIdsInHierarchy,
+  type ElementParentRef,
+} from "./element-hierarchy";
 import { findElementById } from "./element-tree";
 
 interface ParentTarget {
   id: string | null;
   label: string;
+}
+
+function collectParentTargetsInTopicItems(
+  items: readonly TopicItem[],
+  excludedIds: ReadonlySet<string>,
+  targets: ParentTarget[],
+  t: (key: "tree.container" | "tree.slide") => string,
+  containerCount: { value: number },
+): void {
+  for (const item of items) {
+    collectParentTargets(
+      item.content.children,
+      excludedIds,
+      targets,
+      t,
+      containerCount,
+    );
+    collectParentTargetsInTopicItems(
+      item.children,
+      excludedIds,
+      targets,
+      t,
+      containerCount,
+    );
+  }
 }
 
 function getContentPreview(content: string): string | null {
@@ -24,7 +58,10 @@ function getContentPreview(content: string): string | null {
   return normalized.length > 36 ? `${normalized.slice(0, 35)}…` : normalized;
 }
 
-export function getElementLabel(element: PowerShowElement, typeLabel: string): string {
+export function getElementLabel(
+  element: PowerShowElement,
+  typeLabel: string,
+): string {
   if (element.type === "text" || element.type === "textbox") {
     const preview = getContentPreview(element.content);
 
@@ -38,24 +75,7 @@ export function collectContainerIds(
   elements: readonly PowerShowElement[],
   ids: Set<string>,
 ): void {
-  for (const element of elements) {
-    if (element.type !== "container") {
-      continue;
-    }
-
-    ids.add(element.id);
-    collectContainerIds(element.children, ids);
-  }
-}
-
-function collectDescendantIds(element: PowerShowElement, ids: Set<string>): void {
-  ids.add(element.id);
-
-  if (element.type === "container") {
-    for (const child of element.children) {
-      collectDescendantIds(child, ids);
-    }
-  }
+  collectContainerIdsInHierarchy(elements, ids);
 }
 
 function collectParentTargets(
@@ -66,19 +86,34 @@ function collectParentTargets(
   containerCount: { value: number },
 ): void {
   for (const element of elements) {
-    if (element.type !== "container") {
+    if (element.type === "container") {
+      if (!excludedIds.has(element.id)) {
+        containerCount.value += 1;
+        targets.push({
+          id: element.id,
+          label: `${t("tree.container")} ${containerCount.value}`,
+        });
+      }
+
+      collectParentTargets(
+        element.children,
+        excludedIds,
+        targets,
+        t,
+        containerCount,
+      );
       continue;
     }
 
-    if (!excludedIds.has(element.id)) {
-      containerCount.value += 1;
-      targets.push({
-        id: element.id,
-        label: `${t("tree.container")} ${containerCount.value}`,
-      });
+    if (element.type === "topics") {
+      collectParentTargetsInTopicItems(
+        element.items,
+        excludedIds,
+        targets,
+        t,
+        containerCount,
+      );
     }
-
-    collectParentTargets(element.children, excludedIds, targets, t, containerCount);
   }
 }
 
@@ -88,7 +123,7 @@ export function getParentTargets(
   t: (key: "tree.container" | "tree.slide") => string,
 ): ParentTarget[] {
   const excludedIds = new Set<string>();
-  collectDescendantIds(selectedElement, excludedIds);
+  collectAuthoringIds(selectedElement, excludedIds);
 
   const targets: ParentTarget[] = [{ id: null, label: t("tree.slide") }];
   collectParentTargets(slide.elements, excludedIds, targets, t, { value: 0 });
@@ -99,12 +134,12 @@ export function getParentTargets(
 export function getTreeActionState(
   index: number,
   siblingCount: number,
-  parentId: string | null,
+  parentRef: ElementParentRef,
 ) {
   return {
     canMoveUp: index > 0,
     canMoveDown: index < siblingCount - 1,
-    canMoveOut: parentId !== null,
+    canMoveOut: parentRef.kind === "container",
   };
 }
 
@@ -130,7 +165,7 @@ export function resolveTreeDrop(
   }
 
   const forbiddenIds = new Set<string>();
-  collectDescendantIds(source, forbiddenIds);
+  collectAuthoringIds(source, forbiddenIds);
 
   if (forbiddenIds.has(targetId)) {
     return null;
@@ -138,18 +173,36 @@ export function resolveTreeDrop(
 
   if (intent === "inside") {
     return target.type === "container"
-      ? { elementId, targetParentId: target.id }
+      ? { elementId, targetParentRef: { kind: "container", id: target.id } }
       : null;
   }
 
+  function areElementParentRefsEqual(
+    left: ElementParentRef,
+    right: ElementParentRef,
+  ): boolean {
+    switch (left.kind) {
+      case "slide":
+        return right.kind === "slide";
+
+      case "container":
+        return right.kind === "container" && left.id === right.id;
+
+      case "content-slot":
+        return right.kind === "content-slot" && left.id === right.id;
+    }
+  }
+
   const sourceIsBeforeTarget =
-    sourcePosition.parentId === targetPosition.parentId &&
-    sourcePosition.index < targetPosition.index;
+    areElementParentRefsEqual(
+      sourcePosition.parentRef,
+      targetPosition.parentRef,
+    ) && sourcePosition.index < targetPosition.index;
   const targetIndex = targetPosition.index - (sourceIsBeforeTarget ? 1 : 0);
 
   return {
     elementId,
-    targetParentId: targetPosition.parentId,
+    targetParentRef: targetPosition.parentRef,
     targetIndex: intent === "before" ? targetIndex : targetIndex + 1,
   };
 }

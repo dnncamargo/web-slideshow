@@ -463,13 +463,13 @@ export function EditorWorkspace({
   }, [selectedSlide, selectedElement]);
 
   const selectedElementParent = useMemo(() => {
-    if (!selectedSlide || !selectedElementPosition?.parentId) {
+    if (!selectedSlide || selectedElementPosition?.parentRef.kind !== "container") {
       return null;
     }
 
     const parent = findElementById(
       selectedSlide.elements,
-      selectedElementPosition.parentId,
+      selectedElementPosition.parentRef.id,
     );
 
     return parent?.type === "container" ? parent : null;
@@ -711,17 +711,28 @@ export function EditorWorkspace({
       return null;
     }
 
-    if (position.parentId === null) {
+    if (position.parentRef.kind === "slide") {
       return canvas.querySelector<HTMLElement>(".powershow-slide");
     }
 
-    return (
-      Array.from(
-        canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
-      ).find(
-        (candidate) => candidate.dataset.powershowId === position.parentId,
-      ) ?? null
-    );
+    if (position.parentRef.kind === "content-slot") {
+      return null;
+    }
+
+    if (position.parentRef.kind !== "container") {
+      return null;
+    }
+
+    {
+      const { id } = position.parentRef;
+      return (
+        Array.from(
+          canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
+        ).find(
+          (candidate) => candidate.dataset.powershowId === id,
+        ) ?? null
+      );
+    }
   }
 
   function getCanvasBounds(element: HTMLElement): CanvasBounds {
