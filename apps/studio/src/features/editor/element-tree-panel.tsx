@@ -32,7 +32,6 @@ interface ElementTreePanelProps {
 
 interface ElementTreeNodeProps {
   element: PowerShowElement;
-  parentId: string | null;
   index: number;
   siblingCount: number;
   expandedIds: ReadonlySet<string>;
@@ -48,7 +47,6 @@ interface ElementTreeNodeProps {
 
 function ElementTreeNode({
   element,
-  parentId,
   index,
   siblingCount,
   expandedIds,
@@ -133,7 +131,6 @@ function ElementTreeNode({
             <ElementTreeNode
               key={child.id}
               element={child}
-              parentId={element.id}
               index={childIndex}
               siblingCount={element.children.length}
               expandedIds={expandedIds}
@@ -212,7 +209,6 @@ export function ElementTreePanel({
           <ElementTreeNode
             key={element.id}
             element={element}
-            parentId={null}
             index={index}
             siblingCount={slide.elements.length}
             expandedIds={expandedIds}
