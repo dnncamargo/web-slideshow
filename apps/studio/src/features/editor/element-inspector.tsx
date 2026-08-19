@@ -14,11 +14,13 @@ import {
   TerminalInspector,
   TextboxInspector,
   TextInspector,
+  TopicsInspector,
 } from "./inspector";
 
 import type {
   ElementInspectorUpdate,
   FontResourceControls,
+  TopicsAuthoringControls,
 } from "./inspector/inspector-types";
 import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
 import { shouldShowElementPlacement } from "./inspector/sections/element-placement-helpers";
@@ -45,6 +47,8 @@ interface ElementInspectorProps {
     count: number;
     onMoveTo: (index: number) => void;
   } | null;
+
+  topicsAuthoringControls: TopicsAuthoringControls;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -64,6 +68,7 @@ function ElementTypeInspector({
   focalEditingImageId,
   onFocalEditingImageIdChange,
   unsupportedElementHint,
+  topicsAuthoringControls,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -112,6 +117,15 @@ function ElementTypeInspector({
     case "table":
       return <TableInspector element={element} onUpdate={onUpdate} />;
 
+    case "topics":
+      return (
+        <TopicsInspector
+          element={element}
+          onUpdate={onUpdate}
+          topicsAuthoringControls={topicsAuthoringControls}
+        />
+      );
+
     default:
       return (
         <div className={styles.nextStep}>
@@ -142,6 +156,7 @@ export function ElementInspector({
   onFocalEditingImageIdChange,
   parent,
   layerControls,
+  topicsAuthoringControls,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
@@ -180,6 +195,7 @@ export function ElementInspector({
         parent={parent}
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
+        topicsAuthoringControls={topicsAuthoringControls}
       />
 
       {shouldShowElementPlacement(layerControls) && (

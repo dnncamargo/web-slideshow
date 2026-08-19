@@ -11,8 +11,9 @@ import {
   findElementLocation,
   getElementsForParentRef,
   type ElementParentRef,
+  findElementById,
+  updateElementById,
 } from "./element-hierarchy";
-
 
 // ============================================================
 // BEGIN: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -28,12 +29,12 @@ export type ElementCreateType =
   | "image"
   | "code"
   | "terminal"
-  | "table";
+  | "table"
+  | "topics";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
 // ============================================================
-
 
 // ============================================================
 // BEGIN: COLETA DE IDS
@@ -48,21 +49,12 @@ function collectElementIds(
   }
 }
 
-
-function collectPresentationElementIds(
-  slides: readonly Slide[],
-): Set<string> {
-  const ids =
-    new Set<string>();
-
+function collectPresentationElementIds(slides: readonly Slide[]): Set<string> {
+  const ids = new Set<string>();
 
   for (const slide of slides) {
-    collectElementIds(
-      slide.elements,
-      ids,
-    );
+    collectElementIds(slide.elements, ids);
   }
-
 
   return ids;
 }
@@ -71,35 +63,20 @@ function collectPresentationElementIds(
 // END: COLETA DE IDS
 // ============================================================
 
-
 // ============================================================
 // BEGIN: ID ÚNICO
 // ============================================================
 
-function createUniqueId(
-  baseId: string,
-  usedIds: Set<string>,
-): string {
-  if (
-    !usedIds.has(
-      baseId,
-    )
-  ) {
+function createUniqueId(baseId: string, usedIds: Set<string>): string {
+  if (!usedIds.has(baseId)) {
     return baseId;
   }
 
-
   let suffix = 2;
 
-
-  while (
-    usedIds.has(
-      `${baseId}-${suffix}`,
-    )
-  ) {
+  while (usedIds.has(`${baseId}-${suffix}`)) {
     suffix += 1;
   }
-
 
   return `${baseId}-${suffix}`;
 }
@@ -108,6 +85,91 @@ function createUniqueId(
 // END: ID ÚNICO
 // ============================================================
 
+// ============================================================
+// BEGIN: TÓPICOS (TopicItem)
+//
+// Um TopicItem é um nó estrutural do documento. Ele NÃO é um
+// PowerShowElement. Cada item carrega um ContentSlot com um
+// único Text por padrão.
+// ============================================================
+
+export interface CreatedTopicItem {
+  item: TopicItem;
+
+  textId: string;
+}
+
+function buildDefaultTopicItem(usedIds: Set<string>): CreatedTopicItem {
+  const textId = createUniqueId("topic-text", usedIds);
+  usedIds.add(textId);
+
+  const slotId = createUniqueId("topic-slot", usedIds);
+  usedIds.add(slotId);
+
+  const itemId = createUniqueId("topic-item", usedIds);
+  usedIds.add(itemId);
+
+  const item: TopicItem = {
+    id: itemId,
+
+    content: {
+      id: slotId,
+
+      children: [
+        {
+          id: textId,
+
+          type: "text",
+
+          hidden: false,
+
+          variant: "body",
+
+          content: "New topic",
+        },
+      ],
+    },
+
+    children: [],
+  };
+
+  return { item, textId };
+}
+
+export function createDefaultTopicItem(
+  slides: readonly Slide[],
+): CreatedTopicItem {
+  const usedIds = collectPresentationElementIds(slides);
+
+  return buildDefaultTopicItem(usedIds);
+}
+
+export function appendTopicItemToTopics(
+  elements: PowerShowElement[],
+  topicsId: string,
+  item: TopicItem,
+): PowerShowElement[] {
+  const target = findElementById(elements, topicsId);
+
+  if (target?.type !== "topics") {
+    return elements;
+  }
+
+  return updateElementById(elements, topicsId, (element) => {
+    if (element.type !== "topics") {
+      return element;
+    }
+
+    return {
+      ...element,
+      items: [...element.items, item],
+    };
+  });
+}
+
+// ============================================================
+// END: TÓPICOS (TopicItem)
+// ============================================================
 
 // ============================================================
 // BEGIN: CREATE ELEMENT
@@ -122,226 +184,163 @@ export function createElement(
   type: ElementCreateType,
   slides: readonly Slide[],
 ): PowerShowElement {
-  const usedIds =
-    collectPresentationElementIds(
-      slides,
-    );
-
+  const usedIds = collectPresentationElementIds(slides);
 
   switch (type) {
     case "text": {
       return {
-        id:
-          createUniqueId(
-            "text-element",
-            usedIds,
-          ),
+        id: createUniqueId("text-element", usedIds),
 
-        type:
-          "text",
+        type: "text",
 
-        hidden:
-          false,
+        hidden: false,
 
-        content:
-          "New text",
+        content: "New text",
 
-        variant:
-          "body",
+        variant: "body",
       };
     }
-
 
     case "textbox": {
       return {
-        id:
-          createUniqueId(
-            "textbox-element",
-            usedIds,
-          ),
+        id: createUniqueId("textbox-element", usedIds),
 
-        type:
-          "textbox",
+        type: "textbox",
 
-        hidden:
-          false,
+        hidden: false,
 
-        content:
-          "New textbox",
+        content: "New textbox",
       };
     }
-
 
     case "container": {
       return {
-        id:
-          createUniqueId(
-            "container-element",
-            usedIds,
-          ),
+        id: createUniqueId("container-element", usedIds),
 
-        type:
-          "container",
+        type: "container",
 
-        hidden:
-          false,
+        hidden: false,
 
-        direction:
-          "column",
+        direction: "column",
 
-        gap:
-          16,
+        gap: 16,
 
-        horizontalAlign:
-          "center",
+        horizontalAlign: "center",
 
-        verticalAlign:
-          "center",
+        verticalAlign: "center",
 
         style: {
-          width:
-            "70%",
+          width: "70%",
 
-          height:
-            "60%",
+          height: "60%",
 
-          padding:
-            24,
+          padding: 24,
 
-          background:
-            "rgba(15, 23, 42, 0.55)",
+          background: "rgba(15, 23, 42, 0.55)",
         },
 
-        children:
-          [],
+        children: [],
       };
     }
-
 
     case "image": {
       return {
-        id:
-          createUniqueId(
-            "image-element",
-            usedIds,
-          ),
+        id: createUniqueId("image-element", usedIds),
 
-        type:
-          "image",
+        type: "image",
 
-        hidden:
-          false,
+        hidden: false,
 
-        src:
-          "/powershow-demo.svg",
+        src: "/powershow-demo.svg",
 
-        alt:
-          "New image",
+        alt: "New image",
 
-        fit:
-          "contain",
+        fit: "contain",
 
         style: {
-          width:
-            "60%",
+          width: "60%",
 
-          height:
-            "55%",
+          height: "55%",
         },
       };
     }
 
-
     case "code": {
       return {
-        id:
-          createUniqueId(
-            "code-element",
-            usedIds,
-          ),
+        id: createUniqueId("code-element", usedIds),
 
-        type:
-          "code",
+        type: "code",
 
-        hidden:
-          false,
+        hidden: false,
 
-        code:
-          "const message = \"Hello PowerShow\";",
+        code: 'const message = "Hello PowerShow";',
 
-        language:
-          "typescript",
+        language: "typescript",
 
-        showLineNumbers:
-          true,
+        showLineNumbers: true,
 
-        highlightedLines:
-          [],
+        highlightedLines: [],
       };
     }
 
-
     case "terminal": {
       return {
-        id:
-          createUniqueId(
-            "terminal-element",
-            usedIds,
-          ),
+        id: createUniqueId("terminal-element", usedIds),
 
-        type:
-          "terminal",
+        type: "terminal",
 
-        hidden:
-          false,
+        hidden: false,
 
-        title:
-          "Terminal",
+        title: "Terminal",
 
         lines: [
           {
-            type:
-              "command",
+            type: "command",
 
-            content:
-              "pnpm dev",
+            content: "pnpm dev",
           },
         ],
       };
     }
 
-
     case "table": {
       return {
-        id:
-          createUniqueId(
-            "table-element",
-            usedIds,
-          ),
+        id: createUniqueId("table-element", usedIds),
 
-        type:
-          "table",
+        type: "table",
 
-        hidden:
-          false,
+        hidden: false,
 
         columns: [
           {
-            key:
-              "column_1",
+            key: "column_1",
 
-            label:
-              "Column 1",
+            label: "Column 1",
           },
         ],
 
         rows: [
           {
-            column_1:
-              "Value",
+            column_1: "Value",
           },
         ],
       };
+    }
+
+    case "topics": {
+      const created = buildDefaultTopicItem(usedIds);
+
+      return {
+        id: createUniqueId("topics-element", usedIds),
+
+        type: "topics",
+
+        hidden: false,
+
+        kind: "unordered",
+
+        items: [created.item],
+      } satisfies TopicsElement;
     }
   }
 }
@@ -349,7 +348,6 @@ export function createElement(
 // ============================================================
 // END: CREATE ELEMENT
 // ============================================================
-
 
 // ============================================================
 // BEGIN: CLONE COM IDS ÚNICOS
@@ -382,7 +380,9 @@ function cloneTopicItemWithUniqueIds(
     ...item,
     id,
     content: cloneContentSlotWithUniqueIds(item.content, usedIds),
-    children: item.children.map((child) => cloneTopicItemWithUniqueIds(child, usedIds)),
+    children: item.children.map((child) =>
+      cloneTopicItemWithUniqueIds(child, usedIds),
+    ),
   };
 }
 
@@ -408,7 +408,9 @@ function clonePowerShowElementWithUniqueIds(
     return {
       ...clone,
       id,
-      items: clone.items.map((item) => cloneTopicItemWithUniqueIds(item, usedIds)),
+      items: clone.items.map((item) =>
+        cloneTopicItemWithUniqueIds(item, usedIds),
+      ),
     } satisfies TopicsElement;
   }
 
@@ -443,10 +445,21 @@ function insertElementAfterIdInTopicItems(
   let changed = false;
 
   const nextItems: TopicItem[] = items.map((item) => {
-    const children = insertElementAfterId(item.content.children, targetId, newElement);
-    const nestedChildren = insertElementAfterIdInTopicItems(item.children, targetId, newElement);
+    const children = insertElementAfterId(
+      item.content.children,
+      targetId,
+      newElement,
+    );
+    const nestedChildren = insertElementAfterIdInTopicItems(
+      item.children,
+      targetId,
+      newElement,
+    );
 
-    if (children === item.content.children && nestedChildren === item.children) {
+    if (
+      children === item.content.children &&
+      nestedChildren === item.children
+    ) {
       return item;
     }
 
@@ -486,7 +499,11 @@ export function insertElementAfterId(
     }
 
     if (element.type === "container") {
-      const children = insertElementAfterId(element.children, targetId, newElement);
+      const children = insertElementAfterId(
+        element.children,
+        targetId,
+        newElement,
+      );
 
       if (children !== element.children) {
         result[result.length - 1] = { ...element, children };
@@ -496,7 +513,11 @@ export function insertElementAfterId(
     }
 
     if (element.type === "topics") {
-      const items = insertElementAfterIdInTopicItems(element.items, targetId, newElement);
+      const items = insertElementAfterIdInTopicItems(
+        element.items,
+        targetId,
+        newElement,
+      );
 
       if (items !== element.items) {
         result[result.length - 1] = { ...element, items };
@@ -524,10 +545,21 @@ function appendElementToContainerInTopicItems(
   let changed = false;
 
   const nextItems: TopicItem[] = items.map((item) => {
-    const children = appendElementToContainer(item.content.children, containerId, newElement);
-    const nestedChildren = appendElementToContainerInTopicItems(item.children, containerId, newElement);
+    const children = appendElementToContainer(
+      item.content.children,
+      containerId,
+      newElement,
+    );
+    const nestedChildren = appendElementToContainerInTopicItems(
+      item.children,
+      containerId,
+      newElement,
+    );
 
-    if (children === item.content.children && nestedChildren === item.children) {
+    if (
+      children === item.content.children &&
+      nestedChildren === item.children
+    ) {
       return item;
     }
 
@@ -563,7 +595,11 @@ export function appendElementToContainer(
     }
 
     if (element.type === "container") {
-      const children = appendElementToContainer(element.children, containerId, newElement);
+      const children = appendElementToContainer(
+        element.children,
+        containerId,
+        newElement,
+      );
 
       if (children !== element.children) {
         changed = true;
@@ -573,7 +609,11 @@ export function appendElementToContainer(
     }
 
     if (element.type === "topics") {
-      const items = appendElementToContainerInTopicItems(element.items, containerId, newElement);
+      const items = appendElementToContainerInTopicItems(
+        element.items,
+        containerId,
+        newElement,
+      );
 
       if (items !== element.items) {
         changed = true;
@@ -607,10 +647,21 @@ function appendElementToContentSlotInTopicItems(
       };
     }
 
-    const children = appendElementToContentSlot(item.content.children, contentSlotId, newElement);
-    const nestedChildren = appendElementToContentSlotInTopicItems(item.children, contentSlotId, newElement);
+    const children = appendElementToContentSlot(
+      item.content.children,
+      contentSlotId,
+      newElement,
+    );
+    const nestedChildren = appendElementToContentSlotInTopicItems(
+      item.children,
+      contentSlotId,
+      newElement,
+    );
 
-    if (children === item.content.children && nestedChildren === item.children) {
+    if (
+      children === item.content.children &&
+      nestedChildren === item.children
+    ) {
       return item;
     }
 
@@ -641,7 +692,11 @@ export function appendElementToContentSlot(
 
   const nextElements: PowerShowElement[] = elements.map((element) => {
     if (element.type === "container") {
-      const children = appendElementToContentSlot(element.children, contentSlotId, newElement);
+      const children = appendElementToContentSlot(
+        element.children,
+        contentSlotId,
+        newElement,
+      );
 
       if (children !== element.children) {
         changed = true;
@@ -651,7 +706,11 @@ export function appendElementToContentSlot(
     }
 
     if (element.type === "topics") {
-      const items = appendElementToContentSlotInTopicItems(element.items, contentSlotId, newElement);
+      const items = appendElementToContentSlotInTopicItems(
+        element.items,
+        contentSlotId,
+        newElement,
+      );
 
       if (items !== element.items) {
         changed = true;
@@ -683,7 +742,10 @@ function removeElementByIdInTopicItems(
     const children = removeElementById(item.content.children, id);
     const nestedChildren = removeElementByIdInTopicItems(item.children, id);
 
-    if (children === item.content.children && nestedChildren === item.children) {
+    if (
+      children === item.content.children &&
+      nestedChildren === item.children
+    ) {
       return item;
     }
 
@@ -711,34 +773,36 @@ export function removeElementById(
 ): PowerShowElement[] {
   let changed = false;
 
-  const nextElements: PowerShowElement[] = elements.flatMap((element): PowerShowElement[] => {
-    if (element.id === id) {
-      changed = true;
-      return [];
-    }
-
-    if (element.type === "container") {
-      const children = removeElementById(element.children, id);
-
-      if (children !== element.children) {
+  const nextElements: PowerShowElement[] = elements.flatMap(
+    (element): PowerShowElement[] => {
+      if (element.id === id) {
         changed = true;
-        return [{ ...element, children }];
+        return [];
+      }
+
+      if (element.type === "container") {
+        const children = removeElementById(element.children, id);
+
+        if (children !== element.children) {
+          changed = true;
+          return [{ ...element, children }];
+        }
+
+        return [element];
+      }
+
+      if (element.type === "topics") {
+        const items = removeElementByIdInTopicItems(element.items, id);
+
+        if (items !== element.items) {
+          changed = true;
+          return [{ ...element, items }];
+        }
       }
 
       return [element];
-    }
-
-    if (element.type === "topics") {
-      const items = removeElementByIdInTopicItems(element.items, id);
-
-      if (items !== element.items) {
-        changed = true;
-        return [{ ...element, items }];
-      }
-    }
-
-    return [element];
-  });
+    },
+  );
 
   return changed ? nextElements : (elements as PowerShowElement[]);
 }
@@ -807,12 +871,20 @@ export function moveElementToSiblingIndexById(
 
   const siblings = getElementsForParentRef(elements, location.parentRef);
 
-  if (!siblings || targetIndex < 0 || targetIndex >= siblings.length || targetIndex === location.index) {
+  if (
+    !siblings ||
+    targetIndex < 0 ||
+    targetIndex >= siblings.length ||
+    targetIndex === location.index
+  ) {
     return elements;
   }
 
   const withoutSource = removeElementById(elements, id);
-  const targetElements = getElementsForParentRef(withoutSource, location.parentRef);
+  const targetElements = getElementsForParentRef(
+    withoutSource,
+    location.parentRef,
+  );
 
   if (!targetElements) {
     return elements;
@@ -820,7 +892,12 @@ export function moveElementToSiblingIndexById(
 
   const insertIndex = Math.min(targetIndex, targetElements.length);
 
-  return insertElementIntoParentRef(withoutSource, location.parentRef, insertIndex, location.element);
+  return insertElementIntoParentRef(
+    withoutSource,
+    location.parentRef,
+    insertIndex,
+    location.element,
+  );
 }
 
 export interface MoveElementOptions {
@@ -842,7 +919,10 @@ export interface MoveElementResult {
   error?: MoveElementError;
 }
 
-function collectDescendantIds(element: PowerShowElement, ids: Set<string>): void {
+function collectDescendantIds(
+  element: PowerShowElement,
+  ids: Set<string>,
+): void {
   collectAuthoringIds(element, ids);
 }
 
@@ -870,7 +950,11 @@ function insertElementIntoParentRef(
   let changed = false;
 
   const nextElements: PowerShowElement[] = elements.map((element) => {
-    if (parentRef.kind === "container" && element.type === "container" && element.id === parentRef.id) {
+    if (
+      parentRef.kind === "container" &&
+      element.type === "container" &&
+      element.id === parentRef.id
+    ) {
       changed = true;
 
       return {
@@ -985,7 +1069,9 @@ function getTargetElementsForParentRef(
   elements: PowerShowElement[],
   parentRef: ElementParentRef,
 ): PowerShowElement[] | null {
-  return getElementsForParentRef(elements, parentRef) as PowerShowElement[] | null;
+  return getElementsForParentRef(elements, parentRef) as
+    | PowerShowElement[]
+    | null;
 }
 
 export function moveElement(
@@ -998,7 +1084,10 @@ export function moveElement(
     return { elements, moved: false, error: "element-not-found" };
   }
 
-  const targetElements = getTargetElementsForParentRef(elements, options.targetParentRef);
+  const targetElements = getTargetElementsForParentRef(
+    elements,
+    options.targetParentRef,
+  );
 
   if (!targetElements) {
     return { elements, moved: false, error: "target-parent-not-found" };
@@ -1007,12 +1096,18 @@ export function moveElement(
   const forbiddenIds = new Set<string>();
   collectDescendantIds(source.element, forbiddenIds);
 
-  if (options.targetParentRef.kind !== "slide" && forbiddenIds.has(options.targetParentRef.id)) {
+  if (
+    options.targetParentRef.kind !== "slide" &&
+    forbiddenIds.has(options.targetParentRef.id)
+  ) {
     return { elements, moved: false, error: "cycle" };
   }
 
   const withoutSource = removeElementFromHierarchy(elements, options.elementId);
-  const nextTargetElements = getTargetElementsForParentRef(withoutSource, options.targetParentRef);
+  const nextTargetElements = getTargetElementsForParentRef(
+    withoutSource,
+    options.targetParentRef,
+  );
 
   if (!nextTargetElements) {
     return { elements, moved: false, error: "invalid-target-parent" };

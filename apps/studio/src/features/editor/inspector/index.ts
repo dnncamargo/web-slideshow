@@ -13,3 +13,5 @@ export { TerminalInspector } from "./terminal-inspector";
 export { TextInspector } from "./text-inspector";
 
 export { TextboxInspector } from "./textbox-inspector";
+
+export { TopicsInspector } from "./topics-inspector";

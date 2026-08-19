@@ -36,3 +36,7 @@ export interface TypographyInspectorProps<
 > extends TypedInspectorProps<TElement> {
   fontResourceControls: FontResourceControls;
 }
+
+export interface TopicsAuthoringControls {
+  onAddTopLevelTopic: (topicsId: string) => void;
+}

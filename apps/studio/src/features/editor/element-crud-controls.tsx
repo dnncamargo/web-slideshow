@@ -137,6 +137,10 @@ export function ElementCrudControls({
           <option value="table">
             {t("element.table")}
           </option>
+
+          <option value="topics">
+            {t("element.topics")}
+          </option>
         </select>
 
 
