@@ -121,6 +121,8 @@ import { ElementCrudControls } from "./element-crud-controls";
 
 import {
   appendElementToContainer,
+  appendElementToContentSlot,
+  createDefaultTopicItem,
   createElement,
   duplicateElement,
   findElementSiblingPosition,
@@ -128,6 +130,9 @@ import {
   moveElement,
   moveElementToSiblingIndexById,
   removeElementById,
+  appendTopicItemToTopics,
+  appendChildTopicItemToTopics,
+  resolveAddElementDestination,
 } from "./element-operations";
 
 // ============================================================
@@ -175,6 +180,13 @@ import { SlideLayoutPicker } from "./slide-layout-picker";
 interface SelectedElementInfo {
   id: string;
   type: string;
+
+  /**
+   * Transient insertion context: the canonical ContentSlot id of the
+   * TopicItem whose content area was clicked on the canvas. Not a selection
+   * of TopicItem/ContentSlot as PowerShowElements.
+   */
+  contentSlotId?: string | null;
 }
 
 interface CanvasDragState {
@@ -463,7 +475,10 @@ export function EditorWorkspace({
   }, [selectedSlide, selectedElement]);
 
   const selectedElementParent = useMemo(() => {
-    if (!selectedSlide || selectedElementPosition?.parentRef.kind !== "container") {
+    if (
+      !selectedSlide ||
+      selectedElementPosition?.parentRef.kind !== "container"
+    ) {
       return null;
     }
 
@@ -728,9 +743,7 @@ export function EditorWorkspace({
       return (
         Array.from(
           canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
-        ).find(
-          (candidate) => candidate.dataset.powershowId === id,
-        ) ?? null
+        ).find((candidate) => candidate.dataset.powershowId === id) ?? null
       );
     }
   }
@@ -783,6 +796,9 @@ export function EditorWorkspace({
     }
 
     const elementTarget = target.closest<HTMLElement>("[data-powershow-id]");
+    const contentSlotTarget = target.closest<HTMLElement>(
+      "[data-powershow-content-slot-id]",
+    );
     const selection = resolveCanvasPointerSelection(
       elementTarget
         ? {
@@ -799,7 +815,13 @@ export function EditorWorkspace({
       return;
     }
 
-    setSelectedElement({ id: selection.id, type: selection.type });
+    const contentSlotId = contentSlotTarget?.dataset.powershowContentSlotId;
+
+    setSelectedElement({
+      id: selection.id,
+      type: selection.type,
+      contentSlotId: contentSlotId ?? null,
+    });
 
     if (!isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
       return;
@@ -948,9 +970,7 @@ export function EditorWorkspace({
   // pointer events and are unaffected by click suppression.
   // ==========================================================
 
-  function handleCanvasLinkClick(
-    event: ReactMouseEvent<HTMLDivElement>,
-  ) {
+  function handleCanvasLinkClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (isAuthoredPowerShowLink(event.target)) {
       event.preventDefault();
     }
@@ -1690,35 +1710,50 @@ export function EditorWorkspace({
           return slide;
         }
 
-        if (!selectedDocumentElement) {
-          return {
-            ...slide,
+        const destination = resolveAddElementDestination(
+          slide.elements,
+          selectedElement?.id ?? null,
+          newElement,
+          selectedElement?.contentSlotId ?? null,
+        );
 
-            elements: [...slide.elements, newElement],
-          };
+        switch (destination.kind) {
+          case "slide-root":
+            return {
+              ...slide,
+              elements: [...slide.elements, newElement],
+            };
+
+          case "append-container":
+            return {
+              ...slide,
+              elements: appendElementToContainer(
+                slide.elements,
+                destination.containerId,
+                newElement,
+              ),
+            };
+
+          case "append-topic-content":
+            return {
+              ...slide,
+              elements: appendElementToContentSlot(
+                slide.elements,
+                destination.contentSlotId,
+                newElement,
+              ),
+            };
+
+          case "insert-after":
+            return {
+              ...slide,
+              elements: insertElementAfterId(
+                slide.elements,
+                destination.targetId,
+                newElement,
+              ),
+            };
         }
-
-        if (selectedDocumentElement.type === "container") {
-          return {
-            ...slide,
-
-            elements: appendElementToContainer(
-              slide.elements,
-              selectedDocumentElement.id,
-              newElement,
-            ),
-          };
-        }
-
-        return {
-          ...slide,
-
-          elements: insertElementAfterId(
-            slide.elements,
-            selectedDocumentElement.id,
-            newElement,
-          ),
-        };
       }),
     }));
 
@@ -1731,6 +1766,138 @@ export function EditorWorkspace({
 
   // ==========================================================
   // END: ADD ELEMENT
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: ADD TOP LEVEL TOPIC
+  //
+  // Cria um novo TopicItem canônico (com IDs únicos em toda a
+  // apresentação) e o acrescenta ao TopicsElement identificado
+  // por topicsId.
+  //
+  // A operação de criação é independente de React e fica em
+  // element-operations. Aqui apenas anexamos o item ao documento
+  // e deixamos a seleção atual intacta.
+  // ==========================================================
+
+  function addTopLevelTopic(topicsId: string): string | null {
+    const created = createDefaultTopicItem(presentation.slides);
+    const selectedSlide = presentation.slides[selectedSlideIndex];
+
+    if (!selectedSlide) {
+      return null;
+    }
+
+    // Dry-run somente para validar o alvo e preservar o contrato
+    // string | null. O resultado NÃO é reaproveitado na escrita.
+    if (
+      appendTopicItemToTopics(
+        selectedSlide.elements,
+        topicsId,
+        created.item,
+      ) === selectedSlide.elements
+    ) {
+      return null;
+    }
+
+    setPresentation((current) => {
+      let changed = false;
+
+      const slides = current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        const elements = appendTopicItemToTopics(
+          slide.elements,
+          topicsId,
+          created.item,
+        );
+
+        if (elements === slide.elements) {
+          return slide;
+        }
+
+        changed = true;
+
+        return {
+          ...slide,
+          elements,
+        };
+      });
+
+      return changed
+        ? {
+            ...current,
+            slides,
+          }
+        : current;
+    });
+
+    return created.item.id;
+  }
+
+  function addChildTopic(topicsId: string, topicItemId: string): string | null {
+    const created = createDefaultTopicItem(presentation.slides);
+    const selectedSlide = presentation.slides[selectedSlideIndex];
+
+    if (!selectedSlide) {
+      return null;
+    }
+
+    // Valida o par proprietário + TopicItem.
+    // O array produzido aqui NÃO é usado na escrita React.
+    if (
+      appendChildTopicItemToTopics(
+        selectedSlide.elements,
+        topicsId,
+        topicItemId,
+        created.item,
+      ) === selectedSlide.elements
+    ) {
+      return null;
+    }
+
+    setPresentation((current) => {
+      let changed = false;
+
+      const slides = current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        const elements = appendChildTopicItemToTopics(
+          slide.elements,
+          topicsId,
+          topicItemId,
+          created.item,
+        );
+
+        if (elements === slide.elements) {
+          return slide;
+        }
+
+        changed = true;
+
+        return {
+          ...slide,
+          elements,
+        };
+      });
+
+      return changed
+        ? {
+            ...current,
+            slides,
+          }
+        : current;
+    });
+
+    return created.item.id;
+  }
+
+  // ==========================================================
+  // END: ADD TOP LEVEL TOPIC
   // ==========================================================
 
   // ==========================================================
@@ -2524,178 +2691,186 @@ export function EditorWorkspace({
           />
         ) : (
           <aside className={styles.inspector}>
-          <div className={styles.panelHeader}>
-            <button
-              className={
-                rightPanelView === "inspector"
-                  ? styles.rightPanelTabActive
-                  : styles.rightPanelTab
-              }
-              type="button"
-              aria-pressed={rightPanelView === "inspector"}
-              onClick={() => setRightPanelView("inspector")}
-            >
-              {t("inspector.title")}
-            </button>
-            <button
-              className={
-                rightPanelView === "elements"
-                  ? styles.rightPanelTabActive
-                  : styles.rightPanelTab
-              }
-              type="button"
-              aria-pressed={rightPanelView === "elements"}
-              onClick={() => setRightPanelView("elements")}
-            >
-              {t("tree.elements")}
-            </button>
-          </div>
+            <div className={styles.panelHeader}>
+              <button
+                className={
+                  rightPanelView === "inspector"
+                    ? styles.rightPanelTabActive
+                    : styles.rightPanelTab
+                }
+                type="button"
+                aria-pressed={rightPanelView === "inspector"}
+                onClick={() => setRightPanelView("inspector")}
+              >
+                {t("inspector.title")}
+              </button>
+              <button
+                className={
+                  rightPanelView === "elements"
+                    ? styles.rightPanelTabActive
+                    : styles.rightPanelTab
+                }
+                type="button"
+                aria-pressed={rightPanelView === "elements"}
+                onClick={() => setRightPanelView("elements")}
+              >
+                {t("tree.elements")}
+              </button>
+            </div>
 
-          <div className={styles.inspectorContent}>
-            {rightPanelView === "elements" ? (
-              <ElementTreePanel
-                key={selectedSlide.id}
-                slide={selectedSlide}
-                selectedElementId={selectedElement?.id ?? null}
-                onSelectElement={(element) => {
-                  setSelectedElement({ id: element.id, type: element.type });
-                }}
-                onMoveElement={moveElementInTree}
-              />
-            ) : (
-              <>
-                {/* =================================================
+            <div className={styles.inspectorContent}>
+              {rightPanelView === "elements" ? (
+                <ElementTreePanel
+                  key={selectedSlide.id}
+                  slide={selectedSlide}
+                  selectedElementId={selectedElement?.id ?? null}
+                  selectedContentSlotId={selectedElement?.contentSlotId ?? null}
+                  onSelectElement={(selection) => {
+                    setSelectedElement(selection);
+                  }}
+                  onMoveElement={moveElementInTree}
+                />
+              ) : (
+                <>
+                  {/* =================================================
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
 
-                {/* ==========================================================
+                  {/* ==========================================================
      BEGIN: ELEMENT CRUD CONTROLS
      ========================================================== */}
 
-                <ElementCrudControls
-                  selectedElement={selectedDocumentElement}
-                  onAdd={addElement}
-                  onDuplicate={duplicateSelectedElement}
-                  onDelete={deleteSelectedElement}
-                />
+                  <ElementCrudControls
+                    selectedElement={selectedDocumentElement}
+                    selectedContentSlotId={
+                      selectedElement?.contentSlotId ?? null
+                    }
+                    onAdd={addElement}
+                    onDuplicate={duplicateSelectedElement}
+                    onDelete={deleteSelectedElement}
+                  />
 
-                {/* ==========================================================
+                  {/* ==========================================================
     END: ELEMENT CRUD CONTROLS
     ========================================================== */}
 
-                {/* =================================================
+                  {/* =================================================
                  END: ELEMENT CRUD CONTROLS
                  ================================================= */}
-                {selectedDocumentElement ? (
-                  <RecentColorsProvider
-                    colors={[]}
-                    onAddColor={(color) => {
-                      // Recent colors are managed locally in ColorControl
-                    }}
-                    onClearColors={() => {
-                      // Clear handled in ColorControl
-                    }}
-                    onMoveColor={(index, direction) => {
-                      // Move handled in ColorControl
-                    }}
-                  >
-                    <PresentationColorPaletteProvider
-                      colors={presentation.palette?.colors ?? []}
-                      onAddColor={addPresentationPaletteColor}
-                      onRemoveColor={removePresentationPaletteColor}
-                      onMoveColor={movePresentationPaletteColor}
+                  {selectedDocumentElement ? (
+                    <RecentColorsProvider
+                      colors={[]}
+                      onAddColor={(color) => {
+                        // Recent colors are managed locally in ColorControl
+                      }}
+                      onClearColors={() => {
+                        // Clear handled in ColorControl
+                      }}
+                      onMoveColor={(index, direction) => {
+                        // Move handled in ColorControl
+                      }}
                     >
-                      <ElementInspector
-                        element={selectedDocumentElement}
-                        onUpdate={updateSelectedElement}
-                        preserveImageProportion={preserveImageProportion}
-                        onPreserveImageProportionChange={
-                          setPreserveImageProportion
-                        }
-                        focalEditingImageId={focalEditingImageId}
-                        onFocalEditingImageIdChange={setFocalEditingImageId}
-                        fontResourceControls={{
-                          fontResources: presentation.resources?.fonts ?? [],
-                          onAddFontFace: addFontFace,
-                          onRemoveFontFace: removeFontFace,
-                          isFontFamilyInUse: (family) =>
-                            presentationUsesFontFamily(presentation, family),
-                        }}
-                        parent={selectedElementParent}
-                        layerControls={
-                          selectedElementPosition
-                            ? {
-                                index: selectedElementPosition.index,
-                                count: selectedElementPosition.count,
-                                onMoveTo: moveSelectedElementTo,
-                              }
-                            : null
-                        }
-                      />
-                    </PresentationColorPaletteProvider>
-                  </RecentColorsProvider>
-                ) : (
-                  <>
-                    {/* =============================================
+                      <PresentationColorPaletteProvider
+                        colors={presentation.palette?.colors ?? []}
+                        onAddColor={addPresentationPaletteColor}
+                        onRemoveColor={removePresentationPaletteColor}
+                        onMoveColor={movePresentationPaletteColor}
+                      >
+                        <ElementInspector
+                          element={selectedDocumentElement}
+                          onUpdate={updateSelectedElement}
+                          preserveImageProportion={preserveImageProportion}
+                          onPreserveImageProportionChange={
+                            setPreserveImageProportion
+                          }
+                          focalEditingImageId={focalEditingImageId}
+                          onFocalEditingImageIdChange={setFocalEditingImageId}
+                          fontResourceControls={{
+                            fontResources: presentation.resources?.fonts ?? [],
+                            onAddFontFace: addFontFace,
+                            onRemoveFontFace: removeFontFace,
+                            isFontFamilyInUse: (family) =>
+                              presentationUsesFontFamily(presentation, family),
+                          }}
+                          parent={selectedElementParent}
+                          layerControls={
+                            selectedElementPosition
+                              ? {
+                                  index: selectedElementPosition.index,
+                                  count: selectedElementPosition.count,
+                                  onMoveTo: moveSelectedElementTo,
+                                }
+                              : null
+                          }
+                          topicsAuthoringControls={{
+                            onAddTopLevelTopic: addTopLevelTopic,
+                            onAddChildTopic: addChildTopic,
+                          }}
+                        />
+                      </PresentationColorPaletteProvider>
+                    </RecentColorsProvider>
+                  ) : (
+                    <>
+                      {/* =============================================
                     BEGIN: SLIDE INSPECTOR
                     ============================================= */}
 
-                    {/* ===========================================
+                      {/* ===========================================
                     BEGIN: SLIDE TITLE
                     =========================================== */}
 
-                    <label className={styles.field}>
-                      <span>{t("inspector.titleField")}</span>
+                      <label className={styles.field}>
+                        <span>{t("inspector.titleField")}</span>
 
-                      <input
-                        type="text"
-                        value={selectedSlide.title}
-                        placeholder={t("slides.untitled")}
-                        onChange={(event) => {
-                          const title = event.target.value;
+                        <input
+                          type="text"
+                          value={selectedSlide.title}
+                          placeholder={t("slides.untitled")}
+                          onChange={(event) => {
+                            const title = event.target.value;
 
-                          updateSelectedSlide((slide) => ({
-                            ...slide,
+                            updateSelectedSlide((slide) => ({
+                              ...slide,
 
-                            title,
-                          }));
-                        }}
-                      />
-                    </label>
+                              title,
+                            }));
+                          }}
+                        />
+                      </label>
 
-                    {/* ===========================================
+                      {/* ===========================================
                     END: SLIDE TITLE
                     =========================================== */}
 
-                    <div className={styles.inspectorGroup}>
-                      <span className={styles.inspectorLabel}>
-                        {t("inspector.id")}
-                      </span>
+                      <div className={styles.inspectorGroup}>
+                        <span className={styles.inspectorLabel}>
+                          {t("inspector.id")}
+                        </span>
 
-                      <code>{selectedSlide.id}</code>
-                    </div>
+                        <code>{selectedSlide.id}</code>
+                      </div>
 
-                    <div className={styles.inspectorGroup}>
-                      <span className={styles.inspectorLabel}>
-                        {t("inspector.rootElements")}
-                      </span>
+                      <div className={styles.inspectorGroup}>
+                        <span className={styles.inspectorLabel}>
+                          {t("inspector.rootElements")}
+                        </span>
 
-                      <strong>{selectedSlide.elements.length}</strong>
-                    </div>
+                        <strong>{selectedSlide.elements.length}</strong>
+                      </div>
 
-                    <div className={styles.nextStep}>
-                      <span>{t("inspector.selectElementHint")}</span>
-                    </div>
+                      <div className={styles.nextStep}>
+                        <span>{t("inspector.selectElementHint")}</span>
+                      </div>
 
-                    {/* =============================================
+                      {/* =============================================
                     END: SLIDE INSPECTOR
                     ============================================= */}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </aside>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </aside>
         )}
 
         {/* ===================================================

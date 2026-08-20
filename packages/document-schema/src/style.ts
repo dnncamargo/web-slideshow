@@ -112,6 +112,7 @@ export const ElementStyleSchema = z.object({
 
   background: ColorSchema.optional(),
   color: ColorSchema.optional(),
+  textDecorationColor: ColorSchema.optional(),
 
   fontFamily: FontFamilySchema.optional(),
   fontSize: LengthSchema.optional(),

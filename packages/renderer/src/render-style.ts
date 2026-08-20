@@ -121,6 +121,8 @@ export function renderStyle(style: ElementStyle | undefined): string {
 
   addStyle(output, "text-decoration-line", style.textDecorationLine);
 
+  addStyle(output, "text-decoration-color", style.textDecorationColor);
+
   addLength(output, "border-radius", style.borderRadius);
 
   addStyle(output, "opacity", style.opacity);

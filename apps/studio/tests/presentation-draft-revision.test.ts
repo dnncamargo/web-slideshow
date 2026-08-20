@@ -21,6 +21,13 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
   getCurrentNonAnonymousUser: vi.fn(() => ({ uid: "user-1", isAnonymous: false })),
 }));
 
+import type {
+  PowerShowElement,
+  Slide,
+  TopicItem,
+  TopicsElement,
+} from "@powershow/document-schema";
+
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
 
@@ -43,6 +50,58 @@ const mockedGetFirestore = vi.mocked(getFirebaseFirestore);
 const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 
 const repository = new FirestorePresentationRepository();
+
+function text(id: string, content = id): PowerShowElement {
+  return {
+    type: "text",
+    id,
+    hidden: false,
+    variant: "body" as const,
+    content,
+  };
+}
+
+function topicItem(
+  id: string,
+  children: TopicItem[] = [],
+): TopicItem {
+  return {
+    id,
+    content: {
+      id: `${id}-slot`,
+      children: [text(`${id}-text`)],
+    },
+    children,
+  };
+}
+
+function topicsElement(): TopicsElement {
+  return {
+    type: "topics",
+    id: "topics-root",
+    hidden: false,
+    kind: "unordered",
+    items: [
+      topicItem("topic-parent", [
+        topicItem("topic-child", [
+          topicItem("topic-grandchild"),
+        ]),
+      ]),
+    ],
+  };
+}
+
+function nestedAutonomousTopicsElement(): TopicsElement {
+  return {
+    type: "topics",
+    id: "nested-topics-root",
+    hidden: false,
+    kind: "ordered",
+    items: [
+      topicItem("nested-topics-item"),
+    ],
+  };
+}
 
 describe("draft revision persistence wiring", () => {
   beforeEach(() => {
@@ -104,5 +163,106 @@ describe("draft revision persistence wiring", () => {
       /anonymous/,
     );
     expect(mockedUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it("preserves recursive TopicsElement content when saving a draft", async () => {
+    const presentation = createBlankPresentation("pres-topics");
+    const slide: Slide = {
+      id: "slide-1",
+      title: "",
+      summary: "",
+      speakerNotes: "",
+      elements: [topicsElement()],
+    };
+
+    presentation.slides = [slide];
+
+    await repository.savePresentation(presentation);
+
+    type SavedTopicItem = {
+      content?: {
+        children?: Array<{ content?: string }>;
+      };
+      children?: SavedTopicItem[];
+    };
+
+    type SavedTopicsElement = {
+      items?: SavedTopicItem[];
+    };
+
+    const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as {
+      presentation?: {
+        slides?: Array<{
+          elements?: Array<SavedTopicsElement>;
+        }>;
+      };
+    };
+
+    const savedTopics = payload?.presentation?.slides?.[0]?.elements?.[0];
+    const parent = savedTopics?.items?.[0];
+    const child = parent?.children?.[0];
+    const grandchild = child?.children?.[0];
+
+    expect(parent?.children).toHaveLength(1);
+    expect(child?.children).toHaveLength(1);
+    expect(grandchild?.content?.children?.[0]?.content).toBe("topic-grandchild-text");
+  });
+
+  it("preserves an autonomous nested TopicsElement inside a topic content slot", async () => {
+    const presentation = createBlankPresentation("pres-nested-topics");
+    const slide: Slide = {
+      id: "slide-1",
+      title: "",
+      summary: "",
+      speakerNotes: "",
+      elements: [
+        {
+          type: "topics",
+          id: "topics-root",
+          hidden: false,
+          kind: "unordered",
+          items: [
+            {
+              id: "topic-parent",
+              content: {
+                id: "slot-parent",
+                children: [nestedAutonomousTopicsElement()],
+              },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    presentation.slides = [slide];
+
+    await repository.savePresentation(presentation);
+
+    type SavedTopicItem = {
+      content?: {
+        children?: Array<{
+          items?: SavedTopicItem[];
+        }>;
+      };
+      children?: SavedTopicItem[];
+    };
+
+    type SavedTopicsElement = {
+      items?: SavedTopicItem[];
+    };
+
+    const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as {
+      presentation?: {
+        slides?: Array<{
+          elements?: Array<SavedTopicsElement>;
+        }>;
+      };
+    };
+
+    const nestedTopics = payload?.presentation?.slides?.[0]?.elements?.[0]
+      ?.items?.[0]?.content?.children?.[0];
+
+    expect(nestedTopics?.items?.[0]?.children).toHaveLength(0);
   });
 });

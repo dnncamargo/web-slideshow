@@ -1065,6 +1065,19 @@ rediscovering decisions that the task or repository already establishes.
 
 For continuation work:
 
+When the current worktree contains accepted uncommitted work:
+
+* treat the working tree, not `main`, as the implementation baseline;
+* inspect the relevant local diff before replacing or reconstructing modified code;
+* preserve unrelated WIP and untracked diagnostic/scratch files;
+* prefer narrow edits on top of the existing checkpoint;
+* do not restart a partially completed feature from a clean branch merely because
+  doing so would be easier.
+
+A checkpoint boundary is part of the task contract when explicitly declared.
+Do not silently continue from diagnosis into correction, from implementation into
+commit, or from automated validation into release/merge work.
+
 1. inspect the current worktree and relevant implementation first;
 2. continue from the existing code rather than reconstructing the feature
    from assumptions;
@@ -1162,6 +1175,23 @@ When implementation and a valid requirement test disagree, fix the
 implementation.
 
 Do not reproduce production logic inside tests merely to make both sides agree.
+
+Automated tests are one form of evidence, not a substitute for observed runtime
+behavior.
+
+If a manual browser test, Firebase operation, Player/Control integration test,
+or other real execution contradicts unit or mocked tests:
+
+* do not dismiss the observed behavior merely because the automated suite is green;
+* identify what the automated test does not reproduce;
+* gather the smallest additional evidence needed to resolve the discrepancy;
+* distinguish measured facts from hypotheses.
+
+When new evidence disproves an initial estimate or hypothesis, update the
+hypothesis. Do not adjust expected values merely to preserve the original theory.
+
+Do not present an inferred root cause as conclusive unless the observed failing
+path is actually explained by the collected evidence.
 
 ## 28.3 Validation failures
 

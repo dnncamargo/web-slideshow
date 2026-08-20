@@ -25,6 +25,8 @@ interface ElementCrudControlsProps {
   selectedElement:
     PowerShowElement | null;
 
+  selectedContentSlotId?: string | null;
+
   onAdd: (
     type: ElementCreateType,
   ) => void;
@@ -46,6 +48,7 @@ interface ElementCrudControlsProps {
 
 export function ElementCrudControls({
   selectedElement,
+  selectedContentSlotId,
   onAdd,
   onDuplicate,
   onDelete,
@@ -60,11 +63,12 @@ export function ElementCrudControls({
       "text",
     );
 
-
-  const insertionDescription =
-    selectedElement?.type ===
-      "container"
-      ? t("elementCrud.addInsideContainer")
+const insertionDescription =
+  selectedElement?.type === "container"
+    ? t("elementCrud.addInsideContainer")
+    : selectedElement?.type === "topics" &&
+        selectedContentSlotId
+      ? t("elementCrud.addInsideTopicContent")
       : selectedElement
         ? t("elementCrud.addAfterElement")
         : t("elementCrud.addToSlideRoot");
@@ -136,6 +140,10 @@ export function ElementCrudControls({
 
           <option value="table">
             {t("element.table")}
+          </option>
+
+          <option value="topics">
+            {t("element.topics")}
           </option>
         </select>
 

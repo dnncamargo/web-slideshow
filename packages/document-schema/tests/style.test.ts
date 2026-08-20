@@ -8,9 +8,11 @@ describe("ElementStyleSchema typography", () => {
   });
 
   it("accepts an explicit font family and trims its value", () => {
-    expect(ElementStyleSchema.parse({ fontFamily: " Source Sans 3 " })).toEqual({
-      fontFamily: "Source Sans 3",
-    });
+    expect(ElementStyleSchema.parse({ fontFamily: " Source Sans 3 " })).toEqual(
+      {
+        fontFamily: "Source Sans 3",
+      },
+    );
   });
 
   it.each([
@@ -71,6 +73,7 @@ describe("ElementStyleSchema typography", () => {
     ["underline decoration", { textDecorationLine: "underline" }],
     ["overline decoration", { textDecorationLine: "overline" }],
     ["line-through decoration", { textDecorationLine: "line-through" }],
+    ["decoration color", { textDecorationColor: "#f8fafc" }],
   ])("accepts %s", (_name, style) => {
     expect(ElementStyleSchema.safeParse(style).success).toBe(true);
   });
@@ -83,8 +86,17 @@ describe("ElementStyleSchema typography", () => {
         textWrapStyle: "balance",
         overflowWrap: "break-word",
         textDecorationLine: "underline",
+        textDecorationColor: "#f8fafc",
       }).success,
     ).toBe(true);
+  });
+
+  it("rejects an invalid text decoration color", () => {
+    expect(
+      ElementStyleSchema.safeParse({
+        textDecorationColor: 123,
+      }).success,
+    ).toBe(false);
   });
 
   it("round-trips text-capability properties through the schema", () => {
@@ -95,6 +107,7 @@ describe("ElementStyleSchema typography", () => {
         textWrapStyle: "pretty",
         overflowWrap: "anywhere",
         textDecorationLine: "line-through",
+        textDecorationColor: "#f8fafc",
       }),
     ).toEqual({
       textTransform: "uppercase",
@@ -102,6 +115,7 @@ describe("ElementStyleSchema typography", () => {
       textWrapStyle: "pretty",
       overflowWrap: "anywhere",
       textDecorationLine: "line-through",
+      textDecorationColor: "#f8fafc",
     });
   });
 
@@ -112,9 +126,9 @@ describe("ElementStyleSchema typography", () => {
   });
 
   it("rejects the CSS text-wrap shorthand value wrap", () => {
-    expect(ElementStyleSchema.safeParse({ textWrapStyle: "wrap" }).success).toBe(
-      false,
-    );
+    expect(
+      ElementStyleSchema.safeParse({ textWrapStyle: "wrap" }).success,
+    ).toBe(false);
   });
 
   it.each([
@@ -143,9 +157,9 @@ describe("ElementStyleSchema text stroke", () => {
   it("keeps text stroke optional for existing documents", () => {
     expect(ElementStyleSchema.parse({})).toEqual({});
 
-    expect(ElementStyleSchema.safeParse({ textStroke: undefined }).success).toBe(
-      true,
-    );
+    expect(
+      ElementStyleSchema.safeParse({ textStroke: undefined }).success,
+    ).toBe(true);
   });
 
   it("accepts a text stroke with a length and color", () => {

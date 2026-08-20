@@ -103,6 +103,7 @@ describe("renderStyle", () => {
     ["underline decoration", { textDecorationLine: "underline" }, "text-decoration-line:underline"],
     ["overline decoration", { textDecorationLine: "overline" }, "text-decoration-line:overline"],
     ["line-through decoration", { textDecorationLine: "line-through" }, "text-decoration-line:line-through"],
+    ["decoration color", { textDecorationColor: "#f8fafc" }, "text-decoration-color:#f8fafc"],
   ] satisfies readonly [string, ElementStyle, string][])(
     "renders %s",
     (_name, style, expected) => {
@@ -164,11 +165,13 @@ describe("renderStyle", () => {
       textAlign: "center",
       lineHeight: 1.3,
       letterSpacing: 1,
+      textDecorationColor: "#f8fafc",
     });
 
     expect(result).toBe(
       'font-family:"Inter";font-size:48px;font-weight:600;font-style:italic;' +
-        "text-align:center;line-height:1.3;letter-spacing:1px",
+        "text-align:center;line-height:1.3;letter-spacing:1px;" +
+        "text-decoration-color:#f8fafc",
     );
   });
 

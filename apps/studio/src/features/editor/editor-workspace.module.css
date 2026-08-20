@@ -938,6 +938,22 @@
   border-left: 1px solid #232a36;
 }
 
+.elementTreeTopicContentGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.elementTreeTopicContentLabel {
+  margin-left: 11px;
+  padding: 0 7px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .elementTreeChildren > .elementTreeNode::before {
   content: "";
   position: absolute;
@@ -1386,6 +1402,118 @@
     minmax(0, 1fr);
 
   gap: 10px;
+}
+
+.topicsList {
+  display: grid;
+
+  gap: 8px;
+
+  margin: 0;
+
+  padding: 0;
+
+  list-style: none;
+}
+
+.topicsRow {
+  margin: 0;
+}
+
+.topicsRowLine {
+  display: grid;
+
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto
+    auto;
+
+  align-items: center;
+
+  gap: 8px;
+}
+
+.topicsBullet {
+  width: 12px;
+
+  color: #94a3b8;
+
+  font-size: 16px;
+
+  line-height: 1;
+
+  text-align: center;
+}
+
+.topicsField {
+  width: 100%;
+
+  min-width: 0;
+
+  height: 34px;
+
+  padding: 0 8px;
+
+  border: 1px solid #303847;
+
+  border-radius: 7px;
+
+  background: #0c111a;
+
+  color: #e2e8f0;
+
+  font: inherit;
+
+  box-sizing: border-box;
+
+  outline: none;
+}
+
+.topicsInput {
+  overflow: hidden;
+}
+
+.topicsInput:focus {
+  border-color: #6366f1;
+}
+
+.topicsReadOnlyField {
+  display: flex;
+
+  align-items: center;
+
+  color: #94a3b8;
+
+  cursor: default;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.topicsSummary {
+  margin: 4px 0 0 20px;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+
+  line-height: 1.35;
+}
+
+.topicsChildren {
+  display: grid;
+
+  gap: 8px;
+
+  margin: 8px 0 0;
+
+  padding: 0;
+
+  list-style: none;
 }
 
 

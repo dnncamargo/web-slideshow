@@ -19,6 +19,7 @@ import {
   moveElementOut,
   moveElementToSiblingIndexById,
   removeElementById,
+  resolveAddElementDestination,
 } from "../src/features/editor/element-operations";
 import {
   collectAuthoringIds,
@@ -658,5 +659,540 @@ describe("canonical element hierarchy operations", () => {
     });
 
     expect(result).toEqual({ elements, moved: false, error: "invalid-target-index" });
+  });
+});
+
+describe("autonomous Topics placement authoring restriction", () => {
+  function freshTopics(id: string): TopicsElement {
+    return topics(id, [
+      topicItem(`${id}-item`, contentSlot(`${id}-slot`, [text(`${id}-text`)])),
+    ]);
+  }
+
+  it("rejects appending a TopicsElement into a TopicItem ContentSlot", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = appendElementToContentSlot(
+      elements,
+      "slot-a",
+      freshTopics("added-topics"),
+    );
+
+    expect(result).toBe(elements);
+  });
+
+  it("still allows non-Topics elements inside the same TopicItem ContentSlot", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const withText = appendElementToContentSlot(
+      elements,
+      "slot-a",
+      text("appended-text"),
+    );
+    expect(withText).not.toBe(elements);
+
+    const withImage = appendElementToContentSlot(
+      elements,
+      "slot-a",
+      image("appended-image"),
+    );
+    expect(withImage).not.toBe(elements);
+  });
+
+  it("rejects inserting a TopicsElement directly after a TopicItem slot child", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = insertElementAfterId(
+      elements,
+      "slot-text",
+      freshTopics("inserted-topics"),
+    );
+
+    expect(result).toBe(elements);
+  });
+
+  it("still allows inserting an ordinary element after a TopicItem slot child", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = insertElementAfterId(
+      elements,
+      "slot-text",
+      text("inserted-text"),
+    );
+
+    expect(result).not.toBe(elements);
+  });
+
+  it("rejects moving an autonomous TopicsElement into a TopicItem ContentSlot", () => {
+    const elements: PowerShowElement[] = [
+      freshTopics("topics-b"),
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = moveElement(elements, {
+      elementId: "topics-b",
+      targetParentRef: { kind: "content-slot", id: "slot-a" },
+    });
+
+    expect(result).toEqual({
+      elements,
+      moved: false,
+      error: "invalid-target-parent",
+    });
+  });
+
+  it("keeps the original tree unchanged after a rejected Topics move", () => {
+    const elements: PowerShowElement[] = [
+      freshTopics("topics-b"),
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = moveElement(elements, {
+      elementId: "topics-b",
+      targetParentRef: { kind: "content-slot", id: "slot-a" },
+    });
+
+    expect(result.elements).toBe(elements);
+    expect(countElementOccurrences(result.elements, "topics-b")).toBe(1);
+    expect(countElementOccurrences(result.elements, "slot-a-text")).toBe(0);
+  });
+
+  it("still allows moving ordinary elements into a TopicItem ContentSlot", () => {
+    const elements: PowerShowElement[] = [
+      text("source-text"),
+      topics("topics-a", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = moveElement(elements, {
+      elementId: "source-text",
+      targetParentRef: { kind: "content-slot", id: "slot-a" },
+      targetIndex: 1,
+    });
+
+    expect(result.moved).toBe(true);
+    expect(countElementOccurrences(result.elements, "source-text")).toBe(1);
+
+    const slot = getElementsForParentRef(result.elements, {
+      kind: "content-slot",
+      id: "slot-a",
+    });
+
+    expect(slot?.map((element) => element.id)).toEqual([
+      "slot-text",
+      "source-text",
+    ]);
+  });
+
+  it("keeps TopicsElement creatable at slide and container level", () => {
+    const containerTarget = container("target", []);
+    const elements = [containerTarget, text("root")];
+
+    const inContainer = appendElementToContainer(
+      elements,
+      "target",
+      freshTopics("topics-in-container"),
+    );
+    expect(inContainer).not.toBe(elements);
+
+    const afterRoot = insertElementAfterId(
+      elements,
+      "root",
+      freshTopics("topics-at-root"),
+    );
+    expect(afterRoot).not.toBe(elements);
+    expect(countElementOccurrences(afterRoot, "topics-at-root")).toBe(1);
+  });
+});
+
+describe("add element destination resolution", () => {
+  it("appends to the slide root without a selection", () => {
+    const elements = [text("root-a")];
+
+    expect(
+      resolveAddElementDestination(elements, null, image("new-image")),
+    ).toEqual({ kind: "slide-root" });
+  });
+
+  it("falls back to the slide root for a stale selection", () => {
+    const elements = [text("root-a")];
+
+    expect(
+      resolveAddElementDestination(elements, "missing", image("new-image")),
+    ).toEqual({ kind: "slide-root" });
+  });
+
+  it("appends inside a selected container", () => {
+    const elements = [container("target", [])];
+
+    expect(
+      resolveAddElementDestination(elements, "target", text("new-text")),
+    ).toEqual({ kind: "append-container", containerId: "target" });
+  });
+
+  it("does not guess a TopicItem when Topics is selected without slot context", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+        topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(elements, "topics", image("new-image")),
+    ).toEqual({ kind: "insert-after", targetId: "topics" });
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        container("new-container"),
+      ),
+    ).toEqual({ kind: "insert-after", targetId: "topics" });
+  });
+
+  it("routes ordinary elements into exactly the explicit clicked ContentSlot", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+        topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        image("new-image"),
+        "slot-a",
+      ),
+    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-a" });
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        image("new-image"),
+        "slot-b",
+      ),
+    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-b" });
+  });
+
+  it("ignores a ContentSlot context that does not belong to the selected TopicsElement", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+      ]),
+      topics("other-topics", [
+        topicItem("topic-other", contentSlot("slot-other", [text("other")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        image("new-image"),
+        "slot-other",
+      ),
+    ).toEqual({ kind: "insert-after", targetId: "topics" });
+  });
+
+  it("keeps a TopicsElement as a slide-level sibling even with a ContentSlot context", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        topics("new-topics", []),
+        "slot-a",
+      ),
+    ).toEqual({ kind: "insert-after", targetId: "topics" });
+  });
+
+  it("inserts after the selected ordinary element", () => {
+    const elements = [text("root-a"), container("target", [])];
+
+    expect(
+      resolveAddElementDestination(elements, "root-a", image("new-image")),
+    ).toEqual({ kind: "insert-after", targetId: "root-a" });
+  });
+
+  it("inserts after an element selected inside a TopicItem ContentSlot", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(elements, "slot-text", image("new-image")),
+    ).toEqual({ kind: "insert-after", targetId: "slot-text" });
+  });
+});
+
+describe("topic content slot authoring", () => {
+  it("appends an Image into a TopicItem ContentSlot as a canonical child", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = appendElementToContentSlot(
+      elements,
+      "slot-a",
+      image("appended-image"),
+    );
+
+    expect(result).not.toBe(elements);
+
+    const topicsElement = result[0];
+
+    if (topicsElement.type === "topics") {
+      expect(
+        topicsElement.items[0]?.content.children.map((child) => child.id),
+      ).toEqual(["slot-text", "appended-image"]);
+      expect(topicsElement.items[0]?.content.children[1]?.type).toBe("image");
+    }
+
+    expect(result.map((element) => element.id)).toEqual(["topics"]);
+  });
+
+  it("appends a Container into a TopicItem ContentSlot as a canonical child", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
+      ]),
+    ];
+
+    const result = appendElementToContentSlot(
+      elements,
+      "slot-a",
+      container("appended-container", [text("appended-container-text")]),
+    );
+
+    const topicsElement = result[0];
+
+    if (topicsElement.type === "topics") {
+      expect(
+        topicsElement.items[0]?.content.children.map((child) => child.id),
+      ).toEqual(["slot-text", "appended-container"]);
+      expect(topicsElement.items[0]?.content.children[1]?.type).toBe(
+        "container",
+      );
+    }
+
+    expect(result.map((element) => element.id)).toEqual(["topics"]);
+  });
+
+  it("keeps an empty ContentSlot valid after removing the default Text", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("default-text")])),
+      ]),
+    ];
+
+    const withoutText = removeElementById(elements, "default-text");
+    const topicsElement = withoutText[0];
+
+    if (topicsElement.type === "topics") {
+      expect(topicsElement.items[0]?.content.children).toEqual([]);
+    }
+
+    const result = appendElementToContentSlot(
+      withoutText,
+      "slot-a",
+      image("appended-image"),
+    );
+
+    const after = result[0];
+
+    if (after.type === "topics") {
+      expect(after.items[0]?.content.children.map((child) => child.id)).toEqual(
+        ["appended-image"],
+      );
+    }
+  });
+
+  it("keeps an empty ContentSlot valid through the resolved add destination", () => {
+    const elements = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("default-text")])),
+      ]),
+    ];
+
+    const withoutText = removeElementById(elements, "default-text");
+
+    const destination = resolveAddElementDestination(
+      withoutText,
+      "topics",
+      image("appended-image"),
+      "slot-a",
+    );
+
+    expect(destination).toEqual({
+      kind: "append-topic-content",
+      contentSlotId: "slot-a",
+    });
+  });
+
+  it("adds an Image into the clicked middle TopicItem ContentSlot without touching siblings", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+        topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
+        topicItem("topic-c", contentSlot("slot-c", [text("topic-c-text")])),
+      ]),
+    ];
+
+    // Remove Text B so slot-b is empty, then simulate clicking Topic B.
+    const withoutTextB = removeElementById(elements, "topic-b-text");
+
+    const destination = resolveAddElementDestination(
+      withoutTextB,
+      "topics",
+      image("added-image"),
+      "slot-b",
+    );
+
+    expect(destination).toEqual({
+      kind: "append-topic-content",
+      contentSlotId: "slot-b",
+    });
+
+    const result = appendElementToContentSlot(
+      withoutTextB,
+      "slot-b",
+      image("added-image"),
+    );
+
+    const topicsElement = result[0];
+
+    if (topicsElement.type === "topics") {
+      expect(
+        topicsElement.items[0]?.content.children.map((child) => child.id),
+      ).toEqual(["topic-a-text"]);
+      expect(
+        topicsElement.items[1]?.content.children.map((child) => child.id),
+      ).toEqual(["added-image"]);
+      expect(
+        topicsElement.items[2]?.content.children.map((child) => child.id),
+      ).toEqual(["topic-c-text"]);
+      expect(topicsElement.items[1]?.content.children[0]?.type).toBe("image");
+    }
+
+    expect(result.map((element) => element.id)).toEqual(["topics"]);
+  });
+
+  it("adds a Container to the clicked middle topic ContentSlot", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+        topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
+        topicItem("topic-c", contentSlot("slot-c", [text("topic-c-text")])),
+      ]),
+    ];
+
+    const withoutTextB = removeElementById(elements, "topic-b-text");
+
+    const result = appendElementToContentSlot(
+      withoutTextB,
+      "slot-b",
+      container("added-container", []),
+    );
+
+    const topicsElement = result[0];
+
+    if (topicsElement.type === "topics") {
+      expect(
+        topicsElement.items[0]?.content.children.map((child) => child.id),
+      ).toEqual(["topic-a-text"]);
+      expect(
+        topicsElement.items[1]?.content.children.map((child) => child.id),
+      ).toEqual(["added-container"]);
+      expect(
+        topicsElement.items[2]?.content.children.map((child) => child.id),
+      ).toEqual(["topic-c-text"]);
+    }
+  });
+
+  it("routes Topic A and Topic C clicks to their own slots", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+        topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
+        topicItem("topic-c", contentSlot("slot-c", [text("topic-c-text")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        image("image-a"),
+        "slot-a",
+      ),
+    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-a" });
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        image("image-c"),
+        "slot-c",
+      ),
+    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-c" });
+  });
+
+  it("refuses TopicsElement placement into any clicked TopicItem ContentSlot", () => {
+    const elements: PowerShowElement[] = [
+      topics("topics", [
+        topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
+      ]),
+    ];
+
+    expect(
+      resolveAddElementDestination(
+        elements,
+        "topics",
+        topics("new-topics", []),
+        "slot-a",
+      ),
+    ).toEqual({ kind: "insert-after", targetId: "topics" });
+
+    expect(
+      appendElementToContentSlot(
+        elements,
+        "slot-a",
+        topics("new-topics", []),
+      ),
+    ).toBe(elements);
   });
 });

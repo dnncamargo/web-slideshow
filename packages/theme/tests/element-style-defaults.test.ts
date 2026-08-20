@@ -6,6 +6,7 @@ import {
   parseAuthoringLength,
   resolveEffectiveElementStyleDefaults,
   resolveEffectiveNumericStyleValue,
+  TOPICS_ITEM_GAP_DEFAULT_PX,
 } from "../src/element-style-defaults";
 
 describe("authoring length conversions", () => {
@@ -105,8 +106,7 @@ describe("element style authoring defaults", () => {
 
   it("resolves canonical rounded-corner defaults by element type", () => {
     expect(
-      resolveEffectiveElementStyleDefaults({ type: "container" })
-        .borderRadius,
+      resolveEffectiveElementStyleDefaults({ type: "container" }).borderRadius,
     ).toBe(0);
     expect(
       resolveEffectiveElementStyleDefaults({ type: "code" }).borderRadius,
@@ -117,6 +117,9 @@ describe("element style authoring defaults", () => {
     expect(
       resolveEffectiveElementStyleDefaults({ type: "topics" }).borderRadius,
     ).toBe(0);
+  });
+  it("exposes the deterministic Topics item gap default", () => {
+    expect(TOPICS_ITEM_GAP_DEFAULT_PX).toBe(6);
   });
 });
 
