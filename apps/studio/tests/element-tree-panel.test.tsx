@@ -148,7 +148,8 @@ function findTreeItem(container: HTMLDivElement, label: string): HTMLLIElement {
 function directTreeGroup(treeItem: HTMLLIElement): HTMLUListElement | null {
   const group = Array.from(treeItem.children).find(
     (child): child is HTMLUListElement =>
-      child instanceof HTMLUListElement && child.getAttribute("role") === "group",
+      child instanceof HTMLUListElement &&
+      child.getAttribute("role") === "group",
   );
 
   return group ?? null;
@@ -163,7 +164,8 @@ function directTopicChildren(treeItem: HTMLLIElement): HTMLLIElement[] {
 
   return Array.from(group.children).filter(
     (child): child is HTMLLIElement =>
-      child instanceof HTMLLIElement && child.getAttribute("role") === "treeitem",
+      child instanceof HTMLLIElement &&
+      child.getAttribute("role") === "treeitem",
   );
 }
 
@@ -185,56 +187,52 @@ function contentGroupItems(treeItem: HTMLLIElement): HTMLLIElement[] {
   );
 }
 
-  function contentGroupLabel(treeItem: HTMLLIElement): string {
-    const group = contentGroup(treeItem);
-    const label = Array.from(group.children).find(
-      (child): child is HTMLDivElement => child instanceof HTMLDivElement,
-    );
+function contentGroupLabel(treeItem: HTMLLIElement): string {
+  const group = contentGroup(treeItem);
+  const label = Array.from(group.children).find(
+    (child): child is HTMLDivElement => child instanceof HTMLDivElement,
+  );
 
-    return normalizeLabel(label?.textContent ?? null);
+  return normalizeLabel(label?.textContent ?? null);
+}
+
+function footerMoveUpButton(rootContainer: HTMLDivElement): HTMLButtonElement {
+  const button = rootContainer.querySelector<HTMLButtonElement>(
+    'button[aria-label="Move up"]',
+  );
+
+  if (!button) {
+    throw new Error("Move up button not found");
   }
 
-  function footerMoveUpButton(
-    rootContainer: HTMLDivElement,
-  ): HTMLButtonElement {
-    const button = rootContainer.querySelector<HTMLButtonElement>(
-      'button[aria-label="Move up"]',
-    );
+  return button;
+}
 
-    if (!button) {
-      throw new Error("Move up button not found");
-    }
+function footerMoveDownButton(
+  rootContainer: HTMLDivElement,
+): HTMLButtonElement {
+  const button = rootContainer.querySelector<HTMLButtonElement>(
+    'button[aria-label="Move down"]',
+  );
 
-    return button;
+  if (!button) {
+    throw new Error("Move down button not found");
   }
 
-  function footerMoveDownButton(
-    rootContainer: HTMLDivElement,
-  ): HTMLButtonElement {
-    const button = rootContainer.querySelector<HTMLButtonElement>(
-      'button[aria-label="Move down"]',
-    );
+  return button;
+}
 
-    if (!button) {
-      throw new Error("Move down button not found");
-    }
+function footerMoveToSelect(rootContainer: HTMLDivElement): HTMLSelectElement {
+  const select = rootContainer.querySelector<HTMLSelectElement>(
+    'select[aria-label="Move to"]',
+  );
 
-    return button;
+  if (!select) {
+    throw new Error("Move to select not found");
   }
 
-  function footerMoveToSelect(
-    rootContainer: HTMLDivElement,
-  ): HTMLSelectElement {
-    const select = rootContainer.querySelector<HTMLSelectElement>(
-      'select[aria-label="Move to"]',
-    );
-
-    if (!select) {
-      throw new Error("Move to select not found");
-    }
-
-    return select;
-  }
+  return select;
+}
 
 function clickRow(treeItem: HTMLLIElement): void {
   act(() => {
@@ -291,10 +289,7 @@ describe("ElementTreePanel", () => {
 
   it("renders content elements under a dedicated Content group and keeps structural subtopics separate", () => {
     const slide = slideWithTopics([
-      topicItem(
-        "topic-a",
-        contentSlot("slot-a", [text("topic-a-text", "A")]),
-      ),
+      topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text", "A")])),
       topicItem(
         "topic-b",
         contentSlot("slot-b", [
@@ -333,19 +328,15 @@ describe("ElementTreePanel", () => {
 
   it("renders recursive Content groups for structural subtopics", () => {
     const slide = slideWithTopics([
-      topicItem(
-        "topic-c",
-        contentSlot("slot-c", [text("topic-c-text", "C")]),
-        [
-          topicItem(
-            "topic-c-1",
-            contentSlot("slot-c-1", [
-              text("topic-c-1-text", "C.1"),
-              image("topic-c-1-image"),
-            ]),
-          ),
-        ],
-      ),
+      topicItem("topic-c", contentSlot("slot-c", [text("topic-c-text", "C")]), [
+        topicItem(
+          "topic-c-1",
+          contentSlot("slot-c-1", [
+            text("topic-c-1-text", "C.1"),
+            image("topic-c-1-image"),
+          ]),
+        ),
+      ]),
     ]);
 
     renderPanel(slide);
@@ -360,7 +351,9 @@ describe("ElementTreePanel", () => {
   });
 
   it("keeps an empty topic row visible and selectable", () => {
-    const slide = slideWithTopics([topicItem("topic-empty", contentSlot("slot-empty"))]);
+    const slide = slideWithTopics([
+      topicItem("topic-empty", contentSlot("slot-empty")),
+    ]);
     const { onSelectElement } = renderPanel(slide);
 
     const emptyTopic = findTreeItem(container, "Topic");
@@ -379,10 +372,7 @@ describe("ElementTreePanel", () => {
 
   it("clicking a topic row dispatches the owning TopicsElement and exact content slot", () => {
     const slide = slideWithTopics([
-      topicItem(
-        "topic-b",
-        contentSlot("slot-b", [text("topic-b-text", "B")]),
-      ),
+      topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text", "B")])),
     ]);
     const { onSelectElement } = renderPanel(slide);
 
@@ -439,6 +429,72 @@ describe("ElementTreePanel", () => {
       footerMoveToSelect(container).dispatchEvent(
         new Event("change", { bubbles: true }),
       );
+    });
+
+    expect(onMoveElement).not.toHaveBeenCalled();
+  });
+
+  it("suppresses footer movement for a nested structural topic row", () => {
+    const slide = {
+      ...slideWithTopics([
+        topicItem(
+          "topic-b",
+          contentSlot("slot-b", [text("topic-b-text", "B")]),
+          [
+            topicItem(
+              "topic-b-1",
+              contentSlot("slot-b-1", [text("topic-b-1-text", "B.1")]),
+              [
+                topicItem(
+                  "topic-b-1-1",
+                  contentSlot("slot-b-1-1", [
+                    text("topic-b-1-1-text", "B.1.1"),
+                  ]),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ]),
+      elements: [
+        topicContainer("before"),
+        ...slideWithTopics([
+          topicItem(
+            "topic-b",
+            contentSlot("slot-b", [text("topic-b-text", "B")]),
+            [
+              topicItem(
+                "topic-b-1",
+                contentSlot("slot-b-1", [text("topic-b-1-text", "B.1")]),
+                [
+                  topicItem(
+                    "topic-b-1-1",
+                    contentSlot("slot-b-1-1", [
+                      text("topic-b-1-1-text", "B.1.1"),
+                    ]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ]).elements,
+        topicContainer("after"),
+      ],
+    };
+
+    const { onMoveElement } = renderPanel(slide, {
+      selectedElementId: "topics-1",
+      selectedContentSlotId: "slot-b-1-1",
+    });
+
+    expect(footerMoveUpButton(container).disabled).toBe(true);
+    expect(footerMoveDownButton(container).disabled).toBe(true);
+    expect(footerMoveToSelect(container).disabled).toBe(true);
+    expect(footerMoveToSelect(container).options).toHaveLength(1);
+
+    act(() => {
+      footerMoveUpButton(container).click();
+      footerMoveDownButton(container).click();
     });
 
     expect(onMoveElement).not.toHaveBeenCalled();

@@ -49,8 +49,14 @@ interface ElementTreeNodeProps {
   onToggle: (id: string) => void;
   onSelectElement: (selection: ElementTreeSelection) => void;
   dropTarget: { id: string; intent: TreeDropIntent } | null;
-  onDragStart: (element: PowerShowElement, event: DragEvent<HTMLDivElement>) => void;
-  onDragOver: (element: PowerShowElement, event: DragEvent<HTMLDivElement>) => void;
+  onDragStart: (
+    element: PowerShowElement,
+    event: DragEvent<HTMLDivElement>,
+  ) => void;
+  onDragOver: (
+    element: PowerShowElement,
+    event: DragEvent<HTMLDivElement>,
+  ) => void;
   onDrop: (element: PowerShowElement) => void;
   onDragEnd: () => void;
   selectedContentSlotId: string | null;
@@ -94,8 +100,20 @@ function isStructuralTopicSelection(
     return false;
   }
 
-  return selectedElement.items.some(
-    (item) => item.content.id === selectedContentSlotId,
+  function topicItemsContainContentSlot(
+    items: readonly TopicItem[],
+    contentSlotId: string,
+  ): boolean {
+    return items.some(
+      (item) =>
+        item.content.id === contentSlotId ||
+        topicItemsContainContentSlot(item.children, contentSlotId),
+    );
+  }
+
+  return topicItemsContainContentSlot(
+    selectedElement.items,
+    selectedContentSlotId,
   );
 }
 
@@ -199,7 +217,10 @@ function ElementTreeNode({
       aria-expanded={isExpandable ? expanded : undefined}
     >
       {dropIntent === "before" && (
-        <div className={styles.elementTreeDropIndicatorBefore} aria-hidden="true" />
+        <div
+          className={styles.elementTreeDropIndicatorBefore}
+          aria-hidden="true"
+        />
       )}
       <div
         className={
@@ -244,14 +265,23 @@ function ElementTreeNode({
         </button>
       </div>
       {dropIntent === "inside" && element.type === "container" && (
-        <div className={styles.elementTreeDropIndicatorInside} aria-hidden="true" />
+        <div
+          className={styles.elementTreeDropIndicatorInside}
+          aria-hidden="true"
+        />
       )}
       {dropIntent === "after" && (
-        <div className={styles.elementTreeDropIndicatorAfter} aria-hidden="true" />
+        <div
+          className={styles.elementTreeDropIndicatorAfter}
+          aria-hidden="true"
+        />
       )}
 
       {isExpandable && expanded && (
-        <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
+        <ul
+          role="group"
+          className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}
+        >
           {element.type === "container" &&
             treeChildren.map((child, childIndex) => (
               <ElementTreeNode
@@ -448,8 +478,12 @@ export function ElementTreePanel({
     selectedElementId,
     selectedContentSlotId,
   );
-  const selectedElementForMovement = isStructuralTopicRow ? null : selectedElement;
-  const selectedPositionForMovement = isStructuralTopicRow ? null : selectedPosition;
+  const selectedElementForMovement = isStructuralTopicRow
+    ? null
+    : selectedElement;
+  const selectedPositionForMovement = isStructuralTopicRow
+    ? null
+    : selectedPosition;
   const selectedTargets = selectedElementForMovement
     ? getParentTargets(slide, selectedElementForMovement, (key) => t(key))
     : [];
@@ -468,7 +502,11 @@ export function ElementTreePanel({
     const bounds = event.currentTarget.getBoundingClientRect();
     const relativeY = event.clientY - bounds.top;
 
-    if (target.type === "container" && relativeY > bounds.height / 3 && relativeY < (bounds.height * 2) / 3) {
+    if (
+      target.type === "container" &&
+      relativeY > bounds.height / 3 &&
+      relativeY < (bounds.height * 2) / 3
+    ) {
       return "inside";
     }
 
@@ -528,7 +566,11 @@ export function ElementTreePanel({
                 }
               }}
               onDrop={(target) => {
-                if (!draggedElementId || !dropTarget || dropTarget.id !== target.id) {
+                if (
+                  !draggedElementId ||
+                  !dropTarget ||
+                  dropTarget.id !== target.id
+                ) {
                   return;
                 }
 
@@ -542,8 +584,13 @@ export function ElementTreePanel({
                 if (resolved) {
                   onMoveElement(resolved);
 
-                  if (dropTarget.intent === "inside" && target.type === "container") {
-                    setExpandedIds((current) => new Set(current).add(target.id));
+                  if (
+                    dropTarget.intent === "inside" &&
+                    target.type === "container"
+                  ) {
+                    setExpandedIds((current) =>
+                      new Set(current).add(target.id),
+                    );
                   }
                 }
 
