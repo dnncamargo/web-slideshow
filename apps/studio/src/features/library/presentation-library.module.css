@@ -1,185 +1,578 @@
+/* ==========================================================
+   FIXED-VIEWPORT WORKSPACE CONTRACT
+
+   Studio is a fixed-height professional workspace: the document
+   itself never scrolls. Only bounded content panes that naturally
+   grow (the sidebar folder list and the main browser pane) own
+   their scroll. The Topbar, workspace heading + management
+   toolbar, sidebar navigation sections, and the Details pane stay
+   stationary.
+   ========================================================== */
+
 .library {
-  display: flex;
-  min-height: 100vh;
-  flex-direction: column;
-  background: #0b0f17;
-  color: #cbd5e1;
-}
-
-.headerTitle {
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-}
-
-.headerUser {
-  max-width: 100%;
   overflow: hidden;
-  color: #94a3b8;
+  background: var(--ps-ui-background-canvas);
+  color: var(--ps-ui-text-secondary);
+}
+
+/* User identity inside the Topbar actions, immediately before Sign out. */
+.headerUser {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  color: var(--ps-ui-text-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.content {
-  width: 100%;
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 24px;
+.errorText {
+  flex: none;
+  margin: 0;
+  padding: 10px 24px;
+  border-bottom: 1px solid rgb(127 29 29 / 50%);
+  background: rgb(127 29 29 / 18%);
+  color: var(--ps-ui-semantic-danger);
+  font-size: 12px;
 }
 
-.stateBlock {
+/* ============================================================
+   WORKSPACE: SIDEBAR + MAIN
+   ============================================================ */
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* ============================================================
+   SIDEBAR
+
+   Fixed information architecture: Presentations and Resources
+   navigation never leave the viewport. The Folders section
+   exposes a bounded future list pane with its own scroll.
+   ============================================================ */
+
+.sidebar {
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-  color: #94a3b8;
+  overflow: hidden;
+  border-right: 1px solid var(--ps-ui-border-subtle);
+  background: var(--ps-ui-background-surface);
 }
 
-.errorText {
-  color: #f87171;
+.sidebarNav {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 12px;
+  overflow: hidden;
 }
 
-.stateBlock button {
-  padding: 6px 12px;
-  border: 1px solid #303847;
-  border-radius: 5px;
-  background: #141a24;
-  color: #cbd5e1;
+.sidebarSection {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebarFoldersSection {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebarFolderList {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.sidebarEmptyState {
+  margin: 0;
+  padding: 2px 10px;
+  color: var(--ps-ui-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sidebarSection h2 {
+  margin: 0 10px 6px;
+  color: var(--ps-ui-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.sidebarItem {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--ps-ui-radius-6);
+  background: transparent;
+  color: var(--ps-ui-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
   cursor: pointer;
 }
+
+.sidebarItem:hover {
+  background: var(--ps-ui-background-raised);
+}
+
+.sidebarItem[data-active="true"] {
+  border-color: var(--ps-ui-border-subtle);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font-weight: 600;
+}
+
+.sidebarItem:focus-visible,
+.row:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   MAIN WORKSPACE
+
+   main
+   ├── workspaceHeading   fixed
+   └── workspaceBody
+       ├── browserPane    OWN SCROLL (primary scrolling region)
+       └── detailsPane    stationary
+   ============================================================ */
+
+.main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 28px 32px 0;
+}
+
+.workspaceHeading {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ps-ui-border-subtle);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspaceHeading h1 {
+  margin: 0;
+  color: var(--ps-ui-text-primary);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+/* LEFT: intentionally empty breathing space. */
+.toolbarLeft {
+  min-width: 0;
+}
+
+/* CENTER: selected presentation context, geometrically centered by the
+   symmetric outer grid tracks. */
+.toolbarCenter {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbarContext {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.toolbarSelection {
+  min-width: 0;
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--ps-ui-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* RIGHT: global management actions, right-aligned in the final track. */
+.toolbarRight {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspaceBody {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  padding-top: 18px;
+  overflow: hidden;
+}
+
+/* The PRIMARY freely scrolling region: the presentation/resource
+   list grows here and only ever scrolls within this pane. */
+.browserPane {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 24px 0;
+}
+
+/* ============================================================
+   DETAILS PANE
+
+   Stationary relative to browserPane scrolling (no position:fixed;
+   it is a sibling grid column). Width is stable at 320px. Own
+   internal scroll only if its own content grows; never page scroll.
+   ============================================================ */
+
+.detailsPane {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 24px 24px;
+  border-left: 1px solid var(--ps-ui-border-subtle);
+}
+
+.detailsHeading {
+  margin: 0 0 14px;
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detailsEmpty {
+  margin: 0;
+  color: var(--ps-ui-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detailsList {
+  display: flex;
+  margin: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detailsRow {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailsRow dt {
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detailsRow dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ps-ui-text-primary);
+  font-size: 13px;
+}
+
+.detailsLive {
+  margin: 16px 0 0;
+}
+
+/* ============================================================
+   PRESENTATION LIST
+   ============================================================ */
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.card {
-  display: flex;
+.row {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #232a36;
-  border-radius: 8px;
-  background: #111620;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ps-ui-radius-6);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.cardInfo {
+.row:hover {
+  border-color: var(--ps-ui-border-subtle);
+  background: var(--ps-ui-background-surface);
+}
+
+.row[data-selected="true"] {
+  border-color: rgb(34 211 238 / 40%);
+  background: rgb(34 211 238 / 8%);
+}
+
+.thumbnail {
+  position: relative;
   display: flex;
   min-width: 0;
+  aspect-ratio: 16 / 9;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 4px;
   overflow: hidden;
+  padding: 10px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: #172131;
+  color: var(--ps-ui-text-muted);
 }
 
-.cardInfo strong {
+.thumbnailBar {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  width: 28%;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--ps-ui-semantic-accent);
+  opacity: 0.75;
+}
+
+.thumbnailTitle,
+.thumbnailLine,
+.thumbnailLineShort {
+  display: block;
+  height: 4px;
+  border-radius: 99px;
+  background: currentcolor;
+  opacity: 0.62;
+}
+
+.thumbnailTitle { width: 68%; }
+.thumbnailLine { width: 88%; opacity: 0.25; }
+.thumbnailLineShort { width: 54%; opacity: 0.25; }
+
+.rowDetails,
+.rowMetadata {
+  display: flex;
+  min-width: 0;
+}
+
+.rowDetails {
+  flex-direction: column;
+  gap: 7px;
+}
+
+.rowTitle {
   overflow: hidden;
-  color: #f8fafc;
+  color: var(--ps-ui-text-primary);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cardInfo span {
-  color: #94a3b8;
+.rowMetadata {
+  align-items: center;
+  gap: 12px;
+  color: var(--ps-ui-text-muted);
   font-size: 12px;
 }
 
-.cardActions {
+.rowState {
   display: flex;
-  flex: none;
-  gap: 8px;
+  min-width: 90px;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
-.cardActions button {
-  padding: 6px 10px;
-  border: 1px solid #303847;
-  border-radius: 5px;
-  background: transparent;
-  color: #cbd5e1;
+.rowOpening {
+  color: var(--ps-ui-text-muted);
   font-size: 12px;
-  cursor: pointer;
 }
 
-.cardActions button:hover:not(:disabled) {
-  border-color: #475569;
-  background: #141a24;
+.stateBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  color: var(--ps-ui-text-muted);
+  font-size: 13px;
 }
 
-.cardActions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.placeholder {
+  max-width: 560px;
+  padding: 56px 12px;
+  color: var(--ps-ui-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
-.cardActions button:focus-visible {
-  outline: 2px solid #22d3ee;
-  outline-offset: 2px;
-}
-
-.presentButton,
-.controlButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid #0e7490;
-  border-radius: 5px;
-  background: #164e63;
-  color: #ecfeff;
-  font-size: 12px;
+.placeholderTitle {
+  margin: 0 0 8px;
+  color: var(--ps-ui-text-primary);
+  font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
 }
 
-.presentButton:hover:not(:disabled),
-.controlButton:hover {
-  border-color: #22d3ee;
-  background: #0f394e;
-}
+@media (max-width: 760px) {
+  /* ==========================================================
+     STUDIO MOBILE TOPBAR
+     row 1: PowerShow Studio + Locale
+     row 2: user + Sign out
+     ========================================================== */
+  .libraryTopbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    row-gap: var(--ps-ui-space-8);
+    padding: var(--ps-ui-space-12) var(--ps-ui-space-16);
+  }
 
-.presentButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  .libraryTopbar :global(.ps-ui-topbar__brand) { grid-column: 1; grid-row: 1; }
+  .libraryTopbar :global(.ps-ui-topbar__locale) { grid-column: 2; grid-row: 1; margin-left: 0; }
+  .libraryTopbar :global(.ps-ui-topbar__actions) { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
 
-.controlButton {
-  border-color: #22d3ee;
-  background: #0e7490;
-  box-shadow:
-    0 0 0 1px rgba(34, 211, 238, 0.2),
-    0 0 10px rgba(34, 211, 238, 0.3);
-}
+  /* ==========================================================
+     STUDIO MOBILE WORKSPACE
+     The permanent desktop sidebar becomes a compact horizontal,
+     independently scrollable navigation rail above the body.
+     ========================================================== */
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
 
-.controlButton:hover {
-  border-color: #67e8f9;
-  background: #155e75;
-}
+  .sidebar {
+    overflow: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--ps-ui-border-subtle);
+  }
 
-.buttonIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
+  .sidebarNav {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ps-ui-space-12);
+    padding: var(--ps-ui-space-8) var(--ps-ui-space-12);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
 
-.endButton {
-  padding: 6px 10px;
-  border: 1px solid #7f1d1d;
-  border-radius: 5px;
-  background: transparent;
-  color: #fca5a5;
-  font-size: 12px;
-  cursor: pointer;
-}
+  .sidebarSection {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ps-ui-space-8);
+  }
 
-.endButton:hover {
-  border-color: #ef4444;
-  background: #200b0d;
+  .sidebarFoldersSection {
+    flex: none;
+  }
+
+  .sidebarFolderList {
+    flex: none;
+    flex-direction: row;
+    overflow: visible;
+  }
+
+  /* Keep group labels in the accessibility tree, visually hidden. */
+  .sidebarSection h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .sidebarEmptyState { padding: 2px 6px; }
+
+  .sidebarItem { white-space: nowrap; }
+
+  .main { padding: 22px 18px 0; }
+  .workspaceHeading { align-items: stretch; flex-direction: column; }
+  .toolbar {
+    flex: none;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .toolbarLeft { display: none; }
+  .toolbarCenter { justify-content: flex-start; }
+  .toolbarContext { justify-content: flex-start; flex-wrap: wrap; }
+  .toolbarRight { justify-content: flex-start; }
+  .workspaceBody {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .detailsPane {
+    max-height: 40dvh;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--ps-ui-border-subtle);
+  }
+  .row { grid-template-columns: 86px minmax(0, 1fr); }
+  .rowState { grid-column: 2; justify-content: flex-start; }
 }
