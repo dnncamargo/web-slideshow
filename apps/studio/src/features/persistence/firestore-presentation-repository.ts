@@ -55,9 +55,7 @@ function presentationDocumentRef(userId: string, presentationId: string) {
  * One Firestore document stores the complete canonical Presentation for a
  * single user under: users/{uid}/presentations/{presentationId}
  */
-export class FirestorePresentationRepository
-  implements PresentationRepository
-{
+export class FirestorePresentationRepository implements PresentationRepository {
   private requireAuthenticatedUser() {
     return requireAuthenticatedFirebaseUser(getCurrentNonAnonymousUser);
   }
@@ -107,10 +105,7 @@ export class FirestorePresentationRepository
     } catch (error) {
       console.error("Failed to list presentations", error);
 
-      throw new FirestoreOperationError(
-        "Failed to list presentations.",
-        error,
-      );
+      throw new FirestoreOperationError("Failed to list presentations.", error);
     }
   }
 
@@ -233,9 +228,6 @@ export class FirestorePresentationRepository
 
         const presentation = parsePersistedPresentation(draftData);
         assertPresentationWithinSizeLimit(presentation);
-        const safePresentation = makeFirestoreSafePresentation(presentation);
-        assertPresentationWithinFirestoreNestingDepth(safePresentation);
-
         const metadata = normalizePersistenceMetadata(
           draftData.draftRevision,
           draftData.publication,
@@ -253,12 +245,19 @@ export class FirestorePresentationRepository
             createdVersion: false,
           };
         }
+        const safePresentation = makeFirestoreSafePresentation(presentation);
+        assertPresentationWithinFirestoreNestingDepth(safePresentation);
 
         const publicationId =
           metadata.publication?.publicationId ??
           doc(collection(firestore, "publishedPresentations")).id;
         const versionRef = doc(
-          collection(firestore, "publishedPresentations", publicationId, "versions"),
+          collection(
+            firestore,
+            "publishedPresentations",
+            publicationId,
+            "versions",
+          ),
         );
         const versionId = versionRef.id;
         const pointerRef = doc(
