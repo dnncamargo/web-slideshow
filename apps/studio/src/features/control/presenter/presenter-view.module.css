@@ -427,7 +427,6 @@
 .slideTitle {
   min-width: 0;
   font-size: 13px;
-  overflow-wrap: anywhere;
 }
 
 .note {

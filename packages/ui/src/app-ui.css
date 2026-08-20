@@ -82,6 +82,46 @@
 .ps-ui-topbar__locale { grid-column: 4; display: flex; align-items: center; justify-content: flex-end; margin-left: var(--ps-ui-space-12); }
 .ps-ui-topbar__brand strong { color: var(--ps-ui-text-primary); font-size: 14px; }
 
+/* Canonical product + surface brand pair: surface name is visually quieter
+   than the strong product name and shares its size. */
+.ps-ui-topbar__brand .ps-ui-topbar__product-surface {
+  color: var(--ps-ui-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Single-line title that pans horizontally on hover to reveal clipped
+   overflow. The inner text translates by exactly its overflow distance
+   (clamped to zero for short text), without timers or JavaScript animation. */
+.ps-ui-hover-scroll {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  container-type: inline-size;
+}
+
+.ps-ui-hover-scroll__inner {
+  display: inline-block;
+  white-space: nowrap;
+  transform-origin: left center;
+  transition: transform 220ms ease;
+}
+
+.ps-ui-hover-scroll:hover .ps-ui-hover-scroll__inner {
+  transform: translateX(min(0, calc(100cqw - 100%)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-ui-hover-scroll__inner {
+    transition: none;
+  }
+
+  .ps-ui-hover-scroll:hover .ps-ui-hover-scroll__inner {
+    transform: none;
+  }
+}
+
 @media (max-width: 899px) {
   .ps-ui-topbar[data-mobile-layout="stack-title"] { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: var(--ps-ui-space-8); padding: 10px 14px; }
   .ps-ui-topbar[data-mobile-layout="stack-title"] .ps-ui-topbar__brand { grid-column: 1; grid-row: 1; }

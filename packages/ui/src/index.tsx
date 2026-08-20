@@ -150,6 +150,41 @@ export function TopbarLocale({
   return <div className={joinClassNames("ps-ui-topbar__locale", className)}>{children}</div>;
 }
 
+export interface HoverScrollTextProps {
+  /**
+   * The complete single-line text. It remains fully in the DOM and in the
+   * native title attribute; only the visual viewport clips overflow.
+   */
+  text: string;
+  className?: string;
+  title?: string;
+}
+
+/**
+ * Single-line text that never wraps and pans horizontally on hover to reveal
+ * clipped overflow, returning to its start on pointer leave.
+ *
+ * The hover transform is clamped to `min(0, overflow)` so short text can
+ * never visibly move and long text translates only by its actual overflow
+ * distance. No timers or continuous animation are involved; the pan is a CSS
+ * transition on the container-relative transform and is disabled under
+ * `prefers-reduced-motion`.
+ */
+export function HoverScrollText({
+  text,
+  className,
+  title,
+}: HoverScrollTextProps) {
+  return (
+    <span
+      className={joinClassNames("ps-ui-hover-scroll", className)}
+      title={title ?? text}
+    >
+      <span className="ps-ui-hover-scroll__inner">{text}</span>
+    </span>
+  );
+}
+
 export function Separator({ className }: { className?: string }) {
   return <span className={joinClassNames("ps-ui-separator", className)} aria-hidden="true" />;
 }

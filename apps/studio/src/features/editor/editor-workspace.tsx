@@ -9,11 +9,11 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { renderFontResources, renderSlide } from "@powershow/renderer";
 import {
   Button,
+  HoverScrollText,
   Separator,
   Status,
   Topbar,
   TopbarActions,
-  TopbarBrand,
   TopbarLocale,
   TopbarTitle,
 } from "@powershow/ui";
@@ -29,7 +29,7 @@ import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { LocaleSelector } from "@/features/i18n/locale-selector";
-import { PRODUCT_SURFACE_LABELS } from "@/features/app/product-labels";
+import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
@@ -2292,9 +2292,7 @@ export function EditorWorkspace({
       BEGIN: BRAND
       ======================================================== */}
 
-        <TopbarBrand>
-          <strong>{PRODUCT_SURFACE_LABELS.editor}</strong>
-        </TopbarBrand>
+        <ProductSurfaceBrand surface="editor" />
 
         {/* ========================================================
       END: BRAND
@@ -2477,7 +2475,9 @@ export function EditorWorkspace({
                 >
                   <span className={styles.slideNumber}>{index + 1}</span>
 
-                  <span>{slide.title || t("slides.untitled")}</span>
+                  <HoverScrollText
+                    text={slide.title || t("slides.untitled")}
+                  />
                 </button>
               );
             })}

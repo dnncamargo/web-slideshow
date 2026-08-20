@@ -2,6 +2,8 @@
 
 import type { Presentation } from "@powershow/document-schema";
 
+import { HoverScrollText } from "@powershow/ui";
+
 import styles from "./presenter-view.module.css";
 
 export interface PresenterSlideListProps {
@@ -36,7 +38,10 @@ export function PresenterSlideList({
             className={`${styles.slideListItem}${isCurrent ? ` ${styles.slideListItemCurrent}` : ""}`}
           >
             <span className={styles.slideNumber}>{index + 1}</span>
-            <span className={styles.slideTitle}>{slideLabel(slide, index)}</span>
+            <HoverScrollText
+              className={styles.slideTitle}
+              text={slideLabel(slide, index)}
+            />
           </li>
         );
       })}

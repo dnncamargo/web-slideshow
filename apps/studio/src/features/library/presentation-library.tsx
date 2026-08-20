@@ -8,7 +8,6 @@ import {
   Button,
   Topbar,
   TopbarActions,
-  TopbarBrand,
   TopbarLocale,
   TopbarTitle,
 } from "@powershow/ui";
@@ -16,7 +15,7 @@ import {
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
-import { PRODUCT_SURFACE_LABELS } from "@/features/app/product-labels";
+import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { useStudioAuth } from "@/features/auth/studio-auth-provider";
 
@@ -219,14 +218,10 @@ export function PresentationLibrary({
   return (
     <div className={styles.library}>
       <Topbar>
-        <TopbarBrand>
-          <strong>PowerShow</strong>
-        </TopbarBrand>
+        <ProductSurfaceBrand surface="studio" />
 
         <TopbarTitle>
           <div className={styles.headerTitle}>
-            <h1>{PRODUCT_SURFACE_LABELS.studio}</h1>
-
             {user?.displayName ?? user?.email ? (
               <span className={styles.headerUser}>
                 {user?.displayName ?? user?.email}

@@ -8,7 +8,12 @@ import { createBlankPresentation } from "../src/features/persistence/presentatio
 import { updatePresentationTitle } from "../src/features/editor/presentation-title";
 import { SlideLayoutPicker } from "../src/features/editor/slide-layout-picker";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-import { PRODUCT_SURFACE_LABELS } from "../src/features/app/product-labels";
+import { ProductSurfaceBrand } from "../src/features/app/product-surface-brand";
+import {
+  PRODUCT_NAME,
+  PRODUCT_SURFACE_LABELS,
+  type ProductSurfaceName,
+} from "../src/features/app/product-labels";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -59,11 +64,37 @@ describe("editor UI foundation", () => {
     expect(next.slides).toBe(presentation.slides);
   });
 
-  it("centralizes the visible Studio suite labels", () => {
+  it("keeps the product name and surface names as separate central labels", () => {
+    expect(PRODUCT_NAME).toBe("PowerShow");
     expect(PRODUCT_SURFACE_LABELS).toEqual({
-      studio: "PowerShow Studio",
-      editor: "PowerShow Editor",
-      control: "PowerShow Control",
+      studio: "Studio",
+      editor: "Editor",
+      control: "Control",
     });
   });
+
+  it.each(["studio", "editor", "control"] as const)(
+    "renders the canonical brand composition as separate semantic pieces for %s",
+    (surface: ProductSurfaceName) => {
+      act(() => {
+        root.render(<ProductSurfaceBrand surface={surface} />);
+      });
+
+      const strong = container.querySelector("strong");
+      expect(strong?.textContent).toBe("PowerShow");
+
+      const surfaceSpan = container.querySelector(
+        ".ps-ui-topbar__product-surface",
+      );
+      expect(surfaceSpan?.textContent).toBe(PRODUCT_SURFACE_LABELS[surface]);
+
+      // The pair is one composition, but the product name and the surface
+      // name remain separate semantic pieces.
+      expect(container.querySelectorAll("strong").length).toBe(1);
+      expect(surfaceSpan?.parentElement?.contains(strong)).toBe(true);
+      expect(strong?.textContent).not.toContain(
+        PRODUCT_SURFACE_LABELS[surface],
+      );
+    },
+  );
 });

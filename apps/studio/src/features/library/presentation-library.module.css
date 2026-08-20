@@ -6,13 +6,6 @@
   color: #cbd5e1;
 }
 
-.headerTitle h1 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #f8fafc;
-}
-
 .headerTitle {
   display: flex;
   flex-direction: column;

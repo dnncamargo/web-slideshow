@@ -11,7 +11,6 @@ import {
   Status,
   Topbar,
   TopbarActions,
-  TopbarBrand,
   TopbarLocale,
   TopbarTitle,
 } from "@powershow/ui";
@@ -20,7 +19,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
-import { PRODUCT_SURFACE_LABELS } from "@/features/app/product-labels";
+import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
@@ -213,12 +212,11 @@ export function PresenterView({
       BEGIN: BRAND
       ======================================================== */}
 
-        <TopbarBrand>
-          <strong>{PRODUCT_SURFACE_LABELS.control}</strong>
+        <ProductSurfaceBrand surface="control">
           <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
             {t("control.library")}
           </Link>
-        </TopbarBrand>
+        </ProductSurfaceBrand>
 
         {/* ========================================================
       END: BRAND
