@@ -5,11 +5,14 @@ import type { PresentationRepository } from "../src/features/persistence/present
 import type { PresentationSummary } from "../src/features/persistence/presentation-persistence";
 import { buildStudioEditorHref } from "../src/features/app/studio-routes";
 import {
+  clearPresentationSelectionOnDestinationChange,
   isEmptyLibrary,
   isArchiveBlocked,
   isNewBlocked,
   isOpenBlocked,
+  resolvePresentationToolbarState,
   resolveLibraryStatus,
+  selectSinglePresentation,
 } from "../src/features/library/presentation-library-logic";
 
 function summary(id: string): PresentationSummary {
@@ -55,6 +58,71 @@ describe("presentation library logic", () => {
     expect(isArchiveBlocked(null, "a")).toBe(false);
     expect(isOpenBlocked("a", "b")).toBe(true);
     expect(isOpenBlocked("a", "a")).toBe(false);
+  });
+
+  it("resolves the no-selection toolbar with New and disabled folder creation", () => {
+    expect(resolvePresentationToolbarState(null, { kind: "none" })).toEqual({
+      mode: "none",
+      actions: ["new", "new-folder"],
+      canPresent: false,
+    });
+  });
+
+  it("resolves inactive published and unpublished selections", () => {
+    expect(resolvePresentationToolbarState(
+      {
+        ...summary("published"),
+        publicationState: "published",
+        publication: {
+          publicationId: "publication-1",
+          currentVersionId: "version-1",
+          publishedRevision: 1,
+          publishedAt: "date",
+        },
+      },
+      { kind: "none" },
+    )).toEqual({
+      mode: "inactive",
+      actions: ["present", "edit", "archive"],
+      canPresent: true,
+    });
+
+    expect(resolvePresentationToolbarState(summary("draft"), { kind: "none" })).toEqual({
+      mode: "inactive",
+      actions: ["present", "edit", "archive"],
+      canPresent: false,
+    });
+  });
+
+  it("resolves the currently live selection to Control, End, and Edit", () => {
+    const liveSummary: PresentationSummary = {
+      ...summary("live"),
+      publication: {
+        publicationId: "publication-live",
+        currentVersionId: "version-live",
+        publishedRevision: 1,
+        publishedAt: "date",
+      },
+      publicationState: "published",
+    };
+
+    expect(resolvePresentationToolbarState(liveSummary, {
+      kind: "active",
+      live: {
+        publicationId: "publication-live",
+        currentVersionId: "version-live",
+        revision: 1,
+      },
+    })).toEqual({
+      mode: "live",
+      actions: ["control", "end", "edit"],
+      canPresent: false,
+    });
+  });
+
+  it("keeps selection single-valued and clears it when the destination changes", () => {
+    expect(selectSinglePresentation("first", "second")).toBe("second");
+    expect(clearPresentationSelectionOnDestinationChange()).toBeNull();
   });
 });
 
