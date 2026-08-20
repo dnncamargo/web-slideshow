@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
     "@powershow/document-schema",
     "@powershow/renderer",
     "@powershow/theme",
+    "@powershow/ui",
   ],
 };
 

@@ -16,6 +16,7 @@ import type {
 // ============================================================
 
 import "@powershow/theme/index.css";
+import "@powershow/ui/styles.css";
 
 import "./globals.css";
 

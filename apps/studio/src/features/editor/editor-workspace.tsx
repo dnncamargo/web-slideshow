@@ -7,6 +7,16 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import { renderFontResources, renderSlide } from "@powershow/renderer";
+import {
+  Button,
+  Separator,
+  Status,
+  Topbar,
+  TopbarActions,
+  TopbarBrand,
+  TopbarLocale,
+  TopbarTitle,
+} from "@powershow/ui";
 
 import {
   FontFaceResourceSchema,
@@ -19,6 +29,7 @@ import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { LocaleSelector } from "@/features/i18n/locale-selector";
+import { PRODUCT_SURFACE_LABELS } from "@/features/app/product-labels";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
@@ -28,6 +39,7 @@ import {
   isAutosaveEligible,
   isSaveEnabled,
   resolveSaveStatus,
+  resolveWorkspaceSaveStatus,
 } from "./editor-save-state";
 import {
   createInitialEditorPublishState,
@@ -168,6 +180,7 @@ import type {
 // ============================================================
 
 import { SlideLayoutPicker } from "./slide-layout-picker";
+import { updatePresentationTitle } from "./presentation-title";
 
 // ============================================================
 // END: SLIDE LAYOUT PICKER
@@ -1377,6 +1390,13 @@ export function EditorWorkspace({
   // ==========================================================
 
   const saveStatus = resolveSaveStatus(saveState, presentation);
+  const workspaceSaveStatus = resolveWorkspaceSaveStatus(saveStatus, {
+    presentationHasSaveError:
+      saveState.hasSaveError && saveState.failedPresentation === presentation,
+    notesPending: editorNotes.hasPending,
+    notesSaving: editorNotes.isSaving,
+    notesHasSaveError: editorNotes.hasSaveError,
+  });
   const saveEnabled = isSaveEnabled(
     saveState,
     presentation,
@@ -1408,14 +1428,13 @@ export function EditorWorkspace({
   }
 
   function handleSave() {
-    if (
-      presentation === saveState.lastSavedPresentation ||
-      saveState.isSaving
-    ) {
-      return;
+    if (saveEnabled) {
+      requestSave(presentation);
     }
 
-    requestSave(presentation);
+    if (editorNotes.hasPending) {
+      editorNotes.flush();
+    }
   }
 
   // Debounced autosave on canonical Presentation identity change. Resets on
@@ -2268,18 +2287,14 @@ export function EditorWorkspace({
     BEGIN: TOP BAR
     ========================================================== */}
 
-      <header className={styles.topbar}>
+      <Topbar>
         {/* ========================================================
       BEGIN: BRAND
       ======================================================== */}
 
-        <div>
-          <strong>
-            <span>PowerShow</span>
-          </strong>
-
-          <span className={styles.topbarSection}>{t("topbar.editor")}</span>
-        </div>
+        <TopbarBrand>
+          <strong>{PRODUCT_SURFACE_LABELS.editor}</strong>
+        </TopbarBrand>
 
         {/* ========================================================
       END: BRAND
@@ -2289,9 +2304,17 @@ export function EditorWorkspace({
       BEGIN: PRESENTATION TITLE
       ======================================================== */}
 
-        <div className={styles.presentationTitle}>
-          <span>{presentation.title}</span>
-        </div>
+        <TopbarTitle title={presentation.title}>
+          <input
+            className={styles.presentationTitleInput}
+            value={presentation.title}
+            aria-label={t("topbar.editor")}
+            onChange={(event) => {
+              const title = event.target.value;
+              setPresentation((current) => updatePresentationTitle(current, title));
+            }}
+          />
+        </TopbarTitle>
 
         {/* ========================================================
       END: PRESENTATION TITLE
@@ -2301,34 +2324,32 @@ export function EditorWorkspace({
       BEGIN: TOPBAR CONTROLS
       ======================================================== */}
 
-        <div className={styles.topbarControls}>
-          {/* ======================================================
-        BEGIN: STUDIO LANGUAGE SELECTOR
-        ====================================================== */}
-
-          <LocaleSelector />
-
-          {/* ======================================================
-        END: STUDIO LANGUAGE SELECTOR (separated divider)
-        ====================================================== */}
-
-          <div className={styles.topbarDivider} aria-hidden="true" />
+        <TopbarActions>
+          <Separator />
 
           {/* ======================================================
         BEGIN: SAVE STATUS
         ====================================================== */}
 
-          <span className={styles.status}>
+          <Status
+            tone={
+              workspaceSaveStatus === "error"
+                ? "danger"
+                : workspaceSaveStatus === "clean"
+                  ? "success"
+                  : "neutral"
+            }
+          >
             {onSave === undefined
               ? t("topbar.localDraft")
-              : saveStatus === "saving"
+              : workspaceSaveStatus === "saving"
                 ? t("topbar.saving")
-                : saveStatus === "error"
+                : workspaceSaveStatus === "error"
                   ? t("topbar.saveFailed")
-                  : saveStatus === "dirty"
+                  : workspaceSaveStatus === "dirty"
                     ? t("topbar.unsavedChanges")
                     : t("topbar.saved")}
-          </span>
+          </Status>
 
           {/* ======================================================
         END: SAVE STATUS
@@ -2339,14 +2360,14 @@ export function EditorWorkspace({
         ====================================================== */}
 
           {onSave && (
-            <button
-              type="button"
-              className={styles.saveButton}
-              disabled={!saveEnabled}
+            <Button
+              variant="primary"
+              size="compact"
+              disabled={!saveEnabled && !editorNotes.hasPending}
               onClick={handleSave}
             >
               {t("topbar.save")}
-            </button>
+            </Button>
           )}
 
           {/* ======================================================
@@ -2358,13 +2379,9 @@ export function EditorWorkspace({
         ====================================================== */}
 
           {onPublish && (
-            <button
-              type="button"
-              className={
-                publishLabelStatus === "success"
-                  ? `${styles.publishButton} ${styles.publishButtonSuccess}`
-                  : styles.publishButton
-              }
+            <Button
+              variant="primary"
+              size="compact"
               disabled={!publishEnabled}
               onClick={handlePublish}
             >
@@ -2375,18 +2392,21 @@ export function EditorWorkspace({
                   : publishLabelStatus === "error"
                     ? t("topbar.publishFailed")
                     : t("topbar.publish")}
-            </button>
+            </Button>
           )}
 
           {/* ======================================================
         END: PUBLISH BUTTON
         ====================================================== */}
-        </div>
+        </TopbarActions>
 
         {/* ========================================================
       END: TOPBAR CONTROLS
       ======================================================== */}
-      </header>
+        <TopbarLocale>
+          <LocaleSelector />
+        </TopbarLocale>
+      </Topbar>
 
       {/* ==========================================================
     END: TOP BAR
@@ -2433,9 +2453,6 @@ export function EditorWorkspace({
               onChange={setNewSlidePreset}
               onCreate={() => {
                 addSlide(newSlidePreset);
-              }}
-              onCancel={() => {
-                setIsSlideLayoutPickerOpen(false);
               }}
             />
           )}
@@ -2685,8 +2702,7 @@ export function EditorWorkspace({
           <SlideNotesWorkspace
             note={editorNotes.note}
             status={editorNotes.status}
-            isSaving={editorNotes.isSaving}
-            hasSaveError={editorNotes.hasSaveError}
+            hasCurrentSaveError={editorNotes.hasCurrentSaveError}
             onChange={editorNotes.onChange}
           />
         ) : (

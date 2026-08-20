@@ -4,6 +4,13 @@ export const EDITOR_AUTOSAVE_DELAY_MS = 1500;
 
 export type SaveStatus = "clean" | "dirty" | "saving" | "error";
 
+export interface WorkspacePersistenceState {
+  presentationHasSaveError: boolean;
+  notesPending: boolean;
+  notesSaving: boolean;
+  notesHasSaveError: boolean;
+}
+
 export interface EditorSaveState {
   lastSavedPresentation: Presentation | null;
   isSaving: boolean;
@@ -84,6 +91,29 @@ export function resolveSaveStatus(
   }
 
   if (isDocumentDirty(current, state.lastSavedPresentation)) {
+    return "dirty";
+  }
+
+  return "clean";
+}
+
+/**
+ * Resolve workspace feedback without merging private notes into canonical
+ * Presentation state. Publishing continues to use resolveSaveStatus.
+ */
+export function resolveWorkspaceSaveStatus(
+  presentationStatus: SaveStatus,
+  notes: WorkspacePersistenceState,
+): SaveStatus {
+  if (notes.presentationHasSaveError || notes.notesHasSaveError) {
+    return "error";
+  }
+
+  if (presentationStatus === "saving" || notes.notesSaving) {
+    return "saving";
+  }
+
+  if (presentationStatus === "dirty" || notes.notesPending) {
     return "dirty";
   }
 

@@ -9,6 +9,7 @@ import {
   isDocumentDirty,
   isSaveEnabled,
   resolveSaveStatus,
+  resolveWorkspaceSaveStatus,
   type EditorSaveState,
 } from "../src/features/editor/editor-save-state";
 
@@ -232,5 +233,59 @@ describe("editor save status after failure", () => {
 
     expect(afterCFail.failedPresentation).toBe(c);
     expect(resolveSaveStatus(afterCFail, c)).toBe("error");
+  });
+});
+
+describe("editor workspace save status", () => {
+  it("gives errors precedence over every in-progress or pending state", () => {
+    expect(
+      resolveWorkspaceSaveStatus("saving", {
+        presentationHasSaveError: false,
+        notesPending: true,
+        notesSaving: true,
+        notesHasSaveError: true,
+      }),
+    ).toBe("error");
+  });
+
+  it("reports saving for either canonical or private notes persistence", () => {
+    expect(
+      resolveWorkspaceSaveStatus("clean", {
+        presentationHasSaveError: false,
+        notesPending: false,
+        notesSaving: true,
+        notesHasSaveError: false,
+      }),
+    ).toBe("saving");
+  });
+
+  it("reports unsaved changes for canonical dirtiness or pending notes", () => {
+    expect(
+      resolveWorkspaceSaveStatus("dirty", {
+        presentationHasSaveError: false,
+        notesPending: false,
+        notesSaving: false,
+        notesHasSaveError: false,
+      }),
+    ).toBe("dirty");
+    expect(
+      resolveWorkspaceSaveStatus("clean", {
+        presentationHasSaveError: false,
+        notesPending: true,
+        notesSaving: false,
+        notesHasSaveError: false,
+      }),
+    ).toBe("dirty");
+  });
+
+  it("keeps a current canonical save error above a retry in progress", () => {
+    expect(
+      resolveWorkspaceSaveStatus("saving", {
+        presentationHasSaveError: true,
+        notesPending: false,
+        notesSaving: false,
+        notesHasSaveError: false,
+      }),
+    ).toBe("error");
   });
 });

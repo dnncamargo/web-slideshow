@@ -322,10 +322,6 @@
    Hidden on desktop
    ========================================================== */
 
-.mobileLocale {
-  display: none;
-}
-
 .mobileEndButton {
   display: none;
 
@@ -542,10 +538,6 @@
   .playerChanged {
     flex: 1;
     justify-content: space-between;
-  }
-
-  .mobileLocale {
-    display: inline-flex;
   }
 
   .mobileEndButton {
