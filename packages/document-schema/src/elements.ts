@@ -203,6 +203,19 @@ export const InteractiveElementSchema =
 export type InteractiveElement =
   z.infer<typeof InteractiveElementSchema>;
 
+export const DividerElementSchema =
+  BaseElementSchema.extend({
+    type: z.literal("divider"),
+
+    orientation: z.enum([
+      "horizontal",
+      "vertical",
+    ]).default("horizontal"),
+  });
+
+export type DividerElement =
+  z.infer<typeof DividerElementSchema>;
+
 export type ContentSlot = {
   id: string;
 
@@ -384,6 +397,7 @@ export type PowerShowElement =
   | TableElement
   | ChartElement
   | InteractiveElement
+  | DividerElement
   | TopicsElement
   | ContainerElement;
 
@@ -399,6 +413,7 @@ export const PowerShowElementSchema:
       TableElementSchema,
       ChartElementSchema,
       InteractiveElementSchema,
+      DividerElementSchema,
       TopicsElementSchema,
 
       BaseElementSchema.extend({

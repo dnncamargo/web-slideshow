@@ -2,6 +2,8 @@ export { CodeInspector } from "./code-inspector";
 
 export { ContainerInspector } from "./container-inspector";
 
+export { DividerInspector } from "./divider-inspector";
+
 export { ImageInspector } from "./image-inspector";
 
 export { InspectorSection } from "./inspector-section";

@@ -9,6 +9,7 @@ import styles from "./editor-workspace.module.css";
 import {
   CodeInspector,
   ContainerInspector,
+  DividerInspector,
   ImageInspector,
   TableInspector,
   TerminalInspector,
@@ -116,6 +117,9 @@ function ElementTypeInspector({
 
     case "table":
       return <TableInspector element={element} onUpdate={onUpdate} />;
+
+    case "divider":
+      return <DividerInspector element={element} onUpdate={onUpdate} />;
 
     case "topics":
       return (

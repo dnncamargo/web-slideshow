@@ -145,6 +145,10 @@ const insertionDescription =
           <option value="topics">
             {t("element.topics")}
           </option>
+
+          <option value="divider">
+            {t("element.divider")}
+          </option>
         </select>
 
 

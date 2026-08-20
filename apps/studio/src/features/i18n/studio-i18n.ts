@@ -109,6 +109,7 @@ const englishMessages = {
   "element.interactive": "Interactive",
   "element.topics": "Topics",
   "element.container": "Container",
+  "element.divider": "Divider",
 
   "elementCrud.add": "+ Add",
   "elementCrud.addInsideContainer": "Adds inside selected container.",
@@ -637,6 +638,7 @@ const portugueseMessages = {
   "element.interactive": "Interativo",
   "element.topics": "Tópicos",
   "element.container": "Contêiner",
+  "element.divider": "Divisor",
 
   "elementCrud.add": "+ Adicionar",
   "elementCrud.addInsideContainer": "Adiciona dentro do contêiner selecionado.",
@@ -1123,6 +1125,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   interactive: "element.interactive",
   topics: "element.topics",
   container: "element.container",
+  divider: "element.divider",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 
 // ============================================================
