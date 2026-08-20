@@ -1,4 +1,11 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type {
+  CSSProperties,
+  ComponentPropsWithoutRef,
+  ReactNode,
+  RefObject,
+} from "react";
+
+import { useRef, useState } from "react";
 
 export const BUTTON_VARIANTS = [
   "primary",
@@ -164,23 +171,57 @@ export interface HoverScrollTextProps {
  * Single-line text that never wraps and pans horizontally on hover to reveal
  * clipped overflow, returning to its start on pointer leave.
  *
- * The hover transform is clamped to `min(0, overflow)` so short text can
- * never visibly move and long text translates only by its actual overflow
- * distance. No timers or continuous animation are involved; the pan is a CSS
- * transition on the container-relative transform and is disabled under
- * `prefers-reduced-motion`.
+ * At rest the inner text sits at `translateX(0)`. On pointer enter the actual
+ * overflow is measured once (`inner.scrollWidth - wrapper.clientWidth`) and
+ * published as a CSS custom property, so the inner text translates left by
+ * exactly that distance. Short text measures zero overflow and never visibly
+ * moves. No timers or continuous animation are involved: the CSS transition
+ * remains responsible for the visual movement.
+ *
+ * Under `prefers-reduced-motion` the transition is suppressed by CSS, so
+ * hovering reveals the end immediately instead of animating toward it. The
+ * reveal itself is never disabled.
  */
 export function HoverScrollText({
   text,
   className,
   title,
 }: HoverScrollTextProps) {
+  const wrapperRef: RefObject<HTMLSpanElement | null> = useRef(null);
+  const innerRef: RefObject<HTMLSpanElement | null> = useRef(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
+
+  function handlePointerEnter() {
+    const wrapper = wrapperRef.current;
+    const inner = innerRef.current;
+
+    if (!wrapper || !inner) {
+      return;
+    }
+
+    const overflow = inner.scrollWidth - wrapper.clientWidth;
+    setScrollOffset(Math.max(0, overflow));
+  }
+
+  function handlePointerLeave() {
+    setScrollOffset(0);
+  }
+
+  const scrollStyle = {
+    "--ps-ui-hover-scroll-offset": `${scrollOffset}px`,
+  } as CSSProperties;
+
   return (
     <span
+      ref={wrapperRef}
       className={joinClassNames("ps-ui-hover-scroll", className)}
       title={title ?? text}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     >
-      <span className="ps-ui-hover-scroll__inner">{text}</span>
+      <span ref={innerRef} className="ps-ui-hover-scroll__inner" style={scrollStyle}>
+        {text}
+      </span>
     </span>
   );
 }

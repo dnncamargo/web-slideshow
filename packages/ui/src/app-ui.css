@@ -91,34 +91,30 @@
 }
 
 /* Single-line title that pans horizontally on hover to reveal clipped
-   overflow. The inner text translates by exactly its overflow distance
-   (clamped to zero for short text), without timers or JavaScript animation. */
+   overflow. The overflow distance is measured once on pointer enter and
+   published as --ps-ui-hover-scroll-offset; the inner text translates left by
+   exactly that distance (zero for short text), without timers or continuous
+   JavaScript animation. */
 .ps-ui-hover-scroll {
   min-width: 0;
   display: block;
   overflow: hidden;
   white-space: nowrap;
-  container-type: inline-size;
 }
 
 .ps-ui-hover-scroll__inner {
   display: inline-block;
   white-space: nowrap;
   transform-origin: left center;
-  transition: transform 220ms ease;
-}
-
-.ps-ui-hover-scroll:hover .ps-ui-hover-scroll__inner {
-  transform: translateX(min(0, calc(100cqw - 100%)));
+  transition: transform 1000ms ease-out;
+  transform: translateX(calc(var(--ps-ui-hover-scroll-offset, 0px) * -1));
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ps-ui-hover-scroll__inner {
+    /* Keep the reveal functional: only suppress the movement animation so
+       overflowing text jumps to its end on hover instead of animating. */
     transition: none;
-  }
-
-  .ps-ui-hover-scroll:hover .ps-ui-hover-scroll__inner {
-    transform: none;
   }
 }
 
