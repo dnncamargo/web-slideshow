@@ -60,7 +60,6 @@ const englishMessages = {
   "slides.layout.threeColumnsDescription": "Three sections",
   "slides.layout.titleTwoColumns": "Title + 2 Cols",
   "slides.layout.titleTwoColumnsDescription": "Title with columns",
-  "slides.cancel": "Cancel",
   "slides.create": "+ New",
   "slides.up": "↑ Up",
   "slides.down": "↓ Down",
@@ -80,7 +79,6 @@ const englishMessages = {
   "notes.placeholder": "Write private notes for this slide…",
   "notes.loading": "Loading notes…",
   "notes.loadError": "Could not load notes.",
-  "notes.saving": "Saving…",
   "notes.saveError": "Could not save note.",
 
   "inspector.title": "Inspector",
@@ -589,7 +587,6 @@ const portugueseMessages = {
   "slides.layout.threeColumnsDescription": "Três seções",
   "slides.layout.titleTwoColumns": "Título + 2 cols",
   "slides.layout.titleTwoColumnsDescription": "Título com colunas",
-  "slides.cancel": "Cancelar",
   "slides.create": "+ Novo",
   "slides.up": "↑ Subir",
   "slides.down": "↓ Descer",
@@ -609,7 +606,6 @@ const portugueseMessages = {
   "notes.placeholder": "Escreva notas privadas para este slide…",
   "notes.loading": "Carregando notas…",
   "notes.loadError": "Não foi possível carregar as notas.",
-  "notes.saving": "Salvando…",
   "notes.saveError": "Não foi possível salvar a nota.",
 
   "inspector.title": "Inspetor",

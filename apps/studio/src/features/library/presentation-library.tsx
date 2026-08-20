@@ -4,9 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
+import {
+  Button,
+  Topbar,
+  TopbarActions,
+  TopbarLocale,
+  TopbarTitle,
+} from "@powershow/ui";
+
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
+import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { useStudioAuth } from "@/features/auth/studio-auth-provider";
 
@@ -208,38 +217,43 @@ export function PresentationLibrary({
 
   return (
     <div className={styles.library}>
-      <header className={styles.header}>
-        <div className={styles.headerTitle}>
-          <h1>{t("library.title")}</h1>
+      <Topbar>
+        <ProductSurfaceBrand surface="studio" />
 
-          {user?.displayName ?? user?.email ? (
-            <span className={styles.headerUser}>
-              {user?.displayName ?? user?.email}
-            </span>
-          ) : null}
-        </div>
+        <TopbarTitle>
+          <div className={styles.headerTitle}>
+            {user?.displayName ?? user?.email ? (
+              <span className={styles.headerUser}>
+                {user?.displayName ?? user?.email}
+              </span>
+            ) : null}
+          </div>
+        </TopbarTitle>
 
-        <div className={styles.headerActions}>
-          <LocaleSelector />
-
-          <button
-            type="button"
-            className={styles.primaryButton}
+        <TopbarActions>
+          <Button
+            variant="primary"
+            size="compact"
             disabled={creating}
             onClick={() => void handleNew()}
           >
             {creating ? t("library.creating") : t("library.new")}
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="compact"
             disabled={signingOut}
             onClick={handleSignOut}
           >
             {signingOut ? t("auth.signingOut") : t("auth.signOut")}
-          </button>
-        </div>
-      </header>
+          </Button>
+        </TopbarActions>
+
+        <TopbarLocale>
+          <LocaleSelector />
+        </TopbarLocale>
+      </Topbar>
 
       {createError && <p className={styles.errorText}>{createError}</p>}
 

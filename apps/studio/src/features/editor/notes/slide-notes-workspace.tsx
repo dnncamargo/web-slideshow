@@ -9,33 +9,29 @@ import styles from "./slide-notes-workspace.module.css";
 interface SlideNotesWorkspaceProps {
   note: string;
   status: EditorNotesStatus;
-  isSaving: boolean;
-  hasSaveError: boolean;
+  hasCurrentSaveError: boolean;
   onChange: (note: string) => void;
 }
 
 export function SlideNotesWorkspace({
   note,
   status,
-  isSaving,
-  hasSaveError,
+  hasCurrentSaveError,
   onChange,
 }: SlideNotesWorkspaceProps) {
   const { t } = useStudioI18n();
 
   const ready = status === "ready";
-  const isError = status === "error" || hasSaveError;
+  const isError = status === "error" || hasCurrentSaveError;
 
   const statusLabel =
     status === "loading"
       ? t("notes.loading")
       : status === "error"
         ? t("notes.loadError")
-        : isSaving
-          ? t("notes.saving")
-          : hasSaveError
-            ? t("notes.saveError")
-            : "";
+        : hasCurrentSaveError
+          ? t("notes.saveError")
+          : "";
 
   return (
     <aside className={styles.notesWorkspace}>

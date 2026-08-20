@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 
@@ -30,7 +30,10 @@ export interface UseEditorNotesResult {
   status: EditorNotesStatus;
   isSaving: boolean;
   hasSaveError: boolean;
+  hasCurrentSaveError: boolean;
+  hasPending: boolean;
   onChange: (note: string) => void;
+  flush: () => void;
 }
 
 /**
@@ -53,6 +56,7 @@ export function useEditorNotes({
     undefined,
     createInitialEditorNotesState,
   );
+  const [hasPending, setHasPending] = useState(false);
 
   const mountedRef = useRef(true);
   const presentationIdRef = useRef(presentationId);
@@ -103,12 +107,18 @@ export function useEditorNotes({
     [],
   );
 
+  const flush = useCallback(() => {
+    autosaveRef.current?.flush();
+    setHasPending(false);
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
 
     const autosave = createNotesAutosave({
       delayMs: autosaveDelayMs,
       onSave: (save) => {
+        setHasPending(autosave.hasPending());
         persistNote(save.presentationId, save.slideId, save.note);
       },
     });
@@ -116,6 +126,7 @@ export function useEditorNotes({
 
     return () => {
       autosave.flush();
+      setHasPending(false);
       mountedRef.current = false;
       autosave.dispose();
       autosaveRef.current = null;
@@ -166,9 +177,9 @@ export function useEditorNotes({
 
   useEffect(() => {
     if (!enabled) {
-      autosaveRef.current?.flush();
+      flush();
     }
-  }, [enabled]);
+  }, [enabled, flush]);
 
   const note = useMemo(
     () => getNoteForSlide(state.notes, selectedSlideId),
@@ -186,13 +197,17 @@ export function useEditorNotes({
 
     dispatch({ type: "note-edit", slideId: selectedSlideId, note: value });
     autosaveRef.current?.schedule(presentationId, selectedSlideId, value);
+    setHasPending(autosaveRef.current?.hasPending() ?? false);
   }
 
   return {
     note,
     status: state.status,
     isSaving: state.isSaving,
-    hasSaveError: state.failedSlideIds.includes(selectedSlideId),
+    hasSaveError: state.failedSlideIds.length > 0,
+    hasCurrentSaveError: state.failedSlideIds.includes(selectedSlideId),
+    hasPending,
     onChange,
+    flush,
   };
 }

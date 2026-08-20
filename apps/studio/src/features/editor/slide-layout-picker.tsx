@@ -17,7 +17,6 @@ interface SlideLayoutPickerProps {
 
   onCreate: () => void;
 
-  onCancel: () => void;
 }
 
 // ============================================================
@@ -178,7 +177,6 @@ export function SlideLayoutPicker({
   value,
   onChange,
   onCreate,
-  onCancel,
 }: SlideLayoutPickerProps) {
   const { t } = useStudioI18n();
 
@@ -232,14 +230,6 @@ export function SlideLayoutPicker({
     ========================================================== */}
 
       <div className={styles.layoutPickerActions}>
-        <button
-          type="button"
-          className={styles.layoutCancelButton}
-          onClick={onCancel}
-        >
-          <span>{t("slides.cancel")}</span>
-        </button>
-
         <button
           type="button"
           className={styles.layoutCreateButton}

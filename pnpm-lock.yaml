@@ -47,6 +47,9 @@ importers:
       '@powershow/theme':
         specifier: workspace:*
         version: link:../../packages/theme
+      '@powershow/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       firebase:
         specifier: ^12.17.1
         version: 12.17.1
@@ -110,6 +113,31 @@ importers:
 
   packages/theme:
     devDependencies:
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@20.19.43)(jsdom@26.1.0)(lightningcss@1.33.0)
+
+  packages/ui:
+    dependencies:
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.4(@types/react@19.2.18)
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
       typescript:
         specifier: ^5.9.0
         version: 5.9.3

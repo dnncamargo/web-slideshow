@@ -30,155 +30,28 @@
    END: EDITOR FIXO NA VIEWPORT
    ========================================================== */
 
-/* ==========================================================
-   TOP BAR
-   ========================================================== */
-
-.topbar {
-  display: grid;
-
-  grid-template-columns:
-    1fr
-    auto
-    1fr;
-
-  align-items: center;
-
-  padding:
-    0
-    18px;
-
-  border-bottom:
-    1px solid #232a36;
-
-  background: #111620;
-}
-
-.topbarSection {
-  margin-left: 10px;
-
-  color: #87909f;
-}
-
-.presentationTitle {
-  color: #cbd5e1;
-
-  font-size: 14px;
-}
-
-.status {
-  color: #87909f;
-
-  font-size: 13px;
-
-  white-space: nowrap;
-}
-
-.saveButton {
-  height: 28px;
-
-  padding: 0 14px;
-
-  border: 1px solid #0e7490;
-
-  border-radius: 6px;
-
-  background: #164e63;
-
-  color: #ecfeff;
-
-  font-size: 12px;
-
-  font-weight: 600;
-
-  cursor: pointer;
-}
-
-.saveButton:hover:not(:disabled) {
-  border-color: #22d3ee;
-
-  background: #0f394e;
-}
-
-.saveButton:disabled {
-  opacity: 0.45;
-
-  cursor: not-allowed;
-}
-
-.publishButton {
-  height: 28px;
-
-  padding: 0 14px;
-
-  border: 1px solid #6d28d9;
-
-  border-radius: 6px;
-
-  background: #4c1d95;
-
-  color: #f3e8ff;
-
-  font-size: 12px;
-
-  font-weight: 600;
-
-  cursor: pointer;
-}
-
-.publishButton:hover:not(:disabled) {
-  border-color: #a78bfa;
-
-  background: #5b21b6;
-}
-
-.publishButton:disabled {
-  opacity: 0.45;
-
-  cursor: not-allowed;
-}
-
-.publishButtonSuccess,
-.publishButtonSuccess:disabled {
-  border: 1px solid #16a34a;
-
-  background: #14532d;
-
-  color: #dcfce7;
-
-  opacity: 1;
-
-  cursor: default;
-}
-
-.publishButtonSuccess:hover:not(:disabled) {
-  border-color: #16a34a;
-
-  background: #14532d;
-}
-
-.topbarDivider {
-  width: 1px;
-
-  height: 20px;
-
-  margin-left: 5px;
-
-  margin-right: 35px;
-
-  background: #232a36;
-
-  flex: none;
-}
-
-.topbarControls {
+.presentationTitleInput {
+  width: 100%;
   min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ps-ui-radius-4);
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  text-overflow: ellipsis;
+}
 
-  display: flex;
-  align-items: center;
-  justify-self: end;
+.presentationTitleInput:hover,
+.presentationTitleInput:focus-visible {
+  border-color: var(--ps-ui-border-default);
+  background: var(--ps-ui-background-control);
+}
 
-  gap: 14px;
+.presentationTitleInput:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 1px;
 }
 
 /* ==========================================================
@@ -363,8 +236,10 @@
   display: grid;
 
   grid-template-columns:
-    minmax(0, 1fr)
-    minmax(0, 1fr);
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
 
   gap: 6px;
 
@@ -3604,7 +3479,6 @@
 }
 
 
-.layoutCancelButton,
 .layoutCreateButton {
   min-width: 0;
 
@@ -3622,31 +3496,6 @@
 
   cursor:
     pointer;
-}
-
-
-.layoutCancelButton {
-  border:
-    1px solid
-    #303847;
-
-  background:
-    #151b26;
-
-  color:
-    #94a3b8;
-}
-
-
-.layoutCancelButton:hover {
-  border-color:
-    #4b5567;
-
-  background:
-    #1b2330;
-
-  color:
-    #e2e8f0;
 }
 
 

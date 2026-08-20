@@ -6,27 +6,10 @@
   color: #cbd5e1;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 20px 24px;
-  border-bottom: 1px solid #232a36;
-  background: #111620;
-}
-
-.header h1 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #f8fafc;
-}
-
 .headerTitle {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 2px;
   min-width: 0;
 }
@@ -40,59 +23,11 @@
   white-space: nowrap;
 }
 
-.headerActions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 10px;
-}
-
-.headerActions button:last-child {
-  padding: 8px 12px;
-  border: 1px solid #303847;
-  border-radius: 6px;
-  background: transparent;
-  color: #cbd5e1;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.headerActions button:last-child:hover:not(:disabled) {
-  border-color: #475569;
-  background: #141a24;
-}
-
-.headerActions button:last-child:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .content {
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
   padding: 24px;
-}
-
-.primaryButton {
-  padding: 8px 14px;
-  border: 1px solid #0e7490;
-  border-radius: 6px;
-  background: #164e63;
-  color: #ecfeff;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.primaryButton:hover:not(:disabled) {
-  border-color: #22d3ee;
-  background: #0f394e;
-}
-
-.primaryButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .stateBlock {

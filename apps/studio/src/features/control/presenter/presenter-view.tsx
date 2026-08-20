@@ -5,11 +5,21 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { renderFontResources } from "@powershow/renderer";
+import {
+  Button,
+  Separator,
+  Status,
+  Topbar,
+  TopbarActions,
+  TopbarLocale,
+  TopbarTitle,
+} from "@powershow/ui";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
+import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
@@ -197,18 +207,16 @@ export function PresenterView({
 
   return (
     <main className={styles.shell}>
-      <header className={styles.topbar}>
+      <Topbar mobileLayout="stack-title">
         {/* ========================================================
       BEGIN: BRAND
       ======================================================== */}
 
-        <div>
-          <strong>
-            <span>PowerShow</span>
-          </strong>
-
-          <span className={styles.topbarSection}>Control</span>
-        </div>
+        <ProductSurfaceBrand surface="control">
+          <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
+            {t("control.library")}
+          </Link>
+        </ProductSurfaceBrand>
 
         {/* ========================================================
       END: BRAND
@@ -218,12 +226,9 @@ export function PresenterView({
       BEGIN: PRESENTATION TITLE
       ======================================================== */}
 
-        <div
-          className={styles.presentationTitle}
-          title={presentation?.title ?? ""}
-        >
+        <TopbarTitle title={presentation?.title ?? ""}>
           <span>{presentation?.title ?? ""}</span>
-        </div>
+        </TopbarTitle>
 
         {/* ========================================================
       END: PRESENTATION TITLE
@@ -233,36 +238,34 @@ export function PresenterView({
       BEGIN: TOPBAR CONTROLS
       ======================================================== */}
 
-        <div className={styles.topbarControls}>
-          <LocaleSelector />
+        <TopbarActions>
+          <Status>{clock}</Status>
 
-          <div className={styles.topbarDivider} aria-hidden="true" />
-
-          <span className={styles.status}>{clock}</span>
+          <Separator />
 
           {sendFailed && (
-            <span className={styles.error}>{t("control.sendFailed")}</span>
+            <Status tone="danger">{t("control.sendFailed")}</Status>
           )}
 
-          <span className={styles.topbarStatus}>
+          <Status>
             {view
               ? describeStatus(t, view.status)
               : t("control.awaitingPlayer")}
-          </span>
+          </Status>
 
-          <button type="button" className={styles.endButton} onClick={end}>
+          <Button variant="danger" size="compact" onClick={end}>
             {t("control.end")}
-          </button>
-        </div>
+          </Button>
+        </TopbarActions>
 
         {/* ========================================================
       END: TOPBAR CONTROLS
       ======================================================== */}
 
-        <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
-          {t("control.library")}
-        </Link>
-      </header>
+        <TopbarLocale>
+          <LocaleSelector />
+        </TopbarLocale>
+      </Topbar>
 
       <div className={styles.body}>
         <aside className={presenterStyles.summaryColumn}>
@@ -295,10 +298,6 @@ export function PresenterView({
 
         <div className={presenterStyles.centerControls}>
           <div className={presenterStyles.controlPrimary}>
-            <div className={presenterStyles.mobileLocale}>
-              <LocaleSelector />
-            </div>
-
             <button
               type="button"
               className={presenterStyles.arrowButton}
