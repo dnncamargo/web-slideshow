@@ -31,7 +31,8 @@ export type ElementCreateType =
   | "code"
   | "terminal"
   | "table"
-  | "topics";
+  | "topics"
+  | "divider";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -638,6 +639,18 @@ export function createElement(
 
         items: [created.item],
       } satisfies TopicsElement;
+    }
+
+    case "divider": {
+      return {
+        id: createUniqueId("divider-element", usedIds),
+
+        type: "divider",
+
+        hidden: false,
+
+        orientation: "horizontal",
+      };
     }
   }
 }
