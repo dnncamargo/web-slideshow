@@ -1,6 +1,10 @@
 "use client";
 
-import type { PowerShowElement, Slide } from "@powershow/document-schema";
+import type {
+  PowerShowElement,
+  Slide,
+  TopicItem,
+} from "@powershow/document-schema";
 import { useState } from "react";
 import type { DragEvent } from "react";
 
@@ -14,8 +18,8 @@ import {
 } from "./element-operations";
 import { findElementById } from "./element-tree";
 import {
-  collectContainerIds,
   getElementLabel,
+  getElementTreeChildren,
   getParentTargets,
   getTreeActionState,
   resolveTreeDrop,
@@ -25,10 +29,16 @@ import {
 interface ElementTreePanelProps {
   slide: Slide;
   selectedElementId: string | null;
-  onSelectElement: (element: PowerShowElement) => void;
+  selectedContentSlotId: string | null;
+  onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
 }
 
+interface ElementTreeSelection {
+  id: string;
+  type: string;
+  contentSlotId?: string | null;
+}
 
 interface ElementTreeNodeProps {
   element: PowerShowElement;
@@ -37,12 +47,96 @@ interface ElementTreeNodeProps {
   expandedIds: ReadonlySet<string>;
   selectedElementId: string | null;
   onToggle: (id: string) => void;
-  onSelectElement: (element: PowerShowElement) => void;
+  onSelectElement: (selection: ElementTreeSelection) => void;
   dropTarget: { id: string; intent: TreeDropIntent } | null;
   onDragStart: (element: PowerShowElement, event: DragEvent<HTMLDivElement>) => void;
   onDragOver: (element: PowerShowElement, event: DragEvent<HTMLDivElement>) => void;
   onDrop: (element: PowerShowElement) => void;
   onDragEnd: () => void;
+  selectedContentSlotId: string | null;
+}
+
+interface TopicItemTreeNodeProps {
+  item: TopicItem;
+  owningTopicsId: string;
+  index: number;
+  siblingCount: number;
+  expandedIds: ReadonlySet<string>;
+  selectedElementId: string | null;
+  selectedContentSlotId: string | null;
+  dropTarget: { id: string; intent: TreeDropIntent } | null;
+  onToggle: (id: string) => void;
+  onSelectElement: (selection: ElementTreeSelection) => void;
+  onDragStart: (
+    element: PowerShowElement,
+    event: DragEvent<HTMLDivElement>,
+  ) => void;
+  onDragOver: (
+    element: PowerShowElement,
+    event: DragEvent<HTMLDivElement>,
+  ) => void;
+  onDrop: (element: PowerShowElement) => void;
+  onDragEnd: () => void;
+}
+
+function getTextPreview(content: string): string | null {
+  const normalized = content
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.length > 36 ? `${normalized.slice(0, 35)}…` : normalized;
+}
+
+function getTopicItemLabel(item: TopicItem, topicLabel: string): string {
+  for (const child of item.content.children) {
+    if (child.type !== "text") {
+      continue;
+    }
+
+    const preview = getTextPreview(child.content);
+
+    if (preview) {
+      return preview;
+    }
+  }
+
+  return topicLabel;
+}
+
+function collectInitiallyExpandedTopicItemIds(
+  items: readonly TopicItem[],
+  ids: Set<string>,
+): void {
+  for (const item of items) {
+    ids.add(item.id);
+    collectInitiallyExpandedIds(item.content.children, ids);
+    collectInitiallyExpandedTopicItemIds(item.children, ids);
+  }
+}
+
+function collectInitiallyExpandedIds(
+  elements: readonly PowerShowElement[],
+  ids: Set<string>,
+): void {
+  for (const element of elements) {
+    if (element.type === "container" || element.type === "topics") {
+      ids.add(element.id);
+    }
+
+    if (element.type === "container") {
+      collectInitiallyExpandedIds(element.children, ids);
+      continue;
+    }
+
+    if (element.type === "topics") {
+      collectInitiallyExpandedTopicItemIds(element.items, ids);
+    }
+  }
 }
 
 function ElementTreeNode({
@@ -58,13 +152,19 @@ function ElementTreeNode({
   onDragOver,
   onDrop,
   onDragEnd,
+  selectedContentSlotId,
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
-  const isContainer = element.type === "container";
-  const expanded = isContainer && expandedIds.has(element.id);
-  const selected = selectedElementId === element.id;
+  const isExpandable =
+    element.type === "container" || element.type === "topics";
+  const expanded = isExpandable && expandedIds.has(element.id);
+  const treeChildren = getElementTreeChildren(element);
+  const selected =
+    element.type === "topics"
+      ? selectedElementId === element.id && selectedContentSlotId === null
+      : selectedElementId === element.id;
   const indicator =
-    isContainer
+    isExpandable && element.type === "container"
       ? `[${t(element.layoutMode === "stack" ? "inspector.stack" : "inspector.flow")}]`
       : element.style?.placement?.mode === "absolute"
         ? `[${t("inspector.absolute")}]`
@@ -76,7 +176,7 @@ function ElementTreeNode({
       className={styles.elementTreeNode}
       role="treeitem"
       aria-selected={selected}
-      aria-expanded={isContainer ? expanded : undefined}
+      aria-expanded={isExpandable ? expanded : undefined}
     >
       {dropIntent === "before" && (
         <div className={styles.elementTreeDropIndicatorBefore} aria-hidden="true" />
@@ -96,7 +196,7 @@ function ElementTreeNode({
         }}
         onDragEnd={onDragEnd}
       >
-        {isContainer ? (
+        {isExpandable ? (
           <button
             className={styles.elementTreeExpand}
             type="button"
@@ -112,32 +212,179 @@ function ElementTreeNode({
         <button
           className={styles.elementTreeSelect}
           type="button"
-          onClick={() => onSelectElement(element)}
+          onClick={() =>
+            onSelectElement({
+              id: element.id,
+              type: element.type,
+            })
+          }
         >
           {getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))}
           {indicator && <small>{indicator}</small>}
         </button>
       </div>
-      {dropIntent === "inside" && isContainer && (
+      {dropIntent === "inside" && element.type === "container" && (
         <div className={styles.elementTreeDropIndicatorInside} aria-hidden="true" />
       )}
       {dropIntent === "after" && (
         <div className={styles.elementTreeDropIndicatorAfter} aria-hidden="true" />
       )}
 
-      {isContainer && expanded && (
+      {isExpandable && expanded && (
         <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
-          {element.children.map((child, childIndex) => (
-            <ElementTreeNode
+          {element.type === "container" &&
+            treeChildren.map((child, childIndex) => (
+              <ElementTreeNode
+                key={child.id}
+                element={child}
+                index={childIndex}
+                siblingCount={treeChildren.length}
+                expandedIds={expandedIds}
+                selectedElementId={selectedElementId}
+                selectedContentSlotId={selectedContentSlotId}
+                onToggle={onToggle}
+                onSelectElement={onSelectElement}
+                dropTarget={dropTarget}
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                onDragEnd={onDragEnd}
+              />
+            ))}
+          {element.type === "topics" &&
+            element.items.map((item, itemIndex) => (
+              <TopicItemTreeNode
+                key={item.id}
+                item={item}
+                owningTopicsId={element.id}
+                index={itemIndex}
+                siblingCount={element.items.length}
+                expandedIds={expandedIds}
+                selectedElementId={selectedElementId}
+                selectedContentSlotId={selectedContentSlotId}
+                dropTarget={dropTarget}
+                onToggle={onToggle}
+                onSelectElement={onSelectElement}
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                onDragEnd={onDragEnd}
+              />
+            ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function TopicItemTreeNode({
+  item,
+  owningTopicsId,
+  index,
+  siblingCount,
+  expandedIds,
+  selectedElementId,
+  selectedContentSlotId,
+  dropTarget,
+  onToggle,
+  onSelectElement,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: TopicItemTreeNodeProps) {
+  const { t } = useStudioI18n();
+  const expanded = expandedIds.has(item.id);
+  const selected =
+    selectedElementId === owningTopicsId &&
+    selectedContentSlotId === item.content.id;
+  const treeChildren = item.content.children;
+  const structuralChildren = item.children;
+
+  return (
+    <li
+      className={styles.elementTreeNode}
+      role="treeitem"
+      aria-selected={selected}
+      aria-expanded={expanded}
+    >
+      <div
+        className={
+          selected
+            ? `${styles.elementTreeRow} ${styles.elementTreeSelected}`
+            : styles.elementTreeRow
+        }
+      >
+        <button
+          className={styles.elementTreeExpand}
+          type="button"
+          aria-label={t(expanded ? "tree.collapse" : "tree.expand")}
+          onClick={() => onToggle(item.id)}
+        >
+          {expanded ? "▾" : "▸"}
+        </button>
+
+        <button
+          className={styles.elementTreeSelect}
+          type="button"
+          onClick={() =>
+            onSelectElement({
+              id: owningTopicsId,
+              type: "topics",
+              contentSlotId: item.content.id,
+            })
+          }
+        >
+          {getTopicItemLabel(item, t("tree.topic"))}
+        </button>
+      </div>
+      {expanded && (
+        <ul role="group" className={styles.elementTreeList}>
+          <li
+            className={styles.elementTreeTopicContentGroup}
+            role="none"
+            data-powershow-tree-content-group
+          >
+            <div className={styles.elementTreeTopicContentLabel}>
+              {t("tree.content")}
+            </div>
+            <ul
+              role="group"
+              className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}
+            >
+              {treeChildren.map((child, childIndex) => (
+                <ElementTreeNode
+                  key={child.id}
+                  element={child}
+                  index={childIndex}
+                  siblingCount={treeChildren.length}
+                  expandedIds={expandedIds}
+                  selectedElementId={selectedElementId}
+                  selectedContentSlotId={selectedContentSlotId}
+                  onToggle={onToggle}
+                  onSelectElement={onSelectElement}
+                  dropTarget={dropTarget}
+                  onDragStart={onDragStart}
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  onDragEnd={onDragEnd}
+                />
+              ))}
+            </ul>
+          </li>
+          {structuralChildren.map((child, childIndex) => (
+            <TopicItemTreeNode
               key={child.id}
-              element={child}
+              item={child}
+              owningTopicsId={owningTopicsId}
               index={childIndex}
-              siblingCount={element.children.length}
+              siblingCount={structuralChildren.length}
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
+              selectedContentSlotId={selectedContentSlotId}
+              dropTarget={dropTarget}
               onToggle={onToggle}
               onSelectElement={onSelectElement}
-              dropTarget={dropTarget}
               onDragStart={onDragStart}
               onDragOver={onDragOver}
               onDrop={onDrop}
@@ -153,13 +400,14 @@ function ElementTreeNode({
 export function ElementTreePanel({
   slide,
   selectedElementId,
+  selectedContentSlotId,
   onSelectElement,
   onMoveElement,
 }: ElementTreePanelProps) {
   const { t } = useStudioI18n();
   const [expandedIds, setExpandedIds] = useState(() => {
     const ids = new Set<string>();
-    collectContainerIds(slide.elements, ids);
+    collectInitiallyExpandedIds(slide.elements, ids);
     return ids;
   });
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
@@ -205,78 +453,82 @@ export function ElementTreePanel({
       <div className={styles.elementTreeScroll}>
         <div className={styles.elementTreeRoot}>{t("tree.slide")}</div>
         <ul role="tree" className={styles.elementTreeList}>
-        {slide.elements.map((element, index) => (
-          <ElementTreeNode
-            key={element.id}
-            element={element}
-            index={index}
-            siblingCount={slide.elements.length}
-            expandedIds={expandedIds}
-            selectedElementId={selectedElementId}
-            onToggle={(id) => {
-              setExpandedIds((current) => {
-                const next = new Set(current);
-                next.has(id) ? next.delete(id) : next.add(id);
-                return next;
-              });
-            }}
-            onSelectElement={onSelectElement}
-            dropTarget={dropTarget}
-            onDragStart={(element, event) => {
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", element.id);
-              setDraggedElementId(element.id);
-              onSelectElement(element);
-            }}
-            onDragOver={(target, event) => {
-              if (!draggedElementId) {
-                return;
-              }
-
-              const intent = getDropIntent(target, event);
-              const resolved = resolveTreeDrop(
-                slide.elements,
-                draggedElementId,
-                target.id,
-                intent,
-              );
-
-              if (resolved) {
-                event.preventDefault();
-                setDropTarget({ id: target.id, intent });
-              } else {
-                setDropTarget(null);
-              }
-            }}
-            onDrop={(target) => {
-              if (!draggedElementId || !dropTarget || dropTarget.id !== target.id) {
-                return;
-              }
-
-              const resolved = resolveTreeDrop(
-                slide.elements,
-                draggedElementId,
-                target.id,
-                dropTarget.intent,
-              );
-
-              if (resolved) {
-                onMoveElement(resolved);
-
-                if (dropTarget.intent === "inside" && target.type === "container") {
-                  setExpandedIds((current) => new Set(current).add(target.id));
+          {slide.elements.map((element, index) => (
+            <ElementTreeNode
+              key={element.id}
+              element={element}
+              index={index}
+              siblingCount={slide.elements.length}
+              expandedIds={expandedIds}
+              selectedElementId={selectedElementId}
+              selectedContentSlotId={selectedContentSlotId}
+              dropTarget={dropTarget}
+              onToggle={(id) => {
+                setExpandedIds((current) => {
+                  const next = new Set(current);
+                  next.has(id) ? next.delete(id) : next.add(id);
+                  return next;
+                });
+              }}
+              onSelectElement={onSelectElement}
+              onDragStart={(element, event) => {
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", element.id);
+                setDraggedElementId(element.id);
+                onSelectElement({
+                  id: element.id,
+                  type: element.type,
+                });
+              }}
+              onDragOver={(target, event) => {
+                if (!draggedElementId) {
+                  return;
                 }
-              }
 
-              setDraggedElementId(null);
-              setDropTarget(null);
-            }}
-            onDragEnd={() => {
-              setDraggedElementId(null);
-              setDropTarget(null);
-            }}
-          />
-        ))}
+                const intent = getDropIntent(target, event);
+                const resolved = resolveTreeDrop(
+                  slide.elements,
+                  draggedElementId,
+                  target.id,
+                  intent,
+                );
+
+                if (resolved) {
+                  event.preventDefault();
+                  setDropTarget({ id: target.id, intent });
+                } else {
+                  setDropTarget(null);
+                }
+              }}
+              onDrop={(target) => {
+                if (!draggedElementId || !dropTarget || dropTarget.id !== target.id) {
+                  return;
+                }
+
+                const resolved = resolveTreeDrop(
+                  slide.elements,
+                  draggedElementId,
+                  target.id,
+                  dropTarget.intent,
+                );
+
+                if (resolved) {
+                  onMoveElement(resolved);
+
+                  if (dropTarget.intent === "inside" && target.type === "container") {
+                    setExpandedIds((current) => new Set(current).add(target.id));
+                  }
+                }
+
+                setDraggedElementId(null);
+                setDropTarget(null);
+              }}
+              onDragEnd={() => {
+                setDraggedElementId(null);
+                setDropTarget(null);
+              }}
+            />
+          ))}
         </ul>
       </div>
       <div className={styles.elementTreeFooter}>
@@ -285,15 +537,15 @@ export function ElementTreePanel({
           aria-label={t("tree.moveUp")}
           title={t("tree.moveUp")}
           disabled={!selectedElementId || !selectedPosition || !selectedActionState?.canMoveUp}
-              onClick={() => {
-                if (selectedElementId && selectedPosition) {
-                  onMoveElement({
-                    elementId: selectedElementId,
-                    targetParentRef: selectedPosition.parentRef,
-                    targetIndex: selectedPosition.index - 1,
-                  });
-                }
-              }}
+          onClick={() => {
+            if (selectedElementId && selectedPosition) {
+              onMoveElement({
+                elementId: selectedElementId,
+                targetParentRef: selectedPosition.parentRef,
+                targetIndex: selectedPosition.index - 1,
+              });
+            }
+          }}
         >
           ▲
         </button>
@@ -302,15 +554,15 @@ export function ElementTreePanel({
           aria-label={t("tree.moveDown")}
           title={t("tree.moveDown")}
           disabled={!selectedElementId || !selectedPosition || !selectedActionState?.canMoveDown}
-              onClick={() => {
-                if (selectedElementId && selectedPosition) {
-                  onMoveElement({
-                    elementId: selectedElementId,
-                    targetParentRef: selectedPosition.parentRef,
-                    targetIndex: selectedPosition.index + 1,
-                  });
-                }
-              }}
+          onClick={() => {
+            if (selectedElementId && selectedPosition) {
+              onMoveElement({
+                elementId: selectedElementId,
+                targetParentRef: selectedPosition.parentRef,
+                targetIndex: selectedPosition.index + 1,
+              });
+            }
+          }}
         >
           ▼
         </button>

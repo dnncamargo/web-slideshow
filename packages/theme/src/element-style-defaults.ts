@@ -27,8 +27,7 @@ export interface ParsedAuthoringLength {
   unit: AuthoringLengthUnit;
 }
 
-const AUTHORING_LENGTH_PATTERN =
-  /^(-?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em|%)$/;
+const AUTHORING_LENGTH_PATTERN = /^(-?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em|%)$/;
 
 export interface EffectiveElementStyleDefaults {
   typography?: ThemeTypographyDefaults;
@@ -74,6 +73,8 @@ export const TEXTBOX_TYPOGRAPHY_DEFAULTS: Readonly<ThemeTypographyDefaults> = {
   lineHeight: 1.65,
   letterSpacing: 0,
 };
+
+export const TOPICS_ITEM_GAP_DEFAULT_PX = 6;
 
 export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   Record<ThemeElementType, number>
@@ -209,8 +210,7 @@ export function resolveEffectiveElementStyleDefaults(
 
   if (element.type === "text") {
     return {
-      typography:
-        TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[element.variant ?? "body"],
+      typography: TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[element.variant ?? "body"],
       borderRadius,
     };
   }

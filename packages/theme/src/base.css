@@ -120,19 +120,15 @@
 
   overflow: auto;
 
-  border:
-    1px solid var(--powershow-border);
+  border: 1px solid var(--powershow-border);
 
-  border-radius:
-    var(--powershow-radius-md);
+  border-radius: var(--powershow-radius-md);
 
-  background:
-    var(--powershow-surface-strong);
+  background: var(--powershow-surface-strong);
 
   color: #e2e8f0;
 
-  font-family:
-    var(--powershow-font-mono);
+  font-family: var(--powershow-font-mono);
 
   font-size: 0.95rem;
 
@@ -348,15 +344,110 @@
 
   padding-inline-start: 1.5em;
 
+  list-style-type: var(--powershow-topic-marker-style);
+
   color: var(--powershow-text-secondary);
 
   font-family: var(--powershow-font-sans);
+}
 
-  line-height: 1.55;
+/*
+ * Apenas um TopicsElement autônomo inicia um novo contexto
+ * visual de tópicos.
+ *
+ * As listas recursivas de TopicItem.children também usam
+ * .powershow-topics, mas devem herdar estas propriedades.
+ */
+.powershow-element.powershow-topics {
+  --powershow-topic-item-gap: 6px;
+
+  --powershow-topic-marker-color: currentColor;
+
+  --powershow-topic-color: var(--powershow-text-primary);
+
+  --powershow-topic-font-family: var(--powershow-font-sans);
+
+  --powershow-topic-font-size: 1.125rem;
+
+  --powershow-topic-font-weight: 400;
+
+  --powershow-topic-font-style: normal;
+
+  --powershow-topic-text-align: start;
+
+  --powershow-topic-line-height: 1.6;
+
+  --powershow-topic-letter-spacing: 0;
+
+  --powershow-topic-text-transform: none;
+
+  --powershow-topic-white-space: normal;
+
+  --powershow-topic-text-wrap-style: auto;
+
+  --powershow-topic-overflow-wrap: normal;
+
+  --powershow-topic-text-decoration-line: none;
+
+  --powershow-topic-text-decoration-color: currentColor;
+}
+
+ul.powershow-element.powershow-topics {
+  --powershow-topic-marker-style: disc;
+}
+
+ol.powershow-element.powershow-topics {
+  --powershow-topic-marker-style: decimal;
 }
 
 .powershow-topics .powershow-topic-item {
-  margin: 0.35em 0;
+  margin: 0;
+}
+
+.powershow-topics .powershow-topic-item::marker {
+  color: var(--powershow-topic-marker-color);
+
+  font-family: var(--powershow-topic-font-family);
+
+  font-size: var(--powershow-topic-font-size);
+
+  font-weight: var(--powershow-topic-font-weight);
+
+  font-style: var(--powershow-topic-font-style);
+}
+
+.powershow-topics > .powershow-topic-item > .powershow-text {
+  color: var(--powershow-topic-color);
+
+  font-family: var(--powershow-topic-font-family);
+
+  font-size: var(--powershow-topic-font-size);
+
+  font-weight: var(--powershow-topic-font-weight);
+
+  font-style: var(--powershow-topic-font-style);
+
+  text-align: var(--powershow-topic-text-align);
+
+  line-height: var(--powershow-topic-line-height);
+
+  letter-spacing: var(--powershow-topic-letter-spacing);
+
+  text-transform: var(--powershow-topic-text-transform);
+
+  white-space: var(--powershow-topic-white-space);
+
+  text-wrap-style: var(--powershow-topic-text-wrap-style);
+
+  overflow-wrap: var(--powershow-topic-overflow-wrap);
+
+  text-decoration-line: var(--powershow-topic-text-decoration-line);
+
+  text-decoration-color: var(--powershow-topic-text-decoration-color);
+}
+
+.powershow-topics .powershow-topic-item + .powershow-topic-item {
+  margin-top: var(--powershow-topic-item-gap);
 }
 
 .powershow-topics .powershow-topics {

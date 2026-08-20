@@ -71,6 +71,22 @@ export function getElementLabel(
   return typeLabel;
 }
 
+/**
+ * Children exposed by a Selector tree node.
+ *
+ * Only generic PowerShowElement containers expose direct children here.
+ * Topics are rendered through their own structural tree nodes in the panel.
+ */
+export function getElementTreeChildren(
+  element: PowerShowElement,
+): PowerShowElement[] {
+  if (element.type === "container") {
+    return element.children;
+  }
+
+  return [];
+}
+
 export function collectContainerIds(
   elements: readonly PowerShowElement[],
   ids: Set<string>,

@@ -12,6 +12,7 @@ import {
   getElementsForParentRef,
   type ElementParentRef,
   findElementById,
+  isTopicItemContentSlotId,
   updateElementById,
 } from "./element-hierarchy";
 
@@ -93,6 +94,16 @@ function createUniqueId(baseId: string, usedIds: Set<string>): string {
 // único Text por padrão.
 // ============================================================
 
+/**
+ * AUTHORING limit for structural TopicItem.children nesting.
+ *
+ * top-level TopicItem = depth 1, child = depth 2, ..., maximum = depth 5.
+ * Creating a child from a TopicItem already at depth 5 is refused. This is
+ * a Studio authoring rule only: canonical documents deeper than 5 still
+ * load, render, and persist unchanged.
+ */
+export const MAX_TOPIC_STRUCTURAL_DEPTH = 5;
+
 export interface CreatedTopicItem {
   item: TopicItem;
 
@@ -167,8 +178,294 @@ export function appendTopicItemToTopics(
   });
 }
 
+export function appendTopicItemToTopicItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  item: TopicItem,
+  depth: number = 1,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems = items.map((currentItem) => {
+    if (currentItem.id === topicItemId) {
+      if (depth >= MAX_TOPIC_STRUCTURAL_DEPTH) {
+        return currentItem;
+      }
+
+      changed = true;
+
+      return {
+        ...currentItem,
+        children: [...currentItem.children, item],
+      };
+    }
+
+    const children = appendTopicItemToTopicItems(
+      currentItem.children,
+      topicItemId,
+      item,
+      depth + 1,
+    );
+
+    if (children === currentItem.children) {
+      return currentItem;
+    }
+
+    changed = true;
+
+    return {
+      ...currentItem,
+      children,
+    };
+  });
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
+
+/**
+ * Structural depth of a TopicItem inside a TopicsElement items tree.
+ * Top-level items are depth 1. Returns null when the item is not found.
+ */
+export function findTopicItemStructuralDepthInItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  depth: number = 1,
+): number | null {
+  for (const item of items) {
+    if (item.id === topicItemId) {
+      return depth;
+    }
+
+    const nested = findTopicItemStructuralDepthInItems(
+      item.children,
+      topicItemId,
+      depth + 1,
+    );
+
+    if (nested !== null) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+export function appendChildTopicItemToTopics(
+  elements: readonly PowerShowElement[],
+  topicsId: string,
+  topicItemId: string,
+  item: TopicItem,
+): PowerShowElement[] {
+  const target = findElementById(elements, topicsId);
+
+  if (target?.type !== "topics") {
+    return elements as PowerShowElement[];
+  }
+
+  const itemDepth = findTopicItemStructuralDepthInItems(
+    target.items,
+    topicItemId,
+  );
+
+  if (itemDepth === null || itemDepth >= MAX_TOPIC_STRUCTURAL_DEPTH) {
+    return elements as PowerShowElement[];
+  }
+
+  const items = appendTopicItemToTopicItems(target.items, topicItemId, item);
+
+  if (items === target.items) {
+    return elements as PowerShowElement[];
+  }
+
+  return updateElementById(elements, topicsId, (element) => {
+    if (element.type !== "topics") {
+      return element;
+    }
+
+    return {
+      ...element,
+      items,
+    };
+  });
+}
+
+export function updateTopicItemTextContent(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  content: string,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems = items.map((currentItem) => {
+    if (currentItem.id === topicItemId) {
+      const textIndex = currentItem.content.children.findIndex(
+        (child) => child.type === "text",
+      );
+
+      if (textIndex < 0) {
+        return currentItem;
+      }
+
+      const textChild = currentItem.content.children[textIndex];
+
+      if (textChild?.type !== "text" || textChild.content === content) {
+        return currentItem;
+      }
+
+      const children = [...currentItem.content.children];
+
+      children[textIndex] = {
+        ...textChild,
+        content,
+      };
+
+      changed = true;
+
+      return {
+        ...currentItem,
+        content: {
+          ...currentItem.content,
+          children,
+        },
+      };
+    }
+
+    const children = updateTopicItemTextContent(
+      currentItem.children,
+      topicItemId,
+      content,
+    );
+
+    if (children === currentItem.children) {
+      return currentItem;
+    }
+
+    changed = true;
+
+    return {
+      ...currentItem,
+      children,
+    };
+  });
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
+
+export function removeTopicItemFromTopicItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+): TopicItem[] {
+  let changed = false;
+
+  const nextItems: TopicItem[] = [];
+
+  for (const currentItem of items) {
+    if (currentItem.id === topicItemId) {
+      changed = true;
+      continue;
+    }
+
+    const children = removeTopicItemFromTopicItems(
+      currentItem.children,
+      topicItemId,
+    );
+
+    if (children === currentItem.children) {
+      nextItems.push(currentItem);
+      continue;
+    }
+
+    changed = true;
+
+    nextItems.push({
+      ...currentItem,
+      children,
+    });
+  }
+
+  return changed ? nextItems : (items as TopicItem[]);
+}
+
 // ============================================================
 // END: TÓPICOS (TopicItem)
+// ============================================================
+
+// ============================================================
+// BEGIN: ADD ELEMENT DESTINATION
+// ============================================================
+
+export type AddElementDestination =
+  | { kind: "slide-root" }
+  | { kind: "append-container"; containerId: string }
+  | { kind: "append-topic-content"; contentSlotId: string }
+  | { kind: "insert-after"; targetId: string };
+
+function topicItemsContainContentSlot(
+  items: readonly TopicItem[],
+  contentSlotId: string,
+): boolean {
+  for (const item of items) {
+    if (item.content.id === contentSlotId) {
+      return true;
+    }
+
+    if (topicItemsContainContentSlot(item.children, contentSlotId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Resolves where a freshly created element lands given the current selection
+ * and an optional explicit ContentSlot context (the TopicItem the user
+ * clicked on the canvas).
+ *
+ * - no selection (or stale selection) -> slide root
+ * - container selected -> inside the container
+ * - TopicsElement selected + explicit clicked ContentSlot of THAT
+ *   TopicsElement + ordinary element -> inside exactly that ContentSlot
+ * - any other element -> sibling immediately after it
+ *
+ * The TopicsElement is never guessed as an implicit destination: without an
+ * explicit ContentSlot context, adding while a TopicsElement is selected
+ * keeps the normal sibling behavior.
+ */
+export function resolveAddElementDestination(
+  elements: readonly PowerShowElement[],
+  selectedElementId: string | null,
+  newElement: PowerShowElement,
+  contentSlotId: string | null = null,
+): AddElementDestination {
+  if (selectedElementId === null) {
+    return { kind: "slide-root" };
+  }
+
+  const selected = findElementById(elements, selectedElementId);
+
+  if (!selected) {
+    return { kind: "slide-root" };
+  }
+
+  if (selected.type === "container") {
+    return { kind: "append-container", containerId: selected.id };
+  }
+
+  if (
+    selected.type === "topics" &&
+    newElement.type !== "topics" &&
+    contentSlotId !== null &&
+    topicItemsContainContentSlot(selected.items, contentSlotId)
+  ) {
+    return { kind: "append-topic-content", contentSlotId };
+  }
+
+  return { kind: "insert-after", targetId: selected.id };
+}
+
+// ============================================================
+// END: ADD ELEMENT DESTINATION
 // ============================================================
 
 // ============================================================
@@ -486,6 +783,15 @@ export function insertElementAfterId(
   targetId: string,
   newElement: PowerShowElement,
 ): PowerShowElement[] {
+  const targetLocation = findElementLocation(elements, targetId);
+
+  if (
+    targetLocation?.parentRef.kind === "content-slot" &&
+    isForbiddenTopicPlacement(elements, targetLocation.parentRef.id, newElement)
+  ) {
+    return elements;
+  }
+
   let changed = false;
   const result: PowerShowElement[] = [];
 
@@ -536,6 +842,24 @@ export function insertElementAfterId(
 // ============================================================
 // BEGIN: APPEND EM CONTAINER / CONTENT SLOT
 // ============================================================
+
+/**
+ * Studio authoring rule: a TopicsElement must not inhabit a TopicItem
+ * ContentSlot. Subtopics have the canonical representation TopicItem.children.
+ *
+ * The rule targets only TopicItem content slots; TopicsElement stays valid
+ * in Slide/Container contexts and in any future non-Topic content slot.
+ */
+function isForbiddenTopicPlacement(
+  elements: readonly PowerShowElement[],
+  contentSlotId: string,
+  newElement: PowerShowElement,
+): boolean {
+  return (
+    newElement.type === "topics" &&
+    isTopicItemContentSlotId(elements, contentSlotId)
+  );
+}
 
 function appendElementToContainerInTopicItems(
   items: readonly TopicItem[],
@@ -688,6 +1012,10 @@ export function appendElementToContentSlot(
   contentSlotId: string,
   newElement: PowerShowElement,
 ): PowerShowElement[] {
+  if (isForbiddenTopicPlacement(elements, contentSlotId, newElement)) {
+    return elements;
+  }
+
   let changed = false;
 
   const nextElements: PowerShowElement[] = elements.map((element) => {
@@ -1101,6 +1429,17 @@ export function moveElement(
     forbiddenIds.has(options.targetParentRef.id)
   ) {
     return { elements, moved: false, error: "cycle" };
+  }
+
+  if (
+    options.targetParentRef.kind === "content-slot" &&
+    isForbiddenTopicPlacement(
+      elements,
+      options.targetParentRef.id,
+      source.element,
+    )
+  ) {
+    return { elements, moved: false, error: "invalid-target-parent" };
   }
 
   const withoutSource = removeElementFromHierarchy(elements, options.elementId);

@@ -425,6 +425,56 @@ function findContentSlotInTopicItems(
   return null;
 }
 
+/**
+ * Determines whether a ContentSlot id belongs to a TopicItem, traversing the
+ * whole hierarchy (containers, TopicItem children, and autonomous Topics
+ * nested inside slots). Used by Studio authoring rules that forbid placing a
+ * TopicsElement directly inside a TopicItem ContentSlot.
+ */
+export function isTopicItemContentSlotId(
+  elements: readonly PowerShowElement[],
+  slotId: string,
+): boolean {
+  for (const element of elements) {
+    if (isContainer(element)) {
+      if (isTopicItemContentSlotId(element.children, slotId)) {
+        return true;
+      }
+
+      continue;
+    }
+
+    if (isTopics(element)) {
+      if (topicItemsContainSlotId(element.items, slotId)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function topicItemsContainSlotId(
+  items: readonly TopicItem[],
+  slotId: string,
+): boolean {
+  for (const item of items) {
+    if (item.content.id === slotId) {
+      return true;
+    }
+
+    if (isTopicItemContentSlotId(item.content.children, slotId)) {
+      return true;
+    }
+
+    if (topicItemsContainSlotId(item.children, slotId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function findTopicItemInTopicItems(
   items: readonly TopicItem[],
   id: string,

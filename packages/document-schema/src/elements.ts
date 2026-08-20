@@ -7,6 +7,7 @@ import {
   HorizontalAlignmentSchema,
   LayoutModeSchema,
   LengthSchema,
+  ColorSchema,
   VerticalAlignmentSchema,
 } from "./primitives";
 
@@ -232,6 +233,20 @@ export type TopicItem = {
   children: TopicItem[];
 };
 
+export const TopicMarkerStyleSchema = z.enum([
+  "disc",
+  "circle",
+  "square",
+  "none",
+  "decimal",
+  "lower-alpha",
+  "upper-alpha",
+  "lower-roman",
+  "upper-roman",
+]);
+
+export type TopicMarkerStyle = z.infer<typeof TopicMarkerStyleSchema>;
+
 export const TopicItemSchema:
   z.ZodType<TopicItem> =
   z.lazy(() =>
@@ -255,6 +270,18 @@ export type TopicsElement = {
 
   items: TopicItem[];
 
+  rootMarkerStyle?:
+    | TopicMarkerStyle
+    | undefined;
+
+  markerColor?:
+    | z.infer<typeof ColorSchema>
+    | undefined;
+
+  itemGap?:
+    | number
+    | undefined;
+
   style?:
     | z.infer<typeof ElementStyleSchema>
     | undefined;
@@ -273,6 +300,12 @@ export const TopicsElementSchema:
     ]),
 
     items: z.array(TopicItemSchema),
+
+    rootMarkerStyle: TopicMarkerStyleSchema.optional(),
+
+    markerColor: ColorSchema.optional(),
+
+    itemGap: z.number().min(0).optional(),
   });
 
 export type ContainerElement = {

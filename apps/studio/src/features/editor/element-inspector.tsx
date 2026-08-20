@@ -122,6 +122,7 @@ function ElementTypeInspector({
         <TopicsInspector
           element={element}
           onUpdate={onUpdate}
+          fontResourceControls={fontResourceControls}
           topicsAuthoringControls={topicsAuthoringControls}
         />
       );

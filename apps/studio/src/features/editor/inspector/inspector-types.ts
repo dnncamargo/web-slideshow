@@ -38,5 +38,10 @@ export interface TypographyInspectorProps<
 }
 
 export interface TopicsAuthoringControls {
-  onAddTopLevelTopic: (topicsId: string) => void;
+  onAddTopLevelTopic: (topicsId: string) => string | null;
+
+  onAddChildTopic: (
+    topicsId: string,
+    topicItemId: string,
+  ) => string | null;
 }

@@ -121,9 +121,7 @@ function topicsElement(overrides: Record<string, unknown> = {}) {
 
 describe("TopicsElementSchema", () => {
   it("accepts a minimal unordered topics element", () => {
-    const result = TopicsElementSchema.safeParse(
-      topicsElement(),
-    );
+    const result = TopicsElementSchema.safeParse(topicsElement());
 
     expect(result.success).toBe(true);
 
@@ -135,6 +133,9 @@ describe("TopicsElementSchema", () => {
         kind: "unordered",
         items: [],
       });
+      expect(result.data).not.toHaveProperty("rootMarkerStyle");
+      expect(result.data).not.toHaveProperty("markerColor");
+      expect(result.data).not.toHaveProperty("itemGap");
     }
   });
 
@@ -188,13 +189,91 @@ describe("TopicsElementSchema", () => {
 
     expect(result.hidden).toBe(false);
   });
+
+  it("accepts a non-negative itemGap", () => {
+    expect(
+      TopicsElementSchema.safeParse(
+        topicsElement({
+          id: "topics-gap",
+          itemGap: 0,
+        }),
+      ).success,
+    ).toBe(true);
+
+    expect(
+      TopicsElementSchema.safeParse(
+        topicsElement({
+          id: "topics-gap-large",
+          itemGap: 24,
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("rejects a negative itemGap", () => {
+    expect(
+      TopicsElementSchema.safeParse(
+        topicsElement({
+          id: "topics-gap-negative",
+          itemGap: -1,
+        }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("accepts root marker style and marker color overrides", () => {
+    const result = TopicsElementSchema.safeParse(
+      topicsElement({
+        id: "topics-marker",
+        rootMarkerStyle: "circle",
+        markerColor: "#f8fafc",
+      }),
+    );
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data.rootMarkerStyle).toBe("circle");
+      expect(result.data.markerColor).toBe("#f8fafc");
+    }
+  });
+
+  it.each([
+    "disc",
+    "circle",
+    "square",
+    "none",
+    "decimal",
+    "lower-alpha",
+    "upper-alpha",
+    "lower-roman",
+    "upper-roman",
+  ] as const)("accepts root marker style %s", (rootMarkerStyle) => {
+    expect(
+      TopicsElementSchema.safeParse(
+        topicsElement({
+          id: `topics-marker-${rootMarkerStyle}`,
+          rootMarkerStyle,
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("rejects an unsupported root marker style", () => {
+    expect(
+      TopicsElementSchema.safeParse(
+        topicsElement({
+          id: "topics-invalid-marker",
+          rootMarkerStyle: "triangle" as never,
+        }),
+      ).success,
+    ).toBe(false);
+  });
 });
 
 describe("TopicItemSchema", () => {
   it("accepts a minimal topic item", () => {
-    const result = TopicItemSchema.safeParse(
-      topicItem(),
-    );
+    const result = TopicItemSchema.safeParse(topicItem());
 
     expect(result.success).toBe(true);
 
@@ -293,9 +372,7 @@ describe("ContentSlotSchema", () => {
           imageElement({ id: "image-child" }),
           containerElement({
             id: "container-child",
-            children: [
-              textElement({ id: "nested-text" }),
-            ],
+            children: [textElement({ id: "nested-text" })],
           }),
           codeElement({ id: "code-child" }),
           terminalElement({ id: "terminal-child" }),
@@ -333,9 +410,7 @@ describe("ContentSlotSchema", () => {
           children: [
             containerElement({
               id: "container-inside-slot",
-              children: [
-                textElement({ id: "inner-text" }),
-              ],
+              children: [textElement({ id: "inner-text" })],
             }),
           ],
         }),
@@ -416,6 +491,7 @@ describe("Topics serialization", () => {
       topicsElement({
         id: "topics-roundtrip",
         kind: "ordered",
+        itemGap: 12,
         style: {
           className: "topics-root",
           opacity: 0.8,

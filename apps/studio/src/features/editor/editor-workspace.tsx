@@ -121,6 +121,7 @@ import { ElementCrudControls } from "./element-crud-controls";
 
 import {
   appendElementToContainer,
+  appendElementToContentSlot,
   createDefaultTopicItem,
   createElement,
   duplicateElement,
@@ -130,6 +131,8 @@ import {
   moveElementToSiblingIndexById,
   removeElementById,
   appendTopicItemToTopics,
+  appendChildTopicItemToTopics,
+  resolveAddElementDestination,
 } from "./element-operations";
 
 // ============================================================
@@ -177,6 +180,13 @@ import { SlideLayoutPicker } from "./slide-layout-picker";
 interface SelectedElementInfo {
   id: string;
   type: string;
+
+  /**
+   * Transient insertion context: the canonical ContentSlot id of the
+   * TopicItem whose content area was clicked on the canvas. Not a selection
+   * of TopicItem/ContentSlot as PowerShowElements.
+   */
+  contentSlotId?: string | null;
 }
 
 interface CanvasDragState {
@@ -786,6 +796,9 @@ export function EditorWorkspace({
     }
 
     const elementTarget = target.closest<HTMLElement>("[data-powershow-id]");
+    const contentSlotTarget = target.closest<HTMLElement>(
+      "[data-powershow-content-slot-id]",
+    );
     const selection = resolveCanvasPointerSelection(
       elementTarget
         ? {
@@ -802,7 +815,13 @@ export function EditorWorkspace({
       return;
     }
 
-    setSelectedElement({ id: selection.id, type: selection.type });
+    const contentSlotId = contentSlotTarget?.dataset.powershowContentSlotId;
+
+    setSelectedElement({
+      id: selection.id,
+      type: selection.type,
+      contentSlotId: contentSlotId ?? null,
+    });
 
     if (!isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
       return;
@@ -1691,35 +1710,50 @@ export function EditorWorkspace({
           return slide;
         }
 
-        if (!selectedDocumentElement) {
-          return {
-            ...slide,
+        const destination = resolveAddElementDestination(
+          slide.elements,
+          selectedElement?.id ?? null,
+          newElement,
+          selectedElement?.contentSlotId ?? null,
+        );
 
-            elements: [...slide.elements, newElement],
-          };
+        switch (destination.kind) {
+          case "slide-root":
+            return {
+              ...slide,
+              elements: [...slide.elements, newElement],
+            };
+
+          case "append-container":
+            return {
+              ...slide,
+              elements: appendElementToContainer(
+                slide.elements,
+                destination.containerId,
+                newElement,
+              ),
+            };
+
+          case "append-topic-content":
+            return {
+              ...slide,
+              elements: appendElementToContentSlot(
+                slide.elements,
+                destination.contentSlotId,
+                newElement,
+              ),
+            };
+
+          case "insert-after":
+            return {
+              ...slide,
+              elements: insertElementAfterId(
+                slide.elements,
+                destination.targetId,
+                newElement,
+              ),
+            };
         }
-
-        if (selectedDocumentElement.type === "container") {
-          return {
-            ...slide,
-
-            elements: appendElementToContainer(
-              slide.elements,
-              selectedDocumentElement.id,
-              newElement,
-            ),
-          };
-        }
-
-        return {
-          ...slide,
-
-          elements: insertElementAfterId(
-            slide.elements,
-            selectedDocumentElement.id,
-            newElement,
-          ),
-        };
       }),
     }));
 
@@ -1743,37 +1777,123 @@ export function EditorWorkspace({
   //
   // A operação de criação é independente de React e fica em
   // element-operations. Aqui apenas anexamos o item ao documento
-  // e selecionamos o novo Text filho.
+  // e deixamos a seleção atual intacta.
   // ==========================================================
 
-  function addTopLevelTopic(topicsId: string) {
+  function addTopLevelTopic(topicsId: string): string | null {
     const created = createDefaultTopicItem(presentation.slides);
+    const selectedSlide = presentation.slides[selectedSlideIndex];
 
-    setPresentation((current) => ({
-      ...current,
+    if (!selectedSlide) {
+      return null;
+    }
 
-      slides: current.slides.map((slide, index) => {
+    // Dry-run somente para validar o alvo e preservar o contrato
+    // string | null. O resultado NÃO é reaproveitado na escrita.
+    if (
+      appendTopicItemToTopics(
+        selectedSlide.elements,
+        topicsId,
+        created.item,
+      ) === selectedSlide.elements
+    ) {
+      return null;
+    }
+
+    setPresentation((current) => {
+      let changed = false;
+
+      const slides = current.slides.map((slide, index) => {
         if (index !== selectedSlideIndex) {
           return slide;
         }
 
+        const elements = appendTopicItemToTopics(
+          slide.elements,
+          topicsId,
+          created.item,
+        );
+
+        if (elements === slide.elements) {
+          return slide;
+        }
+
+        changed = true;
+
         return {
           ...slide,
-
-          elements: appendTopicItemToTopics(
-            slide.elements,
-            topicsId,
-            created.item,
-          ),
+          elements,
         };
-      }),
-    }));
+      });
 
-    setSelectedElement({
-      id: created.textId,
-
-      type: "text",
+      return changed
+        ? {
+            ...current,
+            slides,
+          }
+        : current;
     });
+
+    return created.item.id;
+  }
+
+  function addChildTopic(topicsId: string, topicItemId: string): string | null {
+    const created = createDefaultTopicItem(presentation.slides);
+    const selectedSlide = presentation.slides[selectedSlideIndex];
+
+    if (!selectedSlide) {
+      return null;
+    }
+
+    // Valida o par proprietário + TopicItem.
+    // O array produzido aqui NÃO é usado na escrita React.
+    if (
+      appendChildTopicItemToTopics(
+        selectedSlide.elements,
+        topicsId,
+        topicItemId,
+        created.item,
+      ) === selectedSlide.elements
+    ) {
+      return null;
+    }
+
+    setPresentation((current) => {
+      let changed = false;
+
+      const slides = current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        const elements = appendChildTopicItemToTopics(
+          slide.elements,
+          topicsId,
+          topicItemId,
+          created.item,
+        );
+
+        if (elements === slide.elements) {
+          return slide;
+        }
+
+        changed = true;
+
+        return {
+          ...slide,
+          elements,
+        };
+      });
+
+      return changed
+        ? {
+            ...current,
+            slides,
+          }
+        : current;
+    });
+
+    return created.item.id;
   }
 
   // ==========================================================
@@ -2604,8 +2724,9 @@ export function EditorWorkspace({
                   key={selectedSlide.id}
                   slide={selectedSlide}
                   selectedElementId={selectedElement?.id ?? null}
-                  onSelectElement={(element) => {
-                    setSelectedElement({ id: element.id, type: element.type });
+                  selectedContentSlotId={selectedElement?.contentSlotId ?? null}
+                  onSelectElement={(selection) => {
+                    setSelectedElement(selection);
                   }}
                   onMoveElement={moveElementInTree}
                 />
@@ -2621,6 +2742,9 @@ export function EditorWorkspace({
 
                   <ElementCrudControls
                     selectedElement={selectedDocumentElement}
+                    selectedContentSlotId={
+                      selectedElement?.contentSlotId ?? null
+                    }
                     onAdd={addElement}
                     onDuplicate={duplicateSelectedElement}
                     onDelete={deleteSelectedElement}
@@ -2680,6 +2804,7 @@ export function EditorWorkspace({
                           }
                           topicsAuthoringControls={{
                             onAddTopLevelTopic: addTopLevelTopic,
+                            onAddChildTopic: addChildTopic,
                           }}
                         />
                       </PresentationColorPaletteProvider>

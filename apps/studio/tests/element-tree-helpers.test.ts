@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getElementLabel,
+  getElementTreeChildren,
   getParentTargets,
   getTreeActionState,
   resolveTreeDrop,
@@ -263,5 +264,91 @@ describe("element tree helpers", () => {
     expect(resolveTreeDrop(elements, "text", "text", "before")).toBeNull();
     expect(resolveTreeDrop(elements, "outer", "inner", "inside")).toBeNull();
     expect(resolveTreeDrop(elements, "outer", "text", "inside")).toBeNull();
+  });
+
+  it("keeps Topics structural nodes out of generic tree children", () => {
+    const topicsElement = {
+      type: "topics" as const,
+      id: "topics",
+      hidden: false,
+      kind: "unordered" as const,
+      items: [
+        {
+          id: "topic-a",
+          content: {
+            id: "slot-a",
+            children: [
+              {
+                type: "text" as const,
+                id: "slot-text",
+                hidden: false,
+                variant: "body" as const,
+                content: "Slot",
+              },
+              {
+                type: "image" as const,
+                id: "slot-image",
+                hidden: false,
+                src: "/a.png",
+                alt: "a",
+                fit: "contain" as const,
+              },
+            ],
+          },
+          children: [
+            {
+              id: "topic-a-child",
+              content: {
+                id: "slot-a-child",
+                children: [
+                  {
+                    type: "container" as const,
+                    id: "slot-child-container",
+                    hidden: false,
+                    direction: "column" as const,
+                    children: [],
+                  },
+                ],
+              },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(getElementTreeChildren(topicsElement)).toEqual([]);
+  });
+
+  it("returns container children and empty lists for leaf nodes", () => {
+    const containerWithChild = {
+      type: "container" as const,
+      id: "outer",
+      hidden: false,
+      direction: "column" as const,
+      children: [
+        {
+          type: "text" as const,
+          id: "inner-text",
+          hidden: false,
+          variant: "body" as const,
+          content: "Inner",
+        },
+      ],
+    };
+
+    expect(
+      getElementTreeChildren(containerWithChild).map((child) => child.id),
+    ).toEqual(["inner-text"]);
+
+    expect(
+      getElementTreeChildren({
+        type: "text" as const,
+        id: "leaf",
+        hidden: false,
+        variant: "body" as const,
+        content: "Leaf",
+      }),
+    ).toEqual([]);
   });
 });
