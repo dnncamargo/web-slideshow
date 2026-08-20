@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+
 import { useRouter } from "next/navigation";
 
 import {
@@ -9,7 +11,6 @@ import {
   Topbar,
   TopbarActions,
   TopbarLocale,
-  TopbarTitle,
 } from "@powershow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
@@ -31,10 +32,10 @@ import {
 } from "../control/live-current";
 
 import {
-  clearPresentationSelectionOnDestinationChange,
   type LibraryDestination,
 } from "./presentation-library-logic";
 import { PresentationList } from "./presentation-list";
+import { PresentationDetails } from "./presentation-details";
 import { PresentationToolbar } from "./presentation-toolbar";
 import { StudioSidebar } from "./studio-sidebar";
 import styles from "./presentation-library.module.css";
@@ -45,6 +46,9 @@ interface PresentationLibraryProps {
 
 type LibraryStatus = "loading" | "ready" | "error";
 
+const SELECTION_INTERACTIVE_SELECTOR =
+  "button, a, input, select, textarea, [role='button'], [data-presentation-row]";
+
 function destinationTitle(
   destination: LibraryDestination,
   t: ReturnType<typeof useStudioI18n>["t"],
@@ -52,14 +56,14 @@ function destinationTitle(
   switch (destination) {
     case "all":
       return t("library.all");
-    case "folders":
-      return t("library.folders");
     case "archived":
       return t("library.archived");
     case "styles":
       return t("library.styles");
     case "palettes":
       return t("library.palettes");
+    case "fonts":
+      return t("library.fonts");
   }
 }
 
@@ -139,8 +143,42 @@ export function PresentationLibrary({
 
   const handleDestinationChange = useCallback((next: LibraryDestination) => {
     setDestination(next);
-    setSelectedId(clearPresentationSelectionOnDestinationChange());
+    setSelectedId(null);
   }, []);
+
+  const handleToggleSelection = useCallback((id: string) => {
+    setSelectedId((current) => (current === id ? null : id));
+  }, []);
+
+  const handleWorkspaceKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLElement>) => {
+      if (event.key === "Escape") {
+        setSelectedId(null);
+      }
+    },
+    [],
+  );
+
+  const handleBrowserBackgroundClick = useCallback(
+    (event: ReactMouseEvent<HTMLElement>) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      // Clicks that originate inside a presentation row deselect/select via
+      // the row toggle handler; interactive controls never clear selection.
+      // Everything else inside the browser pane is empty visual space and
+      // behaves Explorer-like: it clears the current selection.
+      if (target.closest(SELECTION_INTERACTIVE_SELECTOR)) {
+        return;
+      }
+
+      setSelectedId(null);
+    },
+    [],
+  );
 
   const handleNew = useCallback(async () => {
     if (creating) return;
@@ -231,16 +269,16 @@ export function PresentationLibrary({
 
   return (
     <div className={styles.library}>
-      <Topbar>
+      <Topbar className={styles.libraryTopbar}>
         <ProductSurfaceBrand surface="studio" />
 
-        <TopbarTitle>
-          <span className={styles.headerUser}>
-            {user?.displayName ?? user?.email ?? ""}
-          </span>
-        </TopbarTitle>
-
         <TopbarActions>
+          {user?.displayName ?? user?.email ? (
+            <span className={styles.headerUser}>
+              {user?.displayName ?? user?.email}
+            </span>
+          ) : null}
+
           <Button
             variant="secondary"
             size="compact"
@@ -262,7 +300,7 @@ export function PresentationLibrary({
         </p>
       ) : null}
 
-      <div className={styles.workspace}>
+      <div className={styles.workspace} onKeyDown={handleWorkspaceKeyDown}>
         <StudioSidebar
           destination={destination}
           onDestinationChange={handleDestinationChange}
@@ -291,41 +329,56 @@ export function PresentationLibrary({
             ) : null}
           </div>
 
-          {isAllDestination ? (
-            <section className={styles.listWorkspace} aria-live="polite">
-              {status === "loading" ? (
-                <p className={styles.stateBlock}>{t("library.loading")}</p>
-              ) : null}
+          <div className={styles.workspaceBody}>
+            <section
+              className={styles.browserPane}
+              aria-live="polite"
+              onClick={handleBrowserBackgroundClick}
+            >
+              {isAllDestination ? (
+                <>
+                  {status === "loading" ? (
+                    <p className={styles.stateBlock}>{t("library.loading")}</p>
+                  ) : null}
 
-              {status === "error" ? (
-                <div className={styles.stateBlock}>
-                  <p>{t("library.couldNotLoad")}</p>
-                  <Button size="compact" onClick={() => void loadPresentations()}>
-                    {t("library.retry")}
-                  </Button>
+                  {status === "error" ? (
+                    <div className={styles.stateBlock}>
+                      <p>{t("library.couldNotLoad")}</p>
+                      <Button size="compact" onClick={() => void loadPresentations()}>
+                        {t("library.retry")}
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {status === "ready" && summaries.length === 0 ? (
+                    <p className={styles.stateBlock}>{t("library.empty")}</p>
+                  ) : null}
+
+                  {status === "ready" && summaries.length > 0 ? (
+                    <PresentationList
+                      summaries={summaries}
+                      selectedId={selectedId}
+                      liveState={liveState}
+                      openingId={openingId}
+                      onSelect={handleToggleSelection}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <div className={styles.placeholder}>
+                  <p className={styles.placeholderTitle}>
+                    {destinationTitle(destination, t)}
+                  </p>
+                  <p>{destinationPlaceholder(destination, t)}</p>
                 </div>
-              ) : null}
-
-              {status === "ready" && summaries.length === 0 ? (
-                <p className={styles.stateBlock}>{t("library.empty")}</p>
-              ) : null}
-
-              {status === "ready" && summaries.length > 0 ? (
-                <PresentationList
-                  summaries={summaries}
-                  selectedId={selectedId}
-                  liveState={liveState}
-                  openingId={openingId}
-                  onSelect={setSelectedId}
-                />
-              ) : null}
+              )}
             </section>
-          ) : (
-            <section className={styles.placeholder}>
-              <p className={styles.placeholderTitle}>{destinationTitle(destination, t)}</p>
-              <p>{destinationPlaceholder(destination, t)}</p>
-            </section>
-          )}
+
+            <PresentationDetails
+              summary={isAllDestination ? selected : null}
+              liveState={liveState}
+            />
+          </div>
         </main>
       </div>
     </div>

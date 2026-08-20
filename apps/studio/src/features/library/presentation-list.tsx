@@ -6,7 +6,7 @@ import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { PresentationSummary } from "../persistence/presentation-persistence";
 import type { LiveState } from "../control/live-current";
 
-import { isLivePresentation } from "./presentation-library-logic";
+import { isLivePresentation, publicationStatusTone } from "./presentation-library-logic";
 import { PresentationThumbnailFallback } from "./presentation-thumbnail-fallback";
 import styles from "./presentation-library.module.css";
 
@@ -16,12 +16,6 @@ interface PresentationListProps {
   liveState: LiveState;
   openingId: string | null;
   onSelect: (id: string) => void;
-}
-
-function statusTone(summary: PresentationSummary) {
-  if (summary.publicationState === "published") return "success" as const;
-  if (summary.publicationState === "unpublished-changes") return "warning" as const;
-  return "neutral" as const;
 }
 
 export function PresentationList({
@@ -45,20 +39,19 @@ export function PresentationList({
             <button
               type="button"
               className={styles.row}
+              data-presentation-row
               data-selected={selected}
               aria-pressed={selected}
               aria-busy={openingId === summary.id}
               aria-label={t("library.selectPresentation", { title })}
               onClick={() => onSelect(summary.id)}
             >
-              <PresentationThumbnailFallback
-                label={t("library.thumbnailFallback")}
-              />
+              <PresentationThumbnailFallback />
 
               <span className={styles.rowDetails}>
                 <strong className={styles.rowTitle}>{title}</strong>
                 <span className={styles.rowMetadata}>
-                  <Status tone={statusTone(summary)}>
+                  <Status tone={publicationStatusTone(summary)}>
                     {t(`library.status.${summary.publicationState}`)}
                   </Status>
                   <span>{t("library.revision", { number: summary.draftRevision })}</span>

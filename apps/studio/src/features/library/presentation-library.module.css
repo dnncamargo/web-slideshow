@@ -1,11 +1,27 @@
+/* ==========================================================
+   FIXED-VIEWPORT WORKSPACE CONTRACT
+
+   Studio is a fixed-height professional workspace: the document
+   itself never scrolls. Only bounded content panes that naturally
+   grow (the sidebar folder list and the main browser pane) own
+   their scroll. The Topbar, workspace heading + management
+   toolbar, sidebar navigation sections, and the Details pane stay
+   stationary.
+   ========================================================== */
+
 .library {
-  min-height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--ps-ui-background-canvas);
   color: var(--ps-ui-text-secondary);
 }
 
+/* User identity inside the Topbar actions, immediately before Sign out. */
 .headerUser {
   display: block;
+  max-width: 200px;
   overflow: hidden;
   color: var(--ps-ui-text-muted);
   font-size: 12px;
@@ -14,6 +30,7 @@
 }
 
 .errorText {
+  flex: none;
   margin: 0;
   padding: 10px 24px;
   border-bottom: 1px solid rgb(127 29 29 / 50%);
@@ -22,28 +39,72 @@
   font-size: 12px;
 }
 
+/* ============================================================
+   WORKSPACE: SIDEBAR + MAIN
+   ============================================================ */
+
 .workspace {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  min-height: calc(100vh - 53px);
   grid-template-columns: 220px minmax(0, 1fr);
+  overflow: hidden;
 }
 
+/* ============================================================
+   SIDEBAR
+
+   Fixed information architecture: Presentations and Resources
+   navigation never leave the viewport. The Folders section
+   exposes a bounded future list pane with its own scroll.
+   ============================================================ */
+
 .sidebar {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid var(--ps-ui-border-subtle);
   background: var(--ps-ui-background-surface);
 }
 
-.sidebar nav {
+.sidebarNav {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
   padding: 24px 12px;
+  overflow: hidden;
 }
 
 .sidebarSection {
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: 4px;
+}
+
+.sidebarFoldersSection {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebarFolderList {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.sidebarEmptyState {
+  margin: 0;
+  padding: 2px 10px;
+  color: var(--ps-ui-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .sidebarSection h2 {
@@ -85,12 +146,27 @@
   outline-offset: 2px;
 }
 
+/* ============================================================
+   MAIN WORKSPACE
+
+   main
+   ├── workspaceHeading   fixed
+   └── workspaceBody
+       ├── browserPane    OWN SCROLL (primary scrolling region)
+       └── detailsPane    stationary
+   ============================================================ */
+
 .main {
   min-width: 0;
-  padding: 28px 32px 48px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 28px 32px 0;
 }
 
 .workspaceHeading {
+  flex: none;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -116,15 +192,38 @@
 }
 
 .toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  display: grid;
   min-width: 0;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+/* LEFT: intentionally empty breathing space. */
+.toolbarLeft {
+  min-width: 0;
+}
+
+/* CENTER: selected presentation context, geometrically centered by the
+   symmetric outer grid tracks. */
+.toolbarCenter {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbarContext {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .toolbarSelection {
+  min-width: 0;
   max-width: 240px;
   overflow: hidden;
   color: var(--ps-ui-text-primary);
@@ -134,9 +233,103 @@
   white-space: nowrap;
 }
 
-.listWorkspace {
-  padding-top: 18px;
+/* RIGHT: global management actions, right-aligned in the final track. */
+.toolbarRight {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+
+.workspaceBody {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  padding-top: 18px;
+  overflow: hidden;
+}
+
+/* The PRIMARY freely scrolling region: the presentation/resource
+   list grows here and only ever scrolls within this pane. */
+.browserPane {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 24px 0;
+}
+
+/* ============================================================
+   DETAILS PANE
+
+   Stationary relative to browserPane scrolling (no position:fixed;
+   it is a sibling grid column). Width is stable at 320px. Own
+   internal scroll only if its own content grows; never page scroll.
+   ============================================================ */
+
+.detailsPane {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 24px 24px;
+  border-left: 1px solid var(--ps-ui-border-subtle);
+}
+
+.detailsHeading {
+  margin: 0 0 14px;
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detailsEmpty {
+  margin: 0;
+  color: var(--ps-ui-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detailsList {
+  display: flex;
+  margin: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detailsRow {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailsRow dt {
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detailsRow dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ps-ui-text-primary);
+  font-size: 13px;
+}
+
+.detailsLive {
+  margin: 16px 0 0;
+}
+
+/* ============================================================
+   PRESENTATION LIST
+   ============================================================ */
 
 .list {
   display: flex;
@@ -280,10 +473,106 @@
 }
 
 @media (max-width: 760px) {
-  .workspace { grid-template-columns: 168px minmax(0, 1fr); }
-  .main { padding: 22px 18px 36px; }
-  .workspaceHeading { align-items: flex-start; flex-direction: column; }
-  .toolbar { justify-content: flex-start; }
+  /* ==========================================================
+     STUDIO MOBILE TOPBAR
+     row 1: PowerShow Studio + Locale
+     row 2: user + Sign out
+     ========================================================== */
+  .libraryTopbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    row-gap: var(--ps-ui-space-8);
+    padding: var(--ps-ui-space-12) var(--ps-ui-space-16);
+  }
+
+  .libraryTopbar :global(.ps-ui-topbar__brand) { grid-column: 1; grid-row: 1; }
+  .libraryTopbar :global(.ps-ui-topbar__locale) { grid-column: 2; grid-row: 1; margin-left: 0; }
+  .libraryTopbar :global(.ps-ui-topbar__actions) { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+
+  /* ==========================================================
+     STUDIO MOBILE WORKSPACE
+     The permanent desktop sidebar becomes a compact horizontal,
+     independently scrollable navigation rail above the body.
+     ========================================================== */
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .sidebar {
+    overflow: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--ps-ui-border-subtle);
+  }
+
+  .sidebarNav {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ps-ui-space-12);
+    padding: var(--ps-ui-space-8) var(--ps-ui-space-12);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .sidebarSection {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ps-ui-space-8);
+  }
+
+  .sidebarFoldersSection {
+    flex: none;
+  }
+
+  .sidebarFolderList {
+    flex: none;
+    flex-direction: row;
+    overflow: visible;
+  }
+
+  /* Keep group labels in the accessibility tree, visually hidden. */
+  .sidebarSection h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .sidebarEmptyState { padding: 2px 6px; }
+
+  .sidebarItem { white-space: nowrap; }
+
+  .main { padding: 22px 18px 0; }
+  .workspaceHeading { align-items: stretch; flex-direction: column; }
+  .toolbar {
+    flex: none;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .toolbarLeft { display: none; }
+  .toolbarCenter { justify-content: flex-start; }
+  .toolbarContext { justify-content: flex-start; flex-wrap: wrap; }
+  .toolbarRight { justify-content: flex-start; }
+  .workspaceBody {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .detailsPane {
+    max-height: 40dvh;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--ps-ui-border-subtle);
+  }
   .row { grid-template-columns: 86px minmax(0, 1fr); }
   .rowState { grid-column: 2; justify-content: flex-start; }
 }

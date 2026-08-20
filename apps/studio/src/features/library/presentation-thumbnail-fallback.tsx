@@ -2,17 +2,11 @@
 
 import styles from "./presentation-library.module.css";
 
-interface PresentationThumbnailFallbackProps {
-  label: string;
-}
-
-export function PresentationThumbnailFallback({
-  label,
-}: PresentationThumbnailFallbackProps) {
+export function PresentationThumbnailFallback() {
   return (
-    <div className={styles.thumbnail} aria-label={label} role="img">
+    <div className={styles.thumbnail} aria-hidden="true">
       <span className={styles.thumbnailBar} />
-      <span className={styles.thumbnailTitle}>{label}</span>
+      <span className={styles.thumbnailTitle} />
       <span className={styles.thumbnailLine} />
       <span className={styles.thumbnailLineShort} />
     </div>

@@ -10,6 +10,16 @@ interface StudioSidebarProps {
   onDestinationChange: (destination: LibraryDestination) => void;
 }
 
+/**
+ * Studio fixed sidebar information architecture:
+ *
+ * - Presentations: All, Archived (fixed navigation)
+ * - Folders: Explorer-like organization for presentations. There are no
+ *   persisted folders yet, so the section shows a restrained future empty
+ *   state inside its own bounded scrolling list pane. Folders are NOT a
+ *   generic workspace destination.
+ * - Resources: Styles, Palettes, Fonts (fixed navigation)
+ */
 export function StudioSidebar({
   destination,
   onDestinationChange,
@@ -30,22 +40,27 @@ export function StudioSidebar({
 
   return (
     <aside className={styles.sidebar}>
-      <nav aria-label={t("library.navigation")}>
+      <nav className={styles.sidebarNav} aria-label={t("library.navigation")}>
         <section className={styles.sidebarSection}>
           <h2>{t("library.presentations")}</h2>
           {item("all", t("library.all"))}
           {item("archived", t("library.archived"))}
         </section>
 
-        <section className={styles.sidebarSection}>
+        <section
+          className={`${styles.sidebarSection} ${styles.sidebarFoldersSection}`}
+        >
           <h2>{t("library.folders")}</h2>
-          {item("folders", t("library.folders"))}
+          <div className={styles.sidebarFolderList}>
+            <p className={styles.sidebarEmptyState}>{t("library.foldersEmpty")}</p>
+          </div>
         </section>
 
         <section className={styles.sidebarSection}>
           <h2>{t("library.resources")}</h2>
           {item("styles", t("library.styles"))}
           {item("palettes", t("library.palettes"))}
+          {item("fonts", t("library.fonts"))}
         </section>
       </nav>
     </aside>
