@@ -23,6 +23,7 @@ import {
 } from "./persistence-errors";
 import {
   assertPresentationWithinSizeLimit,
+  assertPresentationWithinFirestoreNestingDepth,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
   normalizePersistenceMetadata,
@@ -139,12 +140,14 @@ export class FirestorePresentationRepository
     const user = this.requireAuthenticatedUser();
 
     assertPresentationWithinSizeLimit(presentation);
+    const safePresentation = makeFirestoreSafePresentation(presentation);
+    assertPresentationWithinFirestoreNestingDepth(safePresentation);
 
     const documentRef = presentationDocumentRef(user.uid, presentation.id);
 
     try {
       await setDoc(documentRef, {
-        presentation: makeFirestoreSafePresentation(presentation),
+        presentation: safePresentation,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         draftRevision: 1,
@@ -163,12 +166,14 @@ export class FirestorePresentationRepository
     const user = this.requireAuthenticatedUser();
 
     assertPresentationWithinSizeLimit(presentation);
+    const safePresentation = makeFirestoreSafePresentation(presentation);
+    assertPresentationWithinFirestoreNestingDepth(safePresentation);
 
     const documentRef = presentationDocumentRef(user.uid, presentation.id);
 
     try {
       await updateDoc(documentRef, {
-        presentation: makeFirestoreSafePresentation(presentation),
+        presentation: safePresentation,
         updatedAt: serverTimestamp(),
         draftRevision: increment(1),
       });
@@ -228,6 +233,8 @@ export class FirestorePresentationRepository
 
         const presentation = parsePersistedPresentation(draftData);
         assertPresentationWithinSizeLimit(presentation);
+        const safePresentation = makeFirestoreSafePresentation(presentation);
+        assertPresentationWithinFirestoreNestingDepth(safePresentation);
 
         const metadata = normalizePersistenceMetadata(
           draftData.draftRevision,
@@ -264,7 +271,7 @@ export class FirestorePresentationRepository
 
         // The private draft is read above before either transaction write.
         transaction.set(versionRef, {
-          presentation: makeFirestoreSafePresentation(presentation),
+          presentation: safePresentation,
           publishedRevision: metadata.draftRevision,
           publishedAt,
         });

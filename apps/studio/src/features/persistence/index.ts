@@ -19,7 +19,10 @@ export type {
 export type { PresentationPublishResult } from "./presentation-repository";
 export {
   MAX_PRESENTATION_SAFE_BYTES,
+  MAX_FIRESTORE_NESTING_DEPTH,
   assertPresentationWithinSizeLimit,
+  assertPresentationWithinFirestoreNestingDepth,
+  estimateFirestoreNestingDepth,
   estimatePresentationBytes,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
@@ -32,5 +35,6 @@ export {
   FirebaseAuthenticationError,
   FirestoreOperationError,
   InvalidPersistedPresentationError,
+  PresentationTooDeepError,
   PresentationTooLargeError,
 } from "./persistence-errors";

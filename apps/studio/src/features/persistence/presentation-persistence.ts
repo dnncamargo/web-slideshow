@@ -3,6 +3,7 @@ import { PresentationSchema } from "@powershow/document-schema";
 
 import {
   InvalidPersistedPresentationError,
+  PresentationTooDeepError,
   PresentationTooLargeError,
 } from "./persistence-errors";
 
@@ -14,6 +15,7 @@ import {
  * below Firestore's hard document-size limit.
  */
 export const MAX_PRESENTATION_SAFE_BYTES = 800 * 1024;
+export const MAX_FIRESTORE_NESTING_DEPTH = 20;
 
 export interface PresentationPersistenceEnvelope {
   presentation: Presentation;
@@ -160,6 +162,10 @@ function toFirestoreSafeValue(value: unknown): unknown {
   return value;
 }
 
+function isStructuralValue(value: unknown): value is Record<string, unknown> | unknown[] {
+  return typeof value === "object" && value !== null;
+}
+
 /**
  * Convert a canonical Presentation to a Firestore-safe structured plain value.
  *
@@ -171,6 +177,39 @@ export function makeFirestoreSafePresentation(
   presentation: Presentation,
 ): Record<string, unknown> {
   return toFirestoreSafeValue(presentation) as Record<string, unknown>;
+}
+
+/**
+ * Estimate the maximum Firestore structural nesting depth of a plain value.
+ *
+ * Scalars do not add structural depth. Objects and arrays each add one level.
+ * The returned depth is measured from the root value, so a root object or
+ * array with only scalar descendants has depth 1.
+ */
+export function estimateFirestoreNestingDepth(value: unknown): number {
+  if (!isStructuralValue(value)) {
+    return 0;
+  }
+
+  const entries = Array.isArray(value) ? value : Object.values(value);
+  let maxDepth = 1;
+
+  for (const entry of entries) {
+    maxDepth = Math.max(maxDepth, 1 + estimateFirestoreNestingDepth(entry));
+  }
+
+  return maxDepth;
+}
+
+export function assertPresentationWithinFirestoreNestingDepth(
+  value: unknown,
+  limitDepth: number = MAX_FIRESTORE_NESTING_DEPTH,
+): void {
+  const actualDepth = estimateFirestoreNestingDepth(value);
+
+  if (actualDepth > limitDepth) {
+    throw new PresentationTooDeepError(actualDepth, limitDepth);
+  }
 }
 
 /**
