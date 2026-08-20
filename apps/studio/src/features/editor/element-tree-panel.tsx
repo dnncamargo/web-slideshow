@@ -79,6 +79,26 @@ interface TopicItemTreeNodeProps {
   onDragEnd: () => void;
 }
 
+function isStructuralTopicSelection(
+  slide: Slide,
+  selectedElementId: string | null,
+  selectedContentSlotId: string | null,
+): boolean {
+  if (!selectedElementId || !selectedContentSlotId) {
+    return false;
+  }
+
+  const selectedElement = findElementById(slide.elements, selectedElementId);
+
+  if (!selectedElement || selectedElement.type !== "topics") {
+    return false;
+  }
+
+  return selectedElement.items.some(
+    (item) => item.content.id === selectedContentSlotId,
+  );
+}
+
 function getTextPreview(content: string): string | null {
   const normalized = content
     .replace(/<[^>]*>/g, "")
@@ -423,14 +443,21 @@ export function ElementTreePanel({
     selectedElementId === null
       ? null
       : findElementSiblingPosition(slide.elements, selectedElementId);
-  const selectedTargets = selectedElement
-    ? getParentTargets(slide, selectedElement, (key) => t(key))
+  const isStructuralTopicRow = isStructuralTopicSelection(
+    slide,
+    selectedElementId,
+    selectedContentSlotId,
+  );
+  const selectedElementForMovement = isStructuralTopicRow ? null : selectedElement;
+  const selectedPositionForMovement = isStructuralTopicRow ? null : selectedPosition;
+  const selectedTargets = selectedElementForMovement
+    ? getParentTargets(slide, selectedElementForMovement, (key) => t(key))
     : [];
-  const selectedActionState = selectedPosition
+  const selectedActionState = selectedPositionForMovement
     ? getTreeActionState(
-        selectedPosition.index,
-        selectedPosition.count,
-        selectedPosition.parentRef,
+        selectedPositionForMovement.index,
+        selectedPositionForMovement.count,
+        selectedPositionForMovement.parentRef,
       )
     : null;
 
@@ -536,13 +563,17 @@ export function ElementTreePanel({
           type="button"
           aria-label={t("tree.moveUp")}
           title={t("tree.moveUp")}
-          disabled={!selectedElementId || !selectedPosition || !selectedActionState?.canMoveUp}
+          disabled={
+            !selectedElementId ||
+            !selectedPositionForMovement ||
+            !selectedActionState?.canMoveUp
+          }
           onClick={() => {
-            if (selectedElementId && selectedPosition) {
+            if (selectedElementId && selectedPositionForMovement) {
               onMoveElement({
                 elementId: selectedElementId,
-                targetParentRef: selectedPosition.parentRef,
-                targetIndex: selectedPosition.index - 1,
+                targetParentRef: selectedPositionForMovement.parentRef,
+                targetIndex: selectedPositionForMovement.index - 1,
               });
             }
           }}
@@ -553,13 +584,17 @@ export function ElementTreePanel({
           type="button"
           aria-label={t("tree.moveDown")}
           title={t("tree.moveDown")}
-          disabled={!selectedElementId || !selectedPosition || !selectedActionState?.canMoveDown}
+          disabled={
+            !selectedElementId ||
+            !selectedPositionForMovement ||
+            !selectedActionState?.canMoveDown
+          }
           onClick={() => {
-            if (selectedElementId && selectedPosition) {
+            if (selectedElementId && selectedPositionForMovement) {
               onMoveElement({
                 elementId: selectedElementId,
-                targetParentRef: selectedPosition.parentRef,
-                targetIndex: selectedPosition.index + 1,
+                targetParentRef: selectedPositionForMovement.parentRef,
+                targetIndex: selectedPositionForMovement.index + 1,
               });
             }
           }}
@@ -568,10 +603,10 @@ export function ElementTreePanel({
         </button>
         <select
           aria-label={t("tree.moveTo")}
-          disabled={!selectedElement}
+          disabled={!selectedElementForMovement}
           value=""
           onChange={(event) => {
-            if (selectedElementId) {
+            if (selectedElementId && selectedElementForMovement) {
               const targetParentId = event.target.value || null;
               onMoveElement({
                 elementId: selectedElementId,

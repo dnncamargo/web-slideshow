@@ -185,14 +185,56 @@ function contentGroupItems(treeItem: HTMLLIElement): HTMLLIElement[] {
   );
 }
 
-function contentGroupLabel(treeItem: HTMLLIElement): string {
-  const group = contentGroup(treeItem);
-  const label = Array.from(group.children).find(
-    (child): child is HTMLDivElement => child instanceof HTMLDivElement,
-  );
+  function contentGroupLabel(treeItem: HTMLLIElement): string {
+    const group = contentGroup(treeItem);
+    const label = Array.from(group.children).find(
+      (child): child is HTMLDivElement => child instanceof HTMLDivElement,
+    );
 
-  return normalizeLabel(label?.textContent ?? null);
-}
+    return normalizeLabel(label?.textContent ?? null);
+  }
+
+  function footerMoveUpButton(
+    rootContainer: HTMLDivElement,
+  ): HTMLButtonElement {
+    const button = rootContainer.querySelector<HTMLButtonElement>(
+      'button[aria-label="Move up"]',
+    );
+
+    if (!button) {
+      throw new Error("Move up button not found");
+    }
+
+    return button;
+  }
+
+  function footerMoveDownButton(
+    rootContainer: HTMLDivElement,
+  ): HTMLButtonElement {
+    const button = rootContainer.querySelector<HTMLButtonElement>(
+      'button[aria-label="Move down"]',
+    );
+
+    if (!button) {
+      throw new Error("Move down button not found");
+    }
+
+    return button;
+  }
+
+  function footerMoveToSelect(
+    rootContainer: HTMLDivElement,
+  ): HTMLSelectElement {
+    const select = rootContainer.querySelector<HTMLSelectElement>(
+      'select[aria-label="Move to"]',
+    );
+
+    if (!select) {
+      throw new Error("Move to select not found");
+    }
+
+    return select;
+  }
 
 function clickRow(treeItem: HTMLLIElement): void {
   act(() => {
@@ -350,6 +392,126 @@ describe("ElementTreePanel", () => {
       id: "topics-1",
       type: "topics",
       contentSlotId: "slot-b",
+    });
+  });
+
+  it("suppresses footer movement for a structurally selected topic row", () => {
+    const slide = {
+      ...slideWithTopics([
+        topicItem(
+          "topic-a",
+          contentSlot("slot-a", [text("topic-a-text", "A")]),
+        ),
+        topicItem(
+          "topic-b",
+          contentSlot("slot-b", [text("topic-b-text", "B")]),
+        ),
+      ]),
+      elements: [
+        topicContainer("before"),
+        ...slideWithTopics([
+          topicItem(
+            "topic-a",
+            contentSlot("slot-a", [text("topic-a-text", "A")]),
+          ),
+          topicItem(
+            "topic-b",
+            contentSlot("slot-b", [text("topic-b-text", "B")]),
+          ),
+        ]).elements,
+        topicContainer("after"),
+      ],
+    };
+    const { onMoveElement } = renderPanel(slide, {
+      selectedElementId: "topics-1",
+      selectedContentSlotId: "slot-b",
+    });
+
+    expect(footerMoveUpButton(container).disabled).toBe(true);
+    expect(footerMoveDownButton(container).disabled).toBe(true);
+    expect(footerMoveToSelect(container).disabled).toBe(true);
+    expect(footerMoveToSelect(container).options).toHaveLength(1);
+
+    act(() => {
+      footerMoveUpButton(container).click();
+      footerMoveDownButton(container).click();
+      footerMoveToSelect(container).value = "before";
+      footerMoveToSelect(container).dispatchEvent(
+        new Event("change", { bubbles: true }),
+      );
+    });
+
+    expect(onMoveElement).not.toHaveBeenCalled();
+  });
+
+  it("keeps ordinary TopicsElement movement available when no structural topic row is selected", () => {
+    const slide = {
+      ...slideWithTopics([
+        topicItem(
+          "topic-a",
+          contentSlot("slot-a", [text("topic-a-text", "A")]),
+        ),
+      ]),
+      elements: [
+        topicContainer("before"),
+        ...slideWithTopics([
+          topicItem(
+            "topic-a",
+            contentSlot("slot-a", [text("topic-a-text", "A")]),
+          ),
+        ]).elements,
+        topicContainer("after"),
+      ],
+    };
+    const { onMoveElement } = renderPanel(slide, {
+      selectedElementId: "topics-1",
+      selectedContentSlotId: null,
+    });
+
+    expect(footerMoveUpButton(container).disabled).toBe(false);
+    expect(footerMoveDownButton(container).disabled).toBe(false);
+    expect(footerMoveToSelect(container).disabled).toBe(false);
+    expect(footerMoveToSelect(container).options.length).toBeGreaterThan(1);
+
+    act(() => {
+      footerMoveUpButton(container).click();
+    });
+
+    expect(onMoveElement).toHaveBeenCalledWith({
+      elementId: "topics-1",
+      targetParentRef: { kind: "slide" },
+      targetIndex: 0,
+    });
+  });
+
+  it("keeps real content-child movement available when a real element is selected inside topic content", () => {
+    const slide = slideWithTopics([
+      topicItem(
+        "topic-b",
+        contentSlot("slot-b", [
+          text("topic-b-text", "B"),
+          image("topic-b-image"),
+          table("topic-b-table"),
+        ]),
+      ),
+    ]);
+    const { onMoveElement } = renderPanel(slide, {
+      selectedElementId: "topic-b-image",
+      selectedContentSlotId: "slot-b",
+    });
+
+    expect(footerMoveUpButton(container).disabled).toBe(false);
+    expect(footerMoveDownButton(container).disabled).toBe(false);
+    expect(footerMoveToSelect(container).disabled).toBe(false);
+
+    act(() => {
+      footerMoveDownButton(container).click();
+    });
+
+    expect(onMoveElement).toHaveBeenCalledWith({
+      elementId: "topic-b-image",
+      targetParentRef: { kind: "content-slot", id: "slot-b" },
+      targetIndex: 2,
     });
   });
 
