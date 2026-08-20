@@ -5,6 +5,7 @@ vi.mock("firebase/firestore", () => ({
   updateDoc: vi.fn(),
   increment: vi.fn(),
   serverTimestamp: vi.fn(),
+  runTransaction: vi.fn(),
   collection: vi.fn(),
   doc: vi.fn(),
   getDoc: vi.fn(),
@@ -22,11 +23,13 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 }));
 
 import type {
+  Presentation,
   PowerShowElement,
   Slide,
   TopicItem,
   TopicsElement,
 } from "@powershow/document-schema";
+import { PresentationSchema } from "@powershow/document-schema";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
@@ -36,6 +39,7 @@ import {
   updateDoc,
   increment,
   serverTimestamp,
+  runTransaction,
   doc,
 } from "firebase/firestore";
 import { getFirebaseFirestore } from "../src/features/persistence/firebase-client";
@@ -45,6 +49,7 @@ const mockedSetDoc = vi.mocked(setDoc);
 const mockedUpdateDoc = vi.mocked(updateDoc);
 const mockedIncrement = vi.mocked(increment);
 const mockedServerTimestamp = vi.mocked(serverTimestamp);
+const mockedRunTransaction = vi.mocked(runTransaction);
 const mockedDoc = vi.mocked(doc);
 const mockedGetFirestore = vi.mocked(getFirebaseFirestore);
 const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
@@ -103,6 +108,39 @@ function nestedAutonomousTopicsElement(): TopicsElement {
   };
 }
 
+function nestedContainerElement(depth: number): PowerShowElement {
+  if (depth <= 0) {
+    return text("leaf-text");
+  }
+
+  return {
+    type: "container",
+    id: `container-${depth}`,
+    hidden: false,
+    direction: "column" as const,
+    children: [nestedContainerElement(depth - 1)],
+  };
+}
+
+function nestedContainerPresentation(depth: number): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "pres-nested-containers",
+    title: "Nested containers",
+    description: "",
+    aspectRatio: "16:9",
+    slides: [
+      {
+        id: "slide-1",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [nestedContainerElement(depth)],
+      },
+    ],
+  });
+}
+
 describe("draft revision persistence wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,6 +149,15 @@ describe("draft revision persistence wiring", () => {
     mockedDoc.mockReturnValue({ id: "pres-1" } as never);
     mockedServerTimestamp.mockReturnValue("server-ts" as never);
     mockedIncrement.mockImplementation(((n: number) => ({ __increment: n })) as never);
+    mockedRunTransaction.mockImplementation(async (_firestore, callback) => {
+      const transaction = {
+        get: vi.fn(),
+        set: vi.fn(),
+        update: vi.fn(),
+      };
+
+      return callback(transaction as never);
+    });
   });
 
   it("creates a document with draftRevision 1", async () => {
@@ -264,5 +311,54 @@ describe("draft revision persistence wiring", () => {
       ?.items?.[0]?.content?.children?.[0];
 
     expect(nestedTopics?.items?.[0]?.children).toHaveLength(0);
+  });
+
+  it("rejects over-depth nested containers before updateDoc is called", async () => {
+    const presentation = nestedContainerPresentation(9);
+
+    await expect(repository.savePresentation(presentation)).rejects.toThrow(
+      /too deeply nested/i,
+    );
+    expect(mockedUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it("rejects over-depth nested containers before setDoc is called", async () => {
+    const presentation = nestedContainerPresentation(9);
+
+    await expect(repository.createPresentation(presentation)).rejects.toThrow(
+      /too deeply nested/i,
+    );
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+  });
+
+  it("saves valid nested containers normally", async () => {
+    const presentation = nestedContainerPresentation(3);
+
+    await expect(repository.savePresentation(presentation)).resolves.toBeUndefined();
+    expect(mockedUpdateDoc).toHaveBeenCalled();
+  });
+
+  it("does not write a published version for over-depth nested containers", async () => {
+    const presentation = nestedContainerPresentation(9);
+    const transaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({
+          presentation,
+          draftRevision: 1,
+        }),
+      }),
+      set: vi.fn(),
+      update: vi.fn(),
+    };
+
+    mockedRunTransaction.mockImplementation(async (_firestore, callback) =>
+      callback(transaction as never),
+    );
+
+    await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
+      /too deeply nested/i,
+    );
+    expect(transaction.set).not.toHaveBeenCalled();
   });
 });

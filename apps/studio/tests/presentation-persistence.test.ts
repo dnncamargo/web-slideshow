@@ -3,14 +3,20 @@ import { describe, expect, it } from "vitest";
 import { PresentationSchema, type Presentation } from "@powershow/document-schema";
 
 import {
+  assertPresentationWithinFirestoreNestingDepth,
   assertPresentationWithinSizeLimit,
+  estimateFirestoreNestingDepth,
   estimatePresentationBytes,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
   MAX_PRESENTATION_SAFE_BYTES,
+  MAX_FIRESTORE_NESTING_DEPTH,
   parsePersistedPresentation,
 } from "../src/features/persistence/presentation-persistence";
-import { PresentationTooLargeError } from "../src/features/persistence/persistence-errors";
+import {
+  PresentationTooDeepError,
+  PresentationTooLargeError,
+} from "../src/features/persistence/persistence-errors";
 
 function basePresentation(): Presentation {
   return PresentationSchema.parse({
@@ -48,7 +54,77 @@ function buildLargePresentation(byteTarget: number): Presentation {
   return presentation;
 }
 
+function buildNestedObject(depth: number): unknown {
+  let value: unknown = "leaf";
+
+  for (let index = 0; index < depth; index += 1) {
+    value = { child: value };
+  }
+
+  return value;
+}
+
 describe("presentation persistence helpers", () => {
+  it("treats scalars as depth 0", () => {
+    expect(estimateFirestoreNestingDepth("leaf")).toBe(0);
+  });
+
+  it("treats a root object as depth 1", () => {
+    expect(estimateFirestoreNestingDepth({ title: "Leaf" })).toBe(1);
+  });
+
+  it("increments depth for nested objects", () => {
+    expect(estimateFirestoreNestingDepth({ child: { grandchild: true } })).toBe(2);
+  });
+
+  it("increments depth for arrays", () => {
+    expect(estimateFirestoreNestingDepth([["leaf"]])).toBe(2);
+  });
+
+  it("counts object nesting inside arrays correctly", () => {
+    expect(estimateFirestoreNestingDepth([{ child: "leaf" }])).toBe(2);
+  });
+
+  it("uses the deepest path rather than sibling count", () => {
+    expect(
+      estimateFirestoreNestingDepth({
+        shallowA: { label: "a" },
+        shallowB: { label: "b" },
+        deep: { child: { grandchild: { leaf: true } } },
+      }),
+    ).toBe(4);
+  });
+
+  it("accepts the configured nesting depth of 20", () => {
+    const value = buildNestedObject(MAX_FIRESTORE_NESTING_DEPTH);
+
+    expect(() => assertPresentationWithinFirestoreNestingDepth(value)).not.toThrow();
+    expect(estimateFirestoreNestingDepth(value)).toBe(MAX_FIRESTORE_NESTING_DEPTH);
+  });
+
+  it("throws PresentationTooDeepError above the configured depth", () => {
+    const value = buildNestedObject(MAX_FIRESTORE_NESTING_DEPTH + 1);
+
+    expect(() => assertPresentationWithinFirestoreNestingDepth(value)).toThrow(
+      PresentationTooDeepError,
+    );
+  });
+
+  it("does not mutate the measured value", () => {
+    const value = {
+      slides: [
+        {
+          id: "slide-1",
+          elements: [{ children: [{ nested: "value" }] }],
+        },
+      ],
+    };
+    const original = structuredClone(value);
+
+    expect(estimateFirestoreNestingDepth(value)).toBe(7);
+    expect(value).toEqual(original);
+  });
+
   it("preserves a complete presentation through safe serialization", () => {
     const source = PresentationSchema.parse({
       schemaVersion: 1,
