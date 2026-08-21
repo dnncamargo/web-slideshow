@@ -21,7 +21,10 @@ import {
 } from "./color-palette-helpers";
 import { usePresentationColorPalette } from "./presentation-color-palette";
 import { useRecentColors } from "./recent-colors-provider";
-import { THEME_COLORS, type ThemeColorKey } from "@powershow/theme/element-style-defaults";
+import {
+  THEME_COLORS,
+  type ThemeColorKey,
+} from "@powershow/theme/element-style-defaults";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -30,6 +33,7 @@ interface ColorControlProps {
   name: string;
   value: Color | undefined;
   onChange: (color: Color) => void;
+  disabled?: boolean;
 }
 
 function getColorFormat(value: string): ColorFormat {
@@ -46,7 +50,13 @@ function formatColor(value: string, format: ColorFormat): Color | undefined {
   return format === "hex" ? formatColorAsHex(color) : formatColorAsRgba(color);
 }
 
-export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
+export function ColorControl({
+  id,
+  name,
+  value,
+  onChange,
+  disabled = false,
+}: ColorControlProps) {
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
   const recent = useRecentColors();
@@ -80,6 +90,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
           className={styles.colorInput}
           type="color"
           value={pickerColor ?? DEFAULT_PICKER_COLOR}
+          disabled={disabled}
           onChange={(event) => {
             const next = replaceColorRgb(
               parseColor(draft) ? draft : sourceValue,
@@ -100,6 +111,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
           type="text"
           autoComplete="off"
           value={draft}
+          disabled={disabled}
           onChange={(event) => {
             const nextDraft = event.target.value;
             const normalized = normalizeColor(nextDraft);
@@ -117,6 +129,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
           id={`${id}-format`}
           name={`${name}Format`}
           value={format}
+          disabled={disabled}
           onChange={(event) => {
             const nextFormat = event.target.value as ColorFormat;
 
@@ -153,6 +166,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
                 <button
                   className={styles.colorPaletteSwatch}
                   type="button"
+                  disabled={disabled}
                   aria-label={t("inspector.applyPaletteColor", { color })}
                   title={t("inspector.applyPaletteColor", { color })}
                   style={{ backgroundColor: color }}
@@ -166,6 +180,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
                 <button
                   className={styles.colorPaletteRemove}
                   type="button"
+                  disabled={disabled}
                   aria-label={t("inspector.removeColorFromPalette", { color })}
                   title={t("inspector.removeColorFromPalette", { color })}
                   onClick={() => {
@@ -180,7 +195,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
             <button
               className={styles.colorPaletteAdd}
               type="button"
-              disabled={!canAddCurrentColor}
+              disabled={disabled || !canAddCurrentColor}
               aria-label={t("inspector.addCurrentColor")}
               title={t("inspector.addCurrentColor")}
               onClick={() => {
@@ -205,6 +220,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
                 <button
                   className={styles.colorPaletteSwatch}
                   type="button"
+                  disabled={disabled}
                   aria-label={t("inspector.applyPaletteColor", { color })}
                   title={t("inspector.applyPaletteColor", { color })}
                   style={{ backgroundColor: color }}
@@ -219,7 +235,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
                   <button
                     className={styles.colorPaletteMove}
                     type="button"
-                    disabled={index === 0}
+                    disabled={disabled || index === 0}
                     aria-label={t("inspector.moveColorLeft", { color })}
                     title={t("inspector.moveColorLeft", { color })}
                     onClick={() => {
@@ -232,7 +248,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
                   <button
                     className={styles.colorPaletteMove}
                     type="button"
-                    disabled={index === recent.colors.length - 1}
+                    disabled={disabled || index === recent.colors.length - 1}
                     aria-label={t("inspector.moveColorRight", { color })}
                     title={t("inspector.moveColorRight", { color })}
                     onClick={() => {
@@ -245,9 +261,10 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
               </div>
             ))}
 
-<button
+             <button
                className={styles.colorPaletteClear}
                type="button"
+               disabled={disabled}
                aria-label={t("inspector.clearRecentColors")}
                title={t("inspector.clearRecentColors")}
                onClick={() => {
@@ -272,6 +289,7 @@ export function ColorControl({ id, name, value, onChange }: ColorControlProps) {
                  key={key}
                  className={styles.colorPaletteSwatch}
                  type="button"
+                 disabled={disabled}
                  aria-label={t("inspector.applyPaletteColor", { color })}
                  title={t("inspector.applyPaletteColor", { color })}
                  style={{ backgroundColor: color }}

@@ -8,6 +8,7 @@ import {
   findElementSiblingPosition,
   type MoveElementOptions,
 } from "./element-operations";
+import { getTextContentPlainText } from "./rich-text-authoring";
 import {
   collectAuthoringIds,
   collectContainerIds as collectContainerIdsInHierarchy,
@@ -18,14 +19,6 @@ import { findElementById } from "./element-tree";
 interface ParentTarget {
   id: string | null;
   label: string;
-}
-
-function summarizeTextContent(
-  content: string | { type: "rich-text"; runs: readonly { text: string }[] },
-): string {
-  return typeof content === "string"
-    ? content
-    : content.runs.map((run) => run.text).join("");
 }
 
 function collectParentTargetsInTopicItems(
@@ -54,9 +47,9 @@ function collectParentTargetsInTopicItems(
 }
 
 function getContentPreview(
-  content: string | { type: "rich-text"; runs: readonly { text: string }[] },
+  content: Parameters<typeof getTextContentPlainText>[0],
 ): string | null {
-  const normalized = summarizeTextContent(content)
+  const normalized = getTextContentPlainText(content)
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();

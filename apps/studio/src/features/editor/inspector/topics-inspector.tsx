@@ -30,6 +30,8 @@ import {
   updateTopicItemTextContent,
 } from "../element-operations";
 
+import { getTextContentPlainText } from "../rich-text-authoring";
+
 import { InspectorSection } from "./inspector-section";
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyControl } from "./sections/element-typography-control";
@@ -90,14 +92,6 @@ function findDirectTextChild(
   const textChild = item.content.children.find((child) => child.type === "text");
 
   return textChild?.type === "text" ? textChild : null;
-}
-
-function getTextElementContentValue(
-  content: Extract<PowerShowElement, { type: "text" }>["content"],
-): string {
-  return typeof content === "string"
-    ? content
-    : content.runs.map((run) => run.text).join("");
 }
 
 function getTopicContentLabels(
@@ -196,7 +190,7 @@ function TopicRow({
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
-            value={textChild ? getTextElementContentValue(textChild.content) : ""}
+            value={textChild ? getTextContentPlainText(textChild.content) : ""}
             onChange={(event) => {
               onTextChange(item.id, event.currentTarget.value);
             }}

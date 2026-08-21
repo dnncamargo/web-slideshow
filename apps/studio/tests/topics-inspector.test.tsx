@@ -8,6 +8,7 @@ import type {
   PowerShowElement,
   TopicItem,
   TopicsElement,
+  TextRun,
 } from "@powershow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -261,6 +262,22 @@ describe("TopicsInspector", () => {
     };
   }
 
+  function richText(
+    id: string,
+    runs: TextRun[],
+  ): PowerShowElement {
+    return {
+      type: "text",
+      id,
+      hidden: false,
+      variant: "body",
+      content: {
+        type: "rich-text",
+        runs,
+      },
+    };
+  }
+
   function image(id: string): PowerShowElement {
     return {
       type: "image",
@@ -481,6 +498,110 @@ describe("TopicsInspector", () => {
       content: "Updated topic",
     });
     expect(updates[0]?.items[1]).toBe(elementState.items[1]);
+  });
+
+  it("displays rich topic text as a plain textarea value without writing", async () => {
+    await act(async () => {
+      mount(
+        topicsElement({
+          items: [
+            topicItem("topic-a", [
+              richText("topic-a-text", [
+                { text: "Dar " },
+                { text: "instruções", marks: { bold: true } },
+                { text: " para um computador" },
+              ]),
+            ]),
+          ],
+        }),
+      );
+    });
+
+    expect(topicInput("topic-a")?.value).toBe(
+      "Dar instruções para um computador",
+    );
+    expect(updates).toHaveLength(0);
+  });
+
+  it("preserves rich formatting when editing text around a marked run", async () => {
+    await act(async () => {
+      mount(
+        topicsElement({
+          items: [
+            topicItem("topic-a", [
+              richText("topic-a-text", [
+                { text: "Dar " },
+                { text: "instruções", marks: { bold: true } },
+                { text: " para um computador" },
+              ]),
+            ]),
+          ],
+        }),
+      );
+    });
+
+    const input = topicInput("topic-a");
+
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      setTextInputValue(input!, "Dar ótimas instruções para um computador");
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(
+      updates[0]?.items[0]?.content.children[0],
+    ).toMatchObject({
+      type: "text",
+      content: {
+        type: "rich-text",
+        runs: [
+          { text: "Dar ótimas " },
+          { text: "instruções", marks: { bold: true } },
+          { text: " para um computador" },
+        ],
+      },
+    });
+  });
+
+  it("keeps the marks when typing inside a marked topic run", async () => {
+    await act(async () => {
+      mount(
+        topicsElement({
+          items: [
+            topicItem("topic-a", [
+              richText("topic-a-text", [
+                { text: "Dar " },
+                { text: "instruções", marks: { bold: true } },
+                { text: " para um computador" },
+              ]),
+            ]),
+          ],
+        }),
+      );
+    });
+
+    const input = topicInput("topic-a");
+
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      setTextInputValue(input!, "Dar instruçXões para um computador");
+    });
+
+    expect(
+      updates[0]?.items[0]?.content.children[0],
+    ).toMatchObject({
+      type: "text",
+      content: {
+        type: "rich-text",
+        runs: [
+          { text: "Dar " },
+          { text: "instruçXões", marks: { bold: true } },
+          { text: " para um computador" },
+        ],
+      },
+    });
   });
 
   it("edits a nested child topic without touching sibling references", async () => {

@@ -4,6 +4,9 @@ import type {
   ImageElement,
   PowerShowElement,
   Slide,
+  StructuredTableElement,
+  TextElement,
+  TextRun,
   TopicItem,
   TopicsElement,
 } from "@powershow/document-schema";
@@ -23,8 +26,10 @@ import {
 } from "../src/features/editor/element-operations";
 import {
   collectAuthoringIds,
+  findElementById,
   findContentSlotById,
   getElementsForParentRef,
+  updateElementById,
 } from "../src/features/editor/element-hierarchy";
 
 function text(id: string, content = id): PowerShowElement {
@@ -84,6 +89,47 @@ function topics(id: string, items: TopicItem[]): TopicsElement {
     hidden: false,
     kind: "unordered",
     items,
+  };
+}
+
+function richText(runs: TextRun[]): TextElement["content"] {
+  return {
+    type: "rich-text",
+    runs,
+  };
+}
+
+function structuredTable(
+  id: string,
+  headerText: PowerShowElement,
+  cellText: PowerShowElement,
+): StructuredTableElement {
+  return {
+    type: "table",
+    id,
+    mode: "structured",
+    showHeader: true,
+    hidden: false,
+    columns: [
+      {
+        id: "column-1",
+        header: {
+          id: "header-slot-1",
+          children: [headerText],
+        },
+      },
+    ],
+    rows: [
+      {
+        id: "row-1",
+        cells: [
+          {
+            id: "cell-slot-1",
+            children: [cellText],
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -659,6 +705,49 @@ describe("canonical element hierarchy operations", () => {
     });
 
     expect(result).toEqual({ elements, moved: false, error: "invalid-target-index" });
+  });
+
+  it("updates nested structured table text content through hierarchy helpers", () => {
+    const elements: PowerShowElement[] = [
+      structuredTable(
+        "table-1",
+        {
+          type: "text",
+          id: "header-text",
+          hidden: false,
+          variant: "body",
+          content: "Header",
+        },
+        {
+          type: "text",
+          id: "cell-text",
+          hidden: false,
+          variant: "body",
+          content: "Cell",
+        },
+      ),
+    ];
+
+    const updated = updateElementById(elements, "header-text", (element) => {
+      if (element.type !== "text") {
+        return element;
+      }
+
+      return {
+        ...element,
+        content: richText([{ text: "Header", marks: { bold: true } }]),
+      };
+    });
+
+    const found = findElementById(updated, "header-text");
+
+    expect(found).toMatchObject({
+      type: "text",
+      content: {
+        type: "rich-text",
+        runs: [{ text: "Header", marks: { bold: true } }],
+      },
+    });
   });
 });
 

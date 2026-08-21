@@ -1569,6 +1569,42 @@
     #6366f1;
 }
 
+.inlineFormattingToolbar {
+  display: grid;
+
+  gap: 10px;
+
+  margin-bottom: 12px;
+}
+
+.inlineFormattingButtonRow {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+}
+
+.inlineFormattingButtonRow .secondaryButton[aria-pressed="true"] {
+  border-color: #6366f1;
+
+  background: #1d2433;
+
+  color: #eef2ff;
+}
+
+.inlineFormattingColorRow {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  gap: 8px;
+
+  align-items: start;
+}
+
 /* ==========================================================
    END: TEXTAREA DO INSPECTOR
    ========================================================== */
