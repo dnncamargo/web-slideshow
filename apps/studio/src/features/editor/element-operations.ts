@@ -2,6 +2,9 @@ import type {
   ContentSlot,
   PowerShowElement,
   Slide,
+  StructuredTableColumn,
+  StructuredTableElement,
+  StructuredTableRow,
   TopicItem,
   TopicsElement,
 } from "@powershow/document-schema";
@@ -12,8 +15,10 @@ import {
   getElementsForParentRef,
   type ElementParentRef,
   findElementById,
+  isStructuredTable,
   isTopicItemContentSlotId,
   updateElementById,
+  updateStructuredTableSlots,
 } from "./element-hierarchy";
 
 // ============================================================
@@ -398,7 +403,7 @@ export function removeTopicItemFromTopicItems(
 export type AddElementDestination =
   | { kind: "slide-root" }
   | { kind: "append-container"; containerId: string }
-  | { kind: "append-topic-content"; contentSlotId: string }
+  | { kind: "append-content-slot"; contentSlotId: string }
   | { kind: "insert-after"; targetId: string };
 
 function topicItemsContainContentSlot(
@@ -418,20 +423,47 @@ function topicItemsContainContentSlot(
   return false;
 }
 
+function structuredTableContainsContentSlot(
+  table: StructuredTableElement,
+  contentSlotId: string,
+): boolean {
+  for (const column of table.columns) {
+    if (column.header.id === contentSlotId) {
+      return true;
+    }
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      if (cell.id === contentSlotId) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 /**
  * Resolves where a freshly created element lands given the current selection
- * and an optional explicit ContentSlot context (the TopicItem the user
- * clicked on the canvas).
+ * and an optional explicit ContentSlot context (the header/cell or TopicItem
+ * the user clicked on the canvas).
  *
  * - no selection (or stale selection) -> slide root
  * - container selected -> inside the container
  * - TopicsElement selected + explicit clicked ContentSlot of THAT
  *   TopicsElement + ordinary element -> inside exactly that ContentSlot
+ * - Structured Table selected + explicit clicked ContentSlot of THAT Table ->
+ *   inside exactly that ContentSlot
  * - any other element -> sibling immediately after it
  *
- * The TopicsElement is never guessed as an implicit destination: without an
- * explicit ContentSlot context, adding while a TopicsElement is selected
- * keeps the normal sibling behavior.
+ * Neither a TopicsElement nor a Structured Table is guessed as an implicit
+ * content-slot destination: without an explicit ContentSlot context, adding
+ * while one of them is selected keeps the normal sibling behavior.
+ *
+ * The supplied contentSlotId is only honored when it actually belongs to the
+ * currently selected owning element; stale or unowned ContentSlot ids are
+ * ignored.
  */
 export function resolveAddElementDestination(
   elements: readonly PowerShowElement[],
@@ -459,7 +491,15 @@ export function resolveAddElementDestination(
     contentSlotId !== null &&
     topicItemsContainContentSlot(selected.items, contentSlotId)
   ) {
-    return { kind: "append-topic-content", contentSlotId };
+    return { kind: "append-content-slot", contentSlotId };
+  }
+
+  if (
+    isStructuredTable(selected) &&
+    contentSlotId !== null &&
+    structuredTableContainsContentSlot(selected, contentSlotId)
+  ) {
+    return { kind: "append-content-slot", contentSlotId };
   }
 
   return { kind: "insert-after", targetId: selected.id };
@@ -602,24 +642,67 @@ export function createElement(
     }
 
     case "table": {
-      return {
-        id: createUniqueId("table-element", usedIds),
+      const tableId = createUniqueId("table-element", usedIds);
+      usedIds.add(tableId);
 
-        type: "table",
+      const columnId = createUniqueId("table-column", usedIds);
+      usedIds.add(columnId);
 
+      const headerSlotId = createUniqueId("table-header-slot", usedIds);
+      usedIds.add(headerSlotId);
+
+      const headerTextId = createUniqueId("table-header-text", usedIds);
+      usedIds.add(headerTextId);
+
+      const rowId = createUniqueId("table-row", usedIds);
+      usedIds.add(rowId);
+
+      const cellSlotId = createUniqueId("table-cell-slot", usedIds);
+      usedIds.add(cellSlotId);
+
+      const cellTextId = createUniqueId("table-cell-text", usedIds);
+      usedIds.add(cellTextId);
+
+      const headerText: PowerShowElement = {
+        id: headerTextId,
+        type: "text",
         hidden: false,
+        variant: "body",
+        content: "Column 1",
+      };
 
+      const cellText: PowerShowElement = {
+        id: cellTextId,
+        type: "text",
+        hidden: false,
+        variant: "body",
+        content: "Value",
+      };
+
+      return {
+        id: tableId,
+        type: "table",
+        mode: "structured",
+        showHeader: true,
+        hidden: false,
         columns: [
           {
-            key: "column_1",
-
-            label: "Column 1",
+            id: columnId,
+            header: {
+              id: headerSlotId,
+              children: [headerText],
+            },
           },
         ],
-
         rows: [
           {
-            column_1: "Value",
+            id: rowId,
+            cells: [
+              {
+                id: cellSlotId,
+                children: [cellText],
+              },
+            ],
           },
         ],
       };
@@ -724,6 +807,35 @@ function clonePowerShowElementWithUniqueIds(
     } satisfies TopicsElement;
   }
 
+  if (clone.type === "table" && clone.mode === "structured") {
+    return {
+      ...clone,
+      id,
+      columns: clone.columns.map((column) => {
+        const columnId = createUniqueId(`${column.id}-copy`, usedIds);
+        usedIds.add(columnId);
+
+        return {
+          ...column,
+          id: columnId,
+          header: cloneContentSlotWithUniqueIds(column.header, usedIds),
+        };
+      }),
+      rows: clone.rows.map((row) => {
+        const rowId = createUniqueId(`${row.id}-copy`, usedIds);
+        usedIds.add(rowId);
+
+        return {
+          ...row,
+          id: rowId,
+          cells: row.cells.map((cell) =>
+            cloneContentSlotWithUniqueIds(cell, usedIds),
+          ),
+        };
+      }),
+    };
+  }
+
   return {
     ...clone,
     id,
@@ -791,6 +903,218 @@ function insertElementAfterIdInTopicItems(
   return changed ? nextItems : (items as TopicItem[]);
 }
 
+export function insertElementIntoChildrenAt(
+  children: readonly PowerShowElement[],
+  index: number,
+  elementToInsert: PowerShowElement,
+): PowerShowElement[] {
+  return [
+    ...children.slice(0, index),
+    elementToInsert,
+    ...children.slice(index),
+  ];
+}
+
+function appendElementToStructuredTableSlots(
+  table: StructuredTableElement,
+  contentSlotId: string,
+  newElement: PowerShowElement,
+): StructuredTableElement | null {
+  let columnsChanged = false;
+
+  const columns = table.columns.map((column) => {
+    if (column.header.id === contentSlotId) {
+      columnsChanged = true;
+
+      return {
+        ...column,
+        header: {
+          ...column.header,
+          children: [...column.header.children, newElement],
+        },
+      };
+    }
+
+    const children = appendElementToContentSlot(
+      column.header.children,
+      contentSlotId,
+      newElement,
+    );
+
+    if (children === column.header.children) {
+      return column;
+    }
+
+    columnsChanged = true;
+
+    return {
+      ...column,
+      header: { ...column.header, children },
+    };
+  });
+
+  let rowsChanged = false;
+
+  const rows = table.rows.map((row) => {
+    let cellChanged = false;
+
+    const cells = row.cells.map((cell) => {
+      if (cell.id === contentSlotId) {
+        cellChanged = true;
+
+        return {
+          ...cell,
+          children: [...cell.children, newElement],
+        };
+      }
+
+      const children = appendElementToContentSlot(
+        cell.children,
+        contentSlotId,
+        newElement,
+      );
+
+      if (children === cell.children) {
+        return cell;
+      }
+
+      cellChanged = true;
+
+      return { ...cell, children };
+    });
+
+    if (!cellChanged) {
+      return row;
+    }
+
+    rowsChanged = true;
+
+    return { ...row, cells };
+  });
+
+  if (!columnsChanged && !rowsChanged) {
+    return null;
+  }
+
+  return {
+    ...table,
+    columns: columnsChanged ? columns : table.columns,
+    rows: rowsChanged ? rows : table.rows,
+  };
+}
+
+function insertIntoStructuredTableParentRef(
+  table: StructuredTableElement,
+  parentRef: ElementParentRef,
+  index: number,
+  elementToInsert: PowerShowElement,
+): StructuredTableElement | null {
+  if (parentRef.kind !== "content-slot") {
+    return updateStructuredTableSlots(table, (children) =>
+      insertElementIntoParentRef(
+        children,
+        parentRef,
+        index,
+        elementToInsert,
+      ),
+    );
+  }
+
+  const slotId = parentRef.id;
+
+  let columnsChanged = false;
+
+  const columns = table.columns.map((column) => {
+    if (column.header.id === slotId) {
+      columnsChanged = true;
+
+      return {
+        ...column,
+        header: {
+          ...column.header,
+          children: insertElementIntoChildrenAt(
+            column.header.children,
+            index,
+            elementToInsert,
+          ),
+        },
+      };
+    }
+
+    const children = insertElementIntoParentRef(
+      column.header.children,
+      parentRef,
+      index,
+      elementToInsert,
+    );
+
+    if (children === column.header.children) {
+      return column;
+    }
+
+    columnsChanged = true;
+
+    return {
+      ...column,
+      header: { ...column.header, children },
+    };
+  });
+
+  let rowsChanged = false;
+
+  const rows = table.rows.map((row) => {
+    let cellChanged = false;
+
+    const cells = row.cells.map((cell) => {
+      if (cell.id === slotId) {
+        cellChanged = true;
+
+        return {
+          ...cell,
+          children: insertElementIntoChildrenAt(
+            cell.children,
+            index,
+            elementToInsert,
+          ),
+        };
+      }
+
+      const children = insertElementIntoParentRef(
+        cell.children,
+        parentRef,
+        index,
+        elementToInsert,
+      );
+
+      if (children === cell.children) {
+        return cell;
+      }
+
+      cellChanged = true;
+
+      return { ...cell, children };
+    });
+
+    if (!cellChanged) {
+      return row;
+    }
+
+    rowsChanged = true;
+
+    return { ...row, cells };
+  });
+
+  if (!columnsChanged && !rowsChanged) {
+    return null;
+  }
+
+  return {
+    ...table,
+    columns: columnsChanged ? columns : table.columns,
+    rows: rowsChanged ? rows : table.rows,
+  };
+}
+
 export function insertElementAfterId(
   elements: PowerShowElement[],
   targetId: string,
@@ -826,6 +1150,18 @@ export function insertElementAfterId(
 
       if (children !== element.children) {
         result[result.length - 1] = { ...element, children };
+        changed = true;
+      }
+      continue;
+    }
+
+    if (isStructuredTable(element)) {
+      const updated = updateStructuredTableSlots(element, (children) =>
+        insertElementAfterId(children, targetId, newElement),
+      );
+
+      if (updated !== null) {
+        result[result.length - 1] = updated;
         changed = true;
       }
       continue;
@@ -945,6 +1281,18 @@ export function appendElementToContainer(
       return element;
     }
 
+    if (isStructuredTable(element)) {
+      const updated = updateStructuredTableSlots(element, (children) =>
+        appendElementToContainer(children, containerId, newElement),
+      );
+
+      if (updated !== null) {
+        changed = true;
+        return updated;
+      }
+      return element;
+    }
+
     if (element.type === "topics") {
       const items = appendElementToContainerInTopicItems(
         element.items,
@@ -1046,6 +1394,20 @@ export function appendElementToContentSlot(
       return element;
     }
 
+    if (isStructuredTable(element)) {
+      const updated = appendElementToStructuredTableSlots(
+        element,
+        contentSlotId,
+        newElement,
+      );
+
+      if (updated !== null) {
+        changed = true;
+        return updated;
+      }
+      return element;
+    }
+
     if (element.type === "topics") {
       const items = appendElementToContentSlotInTopicItems(
         element.items,
@@ -1127,6 +1489,19 @@ export function removeElementById(
         if (children !== element.children) {
           changed = true;
           return [{ ...element, children }];
+        }
+
+        return [element];
+      }
+
+      if (isStructuredTable(element)) {
+        const updated = updateStructuredTableSlots(element, (children) =>
+          removeElementById(children, id),
+        );
+
+        if (updated !== null) {
+          changed = true;
+          return [updated];
         }
 
         return [element];
@@ -1324,6 +1699,22 @@ function insertElementIntoParentRef(
       return element;
     }
 
+    if (isStructuredTable(element)) {
+      const updated = insertIntoStructuredTableParentRef(
+        element,
+        parentRef,
+        index,
+        elementToInsert,
+      );
+
+      if (updated !== null) {
+        changed = true;
+        return updated;
+      }
+
+      return element;
+    }
+
     if (element.type === "topics") {
       const items = insertIntoTopicItems(
         element.items,
@@ -1507,4 +1898,186 @@ export function moveElementOut(
 
 // ============================================================
 // END: MOVE ELEMENT
+// ============================================================
+
+// ============================================================
+// BEGIN: STRUCTURED TABLE MUTATION
+//
+// add/remove column and row mutations preserve the canonical
+// Structured Table invariant row.cells.length === columns.length.
+// All created structural and content IDs are globally unique
+// across the whole presentation.
+// ============================================================
+
+function buildStructuredText(usedIds: Set<string>, content: string): PowerShowElement {
+  const textId = createUniqueId("table-text", usedIds);
+  usedIds.add(textId);
+
+  return {
+    id: textId,
+    type: "text",
+    hidden: false,
+    variant: "body",
+    content,
+  };
+}
+
+function buildStructuredCell(usedIds: Set<string>): ContentSlot {
+  const slotId = createUniqueId("table-cell-slot", usedIds);
+  usedIds.add(slotId);
+
+  return {
+    id: slotId,
+    children: [buildStructuredText(usedIds, "Value")],
+  };
+}
+
+function buildStructuredColumn(usedIds: Set<string>): StructuredTableColumn {
+  const columnId = createUniqueId("table-column", usedIds);
+  usedIds.add(columnId);
+
+  const headerSlotId = createUniqueId("table-header-slot", usedIds);
+  usedIds.add(headerSlotId);
+
+  const headerTextId = createUniqueId("table-header-text", usedIds);
+  usedIds.add(headerTextId);
+
+  return {
+    id: columnId,
+    header: {
+      id: headerSlotId,
+      children: [
+        {
+          id: headerTextId,
+          type: "text",
+          hidden: false,
+          variant: "body",
+          content: "Column",
+        },
+      ],
+    },
+  };
+}
+
+function buildStructuredRow(
+  usedIds: Set<string>,
+  columnCount: number,
+): StructuredTableRow {
+  const rowId = createUniqueId("table-row", usedIds);
+  usedIds.add(rowId);
+
+  const cells: ContentSlot[] = [];
+
+  for (let index = 0; index < columnCount; index += 1) {
+    cells.push(buildStructuredCell(usedIds));
+  }
+
+  return { id: rowId, cells };
+}
+
+function applyStructuredTableMutation(
+  slides: readonly Slide[],
+  tableId: string,
+  mutate: (
+    table: StructuredTableElement,
+    usedIds: Set<string>,
+  ) => StructuredTableElement,
+): Slide[] {
+  const usedIds = collectPresentationElementIds(slides);
+  let changed = false;
+
+  const nextSlides = slides.map((slide) => {
+    const elements = updateElementById(slide.elements, tableId, (element) => {
+      if (element.type !== "table" || element.mode !== "structured") {
+        return element;
+      }
+
+      return mutate(element, usedIds);
+    });
+
+    if (elements === slide.elements) {
+      return slide;
+    }
+
+    changed = true;
+
+    return { ...slide, elements };
+  });
+
+  return changed ? nextSlides : (slides as Slide[]);
+}
+
+export function addColumnToStructuredTable(
+  slides: readonly Slide[],
+  tableId: string,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table, usedIds) => {
+    const column = buildStructuredColumn(usedIds);
+
+    return {
+      ...table,
+      columns: [...table.columns, column],
+      rows: table.rows.map((row) => ({
+        ...row,
+        cells: [...row.cells, buildStructuredCell(usedIds)],
+      })),
+    };
+  });
+}
+
+export function removeColumnFromStructuredTable(
+  slides: readonly Slide[],
+  tableId: string,
+  index: number,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table) => {
+    if (!table.columns[index]) {
+      return table;
+    }
+
+    return {
+      ...table,
+      columns: table.columns.filter((_column, columnIndex) => columnIndex !== index),
+      rows: table.rows.map((row) => ({
+        ...row,
+        cells: row.cells.filter((_cell, cellIndex) => cellIndex !== index),
+      })),
+    };
+  });
+}
+
+export function addRowToStructuredTable(
+  slides: readonly Slide[],
+  tableId: string,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table, usedIds) => ({
+    ...table,
+    rows: [...table.rows, buildStructuredRow(usedIds, table.columns.length)],
+  }));
+}
+
+export function removeRowFromStructuredTable(
+  slides: readonly Slide[],
+  tableId: string,
+  index: number,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table) => ({
+    ...table,
+    rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
+  }));
+}
+
+export function setStructuredTableShowHeader(
+  slides: readonly Slide[],
+  tableId: string,
+  showHeader: boolean,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table) => ({
+    ...table,
+    showHeader,
+  }));
+}
+
+// ============================================================
+// END: STRUCTURED TABLE MUTATION
 // ============================================================

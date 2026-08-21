@@ -4,7 +4,7 @@ import type {
   ImageElement,
   Presentation,
   Slide,
-  TableElement,
+  SimpleTableElement,
   TerminalElement,
   TextElement,
   TextboxElement,
@@ -38,8 +38,8 @@ export function createTerminalElement(
 }
 
 export function createTableElement(
-  overrides: Partial<TableElement> = {},
-): TableElement {
+  overrides: Partial<SimpleTableElement> = {},
+): SimpleTableElement {
   return {
     type: "table",
     id: "table-fixture",

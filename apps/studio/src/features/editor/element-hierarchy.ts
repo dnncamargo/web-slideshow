@@ -3,6 +3,7 @@ import type {
   ContentSlot,
   PowerShowElement,
   Slide,
+  StructuredTableElement,
   TopicItem,
   TopicsElement,
 } from "@powershow/document-schema";
@@ -31,6 +32,223 @@ function isContainer(element: PowerShowElement): element is ContainerElement {
 
 function isTopics(element: PowerShowElement): element is TopicsElement {
   return element.type === "topics";
+}
+
+export function isStructuredTable(
+  element: PowerShowElement,
+): element is StructuredTableElement {
+  return element.type === "table" && element.mode === "structured";
+}
+
+function findElementInStructuredTableSlots(
+  table: StructuredTableElement,
+  id: string,
+): ElementLocation | null {
+  for (const column of table.columns) {
+    const found = findElementLocation(column.header.children, id, {
+      kind: "content-slot",
+      id: column.header.id,
+    });
+
+    if (found) {
+      return found;
+    }
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      const found = findElementLocation(cell.children, id, {
+        kind: "content-slot",
+        id: cell.id,
+      });
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+function findElementInStructuredTableById(
+  table: StructuredTableElement,
+  id: string,
+): PowerShowElement | null {
+  for (const column of table.columns) {
+    const found = findElementById(column.header.children, id);
+
+    if (found) {
+      return found;
+    }
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      const found = findElementById(cell.children, id);
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+function someStructuredTableSlots(
+  table: StructuredTableElement,
+  predicate: (element: PowerShowElement) => boolean,
+): boolean {
+  for (const column of table.columns) {
+    if (someElements(column.header.children, predicate)) {
+      return true;
+    }
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      if (someElements(cell.children, predicate)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function findContentSlotInStructuredTable(
+  table: StructuredTableElement,
+  id: string,
+): ContentSlot | null {
+  for (const column of table.columns) {
+    if (column.header.id === id) {
+      return column.header;
+    }
+
+    const found = findContentSlotById(column.header.children, id);
+
+    if (found) {
+      return found;
+    }
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      if (cell.id === id) {
+        return cell;
+      }
+
+      const found = findContentSlotById(cell.children, id);
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Maps the children of every Structured Table header/cell ContentSlot through
+ * `transform`. Returns null when no slot changed (immutability guard used by
+ * the collection of hierarchy operations).
+ */
+export function updateStructuredTableSlots(
+  table: StructuredTableElement,
+  transform: (
+    children: PowerShowElement[],
+  ) => PowerShowElement[],
+): StructuredTableElement | null {
+  let columnsChanged = false;
+
+  const columns = table.columns.map((column) => {
+    const children = transform(column.header.children);
+
+    if (children === column.header.children) {
+      return column;
+    }
+
+    columnsChanged = true;
+
+    return {
+      ...column,
+      header: { ...column.header, children },
+    };
+  });
+
+  let rowsChanged = false;
+
+  const rows = table.rows.map((row) => {
+    let cellChanged = false;
+
+    const cells = row.cells.map((cell) => {
+      const children = transform(cell.children);
+
+      if (children === cell.children) {
+        return cell;
+      }
+
+      cellChanged = true;
+
+      return { ...cell, children };
+    });
+
+    if (!cellChanged) {
+      return row;
+    }
+
+    rowsChanged = true;
+
+    return { ...row, cells };
+  });
+
+  if (!columnsChanged && !rowsChanged) {
+    return null;
+  }
+
+  return {
+    ...table,
+    columns: columnsChanged ? columns : table.columns,
+    rows: rowsChanged ? rows : table.rows,
+  };
+}
+
+function collectStructuredTableContainerIds(
+  table: StructuredTableElement,
+  ids: Set<string>,
+): void {
+  for (const column of table.columns) {
+    collectContainerIds(column.header.children, ids);
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      collectContainerIds(cell.children, ids);
+    }
+  }
+}
+
+function structuredTableContainsTopicItemContentSlot(
+  table: StructuredTableElement,
+  slotId: string,
+): boolean {
+  for (const column of table.columns) {
+    if (isTopicItemContentSlotId(column.header.children, slotId)) {
+      return true;
+    }
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      if (isTopicItemContentSlotId(cell.children, slotId)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function getTopicItemContentChildren(topicItem: TopicItem): PowerShowElement[] {
@@ -95,6 +313,14 @@ export function findElementLocation(
       }
     }
 
+    if (isStructuredTable(element)) {
+      const found = findElementInStructuredTableSlots(element, id);
+
+      if (found) {
+        return found;
+      }
+    }
+
     if (isTopics(element)) {
       const found = findElementInTopicItems(element.items, id);
 
@@ -118,6 +344,14 @@ export function findElementById(
 
     if (isContainer(element)) {
       const found = findElementById(element.children, id);
+
+      if (found) {
+        return found;
+      }
+    }
+
+    if (isStructuredTable(element)) {
+      const found = findElementInStructuredTableById(element, id);
 
       if (found) {
         return found;
@@ -230,6 +464,20 @@ function updatePowerShowElements(
       return { ...element, children };
     }
 
+    if (isStructuredTable(element)) {
+      const updated = updateStructuredTableSlots(element, (children) =>
+        updatePowerShowElements(children, id, update),
+      );
+
+      if (updated === null) {
+        return element;
+      }
+
+      changed = true;
+
+      return updated;
+    }
+
     if (isTopics(element)) {
       const items = updateTopicItems(element.items, id, update);
 
@@ -286,6 +534,10 @@ function someElements(
       return true;
     }
 
+    if (isStructuredTable(element) && someStructuredTableSlots(element, predicate)) {
+      return true;
+    }
+
     if (isTopics(element) && someTopicItems(element.items, predicate)) {
       return true;
     }
@@ -326,6 +578,29 @@ export function collectAuthoringIds(
   if (isContainer(element)) {
     for (const child of element.children) {
       collectAuthoringIds(child, ids);
+    }
+  }
+
+  if (isStructuredTable(element)) {
+    for (const column of element.columns) {
+      ids.add(column.id);
+      ids.add(column.header.id);
+
+      for (const child of column.header.children) {
+        collectAuthoringIds(child, ids);
+      }
+    }
+
+    for (const row of element.rows) {
+      ids.add(row.id);
+
+      for (const cell of row.cells) {
+        ids.add(cell.id);
+
+        for (const child of cell.children) {
+          collectAuthoringIds(child, ids);
+        }
+      }
     }
   }
 
@@ -370,6 +645,14 @@ export function findContentSlotById(
   for (const element of elements) {
     if (element.type === "container") {
       const found = findContentSlotById(element.children, id);
+
+      if (found) {
+        return found;
+      }
+    }
+
+    if (isStructuredTable(element)) {
+      const found = findContentSlotInStructuredTable(element, id);
 
       if (found) {
         return found;
@@ -427,9 +710,12 @@ function findContentSlotInTopicItems(
 
 /**
  * Determines whether a ContentSlot id belongs to a TopicItem, traversing the
- * whole hierarchy (containers, TopicItem children, and autonomous Topics
- * nested inside slots). Used by Studio authoring rules that forbid placing a
- * TopicsElement directly inside a TopicItem ContentSlot.
+ * whole hierarchy (containers, TopicItem children, autonomous Topics nested
+ * inside slots, and Structured Table slots). Used by Studio authoring rules
+ * that forbid placing a TopicsElement directly inside a TopicItem ContentSlot.
+ *
+ * A Structured Table's own header/cell ContentSlots are never TopicItem slots,
+ * so a TopicsElement remains valid inside them.
  */
 export function isTopicItemContentSlotId(
   elements: readonly PowerShowElement[],
@@ -438,6 +724,14 @@ export function isTopicItemContentSlotId(
   for (const element of elements) {
     if (isContainer(element)) {
       if (isTopicItemContentSlotId(element.children, slotId)) {
+        return true;
+      }
+
+      continue;
+    }
+
+    if (isStructuredTable(element)) {
+      if (structuredTableContainsTopicItemContentSlot(element, slotId)) {
         return true;
       }
 
@@ -533,6 +827,10 @@ export function collectContainerIds(
     if (element.type === "container") {
       ids.add(element.id);
       collectContainerIds(element.children, ids);
+    }
+
+    if (isStructuredTable(element)) {
+      collectStructuredTableContainerIds(element, ids);
     }
 
     if (element.type === "topics") {

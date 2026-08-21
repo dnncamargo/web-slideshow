@@ -21,6 +21,7 @@ import {
 import type {
   ElementInspectorUpdate,
   FontResourceControls,
+  TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
 import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
@@ -50,6 +51,8 @@ interface ElementInspectorProps {
   } | null;
 
   topicsAuthoringControls: TopicsAuthoringControls;
+
+  tableAuthoringControls: TableAuthoringControls;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -70,6 +73,7 @@ function ElementTypeInspector({
   onFocalEditingImageIdChange,
   unsupportedElementHint,
   topicsAuthoringControls,
+  tableAuthoringControls,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -116,7 +120,13 @@ function ElementTypeInspector({
       );
 
     case "table":
-      return <TableInspector element={element} onUpdate={onUpdate} />;
+      return (
+        <TableInspector
+          element={element}
+          onUpdate={onUpdate}
+          tableAuthoringControls={tableAuthoringControls}
+        />
+      );
 
     case "divider":
       return <DividerInspector element={element} onUpdate={onUpdate} />;
@@ -162,6 +172,7 @@ export function ElementInspector({
   parent,
   layerControls,
   topicsAuthoringControls,
+  tableAuthoringControls,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
@@ -201,6 +212,7 @@ export function ElementInspector({
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
         topicsAuthoringControls={topicsAuthoringControls}
+        tableAuthoringControls={tableAuthoringControls}
       />
 
       {shouldShowElementPlacement(layerControls) && (

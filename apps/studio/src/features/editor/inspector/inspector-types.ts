@@ -45,3 +45,15 @@ export interface TopicsAuthoringControls {
     topicItemId: string,
   ) => string | null;
 }
+
+export interface TableAuthoringControls {
+  onAddColumn: (tableId: string) => void;
+
+  onRemoveColumn: (tableId: string, index: number) => void;
+
+  onAddRow: (tableId: string) => void;
+
+  onRemoveRow: (tableId: string, index: number) => void;
+
+  onShowHeaderChange: (tableId: string, showHeader: boolean) => void;
+}

@@ -134,6 +134,8 @@ import { ElementCrudControls } from "./element-crud-controls";
 import {
   appendElementToContainer,
   appendElementToContentSlot,
+  addColumnToStructuredTable,
+  addRowToStructuredTable,
   createDefaultTopicItem,
   createElement,
   duplicateElement,
@@ -141,11 +143,16 @@ import {
   insertElementAfterId,
   moveElement,
   moveElementToSiblingIndexById,
+  removeColumnFromStructuredTable,
   removeElementById,
+  removeRowFromStructuredTable,
+  setStructuredTableShowHeader,
   appendTopicItemToTopics,
   appendChildTopicItemToTopics,
   resolveAddElementDestination,
 } from "./element-operations";
+
+import type { TableAuthoringControls } from "./inspector/inspector-types";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -1753,7 +1760,7 @@ export function EditorWorkspace({
               ),
             };
 
-          case "append-topic-content":
+          case "append-content-slot":
             return {
               ...slide,
               elements: appendElementToContentSlot(
@@ -2259,6 +2266,63 @@ export function EditorWorkspace({
 
   // ==========================================================
   // END: MOVE SELECTED ELEMENT
+  // ==========================================================
+
+  // ==========================================================
+  // BEGIN: STRUCTURED TABLE AUTHORING CONTROLS
+  //
+  // Structural Table mutations need globally-unique IDs, so they
+  // run against the full presentation slides rather than the
+  // single selected element updater.
+  // ==========================================================
+
+  const tableAuthoringControls: TableAuthoringControls = {
+    onAddColumn: (tableId) => {
+      setPresentation((current) => ({
+        ...current,
+        slides: addColumnToStructuredTable(current.slides, tableId),
+      }));
+    },
+
+    onRemoveColumn: (tableId, index) => {
+      setPresentation((current) => ({
+        ...current,
+        slides: removeColumnFromStructuredTable(
+          current.slides,
+          tableId,
+          index,
+        ),
+      }));
+    },
+
+    onAddRow: (tableId) => {
+      setPresentation((current) => ({
+        ...current,
+        slides: addRowToStructuredTable(current.slides, tableId),
+      }));
+    },
+
+    onRemoveRow: (tableId, index) => {
+      setPresentation((current) => ({
+        ...current,
+        slides: removeRowFromStructuredTable(current.slides, tableId, index),
+      }));
+    },
+
+    onShowHeaderChange: (tableId, showHeader) => {
+      setPresentation((current) => ({
+        ...current,
+        slides: setStructuredTableShowHeader(
+          current.slides,
+          tableId,
+          showHeader,
+        ),
+      }));
+    },
+  };
+
+  // ==========================================================
+  // END: STRUCTURED TABLE AUTHORING CONTROLS
   // ==========================================================
 
   // ==========================================================
@@ -2822,6 +2886,7 @@ export function EditorWorkspace({
                             onAddTopLevelTopic: addTopLevelTopic,
                             onAddChildTopic: addChildTopic,
                           }}
+                          tableAuthoringControls={tableAuthoringControls}
                         />
                       </PresentationColorPaletteProvider>
                     </RecentColorsProvider>

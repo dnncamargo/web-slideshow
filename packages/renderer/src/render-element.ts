@@ -260,7 +260,7 @@ export function renderElement(element: PowerShowElement): string {
       return renderTerminal(element);
 
     case "table":
-      return renderTable(element);
+      return renderTable(element, renderElement);
 
     case "topics":
       return renderTopics(element, renderElement);

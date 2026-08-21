@@ -1,6 +1,10 @@
 import { useState } from "react";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type {
+  PowerShowElement,
+  SimpleTableElement,
+  StructuredTableElement,
+} from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,7 +12,10 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
-import type { UpdateElementStyle } from "./inspector-types";
+import type {
+  TableAuthoringControls,
+  UpdateElementStyle,
+} from "./inspector-types";
 
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 
@@ -25,9 +32,9 @@ type TableElement = Extract<
   }
 >;
 
-type TableColumn = TableElement["columns"][number];
+type TableColumn = SimpleTableElement["columns"][number];
 
-type TableRow = TableElement["rows"][number];
+type TableRow = SimpleTableElement["rows"][number];
 
 type TableCellValue = TableRow[string];
 
@@ -35,6 +42,8 @@ interface TableInspectorProps {
   element: TableElement;
 
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+
+  tableAuthoringControls: TableAuthoringControls;
 }
 
 // ============================================================
@@ -303,18 +312,48 @@ function TableCellEditor({
 
 // ============================================================
 // BEGIN: TABLE INSPECTOR
+//
+// Dispatcher between the legacy Simple Table Inspector and the
+// minimal Structured Table Inspector.
 // ============================================================
 
-export function TableInspector({ element, onUpdate }: TableInspectorProps) {
+export function TableInspector({
+  element,
+  onUpdate,
+  tableAuthoringControls,
+}: TableInspectorProps) {
+  if (element.mode !== "structured") {
+    return <SimpleTableInspector element={element} onUpdate={onUpdate} />;
+  }
+
+  return (
+    <StructuredTableInspector
+      element={element}
+      onUpdate={onUpdate}
+      tableAuthoringControls={tableAuthoringControls}
+    />
+  );
+}
+
+function SimpleTableInspector({
+  element,
+  onUpdate,
+}: {
+  element: SimpleTableElement;
+
+  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+}) {
   const { t } = useStudioI18n();
 
   // ==========================================================
   // BEGIN: UPDATE GENÉRICO DE TABLE
   // ==========================================================
 
-  function updateTable(update: (table: TableElement) => TableElement) {
+  function updateTable(
+    update: (table: SimpleTableElement) => SimpleTableElement,
+  ) {
     onUpdate((current) => {
-      if (current.type !== "table") {
+      if (current.type !== "table" || current.mode === "structured") {
         return current;
       }
 
@@ -714,6 +753,188 @@ export function TableInspector({ element, onUpdate }: TableInspectorProps) {
     </>
   );
 }
+
+// ============================================================
+// BEGIN: STRUCTURED TABLE INSPECTOR
+//
+// Minimal authoring surface for Structured Tables. Cell/header
+// CONTENT is authored through nested PowerShow elements; this
+// Inspector only mutates the rectangular structure.
+// ============================================================
+
+interface StructuredTableInspectorProps {
+  element: StructuredTableElement;
+
+  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+
+  tableAuthoringControls: TableAuthoringControls;
+}
+
+function StructuredTableInspector({
+  element,
+  onUpdate,
+  tableAuthoringControls,
+}: StructuredTableInspectorProps) {
+  const { t } = useStudioI18n();
+
+  function updateTable(
+    update: (table: StructuredTableElement) => StructuredTableElement,
+  ) {
+    onUpdate((current) => {
+      if (current.type !== "table" || current.mode !== "structured") {
+        return current;
+      }
+
+      return update(current);
+    });
+  }
+
+  const updateStyle: UpdateElementStyle = (update) => {
+    updateTable((table) => ({
+      ...table,
+      style: update(table.style),
+    }));
+  };
+
+  return (
+    <>
+      <div className={styles.inspectorDivider} />
+
+      <InspectorSection title={t("inspector.general")}>
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={element.showHeader}
+            onChange={(event) => {
+              tableAuthoringControls.onShowHeaderChange(
+                element.id,
+                event.target.checked,
+              );
+            }}
+          />
+          <span>{t("table.showHeader")}</span>
+        </label>
+      </InspectorSection>
+
+      <InspectorSection
+        title={t("table.columns")}
+        count={element.columns.length}
+        defaultOpen
+      >
+        <div className={styles.tableEditorList}>
+          {element.columns.map((column, index) => (
+            <div
+              key={column.id}
+              className={styles.tableColumnEditor}
+              data-powershow-table-column="true"
+            >
+              <div className={styles.tableEditorHeader}>
+                <strong>
+                  <span>{t("table.column", { number: index + 1 })}</span>
+                </strong>
+
+                <button
+                  type="button"
+                  className={styles.iconButtonDanger}
+                  aria-label={t("table.removeColumn", { number: index + 1 })}
+                  data-powershow-table-remove-column="true"
+                  onClick={() => {
+                    tableAuthoringControls.onRemoveColumn(element.id, index);
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          data-powershow-table-add-column="true"
+          onClick={() => {
+            tableAuthoringControls.onAddColumn(element.id);
+          }}
+        >
+          <span>{t("table.addColumn")}</span>
+        </button>
+      </InspectorSection>
+
+      <InspectorSection
+        title={t("table.rows")}
+        count={element.rows.length}
+        defaultOpen
+      >
+        <div className={styles.tableEditorList}>
+          {element.rows.length === 0 && (
+            <div className={styles.emptyInspectorList}>
+              <span>{t("table.noRows")}</span>
+            </div>
+          )}
+
+          {element.rows.map((row, rowIndex) => (
+            <div
+              key={row.id}
+              className={styles.tableRowEditor}
+              data-powershow-table-row="true"
+            >
+              <div className={styles.tableEditorHeader}>
+                <strong>
+                  <span>{t("table.row", { number: rowIndex + 1 })}</span>
+                </strong>
+
+                <button
+                  type="button"
+                  className={styles.iconButtonDanger}
+                  aria-label={t("table.removeRow", { number: rowIndex + 1 })}
+                  data-powershow-table-remove-row="true"
+                  onClick={() => {
+                    tableAuthoringControls.onRemoveRow(element.id, rowIndex);
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          data-powershow-table-add-row="true"
+          onClick={() => {
+            tableAuthoringControls.onAddRow(element.id);
+          }}
+        >
+          <span>{t("table.addRow")}</span>
+        </button>
+      </InspectorSection>
+
+      <ElementAppearanceSection
+        element={element}
+        onUpdateStyle={updateStyle}
+        controlPrefix="table"
+        showBackground
+        showBackgroundGradient
+        showRoundedCorners
+        showOpacity
+        showBorder
+      />
+
+      <ElementEffectsSection
+        style={element.style}
+        onUpdateStyle={updateStyle}
+        controlPrefix="table"
+      />
+    </>
+  );
+}
+
+// ============================================================
+// END: STRUCTURED TABLE INSPECTOR
+// ============================================================
 
 // ============================================================
 // END: TABLE INSPECTOR

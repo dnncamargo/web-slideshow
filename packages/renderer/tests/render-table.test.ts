@@ -7,6 +7,7 @@ import {
 import {
   renderTable,
 } from "../src/render-table";
+import { renderElement } from "../src/render-element";
 
 import {
   createTableElement,
@@ -183,5 +184,81 @@ describe("renderTable", () => {
     );
 
     expect(html).toBe("");
+  });
+
+  it("renders structured tables with recursive semantic content", () => {
+    const html = renderElement({
+      type: "table",
+      id: "structured-table",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      columns: [{
+        id: "name-column",
+        header: {
+          id: "name-header",
+          style: { className: "header-slot" },
+          children: [{
+            type: "text",
+            id: "header-text",
+            hidden: false,
+            variant: "body",
+            content: "Name",
+          }],
+        },
+        width: 120,
+      }],
+      rows: [{
+        id: "row-1",
+        cells: [{
+          id: "name-cell",
+          style: { className: "cell-slot" },
+          children: [{
+            type: "container",
+            id: "cell-container",
+            hidden: false,
+            direction: "column",
+            children: [{
+              type: "text",
+              id: "cell-text",
+              hidden: false,
+              variant: "body",
+              content: "Alice & Bob",
+            }],
+          }],
+        }],
+      }],
+    });
+
+    expect(html).toContain("<colgroup>");
+    expect(html).toContain('data-powershow-table-column-id="name-column"');
+    expect(html).toContain('style="width:120px"');
+    expect(html).toContain('<thead><tr><th scope="col"');
+    expect(html).toContain('data-powershow-content-slot-id="name-header"');
+    expect(html).toContain('data-powershow-content-slot-id="name-cell"');
+    expect(html).toContain('class="header-slot"');
+    expect(html).toContain('class="cell-slot"');
+    expect(html).toContain('data-powershow-table-row-id="row-1"');
+    expect(html).toContain('data-powershow-id="cell-container"');
+    expect(html).toContain("Alice &amp; Bob");
+  });
+
+  it("omits thead but preserves structured headers when hidden", () => {
+    const html = renderElement({
+      type: "table",
+      id: "no-header-table",
+      mode: "structured",
+      showHeader: false,
+      hidden: false,
+      columns: [{
+        id: "column-1",
+        header: { id: "header-1", children: [] },
+      }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
+    });
+
+    expect(html).not.toContain("<thead>");
+    expect(html).toContain("data-powershow-id=\"no-header-table\"");
+    expect(html).toContain("<tbody>");
   });
 });
