@@ -122,6 +122,30 @@ export const ImageElementSchema =
 export type ImageElement =
   z.infer<typeof ImageElementSchema>;
 
+export const GalleryItemSchema = z.object({
+  src: z.string().min(1),
+  alt: z.string().default(""),
+});
+
+export type GalleryItem =
+  z.infer<typeof GalleryItemSchema>;
+
+export const GalleryElementSchema =
+  BaseElementSchema.extend({
+    type: z.literal("gallery"),
+
+    items: z.array(GalleryItemSchema),
+
+    fit: z.enum([
+      "contain",
+      "cover",
+      "fill",
+    ]).default("contain"),
+  });
+
+export type GalleryElement =
+  z.infer<typeof GalleryElementSchema>;
+
 export const CodeElementSchema =
   BaseElementSchema.extend({
     type: z.literal("code"),
@@ -485,6 +509,7 @@ export type PowerShowElement =
   | TextElement
   | TextboxElement
   | ImageElement
+  | GalleryElement
   | CodeElement
   | TerminalElement
   | TableElement
@@ -501,6 +526,7 @@ export const PowerShowElementSchema:
       TextElementSchema,
       TextboxElementSchema,
       ImageElementSchema,
+      GalleryElementSchema,
       CodeElementSchema,
       TerminalElementSchema,
       TableElementSchema,
