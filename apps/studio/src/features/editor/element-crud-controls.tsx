@@ -69,9 +69,12 @@ const insertionDescription =
     : selectedElement?.type === "topics" &&
         selectedContentSlotId
       ? t("elementCrud.addInsideTopicContent")
-      : selectedElement
-        ? t("elementCrud.addAfterElement")
-        : t("elementCrud.addToSlideRoot");
+      : selectedElement?.type === "table" &&
+          selectedContentSlotId
+        ? t("elementCrud.addInsideContentSlot")
+        : selectedElement
+          ? t("elementCrud.addAfterElement")
+          : t("elementCrud.addToSlideRoot");
 
 
   // ============================================================

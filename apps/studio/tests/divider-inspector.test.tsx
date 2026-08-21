@@ -14,6 +14,7 @@ import { ElementInspector } from "../src/features/editor/element-inspector";
 import { DividerInspector } from "../src/features/editor/inspector/divider-inspector";
 import type {
   FontResourceControls,
+  TableAuthoringControls,
   TopicsAuthoringControls,
 } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -30,6 +31,14 @@ const FONT_RESOURCE_CONTROLS: FontResourceControls = {
 const TOPICS_AUTHORING_CONTROLS: TopicsAuthoringControls = {
   onAddTopLevelTopic: () => null,
   onAddChildTopic: () => null,
+};
+
+const TABLE_AUTHORING_CONTROLS: TableAuthoringControls = {
+  onAddColumn: () => {},
+  onRemoveColumn: () => {},
+  onAddRow: () => {},
+  onRemoveRow: () => {},
+  onShowHeaderChange: () => {},
 };
 
 function dividerElement(
@@ -316,6 +325,7 @@ describe("ElementInspector dispatcher for Divider", () => {
             parent={parent}
             layerControls={null}
             topicsAuthoringControls={TOPICS_AUTHORING_CONTROLS}
+            tableAuthoringControls={TABLE_AUTHORING_CONTROLS}
           />
         </StudioI18nProvider>,
       );

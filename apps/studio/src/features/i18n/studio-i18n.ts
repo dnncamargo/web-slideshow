@@ -112,6 +112,7 @@ const englishMessages = {
   "elementCrud.add": "+ Add",
   "elementCrud.addInsideContainer": "Adds inside selected container.",
   "elementCrud.addInsideTopicContent": "Adds into the selected topic content.",
+  "elementCrud.addInsideContentSlot": "Adds into the selected content slot.",
   "elementCrud.addAfterElement": "Adds after selected element.",
   "elementCrud.addToSlideRoot": "Adds to slide root.",
   "elementCrud.up": "↑ Up",
@@ -124,6 +125,7 @@ const englishMessages = {
     'Delete container "{id}" and all its children?',
   "elementCrud.deleteElementConfirm": 'Delete {type} "{id}"?',
 
+  "inspector.general": "General",
   "inspector.layout": "Layout",
   "inspector.direction": "Direction",
   "inspector.vertical": "Vertical",
@@ -460,6 +462,7 @@ const englishMessages = {
   "table.row": "Row {number}",
   "table.removeRow": "Remove row {number}",
   "table.addRow": "+ Add row",
+  "table.showHeader": "Show header",
 
   "home.nextLogoAlt": "Next.js logo",
   "home.vercelLogoAlt": "Vercel logomark",
@@ -698,6 +701,7 @@ const portugueseMessages = {
   "elementCrud.add": "+ Adicionar",
   "elementCrud.addInsideContainer": "Adiciona dentro do contêiner selecionado.",
   "elementCrud.addInsideTopicContent": "Adiciona dentro do conteúdo do tópico selecionado.",
+  "elementCrud.addInsideContentSlot": "Adiciona dentro do content slot selecionado.",
   "elementCrud.addAfterElement": "Adiciona após o elemento selecionado.",
   "elementCrud.addToSlideRoot": "Adiciona à raiz do slide.",
   "elementCrud.up": "↑ Subir",
@@ -710,6 +714,7 @@ const portugueseMessages = {
     'Excluir o contêiner "{id}" e todos os seus elementos filhos?',
   "elementCrud.deleteElementConfirm": 'Excluir {type} "{id}"?',
 
+  "inspector.general": "Geral",
   "inspector.layout": "Layout",
   "inspector.direction": "Direção",
   "inspector.vertical": "Vertical",
@@ -1052,6 +1057,7 @@ const portugueseMessages = {
   "table.row": "Linha {number}",
   "table.removeRow": "Remover linha {number}",
   "table.addRow": "+ Adicionar linha",
+  "table.showHeader": "Mostrar cabeçalho",
 
   "home.nextLogoAlt": "Logo do Next.js",
   "home.vercelLogoAlt": "Símbolo da Vercel",

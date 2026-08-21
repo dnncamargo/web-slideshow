@@ -172,7 +172,7 @@ describe("Divider element authoring", () => {
 
     expect(
       resolveAddElementDestination(elements, "topics", divider("d2"), "slot-a"),
-    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-a" });
+    ).toEqual({ kind: "append-content-slot", contentSlotId: "slot-a" });
 
     expect(
       resolveAddElementDestination(elements, "topics", divider("d3")),

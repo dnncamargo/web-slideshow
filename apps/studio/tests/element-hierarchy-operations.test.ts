@@ -887,7 +887,7 @@ describe("add element destination resolution", () => {
         image("new-image"),
         "slot-a",
       ),
-    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-a" });
+    ).toEqual({ kind: "append-content-slot", contentSlotId: "slot-a" });
 
     expect(
       resolveAddElementDestination(
@@ -896,7 +896,7 @@ describe("add element destination resolution", () => {
         image("new-image"),
         "slot-b",
       ),
-    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-b" });
+    ).toEqual({ kind: "append-content-slot", contentSlotId: "slot-b" });
   });
 
   it("ignores a ContentSlot context that does not belong to the selected TopicsElement", () => {
@@ -1058,7 +1058,7 @@ describe("topic content slot authoring", () => {
     );
 
     expect(destination).toEqual({
-      kind: "append-topic-content",
+      kind: "append-content-slot",
       contentSlotId: "slot-a",
     });
   });
@@ -1083,7 +1083,7 @@ describe("topic content slot authoring", () => {
     );
 
     expect(destination).toEqual({
-      kind: "append-topic-content",
+      kind: "append-content-slot",
       contentSlotId: "slot-b",
     });
 
@@ -1159,7 +1159,7 @@ describe("topic content slot authoring", () => {
         image("image-a"),
         "slot-a",
       ),
-    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-a" });
+    ).toEqual({ kind: "append-content-slot", contentSlotId: "slot-a" });
 
     expect(
       resolveAddElementDestination(
@@ -1168,7 +1168,7 @@ describe("topic content slot authoring", () => {
         image("image-c"),
         "slot-c",
       ),
-    ).toEqual({ kind: "append-topic-content", contentSlotId: "slot-c" });
+    ).toEqual({ kind: "append-content-slot", contentSlotId: "slot-c" });
   });
 
   it("refuses TopicsElement placement into any clicked TopicItem ContentSlot", () => {
