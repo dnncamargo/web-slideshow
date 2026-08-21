@@ -156,6 +156,10 @@ const insertionDescription =
           <option value="gallery">
             {t("element.gallery")}
           </option>
+
+          <option value="embed">
+            {t("element.embed")}
+          </option>
         </select>
 
 

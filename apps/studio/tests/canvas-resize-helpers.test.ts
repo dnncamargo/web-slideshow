@@ -37,6 +37,52 @@ describe("canvas resize helpers", () => {
     ).toBe(true);
   });
 
+  it("treats an Embed as canvas-resizable", () => {
+    expect(
+      isCanvasResizable({
+        type: "embed",
+        id: "embed",
+        hidden: false,
+        src: "https://example.com/",
+        title: "Embedded content",
+      }),
+    ).toBe(true);
+  });
+
+  it("resizes an Embed using the normal free-width/height resize helper", () => {
+    expect(
+      updateStyleForCanvasResize(
+        { width: "60%", height: "55%", background: "#0f172a" },
+        "se",
+        40,
+        20,
+        240,
+        220,
+        400,
+        400,
+      ),
+    ).toEqual({
+      width: "70%",
+      height: "60%",
+      background: "#0f172a",
+    });
+  });
+
+  it("authors an Embed's missing dimensions with normal free resize", () => {
+    expect(
+      updateStyleForCanvasResize(
+        { background: "#ffffff" },
+        "se",
+        30,
+        20,
+        300,
+        200,
+        400,
+        400,
+      ),
+    ).toEqual({ background: "#ffffff", width: 330, height: 220 });
+  });
+
   it("maps edge and corner directions to semantic size deltas", () => {
     expect(getCanvasResizeDeltas("e", 20, 10)).toMatchObject({ width: 20, height: 0 });
     expect(getCanvasResizeDeltas("s", 20, -10)).toMatchObject({ width: 0, height: -10 });

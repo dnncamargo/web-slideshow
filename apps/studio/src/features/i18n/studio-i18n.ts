@@ -111,6 +111,18 @@ const englishMessages = {
   "element.gallery": "Gallery",
   "element.embed": "Embed",
 
+  "embed.source": "Embed URL",
+  "embed.invalidUrl":
+    "Enter a valid absolute HTTP or HTTPS URL.",
+  "embed.sourceHelp":
+    "Use HTTPS when possible. HTTP embeds may be blocked on secure pages, and some sites refuse iframe embedding.",
+  "embed.title": "Accessibility title",
+  "embed.titleHelp":
+    "Describes the embedded content for assistive technology.",
+  "embed.titleRequired": "Enter a title.",
+  "embed.canvasHelp":
+    "Embedded content is non-interactive on the Studio canvas. Use Preview or Player to test interaction.",
+
   "elementCrud.add": "+ Add",
   "elementCrud.addInsideContainer": "Adds inside selected container.",
   "elementCrud.addInsideTopicContent": "Adds into the selected topic content.",
@@ -716,6 +728,18 @@ const portugueseMessages = {
   "element.divider": "Divisor",
   "element.gallery": "Galeria",
   "element.embed": "Embed",
+
+  "embed.source": "URL incorporada",
+  "embed.invalidUrl":
+    "Informe uma URL HTTP ou HTTPS absoluta e válida.",
+  "embed.sourceHelp":
+    "Prefira HTTPS. Embeds HTTP podem ser bloqueados em páginas seguras, e alguns sites recusam exibição em iframe.",
+  "embed.title": "Título de acessibilidade",
+  "embed.titleHelp":
+    "Descreve o conteúdo incorporado para tecnologias assistivas.",
+  "embed.titleRequired": "Informe um título.",
+  "embed.canvasHelp":
+    "O conteúdo incorporado não é interativo no canvas do Studio. Use a Prévia ou o Player para testar a interação.",
 
   "elementCrud.add": "+ Adicionar",
   "elementCrud.addInsideContainer": "Adiciona dentro do contêiner selecionado.",

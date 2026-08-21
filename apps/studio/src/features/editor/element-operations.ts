@@ -43,7 +43,8 @@ export type ElementCreateType =
   | "table"
   | "topics"
   | "divider"
-  | "gallery";
+  | "gallery"
+  | "embed";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -631,6 +632,26 @@ export function createElement(
             alt: "Gallery image",
           },
         ],
+
+        style: {
+          width: "60%",
+
+          height: "55%",
+        },
+      };
+    }
+
+    case "embed": {
+      return {
+        id: createUniqueId("embed-element", usedIds),
+
+        type: "embed",
+
+        hidden: false,
+
+        src: "https://example.com/",
+
+        title: "Embedded content",
 
         style: {
           width: "60%",

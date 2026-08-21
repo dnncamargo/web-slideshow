@@ -326,3 +326,50 @@ describe("presentation persistence helpers", () => {
     ).toBe(true);
   });
 });
+
+describe("persistence round trip with an Embed", () => {
+  it("preserves a valid Embed through the persistence parse/serialization path", () => {
+    const presentation = basePresentation();
+
+    presentation.slides = [
+      {
+        id: "slide-1",
+        title: "Embed slide",
+        summary: "",
+        speakerNotes: "",
+        elements: [
+          {
+            id: "embed-1",
+            type: "embed",
+            src: "https://example.com/",
+            title: "Embedded content",
+            hidden: false,
+            style: {
+              width: "60%",
+              height: "55%",
+            },
+          },
+        ],
+      },
+    ];
+
+    const safe = makeFirestoreSafePresentation(presentation);
+
+    const recovered = parsePersistedPresentation({ presentation: safe });
+
+    const embed = recovered.slides[0]?.elements[0];
+
+    expect(embed?.type).toBe("embed");
+    expect(embed?.id).toBe("embed-1");
+
+    if (embed?.type === "embed") {
+      expect(embed.src).toBe("https://example.com/");
+      expect(embed.title).toBe("Embedded content");
+      expect(embed.hidden).toBe(false);
+      expect(embed.style).toEqual({
+        width: "60%",
+        height: "55%",
+      });
+    }
+  });
+});
