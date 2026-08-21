@@ -1,9 +1,12 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 
 import type { TextElement } from "@powershow/document-schema";
 
 import {
   resolveCanvasEmbedPointerTarget,
+  resolveCanvasPointerHit,
   resolveCanvasPointerSelection,
 } from "../src/features/editor/canvas-pointer-selection-helpers";
 
@@ -105,5 +108,98 @@ describe("neutralized Embed canvas hit-testing", () => {
         [ordinaryText],
       ),
     ).toMatchObject({ id: "ordinary-text", type: "text" });
+  });
+});
+
+describe("Canvas pointer hit resolution", () => {
+  function canvasElement(
+    id: string,
+    type: string,
+    parent?: HTMLElement,
+  ): HTMLElement {
+    const element = document.createElement("div");
+
+    element.dataset.powershowId = id;
+    element.dataset.powershowType = type;
+
+    if (parent) {
+      parent.appendChild(element);
+    }
+
+    return element;
+  }
+
+  it("selects a root Embed and retains its authored DOM element", () => {
+    const embed = canvasElement("embed-1", "embed");
+    const hit = resolveCanvasPointerHit({
+      embeds: [embed],
+      embedTarget: { id: "embed-1", type: "embed" },
+      ordinaryTarget: null,
+    });
+
+    expect(hit.elementTarget).toBe(embed);
+    expect(hit.target).toEqual({ id: "embed-1", type: "embed" });
+  });
+
+  it("selects an Embed nested in a Container over the Container", () => {
+    const container = canvasElement("container-1", "container");
+    const embed = canvasElement("embed-1", "embed", container);
+    const hit = resolveCanvasPointerHit({
+      embeds: [embed],
+      embedTarget: { id: "embed-1", type: "embed" },
+      ordinaryTarget: container,
+    });
+
+    expect(hit.elementTarget).toBe(embed);
+    expect(hit.target).toEqual({ id: "embed-1", type: "embed" });
+  });
+
+  it("selects the Container when the pointer is outside the Embed", () => {
+    const container = canvasElement("container-1", "container");
+    const embed = canvasElement("embed-1", "embed", container);
+    const hit = resolveCanvasPointerHit({
+      embeds: [embed],
+      embedTarget: null,
+      ordinaryTarget: container,
+    });
+
+    expect(hit.elementTarget).toBe(container);
+    expect(hit.target).toEqual({ id: "container-1", type: "container" });
+  });
+
+  it("does not preempt a sibling authored element over an Embed rectangle", () => {
+    const embed = canvasElement("embed-1", "embed");
+    const text = canvasElement("text-1", "text");
+    const hit = resolveCanvasPointerHit({
+      embeds: [embed],
+      embedTarget: { id: "embed-1", type: "embed" },
+      ordinaryTarget: text,
+    });
+
+    expect(hit.elementTarget).toBe(text);
+    expect(hit.target).toEqual({ id: "text-1", type: "text" });
+  });
+
+  it("keeps the ordinary authored selection when no Embed is hit", () => {
+    const text = canvasElement("text-1", "text");
+    const hit = resolveCanvasPointerHit({
+      embeds: [],
+      embedTarget: null,
+      ordinaryTarget: text,
+    });
+
+    expect(hit.elementTarget).toBe(text);
+    expect(hit.target).toEqual({ id: "text-1", type: "text" });
+  });
+
+  it("returns null targets for Canvas background hits", () => {
+    const hit = resolveCanvasPointerHit({
+      embeds: [],
+      embedTarget: null,
+      ordinaryTarget: null,
+    });
+
+    expect(hit.elementTarget).toBeNull();
+    expect(hit.target).toBeNull();
   });
 });
