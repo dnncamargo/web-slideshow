@@ -3,6 +3,7 @@ import { PresentationSchema, SlideSchema } from "@powershow/document-schema";
 
 import {
   InvalidPersistedPresentationError,
+  InvalidPresentationForPersistenceError,
   PresentationTooDeepError,
   PresentationTooLargeError,
 } from "./persistence-errors";
@@ -207,6 +208,24 @@ export function makeFirestoreSafePresentation(
   presentation: Presentation,
 ): Record<string, unknown> {
   return toFirestoreSafeValue(presentation) as Record<string, unknown>;
+}
+
+/**
+ * Validate runtime Studio state immediately before it crosses the Firestore
+ * write boundary. The TypeScript Presentation type cannot protect this path
+ * from invalid state produced by runtime mutations.
+ */
+export function assertValidPresentationForPersistence(
+  presentation: Presentation,
+): void {
+  const result = PresentationSchema.safeParse(presentation);
+
+  if (!result.success) {
+    throw new InvalidPresentationForPersistenceError(
+      "Presentation is not a valid PowerShow document and cannot be persisted.",
+      result.error,
+    );
+  }
 }
 
 /**

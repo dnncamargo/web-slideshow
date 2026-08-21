@@ -50,7 +50,10 @@ import {
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
-import { resolveCanvasPointerSelection } from "./canvas-pointer-selection-helpers";
+import {
+  resolveCanvasEmbedPointerTarget,
+  resolveCanvasPointerSelection,
+} from "./canvas-pointer-selection-helpers";
 import { isAuthoredPowerShowLink } from "./canvas-link-interception";
 import {
   getEffectiveImageFocalPoint,
@@ -815,17 +818,39 @@ export function EditorWorkspace({
       return;
     }
 
-    const elementTarget = target.closest<HTMLElement>("[data-powershow-id]");
+    const embedTarget = resolveCanvasEmbedPointerTarget(
+      { clientX: event.clientX, clientY: event.clientY },
+      Array.from(
+        event.currentTarget.querySelectorAll<HTMLElement>(
+          '[data-powershow-type="embed"][data-powershow-id]',
+        ),
+      ).map((embed) => {
+        const bounds = embed.getBoundingClientRect();
+
+        return {
+          id: embed.dataset.powershowId ?? "",
+          type: "embed" as const,
+          left: bounds.left,
+          top: bounds.top,
+          right: bounds.right,
+          bottom: bounds.bottom,
+        };
+      }),
+    );
+    const elementTarget = embedTarget
+      ? null
+      : target.closest<HTMLElement>("[data-powershow-id]");
     const contentSlotTarget = target.closest<HTMLElement>(
       "[data-powershow-content-slot-id]",
     );
     const selection = resolveCanvasPointerSelection(
-      elementTarget
+      embedTarget ??
+        (elementTarget
         ? {
             id: elementTarget.dataset.powershowId,
             type: elementTarget.dataset.powershowType,
           }
-        : null,
+        : null),
       selectedSlide.elements,
     );
 

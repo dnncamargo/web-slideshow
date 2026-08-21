@@ -14,8 +14,13 @@ import {
   parsePersistedPresentation,
 } from "../src/features/persistence/presentation-persistence";
 import {
+  appendElementToContainer,
+  createElement,
+} from "../src/features/editor/element-operations";
+import {
   PresentationTooDeepError,
   PresentationTooLargeError,
+  InvalidPersistedPresentationError,
 } from "../src/features/persistence/persistence-errors";
 
 function basePresentation(): Presentation {
@@ -252,11 +257,18 @@ describe("presentation persistence helpers", () => {
   });
 
   it("rejects an invalid persisted presentation", () => {
-    expect(() =>
+    try {
       parsePersistedPresentation({
         presentation: { schemaVersion: 999, slides: [] },
-      }),
-    ).toThrow(/not a valid PowerShow document/);
+      });
+      throw new Error("expected persisted presentation parsing to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidPersistedPresentationError);
+      expect((error as InvalidPersistedPresentationError).cause).toBeDefined();
+      expect((error as InvalidPersistedPresentationError).message).toMatch(
+        /not a valid PowerShow document/,
+      );
+    }
   });
 
   it("returns deterministic UTF-8 byte counts", () => {
@@ -328,8 +340,10 @@ describe("presentation persistence helpers", () => {
 });
 
 describe("persistence round trip with an Embed", () => {
-  it("preserves a valid Embed through the persistence parse/serialization path", () => {
+  it("preserves a nested Embed created and inserted through Studio authoring", () => {
     const presentation = basePresentation();
+    const container = createElement("container", []) as Extract<Presentation["slides"][number]["elements"][number], { type: "container" }>;
+    const embed = createElement("embed", []);
 
     presentation.slides = [
       {
@@ -337,38 +351,33 @@ describe("persistence round trip with an Embed", () => {
         title: "Embed slide",
         summary: "",
         speakerNotes: "",
-        elements: [
-          {
-            id: "embed-1",
-            type: "embed",
-            src: "https://example.com/",
-            title: "Embedded content",
-            hidden: false,
-            style: {
-              width: "60%",
-              height: "55%",
-            },
-          },
-        ],
+        elements: appendElementToContainer([container], container.id, embed),
       },
     ];
 
-    const safe = makeFirestoreSafePresentation(presentation);
+    const parsed = PresentationSchema.parse(presentation);
+
+    const safe = makeFirestoreSafePresentation(parsed);
 
     const recovered = parsePersistedPresentation({ presentation: safe });
 
-    const embed = recovered.slides[0]?.elements[0];
+    const recoveredContainer = recovered.slides[0]?.elements[0];
 
-    expect(embed?.type).toBe("embed");
-    expect(embed?.id).toBe("embed-1");
+    expect(recoveredContainer?.type).toBe("container");
 
-    if (embed?.type === "embed") {
-      expect(embed.src).toBe("https://example.com/");
-      expect(embed.title).toBe("Embedded content");
-      expect(embed.hidden).toBe(false);
-      expect(embed.style).toEqual({
-        width: "60%",
-        height: "55%",
+    if (recoveredContainer?.type === "container") {
+      const recoveredEmbed = recoveredContainer.children[0];
+
+      expect(recoveredEmbed).toMatchObject({
+        id: embed.id,
+        type: "embed",
+        src: "https://example.com/",
+        title: "Embedded content",
+        hidden: false,
+        style: {
+          width: "60%",
+          height: "55%",
+        },
       });
     }
   });

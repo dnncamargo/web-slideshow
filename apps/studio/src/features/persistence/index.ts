@@ -38,6 +38,7 @@ export {
   estimatePresentationBytes,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
+  assertValidPresentationForPersistence,
   normalizeFolderId,
   normalizePersistenceMetadata,
   parsePersistedPresentation,
@@ -49,6 +50,7 @@ export {
   FirestoreOperationError,
   InvalidFolderNameError,
   InvalidPersistedPresentationError,
+  InvalidPresentationForPersistenceError,
   PresentationTooDeepError,
   PresentationTooLargeError,
 } from "./persistence-errors";
