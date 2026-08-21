@@ -46,6 +46,7 @@ import { PresentationLibrary } from "../src/features/library/presentation-librar
 import { PresentationList } from "../src/features/library/presentation-list";
 import { PresentationToolbar } from "../src/features/library/presentation-toolbar";
 import type { PresentationRepository } from "../src/features/persistence/presentation-repository";
+import type { PresentationFolderRepository } from "../src/features/persistence/presentation-folder-repository";
 import type { PresentationSummary } from "../src/features/persistence/presentation-persistence";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -97,23 +98,43 @@ function renderToolbar(
         creating={false}
         openingId={null}
         archivingId={null}
+        restoringId={null}
+        deletingId={null}
+        newFolderDisabled={false}
         onNew={vi.fn()}
+        onNewFolder={vi.fn()}
         onEdit={vi.fn()}
         onPresent={vi.fn()}
         onControl={vi.fn()}
         onEnd={vi.fn()}
         onArchive={vi.fn()}
+        onRestore={vi.fn()}
+        onDelete={vi.fn()}
       />
     </StudioI18nProvider>
   );
 }
 
-function renderLibrary(repository: PresentationRepository) {
+function renderLibrary(
+  repository: PresentationRepository,
+  folderRepository?: PresentationFolderRepository,
+) {
   return (
     <StudioI18nProvider>
-      <PresentationLibrary repository={repository} />
+      <PresentationLibrary
+        repository={repository}
+        folderRepository={folderRepository ?? emptyFolderRepository()}
+      />
     </StudioI18nProvider>
   );
+}
+
+function emptyFolderRepository(): PresentationFolderRepository {
+  return {
+    listFolders: vi.fn(async () => []),
+    createFolder: vi.fn(async () => "folder-new"),
+    renameFolder: vi.fn(async () => {}),
+  };
 }
 
 async function flushWorkspaceEffects() {
@@ -140,6 +161,7 @@ function repositoryFor(
       current = current.filter((item) => item.id !== id);
     }),
     restorePresentation: vi.fn(async () => {}),
+    deleteArchivedPresentation: vi.fn(async () => {}),
     movePresentationToFolder: vi.fn(async () => {}),
     publishPresentation: vi.fn(async () => ({
       publicationId: "publication-id",
@@ -168,7 +190,7 @@ describe("presentation library workspace controls", () => {
     document.body.innerHTML = "";
   });
 
-  it("shows New with reserved disabled Import and New folder actions when nothing is selected", () => {
+  it("shows New with reserved disabled Import and enabled New folder actions when nothing is selected", () => {
     act(() => root.render(renderToolbar(null)));
 
     expect(container.textContent).toContain("+ New presentation");
@@ -183,7 +205,7 @@ describe("presentation library workspace controls", () => {
       (button) => button.textContent === "New folder",
     );
     expect(folder).toBeTruthy();
-    expect(folder?.disabled).toBe(true);
+    expect(folder?.disabled).toBe(false);
   });
 
   it("keeps New presentation available for inactive and Live selections", () => {
@@ -270,6 +292,59 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).toContain("End");
     expect(container.textContent).toContain("Edit");
     expect(container.textContent).not.toContain("Archive");
+  });
+
+  it("exposes Restore and Delete for an archived unpublished selection", () => {
+    const archivedUnpublished: PresentationSummary = {
+      ...summary("arch"),
+      archived: true,
+      archivedAt: "ts",
+    };
+
+    act(() => root.render(renderToolbar(archivedUnpublished)));
+
+    expect(container.textContent).toContain("Restore");
+    expect(container.textContent).toContain("Delete");
+  });
+
+  it("does not expose Delete for an active selection", () => {
+    act(() => root.render(renderToolbar(summary("active", "published"))));
+
+    expect(container.textContent).not.toContain("Delete");
+    expect(container.textContent).not.toContain("Restore");
+  });
+
+  it("shows a disabled Delete for a published archived selection", () => {
+    const publishedArchived: PresentationSummary = {
+      ...summary("pa", "published"),
+      archived: true,
+      archivedAt: "ts",
+    };
+
+    act(() => root.render(renderToolbar(publishedArchived)));
+
+    const deleteButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete",
+    );
+    expect(deleteButton).toBeTruthy();
+    expect(deleteButton?.disabled).toBe(true);
+  });
+
+  it("explains the published-artifact limitation on the disabled Delete", () => {
+    const publishedArchived: PresentationSummary = {
+      ...summary("pa", "published"),
+      archived: true,
+      archivedAt: "ts",
+    };
+
+    act(() => root.render(renderToolbar(publishedArchived)));
+
+    const deleteButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete",
+    );
+    expect(deleteButton?.getAttribute("title")).toBe(
+      "Deleting published presentations is not available yet.",
+    );
   });
 
   it("renders no contextual group when nothing is selected", () => {

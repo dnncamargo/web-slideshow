@@ -17,6 +17,7 @@ import type {
   PresentationThumbnailPreview as PresentationThumbnailPreviewData,
 } from "../src/features/persistence/presentation-persistence";
 import type { PresentationRepository } from "../src/features/persistence/presentation-repository";
+import type { PresentationFolderRepository } from "../src/features/persistence/presentation-folder-repository";
 
 const libraryTestDependencies = vi.hoisted(() => ({
   push: vi.fn(),
@@ -268,6 +269,7 @@ describe("presentation library thumbnail reads", () => {
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
       restorePresentation: vi.fn(async () => {}),
+      deleteArchivedPresentation: vi.fn(async () => {}),
       movePresentationToFolder: vi.fn(async () => {}),
       publishPresentation: vi.fn(async () => ({
         publicationId: "publication-id",
@@ -277,10 +279,16 @@ describe("presentation library thumbnail reads", () => {
       })),
     };
 
+    const folderRepository: PresentationFolderRepository = {
+      listFolders: vi.fn(async () => []),
+      createFolder: vi.fn(async () => "folder-new"),
+      renameFolder: vi.fn(async () => {}),
+    };
+
     act(() => {
       root.render(
         <StudioI18nProvider>
-          <PresentationLibrary repository={repository} />
+          <PresentationLibrary repository={repository} folderRepository={folderRepository} />
         </StudioI18nProvider>,
       );
     });

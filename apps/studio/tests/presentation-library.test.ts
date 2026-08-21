@@ -183,6 +183,7 @@ describe("presentation repository Edit wiring", () => {
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
       restorePresentation: vi.fn(async () => {}),
+      deleteArchivedPresentation: vi.fn(async () => {}),
       movePresentationToFolder: vi.fn(async () => {}),
       publishPresentation: vi.fn(async () => ({
         publicationId: "publication-id",

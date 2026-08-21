@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
+  deleteDoc: vi.fn(),
   doc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
@@ -20,7 +21,10 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
 }));
 
 vi.mock("../src/features/auth/firebase-auth", () => ({
-  getCurrentNonAnonymousUser: vi.fn(() => ({ uid: "user-1", isAnonymous: false })),
+  getCurrentNonAnonymousUser: vi.fn(() => ({
+    uid: "user-1",
+    isAnonymous: false,
+  })),
 }));
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
@@ -31,6 +35,7 @@ import {
 } from "../src/features/persistence/presentation-persistence";
 
 import {
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
@@ -44,6 +49,7 @@ import {
 import { getFirebaseFirestore } from "../src/features/persistence/firebase-client";
 import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
 
+const mockedDeleteDoc = vi.mocked(deleteDoc);
 const mockedDeleteField = vi.mocked(deleteField);
 const mockedDoc = vi.mocked(doc);
 const mockedGetDoc = vi.mocked(getDoc);
@@ -161,7 +167,10 @@ describe("listPresentations organization filtering", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetFirestore.mockReturnValue({} as never);
-    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
+    mockedGetCurrentUser.mockReturnValue({
+      uid: "user-1",
+      isAnonymous: false,
+    } as never);
   });
 
   it("omits archived documents by default", async () => {
@@ -169,7 +178,11 @@ describe("listPresentations organization filtering", () => {
       { id: "a", data: () => presentationDoc("pres-a") },
       {
         id: "b",
-        data: () => presentationDoc("pres-b", { archivedAt: "archived", folderId: "folder-1" }),
+        data: () =>
+          presentationDoc("pres-b", {
+            archivedAt: "archived",
+            folderId: "folder-1",
+          }),
       },
     ]);
 
@@ -180,16 +193,28 @@ describe("listPresentations organization filtering", () => {
 
   it("returns active and archived summaries with includeArchived", async () => {
     snapshotWith([
-      { id: "a", data: () => presentationDoc("pres-a", { folderId: "folder-1" }) },
+      {
+        id: "a",
+        data: () => presentationDoc("pres-a", { folderId: "folder-1" }),
+      },
       {
         id: "b",
-        data: () => presentationDoc("pres-b", { archivedAt: "archived", folderId: "folder-1" }),
+        data: () =>
+          presentationDoc("pres-b", {
+            archivedAt: "archived",
+            folderId: "folder-1",
+          }),
       },
     ]);
 
-    const summaries = await repository.listPresentations({ includeArchived: true });
+    const summaries = await repository.listPresentations({
+      includeArchived: true,
+    });
 
-    expect(summaries.map((summary) => summary.id)).toEqual(["pres-a", "pres-b"]);
+    expect(summaries.map((summary) => summary.id)).toEqual([
+      "pres-a",
+      "pres-b",
+    ]);
 
     const archived = summaries.find((summary) => summary.id === "pres-b");
     expect(archived?.archived).toBe(true);
@@ -210,7 +235,10 @@ describe("archive and restore semantics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetFirestore.mockReturnValue({} as never);
-    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
+    mockedGetCurrentUser.mockReturnValue({
+      uid: "user-1",
+      isAnonymous: false,
+    } as never);
     mockedDoc.mockReturnValue({ id: "pres-1" } as never);
     mockedServerTimestamp.mockReturnValue("server-ts" as never);
   });
@@ -249,7 +277,10 @@ describe("presentation folder moves", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetFirestore.mockReturnValue({} as never);
-    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
+    mockedGetCurrentUser.mockReturnValue({
+      uid: "user-1",
+      isAnonymous: false,
+    } as never);
     mockedDoc.mockReturnValue({ id: "pres-1" } as never);
   });
 
@@ -300,7 +331,10 @@ describe("presentation folder moves", () => {
 
     await repository.movePresentationToFolder("pres-1", "folder-1");
 
-    const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as Record<string, unknown>;
+    const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(payload).not.toHaveProperty("draftRevision");
     expect(payload).not.toHaveProperty("updatedAt");
     expect(payload).not.toHaveProperty("publication");
@@ -313,7 +347,10 @@ describe("create presentation in folder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetFirestore.mockReturnValue({} as never);
-    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
+    mockedGetCurrentUser.mockReturnValue({
+      uid: "user-1",
+      isAnonymous: false,
+    } as never);
     mockedDoc.mockReturnValue({ id: "pres-1" } as never);
     mockedServerTimestamp.mockReturnValue("server-ts" as never);
   });
@@ -330,7 +367,10 @@ describe("create presentation in folder", () => {
       "presentations",
       "pres-1",
     );
-    const payload = mockedSetDoc.mock.calls[0]?.[1] as unknown as Record<string, unknown>;
+    const payload = mockedSetDoc.mock.calls[0]?.[1] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(payload).not.toHaveProperty("folderId");
     expect(payload).toMatchObject({ draftRevision: 1 });
   });
@@ -340,11 +380,138 @@ describe("create presentation in folder", () => {
 
     await repository.createPresentation(presentation, { folderId: "folder-1" });
 
-    const payload = mockedSetDoc.mock.calls[0]?.[1] as unknown as Record<string, unknown>;
+    const payload = mockedSetDoc.mock.calls[0]?.[1] as unknown as Record<
+      string,
+      unknown
+    >;
     expect(payload?.folderId).toBe("folder-1");
     expect(payload?.presentation).not.toHaveProperty("folderId");
     expect(payload?.presentation).toEqual(
       expect.objectContaining({ id: "pres-1" }),
     );
+  });
+});
+
+describe("permanently deleting archived presentations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetFirestore.mockReturnValue({} as never);
+    mockedGetCurrentUser.mockReturnValue({
+      uid: "user-1",
+      isAnonymous: false,
+    } as never);
+    mockedDoc.mockReturnValue({ id: "pres-1" } as never);
+  });
+
+  it("rejects a missing draft without deleting", async () => {
+    mockedGetDoc.mockResolvedValue({ exists: () => false } as never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        repository.deleteArchivedPresentation("pres-1"),
+      ).rejects.toThrow(/missing/i);
+      expect(mockedDeleteDoc).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("rejects an active (non-archived) draft without deleting", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => presentationDoc("pres-a"),
+    } as never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        repository.deleteArchivedPresentation("pres-1"),
+      ).rejects.toThrow(/non-archived/i);
+      expect(mockedDeleteDoc).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("rejects a published archived draft without deleting", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () =>
+        presentationDoc("pres-a", {
+          archivedAt: "archived",
+          publication: {
+            publicationId: "pub-1",
+            currentVersionId: "version-1",
+            publishedRevision: 1,
+            publishedAt: "ts",
+          },
+        }),
+    } as never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        repository.deleteArchivedPresentation("pres-1"),
+      ).rejects.toThrow(/published/i);
+      expect(mockedDeleteDoc).not.toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("deletes only the private draft for an eligible archived unpublished item", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () =>
+        presentationDoc("pres-a", {
+          archivedAt: "archived",
+          folderId: "folder-1",
+        }),
+    } as never);
+
+    await repository.deleteArchivedPresentation("pres-1");
+
+    expect(mockedDeleteDoc).toHaveBeenCalledTimes(1);
+    expect(mockedDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      "users",
+      "user-1",
+      "presentations",
+      "pres-1",
+    );
+  });
+
+  it("writes only the delete and no draftRevision, updatedAt, publication, or canonical mutations", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => presentationDoc("pres-a", { archivedAt: "archived" }),
+    } as never);
+
+    await repository.deleteArchivedPresentation("pres-1");
+
+    expect(mockedDeleteDoc).toHaveBeenCalledTimes(1);
+    expect(mockedUpdateDoc).not.toHaveBeenCalled();
+    expect(mockedIncrement).not.toHaveBeenCalled();
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+  });
+  it("rejects an archived draft with malformed publication metadata", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () =>
+        presentationDoc("pres-a", {
+          archivedAt: "archived",
+          publication: { unexpected: true },
+        }),
+    } as never);
+
+    await expect(
+      repository.deleteArchivedPresentation("pres-1"),
+    ).rejects.toThrow(/published/i);
+
+    expect(mockedDeleteDoc).not.toHaveBeenCalled();
   });
 });

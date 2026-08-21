@@ -35,6 +35,7 @@ export interface PresentationRepository {
   savePresentation(presentation: Presentation): Promise<void>;
   archivePresentation(id: string): Promise<void>;
   restorePresentation(id: string): Promise<void>;
+  deleteArchivedPresentation(id: string): Promise<void>;
   movePresentationToFolder(id: string, folderId: string | null): Promise<void>;
   publishPresentation(id: string): Promise<PresentationPublishResult>;
 }

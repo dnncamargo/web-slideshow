@@ -2,6 +2,7 @@ import type { Presentation } from "@powershow/document-schema";
 
 import {
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
@@ -98,7 +99,11 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
         const archivedAt = data.archivedAt;
 
-        if (!includeArchived && archivedAt !== undefined && archivedAt !== null) {
+        if (
+          !includeArchived &&
+          archivedAt !== undefined &&
+          archivedAt !== null
+        ) {
           continue;
         }
 
@@ -242,6 +247,55 @@ export class FirestorePresentationRepository implements PresentationRepository {
     }
   }
 
+  /**
+   * Permanently delete the private draft of an archived, never-published
+   * presentation. Public publication artifacts (pointer and immutable
+   * versions) are intentionally untouched: deleting a published presentation
+   * is not implemented, so drafts with publication metadata are rejected.
+   */
+  async deleteArchivedPresentation(id: string): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      const snapshot = await getDoc(documentRef);
+
+      if (!snapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot delete missing presentation "${id}".`,
+        );
+      }
+
+      const data = snapshot.data();
+
+      if (data.archivedAt === undefined || data.archivedAt === null) {
+        throw new FirestoreOperationError(
+          `Cannot permanently delete non-archived presentation "${id}".`,
+        );
+      }
+
+      if (data.publication !== undefined && data.publication !== null) {
+        throw new FirestoreOperationError(
+          `Cannot permanently delete published presentation "${id}".`,
+        );
+      }
+
+      await deleteDoc(documentRef);
+
+    } catch (error) {
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      console.error(`Failed to delete archived presentation "${id}"`, error);
+
+      throw new FirestoreOperationError(
+        `Failed to delete archived presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
   async movePresentationToFolder(
     id: string,
     folderId: string | null,
@@ -257,7 +311,9 @@ export class FirestorePresentationRepository implements PresentationRepository {
         return;
       }
 
-      const folderSnapshot = await getDoc(folderDocumentRef(user.uid, folderId));
+      const folderSnapshot = await getDoc(
+        folderDocumentRef(user.uid, folderId),
+      );
 
       if (!folderSnapshot.exists()) {
         throw new FirestoreOperationError(
