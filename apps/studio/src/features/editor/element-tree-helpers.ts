@@ -20,6 +20,14 @@ interface ParentTarget {
   label: string;
 }
 
+function summarizeTextContent(
+  content: string | { type: "rich-text"; runs: readonly { text: string }[] },
+): string {
+  return typeof content === "string"
+    ? content
+    : content.runs.map((run) => run.text).join("");
+}
+
 function collectParentTargetsInTopicItems(
   items: readonly TopicItem[],
   excludedIds: ReadonlySet<string>,
@@ -45,8 +53,10 @@ function collectParentTargetsInTopicItems(
   }
 }
 
-function getContentPreview(content: string): string | null {
-  const normalized = content
+function getContentPreview(
+  content: string | { type: "rich-text"; runs: readonly { text: string }[] },
+): string | null {
+  const normalized = summarizeTextContent(content)
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();

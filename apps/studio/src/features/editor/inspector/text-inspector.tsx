@@ -19,6 +19,14 @@ import { ElementEffectsSection } from "./sections/element-effects-section";
 
 type TextElement = Extract<PowerShowElement, { type: "text" }>;
 
+function getTextElementContentValue(
+  content: TextElement["content"],
+): string {
+  return typeof content === "string"
+    ? content
+    : content.runs.map((run) => run.text).join("");
+}
+
 // ============================================================
 // BEGIN: TEXT INSPECTOR
 // ============================================================
@@ -57,7 +65,7 @@ export function TextInspector({
             name="textContent"
             className={styles.textArea}
             rows={5}
-            value={element.content}
+            value={getTextElementContentValue(element.content)}
             onChange={(event) => {
               const content = event.target.value;
 

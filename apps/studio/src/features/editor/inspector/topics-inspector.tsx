@@ -92,6 +92,14 @@ function findDirectTextChild(
   return textChild?.type === "text" ? textChild : null;
 }
 
+function getTextElementContentValue(
+  content: Extract<PowerShowElement, { type: "text" }>["content"],
+): string {
+  return typeof content === "string"
+    ? content
+    : content.runs.map((run) => run.text).join("");
+}
+
 function getTopicContentLabels(
   item: TopicItem,
   t: StudioTranslate,
@@ -188,7 +196,7 @@ function TopicRow({
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
-            value={textChild?.content ?? ""}
+            value={textChild ? getTextElementContentValue(textChild.content) : ""}
             onChange={(event) => {
               onTextChange(item.id, event.currentTarget.value);
             }}

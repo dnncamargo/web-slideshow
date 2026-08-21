@@ -27,11 +27,46 @@ const BaseElementSchema = z.object({
   hidden: z.boolean().default(false),
 });
 
+export const TextRunMarksSchema = z.object({
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  code: z.boolean().optional(),
+  color: ColorSchema.optional(),
+});
+
+export type TextRunMarks =
+  z.infer<typeof TextRunMarksSchema>;
+
+export const TextRunSchema = z.object({
+  text: z.string(),
+  marks: TextRunMarksSchema.optional(),
+});
+
+export type TextRun =
+  z.infer<typeof TextRunSchema>;
+
+export const RichTextContentSchema = z.object({
+  type: z.literal("rich-text"),
+  runs: z.array(TextRunSchema),
+});
+
+export type RichTextContent =
+  z.infer<typeof RichTextContentSchema>;
+
+export const TextContentSchema = z.union([
+  z.string(),
+  RichTextContentSchema,
+]);
+
+export type TextContent =
+  z.infer<typeof TextContentSchema>;
+
 export const TextElementSchema =
   BaseElementSchema.extend({
     type: z.literal("text"),
 
-    content: z.string(),
+    content: TextContentSchema,
 
     variant: z.enum([
       "body",

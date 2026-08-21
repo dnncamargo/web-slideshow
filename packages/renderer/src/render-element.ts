@@ -1,4 +1,5 @@
 import { renderCode } from "./render-code";
+import { renderRichText } from "./render-rich-text";
 import { renderTable } from "./render-table";
 import { renderTopics } from "./render-topics";
 import { renderTerminal } from "./render-terminal";
@@ -83,7 +84,11 @@ function renderText(element: TextElement): string {
     return "";
   }
 
-  const content = renderLinkContent(escapeHtml(element.content), element.link);
+  const renderedContent =
+    typeof element.content === "string"
+      ? escapeHtml(element.content)
+      : renderRichText(element.content);
+  const content = renderLinkContent(renderedContent, element.link);
 
   const attributes = buildAttributes(element, [
     "powershow-text",
