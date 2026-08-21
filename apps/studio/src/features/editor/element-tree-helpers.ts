@@ -8,6 +8,7 @@ import {
   findElementSiblingPosition,
   type MoveElementOptions,
 } from "./element-operations";
+import { getTextContentPlainText } from "./rich-text-authoring";
 import {
   collectAuthoringIds,
   collectContainerIds as collectContainerIdsInHierarchy,
@@ -45,8 +46,10 @@ function collectParentTargetsInTopicItems(
   }
 }
 
-function getContentPreview(content: string): string | null {
-  const normalized = content
+function getContentPreview(
+  content: Parameters<typeof getTextContentPlainText>[0],
+): string | null {
+  const normalized = getTextContentPlainText(content)
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();

@@ -10,6 +10,11 @@ import type {
 } from "@powershow/document-schema";
 
 import {
+  getTextContentPlainText,
+  reconcileTextContentEdit,
+} from "./rich-text-authoring";
+
+import {
   collectAuthoringIds,
   findElementLocation,
   getElementsForParentRef,
@@ -314,15 +319,20 @@ export function updateTopicItemTextContent(
 
       const textChild = currentItem.content.children[textIndex];
 
-      if (textChild?.type !== "text" || textChild.content === content) {
+      if (
+        textChild?.type !== "text" ||
+        getTextContentPlainText(textChild.content) === content
+      ) {
         return currentItem;
       }
+
+      const nextContent = reconcileTextContentEdit(textChild.content, content);
 
       const children = [...currentItem.content.children];
 
       children[textIndex] = {
         ...textChild,
-        content,
+        content: nextContent,
       };
 
       changed = true;

@@ -30,6 +30,8 @@ import {
   updateTopicItemTextContent,
 } from "../element-operations";
 
+import { getTextContentPlainText } from "../rich-text-authoring";
+
 import { InspectorSection } from "./inspector-section";
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyControl } from "./sections/element-typography-control";
@@ -188,7 +190,7 @@ function TopicRow({
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
-            value={textChild?.content ?? ""}
+            value={textChild ? getTextContentPlainText(textChild.content) : ""}
             onChange={(event) => {
               onTextChange(item.id, event.currentTarget.value);
             }}

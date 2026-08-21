@@ -194,6 +194,25 @@ describe("renderElement link support", () => {
     expect(html).toContain('&lt;script&gt;alert(&quot;PowerShow&quot;)&lt;/script&gt;');
   });
 
+  it("keeps rich text escaped and does not create nested anchors", () => {
+    const html = renderElement(
+      textElement({
+        content: {
+          type: "rich-text",
+          runs: [
+            { text: "Linked " },
+            { text: "text", marks: { bold: true } },
+          ],
+        },
+        link: HTTPS_LINK,
+      }),
+    );
+
+    expect(html).toContain('<a href="https://example.com"');
+    expect(html).toContain("<strong>text</strong>");
+    expect(html.match(/<a /g)).toHaveLength(1);
+  });
+
   it("emits anchor appearance inheritance so links do not force browser styling", () => {
     const html = renderElement(
       textElement({

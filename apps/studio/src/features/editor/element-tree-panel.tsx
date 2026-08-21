@@ -25,6 +25,7 @@ import {
   resolveTreeDrop,
   type TreeDropIntent,
 } from "./element-tree-helpers";
+import { getTextContentPlainText } from "./rich-text-authoring";
 
 interface ElementTreePanelProps {
   slide: Slide;
@@ -117,17 +118,21 @@ function isStructuralTopicSelection(
   );
 }
 
-function getTextPreview(content: string): string | null {
-  const normalized = content
+function getTextPreview(
+  content: string | Extract<PowerShowElement, { type: "text" }>["content"],
+): string | null {
+  const normalized = getTextContentPlainText(content);
+
+  const compact = normalized
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!normalized) {
+  if (!compact) {
     return null;
   }
 
-  return normalized.length > 36 ? `${normalized.slice(0, 35)}…` : normalized;
+  return compact.length > 36 ? `${compact.slice(0, 35)}…` : compact;
 }
 
 function getTopicItemLabel(item: TopicItem, topicLabel: string): string {
