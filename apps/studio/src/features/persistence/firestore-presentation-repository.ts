@@ -24,6 +24,7 @@ import {
 import {
   assertPresentationWithinSizeLimit,
   assertPresentationWithinFirestoreNestingDepth,
+  deriveThumbnailPreview,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
   normalizePersistenceMetadata,
@@ -89,16 +90,22 @@ export class FirestorePresentationRepository implements PresentationRepository {
           continue;
         }
 
-        summaries.push(
-          extractPresentationSummary({
-            id: (presentation as { id: string }).id,
-            title: (presentation as { title: string }).title,
-            updatedAt: data.updatedAt,
-            archivedAt: archivedAt ?? undefined,
-            draftRevision: data.draftRevision,
-            publication: data.publication,
-          }),
-        );
+        const summary = extractPresentationSummary({
+          id: (presentation as { id: string }).id,
+          title: (presentation as { title: string }).title,
+          updatedAt: data.updatedAt,
+          archivedAt: archivedAt ?? undefined,
+          draftRevision: data.draftRevision,
+          publication: data.publication,
+        });
+
+        const thumbnailPreview = deriveThumbnailPreview(presentation);
+
+        if (thumbnailPreview) {
+          summary.thumbnailPreview = thumbnailPreview;
+        }
+
+        summaries.push(summary);
       }
 
       return summaries;

@@ -408,6 +408,27 @@
 .thumbnailLine { width: 88%; opacity: 0.25; }
 .thumbnailLineShort { width: 54%; opacity: 0.25; }
 
+/* Rendered first-slide preview. Same outer slot geometry as the decorative
+   fallback (16:9, border, radius, background) but centers a logical slide
+   canvas scaled to fit, preserving the presentation aspect ratio. */
+.thumbnailPreview {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: #172131;
+}
+
+.thumbnailPreviewStage {
+  flex: none;
+  transform-origin: center center;
+}
+
 .rowDetails,
 .rowMetadata {
   display: flex;

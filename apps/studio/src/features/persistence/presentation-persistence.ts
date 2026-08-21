@@ -1,5 +1,5 @@
-import type { Presentation } from "@powershow/document-schema";
-import { PresentationSchema } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@powershow/document-schema";
+import { PresentationSchema, SlideSchema } from "@powershow/document-schema";
 
 import {
   InvalidPersistedPresentationError,
@@ -43,6 +43,20 @@ export interface PresentationSummary {
   publicationState: PresentationPublicationState;
   draftRevision: number;
   publication: PresentationPublicationMetadata | undefined;
+  thumbnailPreview?: PresentationThumbnailPreview;
+}
+
+/**
+ * Transient Library preview projection.
+ *
+ * It holds only what the Library needs to render the FIRST slide of a
+ * presentation and is derived from the already-read persisted Presentation.
+ * It is never written back to Firestore and carries no thumbnail blob,
+ * base64, or generated image.
+ */
+export interface PresentationThumbnailPreview {
+  aspectRatio: "16:9" | "4:3";
+  firstSlide: Slide;
 }
 
 /**
@@ -279,4 +293,64 @@ export function parsePersistedPresentation(
   }
 
   return result.data;
+}
+
+/**
+ * Safely derive a Library thumbnail preview from the already-read persisted
+ * presentation raw value (the object stored under `presentation` in the
+ * Firestore document).
+ *
+ * Returns undefined when the first slide has no authored elements OR when the
+ * data cannot be safely projected — the caller falls back to the decorative
+ * thumbnail.
+ */
+export function deriveThumbnailPreview(
+  rawPresentation: unknown,
+): PresentationThumbnailPreview | undefined {
+  if (
+    typeof rawPresentation !== "object" ||
+    rawPresentation === null
+  ) {
+    return undefined;
+  }
+
+  const pres = rawPresentation as Record<string, unknown>;
+
+  const aspectRatio: PresentationThumbnailPreview["aspectRatio"] =
+    pres.aspectRatio === "4:3" ? "4:3" : "16:9";
+
+  const slides = Array.isArray(pres.slides) ? pres.slides : [];
+
+  if (slides.length === 0) {
+    return undefined;
+  }
+
+  const firstSlideCandidate = slides[0];
+
+  if (
+    typeof firstSlideCandidate !== "object" ||
+    firstSlideCandidate === null
+  ) {
+    return undefined;
+  }
+
+  const elementsValue = (firstSlideCandidate as Record<string, unknown>)
+    .elements;
+
+  // Blank-slide rule: preserve the decorative fallback even when the slide has
+  // a configured background.
+  if (!Array.isArray(elementsValue) || elementsValue.length === 0) {
+    return undefined;
+  }
+
+  const parsed = SlideSchema.safeParse(firstSlideCandidate);
+
+  if (!parsed.success) {
+    return undefined;
+  }
+
+  return {
+    aspectRatio,
+    firstSlide: parsed.data,
+  };
 }
