@@ -128,33 +128,6 @@ export const TerminalElementSchema =
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
-export const TableElementSchema =
-  BaseElementSchema.extend({
-    type: z.literal("table"),
-
-    columns: z.array(
-      z.object({
-        key: z.string().min(1),
-        label: z.string(),
-      }),
-    ),
-
-    rows: z.array(
-      z.record(
-        z.string(),
-        z.union([
-          z.string(),
-          z.number(),
-          z.boolean(),
-          z.null(),
-        ]),
-      ),
-    ),
-  });
-
-export type TableElement =
-  z.infer<typeof TableElementSchema>;
-
 export const ChartElementSchema =
   BaseElementSchema.extend({
     type: z.literal("chart"),
@@ -237,6 +210,91 @@ export const ContentSlotSchema:
       z.lazy(() => PowerShowElementSchema),
     ),
   });
+
+export const SimpleTableElementSchema =
+  BaseElementSchema.extend({
+    type: z.literal("table"),
+
+    mode: z.literal("simple").optional(),
+
+    columns: z.array(
+      z.object({
+        key: z.string().min(1),
+        label: z.string(),
+      }),
+    ),
+
+    rows: z.array(
+      z.record(
+        z.string(),
+        z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+          z.null(),
+        ]),
+      ),
+    ),
+  });
+
+export type SimpleTableElement =
+  z.infer<typeof SimpleTableElementSchema>;
+
+export const StructuredTableColumnSchema =
+  z.object({
+    id: ElementIdSchema,
+    header: ContentSlotSchema,
+    width: LengthSchema.optional(),
+  });
+
+export type StructuredTableColumn =
+  z.infer<typeof StructuredTableColumnSchema>;
+
+export const StructuredTableRowSchema =
+  z.object({
+    id: ElementIdSchema,
+    cells: z.array(ContentSlotSchema),
+  });
+
+export type StructuredTableRow =
+  z.infer<typeof StructuredTableRowSchema>;
+
+const StructuredTableElementBaseSchema =
+  BaseElementSchema.extend({
+    type: z.literal("table"),
+    mode: z.literal("structured"),
+    showHeader: z.boolean().default(true),
+    columns: z.array(StructuredTableColumnSchema),
+    rows: z.array(StructuredTableRowSchema),
+  });
+
+export const StructuredTableElementSchema =
+  StructuredTableElementBaseSchema.superRefine(
+    (table, context) => {
+      table.rows.forEach((row, rowIndex) => {
+        if (row.cells.length !== table.columns.length) {
+          context.addIssue({
+            code: "custom",
+            path: ["rows", rowIndex, "cells"],
+            message:
+              "Structured table rows must contain exactly one cell per column.",
+          });
+        }
+      });
+    },
+  );
+
+export type StructuredTableElement =
+  z.infer<typeof StructuredTableElementSchema>;
+
+export const TableElementSchema = z.union([
+  SimpleTableElementSchema,
+  StructuredTableElementSchema,
+]);
+
+export type TableElement =
+  | SimpleTableElement
+  | StructuredTableElement;
 
 export type TopicItem = {
   id: string;

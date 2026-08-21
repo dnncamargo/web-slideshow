@@ -483,6 +483,125 @@ describe("TableElementSchema", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it("accepts explicit simple mode and preserves scalar values", () => {
+    const result = TableElementSchema.parse(
+      tableElement({
+        mode: "simple",
+        rows: [{ text: "value", number: 0, enabled: false, empty: null }],
+      }),
+    );
+
+    expect(result).toMatchObject({
+      mode: "simple",
+      rows: [{ text: "value", number: 0, enabled: false, empty: null }],
+    });
+  });
+
+  it("accepts structured tables with recursive content slots", () => {
+    const source = {
+      type: "table",
+      id: "structured-table",
+      mode: "structured",
+      hidden: false,
+      columns: [
+        {
+          id: "name-column",
+          header: contentSlot({
+            id: "name-header",
+            children: [textElement({ id: "name-header-text" })],
+          }),
+          width: "40%",
+        },
+        {
+          id: "details-column",
+          header: contentSlot({ id: "details-header" }),
+        },
+      ],
+      rows: [
+        {
+          id: "row-1",
+          cells: [
+            contentSlot({
+              id: "name-cell",
+              children: [textElement({ id: "name-cell-text" })],
+            }),
+            contentSlot({
+              id: "details-cell",
+              children: [
+                containerElement({
+                  id: "cell-container",
+                  children: [textElement({ id: "nested-cell-text" })],
+                }),
+              ],
+            }),
+          ],
+        },
+      ],
+    };
+
+    const result = TableElementSchema.parse(source);
+
+    expect(result.mode).toBe("structured");
+    if (result.mode === "structured") {
+      expect(result.showHeader).toBe(true);
+      expect(result.columns[0]?.header.children[0]?.type).toBe("text");
+      expect(result.rows[0]?.cells).toHaveLength(2);
+    }
+    const restored = TableElementSchema.parse(
+      JSON.parse(JSON.stringify(result)),
+    );
+
+    expect(restored).toEqual(result);
+    expect(PowerShowElementSchema.safeParse(result).success).toBe(true);
+  });
+
+  it("preserves headers when showHeader is false", () => {
+    const result = TableElementSchema.parse({
+      ...tableElement(),
+      mode: "structured",
+      showHeader: false,
+      columns: [{ id: "column-1", header: contentSlot({ id: "header-1" }) }],
+      rows: [{ id: "row-1", cells: [contentSlot({ id: "cell-1" })] }],
+    });
+
+    expect(result.mode).toBe("structured");
+    if (result.mode === "structured") {
+      expect(result.showHeader).toBe(false);
+      expect(result.columns[0]?.header.id).toBe("header-1");
+    }
+  });
+
+  it.each([1, 3])(
+    "rejects a structured row with %i cells for two columns",
+    (cellCount) => {
+      const result = TableElementSchema.safeParse({
+        ...tableElement(),
+        mode: "structured",
+        columns: [
+          { id: "column-1", header: contentSlot({ id: "header-1" }) },
+          { id: "column-2", header: contentSlot({ id: "header-2" }) },
+        ],
+        rows: [{
+          id: "row-1",
+          cells: Array.from({ length: cellCount }, (_, index) =>
+            contentSlot({ id: `cell-${index + 1}` }),
+          ),
+        }],
+      });
+
+      expect(result.success).toBe(false);
+    },
+  );
+
+  it("accepts an empty structured table", () => {
+    expect(TableElementSchema.safeParse({
+      ...tableElement(),
+      mode: "structured",
+      columns: [],
+      rows: [{ id: "empty-row", cells: [] }],
+    }).success).toBe(true);
+  });
 });
 
 describe("Topics serialization", () => {
