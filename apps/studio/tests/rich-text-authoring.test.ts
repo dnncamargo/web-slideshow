@@ -146,9 +146,7 @@ describe("rich-text authoring utilities", () => {
       ),
     ).toEqual({
       type: "rich-text",
-      runs: [
-        { text: "abc", marks: { bold: true } },
-      ],
+      runs: [{ text: "abc", marks: { bold: true } }],
     });
   });
 
@@ -163,21 +161,14 @@ describe("rich-text authoring utilities", () => {
       ),
     ).toEqual({
       type: "rich-text",
-      runs: [
-        { text: "ab", marks: { bold: true } },
-        { text: "c" },
-      ],
+      runs: [{ text: "ab", marks: { bold: true } }, { text: "c" }],
     });
   });
 
   it("normalizes unmarked rich text back to a string", () => {
     expect(
       normalizeTextContent(
-        richText([
-          { text: "Hello" },
-          { text: " " },
-          { text: "world" },
-        ]),
+        richText([{ text: "Hello" }, { text: " " }, { text: "world" }]),
       ),
     ).toBe("Hello world");
   });
@@ -224,18 +215,12 @@ describe("rich-text authoring utilities", () => {
   it("typing before a marked range preserves the marked range", () => {
     expect(
       reconcileTextContentEdit(
-        richText([
-          { text: "a" },
-          { text: "bc", marks: { bold: true } },
-        ]),
+        richText([{ text: "a" }, { text: "bc", marks: { bold: true } }]),
         "zabc",
       ),
     ).toEqual({
       type: "rich-text",
-      runs: [
-        { text: "za" },
-        { text: "bc", marks: { bold: true } },
-      ],
+      runs: [{ text: "za" }, { text: "bc", marks: { bold: true } }],
     });
   });
 
@@ -260,6 +245,28 @@ describe("rich-text authoring utilities", () => {
     ).toEqual({
       type: "rich-text",
       runs: [{ text: "abc!", marks: { bold: true } }],
+    });
+  });
+
+  it("typing at the beginning of a marked run inherits the following character's marks", () => {
+    expect(
+      reconcileTextContentEdit(
+        richText([
+          {
+            text: "abc",
+            marks: { bold: true },
+          },
+        ]),
+        "Xabc",
+      ),
+    ).toEqual({
+      type: "rich-text",
+      runs: [
+        {
+          text: "Xabc",
+          marks: { bold: true },
+        },
+      ],
     });
   });
 
@@ -315,22 +322,28 @@ describe("rich-text authoring utilities", () => {
   it("treats a multi-character insertion as one contiguous edit", () => {
     expect(
       reconcileTextContentEdit(
-        richText([
-          { text: "ab", marks: { bold: true } },
-          { text: "c" },
-        ]),
+        richText([{ text: "ab", marks: { bold: true } }, { text: "c" }]),
         "abXYZc",
       ),
     ).toEqual({
       type: "rich-text",
-      runs: [
-        { text: "abXYZ", marks: { bold: true } },
-        { text: "c" },
-      ],
+      runs: [{ text: "abXYZ", marks: { bold: true } }, { text: "c" }],
     });
   });
 
   it("keeps ordinary plain-string editing as a plain string", () => {
     expect(reconcileTextContentEdit("abc", "aXbc")).toBe("aXbc");
+  });
+
+  it("pure insertion after an unmarked character does not inherit following marks", () => {
+    expect(
+      reconcileTextContentEdit(
+        richText([{ text: "a" }, { text: "b", marks: { bold: true } }]),
+        "aXb",
+      ),
+    ).toEqual({
+      type: "rich-text",
+      runs: [{ text: "aX" }, { text: "b", marks: { bold: true } }],
+    });
   });
 });

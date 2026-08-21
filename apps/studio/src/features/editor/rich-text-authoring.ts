@@ -22,7 +22,9 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function sanitizeMarks(marks: TextRunMarks | undefined): TextRunMarks | undefined {
+function sanitizeMarks(
+  marks: TextRunMarks | undefined,
+): TextRunMarks | undefined {
   if (!marks) {
     return undefined;
   }
@@ -367,9 +369,20 @@ export function reconcileTextContentEdit(
     prefixLength,
     oldLength - suffixLength,
   );
-  const inheritedMarks =
-    sanitizeMarks(removedCharacters[0]?.marks) ??
-    sanitizeMarks(characters[prefixLength - 1]?.marks);
+
+  let inheritedMarks: TextRunMarks | undefined;
+
+  if (removedCharacters.length > 0) {
+    // Replacement: inherit exactly from the first replaced character,
+    // including the valid case where that character has no marks.
+    inheritedMarks = sanitizeMarks(removedCharacters[0]?.marks);
+  } else if (prefixLength > 0) {
+    // Pure insertion: prefer the immediately preceding character.
+    inheritedMarks = sanitizeMarks(characters[prefixLength - 1]?.marks);
+  } else {
+    // Pure insertion at the beginning: use the following character.
+    inheritedMarks = sanitizeMarks(characters[0]?.marks);
+  }
 
   const insertedText = nextPlainText.slice(
     prefixLength,
