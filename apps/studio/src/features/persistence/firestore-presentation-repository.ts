@@ -2,6 +2,7 @@ import type { Presentation } from "@powershow/document-schema";
 
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -32,6 +33,8 @@ import {
   type PresentationSummary,
 } from "./presentation-persistence";
 import type {
+  CreatePresentationOptions,
+  ListPresentationsOptions,
   PresentationPublishResult,
   PresentationRepository,
 } from "./presentation-repository";
@@ -50,6 +53,12 @@ function presentationDocumentRef(userId: string, presentationId: string) {
   return doc(firestore, "users", userId, "presentations", presentationId);
 }
 
+function folderDocumentRef(userId: string, folderId: string) {
+  const firestore = getFirebaseFirestore();
+
+  return doc(firestore, "users", userId, "presentationFolders", folderId);
+}
+
 /**
  * Firestore-backed Presentation repository.
  *
@@ -61,7 +70,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
     return requireAuthenticatedFirebaseUser(getCurrentNonAnonymousUser);
   }
 
-  async listPresentations(): Promise<PresentationSummary[]> {
+  async listPresentations(
+    options: ListPresentationsOptions = {},
+  ): Promise<PresentationSummary[]> {
+    const includeArchived = options.includeArchived ?? false;
     const user = this.requireAuthenticatedUser();
     const presentationsRef = presentationsCollection(user.uid);
 
@@ -86,7 +98,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
         const archivedAt = data.archivedAt;
 
-        if (archivedAt !== undefined && archivedAt !== null) {
+        if (!includeArchived && archivedAt !== undefined && archivedAt !== null) {
           continue;
         }
 
@@ -95,6 +107,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
           title: (presentation as { title: string }).title,
           updatedAt: data.updatedAt,
           archivedAt: archivedAt ?? undefined,
+          folderId: data.folderId,
           draftRevision: data.draftRevision,
           publication: data.publication,
         });
@@ -138,7 +151,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
     }
   }
 
-  async createPresentation(presentation: Presentation): Promise<void> {
+  async createPresentation(
+    presentation: Presentation,
+    options?: CreatePresentationOptions,
+  ): Promise<void> {
     const user = this.requireAuthenticatedUser();
 
     assertPresentationWithinSizeLimit(presentation);
@@ -153,6 +169,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         draftRevision: 1,
+        ...(options?.folderId ? { folderId: options.folderId } : {}),
       });
     } catch (error) {
       console.error("Failed to create presentation", error);
@@ -202,6 +219,67 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
       throw new FirestoreOperationError(
         `Failed to archive presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  async restorePresentation(id: string): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      await updateDoc(documentRef, {
+        archivedAt: deleteField(),
+      });
+    } catch (error) {
+      console.error(`Failed to restore presentation "${id}"`, error);
+
+      throw new FirestoreOperationError(
+        `Failed to restore presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  async movePresentationToFolder(
+    id: string,
+    folderId: string | null,
+  ): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      if (folderId === null) {
+        await updateDoc(documentRef, {
+          folderId: deleteField(),
+        });
+        return;
+      }
+
+      const folderSnapshot = await getDoc(folderDocumentRef(user.uid, folderId));
+
+      if (!folderSnapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot move presentation "${id}" into missing folder "${folderId}".`,
+        );
+      }
+
+      await updateDoc(documentRef, {
+        folderId,
+      });
+    } catch (error) {
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      console.error(
+        `Failed to move presentation "${id}" to folder "${folderId}"`,
+        error,
+      );
+
+      throw new FirestoreOperationError(
+        `Failed to move presentation "${id}" to folder "${folderId}".`,
         error,
       );
     }

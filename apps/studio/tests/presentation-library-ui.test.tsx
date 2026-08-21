@@ -59,6 +59,8 @@ function summary(
     title: `Title ${id}`,
     updatedAt: "ts",
     archived: false,
+    archivedAt: null,
+    folderId: null,
     publicationState,
     draftRevision: 1,
     publication:
@@ -137,6 +139,8 @@ function repositoryFor(
     archivePresentation: vi.fn(async (id: string) => {
       current = current.filter((item) => item.id !== id);
     }),
+    restorePresentation: vi.fn(async () => {}),
+    movePresentationToFolder: vi.fn(async () => {}),
     publishPresentation: vi.fn(async () => ({
       publicationId: "publication-id",
       versionId: "version-id",

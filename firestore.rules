@@ -119,6 +119,17 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // PRIVATE PRESENTATION FOLDERS
+    // users/{userId}/presentationFolders/{folderId}
+    //
+    // Flat Studio organization metadata, private to the authenticated owner.
+    // Never exposed publicly.
+    // ------------------------------------------------------------
+    match /users/{userId}/presentationFolders/{folderId} {
+      allow read, write: if isPrivatePresentationOwner(userId);
+    }
+
+    // ------------------------------------------------------------
     // PRIVATE PRESENTATION NOTES
     // users/{userId}/presentations/{presentationId}/private/notes
     //

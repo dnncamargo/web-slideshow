@@ -42,6 +42,8 @@ function fakeRepository(overrides: Partial<PresentationRepository> = {}): {
       createPresentation: vi.fn(async () => {}),
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
+      restorePresentation: vi.fn(async () => {}),
+      movePresentationToFolder: vi.fn(async () => {}),
       publishPresentation: vi.fn(async () => ({
         publicationId: "publication-id",
         versionId: "version-id",

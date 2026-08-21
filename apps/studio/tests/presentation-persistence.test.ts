@@ -304,6 +304,8 @@ describe("presentation persistence helpers", () => {
       title: "Title",
       updatedAt: "ts",
       archived: false,
+      archivedAt: null,
+      folderId: null,
       publicationState: "draft",
       draftRevision: 0,
       publication: undefined,

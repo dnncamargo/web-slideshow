@@ -108,6 +108,8 @@ function summary(
     title: `Title ${id}`,
     updatedAt: "ts",
     archived: false,
+    archivedAt: null,
+    folderId: null,
     publicationState: "draft",
     draftRevision: 1,
     publication: undefined,
@@ -265,6 +267,8 @@ describe("presentation library thumbnail reads", () => {
       createPresentation: vi.fn(async () => {}),
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
+      restorePresentation: vi.fn(async () => {}),
+      movePresentationToFolder: vi.fn(async () => {}),
       publishPresentation: vi.fn(async () => ({
         publicationId: "publication-id",
         versionId: "version-id",

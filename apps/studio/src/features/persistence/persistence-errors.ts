@@ -36,6 +36,13 @@ export class FirestoreOperationError extends PersistenceError {
 
 export class InvalidPersistedPresentationError extends PersistenceError {}
 
+export class InvalidFolderNameError extends PersistenceError {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidFolderNameError";
+  }
+}
+
 export class PresentationTooLargeError extends PersistenceError {
   readonly actualBytes: number;
 

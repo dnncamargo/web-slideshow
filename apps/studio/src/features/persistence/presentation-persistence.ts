@@ -31,6 +31,7 @@ export interface PresentationSummarySource {
   title: string;
   updatedAt: unknown;
   archivedAt?: unknown;
+  folderId?: unknown;
   draftRevision?: unknown;
   publication?: unknown;
 }
@@ -40,6 +41,8 @@ export interface PresentationSummary {
   title: string;
   updatedAt: unknown;
   archived: boolean;
+  archivedAt: unknown | null;
+  folderId: string | null;
   publicationState: PresentationPublicationState;
   draftRevision: number;
   publication: PresentationPublicationMetadata | undefined;
@@ -93,6 +96,19 @@ function isValidRevision(value: unknown): value is number {
 
 function normalizeDraftRevision(value: unknown): number {
   return isValidRevision(value) ? value : 0;
+}
+
+/**
+ * Normalize private Studio organization metadata into a stable, safe value.
+ *
+ * folderId is a private Studio field stored at the top level of the draft
+ * document, beside the canonical Presentation. Malformed, non-string, empty,
+ * or whitespace-only values are normalized to null so they can never
+ * invalidate an otherwise valid presentation summary. A valid non-empty string
+ * is returned unchanged; it is never trimmed.
+ */
+export function normalizeFolderId(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
 function normalizePublicationMetadata(value: unknown): PresentationPublicationMetadata | undefined {
@@ -253,6 +269,7 @@ export function extractPresentationSummary(
   data: PresentationSummarySource,
 ): PresentationSummary {
   const archivedAt = data.archivedAt;
+  const normalizedArchivedAt = archivedAt === undefined ? null : archivedAt;
   const metadata = normalizePersistenceMetadata(
     data.draftRevision,
     data.publication,
@@ -262,7 +279,9 @@ export function extractPresentationSummary(
     id: data.id,
     title: data.title,
     updatedAt: data.updatedAt,
-    archived: archivedAt !== undefined && archivedAt !== null,
+    archived: normalizedArchivedAt !== null,
+    archivedAt: normalizedArchivedAt,
+    folderId: normalizeFolderId(data.folderId),
     publicationState: resolvePublicationState(
       metadata.draftRevision,
       metadata.publication,
