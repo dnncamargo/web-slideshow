@@ -2777,6 +2777,15 @@
 }
 
 
+.galleryItemActions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+}
+
+
 .tableCells {
   display: flex;
 

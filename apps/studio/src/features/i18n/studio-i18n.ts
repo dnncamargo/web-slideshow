@@ -429,6 +429,13 @@ const englishMessages = {
   "image.preserveProportionHelp":
     "Preserves the image proportion when resizing it directly on the Canvas.",
 
+  "gallery.items": "Images: {count}",
+  "gallery.add": "+ Add image",
+  "gallery.remove": "Remove image",
+  "gallery.moveUp": "Move image up",
+  "gallery.moveDown": "Move image down",
+  "gallery.imageNumber": "Image {number}",
+
   "inspector.topics.kind": "List type",
   "inspector.topics.unordered": "Bulleted",
   "inspector.topics.ordered": "Numbered",
@@ -1032,6 +1039,13 @@ const portugueseMessages = {
   "image.preserveProportion": "Preservar proporção",
   "image.preserveProportionHelp":
     "Preserva a proporção da imagem ao redimensioná-la diretamente no Canvas.",
+
+  "gallery.items": "Imagens: {count}",
+  "gallery.add": "+ Adicionar imagem",
+  "gallery.remove": "Remover imagem",
+  "gallery.moveUp": "Mover imagem para cima",
+  "gallery.moveDown": "Mover imagem para baixo",
+  "gallery.imageNumber": "Imagem {number}",
 
   "inspector.topics.kind": "Tipo de lista",
   "inspector.topics.unordered": "Marcadores",
