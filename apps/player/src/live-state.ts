@@ -4,6 +4,8 @@ import type { Presentation } from "@powershow/document-schema";
 
 import type { PlayerController } from "./player";
 
+import { recordPlayerDiagnostic } from "./player-diagnostics";
+
 /**
  * Minimal Live projection-state protocol primitives for the Player.
  *
@@ -129,6 +131,8 @@ export function subscribeLiveProjectionState(
   controller: PlayerController,
   logsEnabled = false,
 ): () => void {
+  recordPlayerDiagnostic("PLAYER_STATE_ATTACH_START");
+
   let pendingFrame: number | null = null;
   let tornDown = false;
   let lastAppliedControlRevision = 0;
@@ -141,8 +145,11 @@ export function subscribeLiveProjectionState(
       console.error(
         "[PowerShow][live-state] could not resolve a pageId for the current page",
       );
+
       return;
     }
+
+    recordPlayerDiagnostic("PLAYER_STATE_WRITE_START");
 
     void set(ref(database, PLAYER_STATE_PATH), {
       activationRevision,
@@ -150,9 +157,15 @@ export function subscribeLiveProjectionState(
       appliedControlRevision,
       pageId: current.pageId,
       pageIndex: current.pageIndex,
-    }).catch((error: unknown) => {
-      console.error("[PowerShow][live-state] player state write failed", error);
-    });
+    })
+      .then(() => {
+        recordPlayerDiagnostic("PLAYER_STATE_WRITE_OK");
+      })
+      .catch((error: unknown) => {
+        console.error("[PowerShow][live-state] player state write failed", error);
+
+        recordPlayerDiagnostic("PLAYER_STATE_WRITE_ERROR", { error });
+      });
   }
 
   function schedulePublish(): void {
@@ -234,6 +247,8 @@ export function subscribeLiveProjectionState(
     },
     (error: Error) => {
       console.error("[PowerShow][live-state] subscription error", error);
+
+      recordPlayerDiagnostic("CONTROL_STATE_SUBSCRIBE_ERROR", { error });
     },
   );
 
