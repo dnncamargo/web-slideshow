@@ -107,6 +107,62 @@
   line-height: 1.5;
 }
 
+.sidebarFoldersError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.sidebarFoldersError .sidebarEmptyState {
+  padding-left: 0;
+}
+
+.sidebarFolderName {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inline New folder creation control inside the Folders sidebar area. */
+.inlineFolderEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 8px;
+}
+
+.inlineFolderInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.inlineFolderInput:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
+.inlineFolderActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inlineFolderError {
+  margin: 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .sidebarSection h2 {
   margin: 0 10px 6px;
   color: var(--ps-ui-text-muted);
@@ -327,6 +383,23 @@
   margin: 16px 0 0;
 }
 
+.folderSelect {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.folderSelect:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
 /* ============================================================
    PRESENTATION LIST
    ============================================================ */
@@ -408,6 +481,27 @@
 .thumbnailLine { width: 88%; opacity: 0.25; }
 .thumbnailLineShort { width: 54%; opacity: 0.25; }
 
+/* Rendered first-slide preview. Same outer slot geometry as the decorative
+   fallback (16:9, border, radius, background) but centers a logical slide
+   canvas scaled to fit, preserving the presentation aspect ratio. */
+.thumbnailPreview {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: #172131;
+}
+
+.thumbnailPreviewStage {
+  flex: none;
+  transform-origin: center center;
+}
+
 .rowDetails,
 .rowMetadata {
   display: flex;
@@ -472,6 +566,82 @@
   font-weight: 600;
 }
 
+/* ============================================================
+   PERMANENT DELETE CONFIRMATION DIALOG
+   ============================================================ */
+
+.deleteDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(11 15 23 / 62%);
+}
+
+.deleteDialog {
+  box-sizing: border-box;
+  display: flex;
+  width: min(420px, 100%);
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-8);
+  background: var(--ps-ui-background-surface);
+  color: var(--ps-ui-text-secondary);
+}
+
+.deleteDialogTitle {
+  margin: 0;
+  color: var(--ps-ui-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.deleteDialogText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.deleteDialogLabel {
+  color: var(--ps-ui-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.deleteDialogInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.deleteDialogInput:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
+.deleteDialogError {
+  margin: 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 12px;
+}
+
+.deleteDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 @media (max-width: 760px) {
   /* ==========================================================
      STUDIO MOBILE TOPBAR
@@ -531,6 +701,15 @@
     flex-direction: row;
     overflow: visible;
   }
+
+  .inlineFolderEditor {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0;
+  }
+
+  .inlineFolderInput { width: 160px; }
 
   /* Keep group labels in the accessibility tree, visually hidden. */
   .sidebarSection h2 {

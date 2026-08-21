@@ -2,6 +2,8 @@ import type { Presentation } from "@powershow/document-schema";
 
 import {
   collection,
+  deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -24,6 +26,7 @@ import {
 import {
   assertPresentationWithinSizeLimit,
   assertPresentationWithinFirestoreNestingDepth,
+  deriveThumbnailPreview,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
   normalizePersistenceMetadata,
@@ -31,6 +34,8 @@ import {
   type PresentationSummary,
 } from "./presentation-persistence";
 import type {
+  CreatePresentationOptions,
+  ListPresentationsOptions,
   PresentationPublishResult,
   PresentationRepository,
 } from "./presentation-repository";
@@ -49,6 +54,12 @@ function presentationDocumentRef(userId: string, presentationId: string) {
   return doc(firestore, "users", userId, "presentations", presentationId);
 }
 
+function folderDocumentRef(userId: string, folderId: string) {
+  const firestore = getFirebaseFirestore();
+
+  return doc(firestore, "users", userId, "presentationFolders", folderId);
+}
+
 /**
  * Firestore-backed Presentation repository.
  *
@@ -60,7 +71,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
     return requireAuthenticatedFirebaseUser(getCurrentNonAnonymousUser);
   }
 
-  async listPresentations(): Promise<PresentationSummary[]> {
+  async listPresentations(
+    options: ListPresentationsOptions = {},
+  ): Promise<PresentationSummary[]> {
+    const includeArchived = options.includeArchived ?? false;
     const user = this.requireAuthenticatedUser();
     const presentationsRef = presentationsCollection(user.uid);
 
@@ -85,20 +99,31 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
         const archivedAt = data.archivedAt;
 
-        if (archivedAt !== undefined && archivedAt !== null) {
+        if (
+          !includeArchived &&
+          archivedAt !== undefined &&
+          archivedAt !== null
+        ) {
           continue;
         }
 
-        summaries.push(
-          extractPresentationSummary({
-            id: (presentation as { id: string }).id,
-            title: (presentation as { title: string }).title,
-            updatedAt: data.updatedAt,
-            archivedAt: archivedAt ?? undefined,
-            draftRevision: data.draftRevision,
-            publication: data.publication,
-          }),
-        );
+        const summary = extractPresentationSummary({
+          id: (presentation as { id: string }).id,
+          title: (presentation as { title: string }).title,
+          updatedAt: data.updatedAt,
+          archivedAt: archivedAt ?? undefined,
+          folderId: data.folderId,
+          draftRevision: data.draftRevision,
+          publication: data.publication,
+        });
+
+        const thumbnailPreview = deriveThumbnailPreview(presentation);
+
+        if (thumbnailPreview) {
+          summary.thumbnailPreview = thumbnailPreview;
+        }
+
+        summaries.push(summary);
       }
 
       return summaries;
@@ -131,7 +156,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
     }
   }
 
-  async createPresentation(presentation: Presentation): Promise<void> {
+  async createPresentation(
+    presentation: Presentation,
+    options?: CreatePresentationOptions,
+  ): Promise<void> {
     const user = this.requireAuthenticatedUser();
 
     assertPresentationWithinSizeLimit(presentation);
@@ -146,6 +174,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         draftRevision: 1,
+        ...(options?.folderId ? { folderId: options.folderId } : {}),
       });
     } catch (error) {
       console.error("Failed to create presentation", error);
@@ -195,6 +224,118 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
       throw new FirestoreOperationError(
         `Failed to archive presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  async restorePresentation(id: string): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      await updateDoc(documentRef, {
+        archivedAt: deleteField(),
+      });
+    } catch (error) {
+      console.error(`Failed to restore presentation "${id}"`, error);
+
+      throw new FirestoreOperationError(
+        `Failed to restore presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Permanently delete the private draft of an archived, never-published
+   * presentation. Public publication artifacts (pointer and immutable
+   * versions) are intentionally untouched: deleting a published presentation
+   * is not implemented, so drafts with publication metadata are rejected.
+   */
+  async deleteArchivedPresentation(id: string): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      const snapshot = await getDoc(documentRef);
+
+      if (!snapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot delete missing presentation "${id}".`,
+        );
+      }
+
+      const data = snapshot.data();
+
+      if (data.archivedAt === undefined || data.archivedAt === null) {
+        throw new FirestoreOperationError(
+          `Cannot permanently delete non-archived presentation "${id}".`,
+        );
+      }
+
+      if (data.publication !== undefined && data.publication !== null) {
+        throw new FirestoreOperationError(
+          `Cannot permanently delete published presentation "${id}".`,
+        );
+      }
+
+      await deleteDoc(documentRef);
+
+    } catch (error) {
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      console.error(`Failed to delete archived presentation "${id}"`, error);
+
+      throw new FirestoreOperationError(
+        `Failed to delete archived presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  async movePresentationToFolder(
+    id: string,
+    folderId: string | null,
+  ): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      if (folderId === null) {
+        await updateDoc(documentRef, {
+          folderId: deleteField(),
+        });
+        return;
+      }
+
+      const folderSnapshot = await getDoc(
+        folderDocumentRef(user.uid, folderId),
+      );
+
+      if (!folderSnapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot move presentation "${id}" into missing folder "${folderId}".`,
+        );
+      }
+
+      await updateDoc(documentRef, {
+        folderId,
+      });
+    } catch (error) {
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      console.error(
+        `Failed to move presentation "${id}" to folder "${folderId}"`,
+        error,
+      );
+
+      throw new FirestoreOperationError(
+        `Failed to move presentation "${id}" to folder "${folderId}".`,
         error,
       );
     }

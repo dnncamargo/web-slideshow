@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 
@@ -14,6 +14,7 @@ import {
 } from "@powershow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
+import type { StudioTranslate } from "../i18n/studio-i18n";
 import { LocaleSelector } from "../i18n/locale-selector";
 import { STUDIO_ROUTES, buildStudioEditorHref } from "../app/studio-routes";
 import { ProductSurfaceBrand } from "../app/product-surface-brand";
@@ -22,7 +23,10 @@ import {
   createBlankPresentation,
   getDefaultPresentationRepository,
 } from "../persistence/presentation-repository-instance";
+import { getDefaultPresentationFolderRepository } from "../persistence/presentation-folder-repository-instance";
 import type { PresentationRepository } from "../persistence/presentation-repository";
+import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
+import type { PresentationFolder } from "../persistence/presentation-folder";
 import type { PresentationSummary } from "../persistence/presentation-persistence";
 import {
   subscribeLiveCurrent,
@@ -32,27 +36,41 @@ import {
 } from "../control/live-current";
 
 import {
+  filterPresentationsByDestination,
+  isFolderDestination,
+  isPresentationDestination,
+  isResourceDestination,
+  isSummaryVisibleInDestination,
+  resolveFolderName,
   type LibraryDestination,
 } from "./presentation-library-logic";
 import { PresentationList } from "./presentation-list";
 import { PresentationDetails } from "./presentation-details";
 import { PresentationToolbar } from "./presentation-toolbar";
 import { StudioSidebar } from "./studio-sidebar";
+import { DeletePresentationDialog } from "./delete-presentation-dialog";
 import styles from "./presentation-library.module.css";
 
 interface PresentationLibraryProps {
   repository?: PresentationRepository;
+  folderRepository?: PresentationFolderRepository;
 }
 
 type LibraryStatus = "loading" | "ready" | "error";
+type FolderStatus = "loading" | "ready" | "error";
 
 const SELECTION_INTERACTIVE_SELECTOR =
   "button, a, input, select, textarea, [role='button'], [data-presentation-row]";
 
 function destinationTitle(
   destination: LibraryDestination,
-  t: ReturnType<typeof useStudioI18n>["t"],
+  t: StudioTranslate,
+  folders: readonly PresentationFolder[],
 ): string {
+  if (isFolderDestination(destination)) {
+    return resolveFolderName(folders, destination.folderId) ?? t("library.folderFallback");
+  }
+
   switch (destination) {
     case "all":
       return t("library.all");
@@ -67,15 +85,9 @@ function destinationTitle(
   }
 }
 
-function destinationPlaceholder(
-  destination: Exclude<LibraryDestination, "all">,
-  t: ReturnType<typeof useStudioI18n>["t"],
-): string {
-  return t(`library.destination.${destination}`);
-}
-
 export function PresentationLibrary({
   repository = getDefaultPresentationRepository(),
+  folderRepository = getDefaultPresentationFolderRepository(),
 }: PresentationLibraryProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
@@ -85,9 +97,24 @@ export function PresentationLibrary({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<LibraryStatus>("loading");
   const [summaries, setSummaries] = useState<PresentationSummary[]>([]);
+
+  const [folders, setFolders] = useState<PresentationFolder[]>([]);
+  const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
+
   const [creating, setCreating] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
+
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [folderError, setFolderError] = useState<string | null>(null);
+
   const [actionError, setActionError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
@@ -106,7 +133,7 @@ export function PresentationLibrary({
     setStatus("loading");
 
     try {
-      const items = await repository.listPresentations();
+      const items = await repository.listPresentations({ includeArchived: true });
 
       if (!mountedRef.current) return;
 
@@ -121,9 +148,32 @@ export function PresentationLibrary({
     }
   }, [repository]);
 
+  const loadFolders = useCallback(async () => {
+    setFolderStatus("loading");
+
+    try {
+      const items = await folderRepository.listFolders();
+
+      if (!mountedRef.current) return;
+
+      setFolders(items);
+      setFolderStatus("ready");
+    } catch (error) {
+      console.error("Library: could not load folders", error);
+
+      if (mountedRef.current) {
+        setFolderStatus("error");
+      }
+    }
+  }, [folderRepository]);
+
   useEffect(() => {
     queueMicrotask(() => void loadPresentations());
   }, [loadPresentations]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadFolders());
+  }, [loadFolders]);
 
   useEffect(() => {
     const unsubscribe = subscribeLiveCurrent(setLiveState);
@@ -188,7 +238,14 @@ export function PresentationLibrary({
 
     try {
       const presentation = createBlankPresentation();
-      await repository.createPresentation(presentation);
+
+      if (isFolderDestination(destination)) {
+        await repository.createPresentation(presentation, {
+          folderId: destination.folderId,
+        });
+      } else {
+        await repository.createPresentation(presentation);
+      }
 
       if (mountedRef.current) router.push(buildStudioEditorHref(presentation.id));
     } catch (error) {
@@ -197,7 +254,7 @@ export function PresentationLibrary({
     } finally {
       if (mountedRef.current) setCreating(false);
     }
-  }, [creating, repository, router, t]);
+  }, [creating, repository, router, t, destination]);
 
   const handleOpen = useCallback(
     (id: string) => {
@@ -219,7 +276,7 @@ export function PresentationLibrary({
         await repository.archivePresentation(id);
         if (!mountedRef.current) return;
 
-        const items = await repository.listPresentations();
+        const items = await repository.listPresentations({ includeArchived: true });
         if (mountedRef.current) {
           setSummaries(items);
           setSelectedId(null);
@@ -235,6 +292,115 @@ export function PresentationLibrary({
       }
     },
     [archivingId, repository, summaries, t],
+  );
+
+  const handleRestore = useCallback(
+    async (id: string) => {
+      if (restoringId !== null) return;
+
+      setRestoringId(id);
+      setActionError(null);
+      const previous = summaries;
+
+      try {
+        await repository.restorePresentation(id);
+        if (!mountedRef.current) return;
+
+        const items = await repository.listPresentations({ includeArchived: true });
+        if (mountedRef.current) {
+          setSummaries(items);
+          setSelectedId(null);
+        }
+      } catch (error) {
+        console.error("Library: could not restore presentation", error);
+        if (mountedRef.current) {
+          setActionError(t("library.couldNotRestore"));
+          setSummaries(previous);
+        }
+      } finally {
+        if (mountedRef.current) setRestoringId(null);
+      }
+    },
+    [restoringId, repository, summaries, t],
+  );
+
+  const handleRequestDelete = useCallback((summary: PresentationSummary) => {
+    if (!summary.archived || summary.publication !== undefined) {
+      return;
+    }
+
+    setDeleteTargetId(summary.id);
+    setDeleteError(null);
+  }, []);
+
+  const handleCancelDelete = useCallback(() => {
+    if (deletingId !== null) return;
+
+    setDeleteTargetId(null);
+    setDeleteError(null);
+  }, [deletingId]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (deleteTargetId === null || deletingId !== null) return;
+
+    const id = deleteTargetId;
+    setDeletingId(id);
+    const previous = summaries;
+
+    try {
+      await repository.deleteArchivedPresentation(id);
+      if (!mountedRef.current) return;
+
+      const items = await repository.listPresentations({ includeArchived: true });
+      if (!mountedRef.current) return;
+
+      setSummaries(items);
+      setSelectedId(null);
+      setDeleteTargetId(null);
+      setDeleteError(null);
+    } catch (error) {
+      console.error("Library: could not delete presentation", error);
+      if (mountedRef.current) {
+        setDeleteError(t("library.deleteFailed"));
+        setSummaries(previous);
+      }
+    } finally {
+      if (mountedRef.current) setDeletingId(null);
+    }
+  }, [deleteTargetId, deletingId, repository, summaries, t]);
+
+  const handleMoveFolder = useCallback(
+    async (id: string, folderId: string | null) => {
+      if (movingId !== null) return;
+
+      setMovingId(id);
+      setActionError(null);
+      const previous = summaries;
+
+      try {
+        await repository.movePresentationToFolder(id, folderId);
+        if (!mountedRef.current) return;
+
+        const items = await repository.listPresentations({ includeArchived: true });
+        if (!mountedRef.current) return;
+
+        setSummaries(items);
+
+        const updated = items.find((summary) => summary.id === id);
+        if (!updated || !isSummaryVisibleInDestination(updated, destination)) {
+          setSelectedId(null);
+        }
+      } catch (error) {
+        console.error("Library: could not move presentation", error);
+        if (mountedRef.current) {
+          setActionError(t("library.couldNotMoveFolder"));
+          setSummaries(previous);
+        }
+      } finally {
+        if (mountedRef.current) setMovingId(null);
+      }
+    },
+    [movingId, repository, summaries, destination, t],
   );
 
   const handlePresent = useCallback(
@@ -264,8 +430,72 @@ export function PresentationLibrary({
     }
   }, [t]);
 
+  const handleOpenNewFolder = useCallback(() => {
+    setNewFolderOpen(true);
+    setFolderError(null);
+  }, []);
+
+  const handleCancelNewFolder = useCallback(() => {
+    setNewFolderOpen(false);
+    setFolderError(null);
+  }, []);
+
+  const handleCreateFolder = useCallback(
+    async (name: string) => {
+      if (creatingFolder) return;
+
+      setCreatingFolder(true);
+      setFolderError(null);
+
+      try {
+        const folderId = await folderRepository.createFolder(name);
+        if (!mountedRef.current) return;
+
+        // Reload the folder list so the new folder appears in the sidebar,
+        // then navigate by the stable id returned from createFolder (never by
+        // name). A reload failure must not block navigation.
+        try {
+          const items = await folderRepository.listFolders();
+          if (mountedRef.current) {
+            setFolders(items);
+            setFolderStatus("ready");
+          }
+        } catch (error) {
+          console.error("Library: could not reload folders after create", error);
+          if (mountedRef.current) setFolderStatus("error");
+        }
+
+        if (!mountedRef.current) return;
+
+        setNewFolderOpen(false);
+        setFolderError(null);
+        setDestination({ kind: "folder", folderId });
+        setSelectedId(null);
+      } catch (error) {
+        console.error("Library: could not create folder", error);
+        if (mountedRef.current) setFolderError(t("library.folderCreateFailed"));
+      } finally {
+        if (mountedRef.current) setCreatingFolder(false);
+      }
+    },
+    [creatingFolder, folderRepository, t],
+  );
+
   const selected = summaries.find((summary) => summary.id === selectedId) ?? null;
-  const isAllDestination = destination === "all";
+  const deleteTarget =
+    summaries.find((summary) => summary.id === deleteTargetId) ?? null;
+  const presentationDestination = isPresentationDestination(destination);
+  const visibleSummaries = useMemo(
+    () => filterPresentationsByDestination(summaries, destination),
+    [summaries, destination],
+  );
+
+  const emptyMessage =
+    destination === "archived"
+      ? t("library.archivedEmpty")
+      : isFolderDestination(destination)
+        ? t("library.folderEmpty")
+        : t("library.empty");
 
   return (
     <div className={styles.library}>
@@ -304,27 +534,41 @@ export function PresentationLibrary({
         <StudioSidebar
           destination={destination}
           onDestinationChange={handleDestinationChange}
+          folders={folders}
+          folderStatus={folderStatus}
+          newFolderOpen={newFolderOpen}
+          creatingFolder={creatingFolder}
+          folderError={folderError}
+          onCancelNewFolder={handleCancelNewFolder}
+          onCreateFolder={(name) => void handleCreateFolder(name)}
+          onRetryFolders={() => void loadFolders()}
         />
 
         <main className={styles.main}>
           <div className={styles.workspaceHeading}>
             <div>
               <p className={styles.eyebrow}>{t("library.title")}</p>
-              <h1>{destinationTitle(destination, t)}</h1>
+              <h1>{destinationTitle(destination, t, folders)}</h1>
             </div>
-            {isAllDestination ? (
+            {presentationDestination ? (
               <PresentationToolbar
                 selected={selected}
                 liveState={liveState}
                 creating={creating}
                 openingId={openingId}
                 archivingId={archivingId}
+                restoringId={restoringId}
+                deletingId={deletingId}
+                newFolderDisabled={newFolderOpen || creatingFolder}
                 onNew={() => void handleNew()}
+                onNewFolder={handleOpenNewFolder}
                 onEdit={handleOpen}
                 onPresent={(summary) => void handlePresent(summary)}
                 onControl={() => router.push(STUDIO_ROUTES.control)}
                 onEnd={() => void handleEnd()}
                 onArchive={(id) => void handleArchive(id)}
+                onRestore={(id) => void handleRestore(id)}
+                onDelete={handleRequestDelete}
               />
             ) : null}
           </div>
@@ -335,7 +579,7 @@ export function PresentationLibrary({
               aria-live="polite"
               onClick={handleBrowserBackgroundClick}
             >
-              {isAllDestination ? (
+              {presentationDestination ? (
                 <>
                   {status === "loading" ? (
                     <p className={styles.stateBlock}>{t("library.loading")}</p>
@@ -350,13 +594,13 @@ export function PresentationLibrary({
                     </div>
                   ) : null}
 
-                  {status === "ready" && summaries.length === 0 ? (
-                    <p className={styles.stateBlock}>{t("library.empty")}</p>
+                  {status === "ready" && visibleSummaries.length === 0 ? (
+                    <p className={styles.stateBlock}>{emptyMessage}</p>
                   ) : null}
 
-                  {status === "ready" && summaries.length > 0 ? (
+                  {status === "ready" && visibleSummaries.length > 0 ? (
                     <PresentationList
-                      summaries={summaries}
+                      summaries={visibleSummaries}
                       selectedId={selectedId}
                       liveState={liveState}
                       openingId={openingId}
@@ -367,20 +611,38 @@ export function PresentationLibrary({
               ) : (
                 <div className={styles.placeholder}>
                   <p className={styles.placeholderTitle}>
-                    {destinationTitle(destination, t)}
+                    {destinationTitle(destination, t, folders)}
                   </p>
-                  <p>{destinationPlaceholder(destination, t)}</p>
+                  {isResourceDestination(destination) ? (
+                    <p>{t(`library.destination.${destination}`)}</p>
+                  ) : null}
                 </div>
               )}
             </section>
 
             <PresentationDetails
-              summary={isAllDestination ? selected : null}
+              summary={presentationDestination ? selected : null}
               liveState={liveState}
+              folders={folders}
+              movingId={movingId}
+              onMoveFolder={(folderId) => {
+                if (selected) void handleMoveFolder(selected.id, folderId);
+              }}
             />
           </div>
         </main>
       </div>
+
+      {deleteTargetId !== null ? (
+        <DeletePresentationDialog
+          key={deleteTargetId}
+          summary={deleteTarget}
+          deleting={deletingId !== null}
+          error={deleteError}
+          onCancel={handleCancelDelete}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      ) : null}
     </div>
   );
 }

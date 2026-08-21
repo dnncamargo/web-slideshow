@@ -7,7 +7,7 @@ import type { PresentationSummary } from "../persistence/presentation-persistenc
 import type { LiveState } from "../control/live-current";
 
 import { isLivePresentation, publicationStatusTone } from "./presentation-library-logic";
-import { PresentationThumbnailFallback } from "./presentation-thumbnail-fallback";
+import { PresentationThumbnail } from "./presentation-thumbnail";
 import styles from "./presentation-library.module.css";
 
 interface PresentationListProps {
@@ -46,7 +46,7 @@ export function PresentationList({
               aria-label={t("library.selectPresentation", { title })}
               onClick={() => onSelect(summary.id)}
             >
-              <PresentationThumbnailFallback />
+              <PresentationThumbnail summary={summary} />
 
               <span className={styles.rowDetails}>
                 <strong className={styles.rowTitle}>{title}</strong>

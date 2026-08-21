@@ -15,12 +15,18 @@ interface PresentationToolbarProps {
   creating: boolean;
   openingId: string | null;
   archivingId: string | null;
+  restoringId: string | null;
+  deletingId: string | null;
+  newFolderDisabled: boolean;
   onNew: () => void;
+  onNewFolder: () => void;
   onEdit: (id: string) => void;
   onPresent: (summary: PresentationSummary) => void;
   onControl: () => void;
   onEnd: () => void;
   onArchive: (id: string) => void;
+  onRestore: (id: string) => void;
+  onDelete: (summary: PresentationSummary) => void;
 }
 
 /**
@@ -42,12 +48,18 @@ export function PresentationToolbar({
   creating,
   openingId,
   archivingId,
+  restoringId,
+  deletingId,
+  newFolderDisabled,
   onNew,
+  onNewFolder,
   onEdit,
   onPresent,
   onControl,
   onEnd,
   onArchive,
+  onRestore,
+  onDelete,
 }: PresentationToolbarProps) {
   const { t } = useStudioI18n();
   const state = resolvePresentationToolbarState(selected, liveState);
@@ -114,6 +126,32 @@ export function PresentationToolbar({
                 {archivingId === selected.id ? t("library.archiving") : t("library.archive")}
               </Button>
             ) : null}
+
+            {state.actions.includes("restore") && selected ? (
+              <Button
+                size="compact"
+                disabled={restoringId !== null}
+                onClick={() => onRestore(selected.id)}
+              >
+                {restoringId === selected.id ? t("library.restoring") : t("library.restore")}
+              </Button>
+            ) : null}
+
+            {state.actions.includes("delete") && selected ? (
+              <Button
+                variant="danger"
+                size="compact"
+                disabled={deletingId !== null || selected.publication !== undefined}
+                title={
+                  selected.publication !== undefined
+                    ? t("library.deletePublishedUnavailable")
+                    : undefined
+                }
+                onClick={() => onDelete(selected)}
+              >
+                {deletingId === selected.id ? t("library.deleting") : t("library.delete")}
+              </Button>
+            ) : null}
           </span>
         ) : null}
       </div>
@@ -154,12 +192,13 @@ export function PresentationToolbar({
           </Button>
         )}
 
-        {/* GLOBAL: New folder is always visible but disabled. */}
+        {/* GLOBAL: New folder opens the inline creation control in the
+            Folders sidebar area. */}
         <Button
           size="compact"
-          disabled
-          title={t("library.newFolderUnavailable")}
-          aria-label={t("library.newFolderUnavailable")}
+          disabled={newFolderDisabled}
+          onClick={onNewFolder}
+          aria-label={t("library.newFolder")}
         >
           {t("library.newFolder")}
         </Button>

@@ -23,6 +23,8 @@ function summary(id: string): PresentationSummary {
     title: `Title ${id}`,
     updatedAt: "ts",
     archived: false,
+    archivedAt: null,
+    folderId: null,
     publicationState: "draft",
     draftRevision: 1,
     publication: undefined,
@@ -180,6 +182,9 @@ describe("presentation repository Edit wiring", () => {
       createPresentation: vi.fn(async () => {}),
       savePresentation: vi.fn(async () => {}),
       archivePresentation: vi.fn(async () => {}),
+      restorePresentation: vi.fn(async () => {}),
+      deleteArchivedPresentation: vi.fn(async () => {}),
+      movePresentationToFolder: vi.fn(async () => {}),
       publishPresentation: vi.fn(async () => ({
         publicationId: "publication-id",
         versionId: "version-id",
