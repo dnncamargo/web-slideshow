@@ -17,6 +17,7 @@ import {
 
 import {
   ElementLinkSchema,
+  isAbsoluteHttpHref,
 } from "./links";
 
 const BaseElementSchema = z.object({
@@ -247,6 +248,24 @@ export const DividerElementSchema =
 
 export type DividerElement =
   z.infer<typeof DividerElementSchema>;
+
+export const EmbedElementSchema =
+  BaseElementSchema.extend({
+    type: z.literal("embed"),
+
+    src: z.string().refine(isAbsoluteHttpHref, {
+      message:
+        "src must be an absolute http:// or https:// URL.",
+    }),
+
+    title: z
+      .string()
+      .min(1)
+      .default("Embedded content"),
+  });
+
+export type EmbedElement =
+  z.infer<typeof EmbedElementSchema>;
 
 export type ContentSlot = {
   id: string;
@@ -516,6 +535,7 @@ export type PowerShowElement =
   | ChartElement
   | InteractiveElement
   | DividerElement
+  | EmbedElement
   | TopicsElement
   | ContainerElement;
 
@@ -533,6 +553,7 @@ export const PowerShowElementSchema:
       ChartElementSchema,
       InteractiveElementSchema,
       DividerElementSchema,
+      EmbedElementSchema,
       TopicsElementSchema,
 
       BaseElementSchema.extend({

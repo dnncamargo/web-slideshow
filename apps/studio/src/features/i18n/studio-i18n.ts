@@ -109,6 +109,7 @@ const englishMessages = {
   "element.container": "Container",
   "element.divider": "Divider",
   "element.gallery": "Gallery",
+  "element.embed": "Embed",
 
   "elementCrud.add": "+ Add",
   "elementCrud.addInsideContainer": "Adds inside selected container.",
@@ -714,6 +715,7 @@ const portugueseMessages = {
   "element.container": "Contêiner",
   "element.divider": "Divisor",
   "element.gallery": "Galeria",
+  "element.embed": "Embed",
 
   "elementCrud.add": "+ Adicionar",
   "elementCrud.addInsideContainer": "Adiciona dentro do contêiner selecionado.",
@@ -1279,6 +1281,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   container: "element.container",
   divider: "element.divider",
   gallery: "element.gallery",
+  embed: "element.embed",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 
 // ============================================================
