@@ -25,6 +25,18 @@ describe("canvas resize helpers", () => {
     expect(isCanvasResizable({ type: "text", id: "text", hidden: false, content: "Text", variant: "body" })).toBe(false);
   });
 
+  it("treats a Gallery as canvas-resizable", () => {
+    expect(
+      isCanvasResizable({
+        type: "gallery",
+        id: "gallery",
+        hidden: false,
+        fit: "contain",
+        items: [],
+      }),
+    ).toBe(true);
+  });
+
   it("maps edge and corner directions to semantic size deltas", () => {
     expect(getCanvasResizeDeltas("e", 20, 10)).toMatchObject({ width: 20, height: 0 });
     expect(getCanvasResizeDeltas("s", 20, -10)).toMatchObject({ width: 0, height: -10 });

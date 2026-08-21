@@ -108,6 +108,7 @@ const englishMessages = {
   "element.topics": "Topics",
   "element.container": "Container",
   "element.divider": "Divider",
+  "element.gallery": "Gallery",
 
   "elementCrud.add": "+ Add",
   "elementCrud.addInsideContainer": "Adds inside selected container.",
@@ -428,6 +429,13 @@ const englishMessages = {
   "image.preserveProportionHelp":
     "Preserves the image proportion when resizing it directly on the Canvas.",
 
+  "gallery.items": "Images: {count}",
+  "gallery.add": "+ Add image",
+  "gallery.remove": "Remove image",
+  "gallery.moveUp": "Move image up",
+  "gallery.moveDown": "Move image down",
+  "gallery.imageNumber": "Image {number}",
+
   "inspector.topics.kind": "List type",
   "inspector.topics.unordered": "Bulleted",
   "inspector.topics.ordered": "Numbered",
@@ -705,6 +713,7 @@ const portugueseMessages = {
   "element.topics": "Tópicos",
   "element.container": "Contêiner",
   "element.divider": "Divisor",
+  "element.gallery": "Galeria",
 
   "elementCrud.add": "+ Adicionar",
   "elementCrud.addInsideContainer": "Adiciona dentro do contêiner selecionado.",
@@ -1031,6 +1040,13 @@ const portugueseMessages = {
   "image.preserveProportionHelp":
     "Preserva a proporção da imagem ao redimensioná-la diretamente no Canvas.",
 
+  "gallery.items": "Imagens: {count}",
+  "gallery.add": "+ Adicionar imagem",
+  "gallery.remove": "Remover imagem",
+  "gallery.moveUp": "Mover imagem para cima",
+  "gallery.moveDown": "Mover imagem para baixo",
+  "gallery.imageNumber": "Imagem {number}",
+
   "inspector.topics.kind": "Tipo de lista",
   "inspector.topics.unordered": "Marcadores",
   "inspector.topics.ordered": "Numerada",
@@ -1262,6 +1278,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   topics: "element.topics",
   container: "element.container",
   divider: "element.divider",
+  gallery: "element.gallery",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 
 // ============================================================

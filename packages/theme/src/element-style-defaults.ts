@@ -11,7 +11,8 @@ export type ThemeElementType =
   | "chart"
   | "interactive"
   | "topics"
-  | "divider";
+  | "divider"
+  | "gallery";
 
 export interface ThemeTypographyDefaults {
   fontSize: number;
@@ -91,6 +92,7 @@ export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   interactive: 0,
   topics: 0,
   divider: 0,
+  gallery: 0,
 };
 
 export const THEME_COLORS = {

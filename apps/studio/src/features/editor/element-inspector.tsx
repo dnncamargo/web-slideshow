@@ -10,6 +10,7 @@ import {
   CodeInspector,
   ContainerInspector,
   DividerInspector,
+  GalleryInspector,
   ImageInspector,
   TableInspector,
   TerminalInspector,
@@ -130,6 +131,9 @@ function ElementTypeInspector({
 
     case "divider":
       return <DividerInspector element={element} onUpdate={onUpdate} />;
+
+    case "gallery":
+      return <GalleryInspector element={element} onUpdate={onUpdate} />;
 
     case "topics":
       return (

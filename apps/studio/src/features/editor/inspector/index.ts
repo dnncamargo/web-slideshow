@@ -4,6 +4,8 @@ export { ContainerInspector } from "./container-inspector";
 
 export { DividerInspector } from "./divider-inspector";
 
+export { GalleryInspector } from "./gallery-inspector";
+
 export { ImageInspector } from "./image-inspector";
 
 export { InspectorSection } from "./inspector-section";

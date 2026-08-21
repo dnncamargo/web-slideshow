@@ -42,7 +42,8 @@ export type ElementCreateType =
   | "terminal"
   | "table"
   | "topics"
-  | "divider";
+  | "divider"
+  | "gallery";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -604,6 +605,32 @@ export function createElement(
         alt: "New image",
 
         fit: "contain",
+
+        style: {
+          width: "60%",
+
+          height: "55%",
+        },
+      };
+    }
+
+    case "gallery": {
+      return {
+        id: createUniqueId("gallery-element", usedIds),
+
+        type: "gallery",
+
+        hidden: false,
+
+        fit: "contain",
+
+        items: [
+          {
+            src: "/powershow-demo.svg",
+
+            alt: "Gallery image",
+          },
+        ],
 
         style: {
           width: "60%",

@@ -4,6 +4,7 @@ import { renderTable } from "./render-table";
 import { renderTopics } from "./render-topics";
 import { renderTerminal } from "./render-terminal";
 import { renderDivider } from "./render-divider";
+import { renderGallery } from "./render-gallery";
 
 import type {
   ElementLink,
@@ -272,6 +273,9 @@ export function renderElement(element: PowerShowElement): string {
 
     case "divider":
       return renderDivider(element);
+
+    case "gallery":
+      return renderGallery(element);
 
     case "chart":
     case "interactive":

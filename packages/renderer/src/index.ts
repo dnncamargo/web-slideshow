@@ -6,5 +6,6 @@ export * from "./render-style";
 export * from "./render-visual";
 export * from "./render-element";
 export * from "./render-topics";
+export * from "./render-gallery";
 export * from "./render-slide";
 export * from "./render-presentation";
