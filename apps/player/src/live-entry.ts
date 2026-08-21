@@ -3,6 +3,8 @@ import { get, onValue, ref, type Database } from "firebase/database";
 import type { PublishedLoadResult } from "./published-presentation-loader";
 import type { Presentation } from "@powershow/document-schema";
 
+import { recordPlayerDiagnostic } from "./player-diagnostics";
+
 // ============================================================
 // BEGIN: RESULTADOS DA RESOLUÇÃO LIVE
 // ============================================================
@@ -101,11 +103,16 @@ export function subscribeLiveCurrent(
   database: Database,
   onEvent: (event: LiveCurrentEvent) => void,
 ): () => void {
+  recordPlayerDiagnostic("RTDB_LIVE_SUBSCRIBE_START");
+
   const unsubscribe = onValue(
     ref(database, "live/current"),
     (snapshot) => {
       if (!snapshot.exists()) {
+        recordPlayerDiagnostic("RTDB_LIVE_NO_ACTIVE");
+
         onEvent({ kind: "no-active" });
+
         return;
       }
 
@@ -114,15 +121,22 @@ export function subscribeLiveCurrent(
       if (live === null) {
         console.error("Player: live/current is malformed.");
 
+        recordPlayerDiagnostic("RTDB_LIVE_MALFORMED");
+
         onEvent({ kind: "error" });
 
         return;
       }
 
+      // Only expose the safe revision publicly; never publication/version ids.
+      recordPlayerDiagnostic("RTDB_LIVE_ACTIVE", { revision: live.revision });
+
       onEvent({ kind: "active", live });
     },
     (error: unknown) => {
       console.error("Player: could not observe live/current", error);
+
+      recordPlayerDiagnostic("RTDB_LIVE_SUBSCRIBE_ERROR", { error });
 
       onEvent({ kind: "error" });
     },

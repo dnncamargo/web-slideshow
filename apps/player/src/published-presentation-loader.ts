@@ -2,6 +2,8 @@ import { PresentationSchema, type Presentation } from "@powershow/document-schem
 import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import { doc, getDoc, getFirestore } from "firebase/firestore/lite";
 
+import { recordPlayerDiagnostic } from "./player-diagnostics";
+
 // ============================================================
 // BEGIN: RESULTADOS DA CARGA
 // ============================================================
@@ -103,9 +105,15 @@ export async function loadPublishedVersion(
   publicationId: string,
   versionId: string,
 ): Promise<PublishedLoadResult> {
+  const loadStartedAt = Date.now();
+
+  recordPlayerDiagnostic("FIRESTORE_LOAD_START");
+
   try {
     if (!isFirebaseConfigured()) {
       console.error("Player: Firebase is not configured for published loading.");
+
+      recordPlayerDiagnostic("FIRESTORE_CONFIG_MISSING");
 
       return { kind: "error" };
     }
@@ -123,12 +131,20 @@ export async function loadPublishedVersion(
     const versionSnapshot = await getDoc(versionRef);
 
     if (!versionSnapshot.exists()) {
+      recordPlayerDiagnostic("FIRESTORE_LOAD_NOT_FOUND", {
+        durationMs: Date.now() - loadStartedAt,
+      });
+
       return { kind: "not-found" };
     }
 
     const versionData = versionSnapshot.data();
 
     if (typeof versionData !== "object" || versionData === null) {
+      recordPlayerDiagnostic("FIRESTORE_LOAD_NOT_FOUND", {
+        durationMs: Date.now() - loadStartedAt,
+      });
+
       return { kind: "not-found" };
     }
 
@@ -139,12 +155,25 @@ export async function loadPublishedVersion(
     if (!parsed.success) {
       console.error("Player: published presentation failed schema validation.");
 
+      recordPlayerDiagnostic("FIRESTORE_SCHEMA_ERROR", {
+        durationMs: Date.now() - loadStartedAt,
+      });
+
       return { kind: "error" };
     }
+
+    recordPlayerDiagnostic("FIRESTORE_LOAD_OK", {
+      durationMs: Date.now() - loadStartedAt,
+    });
 
     return { kind: "ok", presentation: parsed.data };
   } catch (error) {
     console.error("Player: could not load published presentation", error);
+
+    recordPlayerDiagnostic("FIRESTORE_LOAD_ERROR", {
+      error,
+      durationMs: Date.now() - loadStartedAt,
+    });
 
     return { kind: "error" };
   }

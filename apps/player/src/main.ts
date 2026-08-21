@@ -16,6 +16,8 @@ import {
 import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
 
+import { configurePlayerDiagnostics, recordPlayerDiagnostic } from "./player-diagnostics";
+
 import { mountPlayer, type PlayerController } from "./player";
 
 const rootElement = document.querySelector<HTMLElement>("#app");
@@ -84,6 +86,10 @@ function attachLiveProjection(
     return;
   }
 
+  recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_START", {
+    revision: live.revision,
+  });
+
   try {
     const database = getRealtimeDatabaseOrNull();
 
@@ -104,9 +110,15 @@ function attachLiveProjection(
       activeController,
       logsEnabled,
     );
+
+    recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_OK", {
+      revision: live.revision,
+    });
   } catch (error) {
     // Falha de inicialização da projeção live nunca derruba o Player.
     console.error("Player: live projection state initialization failed", error);
+
+    recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_ERROR", { error });
   }
 }
 
@@ -157,6 +169,8 @@ function teardownLiveSession(): void {
 
 async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
   if (event.kind === "no-active") {
+    recordPlayerDiagnostic("LIVE_EVENT_NO_ACTIVE");
+
     teardownLiveSession();
 
     renderNoActive();
@@ -165,6 +179,8 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
   }
 
   if (event.kind === "error") {
+    recordPlayerDiagnostic("LIVE_EVENT_ERROR");
+
     // Em erro transitório de leitura/validação, mantém uma sessão saudável.
     // Sem sessão montada, mostra o estado de carga/erro como na entrada one-shot.
     if (activeController === undefined) {
@@ -173,6 +189,10 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
 
     return;
   }
+
+  recordPlayerDiagnostic("LIVE_EVENT_ACTIVE", {
+    revision: event.live.revision,
+  });
 
   const key = liveSessionKey(event.live);
 
@@ -221,7 +241,25 @@ async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
         : 0;
 
     activeController?.destroy();
-    activeController = mountPlayer(root, result.presentation, { controls });
+
+    recordPlayerDiagnostic("PLAYER_MOUNT_START", {
+      revision: event.live.revision,
+    });
+
+    try {
+      activeController = mountPlayer(root, result.presentation, { controls });
+    } catch (error) {
+      // Record the failure, then preserve the pre-existing failure semantics:
+      // the exception still propagates from the live event handler.
+      recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
+
+      throw error;
+    }
+
+    recordPlayerDiagnostic("PLAYER_MOUNT_OK", {
+      revision: event.live.revision,
+    });
+
     if (promotion) activeController.goTo(promotedIndex);
 
     activePresentation = result.presentation;
@@ -269,7 +307,29 @@ window.addEventListener("pagehide", () => {
 
 const { logsEnabled } = parseEntrySearch(window.location.search);
 
-const database = getRealtimeDatabaseOrNull();
+configurePlayerDiagnostics(logsEnabled);
+
+recordPlayerDiagnostic("BOOT");
+
+let database: ReturnType<typeof getRealtimeDatabaseOrNull> | null = null;
+
+recordPlayerDiagnostic("RTDB_INIT_START");
+
+try {
+  database = getRealtimeDatabaseOrNull();
+
+  if (database === null) {
+    recordPlayerDiagnostic("RTDB_INIT_MISSING");
+  } else {
+    recordPlayerDiagnostic("RTDB_INIT_OK");
+  }
+} catch (error) {
+  // Record the failure, then preserve the pre-existing failure semantics:
+  // an RTDB initialization throw still fails page load as before.
+  recordPlayerDiagnostic("RTDB_INIT_ERROR", { error });
+
+  throw error;
+}
 
 if (!database) {
   renderLoadState("Could not load presentation.");
