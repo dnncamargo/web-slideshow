@@ -14,7 +14,6 @@ export type ThemeElementType =
   | "divider"
   | "gallery"
   | "embed"
-  | "blocks";
   | "blocks"
   | "scripted";
 
@@ -98,7 +97,6 @@ export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   divider: 0,
   gallery: 0,
   embed: 0,
-  blocks: 0,
   blocks: 0,
   scripted: 0,
 };
