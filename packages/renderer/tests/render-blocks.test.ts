@@ -103,7 +103,104 @@ describe("renderBlocks", () => {
     expect(html).toContain("inner two");
   });
 
-  it("exposes block ids only as data-powershow-block-id", () => {
+  // ============================================================
+  // BEGIN: NODE / ITEM STRUCTURE
+  // ============================================================
+
+  it("renders one powershow-blocks-node per BlockItem", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("outer", "outer", [
+          blockItem("inner-1", "one", [
+            blockItem("inner-2", "two"),
+          ]),
+          blockItem("inner-3", "three"),
+        ]),
+      ]),
+    );
+
+    expect(
+      countOccurrences(html, 'class="powershow-blocks-node"'),
+    ).toBe(4);
+  });
+
+  it("renders one powershow-blocks-item per BlockItem", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("outer", "outer", [
+          blockItem("inner-1", "one", [
+            blockItem("inner-2", "two"),
+          ]),
+          blockItem("inner-3", "three"),
+        ]),
+      ]),
+    );
+
+    expect(
+      countOccurrences(html, 'class="powershow-blocks-item"'),
+    ).toBe(4);
+  });
+
+  it("renders node and item as separate elements", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("block-a", "one"),
+      ]),
+    );
+
+    expect(
+      countOccurrences(html, "powershow-blocks-node"),
+    ).toBe(1);
+
+    expect(
+      countOccurrences(html, "powershow-blocks-item"),
+    ).toBe(1);
+
+    expect(
+      countOccurrences(html, "<div"),
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("does not combine node and item on a single class attribute", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("block-a", "one"),
+      ]),
+    );
+
+    expect(html).not.toContain(
+      "powershow-blocks-node powershow-blocks-item",
+    );
+
+    expect(html).not.toContain(
+      "powershow-blocks-item powershow-blocks-node",
+    );
+  });
+
+  it("places data-powershow-block-id on the structural node", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("block-a", "one"),
+      ]),
+    );
+
+    const nodeStart = html.indexOf('class="powershow-blocks-node"');
+
+    const idAt = html.indexOf('data-powershow-block-id="block-a"');
+
+    const nodeTagEnd = html.indexOf(
+      ">",
+      nodeStart,
+    );
+
+    expect(nodeStart).toBeGreaterThanOrEqual(0);
+
+    expect(idAt).toBeGreaterThan(nodeStart);
+
+    expect(idAt).toBeLessThan(nodeTagEnd);
+  });
+
+  it("does not emit data-powershow-id for any BlockItem", () => {
     const html = renderBlocks(
       blocksElement([
         blockItem("block-a", "one", [
@@ -112,14 +209,6 @@ describe("renderBlocks", () => {
         blockItem("block-b", "two"),
       ]),
     );
-
-    expect(html).toContain('data-powershow-block-id="block-a"');
-
-    expect(
-      html,
-    ).toContain('data-powershow-block-id="block-a-1"');
-
-    expect(html).toContain('data-powershow-block-id="block-b"');
 
     expect(html).not.toContain('data-powershow-id="block-a"');
 
@@ -130,6 +219,161 @@ describe("renderBlocks", () => {
     expect(
       countOccurrences(html, "data-powershow-block-id="),
     ).toBe(3);
+  });
+
+  it("keeps parent text inside the parent powershow-blocks-item", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("parent", "parent-text", [
+          blockItem("child", "child-text"),
+        ]),
+      ]),
+    );
+
+    const parentItemOpen = html.indexOf(
+      'class="powershow-blocks-item"',
+    );
+
+    const parentItemClose = html.indexOf(
+      "</div>",
+      parentItemOpen,
+    );
+
+    const parentTextAt = html.indexOf("parent-text");
+
+    expect(parentTextAt).toBeGreaterThan(parentItemOpen);
+
+    expect(parentTextAt).toBeLessThan(parentItemClose);
+
+    expect(
+      html.indexOf("child-text"),
+    ).toBeGreaterThan(parentItemClose);
+  });
+
+  it("closes the parent item before the parent children group begins", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("parent", "parent-text", [
+          blockItem("child", "child-text"),
+        ]),
+      ]),
+    );
+
+    const parentItemOpen = html.indexOf(
+      'class="powershow-blocks-item"',
+    );
+
+    const parentItemClose = html.indexOf(
+      "</div>",
+      parentItemOpen,
+    );
+
+    const childrenOpen = html.indexOf('class="powershow-blocks-children"');
+
+    expect(childrenOpen).toBeGreaterThan(parentItemClose);
+  });
+
+  it("renders descendants inside children, not inside parent visual item", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("parent", "parent-text", [
+          blockItem("child", "child-text"),
+        ]),
+      ]),
+    );
+
+    const parentItemOpen = html.indexOf(
+      'class="powershow-blocks-item"',
+    );
+
+    const parentItemClose = html.indexOf(
+      "</div>",
+      parentItemOpen,
+    );
+
+    const childrenOpen = html.indexOf('class="powershow-blocks-children"');
+
+    const childNodeOpen = html.indexOf('class="powershow-blocks-node"', childrenOpen);
+
+    expect(childrenOpen).toBeGreaterThan(parentItemClose);
+
+    expect(childNodeOpen).toBeGreaterThan(childrenOpen);
+
+    expect(html.indexOf("child-text")).toBeGreaterThan(childrenOpen);
+  });
+
+  // ============================================================
+  // END: NODE / ITEM STRUCTURE
+  // ============================================================
+
+  it("aligns root list to flex-start", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("block-a", "one"),
+      ]),
+    );
+
+    expect(html).toContain("align-items:flex-start");
+  });
+
+  it("aligns nested children to flex-start", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("outer", "outer", [
+          blockItem("inner", "inner"),
+        ]),
+      ]),
+    );
+
+    const childrenOpen = html.indexOf('class="powershow-blocks-children"');
+
+    const childrenTag = html.slice(
+      childrenOpen,
+      html.indexOf(">", childrenOpen),
+    );
+
+    expect(childrenTag).toContain("align-items:flex-start");
+  });
+
+  it("emits the visual block sizing and shape styles", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("block-a", "value = 1"),
+      ]),
+    );
+
+    const itemOpen = html.indexOf('class="powershow-blocks-item"');
+
+    const itemTag = html.slice(
+      itemOpen,
+      html.indexOf(">", itemOpen),
+    );
+
+    expect(itemTag).toContain("display:block");
+
+    expect(itemTag).toContain("max-width:100%");
+
+    expect(itemTag).toContain("box-sizing:border-box");
+
+    expect(itemTag).toContain("padding:8px 12px");
+
+    expect(itemTag).toContain("border:1px solid currentColor");
+
+    expect(itemTag).toContain("border-radius:8px");
+
+    expect(itemTag).toContain("white-space:pre-wrap");
+  });
+
+  it("keeps nested visual indentation at 24px", () => {
+    const html = renderBlocks(
+      blocksElement([
+        blockItem("outer", "outer", [
+          blockItem("inner", "inner"),
+        ]),
+      ]),
+    );
+
+    expect(html).toContain("margin-inline-start:24px");
   });
 
   it("escapes block text", () => {
@@ -149,25 +393,13 @@ describe("renderBlocks", () => {
     expect(html).not.toContain("<button");
   });
 
-  it("renders empty Blocks as a valid empty root", () => {
-    const html = renderBlocks(blocksElement([]));
-
-    expect(html).toContain("powershow-blocks");
-
-    expect(html).toContain("powershow-blocks-list");
-
-    expect(html).not.toContain("data-powershow-block-id=");
-
-    expect(html).toContain("</div>");
-  });
-
   it("renders nothing when hidden", () => {
     expect(
       renderBlocks(blocksElement([], { hidden: true })),
     ).toBe("");
   });
 
-  it("applies generic ElementStyle to the root", () => {
+  it("applies generic ElementStyle to the root only", () => {
     const html = renderBlocks(
       blocksElement([
         blockItem("block-a", "one"),
@@ -182,7 +414,10 @@ describe("renderBlocks", () => {
       }),
     );
 
-    expect(html).toContain("width:80%");
+    // The style belongs on the top-level root element.
+    expect(html.indexOf("width:80%")).toBeLessThan(
+      html.indexOf("powershow-blocks-item"),
+    );
 
     expect(html).toContain("height:400px");
 
@@ -203,32 +438,18 @@ describe("renderBlocks", () => {
     expect(html).toContain("my-blocks");
   });
 
-  it("emits nested visual indentation for children", () => {
-    const html = renderBlocks(
-      blocksElement([
-        blockItem("outer", "outer", [
-          blockItem("inner", "inner"),
-        ]),
-      ]),
-    );
+  it("renders empty Blocks as a valid empty root", () => {
+    const html = renderBlocks(blocksElement([]));
 
-    expect(html).toContain("margin-inline-start:24px");
-  });
+    expect(html).toContain("powershow-blocks");
 
-  it("emits block border, padding, and pre-wrap structure", () => {
-    const html = renderBlocks(
-      blocksElement([
-        blockItem("block-a", "value = 1"),
-      ]),
-    );
+    expect(html).toContain("powershow-blocks-list");
 
-    expect(html).toContain("border:1px solid currentColor");
+    expect(html).not.toContain("data-powershow-block-id=");
 
-    expect(html).toContain("padding:8px 12px");
+    expect(html).not.toContain("powershow-blocks-item");
 
-    expect(html).toContain("white-space:pre-wrap");
-
-    expect(html).toContain("max-width:100%");
+    expect(html).toContain("</div>");
   });
 
   it("output contains no scripts, handlers, or runtime", () => {
