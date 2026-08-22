@@ -1,8 +1,7 @@
-import type { BlockItem, BlocksElement } from "@powershow/document-schema";
+import type { BlocksElement } from "@powershow/document-schema";
 import { colorToPickerHex } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
-import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -13,6 +12,9 @@ import {
   renameBlockCategory,
   setBlockCategoryColor,
 } from "../../element-operations";
+
+import { BlocksItemEditor } from "../blocks-item-editor";
+import type { BlocksItemEditorLabels } from "../blocks-item-editor-types";
 
 import type {
   BlocksAuthoringControls,
@@ -27,31 +29,14 @@ interface BlocksContentSectionProps {
   blocksAuthoringControls: BlocksAuthoringControls;
 }
 
-const SHAPE_LABEL_KEYS: Record<BlockItem["shape"], StudioMessageKey> = {
-  statement: "inspector.blocks.statement",
-  scope: "inspector.blocks.scope",
-  value: "inspector.blocks.value",
-};
-
-const FALLBACK_CATEGORY_COLOR = "#64748b";
-
-function firstTextPartLabel(item: BlockItem): string | null {
-  for (const part of item.parts) {
-    if (part.type === "text") {
-      return part.text;
-    }
-  }
-
-  return null;
-}
-
 // ============================================================
-// BEGIN: BLOCKS CONTENT SHELL
+// BEGIN: BLOCKS CONTENT SECTION
 //
-// R2-B owns the outer CONTENT shell only: local category
-// management and the root-block creation affordance. Detailed
-// recursive BlockItem editing is delivered by a later checkpoint
-// and must not be anticipated here.
+// The CONTENT section owns local category management, the
+// root-block creation affordance, and the recursive block item
+// editor. BlocksItemEditor is intentionally i18n-free: this shell
+// resolves every label through Studio i18n and passes a complete
+// BlocksItemEditorLabels object.
 // ============================================================
 
 export function BlocksContentSection({
@@ -60,6 +45,28 @@ export function BlocksContentSection({
   blocksAuthoringControls,
 }: BlocksContentSectionProps) {
   const { t } = useStudioI18n();
+
+  const labels: BlocksItemEditorLabels = {
+    category: t("inspector.blocks.category"),
+    shape: t("inspector.blocks.shape"),
+    statement: t("inspector.blocks.statement"),
+    scope: t("inspector.blocks.scope"),
+    value: t("inspector.blocks.value"),
+    moveEarlier: t("inspector.blocks.moveEarlier"),
+    moveLater: t("inspector.blocks.moveLater"),
+    remove: t("inspector.blocks.remove"),
+    addTextPart: t("inspector.blocks.addText"),
+    addSocketPart: t("inspector.blocks.addSocket"),
+    addChild: t("inspector.blocks.addChild"),
+    addChildAtMaxDepth: t("inspector.blocks.maxDepth"),
+    socketContent: t("inspector.blocks.socket"),
+    socketEmpty: t("inspector.blocks.socketEmpty"),
+    socketLiteral: t("inspector.blocks.literal"),
+    socketValue: t("inspector.blocks.valueBlock"),
+    literalValue: t("inspector.blocks.literalValue"),
+    valueAtMaxDepth: t("inspector.blocks.maxDepth"),
+    textPartLabel: t("inspector.blocks.text"),
+  };
 
   function updateCurrentBlocks(update: (blocks: BlocksElement) => BlocksElement) {
     onUpdate((current) => {
@@ -193,45 +200,17 @@ export function BlocksContentSection({
           <span>{t("inspector.blocks.empty")}</span>
         </small>
       ) : (
-        <ul className={styles.blocksList}>
-          {element.items.map((item) => {
-            const category = element.categories.find(
-              (candidate) => candidate.id === item.categoryId,
-            );
-
-            return (
-              <li
-                key={item.id}
-                className={styles.blocksRow}
-                data-powershow-block-root={item.id}
-              >
-                <span className={styles.blocksRootSummary}>
-                  <span
-                    className={styles.blocksCategoryChip}
-                    style={{
-                      backgroundColor:
-                        category?.color ?? FALLBACK_CATEGORY_COLOR,
-                    }}
-                    aria-hidden="true"
-                  />
-
-                  <span className={styles.blocksRootLabel}>
-                    {firstTextPartLabel(item) ?? t("inspector.blocks.socketEmpty")}
-                  </span>
-
-                  <small className={styles.blocksRootHint}>
-                    {t(SHAPE_LABEL_KEYS[item.shape])}
-                  </small>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <BlocksItemEditor
+          element={element}
+          onUpdate={onUpdate}
+          blocksAuthoringControls={blocksAuthoringControls}
+          labels={labels}
+        />
       )}
     </div>
   );
 }
 
 // ============================================================
-// END: BLOCKS CONTENT SHELL
+// END: BLOCKS CONTENT SECTION
 // ============================================================

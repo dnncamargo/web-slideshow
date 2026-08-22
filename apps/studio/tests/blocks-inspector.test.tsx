@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,7 +11,11 @@ import type {
   PowerShowElement,
 } from "@powershow/document-schema";
 
-import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import {
+  StudioI18nProvider,
+  useStudioI18n,
+} from "../src/features/i18n/studio-i18n-context";
+import type { StudioLocale } from "../src/features/i18n/studio-i18n";
 import { BlocksInspector } from "../src/features/editor/inspector/blocks-inspector";
 import type { BlocksAuthoringControls } from "../src/features/editor/inspector/inspector-types";
 
@@ -38,6 +42,31 @@ const statement = (id: string, categoryId: string): BlockItem => ({
   parts: [textPart(`${id}-text`)],
   children: [],
 });
+
+const socketLiteral = (id: string, value: string): BlockPart => ({
+  id,
+  type: "socket",
+  content: { type: "literal", value },
+});
+
+/** Chain of nested scopes: scope-1 at depth 1 ... scope-<depth> at depth <depth>. */
+function scopeChain(depth: number): BlockItem[] {
+  let items: BlockItem[] = [];
+
+  for (let level = depth; level >= 1; level -= 1) {
+    items = [
+      {
+        id: `scope-${level}`,
+        categoryId: "cat",
+        shape: "scope",
+        parts: [textPart(`p-${level}`)],
+        children: items,
+      },
+    ];
+  }
+
+  return items;
+}
 
 function fixturesBlocks(
   overrides: {
@@ -80,6 +109,19 @@ function fixturesBlocks(
   };
 }
 
+/** Harness control to switch the Studio locale inside the i18n provider. */
+function LocaleSwitch({ locale }: { locale: StudioLocale }) {
+  const { setLocale } = useStudioI18n();
+
+  return (
+    <button
+      type="button"
+      data-locale-switch="true"
+      onClick={() => setLocale(locale)}
+    />
+  );
+}
+
 describe("BlocksInspector content shell", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -100,7 +142,7 @@ describe("BlocksInspector content shell", () => {
     );
   }
 
-  function mount(initial?: BlocksElement) {
+  function mount(initial?: BlocksElement, extra?: ReactNode) {
     elementState = initial ?? fixturesBlocks();
     updates = [];
     onUpdate = vi.fn(
@@ -118,7 +160,16 @@ describe("BlocksInspector content shell", () => {
       onAddSocketPart: vi.fn(() => null),
       onCreateSocketValue: vi.fn(() => null),
     };
-    renderInspector();
+    root.render(
+      <StudioI18nProvider>
+        {extra}
+        <BlocksInspector
+          element={elementState}
+          onUpdate={onUpdate}
+          blocksAuthoringControls={controls}
+        />
+      </StudioI18nProvider>,
+    );
   }
 
   function setInputValue(input: HTMLInputElement, value: string) {
@@ -208,6 +259,74 @@ describe("BlocksInspector content shell", () => {
     return button;
   }
 
+  function itemRow(itemId: string): HTMLLIElement {
+    const row = container.querySelector<HTMLLIElement>(
+      `li[data-powershow-block-item-id="${itemId}"]`,
+    );
+
+    if (!row) {
+      throw new Error(`Block item row not found: ${itemId}`);
+    }
+
+    return row;
+  }
+
+  function itemButton(itemId: string, selector: string): HTMLButtonElement {
+    const row = itemRow(itemId);
+
+    // Recursive rows (socket value blocks, scope children) nest inside the
+    // requested row and reuse the same action buttons. Resolve ambiguity by
+    // taking the match whose closest block-item ancestor is the row itself,
+    // i.e. the button owned by this block and not by a nested one.
+    const button = Array.from(row.querySelectorAll<HTMLButtonElement>(selector))
+      .find(
+        (candidate) =>
+          candidate.closest("li[data-powershow-block-item-id]") === row,
+      );
+
+    if (!button) {
+      throw new Error(`Button ${selector} not found on block: ${itemId}`);
+    }
+
+    return button;
+  }
+
+  function blockCategorySelect(itemId: string): HTMLSelectElement {
+    const select = itemRow(itemId).querySelector<HTMLSelectElement>(
+      'select[data-powershow-block-category="true"]',
+    );
+
+    if (!select) {
+      throw new Error(`Category select not found on block: ${itemId}`);
+    }
+
+    return select;
+  }
+
+  function blockShapeSelect(itemId: string): HTMLSelectElement {
+    const select = itemRow(itemId).querySelector<HTMLSelectElement>(
+      'select[data-powershow-block-shape="true"]',
+    );
+
+    if (!select) {
+      throw new Error(`Shape select not found on block: ${itemId}`);
+    }
+
+    return select;
+  }
+
+  function socketModeSelect(): HTMLSelectElement {
+    const select = container.querySelector<HTMLSelectElement>(
+      'select[data-powershow-part-socket-mode="true"]',
+    );
+
+    if (!select) {
+      throw new Error("Socket mode select not found");
+    }
+
+    return select;
+  }
+
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -219,6 +338,7 @@ describe("BlocksInspector content shell", () => {
       root.unmount();
     });
     document.body.innerHTML = "";
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -269,30 +389,6 @@ describe("BlocksInspector content shell", () => {
     expect(controls.onAddTextPart).not.toHaveBeenCalled();
     expect(controls.onAddSocketPart).not.toHaveBeenCalled();
     expect(controls.onCreateSocketValue).not.toHaveBeenCalled();
-  });
-
-  it("lists the ordered root blocks for the later recursive editor", async () => {
-    await act(async () => {
-      mount(
-        fixturesBlocks({
-          items: [
-            statement("root-a", "cat"),
-            statement("root-b", "cat"),
-          ],
-        }),
-      );
-    });
-
-    const rootRows = Array.from(
-      container.querySelectorAll<HTMLLIElement>(
-        "[data-powershow-block-root]",
-      ),
-    );
-
-    expect(rootRows.map((row) => row.getAttribute("data-powershow-block-root")))
-      .toEqual(["root-a", "root-b"]);
-    expect(container.textContent ?? "").toContain("root-a-text");
-    expect(container.textContent ?? "").toContain("Statement");
   });
 
   it("Add block delegates exactly once to BlocksAuthoringControls", async () => {
@@ -409,17 +505,291 @@ describe("BlocksInspector content shell", () => {
     expect(text).not.toContain("Visual block structure is present");
   });
 
-  it("keeps the block-item text editor out of the content shell", async () => {
+  it("renders existing root blocks through the recursive BlocksItemEditor", async () => {
     await act(async () => {
       mount();
     });
 
     expect(
-      container.querySelector('input[data-powershow-block-text="true"]'),
-    ).toBeNull();
+      container.querySelector('[data-powershow-blocks-editor="true"]'),
+    ).not.toBeNull();
+    const rootRow = itemRow("scope-a");
+    expect(rootRow.getAttribute("data-powershow-block-depth")).toBe("1");
+  });
+
+  it("no longer renders the temporary B1 root summary representation", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(container.querySelector("[data-powershow-block-root]")).toBeNull();
+    expect(container.querySelector('[data-powershow-blocks-editor="true"]'))
+      .not.toBeNull();
+  });
+
+  it("shows the empty state when no blocks exist", async () => {
+    await act(async () => {
+      mount(fixturesBlocks({ items: [] }));
+    });
+
+    expect(container.querySelector('[data-powershow-blocks-editor="true"]'))
+      .toBeNull();
+    expect(container.textContent ?? "").toContain("No blocks");
+  });
+
+  it("shows the category selector for an existing block", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(blockCategorySelect("scope-a").value).toBe("cat");
+  });
+
+  it("shows the shape selector for an existing block", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(blockShapeSelect("scope-a").value).toBe("scope");
+  });
+
+  it("editing an existing Text part reaches the normal onUpdate path", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    const textInput = itemRow("scope-a").querySelector<HTMLInputElement>(
+      'input[data-powershow-part-text="true"]',
+    );
+
+    if (!textInput) {
+      throw new Error("Text part input not found");
+    }
+
+    await act(async () => {
+      setInputValue(textInput, "Edited text");
+    });
+
+    expect(updates).toHaveLength(1);
+    if (updates[0]?.type === "blocks") {
+      const firstPart = updates[0].items[0]?.parts[0];
+      expect(firstPart?.type === "text" ? firstPart.text : null).toBe(
+        "Edited text",
+      );
+    }
+  });
+
+  it("renders an existing Literal socket with its literal input", async () => {
+    await act(async () => {
+      mount(
+        fixturesBlocks({
+          items: [
+            {
+              id: "lit-root",
+              categoryId: "cat",
+              shape: "statement",
+              parts: [textPart("lit-root-text"), socketLiteral("lit-sock", "42")],
+              children: [],
+            },
+          ],
+        }),
+      );
+    });
+
+    expect(socketModeSelect().value).toBe("literal");
+
+    const literalInput = container.querySelector<HTMLInputElement>(
+      '[data-powershow-part-socket-literal-input="true"]',
+    );
+
+    if (!literalInput) {
+      throw new Error("Literal socket input not found");
+    }
+
+    expect(literalInput.value).toBe("42");
+  });
+
+  it("renders an existing Value socket in UI mode value", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(socketModeSelect().value).toBe("value");
+  });
+
+  it("renders recursive Value block content inside the socket", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    const valueRow = itemRow("value-a");
+    expect(valueRow.getAttribute("data-powershow-block-shape")).toBe("value");
+    expect(valueRow.getAttribute("data-powershow-block-depth")).toBe("2");
+
+    const valueTextInput = valueRow.querySelector<HTMLInputElement>(
+      'input[data-powershow-part-text="true"]',
+    );
+
+    if (!valueTextInput) {
+      throw new Error("Value block text input not found");
+    }
+
+    expect(valueTextInput.value).toBe("value-a-p");
+  });
+
+  it("renders recursive Scope children", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    const childRow = itemRow("child-a");
+    expect(childRow.getAttribute("data-powershow-block-shape")).toBe(
+      "statement",
+    );
+    expect(childRow.getAttribute("data-powershow-block-depth")).toBe("2");
+  });
+
+  it("Add Text Part delegates to BlocksAuthoringControls", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    await act(async () => {
+      itemButton(
+        "scope-a",
+        'button[data-powershow-block-add-part-text="true"]',
+      ).click();
+    });
+
+    expect(controls.onAddTextPart).toHaveBeenCalledTimes(1);
+    expect(controls.onAddTextPart).toHaveBeenCalledWith("blocks-1", "scope-a");
+  });
+
+  it("Add Socket Part delegates to BlocksAuthoringControls", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    await act(async () => {
+      itemButton(
+        "scope-a",
+        'button[data-powershow-block-add-part-socket="true"]',
+      ).click();
+    });
+
+    expect(controls.onAddSocketPart).toHaveBeenCalledTimes(1);
+    expect(controls.onAddSocketPart).toHaveBeenCalledWith("blocks-1", "scope-a");
+  });
+
+  it("Add Scope Child delegates to BlocksAuthoringControls", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    await act(async () => {
+      itemButton("scope-a", 'button[data-powershow-block-add-child="true"]')
+        .click();
+    });
+
+    expect(controls.onAddScopeChild).toHaveBeenCalledTimes(1);
+    expect(controls.onAddScopeChild).toHaveBeenCalledWith("blocks-1", "scope-a");
+  });
+
+  it("disables scope-child creation at the maximum block depth", async () => {
+    await act(async () => {
+      mount(fixturesBlocks({ items: scopeChain(5) }));
+    });
+
     expect(
-      container.querySelector('textarea[data-powershow-block-text="true"]'),
-    ).toBeNull();
+      itemButton("scope-5", 'button[data-powershow-block-add-child="true"]')
+        .disabled,
+    ).toBe(true);
+    expect(
+      itemButton("scope-1", 'button[data-powershow-block-add-child="true"]')
+        .disabled,
+    ).toBe(false);
+  });
+
+  it("keeps imported deeper-than-max content rendered and editable", async () => {
+    await act(async () => {
+      mount(fixturesBlocks({ items: scopeChain(7) }));
+    });
+
+    const deepRow = itemRow("scope-7");
+    expect(deepRow.getAttribute("data-powershow-block-depth")).toBe("7");
+    expect(
+      itemButton("scope-7", 'button[data-powershow-block-add-child="true"]')
+        .disabled,
+    ).toBe(true);
+
+    const deepTextInput = deepRow.querySelector<HTMLInputElement>(
+      'input[data-powershow-part-text="true"]',
+    );
+
+    if (!deepTextInput) {
+      throw new Error("Deep text part input not found");
+    }
+
+    await act(async () => {
+      setInputValue(deepTextInput, "edited deep content");
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(
+      itemRow("scope-7").querySelector<HTMLInputElement>(
+        'input[data-powershow-part-text="true"]',
+      )?.value,
+    ).toBe("edited deep content");
+  });
+
+  it("resolves English editor labels through Studio i18n", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(blockCategorySelect("scope-a").getAttribute("aria-label")).toBe(
+      "Category",
+    );
+    expect(blockShapeSelect("scope-a").getAttribute("aria-label")).toBe(
+      "Shape",
+    );
+    expect(socketModeSelect().querySelector('option[value="value"]')?.textContent)
+      .toBe("Value block");
+    expect(
+      socketModeSelect().querySelector('option[value="literal"]')?.textContent,
+    ).toBe("Literal");
+  });
+
+  it("resolves pt-BR editor labels after a locale switch", async () => {
+    await act(async () => {
+      mount(undefined, <LocaleSwitch locale="pt-BR" />);
+    });
+
+    await act(async () => {
+      const switchButton = container.querySelector<HTMLButtonElement>(
+        '[data-locale-switch="true"]',
+      );
+
+      if (!switchButton) {
+        throw new Error("Locale switch button not found");
+      }
+
+      switchButton.click();
+    });
+
+    expect(blockCategorySelect("scope-a").getAttribute("aria-label")).toBe(
+      "Categoria",
+    );
+    expect(blockShapeSelect("scope-a").getAttribute("aria-label")).toBe(
+      "Forma",
+    );
+    expect(
+      blockShapeSelect("scope-a").querySelector(
+        'option[value="scope"]',
+      )?.textContent,
+    ).toBe("Escopo");
+    expect(socketModeSelect().querySelector('option[value="value"]')?.textContent)
+      .toBe("Bloco de valor");
   });
 
   it("keeps Appearance and Effects sections", async () => {
