@@ -1,7 +1,11 @@
 import type { BlocksElement } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
-import type { ElementInspectorUpdate, UpdateElementStyle } from "./inspector-types";
+import type {
+  BlocksAuthoringControls,
+  ElementInspectorUpdate,
+  UpdateElementStyle,
+} from "./inspector-types";
 import { InspectorSection } from "./inspector-section";
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 import { ElementEffectsSection } from "./sections/element-effects-section";
@@ -9,6 +13,7 @@ import { ElementEffectsSection } from "./sections/element-effects-section";
 interface BlocksInspectorProps {
   element: BlocksElement;
   onUpdate: ElementInspectorUpdate;
+  blocksAuthoringControls: BlocksAuthoringControls;
 }
 
 function countBlocks(items: BlocksElement["items"]): number {
@@ -19,7 +24,15 @@ function countBlocks(items: BlocksElement["items"]): number {
   ), 0), 0);
 }
 
-export function BlocksInspector({ element, onUpdate }: BlocksInspectorProps) {
+export function BlocksInspector({
+  element,
+  onUpdate,
+  blocksAuthoringControls: _blocksAuthoringControls,
+}: BlocksInspectorProps) {
+  // R2-A establishes the workspace contract only: the temporary
+  // inspector receives the controls but must not expose/invoke them yet.
+  void _blocksAuthoringControls;
+
   const { t } = useStudioI18n();
   const updateBlocksStyle: UpdateElementStyle = (update) => onUpdate((current) => {
     if (current.type !== "blocks") return current;
@@ -30,10 +43,14 @@ export function BlocksInspector({ element, onUpdate }: BlocksInspectorProps) {
   return <>
     <div className={styles.inspectorDivider} />
     <InspectorSection title={t("inspector.content")} defaultOpen>
-      <small className={styles.fieldHint}>
+      <small className={styles.fieldHint} data-powershow-blocks-inspector="true">
         <span>Visual block structure is present. Detailed block authoring controls are coming in the next checkpoint.</span>
       </small>
-      <small className={styles.fieldHint}>
+      <small
+        className={styles.fieldHint}
+        data-powershow-blocks-categories={element.categories.length}
+        data-powershow-blocks-count={countBlocks(element.items)}
+      >
         <span>{element.categories.length} categories · {countBlocks(element.items)} root/nested blocks</span>
       </small>
     </InspectorSection>

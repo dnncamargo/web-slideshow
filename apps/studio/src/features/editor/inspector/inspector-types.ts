@@ -46,10 +46,38 @@ export interface TopicsAuthoringControls {
   ) => string | null;
 }
 
-/** Source-compatible placeholder until the R2 Blocks authoring surface. */
+/**
+ * Blocks authoring controls for the composable Blocks model.
+ *
+ * Only operations that allocate presentation-wide authoring IDs live
+ * here: text/literal edits, category assignment, shape editing, remove,
+ * and reorder require no ID allocation and use the Inspector onUpdate
+ * path. Each handler returns the freshly created block/part id or null
+ * when the target is stale/invalid or creation is refused.
+ */
 export interface BlocksAuthoringControls {
-  onAddTopLevelBlock: (blocksId: string) => string | null;
-  onAddChildBlock: (blocksId: string, blockItemId: string) => string | null;
+  onAddRootBlock: (blocksId: string) => string | null;
+
+  onAddScopeChild: (
+    blocksId: string,
+    scopeBlockId: string,
+  ) => string | null;
+
+  onAddTextPart: (
+    blocksId: string,
+    blockItemId: string,
+  ) => string | null;
+
+  onAddSocketPart: (
+    blocksId: string,
+    blockItemId: string,
+  ) => string | null;
+
+  onCreateSocketValue: (
+    blocksId: string,
+    ownerBlockId: string,
+    socketPartId: string,
+  ) => string | null;
 }
 
 export interface TableAuthoringControls {

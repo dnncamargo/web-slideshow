@@ -1,46 +1,201 @@
-import { describe, expect, it } from "vitest";
-import type { BlocksElement, BlockItem, PowerShowElement, Slide } from "@powershow/document-schema";
-import { createElement, duplicateElement } from "../src/features/editor/element-operations";
-import { collectAuthoringIds } from "../src/features/editor/element-hierarchy";
-import { duplicateSlideWithUniqueIds } from "../src/features/editor/slide-operations";
+// @vitest-environment jsdom
 
-const makeValue = (id: string): BlockItem => ({ id, categoryId: "cat", shape: "value", parts: [{ id: id + "-p", type: "text", text: "value" }], children: [] });
-const makeBlocks = (id = "blocks"): BlocksElement => ({ id, type: "blocks", hidden: false, categories: [{ id: "cat", name: "Category", color: "#123456" }], items: [{ id: "scope", categoryId: "cat", shape: "scope", parts: [{ id: "scope-p", type: "text", text: "repeat" }, { id: "scope-s", type: "socket", content: { type: "block", block: makeValue("value") } }], children: [{ id: "child", categoryId: "cat", shape: "statement", parts: [{ id: "child-p", type: "text", text: "move" }], children: [] }] }] });
-const slide = (element: PowerShowElement): Slide => ({ id: "slide", title: "Slide", summary: "", speakerNotes: "", elements: [element] });
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("composable Blocks Studio contract", () => {
-  it("creates the exact valid default shape", () => {
-    const created = createElement("blocks", []);
-    expect(created.type).toBe("blocks");
-    if (created.type !== "blocks") return;
-    expect(created.categories).toEqual([{ id: "block-category", name: "Block", color: "#6366f1" }]);
-    expect(created.items[0]).toMatchObject({ categoryId: "block-category", shape: "statement", children: [] });
-    expect(created.items[0]?.parts[0]).toEqual({ id: "block-part", type: "text", text: "New block" });
-    expect(created.style).toBeUndefined();
+import type {
+  BlockItem,
+  BlockPart,
+  BlocksElement,
+  PowerShowElement,
+} from "@powershow/document-schema";
+
+import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { BlocksInspector } from "../src/features/editor/inspector/blocks-inspector";
+import type { BlocksAuthoringControls } from "../src/features/editor/inspector/inspector-types";
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+const textPart = (id: string): BlockPart => ({
+  id,
+  type: "text",
+  text: id,
+});
+
+const socketValue = (id: string, categoryId: string): BlockItem => ({
+  id,
+  categoryId,
+  shape: "value",
+  parts: [textPart(`${id}-p`)],
+  children: [],
+});
+
+function fixturesBlocks(
+  overrides: {
+    categories?: { id: string; name: string; color: string }[];
+    items?: BlockItem[];
+  } = {},
+): BlocksElement {
+  return {
+    type: "blocks",
+    id: "blocks-1",
+    hidden: false,
+    categories: [
+      { id: "cat", name: "Category", color: "#6366f1" },
+    ],
+    items: [
+      {
+        id: "scope-a",
+        categoryId: "cat",
+        shape: "scope",
+        parts: [
+          textPart("scope-a-text"),
+          {
+            id: "scope-a-socket",
+            type: "socket",
+            content: { type: "block", block: socketValue("value-a", "cat") },
+          },
+        ],
+        children: [
+          {
+            id: "child-a",
+            categoryId: "cat",
+            shape: "statement",
+            parts: [textPart("child-a-text")],
+            children: [],
+          },
+        ],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+describe("BlocksInspector (temporary, non-destructive)", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let elementState: BlocksElement;
+  let updates: PowerShowElement[];
+  let onUpdate: ReturnType<typeof vi.fn>;
+  let controls: BlocksAuthoringControls;
+
+  function renderInspector() {
+    root.render(
+      <StudioI18nProvider>
+        <BlocksInspector
+          element={elementState}
+          onUpdate={onUpdate}
+          blocksAuthoringControls={controls}
+        />
+      </StudioI18nProvider>,
+    );
+  }
+
+  function mount(initial?: BlocksElement) {
+    elementState = initial ?? fixturesBlocks();
+    updates = [];
+    onUpdate = vi.fn(
+      (update: (element: PowerShowElement) => PowerShowElement) => {
+        const next = update(elementState);
+        elementState = next as BlocksElement;
+        updates.push(elementState);
+      },
+    );
+    controls = {
+      onAddRootBlock: vi.fn(() => null),
+      onAddScopeChild: vi.fn(() => null),
+      onAddTextPart: vi.fn(() => null),
+      onAddSocketPart: vi.fn(() => null),
+      onCreateSocketValue: vi.fn(() => null),
+    };
+    renderInspector();
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
   });
 
-  it("collects ids across scope, parts, socket values, and nested value parts", () => {
-    const ids = new Set<string>();
-    collectAuthoringIds(makeBlocks(), ids);
-    for (const id of ["blocks", "scope", "scope-p", "scope-s", "value", "value-p", "child", "child-p"]) expect(ids.has(id)).toBe(true);
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    document.body.innerHTML = "";
+    vi.clearAllMocks();
   });
 
-  it("duplicates all block and part ids while preserving category vocabulary", () => {
-    const copy = duplicateElement(makeBlocks(), [slide(makeBlocks())]);
-    expect(copy.type).toBe("blocks");
-    if (copy.type !== "blocks") return;
-    expect(copy.id).not.toBe("blocks");
-    expect(copy.categories).toEqual(makeBlocks().categories);
-    expect(copy.items[0]?.id).not.toBe("scope");
-    const socket = copy.items[0]?.parts[1];
-    expect(socket?.id).not.toBe("scope-s");
-    if (socket?.type === "socket" && socket.content.type === "block") expect(socket.content.block.id).not.toBe("value");
+  it("renders without performing any document write", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(updates).toHaveLength(0);
+    expect(container.querySelector('[data-powershow-blocks-inspector="true"]'))
+      .not.toBeNull();
   });
 
-  it("renews nested block ids during slide duplication", () => {
-    const source = slide(makeBlocks());
-    const copy = duplicateSlideWithUniqueIds(source, [source]);
-    expect(copy.elements[0]?.type).toBe("blocks");
-    if (copy.elements[0]?.type === "blocks") expect(copy.elements[0].items[0]?.id).not.toBe("scope");
+  it("counts children and socket values through both recursion edges", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    const count = container.querySelector(
+      "[data-powershow-blocks-count]",
+    )?.getAttribute("data-powershow-blocks-count");
+    const categories = container.querySelector(
+      "[data-powershow-blocks-categories]",
+    )?.getAttribute("data-powershow-blocks-categories");
+
+    // scope-a + child-a + socket value value-a = 3 root/nested blocks
+    expect(count).toBe("3");
+    expect(categories).toBe("1");
+  });
+
+  it("receives BlocksAuthoringControls but never invokes them while temporary", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(controls.onAddRootBlock).not.toHaveBeenCalled();
+    expect(controls.onAddScopeChild).not.toHaveBeenCalled();
+    expect(controls.onAddTextPart).not.toHaveBeenCalled();
+    expect(controls.onAddSocketPart).not.toHaveBeenCalled();
+    expect(controls.onCreateSocketValue).not.toHaveBeenCalled();
+  });
+
+  it("exposes no R2-B authoring controls yet", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    const authoringMarkers = container.querySelectorAll(
+      "[data-powershow-block-add]",
+    );
+    expect(authoringMarkers).toHaveLength(0);
+  });
+
+  it("keeps the obsolete text editor out of the temporary inspector", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    expect(
+      container.querySelector('input[data-powershow-block-text="true"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('textarea[data-powershow-block-text="true"]'),
+    ).toBeNull();
+  });
+
+  it("keeps Appearance and Effects sections", async () => {
+    await act(async () => {
+      mount();
+    });
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("Appearance");
+    expect(text).toContain("Effects");
   });
 });

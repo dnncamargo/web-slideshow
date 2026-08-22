@@ -35,8 +35,11 @@ const TOPICS_AUTHORING_CONTROLS: TopicsAuthoringControls = {
 };
 
 const BLOCKS_AUTHORING_CONTROLS: BlocksAuthoringControls = {
-  onAddTopLevelBlock: () => null,
-  onAddChildBlock: () => null,
+  onAddRootBlock: () => null,
+  onAddScopeChild: () => null,
+  onAddTextPart: () => null,
+  onAddSocketPart: () => null,
+  onCreateSocketValue: () => null,
 };
 
 const TABLE_AUTHORING_CONTROLS: TableAuthoringControls = {

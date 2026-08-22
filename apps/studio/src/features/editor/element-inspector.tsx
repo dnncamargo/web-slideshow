@@ -56,7 +56,7 @@ interface ElementInspectorProps {
 
   topicsAuthoringControls: TopicsAuthoringControls;
 
-  blocksAuthoringControls?: BlocksAuthoringControls;
+  blocksAuthoringControls: BlocksAuthoringControls;
 
   tableAuthoringControls: TableAuthoringControls;
 }
@@ -159,6 +159,7 @@ function ElementTypeInspector({
         <BlocksInspector
           element={element}
           onUpdate={onUpdate}
+          blocksAuthoringControls={_blocksAuthoringControls}
         />
       );
 
