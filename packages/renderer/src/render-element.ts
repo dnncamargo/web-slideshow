@@ -7,6 +7,7 @@ import { renderDivider } from "./render-divider";
 import { renderGallery } from "./render-gallery";
 import { renderEmbed } from "./render-embed";
 import { renderBlocks } from "./render-blocks";
+import { renderScripted } from "./render-scripted";
 
 import type {
   ElementLink,
@@ -285,7 +286,7 @@ export function renderElement(element: PowerShowElement): string {
     case "blocks":
       return renderBlocks(element);
     case "scripted":
-      return renderPlaceholder(element);
+      return renderScripted(element);
 
     case "chart":
     case "interactive":
