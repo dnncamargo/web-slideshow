@@ -952,12 +952,40 @@ function blockItemUsesCategory(
 // Value blocks inside sockets are NEVER stack siblings.
 // ------------------------------------------------------------
 
+function isStackBlockShape(shape: BlockItem["shape"]): boolean {
+  return shape === "statement" || shape === "scope";
+}
+
+function isBlockCategoryResolvable(
+  blocks: BlocksElement,
+  categoryId: string,
+): boolean {
+  return blocks.categories.some((category) => category.id === categoryId);
+}
+
+function isBlockItemCategoryResolvable(
+  blocks: BlocksElement,
+  item: BlockItem,
+): boolean {
+  return isBlockCategoryResolvable(blocks, item.categoryId);
+}
+
 export function appendBlockItemToRoot(
   blocks: BlocksElement,
   item: BlockItem,
 ): BlocksElement {
   // Root stack creation requires a category vocabulary.
   if (blocks.categories.length === 0) {
+    return blocks;
+  }
+
+  // Root stacks may never hold value blocks.
+  if (!isStackBlockShape(item.shape)) {
+    return blocks;
+  }
+
+  // Every inserted BlockItem.categoryId must resolve.
+  if (!isBlockItemCategoryResolvable(blocks, item)) {
     return blocks;
   }
 
@@ -978,6 +1006,16 @@ export function appendBlockItemToScope(
   const depth = findBlockItemDepth(blocks, scopeBlockId);
 
   if (depth === null || depth >= MAX_BLOCK_AUTHORING_DEPTH) {
+    return blocks;
+  }
+
+  // scope.children may only hold statement/scope (never value).
+  if (!isStackBlockShape(item.shape)) {
+    return blocks;
+  }
+
+  // Every inserted BlockItem.categoryId must resolve.
+  if (!isBlockItemCategoryResolvable(blocks, item)) {
     return blocks;
   }
 
@@ -1364,6 +1402,20 @@ export function setSocketContentBlock(
   partId: string,
   valueBlock: BlockItem,
 ): BlocksElement {
+  // Sockets may only hold value blocks: never statement/scope, and a
+  // value block's children must be empty. No silent shape conversion.
+  if (
+    valueBlock.shape !== "value" ||
+    valueBlock.children.length > 0
+  ) {
+    return blocks;
+  }
+
+  // Every inserted BlockItem.categoryId must resolve.
+  if (!isBlockItemCategoryResolvable(blocks, valueBlock)) {
+    return blocks;
+  }
+
   const depth = findBlockItemDepth(blocks, blockItemId);
 
   if (depth === null || depth >= MAX_BLOCK_AUTHORING_DEPTH) {

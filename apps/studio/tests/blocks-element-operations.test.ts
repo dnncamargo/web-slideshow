@@ -1028,6 +1028,196 @@ describe("Blocks socket content operations", () => {
 });
 
 // ============================================================
+// AUTHORING INVARIANT GUARDS
+//
+// The exported semantic authoring operations receive arbitrary
+// BlockItem arguments. They must never silently produce an invalid
+// canonical BlocksElement: contextually invalid shapes and
+// unresolvable category references are exact same-reference no-ops.
+// ============================================================
+
+describe("Blocks authoring invariant guards", () => {
+  it("appendBlockItemToRoot accepts a statement", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("a", "cat", [textPart("pa")])],
+    );
+    const item = stack("b", "cat", [textPart("pb")]);
+    const next = appendBlockItemToRoot(source, item);
+    expect(next).not.toBe(source);
+    expect(next.items[1]).toBe(item);
+    expect(BlocksElementSchema.parse(next)).toBeTruthy();
+  });
+
+  it("appendBlockItemToRoot accepts a scope", () => {
+    const source = blocks([category("cat")], []);
+    const item = scope("root-scope", "cat", [textPart("p")]);
+    const next = appendBlockItemToRoot(source, item);
+    expect(next).not.toBe(source);
+    expect(next.items[0]).toBe(item);
+    expect(BlocksElementSchema.parse(next)).toBeTruthy();
+  });
+
+  it("appendBlockItemToRoot rejects a value with an exact same reference", () => {
+    const source = blocks([category("cat")], []);
+    const item = value("root-value", "cat");
+    expect(appendBlockItemToRoot(source, item)).toBe(source);
+    expect(source.items).toEqual([]);
+    expect(item.shape).toBe("value");
+  });
+
+  it("appendBlockItemToRoot rejects an unknown category with an exact same reference", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("a", "cat", [textPart("pa")])],
+    );
+    const item = stack("b", "missing", [textPart("pb")]);
+    expect(appendBlockItemToRoot(source, item)).toBe(source);
+    expect(source.items).toHaveLength(1);
+  });
+
+  it("appendBlockItemToScope accepts a statement", () => {
+    const source = blocks(
+      [category("cat")],
+      [scope("root", "cat", [textPart("p")])],
+    );
+    const item = stack("child", "cat", [textPart("cp")]);
+    const next = appendBlockItemToScope(source, "root", item);
+    expect(next.items[0]?.children[0]).toBe(item);
+    expect(BlocksElementSchema.parse(next)).toBeTruthy();
+  });
+
+  it("appendBlockItemToScope accepts a scope when otherwise valid", () => {
+    const source = blocks(
+      [category("cat")],
+      [scope("root", "cat", [textPart("p")])],
+    );
+    const item = scope("nested", "cat", [textPart("np")]);
+    const next = appendBlockItemToScope(source, "root", item);
+    expect(next.items[0]?.children[0]).toBe(item);
+    expect(BlocksElementSchema.parse(next)).toBeTruthy();
+  });
+
+  it("appendBlockItemToScope rejects a value", () => {
+    const source = blocks(
+      [category("cat")],
+      [scope("root", "cat", [textPart("p")])],
+    );
+    const item = value("scope-value", "cat");
+    expect(appendBlockItemToScope(source, "root", item)).toBe(source);
+    expect(source.items[0]?.children).toEqual([]);
+  });
+
+  it("appendBlockItemToScope rejects an unknown category", () => {
+    const source = blocks(
+      [category("cat")],
+      [scope("root", "cat", [textPart("p")])],
+    );
+    const item = stack("child", "missing", [textPart("cp")]);
+    expect(appendBlockItemToScope(source, "root", item)).toBe(source);
+    expect(source.items[0]?.children).toEqual([]);
+  });
+
+  it("setSocketContentBlock accepts a valid value", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("root", "cat", [emptySocket("s")])],
+    );
+    const item = value("v", "cat", [textPart("vp")]);
+    const next = setSocketContentBlock(source, "root", "s", item);
+    const part = next.items[0]?.parts[0];
+    if (part?.type === "socket") {
+      expect(part.content).toEqual({ type: "block", block: item });
+    }
+    expect(BlocksElementSchema.parse(next)).toBeTruthy();
+  });
+
+  it("setSocketContentBlock rejects a statement", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("root", "cat", [emptySocket("s")])],
+    );
+    const item = stack("st", "cat", [textPart("sp")]);
+    expect(setSocketContentBlock(source, "root", "s", item)).toBe(source);
+    const part = source.items[0]?.parts[0];
+    if (part?.type === "socket") {
+      expect(part.content.type).toBe("empty");
+    }
+  });
+
+  it("setSocketContentBlock rejects a scope", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("root", "cat", [emptySocket("s")])],
+    );
+    const item = scope("sc", "cat", [textPart("scp")]);
+    expect(setSocketContentBlock(source, "root", "s", item)).toBe(source);
+    const part = source.items[0]?.parts[0];
+    if (part?.type === "socket") {
+      expect(part.content.type).toBe("empty");
+    }
+  });
+
+  it("setSocketContentBlock rejects a value with children", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("root", "cat", [emptySocket("s")])],
+    );
+    const item: BlockItem = {
+      id: "bad-value",
+      categoryId: "cat",
+      shape: "value",
+      parts: [textPart("bp")],
+      children: [stack("bad-child", "cat", [])],
+    };
+    expect(setSocketContentBlock(source, "root", "s", item)).toBe(source);
+    expect(item.children).toHaveLength(1);
+  });
+
+  it("setSocketContentBlock rejects an unknown category", () => {
+    const source = blocks(
+      [category("cat")],
+      [stack("root", "cat", [emptySocket("s")])],
+    );
+    const item = value("v", "missing");
+    expect(setSocketContentBlock(source, "root", "s", item)).toBe(source);
+    const part = source.items[0]?.parts[0];
+    if (part?.type === "socket") {
+      expect(part.content.type).toBe("empty");
+    }
+  });
+
+  it("rejected cases never mutate the source or the supplied BlockItem", () => {
+    const base = blocks(
+      [category("cat")],
+      [stack("root", "cat", [emptySocket("s")])],
+    );
+
+    const rootValue = value("rv", "cat");
+    const rootSnapshot = structuredClone(rootValue);
+    const rootResult = appendBlockItemToRoot(base, rootValue);
+    expect(rootResult).toBe(base);
+    expect(rootValue).toEqual(rootSnapshot);
+
+    const childValue = value("cv", "cat");
+    const childSnapshot = structuredClone(childValue);
+    const childResult = appendBlockItemToScope(base, "root", childValue);
+    expect(childResult).toBe(base);
+    expect(childValue).toEqual(childSnapshot);
+
+    const socketStatement = stack("ss", "cat", [textPart("ssp")]);
+    const socketSnapshot = structuredClone(socketStatement);
+    const socketResult = setSocketContentBlock(base, "root", "s", socketStatement);
+    expect(socketResult).toBe(base);
+    expect(socketStatement).toEqual(socketSnapshot);
+
+    expect(base).toEqual(
+      blocks([category("cat")], [stack("root", "cat", [emptySocket("s")])]),
+    );
+  });
+});
+
+// ============================================================
 // IMMUTABILITY
 // ============================================================
 
