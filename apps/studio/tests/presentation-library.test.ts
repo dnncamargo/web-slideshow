@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import type { PresentationRepository } from "../src/features/persistence/presentation-repository";
+import type { PresentationRecoveryInspection } from "../src/features/persistence/presentation-repository";
 import type { PresentationSummary } from "../src/features/persistence/presentation-persistence";
 import { buildStudioEditorHref } from "../src/features/app/studio-routes";
 import {
@@ -190,6 +191,16 @@ describe("presentation repository Edit wiring", () => {
         versionId: "version-id",
         publishedRevision: 1,
         createdVersion: true,
+      })),
+      inspectPresentationRecovery: vi.fn(
+        async (): Promise<PresentationRecoveryInspection> => ({
+          status: "valid",
+          issues: [],
+        }),
+      ),
+      repairPresentation: vi.fn(async (presentationId: string) => ({
+        presentation: createBlankPresentation(presentationId),
+        repaired: false,
       })),
     };
 

@@ -31,7 +31,9 @@ vi.mock("../src/features/control/live-current", () => ({
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { PresentationLibrary } from "../src/features/library/presentation-library";
+import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import type { PresentationRepository } from "../src/features/persistence/presentation-repository";
+import type { PresentationRecoveryInspection } from "../src/features/persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../src/features/persistence/presentation-folder-repository";
 import type { PresentationSummary } from "../src/features/persistence/presentation-persistence";
 import type { PresentationFolder } from "../src/features/persistence/presentation-folder";
@@ -129,6 +131,16 @@ function buildHarness(
       versionId: "version-id",
       publishedRevision: 1,
       createdVersion: true,
+    })),
+    inspectPresentationRecovery: vi.fn(
+      async (): Promise<PresentationRecoveryInspection> => ({
+        status: "valid",
+        issues: [],
+      }),
+    ),
+    repairPresentation: vi.fn(async () => ({
+      presentation: createBlankPresentation("fake"),
+      repaired: false,
     })),
   };
 

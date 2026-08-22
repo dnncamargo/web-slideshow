@@ -607,6 +607,29 @@ const englishMessages = {
   "editor.couldNotLoad": "Could not load presentation.",
   "editor.backToLibrary": "Back to Library",
 
+  "recovery.title": "Presentation contains incompatible content",
+  "recovery.explanation":
+    "PowerShow can remove the incompatible content while preserving the rest of the presentation.",
+  "recovery.issueCount": "{count} issues found",
+  "recovery.viewDetails": "View details",
+  "recovery.hideDetails": "Hide details",
+  "recovery.removeAndOpen": "Remove incompatible content and open",
+  "recovery.confirmTitle": "Remove incompatible content?",
+  "recovery.confirmBody":
+    "This removes the incompatible content from this presentation. Everything else is preserved.",
+  "recovery.cancel": "Cancel",
+  "recovery.confirm": "Remove and open",
+  "recovery.repairing": "Repairing presentation…",
+  "recovery.unrecoverableTitle": "Presentation cannot be repaired",
+  "recovery.unrecoverableExplanation":
+    "The presentation structure is too damaged to be repaired. You can go back to the library.",
+  "recovery.repairFailed": "Could not repair the presentation.",
+  "recovery.backToLibrary": "Back to Library",
+  "recovery.detailsPath": "Path",
+  "recovery.detailsId": "Id",
+  "recovery.detailsType": "Type",
+  "recovery.detailsReason": "Reason",
+
   "auth.continueWithGoogle": "Continue with Google",
   "auth.signingIn": "Signing in…",
   "auth.signInFailed": "Could not sign in. Please try again.",
@@ -1243,6 +1266,29 @@ const portugueseMessages = {
   "editor.loading": "Carregando apresentação…",
   "editor.couldNotLoad": "Não foi possível carregar a apresentação.",
   "editor.backToLibrary": "Voltar à biblioteca",
+
+  "recovery.title": "A apresentação contém conteúdo incompatível",
+  "recovery.explanation":
+    "O PowerShow pode remover o conteúdo incompatível preservando o restante da apresentação.",
+  "recovery.issueCount": "{count} problemas encontrados",
+  "recovery.viewDetails": "Ver detalhes",
+  "recovery.hideDetails": "Ocultar detalhes",
+  "recovery.removeAndOpen": "Remover conteúdo incompatível e abrir",
+  "recovery.confirmTitle": "Remover conteúdo incompatível?",
+  "recovery.confirmBody":
+    "Isso removerá o conteúdo incompatível desta apresentação. Todo o restante será preservado.",
+  "recovery.cancel": "Cancelar",
+  "recovery.confirm": "Remover e abrir",
+  "recovery.repairing": "Reparando apresentação…",
+  "recovery.unrecoverableTitle": "A apresentação não pode ser reparada",
+  "recovery.unrecoverableExplanation":
+    "A estrutura da apresentação está danificada demais para ser reparada. Você pode voltar à biblioteca.",
+  "recovery.repairFailed": "Não foi possível reparar a apresentação.",
+  "recovery.backToLibrary": "Voltar à biblioteca",
+  "recovery.detailsPath": "Caminho",
+  "recovery.detailsId": "Id",
+  "recovery.detailsType": "Tipo",
+  "recovery.detailsReason": "Motivo",
 
   "auth.continueWithGoogle": "Continuar com Google",
   "auth.signingIn": "Entrando…",

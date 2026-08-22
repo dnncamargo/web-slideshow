@@ -36,6 +36,13 @@ export class FirestoreOperationError extends PersistenceError {
 
 export class InvalidPersistedPresentationError extends PersistenceError {}
 
+export class PresentationRecoveryFailedError extends PersistenceError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = "PresentationRecoveryFailedError";
+  }
+}
+
 export class InvalidPresentationForPersistenceError extends PersistenceError {}
 
 export class InvalidFolderNameError extends PersistenceError {

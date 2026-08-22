@@ -1,6 +1,10 @@
 import type { Presentation } from "@powershow/document-schema";
 
 import type { PresentationSummary } from "./presentation-persistence";
+import type {
+  PresentationRecoveryStatus,
+  RecoveryIssue,
+} from "./presentation-recovery";
 
 export interface PresentationPublishResult {
   publicationId: string;
@@ -15,6 +19,22 @@ export interface ListPresentationsOptions {
 
 export interface CreatePresentationOptions {
   folderId?: string | null;
+}
+
+/**
+ * Non-destructive presentation recovery inspection. Reads the raw
+ * persisted draft, performs the recovery analysis, and performs NO
+ * writes. The analysis shape is the only thing exposed to callers:
+ * arbitrary raw Firestore snapshots are never surfaced.
+ */
+export interface PresentationRecoveryInspection {
+  status: PresentationRecoveryStatus;
+  issues: RecoveryIssue[];
+}
+
+export interface PresentationRepairResult {
+  presentation: Presentation;
+  repaired: boolean;
 }
 
 /**
@@ -38,4 +58,8 @@ export interface PresentationRepository {
   deleteArchivedPresentation(id: string): Promise<void>;
   movePresentationToFolder(id: string, folderId: string | null): Promise<void>;
   publishPresentation(id: string): Promise<PresentationPublishResult>;
+  inspectPresentationRecovery(
+    id: string,
+  ): Promise<PresentationRecoveryInspection>;
+  repairPresentation(id: string): Promise<PresentationRepairResult>;
 }
