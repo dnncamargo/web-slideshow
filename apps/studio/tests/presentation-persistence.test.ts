@@ -382,3 +382,100 @@ describe("persistence round trip with an Embed", () => {
     }
   });
 });
+
+describe("persistence round trip with Blocks", () => {
+  it("round-trips a nested Blocks tree preserving ids, text, style, and nesting", () => {
+    const presentation = basePresentation();
+
+    presentation.slides = [
+      {
+        id: "slide-1",
+        title: "Blocks slide",
+        summary: "",
+        speakerNotes: "",
+        elements: [
+          {
+            id: "blocks-1",
+            type: "blocks",
+            hidden: false,
+            style: {
+              width: "60%",
+              background: "#0f172a",
+            },
+            items: [
+              {
+                id: "root-a",
+                text: "Root A",
+                children: [
+                  {
+                    id: "child-a1",
+                    text: "Child A1",
+                    children: [
+                      {
+                        id: "grand-a1a",
+                        text: "Grand A1a",
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: "root-b",
+                text: "Root B",
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const parsed = PresentationSchema.parse(presentation);
+
+    const safe = makeFirestoreSafePresentation(parsed);
+
+    const recovered = parsePersistedPresentation({ presentation: safe });
+
+    const blocks = recovered.slides[0]?.elements[0];
+
+    expect(blocks?.type).toBe("blocks");
+
+    if (blocks?.type === "blocks") {
+      expect(blocks).toMatchObject({
+        id: "blocks-1",
+        type: "blocks",
+        hidden: false,
+        style: {
+          width: "60%",
+          background: "#0f172a",
+        },
+      });
+
+      expect(blocks.items).toEqual([
+        {
+          id: "root-a",
+          text: "Root A",
+          children: [
+            {
+              id: "child-a1",
+              text: "Child A1",
+              children: [
+                {
+                  id: "grand-a1a",
+                  text: "Grand A1a",
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "root-b",
+          text: "Root B",
+          children: [],
+        },
+      ]);
+    }
+  });
+});

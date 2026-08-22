@@ -7,6 +7,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "./editor-workspace.module.css";
 
 import {
+  BlocksInspector,
   CodeInspector,
   ContainerInspector,
   DividerInspector,
@@ -21,6 +22,7 @@ import {
 } from "./inspector";
 
 import type {
+  BlocksAuthoringControls,
   ElementInspectorUpdate,
   FontResourceControls,
   TableAuthoringControls,
@@ -54,6 +56,8 @@ interface ElementInspectorProps {
 
   topicsAuthoringControls: TopicsAuthoringControls;
 
+  blocksAuthoringControls: BlocksAuthoringControls;
+
   tableAuthoringControls: TableAuthoringControls;
 }
 
@@ -75,6 +79,7 @@ function ElementTypeInspector({
   onFocalEditingImageIdChange,
   unsupportedElementHint,
   topicsAuthoringControls,
+  blocksAuthoringControls,
   tableAuthoringControls,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
@@ -149,6 +154,15 @@ function ElementTypeInspector({
         />
       );
 
+    case "blocks":
+      return (
+        <BlocksInspector
+          element={element}
+          onUpdate={onUpdate}
+          blocksAuthoringControls={blocksAuthoringControls}
+        />
+      );
+
     default:
       return (
         <div className={styles.nextStep}>
@@ -180,6 +194,7 @@ export function ElementInspector({
   parent,
   layerControls,
   topicsAuthoringControls,
+  blocksAuthoringControls,
   tableAuthoringControls,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
@@ -220,6 +235,7 @@ export function ElementInspector({
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
         topicsAuthoringControls={topicsAuthoringControls}
+        blocksAuthoringControls={blocksAuthoringControls}
         tableAuthoringControls={tableAuthoringControls}
       />
 

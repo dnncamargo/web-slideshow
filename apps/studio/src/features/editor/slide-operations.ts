@@ -1,4 +1,5 @@
 import type {
+  BlockItem,
   PowerShowElement,
   Slide,
 } from "@powershow/document-schema";
@@ -33,6 +34,38 @@ function collectElementIds(
         ids,
       );
     }
+
+    if (
+      element.type ===
+      "blocks"
+    ) {
+      collectBlockItemIds(
+        element.items,
+        ids,
+      );
+    }
+  }
+}
+
+
+/**
+ * Slide duplication runs on its own ID inventory path. BlockItem ids
+ * must participate so duplicated slides containing Blocks never
+ * collide with existing BlockItem ids.
+ */
+function collectBlockItemIds(
+  items: readonly BlockItem[],
+  ids: Set<string>,
+): void {
+  for (const item of items) {
+    ids.add(
+      item.id,
+    );
+
+    collectBlockItemIds(
+      item.children,
+      ids,
+    );
   }
 }
 
@@ -163,10 +196,68 @@ function cloneElementWithUniqueIds(
   }
 
 
+  if (
+    clone.type ===
+    "blocks"
+  ) {
+    return {
+      ...clone,
+
+      id,
+
+      items:
+        clone.items.map(
+          (item) =>
+            cloneBlockItemWithUniqueIds(
+              item,
+              usedIds,
+            ),
+        ),
+    };
+  }
+
+
   return {
     ...clone,
 
     id,
+  };
+}
+
+
+/**
+ * Recursively renews every BlockItem id inside a duplicated Blocks
+ * element, preserving text, tree shape, and order exactly.
+ */
+function cloneBlockItemWithUniqueIds(
+  item: BlockItem,
+  usedIds: Set<string>,
+): BlockItem {
+  const id =
+    createUniqueId(
+      `${item.id}-copy`,
+      usedIds,
+    );
+
+
+  usedIds.add(
+    id,
+  );
+
+
+  return {
+    ...item,
+
+    id,
+
+    children:
+      item.children.map(
+        (child) =>
+          cloneBlockItemWithUniqueIds(
+            child,
+            usedIds,
+          ),
+      ),
   };
 }
 

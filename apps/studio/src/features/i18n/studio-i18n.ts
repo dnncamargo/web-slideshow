@@ -475,6 +475,18 @@ const englishMessages = {
   "inspector.topics.rootMarkerStyle.lower-roman": "Lowercase Roman",
   "inspector.topics.rootMarkerStyle.upper-roman": "Uppercase Roman",
 
+  "inspector.blocks.text": "Block text",
+  "inspector.blocks.add": "Add block",
+  "inspector.blocks.addChild": "Add child block",
+  "inspector.blocks.remove": "Remove block",
+  "inspector.blocks.moveUp": "Move block up",
+  "inspector.blocks.moveDown": "Move block down",
+  "inspector.blocks.maxDepth":
+    "Maximum block nesting depth reached",
+  "inspector.blocks.empty": "No blocks",
+  "inspector.blocks.staticHelp":
+    "Visual blocks are static content and do not execute code.",
+
   "table.text": "Text",
   "table.number": "Number",
   "table.boolean": "Boolean",
@@ -1099,6 +1111,18 @@ const portugueseMessages = {
   "inspector.topics.rootMarkerStyle.upper-alpha": "Letras maiúsculas",
   "inspector.topics.rootMarkerStyle.lower-roman": "Romano minúsculo",
   "inspector.topics.rootMarkerStyle.upper-roman": "Romano maiúsculo",
+
+  "inspector.blocks.text": "Texto do bloco",
+  "inspector.blocks.add": "Adicionar bloco",
+  "inspector.blocks.addChild": "Adicionar bloco filho",
+  "inspector.blocks.remove": "Remover bloco",
+  "inspector.blocks.moveUp": "Mover bloco para cima",
+  "inspector.blocks.moveDown": "Mover bloco para baixo",
+  "inspector.blocks.maxDepth":
+    "Profundidade máxima de blocos atingida",
+  "inspector.blocks.empty": "Nenhum bloco",
+  "inspector.blocks.staticHelp":
+    "Blocos visuais são conteúdo estático e não executam código.",
 
   "table.text": "Texto",
   "table.number": "Número",

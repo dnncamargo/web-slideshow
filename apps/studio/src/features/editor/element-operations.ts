@@ -1,4 +1,6 @@
 import type {
+  BlockItem,
+  BlocksElement,
   ContentSlot,
   PowerShowElement,
   Slide,
@@ -44,7 +46,8 @@ export type ElementCreateType =
   | "topics"
   | "divider"
   | "gallery"
-  | "embed";
+  | "embed"
+  | "blocks";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -406,6 +409,317 @@ export function removeTopicItemFromTopicItems(
 
 // ============================================================
 // END: TÓPICOS (TopicItem)
+// ============================================================
+
+// ============================================================
+// BEGIN: BLOCKS (BlockItem)
+//
+// Um BlockItem é um nó estrutural do documento. Ele NÃO é um
+// PowerShowElement: carrega apenas id/text/children e participa
+// exclusivamente do inventário de IDs de autoria.
+// ============================================================
+
+/**
+ * AUTHORING limit for structural BlockItem.children nesting.
+ *
+ * top-level BlockItem = depth 1, child = depth 2, ..., maximum = depth 5.
+ * Creating a child from a BlockItem already at depth 5 is refused. This is
+ * a Studio authoring rule only: canonical documents deeper than 5 still
+ * load, render, persist, and allow text editing/removal unchanged.
+ */
+export const MAX_BLOCK_STRUCTURAL_DEPTH = 5;
+
+function buildDefaultBlockItem(usedIds: Set<string>): BlockItem {
+  const id = createUniqueId("block-item", usedIds);
+  usedIds.add(id);
+
+  return {
+    id,
+    text: "New block",
+    children: [],
+  };
+}
+
+export function createDefaultBlockItem(
+  slides: readonly Slide[],
+): BlockItem {
+  const usedIds = collectPresentationElementIds(slides);
+
+  return buildDefaultBlockItem(usedIds);
+}
+
+export function appendBlockItemToBlocks(
+  elements: PowerShowElement[],
+  blocksId: string,
+  item: BlockItem,
+): PowerShowElement[] {
+  const target = findElementById(elements, blocksId);
+
+  if (target?.type !== "blocks") {
+    return elements;
+  }
+
+  return updateElementById(elements, blocksId, (element) => {
+    if (element.type !== "blocks") {
+      return element;
+    }
+
+    return {
+      ...element,
+      items: [...element.items, item],
+    };
+  });
+}
+
+/**
+ * Structural depth of a BlockItem inside a BlocksElement items tree.
+ * Top-level items are depth 1. Returns null when the item is not found.
+ */
+export function findBlockItemStructuralDepthInItems(
+  items: readonly BlockItem[],
+  blockItemId: string,
+  depth: number = 1,
+): number | null {
+  for (const item of items) {
+    if (item.id === blockItemId) {
+      return depth;
+    }
+
+    const nested = findBlockItemStructuralDepthInItems(
+      item.children,
+      blockItemId,
+      depth + 1,
+    );
+
+    if (nested !== null) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+export function appendBlockItemToBlockItems(
+  items: readonly BlockItem[],
+  blockItemId: string,
+  item: BlockItem,
+  depth: number = 1,
+): BlockItem[] {
+  let changed = false;
+
+  const nextItems = items.map((currentItem) => {
+    if (currentItem.id === blockItemId) {
+      if (depth >= MAX_BLOCK_STRUCTURAL_DEPTH) {
+        return currentItem;
+      }
+
+      changed = true;
+
+      return {
+        ...currentItem,
+        children: [...currentItem.children, item],
+      };
+    }
+
+    const children = appendBlockItemToBlockItems(
+      currentItem.children,
+      blockItemId,
+      item,
+      depth + 1,
+    );
+
+    if (children === currentItem.children) {
+      return currentItem;
+    }
+
+    changed = true;
+
+    return {
+      ...currentItem,
+      children,
+    };
+  });
+
+  return changed ? nextItems : (items as BlockItem[]);
+}
+
+export function appendChildBlockItemToBlocks(
+  elements: readonly PowerShowElement[],
+  blocksId: string,
+  blockItemId: string,
+  item: BlockItem,
+): PowerShowElement[] {
+  const target = findElementById(elements, blocksId);
+
+  if (target?.type !== "blocks") {
+    return elements as PowerShowElement[];
+  }
+
+  const itemDepth = findBlockItemStructuralDepthInItems(
+    target.items,
+    blockItemId,
+  );
+
+  if (itemDepth === null || itemDepth >= MAX_BLOCK_STRUCTURAL_DEPTH) {
+    return elements as PowerShowElement[];
+  }
+
+  const items = appendBlockItemToBlockItems(target.items, blockItemId, item);
+
+  if (items === target.items) {
+    return elements as PowerShowElement[];
+  }
+
+  return updateElementById(elements, blocksId, (element) => {
+    if (element.type !== "blocks") {
+      return element;
+    }
+
+    return {
+      ...element,
+      items,
+    };
+  });
+}
+
+export function updateBlockItemText(
+  items: readonly BlockItem[],
+  blockItemId: string,
+  text: string,
+): BlockItem[] {
+  let changed = false;
+
+  const nextItems = items.map((currentItem) => {
+    if (currentItem.id === blockItemId) {
+      if (currentItem.text === text) {
+        return currentItem;
+      }
+
+      changed = true;
+
+      return {
+        ...currentItem,
+        text,
+      };
+    }
+
+    const children = updateBlockItemText(
+      currentItem.children,
+      blockItemId,
+      text,
+    );
+
+    if (children === currentItem.children) {
+      return currentItem;
+    }
+
+    changed = true;
+
+    return {
+      ...currentItem,
+      children,
+    };
+  });
+
+  return changed ? nextItems : (items as BlockItem[]);
+}
+
+export function removeBlockItemFromBlockItems(
+  items: readonly BlockItem[],
+  blockItemId: string,
+): BlockItem[] {
+  let changed = false;
+
+  const nextItems: BlockItem[] = [];
+
+  for (const currentItem of items) {
+    if (currentItem.id === blockItemId) {
+      changed = true;
+      continue;
+    }
+
+    const children = removeBlockItemFromBlockItems(
+      currentItem.children,
+      blockItemId,
+    );
+
+    if (children === currentItem.children) {
+      nextItems.push(currentItem);
+      continue;
+    }
+
+    changed = true;
+
+    nextItems.push({
+      ...currentItem,
+      children,
+    });
+  }
+
+  return changed ? nextItems : (items as BlockItem[]);
+}
+
+/**
+ * Moves a BlockItem up/down ONLY among its current siblings.
+ *
+ * The move never reparents, indents, or outdents: it operates inside
+ * the exact sibling array that contains the target. Invalid boundaries
+ * and absent ids are exact no-ops returning the original reference.
+ * The subtree stays intact because only the sibling position changes.
+ */
+export function moveBlockItemWithinSiblings(
+  items: readonly BlockItem[],
+  blockItemId: string,
+  offset: -1 | 1,
+): BlockItem[] {
+  let changed = false;
+
+  const index = items.findIndex((item) => item.id === blockItemId);
+
+  if (index >= 0) {
+    const targetIndex = index + offset;
+
+    if (targetIndex < 0 || targetIndex >= items.length) {
+      return items as BlockItem[];
+    }
+
+    const nextSiblings = [...items];
+
+    const [moved] = nextSiblings.splice(index, 1);
+
+    if (moved === undefined) {
+      return items as BlockItem[];
+    }
+
+    nextSiblings.splice(targetIndex, 0, moved);
+
+    return nextSiblings;
+  }
+
+  const nextItems: BlockItem[] = items.map((currentItem) => {
+    const children = moveBlockItemWithinSiblings(
+      currentItem.children,
+      blockItemId,
+      offset,
+    );
+
+    if (children === currentItem.children) {
+      return currentItem;
+    }
+
+    changed = true;
+
+    return {
+      ...currentItem,
+      children,
+    };
+  });
+
+  return changed ? nextItems : (items as BlockItem[]);
+}
+
+// ============================================================
+// END: BLOCOS (BlockItem)
 // ============================================================
 
 // ============================================================
@@ -782,6 +1096,20 @@ export function createElement(
       } satisfies TopicsElement;
     }
 
+    case "blocks": {
+      const createdItem = buildDefaultBlockItem(usedIds);
+
+      return {
+        id: createUniqueId("blocks-element", usedIds),
+
+        type: "blocks",
+
+        hidden: false,
+
+        items: [createdItem],
+      } satisfies BlocksElement;
+    }
+
     case "divider": {
       return {
         id: createUniqueId("divider-element", usedIds),
@@ -837,6 +1165,22 @@ function cloneTopicItemWithUniqueIds(
   };
 }
 
+function cloneBlockItemWithUniqueIds(
+  item: BlockItem,
+  usedIds: Set<string>,
+): BlockItem {
+  const id = createUniqueId(`${item.id}-copy`, usedIds);
+  usedIds.add(id);
+
+  return {
+    ...item,
+    id,
+    children: item.children.map((child) =>
+      cloneBlockItemWithUniqueIds(child, usedIds),
+    ),
+  };
+}
+
 function clonePowerShowElementWithUniqueIds(
   source: PowerShowElement,
   usedIds: Set<string>,
@@ -863,6 +1207,16 @@ function clonePowerShowElementWithUniqueIds(
         cloneTopicItemWithUniqueIds(item, usedIds),
       ),
     } satisfies TopicsElement;
+  }
+
+  if (clone.type === "blocks") {
+    return {
+      ...clone,
+      id,
+      items: clone.items.map((item) =>
+        cloneBlockItemWithUniqueIds(item, usedIds),
+      ),
+    } satisfies BlocksElement;
   }
 
   if (clone.type === "table" && clone.mode === "structured") {

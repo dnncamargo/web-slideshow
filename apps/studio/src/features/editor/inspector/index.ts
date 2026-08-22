@@ -1,5 +1,7 @@
 export { CodeInspector } from "./code-inspector";
 
+export { BlocksInspector } from "./blocks-inspector";
+
 export { ContainerInspector } from "./container-inspector";
 
 export { DividerInspector } from "./divider-inspector";

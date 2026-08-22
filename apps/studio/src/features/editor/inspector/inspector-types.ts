@@ -46,6 +46,17 @@ export interface TopicsAuthoringControls {
   ) => string | null;
 }
 
+export interface BlocksAuthoringControls {
+  onAddTopLevelBlock: (
+    blocksId: string,
+  ) => string | null;
+
+  onAddChildBlock: (
+    blocksId: string,
+    blockItemId: string,
+  ) => string | null;
+}
+
 export interface TableAuthoringControls {
   onAddColumn: (tableId: string) => void;
 

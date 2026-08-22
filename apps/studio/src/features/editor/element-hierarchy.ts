@@ -1,4 +1,6 @@
 import type {
+  BlockItem,
+  BlocksElement,
   ContainerElement,
   ContentSlot,
   PowerShowElement,
@@ -32,6 +34,10 @@ function isContainer(element: PowerShowElement): element is ContainerElement {
 
 function isTopics(element: PowerShowElement): element is TopicsElement {
   return element.type === "topics";
+}
+
+function isBlocks(element: PowerShowElement): element is BlocksElement {
+  return element.type === "blocks";
 }
 
 export function isStructuredTable(
@@ -569,6 +575,25 @@ function collectTopicItemIds(
   }
 }
 
+/**
+ * Collects every BlockItem id inside a BlocksElement items tree,
+ * including all descendants.
+ *
+ * BlockItems are authoring nodes, NOT PowerShowElements. They
+ * participate in the authoring ID uniqueness inventory only and are
+ * never returned by the PowerShow hierarchy APIs.
+ */
+function collectBlockItemIds(
+  items: readonly BlockItem[],
+  ids: Set<string>,
+): void {
+  for (const item of items) {
+    ids.add(item.id);
+
+    collectBlockItemIds(item.children, ids);
+  }
+}
+
 export function collectAuthoringIds(
   element: PowerShowElement,
   ids: Set<string>,
@@ -606,6 +631,10 @@ export function collectAuthoringIds(
 
   if (isTopics(element)) {
     collectTopicItemIds(element.items, ids);
+  }
+
+  if (isBlocks(element)) {
+    collectBlockItemIds(element.items, ids);
   }
 }
 
