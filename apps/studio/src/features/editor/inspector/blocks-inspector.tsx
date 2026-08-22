@@ -1,7 +1,7 @@
 import type { BlocksElement } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
-import type { BlocksAuthoringControls, ElementInspectorUpdate, UpdateElementStyle } from "./inspector-types";
+import type { ElementInspectorUpdate, UpdateElementStyle } from "./inspector-types";
 import { InspectorSection } from "./inspector-section";
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 import { ElementEffectsSection } from "./sections/element-effects-section";
@@ -9,11 +9,14 @@ import { ElementEffectsSection } from "./sections/element-effects-section";
 interface BlocksInspectorProps {
   element: BlocksElement;
   onUpdate: ElementInspectorUpdate;
-  blocksAuthoringControls: BlocksAuthoringControls;
 }
 
 function countBlocks(items: BlocksElement["items"]): number {
-  return items.reduce((count, item) => count + 1 + countBlocks(item.children), 0);
+  return items.reduce((count, item) => count + 1 + countBlocks(item.children) + item.parts.reduce((partCount, part) => (
+    part.type === "socket" && part.content.type === "block"
+      ? partCount + countBlocks([part.content.block])
+      : partCount
+  ), 0), 0);
 }
 
 export function BlocksInspector({ element, onUpdate }: BlocksInspectorProps) {

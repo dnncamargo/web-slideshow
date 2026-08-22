@@ -46,15 +46,10 @@ export interface TopicsAuthoringControls {
   ) => string | null;
 }
 
+/** Source-compatible placeholder until the R2 Blocks authoring surface. */
 export interface BlocksAuthoringControls {
-  onAddTopLevelBlock: (
-    blocksId: string,
-  ) => string | null;
-
-  onAddChildBlock: (
-    blocksId: string,
-    blockItemId: string,
-  ) => string | null;
+  onAddTopLevelBlock: (blocksId: string) => string | null;
+  onAddChildBlock: (blocksId: string, blockItemId: string) => string | null;
 }
 
 export interface TableAuthoringControls {

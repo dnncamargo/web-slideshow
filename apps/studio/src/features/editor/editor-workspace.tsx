@@ -153,9 +153,6 @@ import {
   setStructuredTableShowHeader,
   appendTopicItemToTopics,
   appendChildTopicItemToTopics,
-  appendBlockItemToBlocks,
-  appendChildBlockItemToBlocks,
-  createDefaultBlockItem,
   resolveAddElementDestination,
 } from "./element-operations";
 
@@ -1954,151 +1951,6 @@ export function EditorWorkspace({
   // ==========================================================
 
   // ==========================================================
-  // BEGIN: ADD TOP LEVEL BLOCK
-  //
-  // Cria um novo BlockItem canônico (com IDs únicos em toda a
-  // apresentação) e o acrescenta ao BlocksElement identificado
-  // por blocksId.
-  //
-  // BlockItems NÃO são PowerShowElements: a operação é idêntica
-  // ao padrão de Topics e retorna o id do novo BlockItem para o
-  // Inspector focar o campo de texto.
-  // ==========================================================
-
-  function addTopLevelBlock(blocksId: string): string | null {
-    const created = createDefaultBlockItem(presentation.slides);
-    const selectedSlide = presentation.slides[selectedSlideIndex];
-
-    if (!selectedSlide) {
-      return null;
-    }
-
-    // Dry-run somente para validar o alvo e preservar o contrato
-    // string | null. O resultado NÃO é reaproveitado na escrita.
-    if (
-      appendBlockItemToBlocks(
-        selectedSlide.elements,
-        blocksId,
-        created,
-      ) === selectedSlide.elements
-    ) {
-      return null;
-    }
-
-    setPresentation((current) => {
-      let changed = false;
-
-      const slides = current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
-
-        const elements = appendBlockItemToBlocks(
-          slide.elements,
-          blocksId,
-          created,
-        );
-
-        if (elements === slide.elements) {
-          return slide;
-        }
-
-        changed = true;
-
-        return {
-          ...slide,
-          elements,
-        };
-      });
-
-      return changed
-        ? {
-            ...current,
-            slides,
-          }
-        : current;
-    });
-
-    return created.id;
-  }
-
-  // ==========================================================
-  // END: ADD TOP LEVEL BLOCK
-  // ==========================================================
-
-  // ==========================================================
-  // BEGIN: ADD CHILD BLOCK
-  //
-  // Cria um novo BlockItem filho do BlockItem blockItemId dentro
-  // do BlocksElement blocksId, respeitando o limite de
-  // profundidade estrutural de autoria (MAX_BLOCK_STRUCTURAL_DEPTH).
-  // ==========================================================
-
-  function addChildBlock(
-    blocksId: string,
-    blockItemId: string,
-  ): string | null {
-    const created = createDefaultBlockItem(presentation.slides);
-    const selectedSlide = presentation.slides[selectedSlideIndex];
-
-    if (!selectedSlide) {
-      return null;
-    }
-
-    if (
-      appendChildBlockItemToBlocks(
-        selectedSlide.elements,
-        blocksId,
-        blockItemId,
-        created,
-      ) === selectedSlide.elements
-    ) {
-      return null;
-    }
-
-    setPresentation((current) => {
-      let changed = false;
-
-      const slides = current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
-
-        const elements = appendChildBlockItemToBlocks(
-          slide.elements,
-          blocksId,
-          blockItemId,
-          created,
-        );
-
-        if (elements === slide.elements) {
-          return slide;
-        }
-
-        changed = true;
-
-        return {
-          ...slide,
-          elements,
-        };
-      });
-
-      return changed
-        ? {
-            ...current,
-            slides,
-          }
-        : current;
-    });
-
-    return created.id;
-  }
-
-  // ==========================================================
-  // END: ADD CHILD BLOCK
-  // ==========================================================
-
-  // ==========================================================
   // BEGIN: DUPLICATE ELEMENT
   //
   // A duplicação sempre cria um irmão imediatamente depois do
@@ -3057,10 +2909,6 @@ export function EditorWorkspace({
                           topicsAuthoringControls={{
                             onAddTopLevelTopic: addTopLevelTopic,
                             onAddChildTopic: addChildTopic,
-                          }}
-                          blocksAuthoringControls={{
-                            onAddTopLevelBlock: addTopLevelBlock,
-                            onAddChildBlock: addChildBlock,
                           }}
                           tableAuthoringControls={tableAuthoringControls}
                         />

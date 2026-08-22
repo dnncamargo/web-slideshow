@@ -56,7 +56,7 @@ interface ElementInspectorProps {
 
   topicsAuthoringControls: TopicsAuthoringControls;
 
-  blocksAuthoringControls: BlocksAuthoringControls;
+  blocksAuthoringControls?: BlocksAuthoringControls;
 
   tableAuthoringControls: TableAuthoringControls;
 }
@@ -79,7 +79,7 @@ function ElementTypeInspector({
   onFocalEditingImageIdChange,
   unsupportedElementHint,
   topicsAuthoringControls,
-  blocksAuthoringControls,
+  blocksAuthoringControls: _blocksAuthoringControls,
   tableAuthoringControls,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
@@ -159,7 +159,6 @@ function ElementTypeInspector({
         <BlocksInspector
           element={element}
           onUpdate={onUpdate}
-          blocksAuthoringControls={blocksAuthoringControls}
         />
       );
 

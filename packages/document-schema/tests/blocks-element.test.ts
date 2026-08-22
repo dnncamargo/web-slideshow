@@ -16,6 +16,24 @@ describe("BlocksElementSchema", () => {
     expect(result.items[0]?.shape).toBe("scope");
   });
 
+  it("accepts a statement root with empty parts", () => {
+    expect(BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [], children: [] }])).items).toHaveLength(1);
+  });
+
+  it("accepts a scope root with statement children", () => {
+    expect(BlocksElementSchema.parse(base([{ id: "scope", categoryId: "motion", shape: "scope", parts: [], children: [{ id: "child", categoryId: "motion", shape: "statement", parts: [], children: [] }] }])).items[0]?.shape).toBe("scope");
+  });
+
+  it("accepts an empty socket and empty literal", () => {
+    expect(BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [empty("e"), literal("l", "")], children: [] }]))).toBeTruthy();
+  });
+
+  it("accepts recursively nested value sockets", () => {
+    const inner = value("inner");
+    const outer = value("outer", [{ id: "socket", type: "socket", content: { type: "block", block: inner } }]);
+    expect(BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [{ id: "socket", type: "socket", content: { type: "block", block: outer } }], children: [] }]))).toBeTruthy();
+  });
+
   it("rejects statement/value children and root value", () => {
     const child = { id: "x", categoryId: "motion", shape: "statement" as const, parts: [], children: [] };
     expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "motion", shape: "statement", parts: [], children: [child] }]))).toThrow();
@@ -39,5 +57,18 @@ describe("BlocksElementSchema", () => {
   it("accepts empty categories/items and strips provider fields without synthesizing", () => {
     const parsed = BlocksElementSchema.parse({ id: "b", type: "blocks", hidden: false, categories: [], items: [], workspace: {}, generatedCode: "x", runtime: true });
     expect(parsed).toEqual({ id: "b", type: "blocks", hidden: false, categories: [], items: [] });
+  });
+
+  it("does not synthesize canonical arrays or nodes", () => {
+    const parsed = BlocksElementSchema.parse({ id: "b", type: "blocks", hidden: false, categories: [], items: [] });
+    expect(parsed.categories).toEqual([]);
+    expect(parsed.items).toEqual([]);
+    expect(Object.hasOwn(parsed, "parts")).toBe(false);
+  });
+
+  it("rejects a missing category at each contextual location independently", () => {
+    expect(() => BlocksElementSchema.parse(base([{ id: "root", categoryId: "missing", shape: "statement", parts: [], children: [] }]))).toThrow();
+    expect(() => BlocksElementSchema.parse(base([{ id: "scope", categoryId: "motion", shape: "scope", parts: [], children: [{ id: "child", categoryId: "missing", shape: "statement", parts: [], children: [] }] }]))).toThrow();
+    expect(() => BlocksElementSchema.parse(base([{ id: "root", categoryId: "motion", shape: "statement", parts: [{ id: "socket", type: "socket", content: { type: "block", block: { ...value("nested"), categoryId: "missing" } } }], children: [] }]))).toThrow();
   });
 });
