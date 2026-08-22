@@ -124,6 +124,17 @@ const englishMessages = {
   "embed.canvasHelp":
     "Embedded content is non-interactive on the Studio canvas. Use Preview or Player to test interaction.",
 
+  "scripted.title": "Title",
+  "scripted.html": "HTML",
+  "scripted.css": "CSS",
+  "scripted.javascript": "JavaScript",
+  "scripted.applyRun": "Apply / Run",
+  "scripted.titleRequired": "Enter a title.",
+  "scripted.applyHelp":
+    "Changes to HTML, CSS, and JavaScript are applied only when you choose Apply / Run.",
+  "scripted.sandboxHelp": "Scripted content runs in an isolated sandbox.",
+  "scripted.reset": "Reset",
+
   "elementCrud.add": "+ Add",
   "elementCrud.addInsideContainer": "Adds inside selected container.",
   "elementCrud.addInsideTopicContent": "Adds into the selected topic content.",
@@ -742,6 +753,17 @@ const portugueseMessages = {
   "embed.titleRequired": "Informe um título.",
   "embed.canvasHelp":
     "O conteúdo incorporado não é interativo no canvas do Studio. Use a Prévia ou o Player para testar a interação.",
+
+  "scripted.title": "Título",
+  "scripted.html": "HTML",
+  "scripted.css": "CSS",
+  "scripted.javascript": "JavaScript",
+  "scripted.applyRun": "Aplicar / Executar",
+  "scripted.titleRequired": "Informe um título.",
+  "scripted.applyHelp":
+    "As alterações em HTML, CSS e JavaScript são aplicadas somente ao selecionar Aplicar / Executar.",
+  "scripted.sandboxHelp": "O conteúdo Scripted é executado em um sandbox isolado.",
+  "scripted.reset": "Reverter",
 
   "elementCrud.add": "+ Adicionar",
   "elementCrud.addInsideContainer": "Adiciona dentro do contêiner selecionado.",

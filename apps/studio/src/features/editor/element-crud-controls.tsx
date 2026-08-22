@@ -160,6 +160,10 @@ const insertionDescription =
           <option value="embed">
             {t("element.embed")}
           </option>
+
+          <option value="scripted">
+            {t("element.scripted")}
+          </option>
         </select>
 
 
