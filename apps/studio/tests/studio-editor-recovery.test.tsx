@@ -426,4 +426,96 @@ describe("StudioEditorMount recovery flow", () => {
     expect(container.querySelector('[data-testid="editor-workspace"]')).toBeNull();
     expect(testDeps.editorRendered).not.toHaveBeenCalled();
   });
+
+  it("never lets an old getPresentation result overwrite a newer presentationId", async () => {
+    const oldRequest = deferred<Presentation>();
+
+    const newPresentation = { id: "pres-new", title: "New" } as Presentation;
+
+    testDeps.getPresentation
+      .mockImplementationOnce(() => oldRequest.promise)
+      .mockImplementationOnce(async () => newPresentation);
+
+    act(() => {
+      render("pres-old");
+    });
+
+    // A newer presentationId starts while the old request is pending.
+    act(() => {
+      render("pres-new");
+    });
+    await flush();
+
+    // The old request resolves AFTER the newer one already loaded.
+    await act(async () => {
+      oldRequest.resolve({ id: "pres-old", title: "Old" } as Presentation);
+      await Promise.resolve();
+    });
+
+    expect(testDeps.editorRendered).toHaveBeenCalledTimes(1);
+    const props = testDeps.editorRendered.mock.calls[0]?.[0] as {
+      initialPresentation?: Presentation;
+    };
+    expect(props?.initialPresentation?.id).toBe("pres-new");
+  });
+
+  it("never lets an old recovery inspection overwrite a newer presentationId", async () => {
+    const oldInspection = deferred<PresentationRecoveryInspection>();
+
+    const newPresentation = { id: "pres-new", title: "New" } as Presentation;
+
+    testDeps.getPresentation
+      .mockImplementationOnce(async () => {
+        throw new InvalidPersistedPresentationError("invalid");
+      })
+      .mockImplementationOnce(async () => newPresentation);
+
+    testDeps.inspectPresentationRecovery.mockImplementationOnce(
+      () => oldInspection.promise,
+    );
+
+    act(() => {
+      render("pres-old");
+    });
+    await flush();
+
+    // A newer presentationId starts while the old inspection is pending.
+    act(() => {
+      render("pres-new");
+    });
+    await flush();
+
+    // The old inspection resolves AFTER the newer presentation loaded.
+    await act(async () => {
+      oldInspection.resolve(RECOVERABLE_INSPECTION);
+      await Promise.resolve();
+    });
+
+    expect(testDeps.editorRendered).toHaveBeenCalledTimes(1);
+    const props = testDeps.editorRendered.mock.calls[0]?.[0] as {
+      initialPresentation?: Presentation;
+    };
+    expect(props?.initialPresentation?.id).toBe("pres-new");
+    expect(
+      container.querySelector('[data-powershow-recovery="recoverable"]'),
+    ).toBeNull();
+  });
 });
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}

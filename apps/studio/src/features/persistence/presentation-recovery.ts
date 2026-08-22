@@ -92,12 +92,10 @@ function withTopicsShell(items: Record<string, unknown>[]): Record<string, unkno
   return items.map((item) => ({
     ...item,
     content: {
-      ...(isRecord(item.content) ? item.content : {}),
+      ...(item.content as Record<string, unknown>),
       children: [],
     },
-    children: withTopicsShell(
-      isRecordArray(item.children) ? item.children : [],
-    ),
+    children: withTopicsShell(item.children as Record<string, unknown>[]),
   }));
 }
 
@@ -106,26 +104,20 @@ function withStructuredTableShell(
 ): Record<string, unknown> {
   return {
     ...raw,
-    columns: isRecordArray(raw.columns)
-      ? raw.columns.map((column) => ({
-          ...column,
-          header: {
-            ...(isRecord(column.header) ? column.header : {}),
-            children: [],
-          },
-        }))
-      : [],
-    rows: isRecordArray(raw.rows)
-      ? raw.rows.map((row) => ({
-          ...row,
-          cells: isRecordArray(row.cells)
-            ? row.cells.map((cell) => ({
-                ...cell,
-                children: [],
-              }))
-            : [],
-        }))
-      : [],
+    columns: (raw.columns as Record<string, unknown>[]).map((column) => ({
+      ...column,
+      header: {
+        ...(column.header as Record<string, unknown>),
+        children: [],
+      },
+    })),
+    rows: (raw.rows as Record<string, unknown>[]).map((row) => ({
+      ...row,
+      cells: (row.cells as Record<string, unknown>[]).map((cell) => ({
+        ...cell,
+        children: [],
+      })),
+    })),
   };
 }
 
@@ -271,12 +263,98 @@ function recoverContainer(
   return rebuiltParsed.data;
 }
 
+/**
+ * Structural preconditions for Topics recovery.
+ *
+ * Recovery may neutralize ONLY nested PowerShowElement arrays. Every
+ * structural Topic container must already exist with the correct shape
+ * recursively:
+ *
+ * - item is an object
+ * - item.content is an object
+ * - item.content.children is an array
+ * - item.children is an array
+ *
+ * Missing or wrong-typed structural containers make the WHOLE Topics
+ * element incompatible; no {} / [] fallbacks may be synthesized.
+ */
+function topicItemsStructureIsValid(rawItems: unknown): boolean {
+  if (!isRecordArray(rawItems)) {
+    return false;
+  }
+
+  for (const item of rawItems) {
+    if (!isRecord(item.content) || !Array.isArray(item.content.children)) {
+      return false;
+    }
+
+    if (!Array.isArray(item.children)) {
+      return false;
+    }
+
+    if (!topicItemsStructureIsValid(item.children)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Structural preconditions for structured-table recovery.
+ *
+ * The original structure must already contain:
+ *
+ * - columns array
+ * - every column an object with a header object with a children array
+ * - rows array
+ * - every row an object with a cells array
+ * - every cell an object with a children array
+ *
+ * Missing or wrong-typed containers remove the WHOLE structured table.
+ * Only existing header.children / cell.children PowerShowElement arrays
+ * may be neutralized to [] for shell validation and recursion.
+ */
+function structuredTableStructureIsValid(raw: Record<string, unknown>): boolean {
+  if (!Array.isArray(raw.columns)) {
+    return false;
+  }
+
+  for (const column of raw.columns) {
+    if (
+      !isRecord(column) ||
+      !isRecord(column.header) ||
+      !Array.isArray(column.header.children)
+    ) {
+      return false;
+    }
+  }
+
+  if (!Array.isArray(raw.rows)) {
+    return false;
+  }
+
+  for (const row of raw.rows) {
+    if (!isRecord(row) || !Array.isArray(row.cells)) {
+      return false;
+    }
+
+    for (const cell of row.cells) {
+      if (!isRecord(cell) || !Array.isArray(cell.children)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 function recoverTopics(
   raw: Record<string, unknown>,
   path: (string | number)[],
   issues: RecoveryIssue[],
 ): PowerShowElement | null {
-  if (!isRecordArray(raw.items)) {
+  if (!topicItemsStructureIsValid(raw.items)) {
     return removeElementIssue(
       raw,
       path,
@@ -285,7 +363,11 @@ function recoverTopics(
     );
   }
 
-  const shell = { ...raw, items: withTopicsShell(raw.items) };
+  // The structure gate guarantees every item/content/children container
+  // already exists with the canonical shape.
+  const rawItems = raw.items as Record<string, unknown>[];
+
+  const shell = { ...raw, items: withTopicsShell(rawItems) };
   const shellParsed = PowerShowElementSchema.safeParse(shell);
 
   if (!shellParsed.success) {
@@ -297,7 +379,7 @@ function recoverTopics(
     );
   }
 
-  const items = recoverTopicItems(raw.items, [...path, "items"], issues);
+  const items = recoverTopicItems(rawItems, [...path, "items"], issues);
   const rebuilt = { ...raw, items };
 
   const rebuiltParsed = PowerShowElementSchema.safeParse(rebuilt);
@@ -318,6 +400,10 @@ function recoverTopics(
  * Recurses through TopicItem.content.children (PowerShowElements) and
  * TopicItem.children (nested TopicItems), preserving structurally valid
  * ContentSlots and TopicItems when only nested content fails.
+ *
+ * Structural preconditions are guaranteed by the caller's
+ * topicItemsStructureIsValid gate: every item/content/children container
+ * already exists with the canonical shape.
  */
 function recoverTopicItems(
   rawItems: Record<string, unknown>[],
@@ -329,20 +415,22 @@ function recoverTopicItems(
   rawItems.forEach((rawItem, index) => {
     const itemPath = [...pathBase, index];
 
-    const content = isRecord(rawItem.content) ? rawItem.content : null;
-    const contentChildren = content
-      ? recoverElements(content.children, [...itemPath, "content", "children"], issues)
-      : [];
+    const content = rawItem.content as Record<string, unknown>;
+    const contentChildren = recoverElements(
+      content.children,
+      [...itemPath, "content", "children"],
+      issues,
+    );
 
     const children = recoverTopicItems(
-      isRecordArray(rawItem.children) ? rawItem.children : [],
+      rawItem.children as Record<string, unknown>[],
       [...itemPath, "children"],
       issues,
     );
 
     recoveredItems.push({
       ...rawItem,
-      ...(content ? { content: { ...content, children: contentChildren } } : {}),
+      content: { ...content, children: contentChildren },
       children,
     });
   });
@@ -367,7 +455,7 @@ function recoverTable(
     );
   }
 
-  if (!isRecordArray(raw.columns) || !isRecordArray(raw.rows)) {
+  if (!structuredTableStructureIsValid(raw)) {
     return removeElementIssue(
       raw,
       path,
@@ -388,33 +476,36 @@ function recoverTable(
     );
   }
 
-  const columns = raw.columns.map((column, columnIndex) => {
-    const header = isRecord(column.header) ? column.header : null;
-    const headerChildren = header
-      ? recoverElements(
-          header.children,
-          [...path, "columns", columnIndex, "header", "children"],
-          issues,
-        )
-      : [];
+  // The structure gate above guarantees these arrays and nested
+  // containers already exist with the canonical shapes.
+  const rawColumns = raw.columns as Record<string, unknown>[];
+  const rawRows = raw.rows as Record<string, unknown>[];
+
+  const columns = rawColumns.map((column, columnIndex) => {
+    const header = column.header as Record<string, unknown>;
+    const headerChildren = recoverElements(
+      header.children,
+      [...path, "columns", columnIndex, "header", "children"],
+      issues,
+    );
 
     return {
       ...column,
-      header: header ? { ...header, children: headerChildren } : column.header,
+      header: { ...header, children: headerChildren },
     };
   });
 
-  const rows = raw.rows.map((row, rowIndex) => {
-    const cells = isRecordArray(row.cells)
-      ? row.cells.map((cell, cellIndex) => ({
-          ...cell,
-          children: recoverElements(
-            cell.children,
-            [...path, "rows", rowIndex, "cells", cellIndex, "children"],
-            issues,
-          ),
-        }))
-      : [];
+  const rows = rawRows.map((row, rowIndex) => {
+    const cells = (row.cells as Record<string, unknown>[]).map(
+      (cell, cellIndex) => ({
+        ...cell,
+        children: recoverElements(
+          cell.children,
+          [...path, "rows", rowIndex, "cells", cellIndex, "children"],
+          issues,
+        ),
+      }),
+    );
 
     return { ...row, cells };
   });
@@ -541,6 +632,21 @@ export function analyzePresentationRecovery(
   const issues: RecoveryIssue[] = [];
 
   if (!isRecord(rawPresentation)) {
+    issues.push({
+      kind: "element",
+      path: [],
+      action: "remove",
+      reason: RECOVERY_REASON.invalidPresentationStructure,
+    });
+
+    return { status: "unrecoverable", presentation: null, issues };
+  }
+
+  // slides MUST already be an array. A missing or non-array slides
+  // value is never turned into []: the root shell may neutralize
+  // slides only AFTER the original slides field has been confirmed to
+  // be an array.
+  if (!Array.isArray(rawPresentation.slides)) {
     issues.push({
       kind: "element",
       path: [],

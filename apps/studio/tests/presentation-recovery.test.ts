@@ -120,6 +120,62 @@ describe("presentation recovery analysis", () => {
     expect(analysis.presentation).toBeNull();
   });
 
+  it("classifies a missing slides field as unrecoverable", () => {
+    const raw = {
+      schemaVersion: 1,
+      id: "pres-x",
+      title: "Recovery",
+      description: "",
+      aspectRatio: "16:9",
+    };
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("unrecoverable");
+    expect(analysis.presentation).toBeNull();
+    expect(analysis.issues[0]?.reason).toBe(
+      RECOVERY_REASON.invalidPresentationStructure,
+    );
+  });
+
+  it("classifies a non-array slides string as unrecoverable", () => {
+    const raw = {
+      schemaVersion: 1,
+      id: "pres-x",
+      title: "Recovery",
+      description: "",
+      aspectRatio: "16:9",
+      slides: "invalid",
+    };
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("unrecoverable");
+    expect(analysis.presentation).toBeNull();
+    expect(analysis.issues[0]?.reason).toBe(
+      RECOVERY_REASON.invalidPresentationStructure,
+    );
+  });
+
+  it("classifies a non-array slides object as unrecoverable", () => {
+    const raw = {
+      schemaVersion: 1,
+      id: "pres-x",
+      title: "Recovery",
+      description: "",
+      aspectRatio: "16:9",
+      slides: {},
+    };
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("unrecoverable");
+    expect(analysis.presentation).toBeNull();
+    expect(analysis.issues[0]?.reason).toBe(
+      RECOVERY_REASON.invalidPresentationStructure,
+    );
+  });
+
   it("removes an invalid leaf element while preserving its slide", () => {
     const raw = rawWithSlides([
       validSlide("slide-1", [validText("a"), invalidText("b")]),
@@ -332,6 +388,84 @@ describe("presentation recovery analysis", () => {
     });
   });
 
+  it.each([
+    ["TopicItem missing children", { children: undefined }],
+    ["TopicItem children non-array", { children: "wrong" }],
+    ["content missing", { content: undefined }],
+    ["content.children missing", { content: { id: "slot" } }],
+    ["content.children non-array", { content: { id: "slot", children: "wrong" } }],
+  ])("removes the whole Topics element when %s", (_label, mutation) => {
+    const topicItem = {
+      id: "topic-a",
+      content: { id: "slot-a", children: [validText("kept")] },
+      children: [],
+      ...mutation,
+    };
+
+    const raw = rawWithSlides([
+      validSlide("slide-1", [
+        {
+          id: "topics-1",
+          type: "topics",
+          kind: "unordered",
+          hidden: false,
+          items: [topicItem],
+        },
+        validText("after"),
+      ]),
+    ]);
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation?.slides[0]?.elements.map((e) => e.id)).toEqual([
+      "after",
+    ]);
+    expect(analysis.issues).toHaveLength(1);
+    expect(analysis.issues[0]).toMatchObject({
+      kind: "element",
+      id: "topics-1",
+      elementType: "topics",
+      reason: RECOVERY_REASON.invalidTopicsStructure,
+    });
+  });
+
+  it("removes the whole Topics element when a nested TopicItem lacks structure", () => {
+    const raw = rawWithSlides([
+      validSlide("slide-1", [
+        {
+          id: "topics-1",
+          type: "topics",
+          kind: "unordered",
+          hidden: false,
+          items: [
+            {
+              id: "topic-a",
+              content: { id: "slot-a", children: [] },
+              children: [
+                {
+                  id: "topic-nested",
+                  content: { id: "slot-nested", children: [] },
+                  // nested children must be an array
+                  children: "wrong",
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+    ]);
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.presentation?.slides[0]?.elements).toEqual([]);
+    expect(analysis.issues[0]).toMatchObject({
+      kind: "element",
+      id: "topics-1",
+      reason: RECOVERY_REASON.invalidTopicsStructure,
+    });
+  });
+
   it("prunes invalid elements from structured table headers and cells", () => {
     const raw = rawWithSlides([
       validSlide("slide-1", [
@@ -419,6 +553,69 @@ describe("presentation recovery analysis", () => {
     expect(analysis.issues[0]).toMatchObject({
       kind: "element",
       id: "table-broken",
+      reason: RECOVERY_REASON.invalidStructuredTable,
+    });
+  });
+
+  it.each([
+    ["columns missing", { columns: undefined }],
+    ["columns non-array", { columns: "wrong" }],
+    ["column not an object", { columns: ["wrong"] }],
+    ["column.header missing", { columns: [{ id: "col-1" }] }],
+    ["column.header not an object", { columns: [{ id: "col-1", header: "wrong" }] }],
+    ["column.header.children missing", {
+      columns: [{ id: "col-1", header: { id: "header-1" } }],
+    }],
+    ["column.header.children non-array", {
+      columns: [{ id: "col-1", header: { id: "header-1", children: "wrong" } }],
+    }],
+    ["rows missing", { rows: undefined }],
+    ["rows non-array", { rows: "wrong" }],
+    ["row not an object", { rows: ["wrong"] }],
+    ["row.cells missing", { rows: [{ id: "row-1" }] }],
+    ["row.cells non-array", { rows: [{ id: "row-1", cells: "wrong" }] }],
+    ["cell not an object", { rows: [{ id: "row-1", cells: ["wrong"] }] }],
+    ["cell.children missing", {
+      rows: [{ id: "row-1", cells: [{ id: "cell-1" }] }],
+    }],
+    ["cell.children non-array", {
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: "wrong" }] }],
+    }],
+  ])("removes the whole structured table when %s", (_label, mutation) => {
+    const table = {
+      id: "table-1",
+      type: "table",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      columns: [
+        {
+          id: "col-1",
+          header: { id: "header-1", children: [validText("header-kept")] },
+        },
+      ],
+      rows: [
+        {
+          id: "row-1",
+          cells: [{ id: "cell-1", children: [validText("cell-kept")] }],
+        },
+      ],
+      ...mutation,
+    };
+
+    const raw = rawWithSlides([
+      validSlide("slide-1", [table, validText("after")]),
+    ]);
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.presentation?.slides[0]?.elements.map((e) => e.id)).toEqual([
+      "after",
+    ]);
+    expect(analysis.issues[0]).toMatchObject({
+      kind: "element",
+      id: "table-1",
+      elementType: "table",
       reason: RECOVERY_REASON.invalidStructuredTable,
     });
   });

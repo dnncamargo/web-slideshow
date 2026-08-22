@@ -72,12 +72,26 @@ export function StudioEditorMount({
 }: StudioEditorMountProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
-  const cancelledRef = useRef(false);
+  // Mount-lifetime guard for the user-triggered repair request. Unlike a
+  // request cancellation flag, it is never reset by later effects: it
+  // only tracks whether the component is still mounted.
+  const mountedRef = useRef(true);
   const [status, setStatus] = useState<EditorStatus>({ kind: "loading" });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
-    cancelledRef.current = false;
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Per-effect cancellation: a newer presentationId effect creates its
+    // own closure flag, so an older request can never update state after
+    // a newer effect has started.
+    let cancelled = false;
 
     if (presentationId === null) {
       router.replace(STUDIO_ROUTES.library);
@@ -91,7 +105,7 @@ export function StudioEditorMount({
     repository
       .getPresentation(presentationId)
       .then((presentation) => {
-        if (cancelledRef.current) {
+        if (cancelled) {
           return;
         }
 
@@ -104,7 +118,7 @@ export function StudioEditorMount({
         setStatus({ kind: "loaded", presentation });
       })
       .catch((error) => {
-        if (cancelledRef.current) {
+        if (cancelled) {
           return;
         }
 
@@ -122,7 +136,7 @@ export function StudioEditorMount({
         repository
           .inspectPresentationRecovery(presentationId)
           .then((inspection) => {
-            if (!cancelledRef.current) {
+            if (!cancelled) {
               setStatus({ kind: "recovery", inspection });
             }
           })
@@ -132,14 +146,14 @@ export function StudioEditorMount({
               inspectionError,
             );
 
-            if (!cancelledRef.current) {
+            if (!cancelled) {
               setStatus({ kind: "error" });
             }
           });
       });
 
     return () => {
-      cancelledRef.current = true;
+      cancelled = true;
     };
   }, [presentationId, router]);
 
@@ -153,14 +167,14 @@ export function StudioEditorMount({
     repository
       .repairPresentation(presentationId)
       .then((result) => {
-        if (!cancelledRef.current) {
+        if (mountedRef.current) {
           setStatus({ kind: "loaded", presentation: result.presentation });
         }
       })
       .catch((error) => {
         console.error(`Failed to repair presentation "${presentationId}"`, error);
 
-        if (cancelledRef.current) {
+        if (!mountedRef.current) {
           return;
         }
 
