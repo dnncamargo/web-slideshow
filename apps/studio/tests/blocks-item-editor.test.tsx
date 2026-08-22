@@ -8,6 +8,7 @@ import type {
   BlockItem,
   BlockPart,
   BlocksElement,
+  PowerShowElement,
 } from "@powershow/document-schema";
 
 import { BlocksItemEditor } from "../src/features/editor/inspector/blocks-item-editor";
@@ -459,6 +460,62 @@ describe("BlocksItemEditor", () => {
     }
   });
 
+  it("edits a text part with a deferred updater after the event finishes", () => {
+    elementState = blocks(
+      [category("cat")],
+      [statement("s1", "cat", [textPart("p1", "New block")])],
+    );
+    updates = [];
+    controls = {
+      onAddRootBlock: vi.fn(() => null),
+      onAddScopeChild: vi.fn(() => null),
+      onAddTextPart: vi.fn(() => null),
+      onAddSocketPart: vi.fn(() => null),
+      onCreateSocketValue: vi.fn(() => null),
+    };
+
+    let capturedUpdate:
+      | ((element: PowerShowElement) => PowerShowElement)
+      | undefined;
+    act(() => {
+      root.render(
+        <BlocksItemEditor
+          element={elementState}
+          onUpdate={(update) => {
+            capturedUpdate = update;
+          }}
+          blocksAuthoringControls={controls}
+          labels={LABELS}
+        />,
+      );
+    });
+
+    const input = textInput("s1");
+    if (!input) {
+      throw new Error("Text part input not found");
+    }
+
+    changeTextInput(input, "Renamed block");
+
+    expect(capturedUpdate).toBeDefined();
+    expect(() => {
+      const update = capturedUpdate;
+      if (!update) {
+        throw new Error("Deferred updater not captured");
+      }
+      const next = update(elementState);
+      if (next.type === "blocks") {
+        elementState = next;
+      }
+    }).not.toThrow();
+
+    const part = firstItem()?.parts[0];
+    expect(part?.type).toBe("text");
+    if (part?.type === "text") {
+      expect(part.text).toBe("Renamed block");
+    }
+  });
+
   it("reorders text and socket parts within a block", () => {
     mount(
       blocks(
@@ -552,6 +609,62 @@ describe("BlocksItemEditor", () => {
     }
 
     changeTextInput(input, "42");
+
+    const part = firstItem()?.parts[0];
+    expect(part?.type).toBe("socket");
+    if (part?.type === "socket") {
+      expect(part.content).toEqual({ type: "literal", value: "42" });
+    }
+  });
+
+  it("edits a literal with a deferred updater after the event finishes", () => {
+    elementState = blocks(
+      [category("cat")],
+      [statement("s1", "cat", [socketLiteralPart("sock1", "5")])],
+    );
+    updates = [];
+    controls = {
+      onAddRootBlock: vi.fn(() => null),
+      onAddScopeChild: vi.fn(() => null),
+      onAddTextPart: vi.fn(() => null),
+      onAddSocketPart: vi.fn(() => null),
+      onCreateSocketValue: vi.fn(() => null),
+    };
+
+    let capturedUpdate:
+      | ((element: PowerShowElement) => PowerShowElement)
+      | undefined;
+    act(() => {
+      root.render(
+        <BlocksItemEditor
+          element={elementState}
+          onUpdate={(update) => {
+            capturedUpdate = update;
+          }}
+          blocksAuthoringControls={controls}
+          labels={LABELS}
+        />,
+      );
+    });
+
+    const input = literalInput("sock1");
+    if (!input) {
+      throw new Error("Literal input not found");
+    }
+
+    changeTextInput(input, "42");
+
+    expect(capturedUpdate).toBeDefined();
+    expect(() => {
+      const update = capturedUpdate;
+      if (!update) {
+        throw new Error("Deferred updater not captured");
+      }
+      const next = update(elementState);
+      if (next.type === "blocks") {
+        elementState = next;
+      }
+    }).not.toThrow();
 
     const part = firstItem()?.parts[0];
     expect(part?.type).toBe("socket");

@@ -414,12 +414,13 @@ function BlockPartRow({
             data-powershow-part-text="true"
             value={part.text}
             onChange={(event) => {
+              const value = event.currentTarget.value;
               updateBlocks((current) =>
                 updateBlockTextPartText(
                   current,
                   owner.id,
                   part.id,
-                  event.currentTarget.value,
+                  value,
                 ),
               );
             }}
@@ -498,12 +499,13 @@ function BlockPartRow({
             data-powershow-part-socket-literal-input="true"
             value={part.content.value}
             onChange={(event) => {
+              const value = event.currentTarget.value;
               updateBlocks((current) =>
                 setSocketContentLiteral(
                   current,
                   owner.id,
                   part.id,
-                  event.currentTarget.value,
+                  value,
                 ),
               );
             }}
