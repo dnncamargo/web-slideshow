@@ -76,6 +76,17 @@ function textElement(id: string, content: string): PowerShowElement {
   };
 }
 
+function imageElement(id: string): PowerShowElement {
+  return {
+    type: "image",
+    id,
+    hidden: false,
+    src: "/assets/example.png",
+    alt: "Example image",
+    fit: "contain",
+  };
+}
+
 function containerElement(
   id: string,
   children: PowerShowElement[],
@@ -328,6 +339,8 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
     const source = slide("slide-1", [
       topicsElement("topics-1", [
         topicItem("topic-a", "slot-a", [
+          textElement("slot-text", "Keep me"),
+          imageElement("slot-image"),
           blocksElement("topic-blocks", [
             blockItem("t-step-1", "A", [blockItem("t-step-2", "B")]),
           ]),
@@ -341,7 +354,35 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
     expect(topics?.type).toBe("topics");
 
-    const blocks = (topics as TopicsElement).items[0]?.content.children[0];
+    expect(topics?.id).toBe("topics-1-copy");
+
+    const t = topics as TopicsElement;
+
+    const item = t.items[0];
+
+    // TopicItem + ContentSlot structural ids are preserved.
+    expect(item?.id).toBe("topic-a");
+
+    expect(item?.content.id).toBe("slot-a");
+
+    const slotChildren = item?.content.children ?? [];
+
+    // Unrelated Text/Image ids and content are preserved.
+    const text = slotChildren.find((child) => child.type === "text");
+
+    if (text?.type === "text") {
+      expect(text.id).toBe("slot-text");
+
+      expect(text.content).toBe("Keep me");
+    }
+
+    const image = slotChildren.find((child) => child.type === "image");
+
+    if (image?.type === "image") {
+      expect(image.id).toBe("slot-image");
+    }
+
+    const blocks = slotChildren.find((child) => child.type === "blocks");
 
     expectBlocksRenewed(
       blocks,
@@ -363,6 +404,7 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
   it("renews Blocks ids inside a nested TopicItem ContentSlot", () => {
     const nested = topicItem("topic-a-child", "slot-a-child", [
+      textElement("nested-slot-text", "Keep"),
       blocksElement("nested-blocks", [blockItem("n-step-1", "N1")]),
     ]);
 
@@ -374,12 +416,27 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
     const duplicated = duplicateSlideWithUniqueIds(source, [source]);
 
-    const topics = duplicated.elements[0];
+    const topics = duplicated.elements[0] as TopicsElement;
 
-    expect(topics?.type).toBe("topics");
+    expect(topics.id).toBe("topics-1-copy");
 
-    const blocks = (topics as TopicsElement).items[0]?.children[0]?.content
-      .children[0];
+    const nestedItem = topics.items[0]?.children[0];
+
+    // Nested TopicItem + ContentSlot structural ids are preserved.
+    expect(nestedItem?.id).toBe("topic-a-child");
+
+    expect(nestedItem?.content.id).toBe("slot-a-child");
+
+    const children = nestedItem?.content.children ?? [];
+
+    // Unrelated Text preserved.
+    const text = children.find((child) => child.type === "text");
+
+    if (text?.type === "text") {
+      expect(text.id).toBe("nested-slot-text");
+    }
+
+    const blocks = children.find((child) => child.type === "blocks");
 
     expectBlocksRenewed(blocks, "nested-blocks", {
       "n-step-1": "n-step-1-copy",
@@ -393,7 +450,10 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
   it("renews Blocks ids inside a Structured Table header ContentSlot", () => {
     const source = slide("slide-1", [
       structuredTable(
-        [blocksElement("header-blocks", [blockItem("h-step", "H")])],
+        [
+          textElement("header-text", "Header"),
+          blocksElement("header-blocks", [blockItem("h-step", "H")]),
+        ],
         [],
       ),
     ]);
@@ -404,8 +464,27 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
     expect(table?.type).toBe("table");
 
-    const blocks = (table as StructuredTableElement).columns[0]?.header
-      .children[0];
+    const t = table as StructuredTableElement;
+
+    // Table root renews (normal slide clone path), structural ids preserved.
+    expect(t.id).toBe("table-1-copy");
+
+    expect(t.columns[0]?.id).toBe("col-1");
+
+    expect(t.columns[0]?.header.id).toBe("header-slot-1");
+
+    const headerChildren = t.columns[0]?.header.children ?? [];
+
+    // Unrelated Text id preserved.
+    const text = headerChildren.find((child) => child.type === "text");
+
+    if (text?.type === "text") {
+      expect(text.id).toBe("header-text");
+
+      expect(text.content).toBe("Header");
+    }
+
+    const blocks = headerChildren.find((child) => child.type === "blocks");
 
     expectBlocksRenewed(blocks, "header-blocks", {
       "h-step": "h-step-copy",
@@ -420,7 +499,10 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
     const source = slide("slide-1", [
       structuredTable(
         [],
-        [blocksElement("cell-blocks", [blockItem("cell-step", "C")])],
+        [
+          textElement("cell-text", "Cell"),
+          blocksElement("cell-blocks", [blockItem("cell-step", "C")]),
+        ],
       ),
     ]);
 
@@ -430,8 +512,25 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
     expect(table?.type).toBe("table");
 
-    const blocks = (table as StructuredTableElement).rows[0]?.cells[0]
-      ?.children[0];
+    const t = table as StructuredTableElement;
+
+    // Row and cell structural ids are preserved.
+    expect(t.rows[0]?.id).toBe("row-1");
+
+    expect(t.rows[0]?.cells[0]?.id).toBe("cell-1");
+
+    const cellChildren = t.rows[0]?.cells[0]?.children ?? [];
+
+    // Unrelated Text id preserved.
+    const text = cellChildren.find((child) => child.type === "text");
+
+    if (text?.type === "text") {
+      expect(text.id).toBe("cell-text");
+
+      expect(text.content).toBe("Cell");
+    }
+
+    const blocks = cellChildren.find((child) => child.type === "blocks");
 
     expectBlocksRenewed(blocks, "cell-blocks", {
       "cell-step": "cell-step-copy",
@@ -447,6 +546,7 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
       topicsElement("topics-1", [
         topicItem("topic-a", "slot-a", [
           containerElement("topic-container", [
+            textElement("container-text", "Keep me"),
             blocksElement("deep-blocks", [
               blockItem("d-step-1", "D1", [blockItem("d-step-2", "D2")]),
             ]),
@@ -461,15 +561,36 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
     expect(topics?.type).toBe("topics");
 
+    expect(topics?.id).toBe("topics-1-copy");
+
     const container = (topics as TopicsElement).items[0]?.content
       .children[0];
 
+    // The Topics root renews through the normal slide clone path, but a
+    // Container inside a ContentSlot keeps its id: the ContentSlot
+    // traversal only renews Blocks.
     expect(container?.type).toBe("container");
 
-    expect(container?.id).toBe("topic-container-copy");
+    expect(container?.id).toBe("topic-container");
 
-    const blocks = (container as PowerShowElement & { children?: PowerShowElement[] })
-      ?.children?.[0];
+    const containerChildren =
+      (container as PowerShowElement & { children?: PowerShowElement[] })
+        ?.children ?? [];
+
+    // Unrelated Text inside the container is preserved.
+    const innerText = containerChildren.find(
+      (child) => child.type === "text",
+    );
+
+    if (innerText?.type === "text") {
+      expect(innerText.id).toBe("container-text");
+
+      expect(innerText.content).toBe("Keep me");
+    }
+
+    const blocks = containerChildren.find(
+      (child) => child.type === "blocks",
+    );
 
     expectBlocksRenewed(
       blocks,
@@ -485,6 +606,103 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
       expect(blocks.items[0]?.children[0]?.text).toBe("D2");
     }
+  });
+
+  it("renews Blocks below a Topics element nested inside a ContentSlot while preserving the nested Topics id", () => {
+    const innerTopics = topicsElement("inner-topics", [
+      topicItem("inner-topic-a", "inner-slot-a", [
+        textElement("inner-topic-text", "Keep"),
+        blocksElement("inner-topic-blocks", [blockItem("it-step", "IT")]),
+      ]),
+    ]);
+
+    const source = slide("slide-1", [
+      topicsElement("topics-1", [
+        topicItem("topic-a", "slot-a", [innerTopics as PowerShowElement]),
+      ]),
+    ]);
+
+    const duplicated = duplicateSlideWithUniqueIds(source, [source]);
+
+    const topics = duplicated.elements[0] as TopicsElement;
+
+    expect(topics.id).toBe("topics-1-copy");
+
+    const inner = topics.items[0]?.content.children.find(
+      (child) => child.type === "topics",
+    );
+
+    // Nested Topics PowerShowElement id is preserved.
+    expect(inner?.type).toBe("topics");
+
+    if (inner?.type === "topics") {
+      expect(inner.id).toBe("inner-topics");
+
+      // Inner TopicItem/ContentSlot structural ids preserved.
+      expect(inner.items[0]?.id).toBe("inner-topic-a");
+
+      expect(inner.items[0]?.content.id).toBe("inner-slot-a");
+
+      const children = inner.items[0]?.content.children ?? [];
+
+      const text = children.find((child) => child.type === "text");
+
+      if (text?.type === "text") {
+        expect(text.id).toBe("inner-topic-text");
+      }
+
+      const blocks = children.find((child) => child.type === "blocks");
+
+      expectBlocksRenewed(blocks, "inner-topic-blocks", {
+        "it-step": "it-step-copy",
+      });
+    }
+  });
+
+  it("renews Blocks below a Structured Table nested inside a ContentSlot while preserving the nested Table id", () => {
+    const source = slide("slide-1", [
+      topicsElement("topics-1", [
+        topicItem("topic-a", "slot-a", [
+          structuredTable(
+            [textElement("nested-header-text", "Keep"), blocksElement("nested-table-blocks", [blockItem("nt-step", "NT")])],
+            [],
+            "nested-table",
+          ),
+        ]),
+      ]),
+    ]);
+
+    const duplicated = duplicateSlideWithUniqueIds(source, [source]);
+
+    const topics = duplicated.elements[0] as TopicsElement;
+
+    expect(topics.id).toBe("topics-1-copy");
+
+    const nestedTable = topics.items[0]?.content.children.find(
+      (child) => child.type === "table" && child.mode === "structured",
+    ) as StructuredTableElement | undefined;
+
+    // Nested Table PowerShowElement id is preserved.
+    expect(nestedTable?.id).toBe("nested-table");
+
+    // Column/header structural ids preserved.
+    expect(nestedTable?.columns[0]?.id).toBe("col-1");
+
+    expect(nestedTable?.columns[0]?.header.id).toBe("header-slot-1");
+
+    const headerChildren = nestedTable?.columns[0]?.header.children ?? [];
+
+    const text = headerChildren.find((child) => child.type === "text");
+
+    if (text?.type === "text") {
+      expect(text.id).toBe("nested-header-text");
+    }
+
+    const blocks = headerChildren.find((child) => child.type === "blocks");
+
+    expectBlocksRenewed(blocks, "nested-table-blocks", {
+      "nt-step": "nt-step-copy",
+    });
   });
 
   it("avoids collisions for nested Blocks `-copy` ids already present elsewhere", () => {
@@ -567,7 +785,7 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
     });
   });
 
-  it("keeps unrelated non-Blocks slot content unchanged aside from the element id convention", () => {
+  it("preserves unrelated non-Blocks slot content ids inside a Topic ContentSlot", () => {
     const source = slide("slide-1", [
       topicsElement("topics-1", [
         topicItem("topic-a", "slot-a", [
@@ -581,22 +799,24 @@ describe("duplicateSlideWithUniqueIds with Blocks", () => {
 
     const topics = duplicated.elements[0] as TopicsElement;
 
+    // Topics root id renews (normal slide clone path).
+    expect(topics.id).toBe("topics-1-copy");
+
     const slotChildren = topics.items[0]?.content.children ?? [];
 
-    // TopicItem / ContentSlot structural ids are preserved by the
-    // existing duplicate-slide implementation.
+    // TopicItem / ContentSlot structural ids are preserved.
     expect(topics.items[0]?.id).toBe("topic-a");
 
     expect(topics.items[0]?.content.id).toBe("slot-a");
 
     const text = slotChildren.find((child) => child.type === "text");
 
-    // Text content is preserved; its element id is renewed under the
-    // same `-copy` convention every reachable PowerShowElement receives.
+    // Unrelated Text id and content are preserved: the ContentSlot
+    // traversal only renews Blocks.
     expect(text?.type).toBe("text");
 
     if (text?.type === "text") {
-      expect(text.id).toBe("slot-text-copy");
+      expect(text.id).toBe("slot-text");
 
       expect(text.content).toBe("Before");
     }
