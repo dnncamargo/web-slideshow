@@ -55,6 +55,7 @@ describe("canvas resize helpers", () => {
         type: "blocks",
         id: "blocks",
         hidden: false,
+        categories: [],
         items: [],
       }),
     ).toBe(true);

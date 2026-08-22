@@ -429,13 +429,21 @@ export function removeTopicItemFromTopicItems(
  */
 export const MAX_BLOCK_STRUCTURAL_DEPTH = 5;
 
-function buildDefaultBlockItem(usedIds: Set<string>): BlockItem {
+function buildDefaultBlockItem(usedIds: Set<string>, categoryId = "block-category"): BlockItem {
   const id = createUniqueId("block-item", usedIds);
   usedIds.add(id);
+  const partId = createUniqueId("block-part", usedIds);
+  usedIds.add(partId);
 
   return {
     id,
-    text: "New block",
+    categoryId,
+    shape: "statement",
+    parts: [{
+      id: partId,
+      type: "text",
+      text: "New block",
+    }],
     children: [],
   };
 }
@@ -580,48 +588,6 @@ export function appendChildBlockItemToBlocks(
       items,
     };
   });
-}
-
-export function updateBlockItemText(
-  items: readonly BlockItem[],
-  blockItemId: string,
-  text: string,
-): BlockItem[] {
-  let changed = false;
-
-  const nextItems = items.map((currentItem) => {
-    if (currentItem.id === blockItemId) {
-      if (currentItem.text === text) {
-        return currentItem;
-      }
-
-      changed = true;
-
-      return {
-        ...currentItem,
-        text,
-      };
-    }
-
-    const children = updateBlockItemText(
-      currentItem.children,
-      blockItemId,
-      text,
-    );
-
-    if (children === currentItem.children) {
-      return currentItem;
-    }
-
-    changed = true;
-
-    return {
-      ...currentItem,
-      children,
-    };
-  });
-
-  return changed ? nextItems : (items as BlockItem[]);
 }
 
 export function removeBlockItemFromBlockItems(
@@ -1097,7 +1063,9 @@ export function createElement(
     }
 
     case "blocks": {
-      const createdItem = buildDefaultBlockItem(usedIds);
+      const categoryId = createUniqueId("block-category", usedIds);
+      usedIds.add(categoryId);
+      const createdItem = buildDefaultBlockItem(usedIds, categoryId);
 
       return {
         id: createUniqueId("blocks-element", usedIds),
@@ -1105,6 +1073,12 @@ export function createElement(
         type: "blocks",
 
         hidden: false,
+
+        categories: [{
+          id: categoryId,
+          name: "Block",
+          color: "#6366f1",
+        }],
 
         items: [createdItem],
       } satisfies BlocksElement;
@@ -1172,9 +1146,26 @@ function cloneBlockItemWithUniqueIds(
   const id = createUniqueId(`${item.id}-copy`, usedIds);
   usedIds.add(id);
 
+  const parts = item.parts.map((part) => {
+    const partId = createUniqueId(`${part.id}-copy`, usedIds);
+    usedIds.add(partId);
+    if (part.type !== "socket" || part.content.type !== "block") {
+      return { ...part, id: partId };
+    }
+    return {
+      ...part,
+      id: partId,
+      content: {
+        type: "block" as const,
+        block: cloneBlockItemWithUniqueIds(part.content.block, usedIds),
+      },
+    };
+  });
+
   return {
     ...item,
     id,
+    parts,
     children: item.children.map((child) =>
       cloneBlockItemWithUniqueIds(child, usedIds),
     ),

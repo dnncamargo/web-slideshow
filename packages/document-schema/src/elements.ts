@@ -267,27 +267,127 @@ export const EmbedElementSchema =
 export type EmbedElement =
   z.infer<typeof EmbedElementSchema>;
 
+export type BlockShape = "statement" | "value" | "scope";
+
+export type BlockCategory = {
+  id: string;
+  name: string;
+  color: z.infer<typeof ColorSchema>;
+};
+
+export type BlockTextPart = {
+  id: string;
+  type: "text";
+  text: string;
+};
+
+export type BlockSocketContent =
+  | { type: "empty" }
+  | { type: "literal"; value: string }
+  | { type: "block"; block: BlockItem };
+
+export type BlockSocketPart = {
+  id: string;
+  type: "socket";
+  content: BlockSocketContent;
+};
+
+export type BlockPart = BlockTextPart | BlockSocketPart;
+
 export type BlockItem = {
   id: string;
-  text: string;
+  categoryId: string;
+  shape: BlockShape;
+  parts: BlockPart[];
   children: BlockItem[];
 };
 
-export const BlockItemSchema:
-  z.ZodType<BlockItem> =
-  z.lazy(() =>
-    z.object({
-      id: ElementIdSchema,
-      text: z.string(),
-      children: z.array(BlockItemSchema),
-    }),
-  );
+export const BlockShapeSchema = z.enum(["statement", "value", "scope"]);
 
-export const BlocksElementSchema =
-  BaseElementSchema.extend({
-    type: z.literal("blocks"),
-    items: z.array(BlockItemSchema),
+export const BlockCategorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  color: ColorSchema,
+});
+
+const BlockTextPartSchema = z.object({
+  id: ElementIdSchema,
+  type: z.literal("text"),
+  text: z.string(),
+});
+
+const BlockSocketContentSchema: z.ZodType<BlockSocketContent> = z.lazy(() =>
+  z.union([
+    z.object({ type: z.literal("empty") }),
+    z.object({ type: z.literal("literal"), value: z.string() }),
+    z.object({ type: z.literal("block"), block: BlockItemSchema }),
+  ]),
+);
+
+const BlockSocketPartSchema = z.object({
+  id: ElementIdSchema,
+  type: z.literal("socket"),
+  content: BlockSocketContentSchema,
+});
+
+export const BlockPartSchema: z.ZodType<BlockPart> = z.union([
+  BlockTextPartSchema,
+  BlockSocketPartSchema,
+]);
+
+export const BlockItemSchema: z.ZodType<BlockItem> = z.lazy(() =>
+  z.object({
+    id: ElementIdSchema,
+    categoryId: z.string(),
+    shape: BlockShapeSchema,
+    parts: z.array(BlockPartSchema),
+    children: z.array(BlockItemSchema),
+  }),
+);
+
+export const BlocksElementSchema = BaseElementSchema.extend({
+  type: z.literal("blocks"),
+  categories: z.array(BlockCategorySchema),
+  items: z.array(BlockItemSchema),
+}).superRefine((element, context) => {
+  const categoryIds = new Set<string>();
+  element.categories.forEach((category, index) => {
+    if (categoryIds.has(category.id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["categories", index, "id"],
+        message: "Block category ids must be unique within a BlocksElement.",
+      });
+    }
+    categoryIds.add(category.id);
   });
+
+  const visit = (item: BlockItem, path: (string | number)[], root: boolean, scopeChild: boolean) => {
+    if (!categoryIds.has(item.categoryId)) {
+      context.addIssue({ code: "custom", path: [...path, "categoryId"], message: "Block category reference does not resolve." });
+    }
+    if (root && item.shape === "value") {
+      context.addIssue({ code: "custom", path: [...path, "shape"], message: "A root block cannot have value shape." });
+    }
+    if (scopeChild && item.shape === "value") {
+      context.addIssue({ code: "custom", path: [...path, "shape"], message: "A scope child cannot have value shape." });
+    }
+    if ((item.shape === "statement" || item.shape === "value") && item.children.length > 0) {
+      context.addIssue({ code: "custom", path: [...path, "children"], message: `${item.shape} blocks cannot have children.` });
+    }
+    item.parts.forEach((part, partIndex) => {
+      if (part.type === "socket" && part.content.type === "block") {
+        visit(part.content.block, [...path, "parts", partIndex, "content", "block"], false, false);
+        if (part.content.block.shape !== "value") {
+          context.addIssue({ code: "custom", path: [...path, "parts", partIndex, "content", "block", "shape"], message: "Socket blocks must have value shape." });
+        }
+      }
+    });
+    item.children.forEach((child, childIndex) => visit(child, [...path, "children", childIndex], false, true));
+  };
+
+  element.items.forEach((item, index) => visit(item, ["items", index], true, false));
+});
 
 export type BlocksElement =
   z.infer<typeof BlocksElementSchema>;

@@ -1,133 +1,47 @@
-import type {
-  BlockItem,
-  BlocksElement,
-} from "@powershow/document-schema";
-
+import type { BlockItem, BlockPart, BlocksElement } from "@powershow/document-schema";
 import { escapeHtml } from "./escape-html";
 import { renderStyle } from "./render-style";
 
-// ============================================================
-// BEGIN: BLOCKS STATIC RENDERER
-//
-// Blocks is a native visual code representation. It is NOT
-// Blockly, NOT Scripted, NOT executable, and NOT a PowerShow
-// container.
-//
-// The renderer output is completely static: no scripts, no event
-// handlers, no eval/Function, no Blockly runtime, and no generated
-// executable code.
-//
-// Renderer-owned structural styles below make nested blocks
-// visibly read as blocks. The authored ElementStyle on the root
-// remains authoritative and is applied through renderStyle().
-//
-// Each BlockItem renders as a structural node that separates the
-// visual block (powershow-blocks-item) from its recursive children
-// group (powershow-blocks-children). The children group is a
-// sibling AFTER the visual item inside the node, so a parent's
-// bordered visual block never encloses its descendant subtree.
-// ============================================================
+const BLOCK_CONNECTOR_WIDTH = 14;
+const BLOCK_CONNECTOR_HEIGHT = 5;
+const BLOCK_STACK_OVERLAP = 4;
+const SCOPE_INDENT = 18;
+const SCOPE_CLOSING_WIDTH = 72;
+const FALLBACK_CATEGORY_COLOR = "#64748b";
 
-// Root/list: vertical stack with a small gap between root items,
-// aligned to the start of the cross axis so automatic-width blocks
-// size naturally to their content.
-const BLOCKS_LIST_STYLE =
-  "display:flex;flex-direction:column;" +
-  "gap:8px;align-items:flex-start";
+const stackStyle = "display:flex;flex-direction:column;align-items:flex-start;" +
+  `--powershow-connector-width:${BLOCK_CONNECTOR_WIDTH}px;--powershow-connector-height:${BLOCK_CONNECTOR_HEIGHT}px;--powershow-stack-overlap:${BLOCK_STACK_OVERLAP}px;`;
+const blockStyle = "position:relative;box-sizing:border-box;max-width:100%;font:500 13px/1.35 system-ui,sans-serif;color:#fff;padding:8px 12px 9px;border:0;border-radius:6px;box-shadow:inset 0 1px rgba(255,255,255,.22),inset 0 -2px rgba(0,0,0,.16);";
 
-// Structural node: vertical stack that groups a visual item and its
-// optional children group.
-const BLOCK_NODE_STYLE =
-  "display:flex;flex-direction:column;" +
-  "align-items:flex-start;gap:8px;max-width:100%";
-
-// Block visual: a compact bordered box that sizes to its content.
-const BLOCK_ITEM_STYLE =
-  "display:block;max-width:100%;box-sizing:border-box;" +
-  "padding:8px 12px;" +
-  "border:1px solid currentColor;" +
-  "border-radius:8px;" +
-  "white-space:pre-wrap";
-
-// Nested children: vertical stack with a small gap and left indent,
-// aligned to the start so nested blocks size naturally.
-const BLOCK_CHILDREN_STYLE =
-  "display:flex;flex-direction:column;" +
-  "gap:8px;margin-inline-start:24px;" +
-  "align-items:flex-start;max-width:100%";
-
-function renderBlockItem(item: BlockItem): string {
-  const children =
-    item.children.length > 0
-      ? (
-        `<div class="powershow-blocks-children"` +
-        ` style="${BLOCK_CHILDREN_STYLE}">` +
-        item.children
-          .map((child) => renderBlockItem(child))
-          .join("") +
-        `</div>`
-      )
-      : "";
-
-  return (
-    `<div class="powershow-blocks-node"` +
-    ` data-powershow-block-id="${escapeHtml(item.id)}"` +
-    ` style="${BLOCK_NODE_STYLE}">` +
-    `<div class="powershow-blocks-item"` +
-    ` style="${BLOCK_ITEM_STYLE}">` +
-    escapeHtml(item.text) +
-    `</div>` +
-    children +
-    `</div>`
-  );
+function renderPart(part: BlockPart, categories: Map<string, string>): string {
+  if (part.type === "text") return `<span class="powershow-block-text">${escapeHtml(part.text)}</span>`;
+  if (part.content.type === "empty") return `<span class="powershow-block-socket powershow-block-socket--empty" data-powershow-part-id="${escapeHtml(part.id)}" aria-label="empty socket"></span>`;
+  if (part.content.type === "literal") return `<span class="powershow-block-socket powershow-block-socket--literal" data-powershow-part-id="${escapeHtml(part.id)}">${escapeHtml(part.content.value)}</span>`;
+  return `<span class="powershow-block-socket powershow-block-socket--block" data-powershow-part-id="${escapeHtml(part.id)}">${renderBlock(part.content.block, categories)}</span>`;
 }
 
-export function renderBlocks(
-  element: BlocksElement,
-): string {
-  if (element.hidden) {
-    return "";
+function renderBlock(item: BlockItem, categories: Map<string, string>): string {
+  const color = categories.get(item.categoryId) ?? FALLBACK_CATEGORY_COLOR;
+  const parts = item.parts.map((part) => renderPart(part, categories)).join("");
+  const header = `<div class="powershow-block-header"><span class="powershow-block-connector powershow-block-connector--top" aria-hidden="true"></span><div class="powershow-block-parts">${parts}</div></div>`;
+  const connector = `<span class="powershow-block-connector" aria-hidden="true"></span>`;
+  const overlap = item.shape === "value" ? 0 : BLOCK_STACK_OVERLAP;
+  const attrs = `data-powershow-block-id="${escapeHtml(item.id)}" style="${blockStyle}background-color:${escapeHtml(color)};margin-bottom:-${overlap}px;"`;
+  if (item.shape === "value") return `<span class="powershow-block powershow-block--value" ${attrs}>${parts}</span>`;
+  if (item.shape === "scope") {
+    const body = item.children.length === 0 ? "" : `<div class="powershow-block-scope-body" style="margin-inline-start:${SCOPE_INDENT}px"><div class="powershow-block-scope-stack" style="${stackStyle}">${item.children.map((child) => renderBlock(child, categories)).join("")}</div></div>`;
+    return `<div class="powershow-block powershow-block--scope" ${attrs}>${header}${body}<div class="powershow-block-scope-footer" style="width:${SCOPE_CLOSING_WIDTH}px;background-color:${escapeHtml(color)}">${connector}</div></div>`;
   }
-
-  const classes = [
-    "powershow-element",
-    "powershow-blocks",
-  ];
-
-  const customClass =
-    element.style?.className?.trim();
-
-  if (customClass) {
-    classes.push(customClass);
-  }
-
-  const baseStyle =
-    renderStyle(element.style);
-
-  const styleAttribute =
-    baseStyle
-      ? ` style="${escapeHtml(baseStyle)}"`
-      : "";
-
-  const items = element.items
-    .map((item) => renderBlockItem(item))
-    .join("");
-
-  return (
-    `<div` +
-    ` class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="blocks"` +
-    styleAttribute +
-    `>` +
-    `<div class="powershow-blocks-list"` +
-    ` style="${BLOCKS_LIST_STYLE}">` +
-    items +
-    `</div>` +
-    `</div>`
-  );
+  return `<div class="powershow-block powershow-block--statement" ${attrs}>${header}${connector}</div>`;
 }
 
-// ============================================================
-// END: BLOCKS STATIC RENDERER
-// ============================================================
+export function renderBlocks(element: BlocksElement): string {
+  if (element.hidden) return "";
+  const classes = ["powershow-element", "powershow-blocks"];
+  const customClass = element.style?.className?.trim();
+  if (customClass) classes.push(customClass);
+  const baseStyle = renderStyle(element.style);
+  const styleAttribute = baseStyle ? ` style="${escapeHtml(baseStyle)}"` : "";
+  const categories = new Map(element.categories.map((category) => [category.id, category.color]));
+  return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="blocks"${styleAttribute}><div class="powershow-blocks-stack" style="${stackStyle}">${element.items.map((item) => renderBlock(item, categories)).join("")}</div></div>`;
+}

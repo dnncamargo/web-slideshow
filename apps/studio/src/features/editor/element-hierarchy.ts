@@ -589,6 +589,12 @@ function collectBlockItemIds(
 ): void {
   for (const item of items) {
     ids.add(item.id);
+    for (const part of item.parts) {
+      ids.add(part.id);
+      if (part.type === "socket" && part.content.type === "block") {
+        collectBlockItemIds([part.content.block], ids);
+      }
+    }
 
     collectBlockItemIds(item.children, ids);
   }

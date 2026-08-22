@@ -146,6 +146,13 @@ function collectBlockItemIds(
       item.children,
       ids,
     );
+
+    for (const part of item.parts) {
+      ids.add(part.id);
+      if (part.type === "socket" && part.content.type === "block") {
+        collectBlockItemIds([part.content.block], ids);
+      }
+    }
   }
 }
 
@@ -571,12 +578,29 @@ function cloneBlockItemWithUniqueIds(
     id,
   );
 
+  const parts = item.parts.map((part) => {
+    const partId = createUniqueId(`${part.id}-copy`, usedIds);
+    usedIds.add(partId);
+    if (part.type !== "socket" || part.content.type !== "block") {
+      return { ...part, id: partId };
+    }
+    return {
+      ...part,
+      id: partId,
+      content: {
+        type: "block" as const,
+        block: cloneBlockItemWithUniqueIds(part.content.block, usedIds),
+      },
+    };
+  });
+
 
   return {
     ...item,
 
     id,
 
+    parts,
     children:
       item.children.map(
         (child) =>

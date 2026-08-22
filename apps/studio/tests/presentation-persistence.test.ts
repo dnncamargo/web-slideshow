@@ -402,27 +402,20 @@ describe("persistence round trip with Blocks", () => {
               width: "60%",
               background: "#0f172a",
             },
+            categories: [{ id: "motion", name: "Motion", color: "#123456" }],
             items: [
               {
                 id: "root-a",
-                text: "Root A",
-                children: [
-                  {
-                    id: "child-a1",
-                    text: "Child A1",
-                    children: [
-                      {
-                        id: "grand-a1a",
-                        text: "Grand A1a",
-                        children: [],
-                      },
-                    ],
-                  },
-                ],
+                categoryId: "motion",
+                shape: "scope",
+                parts: [{ id: "root-p", type: "text", text: "repeat" }],
+                children: [{ id: "child-a1", categoryId: "motion", shape: "statement", parts: [{ id: "child-p", type: "text", text: "move" }], children: [] }],
               },
               {
                 id: "root-b",
-                text: "Root B",
+                categoryId: "motion",
+                shape: "statement",
+                parts: [{ id: "root-b-p", type: "text", text: "turn" }],
                 children: [],
               },
             ],
@@ -452,30 +445,9 @@ describe("persistence round trip with Blocks", () => {
         },
       });
 
-      expect(blocks.items).toEqual([
-        {
-          id: "root-a",
-          text: "Root A",
-          children: [
-            {
-              id: "child-a1",
-              text: "Child A1",
-              children: [
-                {
-                  id: "grand-a1a",
-                  text: "Grand A1a",
-                  children: [],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: "root-b",
-          text: "Root B",
-          children: [],
-        },
-      ]);
+      expect(blocks.categories).toEqual([{ id: "motion", name: "Motion", color: "#123456" }]);
+      expect(blocks.items[0]?.parts[0]).toEqual({ id: "root-p", type: "text", text: "repeat" });
+      expect(blocks.items[0]?.children[0]?.id).toBe("child-a1");
     }
   });
 });

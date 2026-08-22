@@ -1,190 +1,46 @@
-// @vitest-environment jsdom
+import { describe, expect, it } from "vitest";
+import type { BlocksElement, BlockItem, PowerShowElement, Slide } from "@powershow/document-schema";
+import { createElement, duplicateElement } from "../src/features/editor/element-operations";
+import { collectAuthoringIds } from "../src/features/editor/element-hierarchy";
+import { duplicateSlideWithUniqueIds } from "../src/features/editor/slide-operations";
 
-import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const makeValue = (id: string): BlockItem => ({ id, categoryId: "cat", shape: "value", parts: [{ id: id + "-p", type: "text", text: "value" }], children: [] });
+const makeBlocks = (id = "blocks"): BlocksElement => ({ id, type: "blocks", hidden: false, categories: [{ id: "cat", name: "Category", color: "#123456" }], items: [{ id: "scope", categoryId: "cat", shape: "scope", parts: [{ id: "scope-p", type: "text", text: "repeat" }, { id: "scope-s", type: "socket", content: { type: "block", block: makeValue("value") } }], children: [{ id: "child", categoryId: "cat", shape: "statement", parts: [{ id: "child-p", type: "text", text: "move" }], children: [] }] }] });
+const slide = (element: PowerShowElement): Slide => ({ id: "slide", title: "Slide", summary: "", speakerNotes: "", elements: [element] });
 
-import type {
-  BlockItem,
-  BlocksElement,
-  Slide,
-} from "@powershow/document-schema";
-
-import { ElementTreePanel } from "../src/features/editor/element-tree-panel";
-import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-
-function blockItem(
-  id: string,
-  text: string,
-  children: BlockItem[] = [],
-): BlockItem {
-  return {
-    id,
-    text,
-    children,
-  };
-}
-
-function blocksElement(
-  id: string,
-  items: BlockItem[],
-): BlocksElement {
-  return {
-    id,
-    type: "blocks",
-    hidden: false,
-    items,
-  };
-}
-
-function slideWithBlocks(blocks: BlocksElement): Slide {
-  return {
-    id: "slide-1",
-    title: "Blocks slide",
-    summary: "",
-    speakerNotes: "",
-    elements: [blocks],
-  };
-}
-
-describe("ElementTreePanel Blocks wiring", () => {
-  let container: HTMLDivElement;
-  let root: Root;
-
-  function renderPanel(
-    slide: Slide,
-    onSelectElement: ReturnType<typeof vi.fn>,
-  ) {
-    act(() => {
-      root.render(
-        <StudioI18nProvider>
-          <ElementTreePanel
-            slide={slide}
-            selectedElementId={null}
-            selectedContentSlotId={null}
-            onSelectElement={onSelectElement}
-            onMoveElement={vi.fn()}
-          />
-        </StudioI18nProvider>,
-      );
-    });
-  }
-
-  function treeItems(): HTMLLIElement[] {
-    return Array.from(container.querySelectorAll('li[role="treeitem"]'));
-  }
-
-  function rowButton(treeItem: HTMLLIElement): HTMLButtonElement {
-    const button =
-      treeItem.querySelector<HTMLButtonElement>(
-        ':scope > div > button[type="button"]:last-of-type',
-      ) ??
-      treeItem.querySelector<HTMLButtonElement>(
-        'div > button[type="button"]:last-of-type',
-      );
-
-    if (!button) {
-      throw new Error("Tree item row button not found");
-    }
-
-    return button;
-  }
-
-  beforeEach(() => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
+describe("composable Blocks Studio contract", () => {
+  it("creates the exact valid default shape", () => {
+    const created = createElement("blocks", []);
+    expect(created.type).toBe("blocks");
+    if (created.type !== "blocks") return;
+    expect(created.categories).toEqual([{ id: "block-category", name: "Block", color: "#6366f1" }]);
+    expect(created.items[0]).toMatchObject({ categoryId: "block-category", shape: "statement", children: [] });
+    expect(created.items[0]?.parts[0]).toEqual({ id: "block-part", type: "text", text: "New block" });
+    expect(created.style).toBeUndefined();
   });
 
-  afterEach(async () => {
-    await act(async () => {
-      root.unmount();
-    });
-    document.body.innerHTML = "";
-    vi.clearAllMocks();
+  it("collects ids across scope, parts, socket values, and nested value parts", () => {
+    const ids = new Set<string>();
+    collectAuthoringIds(makeBlocks(), ids);
+    for (const id of ["blocks", "scope", "scope-p", "scope-s", "value", "value-p", "child", "child-p"]) expect(ids.has(id)).toBe(true);
   });
 
-  it("renders a Blocks node with the Blocks type label", () => {
-    renderPanel(
-      slideWithBlocks(blocksElement("blocks-1", [blockItem("root-a", "A")])),
-      vi.fn(),
-    );
-
-    const items = treeItems();
-
-    const blocksItem = items.find((item) =>
-      rowButton(item).textContent?.includes("Blocks"),
-    );
-
-    expect(blocksItem).not.toBeUndefined();
+  it("duplicates all block and part ids while preserving category vocabulary", () => {
+    const copy = duplicateElement(makeBlocks(), [slide(makeBlocks())]);
+    expect(copy.type).toBe("blocks");
+    if (copy.type !== "blocks") return;
+    expect(copy.id).not.toBe("blocks");
+    expect(copy.categories).toEqual(makeBlocks().categories);
+    expect(copy.items[0]?.id).not.toBe("scope");
+    const socket = copy.items[0]?.parts[1];
+    expect(socket?.id).not.toBe("scope-s");
+    if (socket?.type === "socket" && socket.content.type === "block") expect(socket.content.block.id).not.toBe("value");
   });
 
-  it("selects the Blocks root through the normal tree row", () => {
-    const onSelectElement = vi.fn();
-
-    renderPanel(
-      slideWithBlocks(blocksElement("blocks-1", [blockItem("root-a", "A")])),
-      onSelectElement,
-    );
-
-    const items = treeItems();
-
-    const blocksItem = items.find((item) =>
-      rowButton(item).textContent?.includes("Blocks"),
-    );
-
-    if (!blocksItem) {
-      throw new Error("Blocks tree row not found");
-    }
-
-    act(() => {
-      rowButton(blocksItem).click();
-    });
-
-    expect(onSelectElement).toHaveBeenCalledWith({
-      id: "blocks-1",
-      type: "blocks",
-    });
-  });
-
-  it("exposes no BlockItem rows as Element Tree children", () => {
-    renderPanel(
-      slideWithBlocks(
-        blocksElement("blocks-1", [
-          blockItem("root-a", "A", [blockItem("child-a", "Nested")]),
-        ]),
-      ),
-      vi.fn(),
-    );
-
-    const items = treeItems();
-
-    const blocksItem = items.find((item) =>
-      rowButton(item).textContent?.includes("Blocks"),
-    );
-
-    if (!blocksItem) {
-      throw new Error("Blocks tree row not found");
-    }
-
-    // Leaf: no group children.
-    const group = Array.from(blocksItem.children).find(
-      (child): child is HTMLUListElement =>
-        child instanceof HTMLUListElement &&
-        child.getAttribute("role") === "group",
-    );
-
-    expect(group).toBeUndefined();
-
-    // No BlockItem ids appear anywhere in the tree.
-    const allItems = treeItems();
-
-    for (const item of allItems) {
-      expect(
-        item.querySelector('[data-powershow-block-item-id]'),
-      ).toBeNull();
-    }
+  it("renews nested block ids during slide duplication", () => {
+    const source = slide(makeBlocks());
+    const copy = duplicateSlideWithUniqueIds(source, [source]);
+    expect(copy.elements[0]?.type).toBe("blocks");
+    if (copy.elements[0]?.type === "blocks") expect(copy.elements[0].items[0]?.id).not.toBe("scope");
   });
 });

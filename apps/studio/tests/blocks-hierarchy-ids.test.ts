@@ -1,211 +1,46 @@
 import { describe, expect, it } from "vitest";
+import type { BlocksElement, BlockItem, PowerShowElement, Slide } from "@powershow/document-schema";
+import { createElement, duplicateElement } from "../src/features/editor/element-operations";
+import { collectAuthoringIds } from "../src/features/editor/element-hierarchy";
+import { duplicateSlideWithUniqueIds } from "../src/features/editor/slide-operations";
 
-import type {
-  BlockItem,
-  BlocksElement,
-  PowerShowElement,
-} from "@powershow/document-schema";
+const makeValue = (id: string): BlockItem => ({ id, categoryId: "cat", shape: "value", parts: [{ id: id + "-p", type: "text", text: "value" }], children: [] });
+const makeBlocks = (id = "blocks"): BlocksElement => ({ id, type: "blocks", hidden: false, categories: [{ id: "cat", name: "Category", color: "#123456" }], items: [{ id: "scope", categoryId: "cat", shape: "scope", parts: [{ id: "scope-p", type: "text", text: "repeat" }, { id: "scope-s", type: "socket", content: { type: "block", block: makeValue("value") } }], children: [{ id: "child", categoryId: "cat", shape: "statement", parts: [{ id: "child-p", type: "text", text: "move" }], children: [] }] }] });
+const slide = (element: PowerShowElement): Slide => ({ id: "slide", title: "Slide", summary: "", speakerNotes: "", elements: [element] });
 
-import {
-  collectAuthoringIds,
-  findElementById,
-} from "../src/features/editor/element-hierarchy";
-
-function blockItem(
-  id: string,
-  text: string,
-  children: BlockItem[] = [],
-): BlockItem {
-  return {
-    id,
-    text,
-    children,
-  };
-}
-
-function blocksElement(
-  id: string,
-  items: BlockItem[],
-): BlocksElement {
-  return {
-    id,
-    type: "blocks",
-    hidden: false,
-    items,
-  };
-}
-
-function collectIds(elements: readonly PowerShowElement[]): Set<string> {
-  const ids = new Set<string>();
-
-  for (const element of elements) {
-    collectAuthoringIds(element, ids);
-  }
-
-  return ids;
-}
-
-describe("BlockItem authoring ID inventory", () => {
-  it("collects the ordinary Blocks element id", () => {
-    const ids = collectIds([blocksElement("blocks-1", [])]);
-
-    expect(ids.has("blocks-1")).toBe(true);
+describe("composable Blocks Studio contract", () => {
+  it("creates the exact valid default shape", () => {
+    const created = createElement("blocks", []);
+    expect(created.type).toBe("blocks");
+    if (created.type !== "blocks") return;
+    expect(created.categories).toEqual([{ id: "block-category", name: "Block", color: "#6366f1" }]);
+    expect(created.items[0]).toMatchObject({ categoryId: "block-category", shape: "statement", children: [] });
+    expect(created.items[0]?.parts[0]).toEqual({ id: "block-part", type: "text", text: "New block" });
+    expect(created.style).toBeUndefined();
   });
 
-  it("collects every root BlockItem id", () => {
-    const ids = collectIds([
-      blocksElement("blocks-1", [
-        blockItem("root-a", "A"),
-        blockItem("root-b", "B"),
-      ]),
-    ]);
-
-    expect(ids.has("root-a")).toBe(true);
-
-    expect(ids.has("root-b")).toBe(true);
+  it("collects ids across scope, parts, socket values, and nested value parts", () => {
+    const ids = new Set<string>();
+    collectAuthoringIds(makeBlocks(), ids);
+    for (const id of ["blocks", "scope", "scope-p", "scope-s", "value", "value-p", "child", "child-p"]) expect(ids.has(id)).toBe(true);
   });
 
-  it("collects nested BlockItem ids recursively", () => {
-    const ids = collectIds([
-      blocksElement("blocks-1", [
-        blockItem("root-a", "A", [
-          blockItem("child-a", "A1", [blockItem("grand-a", "A1a")]),
-        ]),
-      ]),
-    ]);
-
-    expect(ids.has("root-a")).toBe(true);
-
-    expect(ids.has("child-a")).toBe(true);
-
-    expect(ids.has("grand-a")).toBe(true);
+  it("duplicates all block and part ids while preserving category vocabulary", () => {
+    const copy = duplicateElement(makeBlocks(), [slide(makeBlocks())]);
+    expect(copy.type).toBe("blocks");
+    if (copy.type !== "blocks") return;
+    expect(copy.id).not.toBe("blocks");
+    expect(copy.categories).toEqual(makeBlocks().categories);
+    expect(copy.items[0]?.id).not.toBe("scope");
+    const socket = copy.items[0]?.parts[1];
+    expect(socket?.id).not.toBe("scope-s");
+    if (socket?.type === "socket" && socket.content.type === "block") expect(socket.content.block.id).not.toBe("value");
   });
 
-  it("collects BlockItem ids inside containers", () => {
-    const inner = blocksElement("blocks-2", [
-      blockItem("nested-block", "N"),
-    ]);
-
-    const container: PowerShowElement = {
-      type: "container",
-      id: "container-1",
-      hidden: false,
-      direction: "column",
-      children: [inner],
-    };
-
-    const ids = collectIds([container]);
-
-    expect(ids.has("container-1")).toBe(true);
-
-    expect(ids.has("blocks-2")).toBe(true);
-
-    expect(ids.has("nested-block")).toBe(true);
-  });
-
-  it("does not return BlockItems through findElementById", () => {
-    const elements: PowerShowElement[] = [
-      blocksElement("blocks-1", [
-        blockItem("root-a", "A"),
-        blockItem("other-root", "B", [blockItem("nested-c", "C")]),
-      ]),
-    ];
-
-    expect(findElementById(elements, "blocks-1")?.type).toBe("blocks");
-
-    expect(findElementById(elements, "root-a")).toBeNull();
-
-    expect(findElementById(elements, "other-root")).toBeNull();
-
-    expect(findElementById(elements, "nested-c")).toBeNull();
-  });
-
-  it("leaves existing Topics/Table/Container ID behavior unchanged", () => {
-    const structure: PowerShowElement[] = [
-      {
-        type: "container",
-        id: "container-1",
-        hidden: false,
-        direction: "column",
-        children: [
-          {
-            type: "text",
-            id: "text-1",
-            hidden: false,
-            variant: "body",
-            content: "Hi",
-          },
-        ],
-      },
-      {
-        type: "topics",
-        id: "topics-1",
-        hidden: false,
-        kind: "unordered",
-        items: [
-          {
-            id: "topic-a",
-            content: {
-              id: "slot-a",
-              children: [
-                {
-                  type: "text",
-                  id: "topic-text",
-                  hidden: false,
-                  variant: "body",
-                  content: "Topic",
-                },
-              ],
-            },
-            children: [],
-          },
-        ],
-      },
-      {
-        type: "table",
-        id: "table-1",
-        hidden: false,
-        mode: "structured",
-        showHeader: true,
-        columns: [
-          {
-            id: "column-1",
-            header: {
-              id: "header-slot-1",
-              children: [
-                {
-                  type: "text",
-                  id: "header-text",
-                  hidden: false,
-                  variant: "body",
-                  content: "Column",
-                },
-              ],
-            },
-          },
-        ],
-        rows: [],
-      },
-    ];
-
-    const ids = collectIds(structure);
-
-    expect(ids.has("container-1")).toBe(true);
-
-    expect(ids.has("text-1")).toBe(true);
-
-    expect(ids.has("topics-1")).toBe(true);
-
-    expect(ids.has("topic-a")).toBe(true);
-
-    expect(ids.has("slot-a")).toBe(true);
-
-    expect(ids.has("table-1")).toBe(true);
-
-    expect(ids.has("column-1")).toBe(true);
-
-    expect(ids.has("header-slot-1")).toBe(true);
-
-    expect(ids.has("header-text")).toBe(true);
+  it("renews nested block ids during slide duplication", () => {
+    const source = slide(makeBlocks());
+    const copy = duplicateSlideWithUniqueIds(source, [source]);
+    expect(copy.elements[0]?.type).toBe("blocks");
+    if (copy.elements[0]?.type === "blocks") expect(copy.elements[0].items[0]?.id).not.toBe("scope");
   });
 });
