@@ -46,6 +46,31 @@ function validImage(id: string): PowerShowElement {
   };
 }
 
+function validScripted(id: string): PowerShowElement {
+  return {
+    type: "scripted",
+    id,
+    hidden: true,
+    title: "Recovery exact source",
+    html: '<div data-value="  exact  ">\n  keep\n</div>\n',
+    css: ".recovery {\n  gap:  4px;\n}\n",
+    script: 'const recovery = "  exact  ";\nvoid recovery;\n',
+    style: { width: "66%", height: "48%", className: "recovery-scripted" },
+  };
+}
+
+function invalidScripted(id: string): unknown {
+  return {
+    type: "scripted",
+    id,
+    hidden: false,
+    title: "",
+    html: "<div>invalid</div>",
+    css: "",
+    script: "",
+  };
+}
+
 function validContainer(
   id: string,
   children: unknown[],
@@ -96,6 +121,58 @@ describe("presentation recovery analysis", () => {
     expect(analysis.status).toBe("valid");
     expect(analysis.presentation).not.toBeNull();
     expect(analysis.issues).toEqual([]);
+  });
+
+  it("classifies valid Scripted content as valid without rewriting it", () => {
+    const scripted = validScripted("scripted-valid");
+    const raw = rawWithSlides([validSlide("slide-1", [scripted])]);
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("valid");
+    expect(analysis.issues).toEqual([]);
+    expect(analysis.presentation?.slides[0]?.elements[0]).toEqual(scripted);
+  });
+
+  it("removes an invalid Scripted element through the generic invalid-element path", () => {
+    const raw = rawWithSlides([
+      validSlide("slide-1", [validText("kept"), invalidScripted("scripted-invalid")]),
+    ]);
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation?.slides[0]?.elements.map((element) => element.id)).toEqual(["kept"]);
+    expect(analysis.issues).toHaveLength(1);
+    expect(analysis.issues[0]).toMatchObject({
+      kind: "element",
+      id: "scripted-invalid",
+      elementType: "scripted",
+      action: "remove",
+      reason: RECOVERY_REASON.invalidElement,
+    });
+  });
+
+  it("removes a nested invalid Scripted child while preserving its Container", () => {
+    const raw = rawWithSlides([
+      validSlide("slide-1", [
+        validContainer("container-1", [validText("kept"), invalidScripted("scripted-invalid")]),
+      ]),
+    ]);
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("recoverable");
+    const container = analysis.presentation?.slides[0]?.elements[0];
+    expect(container?.type).toBe("container");
+    if (container?.type === "container") {
+      expect(container.children.map((element) => element.id)).toEqual(["kept"]);
+    }
+    expect(analysis.issues[0]).toMatchObject({
+      path: ["slides", 0, "elements", 0, "children", 1],
+      id: "scripted-invalid",
+      reason: RECOVERY_REASON.invalidElement,
+    });
   });
 
   it("classifies an invalid root structure as unrecoverable", () => {

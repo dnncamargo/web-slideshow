@@ -33,6 +33,7 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
+import { PresentationSchema } from "@powershow/document-schema";
 
 const repository = new FirestorePresentationRepository();
 
@@ -207,6 +208,53 @@ describe("transactional presentation publishing", () => {
     expect(transaction.update).not.toHaveBeenCalled();
     // No pointer read — only the draft read.
     expect(transaction.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves canonical Scripted source exactly in the immutable version payload", async () => {
+    const html = '<div data-value="  raw  ">\n  publish &amp; preserve\n</div>\n';
+    const css = ".published {\n  padding:  4px;\n}\n";
+    const script = 'const raw = "  publish  ";\nconsole.log(raw);\n';
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      slides: [{
+        id: "slide-scripted",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "scripted-publish",
+          type: "scripted",
+          hidden: true,
+          title: "Publish exact source",
+          html,
+          css,
+          script,
+          style: { width: "71%", height: "41%", className: "published-scripted" },
+        }],
+      }],
+    });
+    const transaction = setupTransaction(draftData({ presentation }));
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-auto" })
+      .mockReturnValueOnce({ id: "version-auto" })
+      .mockReturnValueOnce({ id: "pointer-auto" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentation: { slides: Array<{ elements: unknown[] }> };
+    };
+    expect(versionPayload.presentation.slides[0]?.elements[0]).toEqual({
+      id: "scripted-publish",
+      type: "scripted",
+      hidden: true,
+      title: "Publish exact source",
+      html,
+      css,
+      script,
+      style: { width: "71%", height: "41%", className: "published-scripted" },
+    });
   });
 
   it("rejects missing, archived, and invalid drafts without public writes", async () => {

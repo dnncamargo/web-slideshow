@@ -451,3 +451,87 @@ describe("persistence round trip with Blocks", () => {
     }
   });
 });
+
+describe("persistence round trip with Scripted", () => {
+  it("preserves nested Scripted source and authored style exactly", () => {
+    const html = '<section data-label="  exact  ">\n  <button>&amp; run</button>\n</section>\n';
+    const css = '.stage {\n  white-space: pre;\n  content: "  keep  ";\n}\n';
+    const script = 'const message = "  exact  ";\nconsole.log(message);\n';
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "pres-scripted",
+      title: "Scripted persistence",
+      description: "",
+      aspectRatio: "16:9",
+      slides: [
+        {
+          id: "slide-1",
+          title: "",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "container-1",
+              type: "container",
+              hidden: false,
+              direction: "column",
+              children: [
+                {
+                  id: "scripted-1",
+                  type: "scripted",
+                  hidden: true,
+                  title: "Exact scripted source",
+                  html,
+                  css,
+                  script,
+                  style: { width: "73%", height: "44%", opacity: 0.8, className: "  authored  " },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const recovered = parsePersistedPresentation({
+      presentation: makeFirestoreSafePresentation(presentation),
+    });
+    const container = recovered.slides[0]?.elements[0];
+
+    expect(container?.type).toBe("container");
+    if (container?.type === "container") {
+      expect(container.children[0]).toEqual({
+        id: "scripted-1",
+        type: "scripted",
+        hidden: true,
+        title: "Exact scripted source",
+        html,
+        css,
+        script,
+        style: { width: "73%", height: "44%", opacity: 0.8, className: "  authored  " },
+      });
+    }
+  });
+
+  it("includes Scripted source in generic presentation byte accounting", () => {
+    const presentation = basePresentation();
+    const emptyBytes = estimatePresentationBytes(presentation);
+    presentation.slides = [{
+      id: "slide-1",
+      title: "",
+      summary: "",
+      speakerNotes: "",
+      elements: [{
+        id: "scripted-bytes",
+        type: "scripted",
+        hidden: false,
+        title: "Byte accounting",
+        html: "<div>source</div>\n",
+        css: ".source { color: teal; }\n",
+        script: "console.log('source');\n",
+      }],
+    }];
+
+    expect(estimatePresentationBytes(presentation)).toBeGreaterThan(emptyBytes);
+  });
+});
