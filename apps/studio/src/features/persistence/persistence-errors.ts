@@ -36,6 +36,8 @@ export class FirestoreOperationError extends PersistenceError {
 
 export class InvalidPersistedPresentationError extends PersistenceError {}
 
+export class InvalidPresentationForPersistenceError extends PersistenceError {}
+
 export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);

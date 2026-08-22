@@ -966,6 +966,30 @@
 }
 
 /* ==========================================================
+   BEGIN: EMBED NO CANVAS
+   ==========================================================
+
+   Embed renders a real sandboxed iframe with its own browsing
+   context. Inside the Studio authoring canvas that iframe must
+   not consume editing interaction, otherwise it would block
+   selecting and dragging the Embed element.
+
+   The neutralization is scoped ONLY to the Studio canvas. The
+   shared renderer output keeps the iframe interactive for the
+   presentation runtime (Preview, Player, Watch, published
+   output).
+   ========================================================== */
+
+.slideCanvas
+  :global(.powershow-embed) {
+  pointer-events: none;
+}
+
+/* ==========================================================
+   END: EMBED NO CANVAS
+   ========================================================== */
+
+/* ==========================================================
    END: INTERAÇÃO DO CANVAS
    ========================================================== */
 

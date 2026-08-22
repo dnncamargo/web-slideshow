@@ -26,6 +26,7 @@ const RESIZABLE_ELEMENT_TYPES = new Set<PowerShowElement["type"]>([
   "terminal",
   "table",
   "gallery",
+  "embed",
 ]);
 
 const MINIMUM_SIZE_PX = 1;

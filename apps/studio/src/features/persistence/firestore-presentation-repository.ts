@@ -26,6 +26,7 @@ import {
 import {
   assertPresentationWithinSizeLimit,
   assertPresentationWithinFirestoreNestingDepth,
+  assertValidPresentationForPersistence,
   deriveThumbnailPreview,
   extractPresentationSummary,
   makeFirestoreSafePresentation,
@@ -169,6 +170,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
     const documentRef = presentationDocumentRef(user.uid, presentation.id);
 
     try {
+      assertValidPresentationForPersistence(presentation);
       await setDoc(documentRef, {
         presentation: safePresentation,
         createdAt: serverTimestamp(),
@@ -196,6 +198,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
     const documentRef = presentationDocumentRef(user.uid, presentation.id);
 
     try {
+      assertValidPresentationForPersistence(presentation);
       await updateDoc(documentRef, {
         presentation: safePresentation,
         updatedAt: serverTimestamp(),

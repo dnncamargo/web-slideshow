@@ -44,6 +44,7 @@ import {
 } from "firebase/firestore";
 import { getFirebaseFirestore } from "../src/features/persistence/firebase-client";
 import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
+import { InvalidPresentationForPersistenceError } from "../src/features/persistence/persistence-errors";
 
 const mockedSetDoc = vi.mocked(setDoc);
 const mockedUpdateDoc = vi.mocked(updateDoc);
@@ -188,6 +189,23 @@ describe("draft revision persistence wiring", () => {
     expect(payload?.draftRevision).toEqual({ __increment: 1 });
     expect(payload).not.toHaveProperty("publication");
     expect(payload).not.toHaveProperty("createdAt");
+  });
+
+  it("rejects invalid runtime presentation state before updateDoc", async () => {
+    const presentation = createBlankPresentation("pres-invalid-runtime");
+
+    Object.assign(presentation, { title: "" });
+
+    const error = await repository.savePresentation(presentation).catch(
+      (value: unknown) => value,
+    );
+
+    expect(error).toMatchObject({
+      name: "FirestoreOperationError",
+      cause: expect.any(InvalidPresentationForPersistenceError),
+    });
+    expect((error as { cause: InvalidPresentationForPersistenceError }).cause.cause).toBeDefined();
+    expect(mockedUpdateDoc).not.toHaveBeenCalled();
   });
 
   it("rejects write when no authenticated non-anonymous user exists", async () => {

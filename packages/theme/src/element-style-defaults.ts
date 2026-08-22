@@ -12,7 +12,8 @@ export type ThemeElementType =
   | "interactive"
   | "topics"
   | "divider"
-  | "gallery";
+  | "gallery"
+  | "embed";
 
 export interface ThemeTypographyDefaults {
   fontSize: number;
@@ -93,6 +94,7 @@ export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   topics: 0,
   divider: 0,
   gallery: 0,
+  embed: 0,
 };
 
 export const THEME_COLORS = {
