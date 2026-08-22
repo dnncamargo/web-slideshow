@@ -111,6 +111,7 @@ const englishMessages = {
   "element.gallery": "Gallery",
   "element.embed": "Embed",
   "element.blocks": "Blocks",
+  "element.scripted": "Scripted",
 
   "embed.source": "Embed URL",
   "embed.invalidUrl":
@@ -790,6 +791,7 @@ const portugueseMessages = {
   "element.gallery": "Galeria",
   "element.embed": "Embed",
   "element.blocks": "Blocos",
+  "element.scripted": "Scripted",
 
   "embed.source": "URL incorporada",
   "embed.invalidUrl":
@@ -1429,6 +1431,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   gallery: "element.gallery",
   embed: "element.embed",
   blocks: "element.blocks",
+  scripted: "element.scripted",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 
 // ============================================================

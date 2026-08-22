@@ -284,6 +284,8 @@ export function renderElement(element: PowerShowElement): string {
 
     case "blocks":
       return renderBlocks(element);
+    case "scripted":
+      return renderPlaceholder(element);
 
     case "chart":
     case "interactive":
