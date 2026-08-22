@@ -267,6 +267,25 @@ export const EmbedElementSchema =
 export type EmbedElement =
   z.infer<typeof EmbedElementSchema>;
 
+export const ScriptedElementSchema =
+  BaseElementSchema.extend({
+    type: z.literal("scripted"),
+
+    title: z
+      .string()
+      .min(1)
+      .default("Scripted content"),
+
+    html: z.string().default(""),
+
+    css: z.string().default(""),
+
+    script: z.string().default(""),
+  });
+
+export type ScriptedElement =
+  z.infer<typeof ScriptedElementSchema>;
+
 export type ContentSlot = {
   id: string;
 
@@ -536,6 +555,7 @@ export type PowerShowElement =
   | InteractiveElement
   | DividerElement
   | EmbedElement
+  | ScriptedElement
   | TopicsElement
   | ContainerElement;
 
@@ -554,6 +574,7 @@ export const PowerShowElementSchema:
       InteractiveElementSchema,
       DividerElementSchema,
       EmbedElementSchema,
+      ScriptedElementSchema,
       TopicsElementSchema,
 
       BaseElementSchema.extend({
