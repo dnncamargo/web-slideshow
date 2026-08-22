@@ -267,6 +267,31 @@ export const EmbedElementSchema =
 export type EmbedElement =
   z.infer<typeof EmbedElementSchema>;
 
+export type BlockItem = {
+  id: string;
+  text: string;
+  children: BlockItem[];
+};
+
+export const BlockItemSchema:
+  z.ZodType<BlockItem> =
+  z.lazy(() =>
+    z.object({
+      id: ElementIdSchema,
+      text: z.string(),
+      children: z.array(BlockItemSchema),
+    }),
+  );
+
+export const BlocksElementSchema =
+  BaseElementSchema.extend({
+    type: z.literal("blocks"),
+    items: z.array(BlockItemSchema),
+  });
+
+export type BlocksElement =
+  z.infer<typeof BlocksElementSchema>;
+
 export type ContentSlot = {
   id: string;
 
@@ -536,6 +561,7 @@ export type PowerShowElement =
   | InteractiveElement
   | DividerElement
   | EmbedElement
+  | BlocksElement
   | TopicsElement
   | ContainerElement;
 
@@ -554,6 +580,7 @@ export const PowerShowElementSchema:
       InteractiveElementSchema,
       DividerElementSchema,
       EmbedElementSchema,
+      BlocksElementSchema,
       TopicsElementSchema,
 
       BaseElementSchema.extend({
