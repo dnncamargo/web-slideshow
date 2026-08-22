@@ -2,6 +2,7 @@ import type {
   BlockCategory,
   BlockItem,
   BlockPart,
+  BlockSocketContent,
   BlocksElement,
 } from "@powershow/document-schema";
 
@@ -30,6 +31,28 @@ import type { BlocksItemEditorLabels } from "./blocks-item-editor-types";
 type UpdateBlocks = (
   update: (blocks: BlocksElement) => BlocksElement,
 ) => void;
+
+/**
+ * Socket content mode as presented in the Inspector UI.
+ *
+ * The canonical schema discriminates "empty" | "literal" | "block",
+ * while the UI intentionally presents "Empty" | "Literal" | "Value
+ * block". A canonical "block" therefore maps to the UI "value" mode.
+ */
+type BlockSocketUIMode = "empty" | "literal" | "value";
+
+function toBlockSocketUIMode(
+  canonicalType: BlockSocketContent["type"],
+): BlockSocketUIMode {
+  switch (canonicalType) {
+    case "empty":
+      return "empty";
+    case "literal":
+      return "literal";
+    case "block":
+      return "value";
+  }
+}
 
 // ============================================================
 // BEGIN: RECURSIVE BLOCK ITEM EDITOR
@@ -423,13 +446,10 @@ function BlockPartRow({
           className={styles.blocksInput}
           aria-label={labels.socketContent}
           data-powershow-part-socket-mode="true"
-          value={part.content.type}
+          value={toBlockSocketUIMode(part.content.type)}
           title={canCreateValueBlock ? undefined : labels.valueAtMaxDepth}
           onChange={(event) => {
-            const mode = event.currentTarget.value as
-              | "empty"
-              | "literal"
-              | "value";
+            const mode = event.currentTarget.value as BlockSocketUIMode;
 
             if (mode === "empty") {
               updateBlocks((current) =>
