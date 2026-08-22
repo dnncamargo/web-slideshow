@@ -8,5 +8,6 @@ export * from "./render-element";
 export * from "./render-topics";
 export * from "./render-gallery";
 export * from "./render-embed";
+export * from "./render-scripted";
 export * from "./render-slide";
 export * from "./render-presentation";
