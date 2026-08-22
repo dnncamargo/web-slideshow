@@ -636,6 +636,89 @@ describe("BlocksItemEditor", () => {
     expect(row("v1")).toBeNull();
   });
 
+  it("renders an existing canonical block socket as UI mode value", () => {
+    mount(
+      blocks(
+        [category("cat")],
+        [
+          statement("s1", "cat", [
+            socketBlockPart(
+              "sock1",
+              value("v1", "cat", [textPart("v1p")]),
+            ),
+          ]),
+        ],
+      ),
+    );
+
+    const select = socketModeSelect("sock1");
+    if (!select) {
+      throw new Error("Socket mode select not found");
+    }
+
+    expect(select.value).toBe("value");
+  });
+
+  it("marks the Value option as the currently selected option for an existing socket block", () => {
+    mount(
+      blocks(
+        [category("cat")],
+        [
+          statement("s1", "cat", [
+            socketBlockPart(
+              "sock1",
+              value("v1", "cat", [textPart("v1p")]),
+            ),
+          ]),
+        ],
+      ),
+    );
+
+    const select = socketModeSelect("sock1");
+    if (!select) {
+      throw new Error("Socket mode select not found");
+    }
+
+    const selectedValue = select.selectedOptions[0]?.value;
+    expect(selectedValue).toBe("value");
+
+    const valueOption = select.querySelector(
+      'option[value="value"]',
+    ) as HTMLOptionElement | null;
+    expect(valueOption?.selected).toBe(true);
+  });
+
+  it("replaces an existing value subtree with a literal", () => {
+    mount(
+      blocks(
+        [category("cat")],
+        [
+          statement("s1", "cat", [
+            socketBlockPart(
+              "sock1",
+              value("v1", "cat", [textPart("v1p")]),
+            ),
+          ]),
+        ],
+      ),
+    );
+
+    const select = socketModeSelect("sock1");
+    if (!select) {
+      throw new Error("Socket mode select not found");
+    }
+
+    changeSelect(select, "literal");
+
+    const part = firstItem()?.parts[0];
+    expect(part?.type).toBe("socket");
+    if (part?.type === "socket") {
+      expect(part.content).toEqual({ type: "literal", value: "" });
+    }
+    expect(row("v1")).toBeNull();
+    expect(literalInput("sock1")).not.toBeNull();
+  });
+
   // ============================================================
   // RECURSION: VALUE BLOCKS
   // ============================================================
