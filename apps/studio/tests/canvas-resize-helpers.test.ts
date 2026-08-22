@@ -49,6 +49,20 @@ describe("canvas resize helpers", () => {
     ).toBe(true);
   });
 
+  it("treats a canonical Scripted element as canvas-resizable", () => {
+    expect(
+      isCanvasResizable({
+        type: "scripted",
+        id: "scripted",
+        hidden: false,
+        title: "Scripted content",
+        html: "",
+        css: "",
+        script: "",
+      }),
+    ).toBe(true);
+  });
+
   it("resizes an Embed using the normal free-width/height resize helper", () => {
     expect(
       updateStyleForCanvasResize(
