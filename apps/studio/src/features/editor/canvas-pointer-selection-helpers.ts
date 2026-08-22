@@ -20,7 +20,7 @@ export interface CanvasPointerPosition {
 
 export interface CanvasEmbedHitTarget {
   id: string;
-  type: "embed";
+  type: "embed" | "scripted";
   left: number;
   top: number;
   right: number;
@@ -28,8 +28,9 @@ export interface CanvasEmbedHitTarget {
 }
 
 /**
- * Resolve a pointer over a Studio-neutralized Embed before DOM bubbling can
- * fall back to an enclosing selectable element such as a Container.
+ * Resolve a pointer over a Studio-neutralized iframe-like element (Embed or
+ * Scripted) before DOM bubbling can fall back to an enclosing selectable
+ * element such as a Container.
  *
  * Targets are checked in DOM order so the last matching target is treated as
  * the topmost one when authored elements overlap.

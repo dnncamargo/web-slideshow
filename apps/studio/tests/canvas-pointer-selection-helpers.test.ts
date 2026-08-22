@@ -203,3 +203,57 @@ describe("Canvas pointer hit resolution", () => {
     expect(hit.target).toBeNull();
   });
 });
+
+describe("neutralized Scripted canvas hit-testing", () => {
+  const scripted = {
+    id: "scripted-1",
+    type: "scripted" as const,
+    left: 100,
+    top: 100,
+    right: 300,
+    bottom: 220,
+  };
+
+  function canvasElement(
+    id: string,
+    type: string,
+    parent?: HTMLElement,
+  ): HTMLElement {
+    const element = document.createElement("div");
+
+    element.dataset.powershowId = id;
+    element.dataset.powershowType = type;
+
+    if (parent) {
+      parent.appendChild(element);
+    }
+
+    return element;
+  }
+
+  it("resolves a root Scripted hit", () => {
+    expect(
+      resolveCanvasEmbedPointerTarget({ clientX: 150, clientY: 150 }, [scripted]),
+    ).toEqual({ id: "scripted-1", type: "scripted" });
+  });
+
+  it("resolves a Scripted hit before a containing Container", () => {
+    const container = canvasElement("container-1", "container");
+    const scriptedElement = canvasElement("scripted-1", "scripted", container);
+
+    const hit = resolveCanvasPointerHit({
+      embeds: [scriptedElement],
+      embedTarget: { id: "scripted-1", type: "scripted" },
+      ordinaryTarget: container,
+    });
+
+    expect(hit.elementTarget).toBe(scriptedElement);
+    expect(hit.target).toEqual({ id: "scripted-1", type: "scripted" });
+  });
+
+  it("does not resolve the Container area outside the Scripted box", () => {
+    expect(
+      resolveCanvasEmbedPointerTarget({ clientX: 350, clientY: 200 }, [scripted]),
+    ).toBeNull();
+  });
+});

@@ -19,6 +19,7 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePublishedPresentationReader } from "../src/features/persistence/firestore-published-presentation-reader";
+import { PresentationSchema } from "@powershow/document-schema";
 
 const reader = new FirestorePublishedPresentationReader();
 
@@ -135,6 +136,45 @@ describe("published presentation reader", () => {
     const result = await reader.getVersion("publication-1", "version-9");
 
     expect(result).toEqual(presentation);
+  });
+
+  it("returns Scripted source and authored style exactly from a valid published version", async () => {
+    const html = '<article>\n  <em>reader exact</em>\n</article>\n';
+    const css = ".reader {\n  letter-spacing:  0.1em;\n}\n";
+    const script = 'const readerValue = "  exact  ";\nvoid readerValue;\n';
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      slides: [{
+        id: "slide-scripted",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "scripted-reader",
+          type: "scripted",
+          hidden: false,
+          title: "Reader exact source",
+          html,
+          css,
+          script,
+          style: { width: "68%", height: "52%", opacity: 0.9 },
+        }],
+      }],
+    });
+    mocks.getDoc.mockResolvedValue(snapshot(true, versionData(presentation)));
+
+    const result = await reader.getVersion("publication-1", "version-9");
+
+    expect(result?.slides[0]?.elements[0]).toEqual({
+      id: "scripted-reader",
+      type: "scripted",
+      hidden: false,
+      title: "Reader exact source",
+      html,
+      css,
+      script,
+      style: { width: "68%", height: "52%", opacity: 0.9 },
+    });
   });
 
   it("returns null when the version document does not exist", async () => {

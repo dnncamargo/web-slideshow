@@ -51,7 +51,8 @@ export type ElementCreateType =
   | "divider"
   | "gallery"
   | "embed"
-  | "blocks";
+  | "blocks"
+  | "scripted";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -1961,6 +1962,30 @@ export function createElement(
         src: "https://example.com/",
 
         title: "Embedded content",
+
+        style: {
+          width: "60%",
+
+          height: "55%",
+        },
+      };
+    }
+
+    case "scripted": {
+      return {
+        id: createUniqueId("scripted-element", usedIds),
+
+        type: "scripted",
+
+        hidden: false,
+
+        title: "Scripted content",
+
+        html: "",
+
+        css: "",
+
+        script: "",
 
         style: {
           width: "60%",
