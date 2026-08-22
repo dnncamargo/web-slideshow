@@ -120,6 +120,18 @@ describe("element style authoring defaults", () => {
     expect(
       resolveEffectiveElementStyleDefaults({ type: "divider" }).borderRadius,
     ).toBe(0);
+    expect(
+      resolveEffectiveElementStyleDefaults({ type: "gallery" }).borderRadius,
+    ).toBe(0);
+    expect(
+      resolveEffectiveElementStyleDefaults({ type: "embed" }).borderRadius,
+    ).toBe(0);
+    expect(
+      resolveEffectiveElementStyleDefaults({ type: "scripted" }).borderRadius,
+    ).toBe(0);
+    expect(
+      resolveEffectiveElementStyleDefaults({ type: "chart" }).borderRadius,
+    ).toBe(0);
   });
   it("exposes the deterministic Topics item gap default", () => {
     expect(TOPICS_ITEM_GAP_DEFAULT_PX).toBe(6);

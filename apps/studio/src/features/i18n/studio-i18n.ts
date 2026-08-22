@@ -110,6 +110,7 @@ const englishMessages = {
   "element.divider": "Divider",
   "element.gallery": "Gallery",
   "element.embed": "Embed",
+  "element.scripted": "Scripted",
 
   "embed.source": "Embed URL",
   "embed.invalidUrl":
@@ -728,6 +729,7 @@ const portugueseMessages = {
   "element.divider": "Divisor",
   "element.gallery": "Galeria",
   "element.embed": "Embed",
+  "element.scripted": "Scripted",
 
   "embed.source": "URL incorporada",
   "embed.invalidUrl":
@@ -1306,6 +1308,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   divider: "element.divider",
   gallery: "element.gallery",
   embed: "element.embed",
+  scripted: "element.scripted",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 
 // ============================================================

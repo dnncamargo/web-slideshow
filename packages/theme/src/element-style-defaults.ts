@@ -13,7 +13,8 @@ export type ThemeElementType =
   | "topics"
   | "divider"
   | "gallery"
-  | "embed";
+  | "embed"
+  | "scripted";
 
 export interface ThemeTypographyDefaults {
   fontSize: number;
@@ -95,6 +96,7 @@ export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   divider: 0,
   gallery: 0,
   embed: 0,
+  scripted: 0,
 };
 
 export const THEME_COLORS = {
