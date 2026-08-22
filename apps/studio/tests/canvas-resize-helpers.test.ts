@@ -49,6 +49,52 @@ describe("canvas resize helpers", () => {
     ).toBe(true);
   });
 
+  it("treats Blocks as canvas-resizable", () => {
+    expect(
+      isCanvasResizable({
+        type: "blocks",
+        id: "blocks",
+        hidden: false,
+        categories: [],
+        items: [],
+      }),
+    ).toBe(true);
+  });
+
+  it("resizes a Blocks root with the normal free-width/height helper", () => {
+    expect(
+      updateStyleForCanvasResize(
+        { width: "60%", height: "55%", background: "#0f172a" },
+        "se",
+        40,
+        20,
+        240,
+        220,
+        400,
+        400,
+      ),
+    ).toEqual({
+      width: "70%",
+      height: "60%",
+      background: "#0f172a",
+    });
+  });
+
+  it("authors missing Blocks dimensions with normal free resize", () => {
+    expect(
+      updateStyleForCanvasResize(
+        { background: "#ffffff" },
+        "se",
+        30,
+        20,
+        300,
+        200,
+        400,
+        400,
+      ),
+    ).toEqual({ background: "#ffffff", width: 330, height: 220 });
+  });
+
   it("resizes an Embed using the normal free-width/height resize helper", () => {
     expect(
       updateStyleForCanvasResize(

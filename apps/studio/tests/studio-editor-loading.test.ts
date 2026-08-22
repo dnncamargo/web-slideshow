@@ -4,6 +4,7 @@ import type { Presentation } from "@powershow/document-schema";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import type { PresentationRepository } from "../src/features/persistence/presentation-repository";
+import type { PresentationRecoveryInspection } from "../src/features/persistence/presentation-repository";
 
 type EditorLoadStatus =
   | { kind: "loading" }
@@ -50,6 +51,16 @@ function fakeRepository(overrides: Partial<PresentationRepository> = {}): {
         versionId: "version-id",
         publishedRevision: 1,
         createdVersion: true,
+      })),
+      inspectPresentationRecovery: vi.fn(
+        async (): Promise<PresentationRecoveryInspection> => ({
+          status: "valid",
+          issues: [],
+        }),
+      ),
+      repairPresentation: vi.fn(async () => ({
+        presentation: createBlankPresentation("repaired"),
+        repaired: false,
       })),
       ...overrides,
     },

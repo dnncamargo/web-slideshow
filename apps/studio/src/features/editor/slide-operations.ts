@@ -1,6 +1,9 @@
 import type {
+  BlockItem,
   PowerShowElement,
   Slide,
+  StructuredTableElement,
+  TopicItem,
 } from "@powershow/document-schema";
 
 
@@ -32,6 +35,123 @@ function collectElementIds(
         element.children,
         ids,
       );
+    }
+
+    if (
+      element.type ===
+      "blocks"
+    ) {
+      collectBlockItemIds(
+        element.items,
+        ids,
+      );
+    }
+
+    if (
+      element.type ===
+      "topics"
+    ) {
+      collectTopicSlotElementIds(
+        element.items,
+        ids,
+      );
+    }
+
+    if (
+      element.type ===
+        "table" &&
+      element.mode ===
+        "structured"
+    ) {
+      collectStructuredTableSlotElementIds(
+        element,
+        ids,
+      );
+    }
+  }
+}
+
+
+/**
+ * Reaches every PowerShowElement array owned by the TopicItem
+ * ContentSlots, recursively through nested TopicItems. Blocks (and
+ * Containers containing Blocks) located there must participate in the
+ * authoring ID inventory.
+ *
+ * TopicItem/ContentSlot structure IDs are NOT collected here: they are
+ * not PowerShowElements and this duplicate-slide path has always
+ * preserved them.
+ */
+function collectTopicSlotElementIds(
+  items: readonly TopicItem[],
+  ids: Set<string>,
+): void {
+  for (const item of items) {
+    collectElementIds(
+      item.content.children,
+      ids,
+    );
+
+    collectTopicSlotElementIds(
+      item.children,
+      ids,
+    );
+  }
+}
+
+
+/**
+ * Reaches every PowerShowElement array owned by the Structured Table
+ * header/column and row cell ContentSlots.
+ *
+ * Column/header/row/cell structural IDs are NOT collected here.
+ */
+function collectStructuredTableSlotElementIds(
+  table: StructuredTableElement,
+  ids: Set<string>,
+): void {
+  for (const column of table.columns) {
+    collectElementIds(
+      column.header.children,
+      ids,
+    );
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      collectElementIds(
+        cell.children,
+        ids,
+      );
+    }
+  }
+}
+
+
+/**
+ * Slide duplication runs on its own ID inventory path. BlockItem ids
+ * must participate so duplicated slides containing Blocks never
+ * collide with existing BlockItem ids.
+ */
+function collectBlockItemIds(
+  items: readonly BlockItem[],
+  ids: Set<string>,
+): void {
+  for (const item of items) {
+    ids.add(
+      item.id,
+    );
+
+    collectBlockItemIds(
+      item.children,
+      ids,
+    );
+
+    for (const part of item.parts) {
+      ids.add(part.id);
+      if (part.type === "socket" && part.content.type === "block") {
+        collectBlockItemIds([part.content.block], ids);
+      }
     }
   }
 }
@@ -163,10 +283,332 @@ function cloneElementWithUniqueIds(
   }
 
 
+  if (
+    clone.type ===
+    "blocks"
+  ) {
+    return {
+      ...clone,
+
+      id,
+
+      items:
+        clone.items.map(
+          (item) =>
+            cloneBlockItemWithUniqueIds(
+              item,
+              usedIds,
+            ),
+        ),
+    };
+  }
+
+
+  if (
+    clone.type ===
+    "topics"
+  ) {
+    return {
+      ...clone,
+
+      id,
+
+      items:
+        clone.items.map(
+          (item) =>
+            cloneTopicItemRenewingBlocks(
+              item,
+              usedIds,
+            ),
+        ),
+    };
+  }
+
+
+  if (
+    clone.type ===
+      "table" &&
+    clone.mode ===
+      "structured"
+  ) {
+    return {
+      ...clone,
+
+      id,
+
+      columns:
+        clone.columns.map(
+          (column) => ({
+            ...column,
+
+            header: {
+              ...column.header,
+
+              children:
+                cloneContentSlotElementsRenewingBlocksOnly(
+                  column.header.children,
+                  usedIds,
+                ),
+            },
+          }),
+        ),
+
+      rows:
+        clone.rows.map(
+          (row) => ({
+            ...row,
+
+            cells:
+              row.cells.map(
+                (cell) => ({
+                  ...cell,
+
+                  children:
+                    cloneContentSlotElementsRenewingBlocksOnly(
+                      cell.children,
+                      usedIds,
+                    ),
+                }),
+              ),
+          }),
+        ),
+    };
+  }
+
+
   return {
     ...clone,
 
     id,
+  };
+}
+
+
+/**
+ * Renews ids of a cloned TopicsElement reached through the NORMAL
+ * historical slide clone path.
+ *
+ * The Topics PowerShowElement id follows the normal -copy convention,
+ * and the TopicItem/ContentSlot structural ids are preserved. The
+ * PowerShowElements inside each ContentSlot only get Blocks roots and
+ * BlockItems renewed; every other inner element id is preserved.
+ */
+function cloneTopicItemRenewingBlocks(
+  item: TopicItem,
+  usedIds: Set<string>,
+): TopicItem {
+  return {
+    ...item,
+
+    content: {
+      ...item.content,
+
+      children:
+        cloneContentSlotElementsRenewingBlocksOnly(
+          item.content.children,
+          usedIds,
+        ),
+    },
+
+    children:
+      item.children.map(
+        (child) =>
+          cloneTopicItemRenewingBlocks(
+            child,
+            usedIds,
+          ),
+      ),
+  };
+}
+
+
+/**
+ * Blocks-only traversal for PowerShowElements inside a ContentSlot
+ * (TopicItem ContentSlot, Structured Table header/cell ContentSlot).
+ *
+ * Blocks roots are renewed (with all BlockItems), while every other
+ * PowerShowElement keeps its own id exactly and is only recursed into
+ * where Blocks may live (Containers, Topics, Structured Tables). This
+ * preserves the historical duplicate-slide semantics for unrelated
+ * ContentSlot elements while extending reachability to nested Blocks.
+ *
+ * Returns an independent clone in every case so the duplicated slide
+ * never shares references with the source.
+ */
+function cloneContentSlotElementRenewingBlocksOnly(
+  element: PowerShowElement,
+  usedIds: Set<string>,
+): PowerShowElement {
+  if (
+    element.type ===
+    "blocks"
+  ) {
+    return cloneElementWithUniqueIds(
+      element,
+      usedIds,
+    );
+  }
+
+  if (
+    element.type ===
+    "container"
+  ) {
+    return {
+      ...structuredClone(
+        element,
+      ),
+
+      children:
+        element.children.map(
+          (child) =>
+            cloneContentSlotElementRenewingBlocksOnly(
+              child,
+              usedIds,
+            ),
+        ),
+    };
+  }
+
+  if (
+    element.type ===
+    "topics"
+  ) {
+    return {
+      ...structuredClone(
+        element,
+      ),
+
+      items:
+        element.items.map(
+          (item) =>
+            cloneTopicItemRenewingBlocks(
+              item,
+              usedIds,
+            ),
+        ),
+    };
+  }
+
+  if (
+    element.type ===
+      "table" &&
+    element.mode ===
+      "structured"
+  ) {
+    return {
+      ...structuredClone(
+        element,
+      ),
+
+      columns:
+        element.columns.map(
+          (column) => ({
+            ...column,
+
+            header: {
+              ...column.header,
+
+              children:
+                cloneContentSlotElementsRenewingBlocksOnly(
+                  column.header.children,
+                  usedIds,
+                ),
+            },
+          }),
+        ),
+
+      rows:
+        element.rows.map(
+          (row) => ({
+            ...row,
+
+            cells:
+              row.cells.map(
+                (cell) => ({
+                  ...cell,
+
+                  children:
+                    cloneContentSlotElementsRenewingBlocksOnly(
+                      cell.children,
+                      usedIds,
+                    ),
+                }),
+              ),
+          }),
+        ),
+    };
+  }
+
+  return structuredClone(
+    element,
+  );
+}
+
+
+function cloneContentSlotElementsRenewingBlocksOnly(
+  elements: readonly PowerShowElement[],
+  usedIds: Set<string>,
+): PowerShowElement[] {
+  return elements.map(
+    (element) =>
+      cloneContentSlotElementRenewingBlocksOnly(
+        element,
+        usedIds,
+      ),
+  );
+}
+
+
+/**
+ * Recursively renews every BlockItem id inside a duplicated Blocks
+ * element, preserving text, tree shape, and order exactly.
+ */
+function cloneBlockItemWithUniqueIds(
+  item: BlockItem,
+  usedIds: Set<string>,
+): BlockItem {
+  const id =
+    createUniqueId(
+      `${item.id}-copy`,
+      usedIds,
+    );
+
+
+  usedIds.add(
+    id,
+  );
+
+  const parts = item.parts.map((part) => {
+    const partId = createUniqueId(`${part.id}-copy`, usedIds);
+    usedIds.add(partId);
+    if (part.type !== "socket" || part.content.type !== "block") {
+      return { ...part, id: partId };
+    }
+    return {
+      ...part,
+      id: partId,
+      content: {
+        type: "block" as const,
+        block: cloneBlockItemWithUniqueIds(part.content.block, usedIds),
+      },
+    };
+  });
+
+
+  return {
+    ...item,
+
+    id,
+
+    parts,
+    children:
+      item.children.map(
+        (child) =>
+          cloneBlockItemWithUniqueIds(
+            child,
+            usedIds,
+          ),
+      ),
   };
 }
 

@@ -1,5 +1,7 @@
 export { FirestorePresentationRepository } from "./firestore-presentation-repository";
 export type {
+  PresentationRecoveryInspection,
+  PresentationRepairResult,
   PresentationRepository,
   PresentationPublishResult,
   ListPresentationsOptions,
@@ -45,12 +47,21 @@ export {
   resolvePublicationState,
 } from "./presentation-persistence";
 export {
+  analyzePresentationRecovery,
+  type PresentationRecoveryAnalysis,
+  type PresentationRecoveryStatus,
+  type RecoveryIssue,
+  type RecoveryIssueAction,
+  type RecoveryIssueKind,
+} from "./presentation-recovery";
+export {
   FirebaseConfigurationError,
   FirebaseAuthenticationError,
   FirestoreOperationError,
   InvalidFolderNameError,
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
+  PresentationRecoveryFailedError,
   PresentationTooDeepError,
   PresentationTooLargeError,
 } from "./persistence-errors";

@@ -170,3 +170,81 @@ describe("renderCode", () => {
     expect(html).toContain("background:#101218");
   });
 });
+
+// ============================================================
+// BEGIN: CODE SEMANTIC REGRESSION
+//
+// Code is textual source code with static display semantics. The
+// renderer must never turn code into a runtime: no script elements,
+// no event handlers, no eval/Function execution, no generated
+// executable code. A language name is display metadata only.
+// ============================================================
+
+describe("Code element semantics remain static and non-executable", () => {
+  it("renders JavaScript-looking content as escaped inert text", () => {
+    const html = renderCode(
+      createCodeElement({
+        code: '<script>eval("alert(1)")</script>',
+      }),
+    );
+
+    expect(html).not.toContain("<script");
+
+    expect(html).not.toContain("</script>");
+
+    expect(html).toContain(
+      "&lt;script&gt;eval(&quot;alert(1)&quot;)&lt;/script&gt;",
+    );
+  });
+
+  it("emits pre/code with the language kept as metadata only", () => {
+    const html = renderCode(
+      createCodeElement({
+        code: 'function dangerous() { return eval("1"); }',
+        language: "javascript",
+      }),
+    );
+
+    expect(html).toContain("<pre");
+
+    expect(html).toContain("<code>");
+
+    expect(html).toContain('data-language="javascript"');
+
+    expect(html).not.toMatch(/javascript:/);
+
+    expect(html).not.toContain("src=");
+  });
+
+  it("introduces no script, handler, or runtime markup", () => {
+    const html = renderCode(
+      createCodeElement({
+        code: 'onclick="run()"\nconstructor.constructor("x")()',
+      }),
+    );
+
+    expect(html).not.toContain("<script");
+
+    expect(html).not.toContain("</script>");
+
+    expect(
+      html,
+    ).not.toMatch(/<[a-zA-Z][^>]*\s+on[a-zA-Z]+\s*=/);
+
+    expect(html).not.toContain("javascript:");
+  });
+
+  it("escapes code exactly once, without double escaping", () => {
+    const html = renderCode(
+      createCodeElement({ code: "a && b < c" }),
+    );
+
+    expect(html).toContain("a &amp;&amp; b &lt; c");
+
+    expect(html).not.toContain("&amp;amp;");
+  });
+});
+
+// ============================================================
+// END: CODE SEMANTIC REGRESSION
+// ============================================================

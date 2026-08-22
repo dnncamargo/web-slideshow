@@ -110,6 +110,7 @@ const englishMessages = {
   "element.divider": "Divider",
   "element.gallery": "Gallery",
   "element.embed": "Embed",
+  "element.blocks": "Blocks",
 
   "embed.source": "Embed URL",
   "embed.invalidUrl":
@@ -474,6 +475,43 @@ const englishMessages = {
   "inspector.topics.rootMarkerStyle.lower-roman": "Lowercase Roman",
   "inspector.topics.rootMarkerStyle.upper-roman": "Uppercase Roman",
 
+  "inspector.blocks.text": "Block text",
+  "inspector.blocks.add": "Add block",
+  "inspector.blocks.addChild": "Add child block",
+  "inspector.blocks.remove": "Remove block",
+  "inspector.blocks.moveUp": "Move block up",
+  "inspector.blocks.moveDown": "Move block down",
+  "inspector.blocks.maxDepth":
+    "Maximum block nesting depth reached",
+  "inspector.blocks.empty": "No blocks",
+  "inspector.blocks.staticHelp":
+    "Visual blocks are static content and do not execute code.",
+  "inspector.blocks.categories": "Categories",
+  "inspector.blocks.addCategory": "+ Add category",
+  "inspector.blocks.categoryName": "Category name",
+  "inspector.blocks.categoryColor": "Category color",
+  "inspector.blocks.removeCategory": "Remove category",
+  "inspector.blocks.categoryInUse": "Category in use",
+  "inspector.blocks.blocks": "Blocks",
+  "inspector.blocks.category": "Category",
+  "inspector.blocks.shape": "Shape",
+  "inspector.blocks.statement": "Statement",
+  "inspector.blocks.scope": "Scope",
+  "inspector.blocks.value": "Value",
+  "inspector.blocks.parts": "Parts",
+  "inspector.blocks.addText": "+ Add text",
+  "inspector.blocks.addSocket": "+ Add socket",
+  "inspector.blocks.socket": "Socket",
+  "inspector.blocks.socketEmpty": "Empty",
+  "inspector.blocks.literal": "Literal",
+  "inspector.blocks.literalValue": "Literal value",
+  "inspector.blocks.valueBlock": "Value block",
+  "inspector.blocks.moveEarlier": "Move earlier",
+  "inspector.blocks.moveLater": "Move later",
+  "inspector.blocks.scopeChildren": "Scope children",
+  "inspector.blocks.populatedScopeCannotBecomeStatement":
+    "A populated scope cannot become a statement.",
+
   "table.text": "Text",
   "table.number": "Number",
   "table.boolean": "Boolean",
@@ -593,6 +631,29 @@ const englishMessages = {
   "editor.loading": "Loading presentation…",
   "editor.couldNotLoad": "Could not load presentation.",
   "editor.backToLibrary": "Back to Library",
+
+  "recovery.title": "Presentation contains incompatible content",
+  "recovery.explanation":
+    "PowerShow can remove the incompatible content while preserving the rest of the presentation.",
+  "recovery.issueCount": "{count} issues found",
+  "recovery.viewDetails": "View details",
+  "recovery.hideDetails": "Hide details",
+  "recovery.removeAndOpen": "Remove incompatible content and open",
+  "recovery.confirmTitle": "Remove incompatible content?",
+  "recovery.confirmBody":
+    "This removes the incompatible content from this presentation. Everything else is preserved.",
+  "recovery.cancel": "Cancel",
+  "recovery.confirm": "Remove and open",
+  "recovery.repairing": "Repairing presentation…",
+  "recovery.unrecoverableTitle": "Presentation cannot be repaired",
+  "recovery.unrecoverableExplanation":
+    "The presentation structure is too damaged to be repaired. You can go back to the library.",
+  "recovery.repairFailed": "Could not repair the presentation.",
+  "recovery.backToLibrary": "Back to Library",
+  "recovery.detailsPath": "Path",
+  "recovery.detailsId": "Id",
+  "recovery.detailsType": "Type",
+  "recovery.detailsReason": "Reason",
 
   "auth.continueWithGoogle": "Continue with Google",
   "auth.signingIn": "Signing in…",
@@ -728,6 +789,7 @@ const portugueseMessages = {
   "element.divider": "Divisor",
   "element.gallery": "Galeria",
   "element.embed": "Embed",
+  "element.blocks": "Blocos",
 
   "embed.source": "URL incorporada",
   "embed.invalidUrl":
@@ -1098,6 +1160,43 @@ const portugueseMessages = {
   "inspector.topics.rootMarkerStyle.lower-roman": "Romano minúsculo",
   "inspector.topics.rootMarkerStyle.upper-roman": "Romano maiúsculo",
 
+  "inspector.blocks.text": "Texto do bloco",
+  "inspector.blocks.add": "Adicionar bloco",
+  "inspector.blocks.addChild": "Adicionar bloco filho",
+  "inspector.blocks.remove": "Remover bloco",
+  "inspector.blocks.moveUp": "Mover bloco para cima",
+  "inspector.blocks.moveDown": "Mover bloco para baixo",
+  "inspector.blocks.maxDepth":
+    "Profundidade máxima de blocos atingida",
+  "inspector.blocks.empty": "Nenhum bloco",
+  "inspector.blocks.staticHelp":
+    "Blocos visuais são conteúdo estático e não executam código.",
+  "inspector.blocks.categories": "Categorias",
+  "inspector.blocks.addCategory": "+ Adicionar categoria",
+  "inspector.blocks.categoryName": "Nome da categoria",
+  "inspector.blocks.categoryColor": "Cor da categoria",
+  "inspector.blocks.removeCategory": "Remover categoria",
+  "inspector.blocks.categoryInUse": "Categoria em uso",
+  "inspector.blocks.blocks": "Blocos",
+  "inspector.blocks.category": "Categoria",
+  "inspector.blocks.shape": "Forma",
+  "inspector.blocks.statement": "Comando",
+  "inspector.blocks.scope": "Escopo",
+  "inspector.blocks.value": "Valor",
+  "inspector.blocks.parts": "Partes",
+  "inspector.blocks.addText": "+ Adicionar texto",
+  "inspector.blocks.addSocket": "+ Adicionar encaixe",
+  "inspector.blocks.socket": "Encaixe",
+  "inspector.blocks.socketEmpty": "Vazio",
+  "inspector.blocks.literal": "Literal",
+  "inspector.blocks.literalValue": "Valor literal",
+  "inspector.blocks.valueBlock": "Bloco de valor",
+  "inspector.blocks.moveEarlier": "Mover para antes",
+  "inspector.blocks.moveLater": "Mover para depois",
+  "inspector.blocks.scopeChildren": "Filhos do escopo",
+  "inspector.blocks.populatedScopeCannotBecomeStatement":
+    "Um escopo com conteúdo não pode se tornar um comando.",
+
   "table.text": "Texto",
   "table.number": "Número",
   "table.boolean": "Booleano",
@@ -1218,6 +1317,29 @@ const portugueseMessages = {
   "editor.couldNotLoad": "Não foi possível carregar a apresentação.",
   "editor.backToLibrary": "Voltar à biblioteca",
 
+  "recovery.title": "A apresentação contém conteúdo incompatível",
+  "recovery.explanation":
+    "O PowerShow pode remover o conteúdo incompatível preservando o restante da apresentação.",
+  "recovery.issueCount": "{count} problemas encontrados",
+  "recovery.viewDetails": "Ver detalhes",
+  "recovery.hideDetails": "Ocultar detalhes",
+  "recovery.removeAndOpen": "Remover conteúdo incompatível e abrir",
+  "recovery.confirmTitle": "Remover conteúdo incompatível?",
+  "recovery.confirmBody":
+    "Isso removerá o conteúdo incompatível desta apresentação. Todo o restante será preservado.",
+  "recovery.cancel": "Cancelar",
+  "recovery.confirm": "Remover e abrir",
+  "recovery.repairing": "Reparando apresentação…",
+  "recovery.unrecoverableTitle": "A apresentação não pode ser reparada",
+  "recovery.unrecoverableExplanation":
+    "A estrutura da apresentação está danificada demais para ser reparada. Você pode voltar à biblioteca.",
+  "recovery.repairFailed": "Não foi possível reparar a apresentação.",
+  "recovery.backToLibrary": "Voltar à biblioteca",
+  "recovery.detailsPath": "Caminho",
+  "recovery.detailsId": "Id",
+  "recovery.detailsType": "Tipo",
+  "recovery.detailsReason": "Motivo",
+
   "auth.continueWithGoogle": "Continuar com Google",
   "auth.signingIn": "Entrando…",
   "auth.signInFailed": "Não foi possível entrar. Tente novamente.",
@@ -1306,6 +1428,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   divider: "element.divider",
   gallery: "element.gallery",
   embed: "element.embed",
+  blocks: "element.blocks",
 } satisfies Record<PowerShowElement["type"], StudioMessageKey>;
 
 // ============================================================

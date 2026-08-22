@@ -22,6 +22,7 @@ import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
 import {
   FirestoreOperationError,
   PersistenceError,
+  PresentationRecoveryFailedError,
 } from "./persistence-errors";
 import {
   assertPresentationWithinSizeLimit,
@@ -34,10 +35,15 @@ import {
   parsePersistedPresentation,
   type PresentationSummary,
 } from "./presentation-persistence";
+import {
+  analyzePresentationRecovery,
+} from "./presentation-recovery";
 import type {
   CreatePresentationOptions,
   ListPresentationsOptions,
   PresentationPublishResult,
+  PresentationRecoveryInspection,
+  PresentationRepairResult,
   PresentationRepository,
 } from "./presentation-repository";
 
@@ -148,6 +154,13 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
       return parsePersistedPresentation(snapshot.data());
     } catch (error) {
+      // Domain errors (e.g. InvalidPersistedPresentationError) must
+      // reach callers unchanged: only raw Firestore/Firebase failures
+      // are translated into FirestoreOperationError.
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
       console.error(`Failed to read presentation "${id}"`, error);
 
       throw new FirestoreOperationError(
@@ -448,6 +461,130 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
       throw new FirestoreOperationError(
         `Failed to publish presentation "${id}".`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Reads the raw persisted draft and runs the recovery analysis.
+   *
+   * Performs NO writes and never exposes the raw Firestore snapshot:
+   * callers only receive the deterministic analysis (status + issues).
+   */
+  async inspectPresentationRecovery(
+    id: string,
+  ): Promise<PresentationRecoveryInspection> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      const snapshot = await getDoc(documentRef);
+
+      if (!snapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot inspect missing presentation "${id}".`,
+        );
+      }
+
+      const data = snapshot.data();
+      const analysis = analyzePresentationRecovery(data.presentation);
+
+      return { status: analysis.status, issues: analysis.issues };
+    } catch (error) {
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      console.error(
+        `Failed to inspect presentation "${id}" for recovery`,
+        error,
+      );
+
+      throw new FirestoreOperationError(
+        `Failed to inspect presentation "${id}" for recovery.`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Repairs a persisted draft, re-reading the current draft inside the
+   * transaction at confirmation time.
+   *
+   * - missing draft -> PresentationRecoveryFailedError, zero writes;
+   * - valid current presentation -> returned unchanged with
+   *   repaired:false and ZERO writes;
+   * - unrecoverable -> PresentationRecoveryFailedError, zero writes;
+   * - recoverable -> validates size and depth, then writes ONLY the
+   *   canonical draft presentation (updatedAt + draftRevision bump),
+   *   preserving createdAt/folderId/publication and never touching the
+   *   public publication pointer or immutable published versions.
+   */
+  async repairPresentation(
+    id: string,
+  ): Promise<PresentationRepairResult> {
+    const user = this.requireAuthenticatedUser();
+    const firestore = getFirebaseFirestore();
+    const draftRef = presentationDocumentRef(user.uid, id);
+
+    try {
+      return await runTransaction(firestore, async (transaction) => {
+        const draftSnapshot = await transaction.get(draftRef);
+
+        if (!draftSnapshot.exists()) {
+          throw new PresentationRecoveryFailedError(
+            `Cannot repair missing presentation "${id}".`,
+          );
+        }
+
+        const draftData = draftSnapshot.data();
+
+        // Already canonical: nothing to repair, zero writes.
+        try {
+          const valid = parsePersistedPresentation(draftData);
+
+          return { presentation: valid, repaired: false };
+        } catch {
+          // Fall through to recovery analysis.
+        }
+
+        const analysis = analyzePresentationRecovery(
+          draftData.presentation,
+        );
+
+        if (
+          analysis.status !== "recoverable" ||
+          analysis.presentation === null
+        ) {
+          throw new PresentationRecoveryFailedError(
+            `Presentation "${id}" cannot be repaired.`,
+          );
+        }
+
+        const repaired = analysis.presentation;
+
+        assertPresentationWithinSizeLimit(repaired);
+        const safePresentation = makeFirestoreSafePresentation(repaired);
+        assertPresentationWithinFirestoreNestingDepth(safePresentation);
+
+        transaction.update(draftRef, {
+          presentation: safePresentation,
+          updatedAt: serverTimestamp(),
+          draftRevision: increment(1),
+        });
+
+        return { presentation: repaired, repaired: true };
+      });
+    } catch (error) {
+      if (error instanceof PersistenceError) {
+        throw error;
+      }
+
+      console.error(`Failed to repair presentation "${id}"`, error);
+
+      throw new FirestoreOperationError(
+        `Failed to repair presentation "${id}".`,
         error,
       );
     }
