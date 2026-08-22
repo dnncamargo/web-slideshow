@@ -2,6 +2,8 @@ import type {
   BlockItem,
   PowerShowElement,
   Slide,
+  StructuredTableElement,
+  TopicItem,
 } from "@powershow/document-schema";
 
 
@@ -41,6 +43,84 @@ function collectElementIds(
     ) {
       collectBlockItemIds(
         element.items,
+        ids,
+      );
+    }
+
+    if (
+      element.type ===
+      "topics"
+    ) {
+      collectTopicSlotElementIds(
+        element.items,
+        ids,
+      );
+    }
+
+    if (
+      element.type ===
+        "table" &&
+      element.mode ===
+        "structured"
+    ) {
+      collectStructuredTableSlotElementIds(
+        element,
+        ids,
+      );
+    }
+  }
+}
+
+
+/**
+ * Reaches every PowerShowElement array owned by the TopicItem
+ * ContentSlots, recursively through nested TopicItems. Blocks (and
+ * Containers containing Blocks) located there must participate in the
+ * authoring ID inventory.
+ *
+ * TopicItem/ContentSlot structure IDs are NOT collected here: they are
+ * not PowerShowElements and this duplicate-slide path has always
+ * preserved them.
+ */
+function collectTopicSlotElementIds(
+  items: readonly TopicItem[],
+  ids: Set<string>,
+): void {
+  for (const item of items) {
+    collectElementIds(
+      item.content.children,
+      ids,
+    );
+
+    collectTopicSlotElementIds(
+      item.children,
+      ids,
+    );
+  }
+}
+
+
+/**
+ * Reaches every PowerShowElement array owned by the Structured Table
+ * header/column and row cell ContentSlots.
+ *
+ * Column/header/row/cell structural IDs are NOT collected here.
+ */
+function collectStructuredTableSlotElementIds(
+  table: StructuredTableElement,
+  ids: Set<string>,
+): void {
+  for (const column of table.columns) {
+    collectElementIds(
+      column.header.children,
+      ids,
+    );
+  }
+
+  for (const row of table.rows) {
+    for (const cell of row.cells) {
+      collectElementIds(
+        cell.children,
         ids,
       );
     }
@@ -217,11 +297,136 @@ function cloneElementWithUniqueIds(
   }
 
 
+  if (
+    clone.type ===
+    "topics"
+  ) {
+    return {
+      ...clone,
+
+      id,
+
+      items:
+        clone.items.map(
+          (item) =>
+            cloneTopicItemKeepingStructuralIds(
+              item,
+              usedIds,
+            ),
+        ),
+    };
+  }
+
+
+  if (
+    clone.type ===
+      "table" &&
+    clone.mode ===
+      "structured"
+  ) {
+    return {
+      ...clone,
+
+      id,
+
+      columns:
+        clone.columns.map(
+          (column) => ({
+            ...column,
+
+            header: {
+              ...column.header,
+
+              children:
+                clonePowerShowElementsWithUniqueIds(
+                  column.header.children,
+                  usedIds,
+                ),
+            },
+          }),
+        ),
+
+      rows:
+        clone.rows.map(
+          (row) => ({
+            ...row,
+
+            cells:
+              row.cells.map(
+                (cell) => ({
+                  ...cell,
+
+                  children:
+                    clonePowerShowElementsWithUniqueIds(
+                      cell.children,
+                      usedIds,
+                    ),
+                }),
+              ),
+          }),
+        ),
+    };
+  }
+
+
   return {
     ...clone,
 
     id,
   };
+}
+
+
+/**
+ * Clones the PowerShowElement arrays reachable through the TopicItem
+ * ContentSlots, recursively renewing element ids so blocks nested
+ * inside topics get fresh ids.
+ *
+ * The TopicItem/ContentSlot structural ids are intentionally preserved
+ * (spread from the structured clone): this duplicate-slide path has
+ * always kept them unchanged, and this checkpoint does not redesign
+ * Topics duplication.
+ */
+function cloneTopicItemKeepingStructuralIds(
+  item: TopicItem,
+  usedIds: Set<string>,
+): TopicItem {
+  return {
+    ...item,
+
+    content: {
+      ...item.content,
+
+      children:
+        clonePowerShowElementsWithUniqueIds(
+          item.content.children,
+          usedIds,
+        ),
+    },
+
+    children:
+      item.children.map(
+        (child) =>
+          cloneTopicItemKeepingStructuralIds(
+            child,
+            usedIds,
+          ),
+      ),
+  };
+}
+
+
+function clonePowerShowElementsWithUniqueIds(
+  elements: readonly PowerShowElement[],
+  usedIds: Set<string>,
+): PowerShowElement[] {
+  return elements.map(
+    (element) =>
+      cloneElementWithUniqueIds(
+        element,
+        usedIds,
+      ),
+  );
 }
 
 
