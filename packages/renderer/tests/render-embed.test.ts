@@ -66,14 +66,14 @@ describe("renderEmbed", () => {
     );
   });
 
-  it("emits exactly sandbox allow-scripts allow-forms", () => {
+  it("emits exactly sandbox allow-scripts allow-forms allow-same-origin", () => {
     const html = renderEmbed(embed());
 
-    expect(html).toContain('sandbox="allow-scripts allow-forms"');
+    expect(html).toContain('sandbox="allow-scripts allow-forms allow-same-origin"');
   });
 
-  it("does not emit allow-same-origin", () => {
-    expect(renderEmbed(embed())).not.toContain("allow-same-origin");
+  it("emits allow-same-origin", () => {
+    expect(renderEmbed(embed())).toContain("allow-same-origin");
   });
 
   it("does not emit top-navigation sandbox permissions", () => {
@@ -92,12 +92,40 @@ describe("renderEmbed", () => {
     expect(html).not.toContain("allow-popups-to-escape-sandbox");
   });
 
+  it("does not emit downloads or storage-access sandbox permissions", () => {
+    const html = renderEmbed(embed());
+
+    expect(html).not.toContain("allow-downloads");
+
+    expect(html).not.toContain("allow-storage-access-by-user-activation");
+  });
+
   it("emits allow fullscreen as the Permissions Policy", () => {
     expect(renderEmbed(embed())).toContain('allow="fullscreen"');
   });
 
   it("emits loading lazy", () => {
     expect(renderEmbed(embed())).toContain('loading="lazy"');
+  });
+
+  it("emits referrerpolicy strict-origin-when-cross-origin", () => {
+    expect(renderEmbed(embed())).toContain(
+      'referrerpolicy="strict-origin-when-cross-origin"',
+    );
+  });
+
+  it("does not emit provider-specific behavior", () => {
+    const html = renderEmbed(
+      embed({ src: "https://example.com/embed/video" }),
+    );
+
+    expect(html).not.toContain("youtube");
+
+    expect(html).not.toContain("youtu.be");
+
+    expect(html).not.toContain("convertEmbed");
+
+    expect(html).not.toContain("provider");
   });
 
   it("applies generic ElementStyle", () => {
