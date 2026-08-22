@@ -14,6 +14,7 @@ import {
   EmbedInspector,
   GalleryInspector,
   ImageInspector,
+  ScriptedInspector,
   TableInspector,
   TerminalInspector,
   TextboxInspector,
@@ -140,6 +141,15 @@ function ElementTypeInspector({
 
     case "embed":
       return <EmbedInspector element={element} onUpdate={onUpdate} />;
+
+    case "scripted":
+      return (
+        <ScriptedInspector
+          key={element.id}
+          element={element}
+          onUpdate={onUpdate}
+        />
+      );
 
     case "gallery":
       return <GalleryInspector element={element} onUpdate={onUpdate} />;

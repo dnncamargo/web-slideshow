@@ -824,19 +824,23 @@ export function EditorWorkspace({
       return;
     }
 
-    const embeds = Array.from(
+    const iframeElements = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>(
-        '[data-powershow-type="embed"][data-powershow-id]',
+        '[data-powershow-type="embed"][data-powershow-id],' +
+          ' [data-powershow-type="scripted"][data-powershow-id]',
       ),
     );
     const embedTarget = resolveCanvasEmbedPointerTarget(
       { clientX: event.clientX, clientY: event.clientY },
-      embeds.map((embed) => {
-        const bounds = embed.getBoundingClientRect();
+      iframeElements.map((iframeElement) => {
+        const bounds = iframeElement.getBoundingClientRect();
 
         return {
-          id: embed.dataset.powershowId ?? "",
-          type: "embed" as const,
+          id: iframeElement.dataset.powershowId ?? "",
+          type:
+            iframeElement.dataset.powershowType === "scripted"
+              ? ("scripted" as const)
+              : ("embed" as const),
           left: bounds.left,
           top: bounds.top,
           right: bounds.right,
@@ -846,7 +850,7 @@ export function EditorWorkspace({
     );
     const ordinaryTarget = target.closest<HTMLElement>("[data-powershow-id]");
     const { elementTarget, target: hitTarget } = resolveCanvasPointerHit({
-      embeds,
+      embeds: iframeElements,
       embedTarget,
       ordinaryTarget,
     });

@@ -164,6 +164,10 @@ const insertionDescription =
           <option value="blocks">
             {t("element.blocks")}
           </option>
+
+          <option value="scripted">
+            {t("element.scripted")}
+          </option>
         </select>
 
 

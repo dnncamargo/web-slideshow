@@ -14,6 +14,8 @@ export { ImageInspector } from "./image-inspector";
 
 export { InspectorSection } from "./inspector-section";
 
+export { ScriptedInspector } from "./scripted-inspector";
+
 export { TableInspector } from "./table-inspector";
 
 export { TerminalInspector } from "./terminal-inspector";
