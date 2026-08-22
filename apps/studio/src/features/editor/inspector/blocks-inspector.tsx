@@ -7,6 +7,7 @@ import type {
   UpdateElementStyle,
 } from "./inspector-types";
 import { InspectorSection } from "./inspector-section";
+import { BlocksContentSection } from "./sections/blocks-content-section";
 import { ElementAppearanceSection } from "./sections/element-appearance-section";
 import { ElementEffectsSection } from "./sections/element-effects-section";
 
@@ -16,23 +17,11 @@ interface BlocksInspectorProps {
   blocksAuthoringControls: BlocksAuthoringControls;
 }
 
-function countBlocks(items: BlocksElement["items"]): number {
-  return items.reduce((count, item) => count + 1 + countBlocks(item.children) + item.parts.reduce((partCount, part) => (
-    part.type === "socket" && part.content.type === "block"
-      ? partCount + countBlocks([part.content.block])
-      : partCount
-  ), 0), 0);
-}
-
 export function BlocksInspector({
   element,
   onUpdate,
-  blocksAuthoringControls: _blocksAuthoringControls,
+  blocksAuthoringControls,
 }: BlocksInspectorProps) {
-  // R2-A establishes the workspace contract only: the temporary
-  // inspector receives the controls but must not expose/invoke them yet.
-  void _blocksAuthoringControls;
-
   const { t } = useStudioI18n();
   const updateBlocksStyle: UpdateElementStyle = (update) => onUpdate((current) => {
     if (current.type !== "blocks") return current;
@@ -43,16 +32,11 @@ export function BlocksInspector({
   return <>
     <div className={styles.inspectorDivider} />
     <InspectorSection title={t("inspector.content")} defaultOpen>
-      <small className={styles.fieldHint} data-powershow-blocks-inspector="true">
-        <span>Visual block structure is present. Detailed block authoring controls are coming in the next checkpoint.</span>
-      </small>
-      <small
-        className={styles.fieldHint}
-        data-powershow-blocks-categories={element.categories.length}
-        data-powershow-blocks-count={countBlocks(element.items)}
-      >
-        <span>{element.categories.length} categories · {countBlocks(element.items)} root/nested blocks</span>
-      </small>
+      <BlocksContentSection
+        element={element}
+        onUpdate={onUpdate}
+        blocksAuthoringControls={blocksAuthoringControls}
+      />
     </InspectorSection>
     <ElementAppearanceSection element={element} onUpdateStyle={updateBlocksStyle} controlPrefix="blocks" showColor showBackground showBackgroundGradient showRoundedCorners showOpacity showBorder />
     <ElementEffectsSection style={element.style} onUpdateStyle={updateBlocksStyle} controlPrefix="blocks" />
