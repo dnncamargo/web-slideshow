@@ -118,6 +118,8 @@ describe("production canonical Container renderer", () => {
     }));
 
     expect(rootTag(stackHtml)).toContain("display:grid");
+    expect(rootTag(stackHtml)).toContain("justify-items:center");
+    expect(rootTag(stackHtml)).toContain("align-items:end");
     expect(tagForId(stackHtml, "stack-child")).toContain("grid-area:1 / 1");
   });
 
@@ -169,6 +171,29 @@ describe("production canonical Container renderer", () => {
     expect(html).toContain(`background-image:${PATTERN.image}`);
   });
 
+  it("renders gradient borders from the canonical border namespace", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      style: {
+        border: { width: 2, gradient: GRADIENT },
+      },
+    })));
+
+    expect(tag).toContain("border-color:transparent");
+    expect(tag).toContain(
+      "border-image:linear-gradient(90deg,#111111 0%,#ffffff 100%) 1",
+    );
+  });
+
+  it("quotes and escapes a font family through the production renderer", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      typography: { fontFamily: 'Font "Unsafe"' },
+    })));
+
+    expect(tag).toContain(
+      String.raw`font-family:&quot;Font \22 Unsafe\22 &quot;`,
+    );
+  });
+
   it("preserves structure, semantics, hidden behavior, recursion, and non-Container children", () => {
     const html = renderElement(createContainerElement({
       role: "main",
@@ -212,6 +237,24 @@ describe("production canonical Container renderer", () => {
     expect(rootTag(absoluteParent)).not.toContain("position:relative");
     expect(tagForId(absoluteParent, "absolute-child")).toContain("top:10px");
     expect(tagForId(absoluteParent, "absolute-child")).toContain("right:20px");
+
+    const normalParentWithAbsoluteChild = renderElement(createContainerElement({
+      children: [createContainerElement({
+        id: "normal-absolute-child",
+        layout: { position: "absolute", top: 10, left: 20 },
+      })],
+    }));
+    expect(rootTag(normalParentWithAbsoluteChild)).toContain("position:relative");
+    expect(rootTag(normalParentWithAbsoluteChild)).not.toContain("position:absolute");
+    expect(tagForId(normalParentWithAbsoluteChild, "normal-absolute-child")).toContain("position:absolute");
+    expect(tagForId(normalParentWithAbsoluteChild, "normal-absolute-child")).toContain("top:10px");
+    expect(tagForId(normalParentWithAbsoluteChild, "normal-absolute-child")).toContain("left:20px");
+
+    const normalPatternParent = renderElement(createContainerElement({
+      style: { background: { pattern: PATTERN } },
+    }));
+    expect(rootTag(normalPatternParent)).toContain("position:relative");
+    expect(rootTag(normalPatternParent)).toContain("isolation:isolate");
 
     const patternParent = renderElement(createContainerElement({
       layout: { position: "absolute" },
