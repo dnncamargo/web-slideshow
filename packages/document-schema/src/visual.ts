@@ -91,6 +91,129 @@ export const GradientSchema =
 export type Gradient =
   z.infer<typeof GradientSchema>;
 
+const BackgroundPatternImageSchema =
+  z
+    .string()
+    .refine(
+      (image) => image.trim().length > 0,
+      "Background pattern image cannot be empty.",
+    )
+    .superRefine((image, context) => {
+      if (
+        /\b(?:url|image-set|cross-fade|element|paint|var)\s*\(|@\s*import\b/i.test(
+          image,
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Background pattern image must use CSS gradients only.",
+        });
+
+        return;
+      }
+
+      if (!isGradientPatternImage(image)) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Background pattern image must contain only CSS gradient layers.",
+        });
+      }
+    });
+
+function isGradientPatternImage(image: string): boolean {
+  const layers: string[] = [];
+  let depth = 0;
+  let layerStart = 0;
+
+  for (let index = 0; index < image.length; index += 1) {
+    const character = image[index];
+
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+
+      if (depth < 0) {
+        return false;
+      }
+    } else if (character === "," && depth === 0) {
+      layers.push(image.slice(layerStart, index));
+      layerStart = index + 1;
+    }
+  }
+
+  if (depth !== 0) {
+    return false;
+  }
+
+  layers.push(image.slice(layerStart));
+
+  return layers.every(isGradientLayer);
+}
+
+function isGradientLayer(layer: string): boolean {
+  const value = layer.trim();
+  const match = /^(?:repeating-)?(?:linear|radial)-gradient\s*\(/i.exec(
+    value,
+  );
+
+  if (!match) {
+    return false;
+  }
+
+  let depth = 0;
+
+  for (let index = match[0].length - 1; index < value.length; index += 1) {
+    const character = value[index];
+
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return value.slice(index + 1).trim().length === 0;
+      }
+    }
+  }
+
+  return false;
+}
+
+const BackgroundPatternValueSchema =
+  z.string().refine(
+    (value) => value.trim().length > 0,
+    "Background pattern CSS values cannot be empty.",
+  );
+
+export const BackgroundPatternRepeatSchema =
+  z.enum([
+    "repeat",
+    "repeat-x",
+    "repeat-y",
+    "no-repeat",
+    "space",
+    "round",
+  ]);
+
+export const BackgroundPatternSchema =
+  z.object({
+    image: BackgroundPatternImageSchema,
+
+    size: BackgroundPatternValueSchema.optional(),
+
+    position: BackgroundPatternValueSchema.optional(),
+
+    repeat: BackgroundPatternRepeatSchema.optional(),
+
+    opacity: z.number().min(0).max(1).optional(),
+  });
+
+export type BackgroundPattern =
+  z.infer<typeof BackgroundPatternSchema>;
+
 export const BorderStyleSchema =
   z.enum([
     "solid",
