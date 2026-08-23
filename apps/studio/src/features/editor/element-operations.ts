@@ -1875,17 +1875,13 @@ export function createElement(
 
     case "container": {
       return {
-        id: createUniqueId("container-element", usedIds),
-
-        type: "container",
-
-        hidden: false,
-
-        layout: { width: "70%", height: "60%", padding: 24, children: { gap: 16, horizontalAlign: "center", verticalAlign: "center" } },
-        style: { background: { color: "rgba(15, 23, 42, 0.55)" } },
-
-        children: [],
-      };
+  id: createUniqueId("container-element", usedIds),
+  type: "container",
+  hidden: false,
+  layout: { width: "70%", height: "60%", padding: 24, children: { gap: 16, horizontalAlign: "center", verticalAlign: "center" } },
+  children: [],
+  style: { background: { color: { color: "rgba(15, 23, 42, 0.55)" } } }
+};
     }
 
     case "image": {
