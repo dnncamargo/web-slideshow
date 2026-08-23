@@ -320,6 +320,33 @@ describe("renderCandidateContainer", () => {
     expect(rootTag(absoluteWithAbsoluteChild)).not.toContain("position:relative");
   });
 
+  it("detects production children with legacy absolute position contracts", () => {
+    const positionChild = {
+      ...productionChild,
+      id: "production-position-child",
+      style: { position: "absolute" as const },
+    };
+    const placementChild = {
+      ...productionChild,
+      id: "production-placement-child",
+      style: { placement: { mode: "absolute" as const } },
+    };
+    const renderProductionChild = () => "<p></p>";
+
+    for (const child of [positionChild, placementChild]) {
+      const html = renderCandidateContainer(
+        parseCandidate({
+          id: "production-position-parent",
+          type: "container",
+          children: [child],
+        }),
+        renderProductionChild,
+      );
+
+      expect(rootTag(html)).toContain("position:relative");
+    }
+  });
+
   it("preserves authored absolute positioning for link and pattern roots", () => {
     for (const extra of [
       { link: { kind: "url", href: "https://example.com" } },

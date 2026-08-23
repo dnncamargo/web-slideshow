@@ -243,7 +243,10 @@ function hasAbsoluteChild(element: CandidateContainerElement): boolean {
       return child.layout?.position === "absolute";
     }
 
-    return isAbsolutePlacement(child.style?.placement);
+    return (
+      child.style?.position === "absolute" ||
+      isAbsolutePlacement(child.style?.placement)
+    );
   });
 }
 
