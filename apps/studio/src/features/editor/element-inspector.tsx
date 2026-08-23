@@ -249,7 +249,7 @@ export function ElementInspector({
         tableAuthoringControls={tableAuthoringControls}
       />
 
-      {shouldShowElementPlacement(layerControls) && (
+      {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
         <ElementPlacementSection
           element={element}
           parent={parent}

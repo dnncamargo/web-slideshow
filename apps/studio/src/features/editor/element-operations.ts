@@ -1881,23 +1881,8 @@ export function createElement(
 
         hidden: false,
 
-        direction: "column",
-
-        gap: 16,
-
-        horizontalAlign: "center",
-
-        verticalAlign: "center",
-
-        style: {
-          width: "70%",
-
-          height: "60%",
-
-          padding: 24,
-
-          background: "rgba(15, 23, 42, 0.55)",
-        },
+        layout: { width: "70%", height: "60%", padding: 24, children: { gap: 16, horizontalAlign: "center", verticalAlign: "center" } },
+        style: { background: { color: "rgba(15, 23, 42, 0.55)" } },
 
         children: [],
       };

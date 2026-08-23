@@ -1,14 +1,9 @@
 import { z } from "zod";
 
 import {
-  DirectionSchema,
-  DistributionSchema,
   ElementIdSchema,
-  HorizontalAlignmentSchema,
-  LayoutModeSchema,
   LengthSchema,
   ColorSchema,
-  VerticalAlignmentSchema,
 } from "./primitives";
 
 import {
@@ -19,6 +14,12 @@ import {
   ElementLinkSchema,
   isAbsoluteHttpHref,
 } from "./links";
+import {
+  ContainerLayoutSchema,
+  ElementEffectSchema,
+  ElementTypographySchema,
+  ElementVisualStyleSchema,
+} from "./element-properties";
 
 const BaseElementSchema = z.object({
   id: ElementIdSchema,
@@ -615,49 +616,13 @@ export type ContainerElement = {
     | "content"
     | undefined;
 
-  direction:
-    | "row"
-    | "column";
+  layout?: z.infer<typeof ContainerLayoutSchema> | undefined;
 
-  layoutMode?:
-    | "flow"
-    | "stack"
-    | undefined;
+  style?: z.infer<typeof ElementVisualStyleSchema> | undefined;
 
-distribution?:
-  | "packed"
-  | "space-between"
-  | "space-around"
-  | "space-evenly"
-  | undefined;
+  typography?: z.infer<typeof ElementTypographySchema> | undefined;
 
-  gap?:
-    | number
-    | string
-    | undefined;
-
-  horizontalAlign?:
-    | "start"
-    | "center"
-    | "end"
-    | "stretch"
-    | undefined;
-
-  verticalAlign?:
-    | "start"
-    | "center"
-    | "end"
-    | "stretch"
-    | undefined;
-
-  width?:
-    | number
-    | string
-    | undefined;
-
-  style?:
-    | z.infer<typeof ElementStyleSchema>
-    | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
 
   hidden: boolean;
 
@@ -704,7 +669,8 @@ export const PowerShowElementSchema:
       ScriptedElementSchema,
       TopicsElementSchema,
 
-      BaseElementSchema.extend({
+      z.object({
+        id: ElementIdSchema,
         type: z.literal("container"),
 
         role: z
@@ -718,30 +684,21 @@ export const PowerShowElementSchema:
           ])
           .optional(),
 
-        direction:
-          DirectionSchema.default("column"),
+        hidden: z.boolean().default(false),
 
-        layoutMode:
-          LayoutModeSchema.optional(),
+        layout: ContainerLayoutSchema.optional(),
 
-        distribution:
-          DistributionSchema.optional(),
+        style: ElementVisualStyleSchema.optional(),
 
-        gap: LengthSchema.optional(),
+        typography: ElementTypographySchema.optional(),
 
-        horizontalAlign:
-          HorizontalAlignmentSchema.optional(),
-
-        verticalAlign:
-          VerticalAlignmentSchema.optional(),
-
-        width: LengthSchema.optional(),
+        effect: ElementEffectSchema.optional(),
 
         link: ElementLinkSchema.optional(),
 
         children: z.array(
           PowerShowElementSchema,
         ),
-      }),
+      }).strict(),
     ]),
   );

@@ -11,13 +11,7 @@ import { ContainerSizeSection } from "./sections/container-size-section";
 
 import { ContainerSpacingSection } from "./sections/container-spacing-section";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
 import { ElementInteractionSection } from "./sections/element-interaction-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
-
-import type { UpdateElementStyle } from "./inspector-types";
 
 interface ContainerInspectorProps {
   element: ContainerElement;
@@ -45,14 +39,6 @@ export function ContainerInspector({
     });
   }
 
-  const updateStyle: UpdateElementStyle = (update) => {
-    updateContainer((container) => ({
-      ...container,
-
-      style: update(container.style),
-    }));
-  };
-
   return (
     <>
       <div className={styles.inspectorDivider} />
@@ -63,29 +49,12 @@ export function ContainerInspector({
 
       <ContainerSpacingSection element={element} onUpdate={updateContainer} />
 
-      <ElementAppearanceSection
-        element={element}
-        onUpdateStyle={updateStyle}
-        controlPrefix="container"
-        showBackground
-        showBackgroundGradient
-        showBackgroundPattern
-        showRoundedCorners
-        showOpacity
-        showBorder
-      />
-
       <ElementInteractionSection
         element={element}
         onUpdate={onUpdate}
         controlPrefix="container"
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
-        controlPrefix="container"
-      />
     </>
   );
 }

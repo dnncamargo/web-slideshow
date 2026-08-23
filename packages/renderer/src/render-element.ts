@@ -11,6 +11,7 @@ import { renderScripted } from "./render-scripted";
 
 import type {
   ElementLink,
+  ContainerElement,
   ImageElement,
   PowerShowElement,
   TextboxElement,
@@ -54,7 +55,7 @@ function buildAttributes(
 ): string {
   const outputClasses = ["powershow-element", ...classes];
 
-  const customClass = element.style?.className?.trim();
+  const customClass = element.type === "container" ? element.style?.className?.trim() : element.style?.className?.trim();
 
   if (customClass) {
     outputClasses.push(customClass);
@@ -62,7 +63,7 @@ function buildAttributes(
 
   const styles: string[] = [];
 
-  const baseStyle = renderStyle(element.style);
+  const baseStyle = element.type === "container" ? "" : renderStyle(element.style);
 
   if (baseStyle) {
     styles.push(baseStyle);

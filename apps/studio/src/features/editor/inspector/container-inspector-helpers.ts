@@ -6,10 +6,13 @@ export type UpdateContainer = (
 
 export function updateContainerLayoutMode(
   container: ContainerElement,
-  layoutMode: NonNullable<ContainerElement["layoutMode"]>,
+  layoutMode: "flow" | "stack",
 ): ContainerElement {
   return {
     ...container,
-    layoutMode,
+    layout: {
+      ...container.layout,
+      children: { ...container.layout?.children, mode: layoutMode === "flow" ? undefined : layoutMode },
+    },
   };
 }

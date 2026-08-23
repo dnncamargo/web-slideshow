@@ -38,9 +38,9 @@ function readPercentage(value: string | number | undefined): number | "" {
 function detectPanelSizePreset(
   container: ContainerElement,
 ): PanelSizeSelection {
-  const width = container.style?.width;
+  const width = container.layout?.width;
 
-  const height = container.style?.height;
+  const height = container.layout?.height;
 
   for (const preset of ["small", "medium", "large", "wide", "full"] as const) {
     const dimensions = PANEL_SIZE_PRESETS[preset];
@@ -86,11 +86,7 @@ export function ContainerSizeSection({
             onUpdate((container) => ({
               ...container,
 
-              style: {
-                ...container.style,
-
-                ...size,
-              },
+              layout: { ...container.layout, width: size.width, height: size.height },
             }));
           }}
         >
@@ -119,18 +115,14 @@ export function ContainerSizeSection({
               type="number"
               min="1"
               max="100"
-              value={readPercentage(element.style?.width)}
+              value={readPercentage(element.layout?.width)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
                 onUpdate((container) => ({
                   ...container,
 
-                  style: {
-                    ...container.style,
-
-                    width: number === undefined ? undefined : `${number}%`,
-                  },
+                  layout: { ...container.layout, width: number === undefined ? undefined : `${number}%` },
                 }));
               }}
             />
@@ -149,18 +141,14 @@ export function ContainerSizeSection({
               type="number"
               min="1"
               max="100"
-              value={readPercentage(element.style?.height)}
+              value={readPercentage(element.layout?.height)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
                 onUpdate((container) => ({
                   ...container,
 
-                  style: {
-                    ...container.style,
-
-                    height: number === undefined ? undefined : `${number}%`,
-                  },
+                  layout: { ...container.layout, height: number === undefined ? undefined : `${number}%` },
                 }));
               }}
             />

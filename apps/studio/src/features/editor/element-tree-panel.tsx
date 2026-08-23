@@ -208,7 +208,7 @@ function ElementTreeNode({
       : selectedElementId === element.id;
   const indicator =
     isExpandable && element.type === "container"
-      ? `[${t(element.layoutMode === "stack" ? "inspector.stack" : "inspector.flow")}]`
+      ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
       : element.style?.placement?.mode === "absolute"
         ? `[${t("inspector.absolute")}]`
         : null;

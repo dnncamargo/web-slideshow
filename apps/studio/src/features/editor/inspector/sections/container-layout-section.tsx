@@ -11,17 +11,15 @@ import {
 
 import { InspectorSection } from "../inspector-section";
 
-type ContainerDistribution = NonNullable<ContainerElement["distribution"]>;
+type ContainerDistribution = "packed" | "space-between" | "space-around" | "space-evenly";
 
-type ContainerDirection = ContainerElement["direction"];
+type ContainerDirection = "row" | "column";
 
-type ContainerLayoutMode = NonNullable<ContainerElement["layoutMode"]>;
+type ContainerLayoutMode = "flow" | "stack";
 
-type ContainerHorizontalAlign = NonNullable<
-  ContainerElement["horizontalAlign"]
->;
+type ContainerHorizontalAlign = "start" | "center" | "end" | "stretch";
 
-type ContainerVerticalAlign = NonNullable<ContainerElement["verticalAlign"]>;
+type ContainerVerticalAlign = "start" | "center" | "end" | "stretch";
 
 interface ContainerLayoutSectionProps {
   element: ContainerElement;
@@ -40,14 +38,14 @@ export function ContainerLayoutSection({
   const { t } = useStudioI18n();
 
   const hasDistributedMainAxis =
-    (element.distribution ?? "packed") !== "packed";
-  const isStack = element.layoutMode === "stack";
+    (element.layout?.children?.distribution ?? "packed") !== "packed";
+  const isStack = element.layout?.children?.mode === "stack";
 
   const isHorizontalAlignmentDisabled =
-    element.direction === "row" && hasDistributedMainAxis;
+    element.layout?.children?.direction === "row" && hasDistributedMainAxis;
 
   const isVerticalAlignmentDisabled =
-    element.direction === "column" && hasDistributedMainAxis;
+    (element.layout?.children?.direction ?? "column") === "column" && hasDistributedMainAxis;
 
   return (
     <InspectorSection title={t("inspector.layout")} defaultOpen>
@@ -57,7 +55,7 @@ export function ContainerLayoutSection({
         <select
           id="container-layout-mode"
           name="containerLayoutMode"
-          value={element.layoutMode ?? "flow"}
+          value={element.layout?.children?.mode ?? "flow"}
           onChange={(event) => {
             const layoutMode = event.target.value as ContainerLayoutMode;
 
@@ -78,14 +76,12 @@ export function ContainerLayoutSection({
         <select
           id="container-direction"
           name="containerDirection"
-          value={element.direction}
+          value={element.layout?.children?.direction ?? "column"}
           onChange={(event) => {
             const direction = event.target.value as ContainerDirection;
 
             onUpdate((container) => ({
-              ...container,
-
-              direction,
+              ...container, layout: { ...container.layout, children: { ...container.layout?.children, direction } },
             }));
           }}
         >
@@ -109,15 +105,13 @@ export function ContainerLayoutSection({
         <select
           id="container-distribution"
           name="containerDistribution"
-          value={element.distribution ?? "packed"}
+          value={element.layout?.children?.distribution ?? "packed"}
           disabled={isStack}
           onChange={(event) => {
             const value = event.target.value as ContainerDistribution;
 
             onUpdate((container) => ({
-              ...container,
-
-              distribution: value === "packed" ? undefined : value,
+              ...container, layout: { ...container.layout, children: { ...container.layout?.children, distribution: value === "packed" ? undefined : value } },
             }));
           }}
         >
@@ -152,7 +146,7 @@ export function ContainerLayoutSection({
           <select
             id="container-horizontal-align"
             name="containerHorizontalAlign"
-            value={element.horizontalAlign ?? ""}
+            value={element.layout?.children?.horizontalAlign ?? ""}
             disabled={isHorizontalAlignmentDisabled}
             onChange={(event) => {
               const value = event.target.value;
@@ -161,9 +155,7 @@ export function ContainerLayoutSection({
                 value === "" ? undefined : (value as ContainerHorizontalAlign);
 
               onUpdate((container) => ({
-                ...container,
-
-                horizontalAlign,
+                ...container, layout: { ...container.layout, children: { ...container.layout?.children, horizontalAlign } },
               }));
             }}
           >
@@ -193,7 +185,7 @@ export function ContainerLayoutSection({
           <select
             id="container-vertical-align"
             name="containerVerticalAlign"
-            value={element.verticalAlign ?? ""}
+            value={element.layout?.children?.verticalAlign ?? ""}
             disabled={isVerticalAlignmentDisabled}
             onChange={(event) => {
               const value = event.target.value;
@@ -202,9 +194,7 @@ export function ContainerLayoutSection({
                 value === "" ? undefined : (value as ContainerVerticalAlign);
 
               onUpdate((container) => ({
-                ...container,
-
-                verticalAlign,
+                ...container, layout: { ...container.layout, children: { ...container.layout?.children, verticalAlign } },
               }));
             }}
           >

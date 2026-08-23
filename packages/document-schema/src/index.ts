@@ -8,4 +8,3 @@ export * from "./presentation";
 export * from "./slide";
 export * from "./visual";
 export * from "./element-properties";
-export * from "./container-candidate";

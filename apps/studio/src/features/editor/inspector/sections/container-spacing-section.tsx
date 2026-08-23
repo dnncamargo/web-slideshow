@@ -46,11 +46,7 @@ export function ContainerSpacingSection({
     onUpdate((container) => ({
       ...container,
 
-      style: {
-        ...container.style,
-
-        [field]: value,
-      },
+      layout: { ...container.layout, [field]: value },
     }));
   }
 
@@ -68,18 +64,14 @@ export function ContainerSpacingSection({
               name="containerPadding"
               type="number"
               min="0"
-              value={readAbsoluteNumber(element.style?.padding)}
+                  value={readAbsoluteNumber(element.layout?.padding)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
                 onUpdate((container) => ({
                   ...container,
 
-                  style: {
-                    ...container.style,
-
-                    padding: number,
-                  },
+                  layout: { ...container.layout, padding: number },
                 }));
               }}
             />
@@ -97,14 +89,12 @@ export function ContainerSpacingSection({
               name="containerGap"
               type="number"
               min="0"
-              value={readAbsoluteNumber(element.gap)}
+              value={readAbsoluteNumber(element.layout?.children?.gap)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
                 onUpdate((container) => ({
-                  ...container,
-
-                  gap: number,
+                  ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: number } },
                 }));
               }}
             />
@@ -129,7 +119,7 @@ export function ContainerSpacingSection({
                 name="containerPaddingTop"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.paddingTop)}
+                value={readAbsoluteNumber(element.layout?.paddingTop)}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingTop",
@@ -152,7 +142,7 @@ export function ContainerSpacingSection({
                 name="containerPaddingRight"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.paddingRight)}
+                value={readAbsoluteNumber(element.layout?.paddingRight)}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingRight",
@@ -175,7 +165,7 @@ export function ContainerSpacingSection({
                 name="containerPaddingBottom"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.paddingBottom)}
+                value={readAbsoluteNumber(element.layout?.paddingBottom)}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingBottom",
@@ -198,7 +188,7 @@ export function ContainerSpacingSection({
                 name="containerPaddingLeft"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.paddingLeft)}
+                value={readAbsoluteNumber(element.layout?.paddingLeft)}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingLeft",
@@ -225,18 +215,14 @@ export function ContainerSpacingSection({
             name="containerMargin"
             type="number"
             min="0"
-            value={readAbsoluteNumber(element.style?.margin)}
+            value={readAbsoluteNumber(element.layout?.margin)}
             onChange={(event) => {
               const number = parseOptionalNumber(event.target.value);
 
               onUpdate((container) => ({
                 ...container,
 
-                style: {
-                  ...container.style,
-
-                  margin: number,
-                },
+                layout: { ...container.layout, margin: number },
               }));
             }}
           />
@@ -260,7 +246,7 @@ export function ContainerSpacingSection({
                 name="containerMarginTop"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.marginTop)}
+                value={readAbsoluteNumber(element.layout?.marginTop)}
                 onChange={(event) => {
                   updateStyleField(
                     "marginTop",
@@ -283,7 +269,7 @@ export function ContainerSpacingSection({
                 name="containerMarginRight"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.marginRight)}
+                value={readAbsoluteNumber(element.layout?.marginRight)}
                 onChange={(event) => {
                   updateStyleField(
                     "marginRight",
@@ -306,7 +292,7 @@ export function ContainerSpacingSection({
                 name="containerMarginBottom"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.marginBottom)}
+                value={readAbsoluteNumber(element.layout?.marginBottom)}
                 onChange={(event) => {
                   updateStyleField(
                     "marginBottom",
@@ -329,7 +315,7 @@ export function ContainerSpacingSection({
                 name="containerMarginLeft"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.style?.marginLeft)}
+                value={readAbsoluteNumber(element.layout?.marginLeft)}
                 onChange={(event) => {
                   updateStyleField(
                     "marginLeft",

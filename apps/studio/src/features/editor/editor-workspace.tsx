@@ -596,7 +596,7 @@ export function EditorWorkspace({
         ? findElementById(selectedSlide?.elements ?? [], id)
         : null;
 
-      if (documentElement && isCanvasDraggable(documentElement.style)) {
+      if (documentElement && documentElement.type !== "container" && isCanvasDraggable(documentElement.style)) {
         candidate.classList.add("powershow-editor-draggable");
       }
     });
@@ -615,7 +615,7 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
-      !isCanvasResizable(selectedDocumentElement)
+      selectedDocumentElement.type === "container" || !isCanvasResizable(selectedDocumentElement)
     ) {
       setCanvasResizeOverlay(null);
       return;
@@ -876,7 +876,7 @@ export function EditorWorkspace({
       contentSlotId: contentSlotId ?? null,
     });
 
-    if (!isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
+    if (selection.documentElement.type === "container" || !isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
       return;
     }
 
