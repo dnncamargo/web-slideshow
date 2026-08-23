@@ -2,398 +2,698 @@
 
 This document is the current execution order for PowerShow.
 
-## Numbering policy
+Historical checkpoint names remain historical. The roadmap below reflects the product and authoring sequence currently used for new work.
 
-Historical checkpoint references remain historical and are not retroactively renamed.
+## Canonical schema version policy
 
-From P9 onward, the roadmap is renumbered to reflect product priority rather than the order in which ideas were originally proposed.
+The current document remains:
 
-### Previous planned number → current number
+```text
+schemaVersion: 1
+```
 
-| Previous label | Current label | Area |
-|---|---:|---|
-| P12 | **P9** | Control commands, live publishing, fullscreen |
-| P13 | **P10** | Audience presence |
-| P9 | **P11** | PowerShow Studio / Library redesign |
-| P10 | **P12** | Folders + persistence |
-| P11 | **P13** | Saved Styles / reusable libraries |
+PowerShow is still pre-stable. Canonical contract cleanup may intentionally invalidate disposable development presentations without creating a second schema version, a migration layer, or a V1/V2 compatibility system.
 
-P8 remains the completed Control shell / responsive presenter milestone.
+A future schema-version bump should happen only when PowerShow has a real compatibility boundary worth preserving.
+
+The historical branch name `feat/canonical-v2` does **not** mean the repository is introducing `schemaVersion: 2`; it is the branch currently used for canonical contract refinement.
 
 ---
 
-## P8 — Control shell and responsive presenter ✅
+# P9 — Live presentation and Control foundation ✅
 
-Status: **complete and merged**.
+Status: **complete for the current product baseline**.
+
+Delivered foundations include:
+
+- authenticated Studio / Control surfaces;
+- public Player runtime;
+- immutable published presentation versions;
+- public publication pointer;
+- active Live version state;
+- Previous / Next remote navigation;
+- Player ACK-authoritative state;
+- latency / synchronization diagnostics;
+- Current and Next previews;
+- private Notes;
+- presentation Summary;
+- responsive Presenter / Control experience;
+- staged Live Publish;
+- Control preview of the latest publication while Player stays on the released version;
+- logical slide preservation by `slide.id` across publication changes;
+- explicit **Update Player** promotion;
+- Player hot reload after promotion;
+- version/revision protection against stale command and ACK reuse;
+- presentation Library organization and publication workflows.
+
+These behaviors are regression gates for later canonical-document changes. A schema refactor is not complete if Studio, persistence, publication, Control, or Player stop traversing the same canonical presentation safely.
+
+---
+
+# P10 — Authoring and Canonical Document Model ← ACTIVE
+
+P10 builds the canonical authoring vocabulary before JSON Import/Export and broader properties/resource systems make the document contract more externally visible.
+
+The governing principle is:
+
+> Prefer semantic, readable, predictable PowerShow documents over persisted implementation details.
+
+## P10.1 — Typography & Fonts ✅
 
 Delivered:
 
-- authenticated `/control` surface;
-- Current and Next previews;
-- private Notes;
-- read-only Summary;
-- ACK-authoritative current slide and counter;
-- Previous/Next boundary handling;
-- Live sync / latency status;
-- End presentation;
-- Editor-aligned visual shell;
-- responsive desktop/mobile composition;
-- mobile Library access;
-- inline local clock;
-- final Summary parity with Editor.
+- typography authoring foundation;
+- effective Theme/default editing baselines;
+- font resources and provider-oriented Font Manager;
+- Fontsource and Google Fonts work;
+- explicit application of newly added fonts;
+- Normal / Regular preference when font variants are available.
 
-Deferred intentionally:
+## P10.2 — Links / Interaction ✅
 
-- functional fullscreen;
-- session timer without a canonical persisted `startedAt`;
-- richer Control commands.
+Delivered safe URL links for applicable visual elements while preserving renderer-owned interaction semantics.
+
+## P10.3 — ContentSlot ✅
+
+Delivered structured nested content slots as a reusable authoring/document primitive.
+
+## P10.4 — Topics ✅
+
+Delivered canonical structured Topics, recursive TopicItem authoring, ContentSlot integration, rendering, hierarchy, and depth-safe authoring behavior.
+
+## P10.5 — Structured Table ✅
+
+Delivered the structured Table foundation with ContentSlots, semantic rendering, hierarchy integration, and Studio authoring.
+
+The older Simple Table path still exists and may be reconsidered during later canonical cleanup, but its removal must not block the current Container work unless it becomes a concrete dependency.
+
+## P10.x — Inline / Rich Text ✅
+
+Delivered canonical inline rich-text runs and selection-based authoring for supported Text content, including nested Text inside structured content.
+
+WYSIWYG toolbar placement and broader editing polish are intentionally deferred to the UX cycle.
+
+## P10.6 — Gallery minimum ✅
+
+Delivered the Gallery foundation and minimal Studio authoring.
+
+Future redesign may consider richer Image composition, per-item behavior, and interactive navigation, but those are not part of the current canonical cleanup.
+
+## P10.7 — Embed minimum ✅
+
+Delivered canonical Embed with renderer-owned security and minimal authoring.
+
+## P10.8 — Blocks ✅
+
+Delivered static structured visual Blocks with recursive authoring, renderer support, persistence/recovery safeguards, and socket/value semantics.
+
+The model is closed for now. Visual readability and editor polish are deferred.
+
+## P10.9 — Scripted ✅
+
+Delivered sandboxed authored HTML/CSS/JavaScript.
+
+Security remains renderer-owned:
+
+- `allow-scripts` only;
+- no same-origin capability;
+- restrictive CSP;
+- no PowerShow runtime bridge;
+- no direct execution inside Studio or Player DOM.
+
+Do not reopen Scripted security during unrelated canonical cleanup.
 
 ---
 
-# P9 — Live presentation operations ← NEXT
+# P10.10 — Canonical Visual Vocabulary & Contract Cleanup ← ACTIVE
 
-P9 is now the highest-priority product cycle.
+## P10.10-A — Background Pattern contract ✅
 
-Its purpose is to make PowerShow safe and practical during a real presentation, especially when the operator edits and republishes while a Player is already live.
+Established the Pattern visual capability and canonical validation foundation.
 
-## P9.0 — Staged Live Publish
+## P10.10-B — Pattern renderer ✅
 
-### Product contract
+Established static Pattern rendering and the Container reference implementation.
 
-PowerShow distinguishes:
+## P10.10-C — Pattern Studio authoring ✅
+
+Delivered Container Pattern authoring, presets, Custom Pattern support, validation, persistence behavior, and manual gate coverage.
+
+## P10.10-D — Gradient Border authoring ✅
+
+Delivered Border paint selection between Color and Gradient using the existing canonical Border gradient capability.
+
+Gradient Border remains a Border paint mode, not a separate top-level feature.
+
+## P10.10-E — Canonical Contract Cleanup ← CURRENT
+
+Purpose: fix the most consequential accumulated contract inconsistencies **without turning the checkpoint into a complete redesign of every element**.
+
+### Scope rule
+
+A cleanup belongs here when it materially improves or unblocks the next authoring/document features.
+
+Good reasons:
+
+- two canonical representations express the same intent;
+- a field lives under the wrong semantic responsibility;
+- Studio and renderer require precedence rules because the contract is duplicated;
+- the current shape would make JSON Import/Export or Elements Properties unnecessarily confusing;
+- a missing structural concept prevents an already intended feature from being represented correctly.
+
+Not enough by itself:
+
+- a different shape looks more elegant;
+- future features might hypothetically need it;
+- a complete taxonomy could be more symmetrical;
+- an unrelated subsystem could also be refactored while nearby code is open.
+
+### Schema-version constraint
+
+Keep:
 
 ```text
-latest published version
-        │
-        └── what Control should preview
-
-live/current version
-        │
-        └── what Player is currently projecting
+schemaVersion: 1
 ```
 
-A new Publish must not immediately replace the projected Player content.
+Do not introduce:
 
-Flow:
+- `PresentationV2Schema`;
+- V1/V2 unions;
+- migration adapters;
+- legacy compatibility parsing;
+- a schema bump solely for these pre-stable corrections.
+
+Development presentations may be recreated after breaking canonical changes.
+
+---
+
+## P10.10-E1 — Canonical Container candidate alignment ← NEXT
+
+The repository currently contains an intentionally parallel Container candidate/parity harness. Before any production cutover, align that candidate to the selected canonical responsibilities.
+
+### Target responsibilities
 
 ```text
-Editor publishes V2
-       │
-       ├── immutable V2 is created
-       └── public pointer moves to V2
-                    │
-                    ▼
-            Control observes V2
-            automatically
-                    │
-                    │ operator reviews
-                    ▼
-             [Update Player]
-                    │
-                    ▼
-              live/current → V2
-                    │
-                    ▼
-              Player reloads V2
+Container
+├── identity / structure
+│   ├── id
+│   ├── type
+│   ├── role?
+│   ├── hidden
+│   ├── link?
+│   └── children
+│
+├── layout
+│   ├── size
+│   ├── spacing
+│   ├── overflow
+│   ├── positioning
+│   └── children layout
+│
+├── style
+│   ├── foreground color
+│   ├── background
+│   ├── border
+│   ├── borderRadius
+│   └── className?  [advanced escape hatch under audit]
+│
+├── typography
+│
+└── effect
+    ├── opacity
+    └── shadow
 ```
 
-No modal is used.
+### Canonical minimum
 
-The Control's existing excess action-area space is the canonical location for version-state messages and the **Update Player** button.
+A minimal Container remains simple:
 
-### Frozen behavior
+```json
+{
+  "id": "container-1",
+  "type": "container",
+  "children": []
+}
+```
 
-- Control always follows the latest published pointer.
-- Player stays on the currently released `live/current.currentVersionId` until authorized.
-- Multiple publishes while Player remains old collapse to the latest version.
-- No intermediate version queue.
-- Previous/Next are disabled while Control and Player reference different versions.
-- End presentation remains available.
-- The operator does not choose whether Control updates; Control represents the latest publication.
-- The operator only decides when the Player is promoted.
-- Structural changes produce an inline warning, not a modal.
-- If the currently projected slide was removed, show a stronger inline warning.
-- Promotion keeps the same Live activation/session identity.
-- Version promotion is not a new presentation activation.
-- Stale `slideCommand` / `slideAck` state must not leak across a version promotion.
+Empty namespaces are not required and should not be materialized merely for symmetry.
 
-### Slide preservation
+### `layout`
 
-Version changes must preserve the logical slide whenever possible.
-
-Example:
+Preferred Container layout vocabulary:
 
 ```text
-V1: A B C D
-        ^
-        C projected
-
-V2: A X B C D
-          ^
-          preserve C
+layout
+├── width
+├── height
+├── minWidth
+├── minHeight
+├── maxWidth
+├── maxHeight
+├── margin
+├── marginTop
+├── marginRight
+├── marginBottom
+├── marginLeft
+├── padding
+├── paddingTop
+├── paddingRight
+├── paddingBottom
+├── paddingLeft
+├── overflow
+├── position
+├── top
+├── right
+├── bottom
+├── left
+└── children
+    ├── mode
+    ├── direction
+    ├── gap
+    ├── distribution
+    ├── horizontalAlign
+    └── verticalAlign
 ```
 
-Mapping rule:
+### Positioning
 
-1. take the Player ACK-confirmed index in the currently projected version;
-2. resolve the corresponding `slide.id`;
-3. find the same `slide.id` in the latest publication;
-4. use that mapped index in the new version;
-5. if the slide no longer exists, fall back to a valid clamped index.
+Canonical authoring should use the explicit positioning vocabulary:
 
-Control uses the same mapping while previewing a newer version than Player.
+```json
+{
+  "layout": {
+    "position": "absolute",
+    "top": 24,
+    "right": 32
+  }
+}
+```
 
-### Structural warning detection
+Normal flow is represented by absence of `position`.
 
-Warn when the ordered slide-id sequence differs because of:
+Remove the candidate `placement` abstraction from the target Container contract:
 
-- insertion;
-- removal;
-- reordering.
+```text
+placement
+placement.mode
+placement.anchor
+placement.offsetX
+placement.offsetY
+```
 
-Simple content edits to an existing slide do not require a structural warning.
+`inset` is not canonical authoring syntax. It is a CSS shorthand and adds no necessary semantic information to the document.
 
-### P9.0-A — Dual-version Control state
+The renderer remains free to emit internal `position: relative`, `inset: 0`, transforms, wrappers, or overlays whenever implementation requires them.
 
-Goal: Control knows both the version on Player and the latest published version.
+`position: relative` is not an authorable Container decision unless a future concrete product requirement establishes one.
 
-Required behavior:
+### Child layout
 
-- observe `live/current`;
-- observe the public publication pointer for the same `publicationId`;
-- load the exact latest published version;
-- derive `hasPendingVersion`;
-- Control preview updates automatically when the pointer changes;
-- Player remains unchanged;
-- multiple Control tabs/devices converge from shared persisted state.
+Keep the distinction:
 
-Do not change Player promotion yet.
+```text
+layout.position
+→ placement of this Container in its parent
 
-### P9.0-B — Version mapping and pending-version UX
+layout.children
+→ organization of this Container's children
+```
 
-Goal: make the divergence understandable and safe.
+`gap` belongs under `layout.children.gap` because it describes the relationship among children.
 
-Required behavior:
+### Overflow
 
-- map Player ACK-confirmed slide → `slide.id` → latest published index;
-- detect structural slide-id changes;
-- render inline pending-version information in the existing Control action area;
-- show **Update Player**;
-- show structural warning when needed;
-- show stronger warning when the projected slide was removed;
-- disable Previous/Next during version divergence;
-- keep End available;
-- no modal;
-- no fake local selection state.
+Prefer:
 
-### P9.0-C — Atomic Player promotion and hot reload
+```text
+layout.overflow
+```
 
-Goal: release the reviewed publication to Player.
+rather than `style.overflow`.
 
-Required behavior:
+### Style
 
-- operator clicks **Update Player**;
-- promote `live/current.currentVersionId` to the latest published version;
-- preserve the same Live activation/session revision;
-- clear stale navigation command/ACK state as part of the promotion boundary;
-- Player detects the new version through its existing reactive `live/current` subscription;
-- Player remounts the new immutable version;
-- preserve the logical current slide by `slide.id` when possible;
-- emit the new baseline ACK only after the new Player position is established;
-- Control returns to normal navigation after the new ACK.
+Container visual surface:
 
-Promotion should be atomic at the Live-state boundary.
+```text
+style
+├── color
+├── background
+│   ├── color
+│   ├── gradient
+│   └── pattern
+├── border
+├── borderRadius
+└── className?
+```
 
-### P9.0-D — Concurrency, reload, and E2E hardening
+Do not impose Gradient/Pattern XOR merely as cleanup. The current direction allows the visual layers to coexist when the renderer supports their composition.
 
-Validate:
+`className` remains an advanced technical escape hatch under audit and must not block the main Container cleanup.
 
-- Editor + Control + Player on separate devices/tabs;
-- multiple Controls open simultaneously;
-- Publish while Player is active;
-- several publishes before promotion;
-- content-only edit;
-- inserted slide before current slide;
-- reordered slides;
-- current slide removed;
-- Control reload while update is pending;
-- Player reload while update is pending;
-- Player reload after promotion;
-- promotion failure and retry;
-- End during pending update;
-- new Live session after previous update;
-- no stale command/ACK reuse.
+### Typography
 
----
+Container typography becomes a sibling responsibility:
 
-## P9.1 — Extensible Live command contract
+```json
+{
+  "typography": {
+    "fontFamily": "Inter",
+    "fontSize": 20,
+    "fontWeight": 400,
+    "lineHeight": 1.4
+  }
+}
+```
 
-After Staged Live Publish is stable:
+Do not persist explicit `inheritance` or `context` objects. CSS/renderer inheritance is runtime behavior.
 
-- review current `live/slideCommand`;
-- define how additional commands fit without ad-hoc parallel channels;
-- separate durable state from transient commands;
-- preserve ACK authority for state that must be confirmed by Player;
-- keep R1 single-operator semantics.
+### Effects
 
-Architecture must be frozen before implementation.
+Prefer:
 
----
+```text
+effect.opacity
+effect.shadow
+```
 
-## P9.2 — New Control commands
+rather than placing these fields inside visual surface style.
 
-Add the highest-value presentation commands after the protocol supports them.
+### Link and behavior
 
-Exact command set is intentionally not frozen yet.
+Container `link` remains a direct property. The Inspector may present it under an Interaction section without forcing an `interaction` or empty `behavior` namespace into the document.
 
-Requirements:
+### E1 modification boundary
 
-- commands must have explicit semantics;
-- command state must survive/recover appropriately across reloads;
-- no command may silently pretend browser-restricted behavior succeeded;
-- desktop and mobile Control surfaces share the same command semantics.
+First align only the parallel candidate schema/renderer and its focused tests.
+
+Do **not** combine candidate alignment with the production cutover in the same checkpoint.
 
 ---
 
-## P9.3 — Fullscreen
+## P10.10-E2 — Container production cutover
 
-Fullscreen is handled separately because native browser fullscreen requires user activation and cannot be assumed to work as an arbitrary remote RTDB command.
+After remote review and approval of the candidate:
 
-This checkpoint must distinguish, if needed:
+1. make the new Container structure the normal canonical `ContainerSchema`;
+2. migrate all Studio producers to the new addresses;
+3. migrate Canvas/layout interactions;
+4. make the normal renderer consume the new Container directly;
+5. remove temporary V2/legacy Container parity infrastructure;
+6. keep `schemaVersion: 1`;
+7. recreate disposable fixtures/presentations as needed.
 
-- Player display/presentation mode;
-- browser native fullscreen;
-- local Player user gesture;
-- remote Control intent.
+### Producers to audit
 
-Do not conflate these concepts.
+At minimum:
+
+- element creation;
+- layout presets;
+- Container Inspector;
+- Size controls;
+- Position controls;
+- Canvas drag/resize;
+- hierarchy/tree operations;
+- demo/fixture presentations;
+- duplication/copy operations;
+- Theme/preset resolution.
+
+### Consumers to audit
+
+At minimum:
+
+- renderer;
+- Canvas preview;
+- thumbnail preview;
+- persistence validation;
+- Firestore draft save/reload;
+- publication transaction;
+- Control published-version reader;
+- Player published-version loader.
+
+### No permanent dual Container model
+
+After cutover, the product should simply have:
+
+```text
+ContainerSchema
+renderContainer()
+```
+
+not a permanent architecture of:
+
+```text
+LegacyContainer
+V2Container
+```
 
 ---
 
-## P9.4 — Control command UX and integrated E2E
+## P10.10-E3 — Integrated Container gate
 
-Finalize:
+The canonical change is not complete merely because schema and renderer tests pass.
 
-- command button states;
-- pending / confirmed / failed status;
-- desktop/mobile behavior;
-- reload recovery;
-- Player/Control synchronization;
-- Live termination;
-- production E2E.
+A newly created presentation using the cleaned-up Container contract must pass:
+
+```text
+New presentation
+      ↓
+Edit
+      ↓
+Save
+      ↓
+Studio reload
+      ↓
+Publish
+      ↓
+Control
+      ↓
+Player
+      ↓
+Previous / Next
+      ↓
+republish changed presentation
+      ↓
+Control sees pending publication
+      ↓
+Update Player
+      ↓
+Player promotion / reload
+      ↓
+Control reload
+      ↓
+Player reload
+```
+
+Preserve the existing Live wire contract unless the canonical change exposes a concrete incompatibility. The RTDB protocol should not learn Container implementation details.
+
+Preserve Firestore publication guarantees and immutable published versions.
 
 ---
 
-# P10 — Audience presence
+## P10.10-E4 — Selective remaining canonical cleanup
 
-Goal: allow public Watch/Audience clients to register lightweight presence for the active session.
+After Container is stable, evaluate remaining candidates one by one. Do not automatically execute the entire historical cleanup wishlist.
 
-Planned concepts:
+### Strong structural candidate: Image crop / frame
 
-- public viewer/session id;
-- optional nickname without account;
+Image currently has `fit` and `focalPoint`, but no explicit canonical crop. A future checkpoint should define the minimum structural contract needed to support:
+
+- explicit crop;
+- stable image frame semantics;
+- clipping;
+- border and gradient border;
+- borderRadius;
+- optional link;
+- renderer structure independent from whether the Image is linked.
+
+The canonical document should describe Image intent; wrapper/clip/media DOM structure remains renderer implementation.
+
+### Pattern semantic cleanup
+
+The preferred long-term JSON is semantic and readable, for example:
+
+```json
+{
+  "pattern": {
+    "type": "dots",
+    "color": "rgba(148,163,184,0.20)",
+    "size": 24,
+    "opacity": 0.7
+  }
+}
+```
+
+rather than persisting a resolved CSS gradient for every common preset.
+
+Keep Custom Pattern as the place for lower-level CSS-oriented escape hatches when required.
+
+Do not let this work block Container unless Background integration requires it.
+
+### Other candidates — not automatically in scope
+
+Reconsider only when they have concrete value:
+
+- retirement of legacy Simple Table;
+- tighter `LengthSchema` domains;
+- Chart / Interactive placeholder status;
+- margin/padding representation cleanup;
+- `className` retirement or formalization;
+- `textbox.preset` cleanup;
+- broader namespace normalization across every element.
+
+---
+
+# P10.11 — JSON Import / Export
+
+Implement import/export **after** the essential canonical cleanup is stable.
+
+Goals:
+
+- human-readable canonical JSON;
+- deterministic export shape;
+- strict canonical validation on import;
+- clear errors for invalid documents;
+- no hidden dependency on private Studio state;
+- preserve self-contained published documents.
+
+P10.11 should consume the contract; it should not become another broad schema-design cycle.
+
+---
+
+# P10.12 — Import compatibility / capability gate
+
+Define the difference between:
+
+```text
+structurally valid canonical document
+```
+
+and:
+
+```text
+combination that PowerShow currently supports semantically and can author/render
+```
+
+Goals:
+
+- explicit capability policy;
+- predictable unsupported-combination errors;
+- no accidental inference of product capability merely because a broad schema field exists;
+- shared semantics that can later support Elements Properties.
+
+This checkpoint is about capability/support compatibility, **not** V1/V2 schema migration.
+
+---
+
+# P11 — Resources & Organization
+
+Build reusable authoring resources without making Player depend on private Studio state.
+
+Planned areas:
+
+- reusable Saved Styles;
+- color resources / reusable palette;
+- font resources and organization;
+- authoring libraries where useful;
+- continued presentation/folder organization refinement.
+
+Core invariant:
+
+```text
+private Studio resource
+        ↓ apply
+materialized canonical values
+        ↓ publish
+self-contained presentation
+```
+
+Player must not resolve private Saved Style or palette IDs at runtime.
+
+---
+
+# P12 — Elements Properties & Authoring UX
+
+Consolidate the property system and deferred editor polish after the canonical contract is sufficiently stable.
+
+Planned areas include:
+
+- capability-driven Elements Properties;
+- semantic property grouping;
+- better Content / WYSIWYG toolbar proximity;
+- common text formatting UX;
+- reusable custom color palette UX;
+- visual Blocks readability/layout refinement;
+- Inspector consistency;
+- advanced property presentation only where useful;
+- additional Gallery/Divider refinement where justified.
+
+Do not reopen already-stable element models merely for aesthetic cleanup.
+
+---
+
+# P13 — Production Readiness
+
+Prepare PowerShow for dependable real-world use.
+
+Expected areas:
+
+- end-to-end hardening;
+- deployment/regression gates;
+- recovery/failure behavior;
+- performance review;
+- browser/runtime compatibility review;
+- security review;
+- persistence/publication integrity;
+- operational documentation.
+
+Exact checkpoints are intentionally not frozen yet.
+
+---
+
+# P14 — Diagnostics / Observability — DEFERRED
+
+Broader diagnostics remain valuable but should not distract from canonical authoring and production readiness.
+
+Player already has targeted diagnostics for important loading/live paths. Expand observability when operational needs justify it.
+
+---
+
+# P15 — Audience / Watch — FUTURE
+
+Future public audience capabilities may include:
+
+- read-only Watch experience;
+- audience QR entry;
+- lightweight presence;
+- viewer count;
+- optional nickname;
 - heartbeat / TTL;
-- `onDisconnect` where appropriate;
-- viewer count in Control;
-- optional viewer list;
 - privacy boundaries;
 - multi-tab behavior.
 
-Audience remains unable to control the shared presentation.
+Audience must remain unable to control the shared presentation.
 
 ---
 
-# P11 — PowerShow Studio / Library redesign
+# Parking lot — valid ideas, not frozen execution scope
 
-Functional live presentation work takes priority over this visual/organizational cycle.
+These ideas remain valid but should not block the active canonical-contract work:
 
-Planned direction:
+- dedicated PowerShow documentation page near later product stabilization;
+- interactive Gallery evolution;
+- richer Divider capabilities;
+- additional Pattern presets / libraries;
+- saved Pattern resources;
+- translation action using `文`;
+- richer Text topics/bullets and editing controls;
+- image crop UI with handles, zoom, pan, masks, rotate/flip;
+- real Chart element;
+- real Interactive element libraries;
+- function plots / geometry / PWM / circuit experiences;
+- additional Live commands;
+- browser fullscreen refinements;
+- broader Audience/Watch experience.
 
-- UI title **PowerShow Studio**;
-- file-manager style presentation list;
-- presentation thumbnail;
-- selection-first UX;
-- contextual action toolbar;
-- flat Editor/Control visual language;
-- sidebar navigation;
-- archived presentations;
-- responsive behavior.
-
-Contextual actions:
-
-```text
-no selection
-→ New / New folder
-
-inactive presentation
-→ Present / Edit / Archive
-
-active presentation
-→ Control / End / Edit
-
-archived presentation
-→ Restore
-```
-
-Folder persistence is not introduced here.
-
----
-
-# P12 — Folders and persistence
-
-Add private Studio organization metadata.
-
-Requirements:
-
-- folders are Studio metadata;
-- folders are never part of the published Presentation document;
-- folders are never required by Player;
-- exact Firestore path/schema must be designed before implementation;
-- maintain clean separation between authoring organization and publication.
-
----
-
-# P13 — Saved Styles and reusable libraries
-
-Introduce reusable authoring assets.
-
-Core distinction:
-
-```text
-Theme
-→ presentation-wide visual/structural identity
-
-Saved Style
-→ reusable element-level style configuration
-```
-
-Frozen concept:
-
-- Saved Styles are private Studio/account metadata;
-- Player must never resolve a private Saved Style id at runtime;
-- applying a Saved Style materializes effective values into the Presentation;
-- published snapshots remain self-contained.
-
-Potential future library areas:
-
-- Styles;
-- Colors;
-- Fonts.
-
-Exact persistence schema is not yet frozen.
-
----
-
-# Later / not yet numbered
-
-These remain valid future product areas but should not distract from P9:
-
-- dedicated PowerShow documentation page;
-- broader Watch/Audience experience;
-- legacy runtime expansion;
-- reusable custom color palette;
-- border-color reuse;
-- additional interactive element libraries;
-- release hardening and offline resilience work.
-
-The documentation page should be created when product terminology and workflows are closer to their final form.
+The roadmap should be updated when one of these becomes a concrete product checkpoint, rather than silently expanding an active checkpoint.
