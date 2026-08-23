@@ -305,13 +305,6 @@ function isAbsoluteChild(child: V2ContainerChild): boolean {
       (child.style?.placement?.mode ?? undefined) === "absolute";
 }
 
-function establishesContainingBlock(
-  element: V2ContainerElement,
-  hasAbsoluteChild: boolean,
-): boolean {
-  return hasAbsoluteChild || element.layout?.position === "absolute";
-}
-
 function renderContainerLinkSurface(link: ElementLink): string {
   const attributes: string[] = [
     `href="${escapeHtml(link.href)}"`,
@@ -378,17 +371,17 @@ export function renderContainerV2(
 
   styles.push(isStack ? "display:grid" : "display:flex");
 
-  if (hasAbsoluteChild) {
-    styles.push("position:relative");
-  }
+  // A Container needs renderer-owned position:relative only when it hosts
+  // absolute descendants or renderer-owned overlays but does NOT already
+  // establish a containing block through authored absolute positioning.
+  //
+  // layout.position = "absolute" is author intent and MUST always survive.
+  // hasAbsoluteChild is the REASON a containing block may be required; it is
+  // never itself proof that one already exists.
+  const needsContainingBlock = hasAbsoluteChild || isLinked || hasPattern;
+  const hasAuthoredAbsolute = element.layout?.position === "absolute";
 
-  // A linked Container, or a Container with a renderer-owned pattern
-  // overlay, must establish a containing block for internal absolute
-  // layers. Add the smallest renderer-only requirement otherwise.
-  if (
-    (isLinked || hasPattern) &&
-    !establishesContainingBlock(element, hasAbsoluteChild)
-  ) {
+  if (needsContainingBlock && !hasAuthoredAbsolute) {
     styles.push("position:relative");
   }
 
@@ -397,6 +390,13 @@ export function renderContainerV2(
   // are trapped beneath the renderer-owned overlay z-index.
   if (isLinked) {
     styles.push("z-index:0");
+  }
+
+  // A patterned Container emits isolation:isolate so the renderer-owned
+  // negative pattern layer stays inside the Container's own stacking
+  // context: above the root background/gradient and below authored children.
+  if (hasPattern) {
+    styles.push("isolation:isolate");
   }
 
   if (!isStack) {

@@ -111,6 +111,34 @@ function renderFixture(): string {
   return renderContainerV2(createCandidateFixture(), renderLegacy);
 }
 
+// Test-only helper: extracts the root Container's style attribute value so
+// tests can assert the effective CSS deterministically rather than relying
+// on substring presence that a later override would still satisfy.
+function rootStyle(html: string): string {
+  const match = /<(?:\w+)[^>]*?data-powershow-type="container"[^>]*style="([^"]*)"/.exec(
+    html,
+  );
+
+  if (!match || !match[1]) {
+    throw new Error(`No root Container style found in: ${html}`);
+  }
+
+  return match[1];
+}
+
+function parseProperty(style: string, property: string): string | undefined {
+  for (const declaration of style.split(";")) {
+    const [name, ...valueParts] = declaration.split(":");
+    const value = valueParts.join(":");
+
+    if (name?.trim() === property) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
 describe("renderContainerV2", () => {
   it("renders minimal container with effective flow defaults but no namespaces", () => {
     const minimal = V2ContainerSchema.parse({
@@ -326,5 +354,187 @@ describe("renderContainerV2 absolute edge combinations", () => {
 
     expect(html).toContain("top:10px");
     expect(html).toContain("bottom:30px");
+  });
+});
+
+describe("renderContainerV2 containing-block regressions", () => {
+  // A normal-flow Container (no authored position) hosting an absolute child
+  // must receive renderer-owned position:relative to establish the containing
+  // block its absolute descendant requires.
+  it("normal-flow Container + absolute child gets position:relative", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      layout: { children: { mode: "flow", direction: "column" } },
+      children: [
+        {
+          id: "child",
+          type: "container",
+          layout: { position: "absolute", top: 0, left: 0 },
+          children: [],
+        },
+      ],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+
+    expect(parseProperty(rootStyle(html), "position")).toBe("relative");
+  });
+
+  // Regression: authored layout.position = "absolute" is author intent and
+  // must always survive. A later renderer-owned position:relative must never
+  // override it, even when the Container has an absolute child.
+  it("absolute Container + absolute child keeps position:absolute with no later override", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      layout: { position: "absolute", top: 10, left: 10 },
+      children: [
+        {
+          id: "child",
+          type: "container",
+          layout: { position: "absolute", top: 0, left: 0 },
+          children: [],
+        },
+      ],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+    const style = rootStyle(html);
+
+    const positionDeclarations = [...style.matchAll(/(?:^|;)position:([^;]*)/g)].map(
+      (match) => match[1],
+    );
+
+    expect(positionDeclarations).toEqual(["absolute"]);
+    expect(style).not.toContain("position:relative");
+  });
+
+  // Absolute Container + link: author intent survives; the link overlay still
+  // needs a containing block, which the authored absolute already provides.
+  it("absolute Container + link keeps position:absolute", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      layout: { position: "absolute", top: 10, left: 10 },
+      link: { kind: "url", href: "https://example.com" },
+      children: [],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+
+    expect(parseProperty(rootStyle(html), "position")).toBe("absolute");
+    expect(rootStyle(html)).not.toContain("position:relative");
+    expect(html).toContain('data-powershow-container-link-surface="true"');
+  });
+
+  // Absolute Container + pattern: root keeps authored absolute and must emit
+  // isolation:isolate to keep the negative pattern layer in its stack context.
+  it("absolute Container + pattern keeps position:absolute and emits isolation:isolate", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      layout: { position: "absolute", top: 10, left: 10 },
+      style: {
+        background: { pattern: { image: dotPattern, size: "20px 20px" } },
+      },
+      children: [],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+    const style = rootStyle(html);
+
+    expect(parseProperty(style, "position")).toBe("absolute");
+    expect(parseProperty(style, "isolation")).toBe("isolate");
+    expect(style).not.toContain("position:relative");
+  });
+
+  // Normal-flow Container + pattern: needs renderer-owned position:relative
+  // for the pattern overlay and must emit isolation:isolate.
+  it("normal-flow Container + pattern gets position:relative and isolation:isolate", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      style: {
+        background: { pattern: { image: dotPattern, size: "20px 20px" } },
+      },
+      children: [],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+    const style = rootStyle(html);
+
+    expect(parseProperty(style, "position")).toBe("relative");
+    expect(parseProperty(style, "isolation")).toBe("isolate");
+  });
+
+  // Normal-flow Container + link: needs a renderer-owned containing block for
+  // the link overlay.
+  it("normal-flow Container + link gets position:relative", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      link: { kind: "url", href: "https://example.com" },
+      children: [],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+
+    expect(parseProperty(rootStyle(html), "position")).toBe("relative");
+  });
+
+  // Combined pattern + link: correct containing block, isolation, and both
+  // renderer-owned overlays coexist without changing the freeze contract.
+  it("Container + pattern + link keeps containing block, isolation:isolate, and both overlays", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      link: { kind: "url", href: "https://example.com" },
+      style: {
+        background: { pattern: { image: dotPattern, size: "20px 20px" } },
+      },
+      children: [],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+    const style = rootStyle(html);
+
+    expect(parseProperty(style, "position")).toBe("relative");
+    expect(parseProperty(style, "isolation")).toBe("isolate");
+    expect(html).toContain('data-powershow-container-link-surface="true"');
+
+    const patternLayerMatch = /class="powershow-container-background-pattern"[^>]*style="([^"]*)"/.exec(
+      html,
+    );
+
+    expect(patternLayerMatch).not.toBeNull();
+    expect(patternLayerMatch?.[1]).toContain("z-index:-1");
+  });
+
+  // Nested absolute V2 Container child: parent establishes a containing block
+  // only as required; the child keeps authored absolute.
+  it("nested absolute V2 Container child stays absolute with parent containing block only as required", () => {
+    const candidate = V2ContainerSchema.parse({
+      id: "parent",
+      type: "container",
+      children: [
+        {
+          id: "child",
+          type: "container",
+          layout: { position: "absolute", top: 0, left: 0 },
+          children: [],
+        },
+      ],
+    });
+
+    const html = renderContainerV2(candidate, renderLegacy);
+
+    expect(parseProperty(rootStyle(html), "position")).toBe("relative");
+    // The nested absolute child keeps authored absolute.
+    const childStyle = /class="powershow-element powershow-container" data-powershow-id="child"[^>]*style="([^"]*)"/.exec(
+      html,
+    );
+
+    expect(childStyle?.[1]).toContain("position:absolute");
   });
 });
