@@ -11,7 +11,7 @@ describe("stack container rendering", () => {
   it("preserves flow container rendering", () => {
     const html = renderElement(
       createContainerElement({
-        direction: "row",
+        layout: { children: { direction: "row" } },
         children: [createTextElement()],
       }),
     );
@@ -24,9 +24,7 @@ describe("stack container rendering", () => {
   it("renders stack containers as a grid with direct children in one area", () => {
     const html = renderElement(
       createContainerElement({
-        layoutMode: "stack",
-        horizontalAlign: "center",
-        verticalAlign: "center",
+        layout: { children: { mode: "stack", horizontalAlign: "center", verticalAlign: "center" } },
         children: [
           createTextElement({ id: "background", content: "Background" }),
           createTextElement({ id: "overlay", content: "Overlay" }),
@@ -48,11 +46,11 @@ describe("stack container rendering", () => {
     const html = renderElement(
       createContainerElement({
         id: "outer-stack",
-        layoutMode: "stack",
+        layout: { children: { mode: "stack" } },
         children: [
           createContainerElement({
             id: "inner-stack",
-            layoutMode: "stack",
+            layout: { children: { mode: "stack" } },
             children: [createTextElement({ id: "overlay-text" })],
           }),
         ],

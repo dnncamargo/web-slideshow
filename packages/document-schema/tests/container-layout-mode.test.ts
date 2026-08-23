@@ -6,9 +6,8 @@ function createContainer(layoutMode?: "flow" | "stack") {
   return {
     type: "container",
     id: "container",
-    direction: "column",
     hidden: false,
-    ...(layoutMode === undefined ? {} : { layoutMode }),
+    ...(layoutMode === undefined ? {} : { layout: { children: { mode: layoutMode } } }),
     children: [],
   };
 }
@@ -28,7 +27,7 @@ describe("container layout mode", () => {
     expect(
       PowerShowElementSchema.safeParse({
         ...createContainer(),
-        layoutMode: "layered",
+        layout: { children: { mode: "layered" } },
       }).success,
     ).toBe(false);
   });

@@ -41,13 +41,12 @@ function imageElement(overrides: Record<string, unknown> = {}) {
 
 function containerElement(overrides: Record<string, unknown> = {}) {
   return {
-    type: "container",
-    id: "container-1",
-    hidden: false,
-    direction: "column",
-    children: [],
-    ...overrides,
-  };
+  type: "container",
+  id: "container-1",
+  hidden: false,
+  children: [],
+  ...overrides
+};
 }
 
 describe("isAbsoluteHttpHref URL validation policy", () => {
@@ -410,12 +409,12 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "https://example.com/hero",
-        },
-      });
+        }
+});
     }
   });
 
@@ -433,12 +432,12 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "http://example.com/hero",
-        },
-      });
+        }
+});
     }
   });
 
@@ -457,13 +456,13 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "https://example.com/hero",
           target: "_self",
-        },
-      });
+        }
+});
     }
   });
 
@@ -482,13 +481,13 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "https://example.com/hero",
           target: "_blank",
-        },
-      });
+        }
+});
     }
   });
 

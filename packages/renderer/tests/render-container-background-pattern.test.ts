@@ -23,12 +23,7 @@ describe("Container background patterns", () => {
     const html = renderElement(
       createContainerElement({
         style: {
-          backgroundPattern: {
-            image: PATTERN_IMAGE,
-            size: "24px 32px",
-            position: "center top",
-            repeat: "repeat-x",
-          },
+          background: { pattern: { image: PATTERN_IMAGE, size: "24px 32px", position: "center top", repeat: "repeat-x" } },
         },
       }),
     );
@@ -52,7 +47,7 @@ describe("Container background patterns", () => {
     (repeat: PatternRepeat) => {
       const html = renderElement(
         createContainerElement({
-          style: { backgroundPattern: { image: PATTERN_IMAGE, repeat } },
+          style: { background: { pattern: { image: PATTERN_IMAGE, repeat } } },
         }),
       );
 
@@ -64,9 +59,9 @@ describe("Container background patterns", () => {
     const html = renderElement(
       createContainerElement({
         style: {
-          opacity: 0.75,
-          backgroundPattern: { image: PATTERN_IMAGE, opacity },
+          background: { pattern: { image: PATTERN_IMAGE, opacity } },
         },
+        effect: { opacity: 0.75 },
       }),
     );
 
@@ -78,7 +73,7 @@ describe("Container background patterns", () => {
   it("does not emit pattern opacity when it is absent", () => {
     const html = renderElement(
       createContainerElement({
-        style: { backgroundPattern: { image: PATTERN_IMAGE } },
+        style: { background: { pattern: { image: PATTERN_IMAGE } } },
       }),
     );
 
@@ -89,16 +84,14 @@ describe("Container background patterns", () => {
     const html = renderElement(
       createContainerElement({
         style: {
-          background: "#0f172a",
-          backgroundGradient: {
+          background: { color: "#0f172a", gradient: {
             type: "linear",
             angle: 135,
             stops: [
               { color: "#111827", position: 0 },
               { color: "#312e81", position: 100 },
             ],
-          },
-          backgroundPattern: { image: PATTERN_IMAGE },
+          }, pattern: { image: PATTERN_IMAGE } },
         },
       }),
     );
@@ -115,9 +108,9 @@ describe("Container background patterns", () => {
   it("does not make the pattern a flow or grid child", () => {
     const html = renderElement(
       createContainerElement({
-        layoutMode: "stack",
+        layout: { children: { mode: "stack" } },
         children: [createTextElement({ id: "content" })],
-        style: { backgroundPattern: { image: PATTERN_IMAGE } },
+        style: { background: { pattern: { image: PATTERN_IMAGE } } },
       }),
     );
 
@@ -133,17 +126,17 @@ describe("Container background patterns", () => {
     const html = renderElement(
       createContainerElement({
         id: "outer",
-        direction: "row",
+        layout: { children: { direction: "row" } },
         link: { kind: "url", href: "https://example.com" },
         style: {
           borderRadius: 16,
           border: { width: 2, color: "#fff" },
-          backgroundPattern: { image: PATTERN_IMAGE },
+          background: { pattern: { image: PATTERN_IMAGE } },
         },
         children: [
           createContainerElement({
             id: "inner",
-            style: { backgroundPattern: { image: PATTERN_IMAGE } },
+            style: { background: { pattern: { image: PATTERN_IMAGE } } },
             children: [createTextElement({ id: "content" })],
           }),
         ],
@@ -169,7 +162,7 @@ describe("Container background patterns", () => {
   it("keeps unpatterned Container output unchanged", () => {
     const html = renderElement(
       createContainerElement({
-        direction: "row",
+        layout: { children: { direction: "row" } },
         children: [createTextElement({ content: "Content" })],
       }),
     );

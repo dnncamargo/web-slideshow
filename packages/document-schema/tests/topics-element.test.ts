@@ -82,13 +82,12 @@ function tableElement(overrides: Record<string, unknown> = {}) {
 
 function containerElement(overrides: Record<string, unknown> = {}) {
   return {
-    type: "container",
-    id: "container-1",
-    hidden: false,
-    direction: "column",
-    children: [],
-    ...overrides,
-  };
+  type: "container",
+  id: "container-1",
+  hidden: false,
+  children: [],
+  ...overrides
+};
 }
 
 function contentSlot(overrides: Record<string, unknown> = {}) {

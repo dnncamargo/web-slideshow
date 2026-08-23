@@ -229,7 +229,7 @@ describe("Scripted element schema", () => {
 
       type: "container",
 
-      direction: "column",
+      layout: { children: { direction: "column" } },
 
       hidden: false,
 
@@ -239,7 +239,7 @@ describe("Scripted element schema", () => {
 
           type: "container",
 
-          direction: "row",
+          layout: { children: { direction: "row" } },
 
           hidden: false,
 

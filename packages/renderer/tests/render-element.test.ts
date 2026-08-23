@@ -172,7 +172,7 @@ describe("renderElement", () => {
       type: "container",
       id: "row-1",
       hidden: false,
-      direction: "row",
+      layout: { children: { direction: "row" } },
       children: [],
     };
 
@@ -188,7 +188,7 @@ describe("renderElement", () => {
       type: "container",
       id: "column-1",
       hidden: false,
-      direction: "column",
+      layout: { children: { direction: "column" } },
       children: [],
     };
 
@@ -202,9 +202,7 @@ describe("renderElement", () => {
       type: "container",
       id: "row-aligned",
       hidden: false,
-      direction: "row",
-      horizontalAlign: "center",
-      verticalAlign: "end",
+      layout: { children: { direction: "row", horizontalAlign: "center", verticalAlign: "end" } },
       children: [],
     };
 
@@ -220,9 +218,7 @@ describe("renderElement", () => {
       type: "container",
       id: "column-aligned",
       hidden: false,
-      direction: "column",
-      horizontalAlign: "center",
-      verticalAlign: "end",
+      layout: { children: { direction: "column", horizontalAlign: "center", verticalAlign: "end" } },
       children: [],
     };
 
@@ -238,14 +234,14 @@ describe("renderElement", () => {
       type: "container",
       id: "root",
       hidden: false,
-      direction: "column",
+      layout: { children: { direction: "column" } },
 
       children: [
         {
           type: "container",
           id: "nested",
           hidden: false,
-          direction: "row",
+          layout: { children: { direction: "row" } },
 
           children: [
             {
@@ -280,7 +276,7 @@ describe("renderElement", () => {
       type: "container",
       id: `${role}-1`,
       hidden: false,
-      direction: "column",
+      layout: { children: { direction: "column" } },
       role,
       children: [],
     };
@@ -297,7 +293,7 @@ describe("renderElement", () => {
       type: "container",
       id: "mixed-content",
       hidden: false,
-      direction: "row",
+      layout: { children: { direction: "row" } },
 
       children: [
         {
@@ -501,12 +497,7 @@ describe("renderElement", () => {
 
       hidden: false,
 
-      direction: "column",
-
-      style: {
-        width: "68%",
-        height: "60%",
-      },
+      layout: { width: "68%", height: "60%", children: { direction: "column" } },
 
       children: [],
     });

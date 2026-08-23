@@ -55,7 +55,7 @@ function buildAttributes(
 ): string {
   const outputClasses = ["powershow-element", ...classes];
 
-  const customClass = element.type === "container" ? element.style?.className?.trim() : element.style?.className?.trim();
+  const customClass = element.style?.className?.trim();
 
   if (customClass) {
     outputClasses.push(customClass);

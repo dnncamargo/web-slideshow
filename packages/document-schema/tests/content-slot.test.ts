@@ -30,13 +30,12 @@ function imageElement(overrides: Record<string, unknown> = {}) {
 
 function containerElement(overrides: Record<string, unknown> = {}) {
   return {
-    type: "container",
-    id: "container-1",
-    hidden: false,
-    direction: "column",
-    children: [],
-    ...overrides,
-  };
+  type: "container",
+  id: "container-1",
+  hidden: false,
+  children: [],
+  ...overrides
+};
 }
 
 describe("ContentSlotSchema", () => {
@@ -147,8 +146,8 @@ describe("ContentSlotSchema", () => {
 
     if (result.success) {
       expect(result.data.children[0]).toMatchObject({
-        type: "container",
-        children: [
+  type: "container",
+  children: [
           {
             type: "text",
             id: "nested-text",
@@ -157,8 +156,8 @@ describe("ContentSlotSchema", () => {
             type: "image",
             id: "nested-image",
           },
-        ],
-      });
+        ]
+});
     }
   });
 
@@ -213,13 +212,13 @@ describe("ContentSlotSchema", () => {
           },
         }),
         expect.objectContaining({
-          type: "container",
-          id: "linked-container",
-          link: {
+  type: "container",
+  id: "linked-container",
+  link: {
             kind: "url",
             href: "https://example.com/container",
-          },
-        }),
+          }
+}),
       ]);
     }
   });

@@ -23,7 +23,6 @@ function containerElement(
     type: "container",
     id: "container-link",
     hidden: false,
-    direction: "column",
     children: [],
     ...overrides,
   };
@@ -209,12 +208,7 @@ describe("linked Container containing block strategy", () => {
     const html = renderElement(
       containerElement({
         link: HTTPS_LINK,
-        style: {
-          placement: {
-            mode: "absolute",
-            anchor: "center",
-          },
-        },
+        layout: { position: "absolute" },
       }),
     );
 
@@ -229,11 +223,7 @@ describe("linked Container containing block strategy", () => {
     const html = renderElement(
       containerElement({
         link: HTTPS_LINK,
-        style: {
-          position: "absolute",
-          top: 12,
-          left: 24,
-        },
+        layout: { position: "absolute", top: 12, left: 24 },
       }),
     );
 
@@ -286,7 +276,7 @@ describe("linked Container containing block strategy", () => {
   it("renders a linked stack Container as grid with the overlay outside the grid", () => {
     const html = renderElement(
       containerElement({
-        layoutMode: "stack",
+        layout: { children: { mode: "stack" } },
         link: HTTPS_LINK,
         children: [createTextElement({ id: "stack-child" })],
       }),
@@ -305,7 +295,7 @@ describe("linked Container containing block strategy", () => {
   it("renders a linked row flow Container with flex layout intact", () => {
     const html = renderElement(
       containerElement({
-        direction: "row",
+        layout: { children: { direction: "row" } },
         link: HTTPS_LINK,
         children: [createTextElement({ id: "row-child" })],
       }),
@@ -340,7 +330,7 @@ describe("unlinked Container byte compatibility", () => {
       containerElement({
         id: "plain-container",
         role: "main",
-        direction: "row",
+        layout: { children: { direction: "row" } },
         children: [createTextElement({ id: "plain-child", content: "Hi" })],
       }),
     );

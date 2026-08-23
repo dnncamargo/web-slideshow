@@ -61,7 +61,7 @@ describe("semantic placement rendering", () => {
     const html = renderElement(
       createContainerElement({
         id: "outer",
-        layoutMode: "stack",
+        layout: { children: { mode: "stack" } },
         children: [
           createTextElement({ id: "background", content: "Background" }),
           createContainerElement({

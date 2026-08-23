@@ -5,12 +5,11 @@ import { SignedLengthSchema } from "../src/primitives";
 
 function createContainer(children: unknown[] = []) {
   return {
-    type: "container",
-    id: "container",
-    hidden: false,
-    direction: "column",
-    children,
-  };
+  type: "container",
+  id: "container",
+  hidden: false,
+  children
+};
 }
 
 function createText(placement?: unknown) {

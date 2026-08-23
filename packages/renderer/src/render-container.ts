@@ -1,4 +1,9 @@
-import type { ContainerElement, ElementLink, PowerShowElement } from "@powershow/document-schema";
+import type {
+  ContainerElement,
+  ElementLink,
+  PowerShowElement,
+} from "@powershow/document-schema";
+
 import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
 import { renderBackgroundPattern } from "./render-background-pattern";
@@ -6,30 +11,335 @@ import { isAbsolutePlacement } from "./render-placement";
 import { renderLength } from "./render-length";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
-type Alignment = "start" | "center" | "end" | "stretch";
 type RenderChild = (element: PowerShowElement) => string;
-const LINK_Z = 100;
-const add = (o: string[], p: string, v: string | number | undefined) => { if (v !== undefined) o.push(`${p}:${v}`); };
-const addLen = (o: string[], p: string, v: Parameters<typeof renderLength>[0] | undefined) => { if (v !== undefined) o.push(`${p}:${renderLength(v)}`); };
-function layoutStyles(e: ContainerElement): string[] {
-  const l = e.layout; if (!l) return []; const o: string[] = [];
-  for (const [p, v] of [["width",l.width],["height",l.height],["min-width",l.minWidth],["min-height",l.minHeight],["max-width",l.maxWidth],["max-height",l.maxHeight],["margin",l.margin],["margin-top",l.marginTop],["margin-right",l.marginRight],["margin-bottom",l.marginBottom],["margin-left",l.marginLeft],["padding",l.padding],["padding-top",l.paddingTop],["padding-right",l.paddingRight],["padding-bottom",l.paddingBottom],["padding-left",l.paddingLeft]] as const) addLen(o,p,v);
-  add(o,"overflow",l.overflow); add(o,"position",l.position);
-  for (const [p,v] of [["top",l.top],["right",l.right],["bottom",l.bottom],["left",l.left]] as const) addLen(o,p,v);
-  return o;
+type Alignment = "start" | "center" | "end" | "stretch";
+
+const CONTAINER_LINK_SURFACE_Z_INDEX = 100;
+
+function addStyle(
+  output: string[],
+  property: string,
+  value: string | number | undefined,
+): void {
+  if (value !== undefined) {
+    output.push(`${property}:${value}`);
+  }
 }
-function visualStyles(e: ContainerElement): string[] { const s=e.style; if(!s)return[]; const o:string[]=[]; add(o,"color",s.color); if(s.background?.color)add(o,"background",s.background.color); if(s.background?.gradient)o.push(`background-image:${renderGradient(s.background.gradient)}`); addLen(o,"border-radius",s.borderRadius); if(s.border)o.push(...renderBorder(s.border)); return o; }
-function typographyStyles(e: ContainerElement): string[] { const t=e.typography; if(!t)return[]; const o:string[]=[]; if(t.fontFamily!==undefined)o.push(`font-family:${quoteCssString(t.fontFamily)}`); addLen(o,"font-size",t.fontSize); add(o,"font-weight",t.fontWeight); add(o,"font-style",t.fontStyle); add(o,"text-align",t.textAlign); add(o,"line-height",t.lineHeight); addLen(o,"letter-spacing",t.letterSpacing); add(o,"text-transform",t.textTransform); add(o,"white-space",t.whiteSpace); add(o,"text-wrap-style",t.textWrapStyle); add(o,"overflow-wrap",t.overflowWrap); add(o,"text-decoration-line",t.textDecorationLine); add(o,"text-decoration-color",t.textDecorationColor); if(t.textStroke)o.push(`-webkit-text-stroke:${renderLength(t.textStroke.width)} ${t.textStroke.color}`); return o; }
-function effectStyles(e: ContainerElement): string[] { const x=e.effect; if(!x)return[]; const o:string[]=[]; add(o,"opacity",x.opacity); if(x.shadow)o.push(`box-shadow:${renderShadow(x.shadow)}`); return o; }
-function mainAlign(v: Alignment): string { return v === "start" || v === "stretch" ? "flex-start" : v === "end" ? "flex-end" : "center"; }
-function crossAlign(v: Alignment): string { return v === "start" ? "flex-start" : v === "end" ? "flex-end" : v; }
-function tag(role: ContainerElement["role"]): "div"|"main"|"header"|"footer" { return role === "main" || role === "header" || role === "footer" ? role : "div"; }
-function stackChild(s:string):string { if(!s)return""; return s.includes(" style=") ? s.replace(" style=\""," style=\"grid-area:1 / 1;") : s.replace(/^(<[\s\S]*?)(?=\s|>)/,"$1 style=\"grid-area:1 / 1\""); }
-function hasAbsoluteChild(e:ContainerElement):boolean { return e.children.some(c => c.type === "container" ? c.layout?.position === "absolute" : c.style?.position === "absolute" || isAbsolutePlacement(c.style?.placement)); }
-function linkSurface(l:ElementLink):string { const a=[`href="${escapeHtml(l.href)}"`,'data-powershow-link="true"','data-powershow-container-link-surface="true"',`style="position:absolute;inset:0;z-index:${LINK_Z}"`]; if(l.target==="_blank")a.push('target="_blank"','rel="noopener noreferrer"'); else if(l.target==="_self")a.push('target="_self"'); return `<a ${a.join(" ")}></a>`; }
-export function renderContainer(e:ContainerElement, renderChild:RenderChild):string {
-  if(e.hidden)return""; const s=[...layoutStyles(e),...visualStyles(e),...typographyStyles(e),...effectStyles(e)]; const c=e.layout?.children; const mode=c?.mode??"flow", direction=c?.direction??"column", distribution=c?.distribution??"packed", ha=c?.horizontalAlign, va=c?.verticalAlign, stack=mode==="stack", linked=e.link!==undefined, patterned=e.style?.background?.pattern!==undefined;
-  s.push(stack?"display:grid":"display:flex"); if((hasAbsoluteChild(e)||linked||patterned)&&e.layout?.position!=="absolute")s.push("position:relative"); if(patterned)s.push("isolation:isolate"); if(linked)s.push("z-index:0");
-  if(stack){if(ha)s.push(`justify-items:${ha}`);if(va)s.push(`align-items:${va}`);}else{ s.push(`flex-direction:${direction}`); if(c?.gap!==undefined)s.push(`gap:${renderLength(c.gap)}`); if(distribution!=="packed")s.push(`justify-content:${distribution}`); else if(direction==="row"&&ha)s.push(`justify-content:${mainAlign(ha)}`); else if(direction==="column"&&va)s.push(`justify-content:${mainAlign(va)}`); if(direction==="row"&&va)s.push(`align-items:${crossAlign(va)}`); if(direction==="column"&&ha)s.push(`align-items:${crossAlign(ha)}`); }
-  const classes=["powershow-element","powershow-container"]; if(stack)classes.push("powershow-container-stack"); if(e.role)classes.push(`powershow-container-${e.role}`); if(e.style?.className?.trim())classes.push(e.style.className.trim()); const p=e.style?.background?.pattern; const pattern=p?`<div class="powershow-container-background-pattern" aria-hidden="true" style="${escapeHtml("position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;"+renderBackgroundPattern(p))}"></div>`:""; const children=e.children.map(x=>{const r=renderChild(x);return stack?stackChild(r):r;}).join(""); const role=e.role?` data-powershow-role="${escapeHtml(e.role)}"`:""; const t=tag(e.role); return `<${t} class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(e.id)}" data-powershow-type="container"${role} style="${escapeHtml(s.join(";"))}">${pattern}${children}${e.link?linkSurface(e.link):""}</${t}>`;
+
+function addLength(
+  output: string[],
+  property: string,
+  value: Parameters<typeof renderLength>[0] | undefined,
+): void {
+  if (value !== undefined) {
+    output.push(`${property}:${renderLength(value)}`);
+  }
+}
+
+function renderLayout(element: ContainerElement): string[] {
+  const layout = element.layout;
+  const output: string[] = [];
+
+  if (!layout) {
+    return output;
+  }
+
+  const lengths = [
+    ["width", layout.width],
+    ["height", layout.height],
+    ["min-width", layout.minWidth],
+    ["min-height", layout.minHeight],
+    ["max-width", layout.maxWidth],
+    ["max-height", layout.maxHeight],
+    ["margin", layout.margin],
+    ["margin-top", layout.marginTop],
+    ["margin-right", layout.marginRight],
+    ["margin-bottom", layout.marginBottom],
+    ["margin-left", layout.marginLeft],
+    ["padding", layout.padding],
+    ["padding-top", layout.paddingTop],
+    ["padding-right", layout.paddingRight],
+    ["padding-bottom", layout.paddingBottom],
+    ["padding-left", layout.paddingLeft],
+  ] as const;
+
+  for (const [property, value] of lengths) {
+    addLength(output, property, value);
+  }
+
+  addStyle(output, "overflow", layout.overflow);
+  addStyle(output, "position", layout.position);
+
+  for (const [property, value] of [
+    ["top", layout.top],
+    ["right", layout.right],
+    ["bottom", layout.bottom],
+    ["left", layout.left],
+  ] as const) {
+    addLength(output, property, value);
+  }
+
+  return output;
+}
+
+function renderVisualStyle(element: ContainerElement): string[] {
+  const style = element.style;
+  const output: string[] = [];
+
+  if (!style) {
+    return output;
+  }
+
+  addStyle(output, "color", style.color);
+
+  if (style.background?.color) {
+    addStyle(output, "background", style.background.color);
+  }
+
+  if (style.background?.gradient) {
+    output.push(`background-image:${renderGradient(style.background.gradient)}`);
+  }
+
+  if (style.border) {
+    output.push(...renderBorder(style.border));
+  }
+
+  addLength(output, "border-radius", style.borderRadius);
+  return output;
+}
+
+function renderTypography(element: ContainerElement): string[] {
+  const typography = element.typography;
+  const output: string[] = [];
+
+  if (!typography) {
+    return output;
+  }
+
+  if (typography.fontFamily !== undefined) {
+    output.push(`font-family:${quoteCssString(typography.fontFamily)}`);
+  }
+
+  addLength(output, "font-size", typography.fontSize);
+  addStyle(output, "font-weight", typography.fontWeight);
+  addStyle(output, "font-style", typography.fontStyle);
+  addStyle(output, "text-align", typography.textAlign);
+  addStyle(output, "line-height", typography.lineHeight);
+  addLength(output, "letter-spacing", typography.letterSpacing);
+  addStyle(output, "text-transform", typography.textTransform);
+  addStyle(output, "white-space", typography.whiteSpace);
+  addStyle(output, "text-wrap-style", typography.textWrapStyle);
+  addStyle(output, "overflow-wrap", typography.overflowWrap);
+  addStyle(output, "text-decoration-line", typography.textDecorationLine);
+  addStyle(output, "text-decoration-color", typography.textDecorationColor);
+
+  if (typography.textStroke) {
+    output.push(
+      `-webkit-text-stroke:${renderLength(typography.textStroke.width)} ${typography.textStroke.color}`,
+    );
+  }
+
+  return output;
+}
+
+function renderEffect(element: ContainerElement): string[] {
+  const effect = element.effect;
+  const output: string[] = [];
+
+  if (!effect) {
+    return output;
+  }
+
+  addStyle(output, "opacity", effect.opacity);
+
+  if (effect.shadow) {
+    output.push(`box-shadow:${renderShadow(effect.shadow)}`);
+  }
+
+  return output;
+}
+
+function renderMainAxisAlignment(value: Alignment): string {
+  switch (value) {
+    case "start":
+    case "stretch":
+      return "flex-start";
+    case "center":
+      return "center";
+    case "end":
+      return "flex-end";
+  }
+}
+
+function renderCrossAxisAlignment(value: Alignment): string {
+  switch (value) {
+    case "start":
+      return "flex-start";
+    case "center":
+      return "center";
+    case "end":
+      return "flex-end";
+    case "stretch":
+      return "stretch";
+  }
+}
+
+function renderStackChild(child: string): string {
+  if (!child) {
+    return "";
+  }
+
+  return child.includes(" style=")
+    ? child.replace(" style=\"", " style=\"grid-area:1 / 1;")
+    : child.replace(
+        /^(<[\s\S]*?)(?=\s|>)/,
+        "$1 style=\"grid-area:1 / 1\"",
+      );
+}
+
+function getTagName(
+  role: ContainerElement["role"],
+): "div" | "main" | "header" | "footer" {
+  switch (role) {
+    case "main":
+    case "header":
+    case "footer":
+      return role;
+    default:
+      return "div";
+  }
+}
+
+function hasAbsoluteChild(element: ContainerElement): boolean {
+  return element.children.some((child) => {
+    if (child.type === "container") {
+      return child.layout?.position === "absolute";
+    }
+
+    return (
+      child.style?.position === "absolute" ||
+      isAbsolutePlacement(child.style?.placement)
+    );
+  });
+}
+
+function renderLinkSurface(link: ElementLink): string {
+  const attributes = [
+    `href="${escapeHtml(link.href)}"`,
+    'data-powershow-link="true"',
+    'data-powershow-container-link-surface="true"',
+    `style="position:absolute;inset:0;z-index:${CONTAINER_LINK_SURFACE_Z_INDEX}"`,
+  ];
+
+  if (link.target === "_blank") {
+    attributes.push('target="_blank"', 'rel="noopener noreferrer"');
+  } else if (link.target === "_self") {
+    attributes.push('target="_self"');
+  }
+
+  return `<a ${attributes.join(" ")}></a>`;
+}
+
+export function renderContainer(
+  element: ContainerElement,
+  renderChild: RenderChild,
+): string {
+  if (element.hidden) {
+    return "";
+  }
+
+  const styles = [
+    ...renderLayout(element),
+    ...renderVisualStyle(element),
+    ...renderTypography(element),
+    ...renderEffect(element),
+  ];
+  const childrenLayout = element.layout?.children;
+  const mode = childrenLayout?.mode ?? "flow";
+  const direction = childrenLayout?.direction ?? "column";
+  const distribution = childrenLayout?.distribution ?? "packed";
+  const horizontalAlign = childrenLayout?.horizontalAlign;
+  const verticalAlign = childrenLayout?.verticalAlign;
+  const isStack = mode === "stack";
+  const isLinked = element.link !== undefined;
+  const hasPattern = element.style?.background?.pattern !== undefined;
+  const needsContainingBlock = hasAbsoluteChild(element) || isLinked || hasPattern;
+  const hasAuthoredAbsolute = element.layout?.position === "absolute";
+
+  styles.push(isStack ? "display:grid" : "display:flex");
+
+  if (needsContainingBlock && !hasAuthoredAbsolute) {
+    styles.push("position:relative");
+  }
+
+  if (hasPattern) {
+    styles.push("isolation:isolate");
+  }
+
+  if (isLinked) {
+    styles.push("z-index:0");
+  }
+
+  if (isStack) {
+    if (horizontalAlign) {
+      styles.push(`justify-items:${horizontalAlign}`);
+    }
+    if (verticalAlign) {
+      styles.push(`align-items:${verticalAlign}`);
+    }
+  } else {
+    styles.push(`flex-direction:${direction}`);
+
+    if (childrenLayout?.gap !== undefined) {
+      styles.push(`gap:${renderLength(childrenLayout.gap)}`);
+    }
+
+    if (distribution !== "packed") {
+      styles.push(`justify-content:${distribution}`);
+    } else if (direction === "row" && horizontalAlign) {
+      styles.push(`justify-content:${renderMainAxisAlignment(horizontalAlign)}`);
+    } else if (direction === "column" && verticalAlign) {
+      styles.push(`justify-content:${renderMainAxisAlignment(verticalAlign)}`);
+    }
+
+    if (direction === "row" && verticalAlign) {
+      styles.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
+    } else if (direction === "column" && horizontalAlign) {
+      styles.push(`align-items:${renderCrossAxisAlignment(horizontalAlign)}`);
+    }
+  }
+
+  const classes = ["powershow-element", "powershow-container"];
+  if (isStack) classes.push("powershow-container-stack");
+  if (element.role) classes.push(`powershow-container-${element.role}`);
+  if (element.style?.className?.trim()) classes.push(element.style.className.trim());
+
+  const tag = getTagName(element.role);
+  const pattern = element.style?.background?.pattern;
+  const patternLayer = pattern
+    ? `<div class="powershow-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+        "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;" +
+          renderBackgroundPattern(pattern),
+      )}"></div>`
+    : "";
+  const children = element.children
+    .map((child) => {
+      const rendered = renderChild(child);
+      return isStack ? renderStackChild(rendered) : rendered;
+    })
+    .join("");
+  const role = element.role
+    ? ` data-powershow-role="${escapeHtml(element.role)}"`
+    : "";
+
+  return (
+    `<${tag} class="${escapeHtml(classes.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
+    ` data-powershow-type="container"${role}` +
+    ` style="${escapeHtml(styles.join(";"))}">` +
+    patternLayer +
+    children +
+    (element.link ? renderLinkSurface(element.link) : "") +
+    `</${tag}>`
+  );
 }

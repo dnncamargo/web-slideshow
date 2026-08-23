@@ -26,7 +26,6 @@ const makeContainer = (
 ) => ({
   id,
   type: "container",
-  direction: "column",
   children,
   ...properties,
 });
@@ -196,7 +195,7 @@ export const validStructureFixtures = [
           ],
           {
             role: "main",
-            direction: "row",
+            layout: { children: { direction: "row" } },
           },
         ),
       ]),
@@ -227,7 +226,7 @@ export const validStructureFixtures = [
           ],
           {
             role: "main",
-            direction: "row",
+            layout: { children: { direction: "row" } },
           },
         ),
       ]),
@@ -404,10 +403,7 @@ export const validStyleFixtures = [
               },
             },
           ],
-          {
-            horizontalAlign: "center",
-            verticalAlign: "start",
-          },
+          { layout: { children: { horizontalAlign: "center", verticalAlign: "start" } } },
         ),
       ]),
     ]),
@@ -493,7 +489,6 @@ export const expectedDefaultsOutput = {
           id: "defaults-container",
           type: "container",
           hidden: false,
-          direction: "column",
           children: [
             {
               id: "defaults-text",

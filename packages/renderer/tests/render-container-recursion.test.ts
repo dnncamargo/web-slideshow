@@ -65,7 +65,7 @@ describe("recursive container rendering", () => {
   it("renders mixed content across nested containers", () => {
     const element = createContainerElement({
       id: "mixed-root",
-      direction: "row",
+      layout: { children: { direction: "row" } },
       children: [
         createContainerElement({
           id: "content-column",
@@ -142,11 +142,7 @@ describe("recursive container rendering", () => {
   it("maps style-based row alignment to main and cross axes", () => {
     const html = renderElement(
       createContainerElement({
-        direction: "row",
-        style: {
-          horizontalAlign: "end",
-          verticalAlign: "stretch",
-        },
+        layout: { children: { direction: "row", horizontalAlign: "end", verticalAlign: "stretch" } },
       }),
     );
 
@@ -157,11 +153,7 @@ describe("recursive container rendering", () => {
   it("maps style-based column alignment to cross and main axes", () => {
     const html = renderElement(
       createContainerElement({
-        direction: "column",
-        style: {
-          horizontalAlign: "start",
-          verticalAlign: "center",
-        },
+        layout: { children: { direction: "column", horizontalAlign: "start", verticalAlign: "center" } },
       }),
     );
 

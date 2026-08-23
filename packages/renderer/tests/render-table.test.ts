@@ -217,7 +217,7 @@ describe("renderTable", () => {
             type: "container",
             id: "cell-container",
             hidden: false,
-            direction: "column",
+            layout: { children: { direction: "column" } },
             children: [{
               type: "text",
               id: "cell-text",
