@@ -3,6 +3,7 @@ export * from "./render-font-resources";
 export * from "./render-length";
 export * from "./render-placement";
 export * from "./render-style";
+export * from "./render-background-pattern";
 export * from "./render-visual";
 export * from "./render-element";
 export * from "./render-topics";
