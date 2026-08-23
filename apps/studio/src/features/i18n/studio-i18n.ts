@@ -356,6 +356,11 @@ const englishMessages = {
   "inspector.border.dotted": "Dotted",
   "inspector.borderWidth": "Width",
   "inspector.borderColor": "Color",
+  "inspector.borderPaint": "Paint",
+  "inspector.borderPaintHelp":
+    "Chooses the paint used to draw the border.",
+  "inspector.borderPaint.color": "Color",
+  "inspector.borderPaint.gradient": "Gradient",
   "inspector.effects": "Effects",
   "inspector.textStroke": "Text stroke",
   "inspector.textStroke.none": "None",
@@ -1063,6 +1068,11 @@ const portugueseMessages = {
   "inspector.border.dotted": "Pontilhada",
   "inspector.borderWidth": "Largura",
   "inspector.borderColor": "Cor",
+  "inspector.borderPaint": "Pintura",
+  "inspector.borderPaintHelp":
+    "Escolhe o preenchimento usado para desenhar a borda.",
+  "inspector.borderPaint.color": "Cor",
+  "inspector.borderPaint.gradient": "Gradiente",
   "inspector.effects": "Efeitos",
   "inspector.textStroke": "Contorno do texto",
   "inspector.textStroke.none": "Nenhum",
