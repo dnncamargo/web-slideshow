@@ -19,6 +19,7 @@ import type {
 } from "../inspector-types";
 
 import { ElementBackgroundGradientControl } from "./element-background-gradient-control";
+import { ElementBackgroundPatternControl } from "./element-background-pattern-control";
 import { ColorControl } from "./color-control";
 
 import { ElementTypographyControl } from "./element-typography-control";
@@ -42,6 +43,8 @@ interface ElementAppearanceSectionProps {
   showBackground?: boolean;
 
   showBackgroundGradient?: boolean;
+
+  showBackgroundPattern?: boolean;
 
   showRoundedCorners?: boolean;
 
@@ -87,6 +90,7 @@ export function ElementAppearanceSection({
   showColor = false,
   showBackground = false,
   showBackgroundGradient = false,
+  showBackgroundPattern = false,
   showRoundedCorners = false,
   showOpacity = false,
   showBorder = false,
@@ -145,7 +149,7 @@ export function ElementAppearanceSection({
         </div>
       )}
 
-      {(showBackground || showBackgroundGradient) && (
+      {(showBackground || showBackgroundGradient || showBackgroundPattern) && (
         <div className={styles.backgroundControls}>
           {showBackground && (
             <div className={styles.colorControl}>
@@ -186,6 +190,15 @@ export function ElementAppearanceSection({
 
           {showBackgroundGradient && (
             <ElementBackgroundGradientControl
+              style={style}
+              onUpdateStyle={onUpdateStyle}
+              controlPrefix={controlPrefix}
+            />
+          )}
+
+          {showBackgroundPattern && (
+            <ElementBackgroundPatternControl
+              elementId={element.id}
               style={style}
               onUpdateStyle={onUpdateStyle}
               controlPrefix={controlPrefix}

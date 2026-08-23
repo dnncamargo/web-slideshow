@@ -69,6 +69,7 @@ export function ContainerInspector({
         controlPrefix="container"
         showBackground
         showBackgroundGradient
+        showBackgroundPattern
         showRoundedCorners
         showOpacity
         showBorder

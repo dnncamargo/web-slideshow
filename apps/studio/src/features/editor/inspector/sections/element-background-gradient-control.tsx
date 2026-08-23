@@ -191,6 +191,8 @@ export function ElementBackgroundGradientControl({
         ...currentStyle,
 
         backgroundGradient: update(currentGradient),
+
+        backgroundPattern: undefined,
       };
     });
   }
@@ -245,6 +247,8 @@ export function ElementBackgroundGradientControl({
                   ...currentStyle,
 
                   backgroundGradient: createDefaultGradient(gradientMode),
+
+                  backgroundPattern: undefined,
                 };
               }
 
@@ -271,6 +275,8 @@ export function ElementBackgroundGradientControl({
 
                         stops: currentGradient.stops,
                       },
+
+                backgroundPattern: undefined,
               };
             });
           }}
