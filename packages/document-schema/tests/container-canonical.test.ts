@@ -113,6 +113,32 @@ describe("production canonical Container schema", () => {
         layout: { position: "relative" },
       }).success,
     ).toBe(false);
+    expect(
+      PowerShowElementSchema.safeParse({
+        ...minimalContainer,
+        layout: { position: "static" },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      PowerShowElementSchema.safeParse({
+        ...minimalContainer,
+        layout: { position: "absolute", left: 0, right: 0 },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts canonical non-Container children", () => {
+    expect(
+      PowerShowElementSchema.safeParse({
+        ...minimalContainer,
+        children: [{
+          id: "child-text",
+          type: "text",
+          content: "Child",
+        }],
+      }).success,
+    ).toBe(true);
   });
 
   it("rejects old Container top-level and style responsibilities", () => {
@@ -142,14 +168,42 @@ describe("production canonical Container schema", () => {
       "backgroundPattern",
       "opacity",
       "shadow",
+      "position",
+      "placement",
+      "top",
+      "right",
+      "bottom",
+      "left",
     ]) {
       expect(
         PowerShowElementSchema.safeParse({
           ...minimalContainer,
-          style: { [field]: field === "opacity" ? 0.5 : 10 },
+          style: {
+            [field]: field === "opacity"
+              ? 0.5
+              : field === "position"
+                ? "absolute"
+                : field === "placement"
+                  ? { mode: "absolute" }
+                  : 10,
+          },
         }).success,
       ).toBe(false);
     }
+
+    expect(
+      PowerShowElementSchema.safeParse({
+        ...minimalContainer,
+        style: { background: "#111111" },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      PowerShowElementSchema.safeParse({
+        ...minimalContainer,
+        style: { fontSize: 24, fontFamily: "Inter" },
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts canonical Containers in presentations and rejects old shapes", () => {
