@@ -12,6 +12,7 @@ import {
 } from "./primitives";
 
 import {
+  BackgroundPatternSchema,
   BorderSchema,
   GradientSchema,
   ShadowSchema,
@@ -139,6 +140,8 @@ export const ElementStyleSchema = z.object({
   className: z.string().optional(),
 
   backgroundGradient: GradientSchema.optional(),
+
+  backgroundPattern: BackgroundPatternSchema.optional(),
 
   border: BorderSchema.optional(),
 

@@ -7,6 +7,7 @@ import type {
 import { escapeHtml } from "./escape-html";
 import { renderStyle } from "./render-style";
 import { isAbsolutePlacement } from "./render-placement";
+import { renderBackgroundPattern } from "./render-background-pattern";
 
 import { renderLength } from "./render-length";
 
@@ -171,6 +172,7 @@ export function renderContainer(
   }
 
   const isStack = element.layoutMode === "stack";
+  const hasBackgroundPattern = element.style?.backgroundPattern !== undefined;
   const hasAbsoluteChild = element.children.some((child) =>
     isAbsolutePlacement(child.style?.placement),
   );
@@ -190,6 +192,17 @@ export function renderContainer(
   // otherwise.
   if (isLinked && !establishesContainingBlock(element, hasAbsoluteChild)) {
     styles.push("position:relative");
+  }
+
+  // Pattern layers are renderer-owned positioned descendants. Isolate only
+  // patterned Containers so the negative layer stays above this root's own
+  // background/gradient and below its authored children.
+  if (hasBackgroundPattern) {
+    if (!establishesContainingBlock(element, hasAbsoluteChild)) {
+      styles.push("position:relative");
+    }
+
+    styles.push("isolation:isolate");
   }
 
   // The linked Container root establishes a stacking context so
@@ -297,6 +310,20 @@ export function renderContainer(
 
   const tag = getTagName(element.role);
 
+  const backgroundPattern = element.style?.backgroundPattern;
+
+  const patternLayer = backgroundPattern
+    ? `<div` +
+      ` class="powershow-container-background-pattern"` +
+      ` aria-hidden="true"` +
+      ` style="${escapeHtml(
+        "position:absolute;inset:0;z-index:-1;pointer-events:none;" +
+          "border-radius:inherit;" +
+          renderBackgroundPattern(backgroundPattern),
+      )}"` +
+      `></div>`
+    : "";
+
   const children = element.children
     .map((child) => {
       const renderedChild = renderChild(child);
@@ -317,6 +344,7 @@ export function renderContainer(
     roleAttribute +
     ` style="${escapeHtml(styles.join(";"))}"` +
     `>` +
+    patternLayer +
     children +
     (element.link ? renderContainerLinkSurface(element.link) : "") +
     `</${tag}>`
