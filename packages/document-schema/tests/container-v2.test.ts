@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { PowerShowElementSchema } from "../src/elements";
 import {
+  V2ContainerBackgroundSchema,
   V2ContainerSchema,
   type V2ContainerElement,
 } from "../src/container-v2";
@@ -105,9 +106,9 @@ describe("V2ContainerSchema", () => {
   it("accepts semantic layout, visual, effect, link, and child addresses", () => {
     const parsed = V2ContainerSchema.parse(candidateFixture);
 
-    expect(parsed.layout.width).toBe("78%");
-    expect(parsed.layout.children.mode).toBe("flow");
-    expect(parsed.layout.placement?.mode).toBe("absolute");
+    expect(parsed.layout?.width).toBe("78%");
+    expect(parsed.layout?.children?.mode).toBe("flow");
+    expect(parsed.layout?.placement?.mode).toBe("absolute");
     expect(parsed.style?.background?.gradient?.type).toBe("linear");
     expect(parsed.style?.background?.pattern?.opacity).toBe(0.8);
     expect(parsed.style?.border?.width).toBe(2);
@@ -158,6 +159,94 @@ describe("V2ContainerSchema", () => {
         },
       }).success,
     ).toBe(false);
+
+    expect(
+      V2ContainerSchema.safeParse({
+        ...candidateFixture,
+        style: {
+          ...candidateFixture.style,
+          horizontalAlign: "center",
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps minimal and partially specified candidates free of namespace boilerplate", () => {
+    expect(
+      V2ContainerSchema.parse({
+        id: "container-1",
+        type: "container",
+        children: [],
+      }),
+    ).toEqual({
+      id: "container-1",
+      type: "container",
+      hidden: false,
+      children: [],
+    });
+
+    expect(
+      V2ContainerSchema.parse({
+        id: "container-2",
+        type: "container",
+        layout: { width: "80%" },
+        children: [],
+      }),
+    ).toEqual({
+      id: "container-2",
+      type: "container",
+      hidden: false,
+      layout: { width: "80%" },
+      children: [],
+    });
+  });
+
+  it("validates and normalizes candidate background colors with ColorSchema", () => {
+    expect(V2ContainerBackgroundSchema.parse({ color: "#ABCDEF" }).color).toBe(
+      "#abcdef",
+    );
+    expect(
+      V2ContainerBackgroundSchema.parse({
+        color: "rgba(15, 23, 42, 0.5)",
+      }).color,
+    ).toBe("rgba(15, 23, 42, 0.5)");
+
+    for (const color of ["red", "var(--surface)", "not-a-color"]) {
+      expect(V2ContainerBackgroundSchema.safeParse({ color }).success).toBe(false);
+    }
+  });
+
+  it("rejects a legacy Container child while retaining legacy non-Container children", () => {
+    const legacyContainer = PowerShowElementSchema.parse({
+      id: "legacy-container",
+      type: "container",
+      hidden: false,
+      direction: "column",
+      children: [],
+    });
+
+    const legacyText = PowerShowElementSchema.parse({
+      id: "legacy-text",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: "Legacy text",
+    });
+
+    expect(
+      V2ContainerSchema.safeParse({
+        id: "candidate-parent",
+        type: "container",
+        children: [legacyContainer],
+      }).success,
+    ).toBe(false);
+    expect(
+      V2ContainerSchema.safeParse({
+        id: "candidate-parent",
+        type: "container",
+        children: [legacyText],
+      }).success,
+    ).toBe(true);
   });
 
   it("does not make the candidate a normal PowerShowElement", () => {

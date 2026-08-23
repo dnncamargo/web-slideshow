@@ -28,6 +28,7 @@ import {
 } from "./resources";
 import {
   PowerShowElementSchema,
+  type ContainerElement,
   type PowerShowElement,
 } from "./elements";
 
@@ -39,9 +40,7 @@ import {
  */
 export const V2ContainerBackgroundSchema = z
   .object({
-    color: z
-      .string()
-      .optional(),
+    color: ColorSchema.optional(),
     gradient: GradientSchema.optional(),
     pattern: BackgroundPatternSchema.optional(),
   })
@@ -55,8 +54,9 @@ export type V2ContainerBackground = z.infer<
  * Candidate visual surface. Layout, child layout, and effects deliberately
  * live in their own sibling objects below.
  *
- * The inherited text properties remain flat because the current generic
- * ElementStyle already makes them observable on Container descendants.
+ * The inherited text properties remain flat as parity scaffolding because the
+ * current generic ElementStyle already makes them observable on Container
+ * descendants. Their final V2 semantic responsibility remains unresolved.
  */
 export const V2ContainerStyleSchema = z
   .object({
@@ -88,6 +88,7 @@ export const V2ContainerStyleSchema = z
     border: BorderSchema.optional(),
     borderRadius: LengthSchema.optional(),
     overflow: z.enum(["visible", "hidden", "auto"]).optional(),
+    // Preserved for parity only; final className responsibility is unresolved.
     className: z.string().optional(),
     textStroke: ElementStyleSchema.shape.textStroke,
   })
@@ -106,8 +107,8 @@ export type V2ContainerEffect = z.infer<typeof V2ContainerEffectSchema>;
 
 export const V2ContainerChildrenLayoutSchema = z
   .object({
-    mode: LayoutModeSchema.default("flow"),
-    direction: DirectionSchema.default("column"),
+    mode: LayoutModeSchema.optional(),
+    direction: DirectionSchema.optional(),
     gap: LengthSchema.optional(),
     distribution: DistributionSchema.optional(),
     horizontalAlign: HorizontalAlignmentSchema.optional(),
@@ -140,10 +141,7 @@ export const V2ContainerLayoutSchema = z
     paddingLeft: LengthSchema.optional(),
 
     placement: ElementPlacementSchema.optional(),
-    children: V2ContainerChildrenLayoutSchema.default({
-      mode: "flow",
-      direction: "column",
-    }),
+    children: V2ContainerChildrenLayoutSchema.optional(),
   })
   .strict();
 
@@ -161,17 +159,36 @@ export type V2ContainerElement = {
     | "content"
     | undefined;
   hidden: boolean;
-  layout: V2ContainerLayout;
+  layout?: V2ContainerLayout | undefined;
   style?: V2ContainerStyle | undefined;
   effect?: V2ContainerEffect | undefined;
   link?: z.infer<typeof ElementLinkSchema> | undefined;
   children: V2ContainerChild[];
 };
 
-export type V2ContainerChild = V2ContainerElement | PowerShowElement;
+export type LegacyNonContainerElement = Exclude<
+  PowerShowElement,
+  ContainerElement
+>;
+
+export type V2ContainerChild =
+  | V2ContainerElement
+  | LegacyNonContainerElement;
+
+const LegacyNonContainerElementSchema: z.ZodType<LegacyNonContainerElement> =
+  z.lazy(() =>
+    PowerShowElementSchema.refine(
+      (element): element is LegacyNonContainerElement =>
+        element.type !== "container",
+      {
+        message:
+          "Legacy Container elements are not valid V2 Container children.",
+      },
+    ),
+  );
 
 const V2ContainerChildSchema: z.ZodType<V2ContainerChild> = z.lazy(() =>
-  z.union([V2ContainerSchema, PowerShowElementSchema]),
+  z.union([V2ContainerSchema, LegacyNonContainerElementSchema]),
 );
 
 /**
@@ -188,7 +205,7 @@ export const V2ContainerSchema: z.ZodType<V2ContainerElement> = z.lazy(() =>
         .enum(["main", "header", "footer", "row", "column", "content"])
         .optional(),
       hidden: z.boolean().default(false),
-      layout: V2ContainerLayoutSchema,
+      layout: V2ContainerLayoutSchema.optional(),
       style: V2ContainerStyleSchema.optional(),
       effect: V2ContainerEffectSchema.optional(),
       link: ElementLinkSchema.optional(),
@@ -200,5 +217,5 @@ export const V2ContainerSchema: z.ZodType<V2ContainerElement> = z.lazy(() =>
 export function isV2ContainerElement(
   element: V2ContainerChild,
 ): element is V2ContainerElement {
-  return element.type === "container" && "layout" in element;
+  return element.type === "container";
 }

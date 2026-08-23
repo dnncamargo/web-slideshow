@@ -230,13 +230,80 @@ describe("renderContainerV2", () => {
     const { width: _styleWidth, ...legacyStyle } = legacyFixture.style ?? {};
     const legacy = {
       ...legacyFixture,
-      width: "78%",
-      style: legacyStyle,
+      width: "80%",
+      style: { ...legacyStyle, width: "40%" },
     };
-    const candidate = createCandidateFixture();
+    const candidate = {
+      ...createCandidateFixture(),
+      layout: {
+        ...createCandidateFixture().layout,
+        width: "80%",
+      },
+    };
 
-    expect(renderElement(legacy)).toContain("width:78%");
-    expect(renderContainerV2(candidate, renderElement)).toContain("width:78%");
+    const legacyHtml = renderElement(legacy);
+    const candidateHtml = renderContainerV2(candidate, renderElement);
+    const readWidths = (html: string) =>
+      [...html.matchAll(/[\";]width:([^;\"]+)/g)].map((match) => match[1]);
+
+    expect(readWidths(legacyHtml)).toEqual(["40%", "80%"]);
+    expect(readWidths(candidateHtml)).toEqual(["80%"]);
+  });
+
+  it("collapses legacy style-only alignment to layout.children alignment", () => {
+    const legacy = createLegacyFixture();
+    legacy.horizontalAlign = undefined;
+    legacy.verticalAlign = undefined;
+    legacy.style = {
+      ...legacy.style,
+      horizontalAlign: "center",
+      verticalAlign: "end",
+    };
+
+    const candidate = createCandidateFixture();
+    candidate.layout = {
+      ...candidate.layout,
+      children: {
+        ...candidate.layout?.children,
+        horizontalAlign: "center",
+        verticalAlign: "end",
+      },
+    };
+
+    const legacyHtml = renderElement(legacy);
+    const candidateHtml = renderContainerV2(candidate, renderElement);
+
+    expectParityFragment(legacyHtml, candidateHtml, "align-items:center");
+    expectParityFragment(legacyHtml, candidateHtml, "justify-content:flex-end");
+  });
+
+  it("preserves legacy top-level alignment precedence over conflicting style alignment", () => {
+    const legacy = createLegacyFixture();
+    legacy.horizontalAlign = "start";
+    legacy.verticalAlign = "end";
+    legacy.style = {
+      ...legacy.style,
+      horizontalAlign: "center",
+      verticalAlign: "center",
+    };
+
+    const candidate = createCandidateFixture();
+    candidate.layout = {
+      ...candidate.layout,
+      children: {
+        ...candidate.layout?.children,
+        horizontalAlign: "start",
+        verticalAlign: "end",
+      },
+    };
+
+    const legacyHtml = renderElement(legacy);
+    const candidateHtml = renderContainerV2(candidate, renderElement);
+
+    expectParityFragment(legacyHtml, candidateHtml, "align-items:flex-start");
+    expectParityFragment(legacyHtml, candidateHtml, "justify-content:flex-end");
+    expect(legacyHtml).not.toContain("align-items:center");
+    expect(legacyHtml).not.toContain("justify-content:center");
   });
 
   it("preserves gradient border rendering through style.border", () => {
@@ -286,6 +353,28 @@ describe("renderContainerV2", () => {
     if (mode === "stack") {
       expect(html).toContain("powershow-container-stack");
     }
+  });
+
+  it("resolves flow/column defaults without materializing candidate namespaces", () => {
+    const minimal = V2ContainerSchema.parse({
+      id: "minimal-candidate",
+      type: "container",
+      children: [],
+    });
+    const partial = V2ContainerSchema.parse({
+      id: "partial-candidate",
+      type: "container",
+      layout: { width: "80%" },
+      children: [],
+    });
+
+    expect(renderContainerV2(minimal, renderElement)).toContain(
+      "display:flex;flex-direction:column",
+    );
+    expect(renderContainerV2(partial, renderElement)).toContain("width:80%");
+    expect(renderContainerV2(partial, renderElement)).toContain(
+      "display:flex;flex-direction:column",
+    );
   });
 
   it("preserves absolute children, nested candidates, hidden state, and links", () => {

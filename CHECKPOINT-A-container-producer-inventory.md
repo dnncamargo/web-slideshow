@@ -15,7 +15,12 @@ shape in Checkpoint A.
   reads/writes `style.padding*`, `style.margin*`, and top-level `gap`.
 - `apps/studio/src/features/editor/inspector/sections/container-layout-section.tsx`
   reads/writes top-level `layoutMode`, `direction`, `distribution`,
-  `horizontalAlign`, and `verticalAlign`.
+  `horizontalAlign`, and `verticalAlign`. Alignment is duplicated in the
+  legacy model because `style.horizontalAlign`/`style.verticalAlign` are also
+  accepted by the generic ElementStyle renderer; legacy top-level alignment
+  wins when both addresses are present. Checkpoint B should collapse both
+  producer paths into `layout.children.horizontalAlign` and
+  `layout.children.verticalAlign`.
 - `apps/studio/src/features/editor/inspector/container-inspector-helpers.ts`
   updates the top-level `layoutMode`.
 - `apps/studio/src/features/editor/inspector/sections/element-appearance-section.tsx`
@@ -70,12 +75,16 @@ shape in Checkpoint A.
   absolute `style.placement` only when authored independently, so they must be
   audited before any cutover.
 - `ContainerElement.width` is accepted and rendered by the legacy Container
-  renderer, but the inspected Studio producers use `style.width` instead.
+  renderer, but the inspected Studio producers use `style.width` instead. If
+  both legacy addresses are authored, the renderer emits `ContainerElement.width`
+  after generic style and therefore the top-level value wins; V2 keeps only
+  `layout.width`.
 - Generic Container typography (`color`, font fields, text alignment, line
   height, letter spacing, transforms, whitespace, wrapping, and decoration)
   is accepted through `ElementStyle` and can be observable through inherited
-  CSS. The candidate style retains these flat fields for parity; no Container
-  typography UI is added.
+  CSS. The candidate style retains these flat fields as parity scaffolding
+  only; final V2 typography responsibility remains unresolved and no
+  Container typography UI is added.
 - `className` is emitted on the legacy Container root by the generic style
-  path. The candidate retains it as a flat style field; no new abstraction is
-  introduced.
+  path. The candidate retains it as a flat style field for parity only; final
+  responsibility remains unresolved and no new abstraction is introduced.

@@ -3,6 +3,7 @@ import type {
   ElementStyle,
   PowerShowElement,
   V2ContainerChild,
+  V2ContainerChildrenLayout,
   V2ContainerElement,
 } from "@powershow/document-schema";
 
@@ -98,23 +99,23 @@ function renderV2Style(element: V2ContainerElement): string {
   const style = element.style;
   const background = style?.background;
 
-  addMappedStyle(target, "width", layout.width);
-  addMappedStyle(target, "height", layout.height);
-  addMappedStyle(target, "minWidth", layout.minWidth);
-  addMappedStyle(target, "minHeight", layout.minHeight);
-  addMappedStyle(target, "maxWidth", layout.maxWidth);
-  addMappedStyle(target, "maxHeight", layout.maxHeight);
-  addMappedStyle(target, "margin", layout.margin);
-  addMappedStyle(target, "marginTop", layout.marginTop);
-  addMappedStyle(target, "marginRight", layout.marginRight);
-  addMappedStyle(target, "marginBottom", layout.marginBottom);
-  addMappedStyle(target, "marginLeft", layout.marginLeft);
-  addMappedStyle(target, "padding", layout.padding);
-  addMappedStyle(target, "paddingTop", layout.paddingTop);
-  addMappedStyle(target, "paddingRight", layout.paddingRight);
-  addMappedStyle(target, "paddingBottom", layout.paddingBottom);
-  addMappedStyle(target, "paddingLeft", layout.paddingLeft);
-  addMappedStyle(target, "placement", layout.placement);
+  addMappedStyle(target, "width", layout?.width);
+  addMappedStyle(target, "height", layout?.height);
+  addMappedStyle(target, "minWidth", layout?.minWidth);
+  addMappedStyle(target, "minHeight", layout?.minHeight);
+  addMappedStyle(target, "maxWidth", layout?.maxWidth);
+  addMappedStyle(target, "maxHeight", layout?.maxHeight);
+  addMappedStyle(target, "margin", layout?.margin);
+  addMappedStyle(target, "marginTop", layout?.marginTop);
+  addMappedStyle(target, "marginRight", layout?.marginRight);
+  addMappedStyle(target, "marginBottom", layout?.marginBottom);
+  addMappedStyle(target, "marginLeft", layout?.marginLeft);
+  addMappedStyle(target, "padding", layout?.padding);
+  addMappedStyle(target, "paddingTop", layout?.paddingTop);
+  addMappedStyle(target, "paddingRight", layout?.paddingRight);
+  addMappedStyle(target, "paddingBottom", layout?.paddingBottom);
+  addMappedStyle(target, "paddingLeft", layout?.paddingLeft);
+  addMappedStyle(target, "placement", layout?.placement);
 
   if (style) {
     addMappedStyle(target, "color", style.color);
@@ -147,7 +148,7 @@ function renderV2Style(element: V2ContainerElement): string {
 
 function isAbsoluteV2Child(child: V2ContainerChild): boolean {
   return isV2ContainerElement(child)
-    ? isAbsolutePlacement(child.layout.placement)
+    ? isAbsolutePlacement(child.layout?.placement)
     : isAbsolutePlacement(child.style?.placement);
 }
 
@@ -155,7 +156,7 @@ function establishesContainingBlock(
   element: V2ContainerElement,
   hasAbsoluteChild: boolean,
 ): boolean {
-  return hasAbsoluteChild || isAbsolutePlacement(element.layout.placement);
+  return hasAbsoluteChild || isAbsolutePlacement(element.layout?.placement);
 }
 
 function renderContainerLinkSurface(link: ElementLink): string {
@@ -176,7 +177,7 @@ function renderContainerLinkSurface(link: ElementLink): string {
 }
 
 function renderDistribution(
-  value: NonNullable<V2ContainerElement["layout"]["children"]["distribution"]>,
+  value: NonNullable<V2ContainerChildrenLayout["distribution"]>,
 ): string | null {
   switch (value) {
     case "packed":
@@ -219,8 +220,10 @@ export function renderContainerV2(
     styles.push(baseStyle);
   }
 
-  const childrenLayout = element.layout.children;
-  const isStack = childrenLayout.mode === "stack";
+  const childrenLayout = element.layout?.children;
+  const mode = childrenLayout?.mode ?? "flow";
+  const direction = childrenLayout?.direction ?? "column";
+  const isStack = mode === "stack";
   const pattern = element.style?.background?.pattern;
   const hasAbsoluteChild = element.children.some(isAbsoluteV2Child);
   const isLinked = element.link !== undefined;
@@ -248,15 +251,15 @@ export function renderContainerV2(
   }
 
   if (!isStack) {
-    styles.push(`flex-direction:${childrenLayout.direction}`);
+    styles.push(`flex-direction:${direction}`);
   }
 
-  if (!isStack && childrenLayout.gap !== undefined) {
+  if (!isStack && childrenLayout?.gap !== undefined) {
     styles.push(`gap:${renderLength(childrenLayout.gap)}`);
   }
 
-  const horizontalAlign = childrenLayout.horizontalAlign;
-  const verticalAlign = childrenLayout.verticalAlign;
+  const horizontalAlign = childrenLayout?.horizontalAlign;
+  const verticalAlign = childrenLayout?.verticalAlign;
 
   if (isStack) {
     if (horizontalAlign) {
@@ -267,9 +270,9 @@ export function renderContainerV2(
       styles.push(`align-items:${renderGridAlignment(verticalAlign)}`);
     }
   } else {
-    const distribution = renderDistribution(childrenLayout.distribution ?? "packed");
+    const distribution = renderDistribution(childrenLayout?.distribution ?? "packed");
 
-    if (childrenLayout.direction === "row") {
+    if (direction === "row") {
       if (distribution) {
         styles.push(`justify-content:${distribution}`);
       } else if (horizontalAlign) {
