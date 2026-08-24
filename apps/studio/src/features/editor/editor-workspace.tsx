@@ -66,13 +66,14 @@ import {
   type ImageFocalPoint,
 } from "./inspector/sections/image-focal-point-helpers";
 import {
-  moveCrop,
+  areImageCropsEqual,
   normalizeCropCanvasValue,
   resolveCropCanvasRect,
   resolveSourcePreviewBounds,
-  updateCropFromHandle,
+  resolveCropPointerValue,
   type CropCanvasBounds,
   type CropCanvasHandle,
+  type CropCanvasOperation,
 } from "./crop-canvas-geometry";
 import { getEffectiveImageCrop } from "./inspector/sections/image-crop-helpers";
 import {
@@ -323,7 +324,7 @@ interface CanvasCropOverlay extends CropCanvasBounds {
 interface CanvasCropDragState {
   pointerId: number;
   imageId: string;
-  operation: "move" | CropCanvasHandle;
+  operation: CropCanvasOperation;
   startClientX: number;
   startClientY: number;
   initialCrop: NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]>;
@@ -811,6 +812,13 @@ export function EditorWorkspace({
       crop: resolveCropCanvasRect(preview, crop),
     });
   }, [cropEditingImageId, cropSourceSize, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
+
+  useEffect(() => {
+    if (!cropEditingImageId || selectedDocumentElement?.type !== "image") return;
+    setCropSourceSize(null);
+    setCanvasCropOverlay(null);
+    setCanvasCropPreview(null);
+  }, [cropEditingImageId, selectedDocumentElement?.id, selectedDocumentElement?.type === "image" ? selectedDocumentElement.src : null]);
 
   useEffect(() => {
     if (!cropEditingImageId) return;
@@ -1379,35 +1387,28 @@ export function EditorWorkspace({
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
-    const deltaX = event.clientX - drag.startClientX;
-    const deltaY = event.clientY - drag.startClientY;
-    setCanvasCropPreview(
-      drag.operation === "move"
-        ? moveCrop(drag.initialCrop, deltaX, deltaY, drag.previewBounds)
-        : updateCropFromHandle(
-            drag.initialCrop,
-            drag.operation,
-            deltaX,
-            deltaY,
-            drag.previewBounds,
-          ),
-    );
+    setCanvasCropPreview(resolveCropPointerValue(
+      drag.initialCrop,
+      drag.operation,
+      drag.startClientX,
+      drag.startClientY,
+      drag.previewBounds,
+      event.clientX,
+      event.clientY,
+    ));
   }
 
   function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, imageId: string) {
     const normalized = normalizeCropCanvasValue(crop);
+    const authored = presentation.slides[selectedSlideIndex]
+      ? findElementById(presentation.slides[selectedSlideIndex].elements, imageId)
+      : null;
+    if (authored?.type !== "image" || areImageCropsEqual(authored.crop, normalized)) return;
     setPresentation((current) => ({
       ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: updateElementById(slide.elements, imageId, (element) =>
-                element.type === "image" ? { ...element, crop: normalized } : element,
-              ),
-            }
-          : slide,
-      ),
+      slides: current.slides.map((slide, index) => index === selectedSlideIndex
+        ? { ...slide, elements: updateElementById(slide.elements, imageId, (element) => element.type === "image" ? { ...element, crop: normalized } : element) }
+        : slide),
     }));
   }
 
@@ -1416,7 +1417,15 @@ export function EditorWorkspace({
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
-    const crop = canvasCropPreview ?? drag.initialCrop;
+    const crop = resolveCropPointerValue(
+      drag.initialCrop,
+      drag.operation,
+      drag.startClientX,
+      drag.startClientY,
+      drag.previewBounds,
+      event.clientX,
+      event.clientY,
+    );
     canvasCropDragRef.current = null;
     setCanvasCropPreview(null);
     commitCanvasCrop(crop, drag.imageId);
@@ -3338,10 +3347,25 @@ export function EditorWorkspace({
                   draggable={false}
                   onLoad={(event) => {
                     const image = event.currentTarget;
-                    setCropSourceSize({
-                      width: image.naturalWidth,
-                      height: image.naturalHeight,
-                    });
+                    const size = { width: image.naturalWidth, height: image.naturalHeight };
+                    setCropSourceSize(size);
+                    const target = slideCanvasRef.current?.querySelector<HTMLElement>(
+                      `[data-powershow-id="${selectedDocumentElement.id}"]`,
+                    );
+                    const preview = target
+                      ? resolveSourcePreviewBounds(getCanvasBounds(target), size.width, size.height)
+                      : null;
+                    if (preview) {
+                      setCanvasCropOverlay({
+                        ...preview,
+                        elementId: selectedDocumentElement.id,
+                        source: selectedDocumentElement.src,
+                        crop: resolveCropCanvasRect(
+                          preview,
+                          getEffectiveImageCrop(selectedDocumentElement.crop),
+                        ),
+                      });
+                    }
                   }}
                   onError={() => setCropSourceSize(null)}
                 />

@@ -19,6 +19,8 @@ export type CropCanvasHandle =
   | "w"
   | "nw";
 
+export type CropCanvasOperation = "move" | CropCanvasHandle;
+
 export function resolveSourcePreviewBounds(
   box: CropCanvasBounds,
   naturalWidth: number,
@@ -109,6 +111,7 @@ export function updateCropFromHandle(
   deltaY: number,
   preview: CropCanvasBounds,
 ): ImageCrop {
+  if (preview.width <= 0 || preview.height <= 0) return initial;
   return cropFromEdges(initial, direction, deltaX, deltaY, preview);
 }
 
@@ -118,6 +121,7 @@ export function moveCrop(
   deltaY: number,
   preview: CropCanvasBounds,
 ): ImageCrop {
+  if (preview.width <= 0 || preview.height <= 0) return initial;
   const dx = roundTenth((deltaX / preview.width) * 100);
   const dy = roundTenth((deltaY / preview.height) * 100);
 
@@ -136,4 +140,29 @@ export function normalizeCropCanvasValue(crop: ImageCrop): ImageCrop | undefined
     width: roundTenth(crop.width),
     height: roundTenth(crop.height),
   });
+}
+
+export function resolveCropPointerValue(
+  initial: ImageCrop,
+  operation: CropCanvasOperation,
+  startClientX: number,
+  startClientY: number,
+  preview: CropCanvasBounds,
+  clientX: number,
+  clientY: number,
+): ImageCrop {
+  const deltaX = clientX - startClientX;
+  const deltaY = clientY - startClientY;
+  return operation === "move"
+    ? moveCrop(initial, deltaX, deltaY, preview)
+    : updateCropFromHandle(initial, operation, deltaX, deltaY, preview);
+}
+
+export function areImageCropsEqual(
+  left: ImageCrop | undefined,
+  right: ImageCrop | undefined,
+): boolean {
+  const a = normalizeCropCanvasValue(left ?? { x: 0, y: 0, width: 100, height: 100 });
+  const b = normalizeCropCanvasValue(right ?? { x: 0, y: 0, width: 100, height: 100 });
+  return a?.x === b?.x && a?.y === b?.y && a?.width === b?.width && a?.height === b?.height;
 }

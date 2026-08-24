@@ -40,6 +40,9 @@ describe("crop canvas rectangle and handles", () => {
     expect(updateCropFromHandle(crop, "n", 0, 20, preview)).toMatchObject({ y: 35, height: 30 });
     expect(updateCropFromHandle(crop, "s", 0, 20, preview)).toMatchObject({ height: 50 });
     expect(updateCropFromHandle(crop, "se", 40, 20, preview)).toMatchObject({ width: 60, height: 50 });
+    expect(updateCropFromHandle(crop, "ne", 40, -20, preview)).toMatchObject({ width: 60, y: 15, height: 50 });
+    expect(updateCropFromHandle(crop, "sw", -40, 20, preview)).toMatchObject({ x: 10, width: 60, height: 50 });
+    expect(updateCropFromHandle(crop, "nw", -40, -20, preview)).toMatchObject({ x: 10, y: 15, width: 60, height: 50 });
   });
 
   it("enforces one percent minimums, bounds, and tenth precision", () => {
@@ -59,6 +62,11 @@ describe("crop canvas move and normalization", () => {
   });
 
   it("collapses exact full frame to undefined", () => {
+    expect(normalizeCropCanvasValue({ x: 0, y: 0, width: 100, height: 100 })).toBeUndefined();
+  });
+
+  it("protects invalid preview dimensions and compares full-frame canonically", () => {
+    expect(moveCrop(crop, 10, 10, { left: 0, top: 0, width: 0, height: 100 })).toEqual(crop);
     expect(normalizeCropCanvasValue({ x: 0, y: 0, width: 100, height: 100 })).toBeUndefined();
   });
 });

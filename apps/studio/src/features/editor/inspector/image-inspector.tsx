@@ -256,6 +256,14 @@ export function ImageInspector({
           >
             {t("image.resetCrop")}
           </button>
+
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => onCropEditingChange(!cropEditing)}
+          >
+            {t(cropEditing ? "image.doneCrop" : "image.editCropOnCanvas")}
+          </button>
         </div>
 
         <div className={styles.field}>
@@ -341,22 +349,11 @@ export function ImageInspector({
           <button
             className={styles.secondaryButton}
             type="button"
-            onClick={() => {
-              onCropEditingChange(!cropEditing);
-            }}
-          >
-            {t(cropEditing ? "image.doneCrop" : "image.editCropOnCanvas")}
-          </button>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => {
-              onFocalEditingChange(!focalEditing);
-            }}
+            onClick={() => onFocalEditingChange(!focalEditing)}
           >
             {t(focalEditing ? "image.doneFocalPoint" : "image.editFocalPointOnCanvas")}
           </button>
+
         </div>
        </InspectorSection>
 
