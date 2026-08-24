@@ -1112,6 +1112,21 @@
   pointer-events: none;
 }
 
+.canvasCropSourceLoader {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.canvasCropAppearanceFrame {
+  position: fixed;
+  z-index: 13;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
 .canvasCropSourceImage {
   display: block;
   width: 100%;
@@ -1142,6 +1157,7 @@
 
 .canvasCropSelection {
   position: absolute;
+  z-index: 14;
   border: 1px solid #ecfeff;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.65);
   pointer-events: none;

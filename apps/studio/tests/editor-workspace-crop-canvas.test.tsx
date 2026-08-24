@@ -10,7 +10,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-function presentation(options: { crop?: boolean; absolute?: boolean; link?: boolean } = {}): Presentation {
+function presentation(options: { crop?: boolean; absolute?: boolean; link?: boolean; visual?: boolean } = {}): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "crop-canvas-workspace",
@@ -25,6 +25,15 @@ function presentation(options: { crop?: boolean; absolute?: boolean; link?: bool
           src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB",
           ...(options.crop ? { crop: { x: 20, y: 20, width: 50, height: 50 } } : {}),
           ...(options.link ? { link: { kind: "url", href: "https://example.com" } } : {}),
+          ...(options.visual ? {
+            style: {
+              border: { width: 12, color: "#ff0000" },
+              borderRadius: 32,
+            },
+            effect: {
+              shadow: { x: 0, y: 8, blur: 24, color: "#000000" },
+            },
+          } : {}),
           layout: {
             width: 400,
             height: 300,
@@ -100,7 +109,7 @@ describe("EditorWorkspace crop canvas integration", () => {
   }
 
   async function loadSource() {
-    const source = container.querySelector<HTMLImageElement>("[class*='canvasCropSourceImage']");
+    const source = container.querySelector<HTMLImageElement>("[class*='canvasCropSourceLoader']");
     if (!source) throw new Error("crop source preview not rendered");
     Object.defineProperty(source, "naturalWidth", { configurable: true, value: 1200 });
     Object.defineProperty(source, "naturalHeight", { configurable: true, value: 800 });
@@ -111,7 +120,7 @@ describe("EditorWorkspace crop canvas integration", () => {
   it("enters Crop mode without writing no-crop state and loads the full source", async () => {
     await mount();
     await enterCrop();
-    expect(container.querySelector("[class*='canvasCropSourcePreview']")).not.toBeNull();
+    expect(container.querySelector("[class*='canvasCropSourcePreview']")).toBeNull();
     expect(container.querySelector(".canvasResizeOverlay")).toBeNull();
     expect(container.querySelector(".canvasFocalMarker")).toBeNull();
     await loadSource();
@@ -209,10 +218,44 @@ describe("EditorWorkspace crop canvas integration", () => {
   it("does not mutate the document when the crop source errors", async () => {
     await mount();
     await enterCrop();
-    const source = container.querySelector<HTMLImageElement>("[class*='canvasCropSourceImage']");
+    const source = container.querySelector<HTMLImageElement>("[class*='canvasCropSourceLoader']");
     if (!source) throw new Error("crop source preview not rendered");
     await act(async () => source.dispatchEvent(new Event("error")));
     expect(container.querySelector("[class*='canvasCropHandle']")).toBeNull();
     expect(container.querySelector<HTMLInputElement>("#image-crop-x")?.value).toBe("0");
+  });
+
+  it("keeps the authored fixed appearance frame visible during Crop mode", async () => {
+    await mount(presentation({ crop: true, visual: true }));
+    const imageRoot = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    if (!imageRoot) throw new Error("image root not rendered");
+    expect(imageRoot.getAttribute("style")).toContain("border");
+    await enterCrop();
+    expect(container.querySelector("[class*='canvasCropAppearanceFrame']")).not.toBeNull();
+    expect(container.querySelector("[class*='canvasCropAppearanceFrame']")?.getAttribute("style")).toContain("border-radius");
+    await loadSource();
+    const handle = container.querySelector<HTMLButtonElement>("[class*='canvasCropHandleE']");
+    if (!handle) throw new Error("east handle not rendered");
+    await act(async () => handle.dispatchEvent(pointer("pointerdown", 300, 180)));
+    await act(async () => handle.dispatchEvent(pointer("pointerup", 340, 180)));
+    const rerenderedRoot = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    expect(rerenderedRoot?.getAttribute("style")).toContain("border");
+    expect(rerenderedRoot?.getAttribute("style")).toContain("border-radius");
+    expect(rerenderedRoot?.getAttribute("style")).toContain("box-shadow");
+  });
+
+  it("keeps an already-cropped Image rendered when selected", async () => {
+    await mount(presentation({ crop: true, visual: true }));
+    const imageRoot = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    const viewport = imageRoot?.querySelector<HTMLElement>("[class*='crop-viewport']");
+    const media = imageRoot?.querySelector<HTMLImageElement>("img");
+    expect(imageRoot).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(media).not.toBeNull();
+    Object.defineProperty(media, "naturalWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(media, "naturalHeight", { configurable: true, value: 800 });
+    await act(async () => media?.dispatchEvent(new Event("load")));
+    expect(imageRoot?.querySelector("img")).not.toBeNull();
+    expect(imageRoot?.querySelector("[class*='crop-viewport']")).not.toBeNull();
   });
 });

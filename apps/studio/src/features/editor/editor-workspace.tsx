@@ -321,6 +321,12 @@ interface CanvasCropOverlay extends CropCanvasBounds {
   crop: CropCanvasBounds;
 }
 
+interface CanvasCropAppearance extends CropCanvasBounds {
+  border: string;
+  borderRadius: string;
+  boxShadow: string;
+}
+
 interface CanvasCropDragState {
   pointerId: number;
   imageId: string;
@@ -489,10 +495,15 @@ export function EditorWorkspace({
   const [canvasCropPreview, setCanvasCropPreview] = useState<
     NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]> | null
   >(null);
-  const [cropSourceSize, setCropSourceSize] = useState<{
+  const [cropSourceMetrics, setCropSourceMetrics] = useState<{
+    key: string;
+    imageId: string;
+    src: string;
     width: number;
     height: number;
   } | null>(null);
+  const [canvasCropAppearance, setCanvasCropAppearance] =
+    useState<CanvasCropAppearance | null>(null);
   const [cropMeasureVersion, setCropMeasureVersion] = useState(0);
 
   function setCropEditingMode(id: string | null) {
@@ -781,7 +792,8 @@ export function EditorWorkspace({
     ) {
       setCanvasCropOverlay(null);
       setCanvasCropPreview(null);
-      setCropSourceSize(null);
+      setCropSourceMetrics(null);
+      setCanvasCropAppearance(null);
       if (cropEditingImageId) setCropEditingMode(null);
       return;
     }
@@ -791,13 +803,27 @@ export function EditorWorkspace({
       ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
           .find((candidate) => candidate.dataset.powershowId === cropEditingImageId)
       : undefined;
-    const preview = cropSourceSize && target
+    const sourceKey = `${cropEditingImageId}:${selectedDocumentElement.src}`;
+    const preview = cropSourceMetrics?.key === sourceKey && target
       ? resolveSourcePreviewBounds(
           getCanvasBounds(target),
-          cropSourceSize.width,
-          cropSourceSize.height,
+          cropSourceMetrics.width,
+          cropSourceMetrics.height,
         )
       : null;
+
+    if (target) {
+      const computed = getComputedStyle(target);
+      const bounds = getCanvasBounds(target);
+      setCanvasCropAppearance({
+        ...bounds,
+        border: computed.border || target.style.border || "",
+        borderRadius: computed.borderRadius || target.style.borderRadius || "0px",
+        boxShadow: computed.boxShadow || target.style.boxShadow || "none",
+      });
+    } else {
+      setCanvasCropAppearance(null);
+    }
 
     if (!preview) {
       setCanvasCropOverlay(null);
@@ -811,14 +837,7 @@ export function EditorWorkspace({
       source: selectedDocumentElement.src,
       crop: resolveCropCanvasRect(preview, crop),
     });
-  }, [cropEditingImageId, cropSourceSize, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
-
-  useEffect(() => {
-    if (!cropEditingImageId || selectedDocumentElement?.type !== "image") return;
-    setCropSourceSize(null);
-    setCanvasCropOverlay(null);
-    setCanvasCropPreview(null);
-  }, [cropEditingImageId, selectedDocumentElement?.id, selectedDocumentElement?.type === "image" ? selectedDocumentElement.src : null]);
+  }, [cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
 
   useEffect(() => {
     if (!cropEditingImageId) return;
@@ -3331,13 +3350,60 @@ export function EditorWorkspace({
               }}
             />
             {cropEditingImageId && selectedDocumentElement?.type === "image" && (
+              <img
+                key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
+                className={styles.canvasCropSourceLoader}
+                src={selectedDocumentElement.src}
+                alt=""
+                draggable={false}
+                data-crop-source-key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  if (
+                    cropEditingImageId !== selectedDocumentElement.id ||
+                    selectedDocumentElement.src !== image.getAttribute("src")
+                  ) return;
+                  setCropSourceMetrics({
+                    key: `${selectedDocumentElement.id}:${selectedDocumentElement.src}`,
+                    imageId: selectedDocumentElement.id,
+                    src: selectedDocumentElement.src,
+                    width: image.naturalWidth,
+                    height: image.naturalHeight,
+                  });
+                }}
+                onError={(event) => {
+                  if (
+                    cropEditingImageId === selectedDocumentElement.id &&
+                    selectedDocumentElement.src === event.currentTarget.getAttribute("src")
+                  ) {
+                    setCropSourceMetrics(null);
+                  }
+                }}
+              />
+            )}
+            {cropEditingImageId && canvasCropAppearance && (
+              <div
+                className={styles.canvasCropAppearanceFrame}
+                aria-hidden="true"
+                style={{
+                  left: `${canvasCropAppearance.left}px`,
+                  top: `${canvasCropAppearance.top}px`,
+                  width: `${canvasCropAppearance.width}px`,
+                  height: `${canvasCropAppearance.height}px`,
+                  border: canvasCropAppearance.border,
+                  borderRadius: canvasCropAppearance.borderRadius,
+                  boxShadow: canvasCropAppearance.boxShadow,
+                }}
+              />
+            )}
+            {cropEditingImageId && selectedDocumentElement?.type === "image" && canvasCropOverlay && (
               <div
                 className={styles.canvasCropSourcePreview}
                 style={{
-                  left: `${canvasCropOverlay?.left ?? 0}px`,
-                  top: `${canvasCropOverlay?.top ?? 0}px`,
-                  width: `${canvasCropOverlay?.width ?? 0}px`,
-                  height: `${canvasCropOverlay?.height ?? 0}px`,
+                  left: `${canvasCropOverlay.left}px`,
+                  top: `${canvasCropOverlay.top}px`,
+                  width: `${canvasCropOverlay.width}px`,
+                  height: `${canvasCropOverlay.height}px`,
                 }}
               >
                 <img
@@ -3345,29 +3411,6 @@ export function EditorWorkspace({
                   src={selectedDocumentElement.src}
                   alt=""
                   draggable={false}
-                  onLoad={(event) => {
-                    const image = event.currentTarget;
-                    const size = { width: image.naturalWidth, height: image.naturalHeight };
-                    setCropSourceSize(size);
-                    const target = slideCanvasRef.current?.querySelector<HTMLElement>(
-                      `[data-powershow-id="${selectedDocumentElement.id}"]`,
-                    );
-                    const preview = target
-                      ? resolveSourcePreviewBounds(getCanvasBounds(target), size.width, size.height)
-                      : null;
-                    if (preview) {
-                      setCanvasCropOverlay({
-                        ...preview,
-                        elementId: selectedDocumentElement.id,
-                        source: selectedDocumentElement.src,
-                        crop: resolveCropCanvasRect(
-                          preview,
-                          getEffectiveImageCrop(selectedDocumentElement.crop),
-                        ),
-                      });
-                    }
-                  }}
-                  onError={() => setCropSourceSize(null)}
                 />
                 {canvasCropOverlay && (
                   <>
