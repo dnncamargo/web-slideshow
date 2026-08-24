@@ -26,7 +26,7 @@ import { ElementTypographyControl } from "./element-typography-control";
 
 import { EffectiveLengthInput } from "./effective-length-input";
 
-type LegacyStyledElement = Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement | Extract<PowerShowElement, { type: "gallery" | "embed" | "scripted" }>>;
+type LegacyStyledElement = Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement | Extract<PowerShowElement, { type: "gallery" | "embed" | "scripted" | "code" | "terminal" | "table" | "blocks" }>>;
 
 interface ElementAppearanceSectionProps {
   element: LegacyStyledElement;

@@ -157,8 +157,8 @@ describe("renderCode", () => {
       createCodeElement({
         style: {
           className: "code-emphasis",
-          width: 320,
-          background: "#101218",
+          background: { color: "#101218" },
+          borderRadius: 8,
         },
       }),
     );
@@ -166,8 +166,8 @@ describe("renderCode", () => {
     expect(html).toMatch(
       /class="[^"]*\bcode-emphasis\b[^"]*"/,
     );
-    expect(html).toContain("width:320px");
     expect(html).toContain("background:#101218");
+    expect(html).toContain("border-radius:8px");
   });
 });
 

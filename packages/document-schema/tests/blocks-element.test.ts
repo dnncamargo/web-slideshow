@@ -54,9 +54,8 @@ describe("BlocksElementSchema", () => {
     expect(() => BlocksElementSchema.parse(base([], [category, category]))).toThrow();
   });
 
-  it("accepts empty categories/items and strips provider fields without synthesizing", () => {
-    const parsed = BlocksElementSchema.parse({ id: "b", type: "blocks", hidden: false, categories: [], items: [], workspace: {}, generatedCode: "x", runtime: true });
-    expect(parsed).toEqual({ id: "b", type: "blocks", hidden: false, categories: [], items: [] });
+  it("rejects provider fields without synthesizing", () => {
+    expect(() => BlocksElementSchema.parse({ id: "b", type: "blocks", hidden: false, categories: [], items: [], workspace: {}, generatedCode: "x", runtime: true })).toThrow();
   });
 
   it("does not synthesize canonical arrays or nodes", () => {

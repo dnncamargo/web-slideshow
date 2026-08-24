@@ -190,7 +190,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               highlightedLines: [1],
 
-              style: {
+              layout: {
                 width: "72%",
               },
             },
@@ -239,7 +239,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               title: "PowerShow",
 
-              style: {
+              layout: {
                 width: "70%",
               },
 
@@ -430,7 +430,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               hidden: false,
 
-              style: {
+              layout: {
                 width: "82%",
               },
 

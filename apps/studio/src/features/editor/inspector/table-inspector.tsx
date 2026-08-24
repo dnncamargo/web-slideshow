@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type {
+  ElementEffect,
   PowerShowElement,
   SimpleTableElement,
   StructuredTableElement,
@@ -14,12 +15,10 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TableAuthoringControls,
-  UpdateElementStyle,
 } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
+import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -361,12 +360,16 @@ function SimpleTableInspector({
     });
   }
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     updateTable((table) => ({
       ...table,
 
       style: update(table.style),
     }));
+  };
+
+  const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
+    updateTable((table) => ({ ...table, effect: update(table.effect) }));
   };
 
   // ==========================================================
@@ -734,20 +737,18 @@ function SimpleTableInspector({
             ===================================================== */}
       </InspectorSection>
 
-      <ElementAppearanceSection
+      <CanonicalDataAppearanceSection
         element={element}
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
         controlPrefix="table"
-        showBackground
-        showBackgroundGradient
-        showRoundedCorners
-        showOpacity
-        showBorder
+        onUpdateEffect={updateEffect}
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalElementEffectsSection
+        effect={element.effect}
+        onUpdateEffect={updateEffect}
         controlPrefix="table"
       />
     </>
@@ -789,11 +790,15 @@ function StructuredTableInspector({
     });
   }
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     updateTable((table) => ({
       ...table,
       style: update(table.style),
     }));
+  };
+
+  const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
+    updateTable((table) => ({ ...table, effect: update(table.effect) }));
   };
 
   return (
@@ -912,20 +917,18 @@ function StructuredTableInspector({
         </button>
       </InspectorSection>
 
-      <ElementAppearanceSection
+      <CanonicalDataAppearanceSection
         element={element}
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
         controlPrefix="table"
-        showBackground
-        showBackgroundGradient
-        showRoundedCorners
-        showOpacity
-        showBorder
+        onUpdateEffect={updateEffect}
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalElementEffectsSection
+        effect={element.effect}
+        onUpdateEffect={updateEffect}
         controlPrefix="table"
       />
     </>

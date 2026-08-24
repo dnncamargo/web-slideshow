@@ -213,7 +213,7 @@ function ElementTreeNode({
         ? element.layout?.position === "absolute"
         : element.type === "image"
           ? element.layout?.position === "absolute"
-          : element.type === "gallery" || element.type === "embed" || element.type === "scripted"
+          : element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks"
             ? element.layout?.position === "absolute"
         : element.style?.placement?.mode === "absolute"
         ? `[${t("inspector.absolute")}]`

@@ -655,9 +655,6 @@ describe("Container element links", () => {
 
 describe("unsupported element types and links", () => {
   it.each([
-    ["code", { type: "code", id: "code-1", hidden: false, code: "x" }],
-    ["terminal", { type: "terminal", id: "term-1", hidden: false, lines: [] }],
-    ["table", { type: "table", id: "table-1", hidden: false, columns: [], rows: [] }],
     ["chart", { type: "chart", id: "chart-1", hidden: false, chartType: "line", series: [] }],
     ["interactive", { type: "interactive", id: "int-1", hidden: false, widget: "function-plot", config: {} }],
   ] as const)(
@@ -678,6 +675,14 @@ describe("unsupported element types and links", () => {
       }
     },
   );
+
+  it.each([
+    ["code", { type: "code", id: "code-1", hidden: false, code: "x" }],
+    ["terminal", { type: "terminal", id: "term-1", hidden: false, lines: [] }],
+    ["table", { type: "table", id: "table-1", hidden: false, columns: [], rows: [] }],
+  ] as const)("rejects a link property from a canonical %s element", (_type, element) => {
+    expect(PowerShowElementSchema.safeParse({ ...element, link: { kind: "url", href: "https://example.com" } }).success).toBe(false);
+  });
 });
 
 describe("no-link backward compatibility", () => {

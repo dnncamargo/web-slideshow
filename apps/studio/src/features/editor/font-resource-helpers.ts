@@ -59,9 +59,11 @@ export function presentationUsesFontFamily(
       const fontFamily =
         element.type === "container" || element.type === "text" || element.type === "textbox"
           ? element.typography?.fontFamily
-          : element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted"
+          : element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks"
             ? undefined
-          : element.style?.fontFamily;
+          : element.type === "chart" || element.type === "interactive" || element.type === "divider" || element.type === "topics"
+            ? element.style?.fontFamily
+            : undefined;
 
       return (
         fontFamily !== undefined &&

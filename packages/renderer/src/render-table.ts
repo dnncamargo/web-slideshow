@@ -6,6 +6,7 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
+import { renderCanonicalDataElementStyle } from "./render-canonical-data";
 import { renderStyle } from "./render-style";
 
 type RenderChild = (element: PowerShowElement) => string;
@@ -45,8 +46,7 @@ export function renderTable(
     classes.push(customClass);
   }
 
-  const baseStyle =
-    renderStyle(element.style);
+  const baseStyle = renderCanonicalDataElementStyle(element);
 
   const styleAttribute = baseStyle
     ? ` style="${escapeHtml(baseStyle)}"`

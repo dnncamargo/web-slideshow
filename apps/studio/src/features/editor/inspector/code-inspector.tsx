@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { ElementEffect, PowerShowElement } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,14 +8,10 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
-import type {
-  TypedInspectorProps,
-  UpdateElementStyle,
-} from "./inspector-types";
+import type { TypedInspectorProps } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
+import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -42,7 +38,7 @@ export function CodeInspector({
 }: TypedInspectorProps<CodeElement>) {
   const { t } = useStudioI18n();
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     onUpdate((current) => {
       if (current.type !== "code") {
         return current;
@@ -87,6 +83,10 @@ export function CodeInspector({
       };
     });
   }
+
+  const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
+    onUpdate((current) => current.type === "code" ? { ...current, effect: update(current.effect) } : current);
+  };
 
   return (
     <>
@@ -217,20 +217,18 @@ export function CodeInspector({
         </label>
       </InspectorSection>
 
-      <ElementAppearanceSection
+      <CanonicalDataAppearanceSection
         element={element}
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
         controlPrefix="code"
-        showBackground
-        showBackgroundGradient
-        showRoundedCorners
-        showOpacity
-        showBorder
+        onUpdateEffect={updateEffect}
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalElementEffectsSection
+        effect={element.effect}
+        onUpdateEffect={updateEffect}
         controlPrefix="code"
       />
     </>

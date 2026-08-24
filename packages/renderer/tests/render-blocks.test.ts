@@ -22,12 +22,12 @@ const element = (items: BlockItem[] = [statement("one")], style?: BlocksElement[
 describe("renderBlocks", () => {
   it("returns empty output for hidden Blocks", () => expect(renderBlocks({ ...element(), hidden: true })).toBe(""));
 
-  it("preserves the root contract and applies ElementStyle only to the root", () => {
-    const html = renderBlocks(element([statement("one")], { width: "80%", background: "#111827" }));
+  it("preserves the canonical root contract and keeps inner blocks renderer-owned", () => {
+    const html = renderBlocks(element([statement("one")], { background: { color: "#111827" } }));
     expect(html).toContain('class="powershow-element powershow-blocks"');
     expect(html).toContain('data-powershow-id="blocks"');
     expect(html).toContain('data-powershow-type="blocks"');
-    expect(html).toContain('style="width:80%;background:#111827"');
+    expect(html).toContain('style="background:#111827"');
     expect(html).not.toContain('data-powershow-id="one"');
   });
 

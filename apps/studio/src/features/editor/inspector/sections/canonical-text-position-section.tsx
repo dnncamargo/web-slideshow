@@ -1,11 +1,11 @@
-import type { ContainerElement, ElementLayout, ImageElement, ImageLayout, ResizablePositionedLayout, TextElement, TextboxElement, GalleryElement, EmbedElement, ScriptedElement } from "@powershow/document-schema";
+import type { BlocksElement, CodeElement, ContainerElement, ElementLayout, ImageElement, ImageLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, TextboxElement, GalleryElement, EmbedElement, ScriptedElement } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 import { shouldShowPlacementLayerControls, type ElementLayerControls } from "./element-placement-helpers";
 
 interface Props {
-  element: TextElement | TextboxElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement;
+  element: TextElement | TextboxElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement;
   parent: ContainerElement | null;
   onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | undefined) => void;
   layerControls: ElementLayerControls;

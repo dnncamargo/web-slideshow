@@ -158,6 +158,36 @@ export const SurfaceVisualStyleSchema = z.object({
 
 export type SurfaceVisualStyle = z.infer<typeof SurfaceVisualStyleSchema>;
 
+export const GradientSurfaceBackgroundSchema = z.object({
+  color: ColorSchema.optional(),
+  gradient: GradientSchema.optional(),
+}).strict();
+
+export type GradientSurfaceBackground = z.infer<
+  typeof GradientSurfaceBackgroundSchema
+>;
+
+export const GradientSurfaceVisualStyleSchema = z.object({
+  background: GradientSurfaceBackgroundSchema.optional(),
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export type GradientSurfaceVisualStyle = z.infer<
+  typeof GradientSurfaceVisualStyleSchema
+>;
+
+export const BlocksVisualStyleSchema = z.object({
+  color: ColorSchema.optional(),
+  background: GradientSurfaceBackgroundSchema.optional(),
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export type BlocksVisualStyle = z.infer<typeof BlocksVisualStyleSchema>;
+
 export const ElementBackgroundSchema = z
   .object({
     color: ColorSchema.optional(),

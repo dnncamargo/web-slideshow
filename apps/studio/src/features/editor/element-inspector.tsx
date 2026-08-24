@@ -260,7 +260,7 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
-        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" ? (
+        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" ? (
           <CanonicalElementPositionSection
             element={element}
             parent={parent}
@@ -280,6 +280,9 @@ export function ElementInspector({
                 if (current.type === "gallery" || current.type === "embed" || current.type === "scripted") {
                   return { ...current, layout: update(current.layout) };
                 }
+                if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") {
+                  return { ...current, layout: update(current.layout) };
+                }
                 return current;
               });
             }}
@@ -292,6 +295,7 @@ export function ElementInspector({
             onUpdateStyle={(update) => {
               onUpdate((current) => {
                 if (current.type === "container" || current.type === "text" || current.type === "textbox" || current.type === "image" || current.type === "gallery" || current.type === "embed" || current.type === "scripted") return current;
+                if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") return current;
                 return { ...current, style: update(current.style) };
               });
             }}

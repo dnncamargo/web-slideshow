@@ -26,6 +26,8 @@ import {
   ImageVisualStyleSchema,
   ResizablePositionedLayoutSchema,
   SurfaceVisualStyleSchema,
+  GradientSurfaceVisualStyleSchema,
+  BlocksVisualStyleSchema,
 } from "./element-properties";
 
 const BaseElementSchema = z.object({
@@ -34,6 +36,13 @@ const BaseElementSchema = z.object({
   style: ElementStyleSchema.optional(),
 
   hidden: z.boolean().default(false),
+});
+
+const CanonicalDataElementBaseSchema = z.object({
+  id: ElementIdSchema,
+  hidden: z.boolean().default(false),
+  layout: ResizablePositionedLayoutSchema.optional(),
+  effect: ElementEffectSchema.optional(),
 });
 
 const TextElementBaseSchema = z.object({
@@ -188,8 +197,10 @@ export type GalleryElement =
   z.infer<typeof GalleryElementSchema>;
 
 export const CodeElementSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("code"),
+
+    style: GradientSurfaceVisualStyleSchema.optional(),
 
     code: z.string(),
 
@@ -200,14 +211,16 @@ export const CodeElementSchema =
     highlightedLines: z
       .array(z.number().int().positive())
       .default([]),
-  });
+  }).strict();
 
 export type CodeElement =
   z.infer<typeof CodeElementSchema>;
 
 export const TerminalElementSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("terminal"),
+
+    style: GradientSurfaceVisualStyleSchema.optional(),
 
     title: z.string().optional(),
 
@@ -223,7 +236,7 @@ export const TerminalElementSchema =
         content: z.string(),
       }),
     ),
-  });
+  }).strict();
 
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
@@ -389,11 +402,12 @@ export const BlockItemSchema: z.ZodType<BlockItem> = z.lazy(() =>
   }),
 );
 
-export const BlocksElementSchema = BaseElementSchema.extend({
+export const BlocksElementSchema = CanonicalDataElementBaseSchema.extend({
   type: z.literal("blocks"),
+  style: BlocksVisualStyleSchema.optional(),
   categories: z.array(BlockCategorySchema),
   items: z.array(BlockItemSchema),
-}).superRefine((element, context) => {
+}).strict().superRefine((element, context) => {
   const categoryIds = new Set<string>();
   element.categories.forEach((category, index) => {
     if (categoryIds.has(category.id)) {
@@ -482,8 +496,10 @@ export const ContentSlotSchema:
   });
 
 export const SimpleTableElementSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
+
+    style: GradientSurfaceVisualStyleSchema.optional(),
 
     mode: z.literal("simple").optional(),
 
@@ -505,7 +521,7 @@ export const SimpleTableElementSchema =
         ]),
       ),
     ),
-  });
+  }).strict();
 
 export type SimpleTableElement =
   z.infer<typeof SimpleTableElementSchema>;
@@ -530,8 +546,9 @@ export type StructuredTableRow =
   z.infer<typeof StructuredTableRowSchema>;
 
 const StructuredTableElementBaseSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
+    style: GradientSurfaceVisualStyleSchema.optional(),
     mode: z.literal("structured"),
     showHeader: z.boolean().default(true),
     columns: z.array(StructuredTableColumnSchema),

@@ -11,7 +11,7 @@ import {
 function absoluteCode(overrides: Record<string, unknown> = {}) {
   return createCodeElement({
     id: "absolute-text",
-    style: { placement: { mode: "absolute", ...overrides } },
+    layout: { position: "absolute", ...overrides },
   });
 }
 
@@ -28,34 +28,31 @@ describe("semantic placement rendering", () => {
     expect(html).not.toContain("position:absolute");
   });
 
-  it("positions an absolute child from the center by default", () => {
+  it("renders canonical absolute positioning without placement synthesis", () => {
     const html = renderElement(
       createContainerElement({ children: [absoluteCode()] }),
     );
 
     expect(html).toContain("position:relative");
     expect(html).toContain("position:absolute");
-    expect(html).toContain("left:50%");
-    expect(html).toContain("top:50%");
-    expect(html).toContain("transform:translate(-50%,-50%)");
+    expect(html).not.toContain("left:50%");
+    expect(html).not.toContain("transform:translate");
   });
 
-  it("maps corner anchors and signed offsets", () => {
+  it("maps canonical edge constraints", () => {
     const html = renderElement(
       createContainerElement({
         children: [
           absoluteCode({
-            anchor: "bottom-right",
-            offsetX: "-20px",
-            offsetY: "10%",
+            right: "20px",
+            bottom: "10%",
           }),
         ],
       }),
     );
 
-    expect(html).toContain("left:calc(100% + -20px)");
-    expect(html).toContain("top:calc(100% + 10%)");
-    expect(html).toContain("transform:translate(-100%,-100%)");
+    expect(html).toContain("right:20px");
+    expect(html).toContain("bottom:10%");
   });
 
   it("uses the nearest nested container and preserves sibling order in Stack", () => {
@@ -67,7 +64,7 @@ describe("semantic placement rendering", () => {
           createTextElement({ id: "background", content: "Background" }),
           createContainerElement({
             id: "inner",
-          children: [absoluteCode({ anchor: "top-left" })],
+          children: [absoluteCode({ left: 0, top: 0 })],
           }),
         ],
       }),

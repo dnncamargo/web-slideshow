@@ -435,9 +435,11 @@ describe("persistence round trip with Blocks", () => {
             id: "blocks-1",
             type: "blocks",
             hidden: false,
-            style: {
+            layout: {
               width: "60%",
-              background: "#0f172a",
+            },
+            style: {
+              background: { color: "#0f172a" },
             },
             categories: [{ id: "motion", name: "Motion", color: "#123456" }],
             items: [
@@ -484,10 +486,8 @@ describe("persistence round trip with Blocks", () => {
         id: "blocks-1",
         type: "blocks",
         hidden: false,
-        style: {
-          width: "60%",
-          background: "#0f172a",
-        },
+        layout: { width: "60%" },
+        style: { background: { color: "#0f172a" } },
       });
 
       expect(blocks.categories).toEqual([

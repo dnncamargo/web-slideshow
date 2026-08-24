@@ -116,12 +116,12 @@ describe("Studio canonical Container producers", () => {
       type: "container",
       children: [
         { type: "text" },
-        { type: "code", style: { width: "72%" } },
+        { type: "code", layout: { width: "72%" } },
       ],
     });
     expect(presentation.slides[4]?.elements[0]).toMatchObject({
       type: "container",
-      children: [{ type: "text" }, { type: "table", style: { width: "82%" } }],
+      children: [{ type: "text" }, { type: "table", layout: { width: "82%" } }],
     });
   });
 });

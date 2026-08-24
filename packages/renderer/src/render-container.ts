@@ -216,13 +216,18 @@ function hasAbsoluteChild(element: ContainerElement): boolean {
       return child.layout?.position === "absolute";
     }
 
-    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted") {
+    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks") {
       return child.layout?.position === "absolute";
     }
 
+    const legacyStyle = child.style;
     return (
-      child.style?.position === "absolute" ||
-      isAbsolutePlacement(child.style?.placement)
+      (legacyStyle !== undefined &&
+        "position" in legacyStyle &&
+        legacyStyle.position === "absolute") ||
+      (legacyStyle !== undefined &&
+        "placement" in legacyStyle &&
+        isAbsolutePlacement(legacyStyle.placement))
     );
   });
 }
