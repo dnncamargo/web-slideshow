@@ -169,6 +169,73 @@ describe("cropped Image DOM", () => {
     expect(html).toContain("data-powershow-image-focal-x=\"25\"");
   });
 
+  it("keeps cropped linked appearance on the outer box and media neutral", () => {
+    const html = renderElement(image({
+      link: { kind: "url", href: "https://example.com" },
+      style: {
+        border: { width: 2, style: "solid", color: "#fff" },
+        borderRadius: 16,
+      },
+      effect: {
+        opacity: 0.8,
+        shadow: { x: 0, y: 4, blur: 12, color: "#000" },
+      },
+    }));
+    const mediaStart = html.indexOf("<img");
+    const media = html.slice(mediaStart, html.indexOf(">", mediaStart));
+    const outer = html.slice(0, mediaStart);
+
+    expect(outer).toContain("border-width:2px");
+    expect(outer).toContain("border-radius:16px");
+    expect(outer).toContain("opacity:0.8");
+    expect(outer).toContain("box-shadow:0px 4px 12px #000");
+    expect(media).toContain("display:block");
+    expect(media).toContain("position:absolute");
+    expect(media).toContain("max-width:none");
+    expect(media).not.toContain("object-fit");
+    expect(media).not.toContain("object-position");
+    expect(media).not.toContain("border-radius");
+    expect(media).not.toContain("width:100%");
+    expect(media).not.toContain("height:100%");
+  });
+
+  it("uses the same neutral crop media style for an unlinked Image", () => {
+    const html = renderElement(image({
+      layout: { width: 400, height: 300 },
+      style: { borderRadius: 16 },
+      fit: "cover",
+      focalPoint: { x: 25, y: 75 },
+    }));
+    const mediaStart = html.indexOf("<img");
+    const media = html.slice(mediaStart, html.indexOf(">", mediaStart));
+
+    expect(media).toContain("display:block");
+    expect(media).not.toContain("object-fit");
+    expect(media).not.toContain("object-position");
+    expect(media).not.toContain("border-radius");
+    expect(media).not.toContain("width:100%");
+    expect(media).not.toContain("height:100%");
+  });
+
+  it("preserves non-crop linked media styling", () => {
+    const html = renderElement(image({
+      crop: undefined,
+      link: { kind: "url", href: "https://example.com" },
+      layout: { width: 400, height: 300 },
+      style: { borderRadius: 16 },
+      fit: "cover",
+      focalPoint: { x: 25, y: 75 },
+    }));
+    const mediaStart = html.indexOf("<img");
+    const media = html.slice(mediaStart, html.indexOf(">", mediaStart));
+
+    expect(media).toContain("object-fit:cover");
+    expect(media).toContain("object-position:25% 75%");
+    expect(media).toContain("width:100%");
+    expect(media).toContain("height:100%");
+    expect(media).toContain("border-radius:16px");
+  });
+
   it("leaves an uncropped Image on its existing single-img path", () => {
     const html = renderElement(image({ crop: undefined }));
     expect(html).toMatch(/^<img /);

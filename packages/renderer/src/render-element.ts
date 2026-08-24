@@ -37,6 +37,13 @@ function renderImageCropBoxStyle(element: ImageElement): string {
     : "position:relative;overflow:hidden";
 }
 
+function renderCroppedImageMedia(element: ImageElement): string {
+  return `<img class="powershow-image-media"` +
+    ` src="${escapeHtml(element.src)}"` +
+    ` alt="${escapeHtml(element.alt)}"` +
+    ` style="display:block;position:absolute;max-width:none">`;
+}
+
 function renderLinkContent(
   content: string,
   link: ElementLink | undefined,
@@ -200,10 +207,12 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     attributes.push('target="_self"');
   }
 
-  const media = `<img class="powershow-image-media"` +
-    ` src="${escapeHtml(element.src)}"` +
-    ` alt="${escapeHtml(element.alt)}"` +
-    ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">`;
+  const media = element.crop
+    ? renderCroppedImageMedia(element)
+    : `<img class="powershow-image-media"` +
+      ` src="${escapeHtml(element.src)}"` +
+      ` alt="${escapeHtml(element.alt)}"` +
+      ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">`;
 
   if (!element.crop) {
     return `<a ${attributes.join(" ")}>${media}</a>`;
@@ -230,10 +239,7 @@ function renderImage(element: ImageElement): string {
     return (
       `<div ${attributes} ${renderCanonicalImageCropMetadata(element)}>` +
       `<div class="powershow-image-crop-viewport">` +
-      `<img class="powershow-image-media"` +
-      ` src="${escapeHtml(element.src)}"` +
-      ` alt="${escapeHtml(element.alt)}"` +
-      ` style="display:block;position:absolute;max-width:none">` +
+      renderCroppedImageMedia(element) +
       `</div></div>`
     );
   }
