@@ -211,6 +211,8 @@ function ElementTreeNode({
       ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
       : element.type === "text" || element.type === "textbox"
         ? element.layout?.position === "absolute"
+        : element.type === "image"
+          ? element.layout?.position === "absolute"
         : element.style?.placement?.mode === "absolute"
         ? `[${t("inspector.absolute")}]`
         : null;

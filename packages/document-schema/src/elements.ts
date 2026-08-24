@@ -22,6 +22,8 @@ import {
   TextLayoutSchema,
   TextVisualStyleSchema,
   TextboxLayoutSchema,
+  ImageLayoutSchema,
+  ImageVisualStyleSchema,
 } from "./element-properties";
 
 const BaseElementSchema = z.object({
@@ -121,9 +123,17 @@ export const TextboxElementSchema =
 export type TextboxElement =
   z.infer<typeof TextboxElementSchema>;
 
-export const ImageElementSchema =
-  BaseElementSchema.extend({
+export const ImageElementSchema = z.object({
+    id: ElementIdSchema,
     type: z.literal("image"),
+
+    hidden: z.boolean().default(false),
+
+    layout: ImageLayoutSchema.optional(),
+
+    style: ImageVisualStyleSchema.optional(),
+
+    effect: ElementEffectSchema.optional(),
 
     src: z.string().min(1),
 
@@ -143,10 +153,9 @@ export const ImageElementSchema =
       .optional(),
 
     link: ElementLinkSchema.optional(),
-  });
+  }).strict();
 
-export type ImageElement =
-  z.infer<typeof ImageElementSchema>;
+export type ImageElement = z.infer<typeof ImageElementSchema>;
 
 export const GalleryItemSchema = z.object({
   src: z.string().min(1),

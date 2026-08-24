@@ -1,4 +1,4 @@
-import type { ElementLayout, TextElement, TextboxElement } from "@powershow/document-schema";
+import type { ElementLayout, ImageElement, ImageLayout, TextElement, TextboxElement } from "@powershow/document-schema";
 import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@powershow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
@@ -14,6 +14,7 @@ export interface CanonicalTextCanvasGeometry {
 }
 
 type TextFamilyElement = TextElement | TextboxElement;
+type CanonicalElement = TextFamilyElement | ImageElement;
 type PositioningEdge = "left" | "right" | "top" | "bottom";
 
 function includes(direction: CanvasResizeDirection, value: string): boolean {
@@ -41,16 +42,16 @@ function resolveEdgePx(edge: PositioningEdge, value: string | number, geometry: 
   return initialEdgeDistance(edge, geometry);
 }
 
-export function updateCanonicalTextForCanvasDrag(
-  element: TextFamilyElement,
+export function updateCanonicalElementForCanvasDrag(
+  element: CanonicalElement,
   deltaX: number,
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
-): TextFamilyElement {
-  if (element.layout?.position !== "absolute" || (deltaX === 0 && deltaY === 0)) return element;
+): CanonicalElement {
+  if (element.layout?.position !== "absolute" || (deltaX === 0 && deltaY === 0)) return element as CanonicalElement;
 
   const layout = element.layout;
-  const next: ElementLayout = { ...layout };
+  const next: ElementLayout | ImageLayout = { ...layout };
   if (deltaX !== 0) {
     if (layout.left !== undefined) {
       next.left = normalizeAuthoringLengthValue(resolveEdgePx("left", layout.left, geometry) + deltaX);
@@ -71,7 +72,25 @@ export function updateCanonicalTextForCanvasDrag(
       next.top = normalizeAuthoringLengthValue(geometry.initialTopPx + deltaY);
     }
   }
-  return { ...element, layout: next };
+  return { ...element, layout: next } as CanonicalElement;
+}
+
+export function updateCanonicalTextForCanvasDrag(
+  element: TextFamilyElement,
+  deltaX: number,
+  deltaY: number,
+  geometry: CanonicalTextCanvasGeometry,
+): TextFamilyElement {
+  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as TextFamilyElement;
+}
+
+export function updateCanonicalImageForCanvasDrag(
+  element: ImageElement,
+  deltaX: number,
+  deltaY: number,
+  geometry: CanonicalTextCanvasGeometry,
+): ImageElement {
+  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as ImageElement;
 }
 
 function serializeSize(value: number, original: string | number | undefined, parent: number): string | number {
@@ -141,4 +160,35 @@ export function updateTextboxForCanvasResize(
           : {}),
       };
   return { ...element, layout: next };
+}
+
+export function updateImageForCanvasResize(
+  element: ImageElement,
+  direction: CanvasResizeDirection,
+  deltaX: number,
+  deltaY: number,
+  geometry: CanonicalTextCanvasGeometry,
+  proportionalSize?: { width: number; height: number },
+): ImageElement {
+  if (deltaX === 0 && deltaY === 0) return element;
+  const layout = (element.layout ?? {}) as ElementLayout;
+  if (element.layout?.position !== "absolute") {
+    const next = { ...layout };
+    if (deltaX !== 0 && (includes(direction, "e") || includes(direction, "w"))) {
+      next.width = serializeSize(proportionalSize?.width ?? Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width, geometry.parentWidthPx);
+    }
+    if (deltaY !== 0 && (includes(direction, "n") || includes(direction, "s"))) {
+      next.height = serializeSize(proportionalSize?.height ?? Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height, geometry.parentHeightPx);
+    }
+    return { ...element, layout: next } as ImageElement;
+  }
+
+  const widthDelta = proportionalSize
+    ? (includes(direction, "w") ? geometry.initialWidthPx - proportionalSize.width : proportionalSize.width - geometry.initialWidthPx)
+    : deltaX;
+  const heightDelta = proportionalSize
+    ? (includes(direction, "n") ? geometry.initialHeightPx - proportionalSize.height : proportionalSize.height - geometry.initialHeightPx)
+    : deltaY;
+  const next = updateAxis(updateAxis(layout, "horizontal", direction, widthDelta, geometry), "vertical", direction, heightDelta, geometry);
+  return { ...element, layout: next } as ImageElement;
 }

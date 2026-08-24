@@ -1,5 +1,6 @@
 import type {
   ContainerElement,
+  ImageElement,
   PowerShowElement,
   PositionAnchor,
   SignedLength,
@@ -55,7 +56,7 @@ interface LayerControls {
 }
 
 interface ElementPlacementSectionProps {
-  element: Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement>;
+  element: Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement>;
   parent: ContainerElement | null;
   onUpdateStyle: UpdateElementStyle;
   layerControls: LayerControls;

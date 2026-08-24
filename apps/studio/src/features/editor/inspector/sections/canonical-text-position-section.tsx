@@ -1,13 +1,13 @@
-import type { ContainerElement, ElementLayout, TextElement, TextboxElement } from "@powershow/document-schema";
+import type { ContainerElement, ElementLayout, ImageElement, ImageLayout, TextElement, TextboxElement } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 import { shouldShowPlacementLayerControls, type ElementLayerControls } from "./element-placement-helpers";
 
 interface Props {
-  element: TextElement | TextboxElement;
+  element: TextElement | TextboxElement | ImageElement;
   parent: ContainerElement | null;
-  onUpdateLayout: (update: (layout: ElementLayout | undefined) => ElementLayout | undefined) => void;
+  onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | undefined) => ElementLayout | ImageLayout | undefined) => void;
   layerControls: ElementLayerControls;
 }
 

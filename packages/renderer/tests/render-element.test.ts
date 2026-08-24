@@ -123,7 +123,8 @@ describe("renderElement", () => {
       alt: "Example image",
       fit: "cover",
       focalPoint: { x: 25, y: 70 },
-      style: { width: "60%", height: 200, borderRadius: 8 },
+      layout: { width: "60%", height: 200 },
+      style: { borderRadius: 8 },
     });
 
     expect(html).toContain("object-fit:cover");
@@ -181,6 +182,26 @@ describe("renderElement", () => {
     expect(html).toContain("display:flex");
 
     expect(html).toContain("flex-direction:row");
+  });
+
+  it("makes a container containing-block for an absolute canonical Image", () => {
+    const html = renderElement({
+      type: "container",
+      id: "container",
+      hidden: false,
+      children: [{
+        type: "image",
+        id: "image",
+        hidden: false,
+        src: "/image.png",
+        alt: "",
+        fit: "contain",
+        layout: { position: "absolute", left: 10, top: 20 },
+      }],
+    });
+
+    expect(html).toContain("position:relative");
+    expect(html).toContain("position:absolute");
   });
 
   it("renders a column container", () => {

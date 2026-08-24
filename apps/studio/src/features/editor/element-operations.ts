@@ -1902,9 +1902,8 @@ export function createElement(
 
         fit: "contain",
 
-        style: {
+        layout: {
           width: "60%",
-
           height: "55%",
         },
       };

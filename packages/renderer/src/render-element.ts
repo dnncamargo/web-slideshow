@@ -20,9 +20,12 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
-import { renderLength } from "./render-length";
 import { renderStyle } from "./render-style";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
+import {
+  renderCanonicalImageMediaStyle,
+  renderCanonicalImageStyle,
+} from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
 
@@ -69,6 +72,8 @@ function buildAttributes(
       ? ""
       : element.type === "text" || element.type === "textbox"
         ? renderCanonicalTextStyle(element)
+        : element.type === "image"
+          ? renderCanonicalImageStyle(element)
         : renderStyle(element.style);
 
   if (baseStyle) {
@@ -141,35 +146,6 @@ function renderTextbox(element: TextboxElement): string {
   );
 }
 
-function renderImageMediaStyle(element: ImageElement): string {
-  const styles: string[] = [
-    "display:block",
-    `object-fit:${element.fit}`,
-    `object-position:${element.focalPoint?.x ?? 50}% ${element.focalPoint?.y ?? 50}%`,
-  ];
-
-  // The media fills an explicitly sized root dimension so object-fit
-  // resolves against the PowerShow element box. Dimensions that are not
-  // defined on the canonical element are intentionally left alone so the
-  // media keeps its intrinsic sizing behavior.
-  if (element.style?.width !== undefined) {
-    styles.push("width:100%");
-  }
-
-  if (element.style?.height !== undefined) {
-    styles.push("height:100%");
-  }
-
-  // Border radius is duplicated onto the media so the rounded appearance
-  // of the rendered bitmap matches the unlinked Image, where the radius
-  // sits on the img root itself.
-  if (element.style?.borderRadius !== undefined) {
-    styles.push(`border-radius:${renderLength(element.style.borderRadius)}`);
-  }
-
-  return styles.join(";");
-}
-
 function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   const classes = ["powershow-element", "powershow-image"];
 
@@ -185,7 +161,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   // stays suppressed otherwise.
   const styleParts = ["display:inline-block", AUTHORED_LINK_APPEARANCE];
 
-  const elementStyle = renderStyle(element.style);
+  const elementStyle = renderCanonicalImageStyle(element);
 
   if (elementStyle) {
     styleParts.push(elementStyle);
@@ -211,7 +187,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     `<img class="powershow-image-media"` +
     ` src="${escapeHtml(element.src)}"` +
     ` alt="${escapeHtml(element.alt)}"` +
-    ` style="${escapeHtml(renderImageMediaStyle(element))}">` +
+    ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">` +
     `</a>`
   );
 }

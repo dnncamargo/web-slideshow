@@ -59,6 +59,8 @@ export function presentationUsesFontFamily(
       const fontFamily =
         element.type === "container" || element.type === "text" || element.type === "textbox"
           ? element.typography?.fontFamily
+          : element.type === "image"
+            ? undefined
           : element.style?.fontFamily;
 
       return (

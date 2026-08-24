@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { ElementStyle, PowerShowElement } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -65,11 +65,33 @@ export function ImageInspector({
         return current;
       }
 
+      const next = update({
+        ...current.style,
+        opacity: current.effect?.opacity,
+      });
+
       return {
         ...current,
-
-        style: update(current.style),
+        style: {
+          border: next.border,
+          borderRadius: next.borderRadius,
+          className: next.className,
+        },
+        effect: {
+          ...current.effect,
+          ...(next.opacity === undefined
+            ? { opacity: undefined }
+            : { opacity: next.opacity }),
+        },
       };
+    });
+  };
+
+  const updateEffect: UpdateElementStyle = (update) => {
+    onUpdate((current) => {
+      if (current.type !== "image") return current;
+      const next = update(current.effect as ElementStyle | undefined);
+      return { ...current, effect: { opacity: next.opacity, shadow: next.shadow } };
     });
   };
   const focalPoint = getEffectiveImageFocalPoint(element.focalPoint);
@@ -270,13 +292,22 @@ export function ImageInspector({
 
        <ImageSizeSection
          element={element}
-         onUpdateStyle={updateStyle}
+         onUpdateLayout={(update) => {
+           onUpdate((current) =>
+             current.type === "image"
+               ? { ...current, layout: update(current.layout) }
+               : current,
+           );
+         }}
          preserveImageProportion={preserveImageProportion}
          onPreserveImageProportionChange={onPreserveImageProportionChange}
        />
 
-       <ElementAppearanceSection
-        element={element}
+      <ElementAppearanceSection
+        element={{
+          ...element,
+          style: { ...element.style, opacity: element.effect?.opacity },
+        } as never}
         onUpdateStyle={updateStyle}
         controlPrefix="image"
         showRoundedCorners
@@ -285,8 +316,8 @@ export function ImageInspector({
       />
 
       <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+        style={element.effect as ElementStyle | undefined}
+        onUpdateStyle={updateEffect}
         controlPrefix="image"
       />
     </>

@@ -260,7 +260,7 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
-        element.type === "text" || element.type === "textbox" ? (
+        element.type === "text" || element.type === "textbox" || element.type === "image" ? (
           <CanonicalTextPositionSection
             element={element}
             parent={parent}
@@ -273,6 +273,9 @@ export function ElementInspector({
                   const next = update(current.layout);
                   const { width: _width, height: _height, ...textLayout } = next ?? {};
                   return { ...current, layout: textLayout };
+                }
+                if (current.type === "image") {
+                  return { ...current, layout: update(current.layout) };
                 }
                 return current;
               });

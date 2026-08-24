@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { TextElement, TextboxElement } from "@powershow/document-schema";
+import type { ImageElement, TextElement, TextboxElement } from "@powershow/document-schema";
 import {
   updateCanonicalTextForCanvasDrag,
+  updateCanonicalImageForCanvasDrag,
+  updateImageForCanvasResize,
   updateTextboxForCanvasResize,
   type CanonicalTextCanvasGeometry,
 } from "../src/features/editor/canonical-text-canvas-geometry";
@@ -24,6 +26,10 @@ function text(layout?: TextElement["layout"]): TextElement {
 
 function textbox(layout?: TextboxElement["layout"], extra: Partial<TextboxElement> = {}): TextboxElement {
   return { type: "textbox", id: "textbox-1", hidden: false, content: "Textbox", layout, ...extra };
+}
+
+function image(layout?: ImageElement["layout"]): ImageElement {
+  return { type: "image", id: "image-1", hidden: false, src: "/image.png", alt: "", fit: "contain", layout };
 }
 
 describe("canonical text canvas drag", () => {
@@ -97,6 +103,36 @@ describe("canonical flow textbox resize", () => {
     const element = textbox({ width: "50%", height: "50%" });
     expect(updateTextboxForCanvasResize(element, "e", 40, 0, geometry).layout?.width).toBe("60%");
     expect(updateTextboxForCanvasResize(element, "s", 0, 30, geometry).layout?.height).toBe("60%");
+  });
+});
+
+describe("canonical Image canvas geometry", () => {
+  it("does not drag Flow Image and drags Absolute Image", () => {
+    const flow = image({ width: 100, height: 80 });
+    expect(updateCanonicalImageForCanvasDrag(flow, 20, 10, geometry)).toBe(flow);
+    expect(updateCanonicalImageForCanvasDrag(image({ position: "absolute" }), 20, 10, geometry).layout).toMatchObject({ left: 100, top: 70 });
+  });
+
+  it("uses the direct edge matrix and canonical unit fallbacks", () => {
+    expect(updateCanonicalImageForCanvasDrag(image({ position: "absolute", left: 20, right: 30 }), 10, 0, geometry).layout).toMatchObject({ left: 30, right: 20 });
+    expect(updateCanonicalImageForCanvasDrag(image({ position: "absolute", right: "10%" }), 20, 0, geometry).layout?.right).toBe(20);
+    expect(updateCanonicalImageForCanvasDrag(image({ position: "absolute", left: "2rem" }), 20, 0, geometry).layout?.left).toBe(100);
+    const zero = image({ position: "absolute", left: 20 });
+    expect(updateCanonicalImageForCanvasDrag(zero, 0, 0, geometry)).toBe(zero);
+  });
+
+  it("resizes Flow Image by size only and preserves absolute constraints", () => {
+    const flow = updateImageForCanvasResize(image({ width: "50%", height: 80 }), "se", 40, 30, geometry);
+    expect(flow.layout).toEqual({ width: "60%", height: 180 });
+
+    const absolute = updateImageForCanvasResize(image({ position: "absolute", left: 20, top: 30, width: 100, height: 80 }), "nw", -10, -20, geometry);
+    expect(absolute.layout).toMatchObject({ left: 10, top: 10, width: 210, height: 170 });
+    expect(absolute.layout).not.toHaveProperty("placement");
+  });
+
+  it("clamps Image resize to one logical px", () => {
+    const result = updateImageForCanvasResize(image({ position: "absolute", width: 2, height: 2 }), "nw", 300, 300, geometry);
+    expect(result.layout).toMatchObject({ width: 1, height: 1 });
   });
 });
 

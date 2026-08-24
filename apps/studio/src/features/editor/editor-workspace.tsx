@@ -79,7 +79,6 @@ import {
   toLogicalCanvasResizeDelta,
   type CanvasResizeDirection,
   updateStyleForCanvasResize,
-  updateStyleForProportionalResize,
 } from "./canvas-resize-helpers";
 import {
   isCanvasDraggable,
@@ -95,7 +94,9 @@ import {
 } from "./container-canvas-geometry";
 import {
   updateCanonicalTextForCanvasDrag,
+  updateCanonicalImageForCanvasDrag,
   updateTextboxForCanvasResize,
+  updateImageForCanvasResize,
   type CanonicalTextCanvasGeometry,
 } from "./canonical-text-canvas-geometry";
 
@@ -619,6 +620,8 @@ export function EditorWorkspace({
             ? isContainerCanvasDraggable(documentElement)
             : documentElement.type === "text" || documentElement.type === "textbox"
               ? documentElement.layout?.position === "absolute"
+              : documentElement.type === "image"
+                ? documentElement.layout?.position === "absolute"
             : isCanvasDraggable(documentElement.style);
 
         if (draggable) {
@@ -995,6 +998,8 @@ export function EditorWorkspace({
         ? isContainerCanvasDraggable(selection.documentElement)
         : selection.documentElement.type === "text" || selection.documentElement.type === "textbox"
           ? selection.documentElement.layout?.position === "absolute"
+          : selection.documentElement.type === "image"
+            ? selection.documentElement.layout?.position === "absolute"
         : isCanvasDraggable(selection.documentElement.style);
 
     if (!draggable || !elementTarget) {
@@ -1045,7 +1050,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -1159,6 +1164,12 @@ export function EditorWorkspace({
                   if (element.type === "text" || element.type === "textbox") {
                     return drag.canonicalTextGeometry
                       ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                      : element;
+                  }
+
+                  if (element.type === "image") {
+                    return drag.canonicalTextGeometry
+                      ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
                       : element;
                   }
 
@@ -1289,7 +1300,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "textbox") {
+    } else if (selectedDocumentElement.type === "textbox" || selectedDocumentElement.type === "image") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -1480,29 +1491,38 @@ export function EditorWorkspace({
                       ? updateTextboxForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
-                  const locked =
-                    element.type === "image" && preserveImageProportion;
-                  const resizedStyle = locked
-                    ? updateStyleForProportionalResize(
-                        element.style,
-                        resize.direction,
-                        resize.deltaX,
-                        resize.deltaY,
-                        resize.initialWidthPx,
-                        resize.initialHeightPx,
-                        resize.parentWidthPx,
-                        resize.parentHeightPx,
-                      )
-                    : updateStyleForCanvasResize(
-                        element.style,
-                        resize.direction,
-                        resize.deltaX,
-                        resize.deltaY,
-                        resize.initialWidthPx,
-                        resize.initialHeightPx,
-                        resize.parentWidthPx,
-                        resize.parentHeightPx,
-                      );
+                  if (element.type === "image") {
+                    const locked = preserveImageProportion;
+                    const proportional = locked
+                      ? resolveProportionalResize(
+                          resize.direction,
+                          resize.deltaX,
+                          resize.deltaY,
+                          resize.initialWidthPx,
+                          resize.initialHeightPx,
+                        )
+                      : undefined;
+                    return resize.canonicalTextResizeGeometry
+                      ? updateImageForCanvasResize(
+                          element,
+                          resize.direction,
+                          resize.deltaX,
+                          resize.deltaY,
+                          resize.canonicalTextResizeGeometry,
+                          proportional,
+                        )
+                      : element;
+                  }
+                  const resizedStyle = updateStyleForCanvasResize(
+                    element.style,
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.initialWidthPx,
+                    resize.initialHeightPx,
+                    resize.parentWidthPx,
+                    resize.parentHeightPx,
+                  );
                   const adjustment = getCanvasResizePlacementAdjustment(
                     resize.direction,
                     resize.deltaX,

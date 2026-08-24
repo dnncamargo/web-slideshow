@@ -13,14 +13,14 @@ import styles from "../../editor-workspace.module.css";
 
 import { InspectorSection } from "../inspector-section";
 
-import type { UpdateElementStyle } from "../inspector-types";
+import type { ElementLayout } from "@powershow/document-schema";
 
 import { EffectiveLengthInput } from "./effective-length-input";
 
 interface ImageSizeSectionProps {
   element: ImageElement;
 
-  onUpdateStyle: UpdateElementStyle;
+  onUpdateLayout: (update: (layout: ElementLayout | undefined) => ElementLayout | undefined) => void;
 
   preserveImageProportion: boolean;
 
@@ -44,14 +44,14 @@ function getInitialUnit(
 
 export function ImageSizeSection({
   element,
-  onUpdateStyle,
+  onUpdateLayout,
   preserveImageProportion,
   onPreserveImageProportionChange,
 }: ImageSizeSectionProps) {
   const { t } = useStudioI18n();
 
-  const widthUnit = getInitialUnit(element.style?.width, "%");
-  const heightUnit = getInitialUnit(element.style?.height, "px");
+  const widthUnit = getInitialUnit(element.layout?.width, "%");
+  const heightUnit = getInitialUnit(element.layout?.height, "px");
 
   return (
     <InspectorSection title={t("inspector.size")}>
@@ -78,20 +78,20 @@ export function ImageSizeSection({
           <EffectiveLengthInput
             id="image-width"
             name="imageWidth"
-            value={element.style?.width}
+            value={element.layout?.width}
             inheritedValue={0}
             preferredUnit={widthUnit}
             units={["%", "px"]}
             stepByUnit={{ "%": "1", px: "1" }}
             onChange={(width) => {
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
+              onUpdateLayout((currentLayout) => ({
+                ...currentLayout,
                 width,
               }));
             }}
             onReset={() => {
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
+              onUpdateLayout((currentLayout) => ({
+                ...currentLayout,
                 width: undefined,
               }));
             }}
@@ -104,20 +104,20 @@ export function ImageSizeSection({
           <EffectiveLengthInput
             id="image-height"
             name="imageHeight"
-            value={element.style?.height}
+            value={element.layout?.height}
             inheritedValue={0}
             preferredUnit={heightUnit}
             units={["%", "px"]}
             stepByUnit={{ "%": "1", px: "1" }}
             onChange={(height) => {
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
+              onUpdateLayout((currentLayout) => ({
+                ...currentLayout,
                 height,
               }));
             }}
             onReset={() => {
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
+              onUpdateLayout((currentLayout) => ({
+                ...currentLayout,
                 height: undefined,
               }));
             }}

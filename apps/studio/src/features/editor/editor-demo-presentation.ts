@@ -344,10 +344,11 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               fit: "contain",
 
-              style: {
+              layout: {
                 width: "62%",
                 height: "58%",
-
+              },
+              style: {
                 borderRadius: 20,
 
                 border: {

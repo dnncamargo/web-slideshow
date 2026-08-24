@@ -118,6 +118,21 @@ export const TextboxLayoutSchema = z.object({
 
 export type TextboxLayout = z.infer<typeof TextboxLayoutSchema>;
 
+export const ImageLayoutSchema = PositionedLayoutFieldsSchema.extend({
+  width: LengthSchema.optional(),
+  height: LengthSchema.optional(),
+}).strict().superRefine(requireAbsoluteEdges);
+
+export type ImageLayout = z.infer<typeof ImageLayoutSchema>;
+
+export const ImageVisualStyleSchema = z.object({
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export type ImageVisualStyle = z.infer<typeof ImageVisualStyleSchema>;
+
 export const ElementBackgroundSchema = z
   .object({
     color: ColorSchema.optional(),
