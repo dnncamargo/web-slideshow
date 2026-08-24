@@ -85,6 +85,11 @@ import {
   isCanvasDraggable,
   updatePlacementForCanvasDrag,
 } from "./inspector/sections/element-placement-helpers";
+import {
+  isContainerCanvasDraggable,
+  updateContainerForCanvasDrag,
+  type ContainerCanvasDragGeometry,
+} from "./container-canvas-geometry";
 
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
@@ -229,6 +234,7 @@ interface CanvasDragState {
   parentHeightPx: number;
   scaleX: number;
   scaleY: number;
+  containerGeometry?: ContainerCanvasDragGeometry;
   deltaX: number;
   deltaY: number;
   initialBounds: CanvasBounds;
@@ -596,12 +602,15 @@ export function EditorWorkspace({
         ? findElementById(selectedSlide?.elements ?? [], id)
         : null;
 
-      if (
-        documentElement &&
-        documentElement.type !== "container" &&
-        isCanvasDraggable(documentElement.style)
-      ) {
-        candidate.classList.add("powershow-editor-draggable");
+      if (documentElement) {
+        const draggable =
+          documentElement.type === "container"
+            ? isContainerCanvasDraggable(documentElement)
+            : isCanvasDraggable(documentElement.style);
+
+        if (draggable) {
+          candidate.classList.add("powershow-editor-draggable");
+        }
       }
     });
 
@@ -761,6 +770,15 @@ export function EditorWorkspace({
     }
 
     if (position.parentRef.kind === "slide") {
+      const documentElement = findElementById(
+        selectedSlide.elements,
+        elementId,
+      );
+
+      if (documentElement?.type === "container") {
+        return canvas.querySelector<HTMLElement>(".powershow-slide-content");
+      }
+
       return canvas.querySelector<HTMLElement>(".powershow-slide");
     }
 
@@ -881,11 +899,12 @@ export function EditorWorkspace({
       contentSlotId: contentSlotId ?? null,
     });
 
-    if (
-      selection.documentElement.type === "container" ||
-      !isCanvasDraggable(selection.documentElement.style) ||
-      !elementTarget
-    ) {
+    const draggable =
+      selection.documentElement.type === "container"
+        ? isContainerCanvasDraggable(selection.documentElement)
+        : isCanvasDraggable(selection.documentElement.style);
+
+    if (!draggable || !elementTarget) {
       return;
     }
 
@@ -906,6 +925,34 @@ export function EditorWorkspace({
       return;
     }
 
+    const scaleX = parentBounds.width / logicalWidth || 1;
+    const scaleY = parentBounds.height / logicalHeight || 1;
+
+    let containerGeometry: ContainerCanvasDragGeometry | undefined;
+
+    if (selection.documentElement.type === "container") {
+      const clientWidth = layoutParent.clientWidth || parentBounds.width;
+      const clientHeight = layoutParent.clientHeight || parentBounds.height;
+      const parentClientLeft =
+        parentBounds.left + layoutParent.clientLeft * scaleX;
+      const parentClientTop =
+        parentBounds.top + layoutParent.clientTop * scaleY;
+      const elementBounds = elementTarget.getBoundingClientRect();
+
+      containerGeometry = {
+        parentWidthPx: clientWidth,
+        parentHeightPx: clientHeight,
+        initialLeftPx: (elementBounds.left - parentClientLeft) / scaleX,
+        initialTopPx: (elementBounds.top - parentClientTop) / scaleY,
+        initialRightPx:
+          (parentClientLeft + clientWidth * scaleX - elementBounds.right) /
+          scaleX,
+        initialBottomPx:
+          (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
+          scaleY,
+      };
+    }
+
     event.preventDefault();
     elementTarget.setPointerCapture(event.pointerId);
     const snap = getCanvasSnapCandidates(layoutParent, selection.id);
@@ -919,8 +966,9 @@ export function EditorWorkspace({
       startClientY: event.clientY,
       parentWidthPx: logicalWidth,
       parentHeightPx: logicalHeight,
-      scaleX: parentBounds.width / logicalWidth || 1,
-      scaleY: parentBounds.height / logicalHeight || 1,
+      scaleX,
+      scaleY,
+      ...(containerGeometry ? { containerGeometry } : {}),
       deltaX: 0,
       deltaY: 0,
       initialBounds: getCanvasBounds(elementTarget),
@@ -992,8 +1040,18 @@ export function EditorWorkspace({
                 drag.elementId,
                 (element) => {
                   if (element.type === "container") {
-                    return element;
+                    if (!drag.containerGeometry) {
+                      return element;
+                    }
+
+                    return updateContainerForCanvasDrag(
+                      element,
+                      drag.deltaX,
+                      drag.deltaY,
+                      drag.containerGeometry,
+                    );
                   }
+
                   const style = updatePlacementForCanvasDrag(
                     element.style,
                     drag.deltaX,
