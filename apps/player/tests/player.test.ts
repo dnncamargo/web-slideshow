@@ -366,6 +366,28 @@ describe("PowerShow Player", () => {
     });
 
     player = mountPlayer(root, presentation);
+
+    const container = root.querySelector<HTMLElement>(
+      '[data-powershow-id="container-rendered"]',
+    );
+
+    const child = root.querySelector<HTMLElement>(
+      '[data-powershow-id="canonical-text"]',
+    );
+
+    expect(container).not.toBeNull();
+    expect(child).not.toBeNull();
+    expect(child?.textContent).toContain("Canonical Player Container");
+
+    const style = container?.getAttribute("style") ?? "";
+
+    expect(style).toContain("width:80%");
+    expect(style).toContain("padding:16px");
+    expect(style).toContain("flex-direction:column");
+    expect(style).toContain("gap:12px");
+    expect(style).toContain("background:#123456");
+    expect(style).toContain("border-radius:8px");
+    expect(style).toContain("opacity:0.75");
   });
 
   it("plays normalized Google-imported faces without stylesheet/provider state", () => {
