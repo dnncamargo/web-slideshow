@@ -279,8 +279,11 @@ export function ScriptedInspector({
       </InspectorSection>
 
       <CanonicalSurfaceAppearanceSection
+        element={element}
         style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateEffect={(update) => onUpdate((current) => current.type === "scripted" ? { ...current, effect: update(current.effect) } : current)}
         controlPrefix="scripted"
       />
 

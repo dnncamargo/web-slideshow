@@ -245,8 +245,11 @@ export function EmbedInspector({
       </InspectorSection>
 
       <CanonicalSurfaceAppearanceSection
+        element={element}
         style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateEffect={(update) => onUpdate((current) => current.type === "embed" ? { ...current, effect: update(current.effect) } : current)}
         controlPrefix="embed"
       />
 

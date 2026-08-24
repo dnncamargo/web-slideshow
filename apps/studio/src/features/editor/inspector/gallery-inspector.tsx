@@ -282,8 +282,11 @@ export function GalleryInspector({
       </InspectorSection>
 
       <CanonicalSurfaceAppearanceSection
+        element={element}
         style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateEffect={(update) => updateGallery((gallery) => ({ ...gallery, effect: update(gallery.effect) }))}
         controlPrefix="gallery"
       />
 
