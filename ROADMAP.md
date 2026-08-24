@@ -374,6 +374,18 @@ General preference:
 - Size should precede Interaction;
 - Interaction should normally appear near the end of a visual element Inspector.
 
+## Blocks authoring UI
+
+The canonical Blocks model and recursive authoring are complete, but the Studio editing experience should be refined.
+
+Backlog direction:
+
+- improve the visual UI for building and editing Blocks;
+- make block/part/socket hierarchy easier to understand and manipulate;
+- reduce the form-like feel where a more direct visual authoring interaction is appropriate;
+- preserve the existing static, provider-neutral canonical Blocks contract;
+- do not introduce Blockly or another runtime dependency merely to improve the editor UI.
+
 ## Text / rich-authoring refinements
 
 - move inline formatting controls closer to / above Content so selection + formatting feels WYSIWYG;
@@ -410,6 +422,21 @@ Already implemented and therefore **not generic backlog items**:
 - Scripted minimum;
 - canonical background pattern support in its approved locations;
 - gradient-border authoring where currently supported.
+
+## Chart implementation
+
+Chart already has a canonical semantic contract (`chartType` + `series`) but currently remains a renderer placeholder.
+
+Backlog direction:
+
+- implement a real Chart renderer for the existing canonical Chart element;
+- add Studio creation and authoring UI for Chart;
+- support the existing chart types (`line`, `bar`, `area`, `scatter`) as appropriate;
+- keep chart data semantic and renderer-library-neutral in the Presentation document;
+- select rendering technology only when the checkpoint is promoted and architecture is frozen;
+- keep the Player lightweight and avoid unnecessary continuous rendering.
+
+Do not redesign the Chart contract merely to match a chosen charting library.
 
 ## Interactive educational elements
 
