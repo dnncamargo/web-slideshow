@@ -493,7 +493,6 @@ function addChildTopic(topicItemId: string) {
           {topicStyleDefaults && (
             <ElementTypographyControl
               selectedElementId={element.id}
-              style={element.style}
               typography={element.typography}
               effectiveDefaults={topicStyleDefaults}
               onUpdateTypography={(update) => {

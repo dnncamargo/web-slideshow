@@ -90,7 +90,7 @@
 
    Textbox é um bloco textual, não apenas uma linha de texto.
 
-   Ele pode receber background/border via ElementStyle,
+   Ele pode receber background/border via estilo visual canônico,
    mas precisa permanecer legível sem configuração adicional.
    ========================================================== */
 

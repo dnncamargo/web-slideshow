@@ -11,7 +11,6 @@ import { renderScripted } from "./render-scripted";
 
 import type {
   ElementLink,
-  ElementStyle,
   ContainerElement,
   ImageElement,
   PowerShowElement,
@@ -23,7 +22,6 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
-import { renderStyle } from "./render-style";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
 import { renderLength } from "./render-length";
 import {
@@ -93,8 +91,6 @@ function buildAttributes(
     baseStyle = renderCanonicalTextStyle(element);
   } else if (element.type === "image") {
     baseStyle = renderCanonicalImageStyle(element);
-  } else if (element.type !== "container" && element.type !== "chart" && element.type !== "interactive") {
-    baseStyle = renderStyle(element.style as ElementStyle | undefined);
   }
 
   if (baseStyle) {

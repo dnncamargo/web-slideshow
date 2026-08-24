@@ -278,7 +278,7 @@ describe("DividerInspector", () => {
     expect(updates[0]?.layout?.height).toBe(4);
   });
 
-  it("writes appearance updates to canonical ElementStyle, not a Divider field", async () => {
+  it("writes appearance updates to the canonical visual style, not a Divider field", async () => {
     await act(async () => {
       mount(dividerElement());
     });

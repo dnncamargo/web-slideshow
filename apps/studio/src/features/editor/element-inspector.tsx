@@ -29,9 +29,8 @@ import type {
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
-import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
-import { shouldShowElementPlacement } from "./inspector/sections/element-placement-helpers";
+import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 
 interface ElementInspectorProps {
   element: PowerShowElement;
@@ -275,7 +274,7 @@ export function ElementInspector({
         tableAuthoringControls={tableAuthoringControls}
       />
 
-      {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
+      {element.type !== "container" && shouldShowElementPositioning(layerControls) && (
         element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
           <CanonicalElementPositionSection
             element={element}
@@ -309,20 +308,7 @@ export function ElementInspector({
             }}
             layerControls={layerControls}
           />
-        ) : (
-          <ElementPlacementSection
-            element={element}
-            parent={parent}
-            onUpdateStyle={(update) => {
-              onUpdate((current) => {
-                if (current.type === "container" || current.type === "text" || current.type === "textbox" || current.type === "image" || current.type === "gallery" || current.type === "embed" || current.type === "scripted" || current.type === "divider" || current.type === "topics" || current.type === "chart" || current.type === "interactive") return current;
-                if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") return current;
-                return current;
-              });
-            }}
-            layerControls={layerControls}
-          />
-        )
+        ) : null
       )}
     </>
   );

@@ -3,7 +3,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderCanonicalDataElementStyle } from "./render-canonical-data";
+import { renderCanonicalDataStyle } from "./render-canonical-data";
 
 export function renderCode(
   element: CodeElement,
@@ -14,7 +14,7 @@ export function renderCode(
 
   const styles: string[] = [];
 
-  const baseStyle = renderCanonicalDataElementStyle(element);
+  const baseStyle = renderCanonicalDataStyle(element);
 
   if (baseStyle) {
     styles.push(baseStyle);

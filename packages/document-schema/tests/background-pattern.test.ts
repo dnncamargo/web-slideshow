@@ -5,7 +5,6 @@ import {
   BorderSchema,
   GradientSchema,
 } from "../src/visual";
-import { ElementStyleSchema } from "../src/style";
 import {
   BlocksElementSchema,
   DividerElementSchema,
@@ -97,31 +96,7 @@ describe("BackgroundPatternSchema", () => {
   });
 });
 
-describe("ElementStyleSchema background pattern integration", () => {
-  it("keeps base background color distinct and round-trips the pattern", () => {
-    const style = {
-      background: "#E5E5F7",
-      backgroundPattern: {
-        image:
-          "radial-gradient(#444CF7 1.5px, transparent 1.5px), radial-gradient(#444CF7 1.5px, #E5E5F7 1.5px)",
-        size: "20px 20px",
-        position: "0 0, 10px 10px",
-        opacity: 0.8,
-      },
-    };
-
-    const canonicalStyle = {
-      ...style,
-      background: "#e5e5f7",
-    };
-    const parsed = ElementStyleSchema.parse(style);
-
-    expect(parsed).toEqual(canonicalStyle);
-    expect(ElementStyleSchema.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(
-      canonicalStyle,
-    );
-  });
-
+describe("canonical visual schemas", () => {
   it("leaves existing visual contracts unchanged", () => {
     expect(
       GradientSchema.safeParse({

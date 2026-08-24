@@ -538,7 +538,7 @@ describe("Gradient Border authoring", () => {
     expect(state.style?.border?.gradient?.stops[0]?.position).toBe(25);
   });
 
-  it("21. unrelated ElementStyle properties survive Border edits", async () => {
+  it("21. unrelated canonical properties survive Border edits", async () => {
     await act(async () =>
       mount(
         containerElement({

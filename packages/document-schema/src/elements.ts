@@ -7,10 +7,6 @@ import {
 } from "./primitives";
 
 import {
-  ElementStyleSchema,
-} from "./style";
-
-import {
   ElementLinkSchema,
   isAbsoluteHttpHref,
 } from "./links";
@@ -37,14 +33,6 @@ import {
   PositionedElementLayoutSchema,
 } from "./element-properties";
 import { BorderSchema } from "./visual";
-
-const BaseElementSchema = z.object({
-  id: ElementIdSchema,
-
-  style: ElementStyleSchema.optional(),
-
-  hidden: z.boolean().default(false),
-});
 
 const CanonicalDataElementBaseSchema = z.object({
   id: ElementIdSchema,

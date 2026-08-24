@@ -88,17 +88,11 @@ import {
   DEFAULT_IMAGE_PROPORTION_PRESERVED,
   getCanvasResizeCursor,
   getCanvasResizeDeltas,
-  getCanvasResizePlacementAdjustment,
   isCanvasResizable,
   resolveProportionalResize,
   toLogicalCanvasResizeDelta,
   type CanvasResizeDirection,
-  updateStyleForCanvasResize,
 } from "./canvas-resize-helpers";
-import {
-  isCanvasDraggable,
-  updatePlacementForCanvasDrag,
-} from "./inspector/sections/element-placement-helpers";
 import {
   getContainerCanvasResizeDirections,
   isContainerCanvasDraggable,

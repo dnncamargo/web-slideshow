@@ -2,7 +2,7 @@ import type { BlocksElement, ChartElement, CodeElement, ContainerElement, Divide
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
-import { shouldShowPlacementLayerControls, type ElementLayerControls } from "./element-placement-helpers";
+import { shouldShowPositionLayerControls, type ElementLayerControls } from "./element-positioning-helpers";
 
 interface Props {
   element: TextElement | TextboxElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | ChartElement | InteractiveElement;
@@ -19,7 +19,7 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
   const { t } = useStudioI18n();
   const layout = element.layout;
   const isAbsolute = layout?.position === "absolute";
-  const layerVisible = shouldShowPlacementLayerControls(isAbsolute, parent?.layout?.children?.mode);
+  const layerVisible = shouldShowPositionLayerControls(isAbsolute, parent?.layout?.children?.mode);
 
   return (
     <InspectorSection title={t("inspector.placement")}>

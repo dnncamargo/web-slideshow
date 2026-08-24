@@ -143,6 +143,20 @@ describe("topics element creation", () => {
   });
 });
 
+describe("canonical TopicItem ContentSlot metadata", () => {
+  it("survives text editing", () => {
+    const metadata = {
+      layout: { padding: "12px" },
+      style: { color: "#fff", background: { color: "#111827" }, borderRadius: "4px", className: "slot" },
+      typography: { fontSize: "1rem", fontWeight: 600 },
+    } as const;
+    const item = topicItem("item-1", { id: "slot-1", ...metadata, children: [text("text-1", "Before")] });
+    const result = updateTopicItemTextContent([item], "item-1", "After")[0];
+    expect(result?.content).toMatchObject(metadata);
+    expect(result?.content.children[0]).toMatchObject({ type: "text", content: "After" });
+  });
+});
+
 describe("default topic item creation", () => {
   it("creates a fresh TopicItem with one Text child and exposes the Text ID", () => {
     const { item, textId } = createDefaultTopicItem([slide([])]);

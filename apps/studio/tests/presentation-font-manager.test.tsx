@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ElementStyle } from "@powershow/document-schema";
+import type { ElementTypography } from "@powershow/document-schema";
 import type { FontResource } from "@powershow/document-schema";
 
 import { ElementTypographyControl } from "../src/features/editor/inspector/sections/element-typography-control";
@@ -395,17 +395,17 @@ describe("ElementTypographyControl apply integration", () => {
   });
 
   it("Apply updates the selected text style.fontFamily through the existing update path", async () => {
-    let styleState: ElementStyle | undefined;
-    const updates: ElementStyle[] = [];
+    let styleState: ElementTypography | undefined;
+    const updates: ElementTypography[] = [];
 
     function renderControl() {
       root.render(
         <StudioI18nProvider>
           <ElementTypographyControl
             selectedElementId="text-1"
-            style={styleState}
+            typography={styleState}
             effectiveDefaults={EFFECTIVE_DEFAULTS}
-            onUpdateStyle={(update) => {
+            onUpdateTypography={(update) => {
               styleState = update(styleState);
               updates.push(styleState);
               renderControl();

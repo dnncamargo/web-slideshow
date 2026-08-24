@@ -1,7 +1,4 @@
-import type {
-  ElementStyle,
-  ElementTypography,
-} from "@powershow/document-schema";
+import type { ElementTypography } from "@powershow/document-schema";
 import {
   convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
@@ -20,7 +17,6 @@ import {
 
 import type {
   FontResourceControls,
-  UpdateElementStyle,
   UpdateElementTypography,
 } from "../inspector-types";
 
@@ -32,13 +28,9 @@ import { EffectiveLengthInput } from "./effective-length-input";
 interface ElementTypographyControlProps {
   selectedElementId: string;
 
-  style?: ElementStyle | undefined;
-
   typography?: ElementTypography | undefined;
 
   effectiveDefaults: ThemeTypographyDefaults;
-
-  onUpdateStyle?: UpdateElementStyle;
 
   onUpdateTypography?: UpdateElementTypography;
 
@@ -48,7 +40,7 @@ interface ElementTypographyControlProps {
 }
 
 function readFontWeightSelection(
-  fontWeight: ElementStyle["fontWeight"],
+  fontWeight: ElementTypography["fontWeight"],
 ): string {
   return fontWeight === undefined ? "" : String(fontWeight);
 }
@@ -65,7 +57,7 @@ function isCuratedFontWeight(fontWeight: number): boolean {
 
 function parseFontWeightSelection(
   value: string,
-): ElementStyle["fontWeight"] {
+): ElementTypography["fontWeight"] {
   const fontWeight = parseOptionalNumber(value);
 
   return fontWeight !== undefined &&
@@ -79,13 +71,13 @@ function parseFontWeightSelection(
 
 function parseFontStyleSelection(
   value: string,
-): ElementStyle["fontStyle"] {
+): ElementTypography["fontStyle"] {
   return value === "normal" || value === "italic" ? value : undefined;
 }
 
 function parseTextAlignSelection(
   value: string,
-): ElementStyle["textAlign"] {
+): ElementTypography["textAlign"] {
   switch (value) {
     case "left":
     case "center":
@@ -100,7 +92,7 @@ function parseTextAlignSelection(
 
 function parseTextTransformSelection(
   value: string,
-): ElementStyle["textTransform"] {
+): ElementTypography["textTransform"] {
   switch (value) {
     case "none":
     case "uppercase":
@@ -115,7 +107,7 @@ function parseTextTransformSelection(
 
 function parseWhiteSpaceSelection(
   value: string,
-): ElementStyle["whiteSpace"] {
+): ElementTypography["whiteSpace"] {
   switch (value) {
     case "normal":
     case "nowrap":
@@ -130,7 +122,7 @@ function parseWhiteSpaceSelection(
 
 function parseTextWrapStyleSelection(
   value: string,
-): ElementStyle["textWrapStyle"] {
+): ElementTypography["textWrapStyle"] {
   switch (value) {
     case "auto":
     case "balance":
@@ -144,7 +136,7 @@ function parseTextWrapStyleSelection(
 
 function parseOverflowWrapSelection(
   value: string,
-): ElementStyle["overflowWrap"] {
+): ElementTypography["overflowWrap"] {
   switch (value) {
     case "normal":
     case "break-word":
@@ -158,7 +150,7 @@ function parseOverflowWrapSelection(
 
 function parseTextDecorationLineSelection(
   value: string,
-): ElementStyle["textDecorationLine"] {
+): ElementTypography["textDecorationLine"] {
   switch (value) {
     case "none":
     case "underline":
@@ -183,10 +175,8 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
 
 export function ElementTypographyControl({
   selectedElementId,
-  style,
   typography,
   effectiveDefaults,
-  onUpdateStyle: legacyOnUpdateStyle,
   onUpdateTypography,
   controlPrefix,
   fontResourceControls,
@@ -194,20 +184,12 @@ export function ElementTypographyControl({
   const { t } = useStudioI18n();
   const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
 
-  const currentTypography = typography ?? style;
+  const currentTypography = typography;
 
   function onUpdateStyle(
     update: (current: ElementTypography | undefined) => ElementTypography,
   ): void {
-    if (onUpdateTypography) {
-      onUpdateTypography(update);
-      return;
-    }
-
-    legacyOnUpdateStyle?.((currentStyle) => ({
-      ...currentStyle,
-      ...update(currentStyle),
-    }));
+    onUpdateTypography?.(update);
   }
 
   const fontWeightSelection = readFontWeightSelection(currentTypography?.fontWeight);

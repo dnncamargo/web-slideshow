@@ -1,6 +1,5 @@
 import type {
   ElementEffect,
-  ElementStyle,
   ElementTypography,
   ElementVisualStyle,
   ResizablePositionedLayout,
@@ -12,10 +11,6 @@ import type {
 
 export type ElementInspectorUpdate = (
   update: (element: PowerShowElement) => PowerShowElement,
-) => void;
-
-export type UpdateElementStyle = (
-  update: (style: ElementStyle | undefined) => ElementStyle,
 ) => void;
 
 export type UpdateElementTypography = (

@@ -31,7 +31,7 @@ function addLength(
   }
 }
 
-export function renderCanonicalDataElementStyle(
+export function renderCanonicalDataStyle(
   element: Pick<CanonicalDataElement, "layout" | "style" | "effect">,
 ): string {
   const output: string[] = [];
