@@ -3,6 +3,8 @@ import type {
   ElementStyle,
   ElementTypography,
   ElementVisualStyle,
+  ResizablePositionedLayout,
+  SurfaceVisualStyle,
   FontFaceResource,
   FontResource,
   PowerShowElement,
@@ -30,6 +32,14 @@ export type UpdateElementVisualStyle = (
 
 export type UpdateElementEffect = (
   update: (effect: ElementEffect | undefined) => ElementEffect,
+) => void;
+
+export type UpdateSurfaceStyle = (
+  update: (style: SurfaceVisualStyle | undefined) => SurfaceVisualStyle,
+) => void;
+
+export type UpdateElementLayout = (
+  update: (layout: ResizablePositionedLayout | undefined) => ResizablePositionedLayout | undefined,
 ) => void;
 
 export interface FontResourceControls {

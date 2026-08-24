@@ -56,7 +56,7 @@ interface LayerControls {
 }
 
 interface ElementPlacementSectionProps {
-  element: Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement>;
+  element: Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement | Extract<PowerShowElement, { type: "gallery" | "embed" | "scripted" }>>;
   parent: ContainerElement | null;
   onUpdateStyle: UpdateElementStyle;
   layerControls: LayerControls;

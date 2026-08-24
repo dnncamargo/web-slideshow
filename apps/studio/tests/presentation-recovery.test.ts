@@ -55,7 +55,8 @@ function validScripted(id: string): PowerShowElement {
     html: '<div data-value="  exact  ">\n  keep\n</div>\n',
     css: ".recovery {\n  gap:  4px;\n}\n",
     script: 'const recovery = "  exact  ";\nvoid recovery;\n',
-    style: { width: "66%", height: "48%", className: "recovery-scripted" },
+    layout: { width: "66%", height: "48%" },
+    style: { className: "recovery-scripted" },
   };
 }
 

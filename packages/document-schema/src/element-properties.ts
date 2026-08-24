@@ -133,6 +133,31 @@ export const ImageVisualStyleSchema = z.object({
 
 export type ImageVisualStyle = z.infer<typeof ImageVisualStyleSchema>;
 
+export const ResizablePositionedLayoutSchema = z.object({
+  width: LengthSchema.optional(),
+  height: LengthSchema.optional(),
+  position: z.literal("absolute").optional(),
+  top: LengthSchema.optional(),
+  right: LengthSchema.optional(),
+  bottom: LengthSchema.optional(),
+  left: LengthSchema.optional(),
+}).strict().superRefine(requireAbsoluteEdges);
+
+export type ResizablePositionedLayout = z.infer<typeof ResizablePositionedLayoutSchema>;
+
+const SurfaceBackgroundSchema = z.object({
+  color: ColorSchema.optional(),
+}).strict();
+
+export const SurfaceVisualStyleSchema = z.object({
+  background: SurfaceBackgroundSchema.optional(),
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export type SurfaceVisualStyle = z.infer<typeof SurfaceVisualStyleSchema>;
+
 export const ElementBackgroundSchema = z
   .object({
     color: ColorSchema.optional(),

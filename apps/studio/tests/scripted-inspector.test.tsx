@@ -378,9 +378,11 @@ describe("ScriptedInspector", () => {
     await act(async () => {
       mount(
         scripted({
-          style: {
+          layout: {
             width: "70%",
             height: "40%",
+          },
+          style: {
             borderRadius: 8,
           },
         }),
@@ -401,11 +403,8 @@ describe("ScriptedInspector", () => {
 
     expect(elementState.hidden).toBe(false);
 
-    expect(elementState.style).toEqual({
-      width: "70%",
-      height: "40%",
-      borderRadius: 8,
-    });
+    expect(elementState.layout).toEqual({ width: "70%", height: "40%" });
+    expect(elementState.style).toEqual({ borderRadius: 8 });
   });
 
   it("preserves the authored HTML exactly on Apply", async () => {
@@ -689,7 +688,7 @@ describe("ScriptedInspector", () => {
     expect(shadowMode).not.toBeNull();
   });
 
-  it("keeps style updates on the canonical style path", async () => {
+  it("writes appearance updates to the canonical surface style path", async () => {
     await act(async () => {
       mount(scripted());
     });
@@ -702,7 +701,7 @@ describe("ScriptedInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(elementState.style?.background).toBe("#ff0000");
+    expect(elementState.style?.background?.color).toBe("#ff0000");
   });
 });
 

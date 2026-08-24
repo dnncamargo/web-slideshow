@@ -128,20 +128,19 @@ describe("renderEmbed", () => {
     expect(html).not.toContain("provider");
   });
 
-  it("applies generic ElementStyle", () => {
+    it("applies canonical surface namespaces", () => {
     const html = renderEmbed(
       embed({
-        style: {
+        layout: {
           width: "80%",
-
           height: 400,
-
-          background: "#0f172a",
-
+        },
+        style: {
+          background: { color: "#0f172a" },
           borderRadius: 8,
-
+        },
+        effect: {
           opacity: 0.9,
-
           shadow: {
             x: 1,
             y: 2,

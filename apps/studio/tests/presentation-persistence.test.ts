@@ -411,7 +411,7 @@ describe("persistence round trip with an Embed", () => {
         src: "https://example.com/",
         title: "Embedded content",
         hidden: false,
-        style: {
+        layout: {
           width: "60%",
           height: "55%",
         },
@@ -535,11 +535,15 @@ describe("persistence round trip with Scripted", () => {
                   html,
                   css,
                   script,
-                  style: {
+                  layout: {
                     width: "73%",
                     height: "44%",
-                    opacity: 0.8,
+                  },
+                  style: {
                     className: "  authored  ",
+                  },
+                  effect: {
+                    opacity: 0.8,
                   },
                 },
               ],
@@ -564,11 +568,15 @@ describe("persistence round trip with Scripted", () => {
         html,
         css,
         script,
-        style: {
+        layout: {
           width: "73%",
           height: "44%",
-          opacity: 0.8,
+        },
+        style: {
           className: "  authored  ",
+        },
+        effect: {
+          opacity: 0.8,
         },
       });
     }

@@ -261,7 +261,8 @@ describe("published presentation reader", () => {
               html,
               css,
               script,
-              style: { width: "68%", height: "52%", opacity: 0.9 },
+              layout: { width: "68%", height: "52%" },
+              effect: { opacity: 0.9 },
             },
           ],
         },
@@ -279,7 +280,8 @@ describe("published presentation reader", () => {
       html,
       css,
       script,
-      style: { width: "68%", height: "52%", opacity: 0.9 },
+      layout: { width: "68%", height: "52%" },
+      effect: { opacity: 0.9 },
     });
   });
 

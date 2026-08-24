@@ -141,13 +141,11 @@ describe("renderScripted", () => {
     expect(html).toContain("custom-scripted-stage");
   });
 
-  it("applies normal ElementStyle to the iframe", () => {
+  it("applies canonical surface namespaces to the iframe", () => {
     const html = renderScripted(
       scripted({
-        style: {
-          opacity: 0.5,
-          width: 200,
-        },
+        layout: { width: 200 },
+        effect: { opacity: 0.5 },
       }),
     );
 

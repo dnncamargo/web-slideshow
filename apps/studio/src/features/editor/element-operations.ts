@@ -1927,7 +1927,7 @@ export function createElement(
           },
         ],
 
-        style: {
+        layout: {
           width: "60%",
 
           height: "55%",
@@ -1947,7 +1947,7 @@ export function createElement(
 
         title: "Embedded content",
 
-        style: {
+        layout: {
           width: "60%",
 
           height: "55%",
@@ -1971,7 +1971,7 @@ export function createElement(
 
         script: "",
 
-        style: {
+        layout: {
           width: "60%",
 
           height: "55%",

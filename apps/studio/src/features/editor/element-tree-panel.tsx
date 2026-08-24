@@ -213,6 +213,8 @@ function ElementTreeNode({
         ? element.layout?.position === "absolute"
         : element.type === "image"
           ? element.layout?.position === "absolute"
+          : element.type === "gallery" || element.type === "embed" || element.type === "scripted"
+            ? element.layout?.position === "absolute"
         : element.style?.placement?.mode === "absolute"
         ? `[${t("inspector.absolute")}]`
         : null;

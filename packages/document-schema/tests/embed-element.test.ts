@@ -134,7 +134,7 @@ describe("Embed element schema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("confirms unknown srcDoc/srcdoc/html fields are not preserved by parsing", () => {
+  it("rejects unknown srcDoc/srcdoc/html fields", () => {
     const result = EmbedElementSchema.safeParse(
       embed({
         srcdoc: "<script>alert(1)</script>",
@@ -143,18 +143,10 @@ describe("Embed element schema", () => {
       }),
     );
 
-    expect(result.success).toBe(true);
-
-    if (result.success) {
-      expect(result.data).not.toHaveProperty("srcdoc");
-
-      expect(result.data).not.toHaveProperty("srcDoc");
-
-      expect(result.data).not.toHaveProperty("html");
-    }
+    expect(result.success).toBe(false);
   });
 
-  it("confirms no sandbox or allow configuration is created by parsing", () => {
+  it("rejects sandbox or allow configuration fields", () => {
     const result = EmbedElementSchema.safeParse(
       embed({
         sandbox: "allow-scripts",
@@ -162,13 +154,7 @@ describe("Embed element schema", () => {
       }),
     );
 
-    expect(result.success).toBe(true);
-
-    if (result.success) {
-      expect(result.data).not.toHaveProperty("sandbox");
-
-      expect(result.data).not.toHaveProperty("allow");
-    }
+    expect(result.success).toBe(false);
   });
 
   it("leaves existing ImageElement parsing unchanged", () => {
@@ -213,5 +199,15 @@ describe("Embed element schema", () => {
     if (result.success) {
       expect(result.data.type).toBe("gallery");
     }
+  });
+
+  it("accepts the canonical surface envelope and rejects legacy aggregate fields", () => {
+    expect(EmbedElementSchema.safeParse(embed({
+      layout: { width: "80%", height: 240, position: "absolute", top: 10, right: "5%", bottom: 20, left: 30 },
+      style: { background: { color: "#123456" }, borderRadius: 8, className: "embed" },
+      effect: { opacity: 0.8 },
+    })).success).toBe(true);
+    expect(EmbedElementSchema.safeParse(embed({ style: { opacity: 0.8 } })).success).toBe(false);
+    expect(EmbedElementSchema.safeParse(embed({ layout: { padding: 8 } })).success).toBe(false);
   });
 });

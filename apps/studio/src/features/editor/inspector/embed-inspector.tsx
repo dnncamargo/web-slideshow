@@ -15,12 +15,11 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TypedInspectorProps,
-  UpdateElementStyle,
+  UpdateSurfaceStyle,
 } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-appearance-section";
+import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 
 // ============================================================
 // BEGIN: EMBED INSPECTOR
@@ -89,7 +88,7 @@ export function EmbedInspector({
     setTitleRequiredMessage(null);
   }
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle: UpdateSurfaceStyle = (update) => {
     onUpdate((current) => {
       if (current.type !== "embed") {
         return current;
@@ -245,19 +244,15 @@ export function EmbedInspector({
         </small>
       </InspectorSection>
 
-      <ElementAppearanceSection
-        element={element}
-        onUpdateStyle={updateStyle}
-        controlPrefix="embed"
-        showBackground
-        showRoundedCorners
-        showOpacity
-        showBorder
-      />
-
-      <ElementEffectsSection
+      <CanonicalSurfaceAppearanceSection
         style={element.style}
         onUpdateStyle={updateStyle}
+        controlPrefix="embed"
+      />
+
+      <CanonicalElementEffectsSection
+        effect={element.effect}
+        onUpdateEffect={(update) => onUpdate((current) => current.type === "embed" ? { ...current, effect: update(current.effect) } : current)}
         controlPrefix="embed"
       />
     </>

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { ImageElement, TextElement, TextboxElement } from "@powershow/document-schema";
+import type { EmbedElement, GalleryElement, ImageElement, ScriptedElement, TextElement, TextboxElement } from "@powershow/document-schema";
 import {
   updateCanonicalTextForCanvasDrag,
   updateCanonicalImageForCanvasDrag,
+  updateCanonicalSurfaceForCanvasDrag,
   updateImageForCanvasResize,
+  updateSurfaceForCanvasResize,
   updateTextboxForCanvasResize,
   type CanonicalTextCanvasGeometry,
 } from "../src/features/editor/canonical-text-canvas-geometry";
@@ -31,6 +33,12 @@ function textbox(layout?: TextboxElement["layout"], extra: Partial<TextboxElemen
 
 function image(layout?: ImageElement["layout"]): ImageElement {
   return { type: "image", id: "image-1", hidden: false, src: "/image.png", alt: "", fit: "contain", layout };
+}
+
+function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedElement["type"], layout?: GalleryElement["layout"]): GalleryElement | EmbedElement | ScriptedElement {
+  if (type === "gallery") return { type, id: "gallery-1", hidden: false, items: [], fit: "contain", layout };
+  if (type === "embed") return { type, id: "embed-1", hidden: false, src: "https://example.com/", title: "Embed", layout };
+  return { type, id: "scripted-1", hidden: false, title: "Scripted", html: "", css: "", script: "", layout };
 }
 
 describe("canonical text canvas drag", () => {
@@ -206,6 +214,23 @@ describe("canonical Image canvas geometry", () => {
   it("clamps Image resize to one logical px", () => {
     const result = updateImageForCanvasResize(image({ position: "absolute", width: 2, height: 2 }), "nw", 300, 300, geometry);
     expect(result.layout).toMatchObject({ width: 1, height: 1 });
+  });
+});
+
+describe("canonical surface canvas geometry", () => {
+  it.each(["gallery", "embed", "scripted"] as const)("routes %s through canonical drag and resize", (type) => {
+    const absolute = surface(type, { position: "absolute", left: 20, top: 30, width: 200, height: 150 });
+    const dragged = updateCanonicalSurfaceForCanvasDrag(absolute, 10, -5, geometry);
+    expect(dragged.layout).toMatchObject({ left: 30, top: 25 });
+    const resized = updateSurfaceForCanvasResize(dragged, "se", 20, 10, geometry);
+    expect(resized.layout).toMatchObject({ left: 30, top: 25, width: 220, height: 160 });
+    expect(resized).not.toHaveProperty("placement");
+  });
+
+  it("keeps flow surface resize size-only", () => {
+    const element = surface("gallery");
+    const resized = updateSurfaceForCanvasResize(element, "se", 20, 10, geometry);
+    expect(resized.layout).toEqual({ width: 220, height: 160 });
   });
 });
 

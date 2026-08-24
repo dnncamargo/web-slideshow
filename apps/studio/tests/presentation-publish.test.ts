@@ -296,9 +296,11 @@ describe("transactional presentation publishing", () => {
               html,
               css,
               script,
-              style: {
+              layout: {
                 width: "71%",
                 height: "41%",
+              },
+              style: {
                 className: "published-scripted",
               },
             },
@@ -326,7 +328,8 @@ describe("transactional presentation publishing", () => {
       html,
       css,
       script,
-      style: { width: "71%", height: "41%", className: "published-scripted" },
+      layout: { width: "71%", height: "41%" },
+      style: { className: "published-scripted" },
     });
   });
 

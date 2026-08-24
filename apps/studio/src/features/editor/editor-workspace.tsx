@@ -95,8 +95,10 @@ import {
 import {
   updateCanonicalTextForCanvasDrag,
   updateCanonicalImageForCanvasDrag,
+  updateCanonicalSurfaceForCanvasDrag,
   updateTextboxForCanvasResize,
   updateImageForCanvasResize,
+  updateSurfaceForCanvasResize,
   type CanonicalTextCanvasGeometry,
 } from "./canonical-text-canvas-geometry";
 
@@ -620,7 +622,7 @@ export function EditorWorkspace({
             ? isContainerCanvasDraggable(documentElement)
             : documentElement.type === "text" || documentElement.type === "textbox"
               ? documentElement.layout?.position === "absolute"
-              : documentElement.type === "image"
+              : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted"
                 ? documentElement.layout?.position === "absolute"
             : isCanvasDraggable(documentElement.style);
 
@@ -998,7 +1000,7 @@ export function EditorWorkspace({
         ? isContainerCanvasDraggable(selection.documentElement)
         : selection.documentElement.type === "text" || selection.documentElement.type === "textbox"
           ? selection.documentElement.layout?.position === "absolute"
-          : selection.documentElement.type === "image"
+          : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted"
             ? selection.documentElement.layout?.position === "absolute"
         : isCanvasDraggable(selection.documentElement.style);
 
@@ -1050,7 +1052,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -1170,6 +1172,12 @@ export function EditorWorkspace({
                   if (element.type === "image") {
                     return drag.canonicalTextGeometry
                       ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                      : element;
+                  }
+
+                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
+                    return drag.canonicalTextGeometry
+                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
                       : element;
                   }
 
@@ -1300,7 +1308,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "textbox" || selectedDocumentElement.type === "image") {
+    } else if (selectedDocumentElement.type === "textbox" || selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -1511,6 +1519,11 @@ export function EditorWorkspace({
                           resize.canonicalTextResizeGeometry,
                           proportional,
                         )
+                      : element;
+                  }
+                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
+                    return resize.canonicalTextResizeGeometry
+                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
                   const resizedStyle = updateStyleForCanvasResize(

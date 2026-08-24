@@ -24,6 +24,8 @@ import {
   TextboxLayoutSchema,
   ImageLayoutSchema,
   ImageVisualStyleSchema,
+  ResizablePositionedLayoutSchema,
+  SurfaceVisualStyleSchema,
 } from "./element-properties";
 
 const BaseElementSchema = z.object({
@@ -165,8 +167,12 @@ export const GalleryItemSchema = z.object({
 export type GalleryItem =
   z.infer<typeof GalleryItemSchema>;
 
-export const GalleryElementSchema =
-  BaseElementSchema.extend({
+export const GalleryElementSchema = z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: SurfaceVisualStyleSchema.optional(),
+    effect: ElementEffectSchema.optional(),
     type: z.literal("gallery"),
 
     items: z.array(GalleryItemSchema),
@@ -176,7 +182,7 @@ export const GalleryElementSchema =
       "cover",
       "fill",
     ]).default("contain"),
-  });
+  }).strict();
 
 export type GalleryElement =
   z.infer<typeof GalleryElementSchema>;
@@ -283,8 +289,12 @@ export const DividerElementSchema =
 export type DividerElement =
   z.infer<typeof DividerElementSchema>;
 
-export const EmbedElementSchema =
-  BaseElementSchema.extend({
+export const EmbedElementSchema = z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: SurfaceVisualStyleSchema.optional(),
+    effect: ElementEffectSchema.optional(),
     type: z.literal("embed"),
 
     src: z.string().refine(isAbsoluteHttpHref, {
@@ -296,7 +306,7 @@ export const EmbedElementSchema =
       .string()
       .min(1)
       .default("Embedded content"),
-  });
+  }).strict();
 
 export type EmbedElement =
   z.infer<typeof EmbedElementSchema>;
@@ -426,8 +436,12 @@ export const BlocksElementSchema = BaseElementSchema.extend({
 export type BlocksElement =
   z.infer<typeof BlocksElementSchema>;
 
-export const ScriptedElementSchema =
-  BaseElementSchema.extend({
+export const ScriptedElementSchema = z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: SurfaceVisualStyleSchema.optional(),
+    effect: ElementEffectSchema.optional(),
     type: z.literal("scripted"),
 
     title: z
@@ -440,7 +454,7 @@ export const ScriptedElementSchema =
     css: z.string().default(""),
 
     script: z.string().default(""),
-  });
+  }).strict();
 
 export type ScriptedElement =
   z.infer<typeof ScriptedElementSchema>;

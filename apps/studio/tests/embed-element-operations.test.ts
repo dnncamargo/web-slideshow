@@ -86,7 +86,7 @@ describe("Embed element authoring", () => {
     const created = createElement("embed", []);
 
     if (created.type === "embed") {
-      expect(created.style?.width).toBe("60%");
+      expect(created.layout?.width).toBe("60%");
     }
   });
 
@@ -94,7 +94,7 @@ describe("Embed element authoring", () => {
     const created = createElement("embed", []);
 
     if (created.type === "embed") {
-      expect(created.style?.height).toBe("55%");
+      expect(created.layout?.height).toBe("55%");
     }
   });
 
@@ -141,45 +141,36 @@ describe("Embed element authoring", () => {
   it("duplicate preserves style", () => {
     const duplicate = duplicateElement(
       embed({
-        style: {
+        layout: {
           width: "80%",
 
           height: 320,
 
-          borderRadius: 12,
-
-          background: "#0f172a",
         },
+        style: { borderRadius: 12, background: { color: "#0f172a" } },
       }),
       [slide()],
     );
 
     if (duplicate.type === "embed") {
-      expect(duplicate.style).toEqual({
-        width: "80%",
-
-        height: 320,
-
-        borderRadius: 12,
-
-        background: "#0f172a",
-      });
+      expect(duplicate.layout).toEqual({ width: "80%", height: 320 });
+      expect(duplicate.style).toEqual({ borderRadius: 12, background: { color: "#0f172a" } });
     }
   });
 
-  it("duplicate style is not the same reference as the source", () => {
-    const source = embed({ style: { width: "60%", height: "55%" } });
+  it("duplicate layout is not the same reference as the source", () => {
+    const source = embed({ layout: { width: "60%", height: "55%" } });
 
     const duplicate = duplicateElement(source, [slide()]);
 
     if (duplicate.type === "embed") {
-      expect(duplicate.style).not.toBe(source.style);
+      expect(duplicate.layout).not.toBe(source.layout);
     }
   });
 
   it("modifying the duplicate does not mutate the source", () => {
     const original = embed({
-      style: { width: "60%", height: "55%" },
+      layout: { width: "60%", height: "55%" },
     });
 
     const source = original;
@@ -191,7 +182,7 @@ describe("Embed element authoring", () => {
 
       duplicate.title = "Changed";
 
-      duplicate.style = { width: "10%", height: "10%" };
+      duplicate.layout = { width: "10%", height: "10%" };
 
       expect(source).toEqual(original);
 

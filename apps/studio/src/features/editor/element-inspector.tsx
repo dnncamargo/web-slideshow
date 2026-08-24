@@ -30,7 +30,7 @@ import type {
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
 import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
-import { CanonicalTextPositionSection } from "./inspector/sections/canonical-text-position-section";
+import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { shouldShowElementPlacement } from "./inspector/sections/element-placement-helpers";
 
 interface ElementInspectorProps {
@@ -260,8 +260,8 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
-        element.type === "text" || element.type === "textbox" || element.type === "image" ? (
-          <CanonicalTextPositionSection
+        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" ? (
+          <CanonicalElementPositionSection
             element={element}
             parent={parent}
             onUpdateLayout={(update) => {
@@ -277,6 +277,9 @@ export function ElementInspector({
                 if (current.type === "image") {
                   return { ...current, layout: update(current.layout) };
                 }
+                if (current.type === "gallery" || current.type === "embed" || current.type === "scripted") {
+                  return { ...current, layout: update(current.layout) };
+                }
                 return current;
               });
             }}
@@ -288,7 +291,7 @@ export function ElementInspector({
             parent={parent}
             onUpdateStyle={(update) => {
               onUpdate((current) => {
-                if (current.type === "container" || current.type === "text" || current.type === "textbox") return current;
+                if (current.type === "container" || current.type === "text" || current.type === "textbox" || current.type === "image" || current.type === "gallery" || current.type === "embed" || current.type === "scripted") return current;
                 return { ...current, style: update(current.style) };
               });
             }}

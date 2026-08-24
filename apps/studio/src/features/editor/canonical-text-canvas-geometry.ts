@@ -1,4 +1,4 @@
-import type { ElementLayout, ImageElement, ImageLayout, TextElement, TextboxElement } from "@powershow/document-schema";
+import type { ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, ResizablePositionedLayout, ScriptedElement, TextElement, TextboxElement } from "@powershow/document-schema";
 import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@powershow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
@@ -14,7 +14,7 @@ export interface CanonicalTextCanvasGeometry {
 }
 
 type TextFamilyElement = TextElement | TextboxElement;
-type CanonicalElement = TextFamilyElement | ImageElement;
+type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement;
 type PositioningEdge = "left" | "right" | "top" | "bottom";
 
 function includes(direction: CanvasResizeDirection, value: string): boolean {
@@ -91,6 +91,15 @@ export function updateCanonicalImageForCanvasDrag(
   geometry: CanonicalTextCanvasGeometry,
 ): ImageElement {
   return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as ImageElement;
+}
+
+export function updateCanonicalSurfaceForCanvasDrag(
+  element: GalleryElement | EmbedElement | ScriptedElement,
+  deltaX: number,
+  deltaY: number,
+  geometry: CanonicalTextCanvasGeometry,
+): GalleryElement | EmbedElement | ScriptedElement {
+  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as GalleryElement | EmbedElement | ScriptedElement;
 }
 
 function serializeSize(value: number, original: string | number | undefined, parent: number): string | number {
@@ -196,4 +205,30 @@ export function updateImageForCanvasResize(
     : deltaY;
   const next = updateAxis(updateAxis(layout, "horizontal", direction, widthDelta, geometry), "vertical", direction, heightDelta, geometry);
   return { ...element, layout: next } as ImageElement;
+}
+
+export function updateSurfaceForCanvasResize(
+  element: GalleryElement | EmbedElement | ScriptedElement,
+  direction: CanvasResizeDirection,
+  deltaX: number,
+  deltaY: number,
+  geometry: CanonicalTextCanvasGeometry,
+): GalleryElement | EmbedElement | ScriptedElement {
+  if (deltaX === 0 && deltaY === 0) return element;
+  const layout = element.layout ?? {};
+  const next = element.layout?.position === "absolute"
+    ? updateAxis(layout as ElementLayout, "horizontal", direction, deltaX, geometry)
+    : {
+        ...layout,
+        ...(deltaX !== 0 && (includes(direction, "e") || includes(direction, "w"))
+          ? { width: serializeSize(Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width, geometry.parentWidthPx) }
+          : {}),
+        ...(deltaY !== 0 && (includes(direction, "n") || includes(direction, "s"))
+          ? { height: serializeSize(Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height, geometry.parentHeightPx) }
+          : {}),
+      };
+  const vertical = element.layout?.position === "absolute"
+    ? updateAxis(next, "vertical", direction, deltaY, geometry)
+    : next;
+  return { ...element, layout: vertical as ResizablePositionedLayout } as GalleryElement | EmbedElement | ScriptedElement;
 }

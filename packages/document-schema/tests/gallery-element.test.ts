@@ -138,6 +138,16 @@ describe("Gallery element schema", () => {
     }
   });
 
+  it("accepts the canonical surface envelope and rejects legacy aggregate fields", () => {
+    expect(GalleryElementSchema.safeParse(gallery({
+      layout: { width: "80%", height: 240, position: "absolute", top: 10, right: "5%", bottom: 20, left: 30 },
+      style: { background: { color: "#123456" }, borderRadius: 8, className: "gallery" },
+      effect: { opacity: 0.8 },
+    })).success).toBe(true);
+    expect(GalleryElementSchema.safeParse(gallery({ style: { width: 200 } })).success).toBe(false);
+    expect(GalleryElementSchema.safeParse(gallery({ layout: { overflow: "auto" } })).success).toBe(false);
+  });
+
   it("leaves existing ImageElement parsing unchanged", () => {
     const result = ImageElementSchema.safeParse({
       id: "image-1",

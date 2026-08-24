@@ -3,7 +3,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderStyle } from "./render-style";
+import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 
 // ============================================================
 // BEGIN: GALLERY CAROUSEL BEHAVIOR
@@ -53,8 +53,7 @@ export function renderGallery(
     "powershow-gallery",
   ];
 
-  const customClass =
-    element.style?.className?.trim();
+  const customClass = element.style?.className?.trim();
 
   if (customClass) {
     classes.push(customClass);
@@ -62,8 +61,7 @@ export function renderGallery(
 
   const styles: string[] = [];
 
-  const baseStyle =
-    renderStyle(element.style);
+  const baseStyle = renderCanonicalSurfaceStyle(element);
 
   if (baseStyle) {
     styles.push(baseStyle);

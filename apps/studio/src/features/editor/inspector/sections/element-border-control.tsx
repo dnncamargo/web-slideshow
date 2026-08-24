@@ -23,6 +23,8 @@ interface ElementBorderControlProps {
   onChange: (border: Border | undefined) => void;
 
   controlPrefix: string;
+
+  allowGradient?: boolean;
 }
 
 type EnabledBorderStyle = NonNullable<Border["style"]>;
@@ -69,12 +71,17 @@ export function ElementBorderControl({
   border,
   onChange,
   controlPrefix,
+  allowGradient = true,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
 
-  const paintSelection = getPaintSelection(border);
+  const paintSelection = allowGradient
+    ? getPaintSelection(border)
+    : border === undefined
+      ? "none"
+      : "color";
 
-  const gradientPaint = paintSelection === "gradient";
+  const gradientPaint = allowGradient && paintSelection === "gradient";
 
   return (
     <>
@@ -131,7 +138,7 @@ export function ElementBorderControl({
         </select>
       </label>
 
-      {border !== undefined && (
+      {allowGradient && border !== undefined && (
         <label className={styles.field}>
           <span title={t("inspector.borderPaintHelp")}>
             {t("inspector.borderPaint")}

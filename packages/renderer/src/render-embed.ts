@@ -3,7 +3,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderStyle } from "./render-style";
+import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 
 // ============================================================
 // BEGIN: EMBED SANDBOX
@@ -61,8 +61,7 @@ export function renderEmbed(
     "display:block",
   ];
 
-  const baseStyle =
-    renderStyle(element.style);
+  const baseStyle = renderCanonicalSurfaceStyle(element);
 
   if (baseStyle) {
     styles.push(baseStyle);

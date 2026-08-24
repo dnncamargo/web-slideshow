@@ -1,13 +1,13 @@
-import type { ContainerElement, ElementLayout, ImageElement, ImageLayout, TextElement, TextboxElement } from "@powershow/document-schema";
+import type { ContainerElement, ElementLayout, ImageElement, ImageLayout, ResizablePositionedLayout, TextElement, TextboxElement, GalleryElement, EmbedElement, ScriptedElement } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 import { shouldShowPlacementLayerControls, type ElementLayerControls } from "./element-placement-helpers";
 
 interface Props {
-  element: TextElement | TextboxElement | ImageElement;
+  element: TextElement | TextboxElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement;
   parent: ContainerElement | null;
-  onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | undefined) => ElementLayout | ImageLayout | undefined) => void;
+  onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | undefined) => void;
   layerControls: ElementLayerControls;
 }
 
@@ -15,7 +15,7 @@ function edgeValue(value: string | number | undefined): string | number {
   return value ?? "";
 }
 
-export function CanonicalTextPositionSection({ element, parent, onUpdateLayout, layerControls }: Props) {
+export function CanonicalElementPositionSection({ element, parent, onUpdateLayout, layerControls }: Props) {
   const { t } = useStudioI18n();
   const layout = element.layout;
   const isAbsolute = layout?.position === "absolute";
@@ -84,3 +84,5 @@ export function CanonicalTextPositionSection({ element, parent, onUpdateLayout, 
     </InspectorSection>
   );
 }
+
+export const CanonicalTextPositionSection = CanonicalElementPositionSection;

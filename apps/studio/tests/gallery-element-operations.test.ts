@@ -104,7 +104,7 @@ describe("Gallery element authoring", () => {
     const created = createElement("gallery", []);
 
     if (created.type === "gallery") {
-      expect(created.style?.width).toBe("60%");
+      expect(created.layout?.width).toBe("60%");
     }
   });
 
@@ -112,7 +112,7 @@ describe("Gallery element authoring", () => {
     const created = createElement("gallery", []);
 
     if (created.type === "gallery") {
-      expect(created.style?.height).toBe("55%");
+      expect(created.layout?.height).toBe("55%");
     }
   });
 
