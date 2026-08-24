@@ -24,6 +24,11 @@ import {
   isImageFocalPointResetAvailable,
   updateImageFocalPoint,
 } from "./sections/image-focal-point-helpers";
+import {
+  getEffectiveImageCrop,
+  isImageCropResetAvailable,
+  updateImageCropField,
+} from "./sections/image-crop-helpers";
 
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
@@ -78,6 +83,7 @@ export function ImageInspector({
     });
   };
   const focalPoint = getEffectiveImageFocalPoint(element.focalPoint);
+  const crop = getEffectiveImageCrop(element.crop);
   const activeFocalPreset = getImageFocalPointPresetIndex(focalPoint);
 
   return (
@@ -174,6 +180,69 @@ export function ImageInspector({
             <option value="fill">{t("image.fill")}</option>
           </select>
         </label>
+
+        <div className={styles.field}>
+          <span title={t("image.cropHelp")}>{t("image.crop")}</span>
+
+          <div className={styles.fieldGrid}>
+            {(["x", "y", "width", "height"] as const).map((field) => (
+              <label className={styles.field} key={field}>
+                <span>{field.toUpperCase()}</span>
+                <div className={styles.unitInput}>
+                  <input
+                    id={`image-crop-${field}`}
+                    name={`imageCrop${field[0]!.toUpperCase()}${field.slice(1)}`}
+                    type="number"
+                    min={field === "x" || field === "y" ? "0" : "1"}
+                    max="100"
+                    step="1"
+                    value={crop[field]}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+
+                      if (!Number.isFinite(value)) {
+                        return;
+                      }
+
+                      onUpdate((current) =>
+                        current.type === "image"
+                          ? {
+                              ...current,
+                              crop: updateImageCropField(
+                                current.crop,
+                                field,
+                                value,
+                              ),
+                            }
+                          : current,
+                      );
+                    }}
+                  />
+                  <span>%</span>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <small className={styles.fieldHint}>
+            <span>{t("image.cropHelp")}</span>
+          </small>
+
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            disabled={!isImageCropResetAvailable(element.crop)}
+            onClick={() => {
+              onUpdate((current) =>
+                current.type === "image"
+                  ? { ...current, crop: undefined }
+                  : current,
+              );
+            }}
+          >
+            {t("image.resetCrop")}
+          </button>
+        </div>
 
         <div className={styles.field}>
           <span title={t("image.focalPointHelp")}>{t("image.focalPoint")}</span>

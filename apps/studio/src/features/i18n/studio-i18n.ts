@@ -465,6 +465,9 @@ const englishMessages = {
   "image.focalPointHelp":
     "Controls which part of the image stays in focus when the image is fitted inside its box.",
   "image.resetFocalPoint": "Reset to center",
+  "image.crop": "Crop",
+  "image.cropHelp": "Define the visible source area as percentages.",
+  "image.resetCrop": "Reset crop",
   "image.editFocalPointOnCanvas": "Edit on Canvas",
   "image.doneFocalPoint": "Done",
   "image.preserveProportion": "Preserve proportion",
@@ -1178,6 +1181,9 @@ const portugueseMessages = {
   "image.focalPointHelp":
     "Controla qual parte da imagem permanece em destaque ao ajustá-la dentro da caixa.",
   "image.resetFocalPoint": "Redefinir ao centro",
+  "image.crop": "Recorte",
+  "image.cropHelp": "Defina a área visível da origem em porcentagens.",
+  "image.resetCrop": "Redefinir recorte",
   "image.editFocalPointOnCanvas": "Editar no Canvas",
   "image.doneFocalPoint": "Concluir",
   "image.preserveProportion": "Preservar proporção",
