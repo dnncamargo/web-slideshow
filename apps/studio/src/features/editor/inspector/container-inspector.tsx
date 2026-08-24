@@ -7,6 +7,10 @@ import styles from "../editor-workspace.module.css";
 
 import { ContainerLayoutSection } from "./sections/container-layout-section";
 
+import { ContainerAppearanceSection } from "./sections/container-appearance-section";
+
+import { ContainerEffectsSection } from "./sections/container-effects-section";
+
 import { ContainerSizeSection } from "./sections/container-size-section";
 
 import { ContainerSpacingSection } from "./sections/container-spacing-section";
@@ -48,6 +52,10 @@ export function ContainerInspector({
       <ContainerSizeSection element={element} onUpdate={updateContainer} />
 
       <ContainerSpacingSection element={element} onUpdate={updateContainer} />
+
+      <ContainerAppearanceSection element={element} onUpdate={updateContainer} />
+
+      <ContainerEffectsSection element={element} onUpdate={updateContainer} />
 
       <ElementInteractionSection
         element={element}

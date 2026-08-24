@@ -685,8 +685,8 @@ describe("Gradient Border authoring", () => {
 
     await act(async () => changeSelect(gradientSelect!, "linear"));
 
-    expect(state.style?.backgroundGradient).toEqual(DEFAULT_BORDER_GRADIENT);
-    expect(state.style?.backgroundPattern).toBeUndefined();
+    expect(state.style?.background?.gradient).toEqual(DEFAULT_BORDER_GRADIENT);
+    expect(state.style?.background?.pattern).toBeUndefined();
   });
 
   it("29. Background Gradient still clears backgroundPattern", async () => {
@@ -694,9 +694,11 @@ describe("Gradient Border authoring", () => {
       mount(
         containerElement({
           style: {
-            backgroundGradient: {
-              type: "linear",
-              stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+            background: {
+              gradient: {
+                type: "linear",
+                stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+              },
             },
           },
         }),
@@ -716,15 +718,15 @@ describe("Gradient Border authoring", () => {
       ),
     );
 
-    expect(state.style?.backgroundPattern).toBeUndefined();
-    expect(state.style?.backgroundGradient).toBeDefined();
+    expect(state.style?.background?.pattern).toBeDefined();
+    expect(state.style?.background?.gradient).toBeDefined();
   });
 
   it("30. Pattern authoring still clears backgroundGradient", async () => {
     await act(async () =>
       mount(
         containerElement({
-          style: { backgroundPattern: { image: "linear-gradient(#000, #fff)" } },
+          style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } } },
         }),
       ),
     );
@@ -736,7 +738,7 @@ describe("Gradient Border authoring", () => {
       ),
     );
 
-    expect(state.style?.backgroundGradient).toBeUndefined();
-    expect(state.style?.backgroundPattern).toBeDefined();
+    expect(state.style?.background?.gradient).toBeUndefined();
+    expect(state.style?.background?.pattern).toBeDefined();
   });
 });

@@ -264,7 +264,12 @@ export function ElementAppearanceSection({
       {showBorder && (
         <ElementBorderControl
           border={style?.border}
-          onUpdateStyle={onUpdateStyle}
+          onChange={(border) => {
+            onUpdateStyle((currentStyle) => ({
+              ...currentStyle,
+              border,
+            }));
+          }}
           controlPrefix={controlPrefix}
         />
       )}
