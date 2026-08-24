@@ -23,7 +23,10 @@ import { PresentationSchema } from "@powershow/document-schema";
 
 const reader = new FirestorePublishedPresentationReader();
 
-function versionData(presentation: unknown, overrides: Record<string, unknown> = {}) {
+function versionData(
+  presentation: unknown,
+  overrides: Record<string, unknown> = {},
+) {
   return {
     presentation,
     publishedRevision: 3,
@@ -138,28 +141,131 @@ describe("published presentation reader", () => {
     expect(result).toEqual(presentation);
   });
 
+  it("returns a canonical Container unchanged from a published version", async () => {
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      slides: [
+        {
+          id: "slide-canonical-container",
+          title: "",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "container-reader",
+              type: "container",
+              hidden: false,
+              layout: {
+                width: "75%",
+                position: "absolute",
+                top: 10,
+                right: 20,
+                children: {
+                  mode: "stack",
+                  direction: "row",
+                },
+              },
+              style: {
+                background: {
+                  color: "#112233",
+                },
+              },
+              effect: {
+                opacity: 0.8,
+              },
+              children: [
+                {
+                  id: "reader-text",
+                  type: "text",
+                  hidden: false,
+                  variant: "body",
+                  content: "Canonical reader child",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    mocks.getDoc.mockResolvedValue(snapshot(true, versionData(presentation)));
+
+    const result = await reader.getVersion(
+      "publication-1",
+      "version-canonical",
+    );
+
+    expect(result).not.toBeNull();
+
+    const container = result?.slides[0]?.elements[0];
+
+    expect(container).toEqual(presentation.slides[0]?.elements[0]);
+
+    expect(container).toMatchObject({
+      id: "container-reader",
+      type: "container",
+      layout: {
+        width: "75%",
+        position: "absolute",
+        top: 10,
+        right: 20,
+        children: {
+          mode: "stack",
+          direction: "row",
+        },
+      },
+      style: {
+        background: {
+          color: "#112233",
+        },
+      },
+      effect: {
+        opacity: 0.8,
+      },
+    });
+
+    expect(container).not.toHaveProperty("direction");
+    expect(container).not.toHaveProperty("layoutMode");
+    expect(container).not.toHaveProperty("style.width");
+    expect(container).not.toHaveProperty("style.position");
+    expect(container).not.toHaveProperty("style.opacity");
+    expect(container).not.toHaveProperty("style.placement");
+
+    expect(mocks.doc).toHaveBeenCalledWith(
+      expect.anything(),
+      "publishedPresentations",
+      "publication-1",
+      "versions",
+      "version-canonical",
+    );
+  });
+
   it("returns Scripted source and authored style exactly from a valid published version", async () => {
-    const html = '<article>\n  <em>reader exact</em>\n</article>\n';
+    const html = "<article>\n  <em>reader exact</em>\n</article>\n";
     const css = ".reader {\n  letter-spacing:  0.1em;\n}\n";
     const script = 'const readerValue = "  exact  ";\nvoid readerValue;\n';
     const presentation = PresentationSchema.parse({
       ...createBlankPresentation("pres-1"),
-      slides: [{
-        id: "slide-scripted",
-        title: "",
-        summary: "",
-        speakerNotes: "",
-        elements: [{
-          id: "scripted-reader",
-          type: "scripted",
-          hidden: false,
-          title: "Reader exact source",
-          html,
-          css,
-          script,
-          style: { width: "68%", height: "52%", opacity: 0.9 },
-        }],
-      }],
+      slides: [
+        {
+          id: "slide-scripted",
+          title: "",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "scripted-reader",
+              type: "scripted",
+              hidden: false,
+              title: "Reader exact source",
+              html,
+              css,
+              script,
+              style: { width: "68%", height: "52%", opacity: 0.9 },
+            },
+          ],
+        },
+      ],
     });
     mocks.getDoc.mockResolvedValue(snapshot(true, versionData(presentation)));
 

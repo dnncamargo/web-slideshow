@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PresentationSchema } from "@powershow/document-schema";
 
 import {
   mountPlayer,
@@ -311,6 +312,62 @@ describe("PowerShow Player", () => {
     ).toHaveLength(1);
     expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
   });
+
+  it("mounts and renders a canonical Container presentation", () => {
+    player.destroy();
+
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "canonical-container-player",
+      title: "Canonical Container",
+      description: "",
+      aspectRatio: "16:9",
+      slides: [
+        {
+          id: "slide-container",
+          title: "",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "container-rendered",
+              type: "container",
+              hidden: false,
+              layout: {
+                width: "80%",
+                padding: 16,
+                children: {
+                  direction: "column",
+                  gap: 12,
+                },
+              },
+              style: {
+                background: {
+                  color: "#123456",
+                },
+                borderRadius: 8,
+              },
+              effect: {
+                opacity: 0.75,
+              },
+              children: [
+                {
+                  id: "canonical-text",
+                  type: "text",
+                  hidden: false,
+                  variant: "body",
+                  content: "Canonical Player Container",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    player = mountPlayer(root, presentation);
+  });
+
   it("plays normalized Google-imported faces without stylesheet/provider state", () => {
     player.destroy();
 
@@ -598,232 +655,164 @@ describe("PowerShow Player", () => {
   // END: TESTES DE POSIÇÃO DOS CONTROLES
   // ============================================================
   // ============================================================
-// BEGIN: TESTES DE VISIBILIDADE DO CONTADOR
-// ============================================================
+  // BEGIN: TESTES DE VISIBILIDADE DO CONTADOR
+  // ============================================================
 
-it("shows the slide counter by default", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-  );
+  it("shows the slide counter by default", () => {
+    const player = mountPlayer(root, playerTestPresentation);
 
-  const counter =
-    root.querySelector<HTMLOutputElement>(
+    const counter = root.querySelector<HTMLOutputElement>(
       ".powershow-player-counter",
     );
 
-  expect(counter).not.toBeNull();
+    expect(counter).not.toBeNull();
 
-  // O comportamento padrão deve continuar mostrando
-  // o contador.
-  expect(counter?.hidden).toBe(false);
+    // O comportamento padrão deve continuar mostrando
+    // o contador.
+    expect(counter?.hidden).toBe(false);
 
-  expect(counter?.value).toBe(
-    "1 / 3",
-  );
+    expect(counter?.value).toBe("1 / 3");
 
-  player.destroy();
-});
+    player.destroy();
+  });
 
-
-it("can hide the slide counter", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-    {
+  it("can hide the slide counter", () => {
+    const player = mountPlayer(root, playerTestPresentation, {
       controls: {
         showCounter: false,
       },
-    },
-  );
+    });
 
-  const counter =
-    root.querySelector<HTMLOutputElement>(
+    const counter = root.querySelector<HTMLOutputElement>(
       ".powershow-player-counter",
     );
 
-  expect(counter).not.toBeNull();
+    expect(counter).not.toBeNull();
 
-  // O elemento continua existindo estruturalmente,
-  // mas não é exibido.
-  expect(counter?.hidden).toBe(true);
+    // O elemento continua existindo estruturalmente,
+    // mas não é exibido.
+    expect(counter?.hidden).toBe(true);
 
-  player.destroy();
-});
+    player.destroy();
+  });
 
-// ============================================================
-// END: TESTES DE VISIBILIDADE DO CONTADOR
-// ============================================================
+  // ============================================================
+  // END: TESTES DE VISIBILIDADE DO CONTADOR
+  // ============================================================
 
-// ============================================================
-// BEGIN: TESTES DAS VARIANTES VISUAIS DOS CONTROLES
-// ============================================================
+  // ============================================================
+  // BEGIN: TESTES DAS VARIANTES VISUAIS DOS CONTROLES
+  // ============================================================
 
-it("uses floating controls by default", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-  );
+  it("uses floating controls by default", () => {
+    const player = mountPlayer(root, playerTestPresentation);
 
-  const controls =
-    root.querySelector(
-      ".powershow-player-controls",
-    );
+    const controls = root.querySelector(".powershow-player-controls");
 
-  expect(controls).not.toBeNull();
+    expect(controls).not.toBeNull();
 
-  expect(
-    controls?.classList.contains(
-      "powershow-player-controls-floating",
-    ),
-  ).toBe(true);
+    expect(
+      controls?.classList.contains("powershow-player-controls-floating"),
+    ).toBe(true);
 
-  player.destroy();
-});
+    player.destroy();
+  });
 
-
-it("supports minimal controls", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-    {
+  it("supports minimal controls", () => {
+    const player = mountPlayer(root, playerTestPresentation, {
       controls: {
         style: "minimal",
       },
-    },
-  );
+    });
 
-  const controls =
-    root.querySelector(
-      ".powershow-player-controls",
-    );
+    const controls = root.querySelector(".powershow-player-controls");
 
-  expect(controls).not.toBeNull();
+    expect(controls).not.toBeNull();
 
-  expect(
-    controls?.classList.contains(
-      "powershow-player-controls-minimal",
-    ),
-  ).toBe(true);
+    expect(
+      controls?.classList.contains("powershow-player-controls-minimal"),
+    ).toBe(true);
 
-  player.destroy();
-});
+    player.destroy();
+  });
 
-
-it("supports compact controls", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-    {
+  it("supports compact controls", () => {
+    const player = mountPlayer(root, playerTestPresentation, {
       controls: {
         style: "compact",
       },
-    },
-  );
+    });
 
-  const controls =
-    root.querySelector(
-      ".powershow-player-controls",
+    const controls = root.querySelector(".powershow-player-controls");
+
+    expect(controls).not.toBeNull();
+
+    expect(
+      controls?.classList.contains("powershow-player-controls-compact"),
+    ).toBe(true);
+
+    player.destroy();
+  });
+
+  // ============================================================
+  // END: TESTES DAS VARIANTES VISUAIS DOS CONTROLES
+  // ============================================================
+
+  // ============================================================
+  // BEGIN: TESTES DE ANIMAÇÃO DOS CONTROLES
+  // ============================================================
+
+  it("uses fade controls animation by default", () => {
+    const player = mountPlayer(root, playerTestPresentation);
+
+    const controls = root.querySelector(".powershow-player-controls");
+
+    expect(controls).not.toBeNull();
+
+    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+      true,
     );
 
-  expect(controls).not.toBeNull();
+    player.destroy();
+  });
 
-  expect(
-    controls?.classList.contains(
-      "powershow-player-controls-compact",
-    ),
-  ).toBe(true);
-
-  player.destroy();
-});
-
-// ============================================================
-// END: TESTES DAS VARIANTES VISUAIS DOS CONTROLES
-// ============================================================
-
-// ============================================================
-// BEGIN: TESTES DE ANIMAÇÃO DOS CONTROLES
-// ============================================================
-
-it("uses fade controls animation by default", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-  );
-
-  const controls =
-    root.querySelector(
-      ".powershow-player-controls",
-    );
-
-  expect(controls).not.toBeNull();
-
-  expect(
-    controls?.classList.contains(
-      "powershow-player-controls-fade",
-    ),
-  ).toBe(true);
-
-  player.destroy();
-});
-
-
-it("supports slide controls animation", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-    {
+  it("supports slide controls animation", () => {
+    const player = mountPlayer(root, playerTestPresentation, {
       controls: {
         animation: "slide",
       },
-    },
-  );
+    });
 
-  const controls =
-    root.querySelector(
-      ".powershow-player-controls",
-    );
+    const controls = root.querySelector(".powershow-player-controls");
 
-  expect(controls).not.toBeNull();
+    expect(controls).not.toBeNull();
 
-  expect(
-    controls?.classList.contains(
-      "powershow-player-controls-slide",
-    ),
-  ).toBe(true);
+    expect(
+      controls?.classList.contains("powershow-player-controls-slide"),
+    ).toBe(true);
 
-  player.destroy();
-});
+    player.destroy();
+  });
 
-
-it("supports controls without animation", () => {
-  const player = mountPlayer(
-    root,
-    playerTestPresentation,
-    {
+  it("supports controls without animation", () => {
+    const player = mountPlayer(root, playerTestPresentation, {
       controls: {
         animation: "none",
       },
-    },
-  );
+    });
 
-  const controls =
-    root.querySelector(
-      ".powershow-player-controls",
+    const controls = root.querySelector(".powershow-player-controls");
+
+    expect(controls).not.toBeNull();
+
+    expect(controls?.classList.contains("powershow-player-controls-none")).toBe(
+      true,
     );
 
-  expect(controls).not.toBeNull();
+    player.destroy();
+  });
 
-  expect(
-    controls?.classList.contains(
-      "powershow-player-controls-none",
-    ),
-  ).toBe(true);
-
-  player.destroy();
-});
-
-// ============================================================
-// END: TESTES DE ANIMAÇÃO DOS CONTROLES
-// ============================================================
+  // ============================================================
+  // END: TESTES DE ANIMAÇÃO DOS CONTROLES
+  // ============================================================
 });
