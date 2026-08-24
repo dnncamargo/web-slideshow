@@ -1,4 +1,8 @@
-import type { ElementStyle, PowerShowElement } from "@powershow/document-schema";
+import type {
+  ElementEffect,
+  ImageVisualStyle,
+  PowerShowElement,
+} from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,16 +12,11 @@ import { InspectorSection } from "./inspector-section";
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 
-import type {
-  TypedInspectorProps,
-  UpdateElementStyle,
-} from "./inspector-types";
-
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import type { TypedInspectorProps } from "./inspector-types";
 
 import { ImageSizeSection } from "./sections/image-size-section";
+import { CanonicalImageAppearanceSection } from "./sections/canonical-image-appearance-section";
+import { CanonicalImageEffectsSection } from "./sections/canonical-image-effects-section";
 import {
   getEffectiveImageFocalPoint,
   getImageFocalPointPresetIndex,
@@ -59,39 +58,23 @@ export function ImageInspector({
 }) {
   const { t } = useStudioI18n();
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (
+    update: (style: ImageVisualStyle | undefined) => ImageVisualStyle,
+  ) => {
     onUpdate((current) => {
       if (current.type !== "image") {
         return current;
       }
-
-      const next = update({
-        ...current.style,
-        opacity: current.effect?.opacity,
-      });
-
-      return {
-        ...current,
-        style: {
-          border: next.border,
-          borderRadius: next.borderRadius,
-          className: next.className,
-        },
-        effect: {
-          ...current.effect,
-          ...(next.opacity === undefined
-            ? { opacity: undefined }
-            : { opacity: next.opacity }),
-        },
-      };
+      return { ...current, style: update(current.style) };
     });
   };
 
-  const updateEffect: UpdateElementStyle = (update) => {
+  const updateEffect = (
+    update: (effect: ElementEffect | undefined) => ElementEffect,
+  ) => {
     onUpdate((current) => {
       if (current.type !== "image") return current;
-      const next = update(current.effect as ElementStyle | undefined);
-      return { ...current, effect: { opacity: next.opacity, shadow: next.shadow } };
+      return { ...current, effect: update(current.effect) };
     });
   };
   const focalPoint = getEffectiveImageFocalPoint(element.focalPoint);
@@ -303,22 +286,16 @@ export function ImageInspector({
          onPreserveImageProportionChange={onPreserveImageProportionChange}
        />
 
-      <ElementAppearanceSection
-        element={{
-          ...element,
-          style: { ...element.style, opacity: element.effect?.opacity },
-        } as never}
+      <CanonicalImageAppearanceSection
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
-        controlPrefix="image"
-        showRoundedCorners
-        showOpacity
-        showBorder
+        onUpdateEffect={updateEffect}
       />
 
-      <ElementEffectsSection
-        style={element.effect as ElementStyle | undefined}
-        onUpdateStyle={updateEffect}
-        controlPrefix="image"
+      <CanonicalImageEffectsSection
+        effect={element.effect}
+        onUpdateEffect={updateEffect}
       />
     </>
   );

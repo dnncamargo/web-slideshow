@@ -1160,6 +1160,59 @@ describe("shared Interaction control in inspectors", () => {
     expect(targetSelect(container, "image")).toBeDefined();
   });
 
+  it("ImageInspector writes canonical style, layout, and effect responsibilities", async () => {
+    const initial = imageElement();
+    let updated: ImageElement = initial;
+
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <ImageInspector
+            element={initial}
+            onUpdate={(update) => {
+              const next = update(initial);
+              if (next.type === "image") updated = next;
+            }}
+            preserveImageProportion={false}
+            onPreserveImageProportionChange={() => {}}
+            focalEditing={false}
+            onFocalEditingChange={() => {}}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>("#image-width")!, "60");
+    });
+    expect(updated.layout?.width).toBe("60%");
+    expect(updated.style ?? {}).not.toHaveProperty("width");
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>("#image-height")!, "240");
+    });
+    expect(updated.layout?.height).toBe(240);
+    expect(updated.style ?? {}).not.toHaveProperty("height");
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>("#image-border-radius")!, "8");
+    });
+    expect(updated.style?.borderRadius).toBe(8);
+    expect(updated.style ?? {}).not.toHaveProperty("opacity");
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>("#image-opacity")!, "80");
+    });
+    expect(updated.effect?.opacity).toBe(0.8);
+    expect(updated.style ?? {}).not.toHaveProperty("opacity");
+
+    await act(async () => {
+      changeSelect(container.querySelector<HTMLSelectElement>("#image-shadow-mode")!, "outer");
+    });
+    expect(updated.effect?.shadow).toBeDefined();
+    expect(updated.style ?? {}).not.toHaveProperty("shadow");
+  });
+
   it("ContainerInspector renders the same Interaction section", async () => {
     await act(async () => {
       root.render(

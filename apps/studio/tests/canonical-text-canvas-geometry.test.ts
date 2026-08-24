@@ -8,6 +8,7 @@ import {
   updateTextboxForCanvasResize,
   type CanonicalTextCanvasGeometry,
 } from "../src/features/editor/canonical-text-canvas-geometry";
+import { resolveProportionalResize } from "../src/features/editor/canvas-resize-helpers";
 
 const geometry: CanonicalTextCanvasGeometry = {
   parentWidthPx: 400,
@@ -128,6 +129,65 @@ describe("canonical Image canvas geometry", () => {
     const absolute = updateImageForCanvasResize(image({ position: "absolute", left: 20, top: 30, width: 100, height: 80 }), "nw", -10, -20, geometry);
     expect(absolute.layout).toMatchObject({ left: 10, top: 10, width: 210, height: 170 });
     expect(absolute.layout).not.toHaveProperty("placement");
+  });
+
+  it("applies both resolved dimensions for vertical-only proportional Flow movement", () => {
+    const result = updateImageForCanvasResize(
+      image({ width: 200, height: 150 }),
+      "se",
+      0,
+      30,
+      geometry,
+      resolveProportionalResize("se", 0, 30, 200, 150),
+    );
+
+    expect(result.layout).toMatchObject({ width: 240, height: 180 });
+    expect(result.layout).not.toHaveProperty("position");
+    expect(result.layout).not.toHaveProperty("left");
+    expect(result.layout).not.toHaveProperty("top");
+  });
+
+  it("applies both resolved dimensions for horizontal-only proportional Flow movement", () => {
+    const result = updateImageForCanvasResize(
+      image({ width: 200, height: 150 }),
+      "se",
+      40,
+      0,
+      geometry,
+      resolveProportionalResize("se", 40, 0, 200, 150),
+    );
+
+    expect(result.layout).toMatchObject({ width: 240, height: 180 });
+  });
+
+  it("preserves percentage units independently for proportional Flow dimensions", () => {
+    const result = updateImageForCanvasResize(
+      image({ width: "50%", height: "50%" }),
+      "se",
+      0,
+      30,
+      geometry,
+      { width: 240, height: 180 },
+    );
+
+    expect(result.layout).toMatchObject({ width: "60%", height: "60%" });
+  });
+
+  it("applies both resolved dimensions to absolute proportional resizing", () => {
+    const result = updateImageForCanvasResize(
+      image({ position: "absolute", left: 20, top: 30, width: 200, height: 150 }),
+      "se",
+      0,
+      30,
+      geometry,
+      { width: 240, height: 180 },
+    );
+
+    expect(result.layout).toMatchObject({ left: 20, top: 30, width: 240, height: 180 });
+    expect(result.layout).not.toHaveProperty("placement");
+    expect(result.layout).not.toHaveProperty("anchor");
+    expect(result.layout).not.toHaveProperty("offsetX");
+    expect(result.layout).not.toHaveProperty("offsetY");
   });
 
   it("clamps Image resize to one logical px", () => {

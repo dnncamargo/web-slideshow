@@ -174,11 +174,16 @@ export function updateImageForCanvasResize(
   const layout = (element.layout ?? {}) as ElementLayout;
   if (element.layout?.position !== "absolute") {
     const next = { ...layout };
-    if (deltaX !== 0 && (includes(direction, "e") || includes(direction, "w"))) {
-      next.width = serializeSize(proportionalSize?.width ?? Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width, geometry.parentWidthPx);
-    }
-    if (deltaY !== 0 && (includes(direction, "n") || includes(direction, "s"))) {
-      next.height = serializeSize(proportionalSize?.height ?? Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height, geometry.parentHeightPx);
+    if (proportionalSize) {
+      next.width = serializeSize(proportionalSize.width, layout.width, geometry.parentWidthPx);
+      next.height = serializeSize(proportionalSize.height, layout.height, geometry.parentHeightPx);
+    } else {
+      if (deltaX !== 0 && (includes(direction, "e") || includes(direction, "w"))) {
+        next.width = serializeSize(Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width, geometry.parentWidthPx);
+      }
+      if (deltaY !== 0 && (includes(direction, "n") || includes(direction, "s"))) {
+        next.height = serializeSize(Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height, geometry.parentHeightPx);
+      }
     }
     return { ...element, layout: next } as ImageElement;
   }
