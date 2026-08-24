@@ -48,6 +48,10 @@ interface ElementInspectorProps {
 
   onFocalEditingImageIdChange: (id: string | null) => void;
 
+  cropEditingImageId?: string | null;
+
+  onCropEditingImageIdChange?: (id: string | null) => void;
+
   parent: ContainerElement | null;
 
   layerControls: {
@@ -79,6 +83,8 @@ function ElementTypeInspector({
   onPreserveImageProportionChange,
   focalEditingImageId,
   onFocalEditingImageIdChange,
+  cropEditingImageId,
+  onCropEditingImageIdChange,
   unsupportedElementHint,
   parent,
   layerControls,
@@ -132,7 +138,13 @@ function ElementTypeInspector({
           onPreserveImageProportionChange={onPreserveImageProportionChange}
           focalEditing={focalEditingImageId === element.id}
           onFocalEditingChange={(editing) => {
+            if (editing) onCropEditingImageIdChange?.(null);
             onFocalEditingImageIdChange(editing ? element.id : null);
+          }}
+          cropEditing={cropEditingImageId === element.id}
+          onCropEditingChange={(editing) => {
+            if (editing) onFocalEditingImageIdChange(null);
+            onCropEditingImageIdChange?.(editing ? element.id : null);
           }}
         />
       );
@@ -211,6 +223,8 @@ export function ElementInspector({
   onPreserveImageProportionChange,
   focalEditingImageId,
   onFocalEditingImageIdChange,
+  cropEditingImageId = null,
+  onCropEditingImageIdChange = () => {},
   parent,
   layerControls,
   topicsAuthoringControls,
@@ -251,6 +265,8 @@ export function ElementInspector({
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditingImageId={focalEditingImageId}
         onFocalEditingImageIdChange={onFocalEditingImageIdChange}
+        cropEditingImageId={cropEditingImageId}
+        onCropEditingImageIdChange={onCropEditingImageIdChange}
         parent={parent}
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}

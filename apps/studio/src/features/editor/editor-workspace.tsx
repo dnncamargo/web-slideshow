@@ -66,6 +66,16 @@ import {
   type ImageFocalPoint,
 } from "./inspector/sections/image-focal-point-helpers";
 import {
+  moveCrop,
+  normalizeCropCanvasValue,
+  resolveCropCanvasRect,
+  resolveSourcePreviewBounds,
+  updateCropFromHandle,
+  type CropCanvasBounds,
+  type CropCanvasHandle,
+} from "./crop-canvas-geometry";
+import { getEffectiveImageCrop } from "./inspector/sections/image-crop-helpers";
+import {
   buildCanvasSnapCandidates,
   resolveCanvasAxisSnap,
   type CanvasBounds,
@@ -304,6 +314,22 @@ interface CanvasFocalDragState {
   bounds: CanvasFocalOverlay;
 }
 
+interface CanvasCropOverlay extends CropCanvasBounds {
+  elementId: string;
+  source: string;
+  crop: CropCanvasBounds;
+}
+
+interface CanvasCropDragState {
+  pointerId: number;
+  imageId: string;
+  operation: "move" | CropCanvasHandle;
+  startClientX: number;
+  startClientY: number;
+  initialCrop: NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]>;
+  previewBounds: CropCanvasBounds;
+}
+
 const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
   "nw",
   "n",
@@ -401,6 +427,9 @@ export function EditorWorkspace({
   const [focalEditingImageId, setFocalEditingImageId] = useState<string | null>(
     null,
   );
+  const [cropEditingImageId, setCropEditingImageId] = useState<string | null>(
+    null,
+  );
 
   // ==========================================================
   // END: SELEÇÃO
@@ -444,6 +473,7 @@ export function EditorWorkspace({
   const canvasDragRef = useRef<CanvasDragState | null>(null);
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
   const canvasFocalDragRef = useRef<CanvasFocalDragState | null>(null);
+  const canvasCropDragRef = useRef<CanvasCropDragState | null>(null);
   const [canvasResizeOverlay, setCanvasResizeOverlay] =
     useState<CanvasResizeOverlay | null>(null);
   const [canvasGuides, setCanvasGuides] = useState<CanvasSnapGuide[]>([]);
@@ -453,6 +483,24 @@ export function EditorWorkspace({
     useState<CanvasFocalOverlay | null>(null);
   const [canvasFocalPreview, setCanvasFocalPreview] =
     useState<ImageFocalPoint | null>(null);
+  const [canvasCropOverlay, setCanvasCropOverlay] =
+    useState<CanvasCropOverlay | null>(null);
+  const [canvasCropPreview, setCanvasCropPreview] = useState<
+    NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]> | null
+  >(null);
+  const [cropSourceSize, setCropSourceSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [cropMeasureVersion, setCropMeasureVersion] = useState(0);
+
+  function setCropEditingMode(id: string | null) {
+    if (id === null) {
+      canvasCropDragRef.current = null;
+      setCanvasCropPreview(null);
+    }
+    setCropEditingImageId(id);
+  }
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -725,8 +773,63 @@ export function EditorWorkspace({
   }, [focalEditingImageId, renderedSlide, selectedDocumentElement]);
 
   useEffect(() => {
+    if (
+      !cropEditingImageId ||
+      selectedDocumentElement?.type !== "image" ||
+      selectedDocumentElement.id !== cropEditingImageId
+    ) {
+      setCanvasCropOverlay(null);
+      setCanvasCropPreview(null);
+      setCropSourceSize(null);
+      if (cropEditingImageId) setCropEditingMode(null);
+      return;
+    }
+
+    const canvas = slideCanvasRef.current;
+    const target = canvas
+      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
+          .find((candidate) => candidate.dataset.powershowId === cropEditingImageId)
+      : undefined;
+    const preview = cropSourceSize && target
+      ? resolveSourcePreviewBounds(
+          getCanvasBounds(target),
+          cropSourceSize.width,
+          cropSourceSize.height,
+        )
+      : null;
+
+    if (!preview) {
+      setCanvasCropOverlay(null);
+      return;
+    }
+
+    const crop = canvasCropPreview ?? getEffectiveImageCrop(selectedDocumentElement.crop);
+    setCanvasCropOverlay({
+      ...preview,
+      elementId: cropEditingImageId,
+      source: selectedDocumentElement.src,
+      crop: resolveCropCanvasRect(preview, crop),
+    });
+  }, [cropEditingImageId, cropSourceSize, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
+
+  useEffect(() => {
+    if (!cropEditingImageId) return;
+    const handleResize = () => {
+      setCropMeasureVersion((current) => current + 1);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [cropEditingImageId]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (canvasCropDragRef.current) {
+          canvasCropDragRef.current = null;
+          setCanvasCropPreview(null);
+        }
+        setCanvasCropOverlay(null);
+        setCropEditingMode(null);
         setFocalEditingImageId(null);
         setCanvasFocalPreview(null);
       }
@@ -951,6 +1054,9 @@ export function EditorWorkspace({
   }
 
   function handleCanvasPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (cropEditingImageId) {
+      return;
+    }
     const target = event.target;
 
     if (!(target instanceof Element) || !selectedSlide) {
@@ -1246,6 +1352,82 @@ export function EditorWorkspace({
     }
   }
 
+  function handleCropPointerDown(
+    event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>,
+    operation: "move" | CropCanvasHandle,
+  ) {
+    const overlay = canvasCropOverlay;
+    const image = selectedDocumentElement;
+    if (!overlay || !image || image.type !== "image" || !cropEditingImageId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    canvasCropDragRef.current = {
+      pointerId: event.pointerId,
+      imageId: image.id,
+      operation,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      initialCrop: getEffectiveImageCrop(image.crop),
+      previewBounds: overlay,
+    };
+  }
+
+  function handleCropPointerMove(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
+    const drag = canvasCropDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const deltaX = event.clientX - drag.startClientX;
+    const deltaY = event.clientY - drag.startClientY;
+    setCanvasCropPreview(
+      drag.operation === "move"
+        ? moveCrop(drag.initialCrop, deltaX, deltaY, drag.previewBounds)
+        : updateCropFromHandle(
+            drag.initialCrop,
+            drag.operation,
+            deltaX,
+            deltaY,
+            drag.previewBounds,
+          ),
+    );
+  }
+
+  function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, imageId: string) {
+    const normalized = normalizeCropCanvasValue(crop);
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: updateElementById(slide.elements, imageId, (element) =>
+                element.type === "image" ? { ...element, crop: normalized } : element,
+              ),
+            }
+          : slide,
+      ),
+    }));
+  }
+
+  function handleCropPointerUp(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
+    const drag = canvasCropDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const crop = canvasCropPreview ?? drag.initialCrop;
+    canvasCropDragRef.current = null;
+    setCanvasCropPreview(null);
+    commitCanvasCrop(crop, drag.imageId);
+  }
+
+  function handleCropPointerCancel(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
+    if (canvasCropDragRef.current?.pointerId !== event.pointerId) return;
+    canvasCropDragRef.current = null;
+    setCanvasCropPreview(null);
+  }
+
   // ==========================================================
   // BEGIN: LINK ACTIVATION SUPPRESSION
   //
@@ -1282,7 +1464,7 @@ export function EditorWorkspace({
     event: ReactPointerEvent<HTMLButtonElement>,
     direction: CanvasResizeDirection,
   ) {
-    if (!selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+    if (cropEditingImageId || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
       return;
     }
 
@@ -3139,7 +3321,67 @@ export function EditorWorkspace({
                 __html: renderedSlide,
               }}
             />
-            {canvasResizeOverlay && (
+            {cropEditingImageId && selectedDocumentElement?.type === "image" && (
+              <div
+                className={styles.canvasCropSourcePreview}
+                style={{
+                  left: `${canvasCropOverlay?.left ?? 0}px`,
+                  top: `${canvasCropOverlay?.top ?? 0}px`,
+                  width: `${canvasCropOverlay?.width ?? 0}px`,
+                  height: `${canvasCropOverlay?.height ?? 0}px`,
+                }}
+              >
+                <img
+                  className={styles.canvasCropSourceImage}
+                  src={selectedDocumentElement.src}
+                  alt=""
+                  draggable={false}
+                  onLoad={(event) => {
+                    const image = event.currentTarget;
+                    setCropSourceSize({
+                      width: image.naturalWidth,
+                      height: image.naturalHeight,
+                    });
+                  }}
+                  onError={() => setCropSourceSize(null)}
+                />
+                {canvasCropOverlay && (
+                  <>
+                    <div className={styles.canvasCropMaskTop} style={{ height: `${Math.max(0, canvasCropOverlay.crop.top - canvasCropOverlay.top)}px` }} />
+                    <div className={styles.canvasCropMaskLeft} style={{ left: 0, top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top}px`, width: `${Math.max(0, canvasCropOverlay.crop.left - canvasCropOverlay.left)}px`, height: `${canvasCropOverlay.crop.height}px` }} />
+                    <div className={styles.canvasCropMaskRight} style={{ left: `${canvasCropOverlay.crop.left - canvasCropOverlay.left + canvasCropOverlay.crop.width}px`, top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top}px`, right: 0, height: `${canvasCropOverlay.crop.height}px` }} />
+                    <div className={styles.canvasCropMaskBottom} style={{ top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top + canvasCropOverlay.crop.height}px`, left: 0, right: 0, bottom: 0 }} />
+                    <div
+                      className={styles.canvasCropSelection}
+                      style={{ left: `${canvasCropOverlay.crop.left - canvasCropOverlay.left}px`, top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top}px`, width: `${canvasCropOverlay.crop.width}px`, height: `${canvasCropOverlay.crop.height}px` }}
+                    >
+                      <div
+                        className={styles.canvasCropMoveSurface}
+                        onPointerDown={(event) => handleCropPointerDown(event, "move")}
+                        onPointerMove={handleCropPointerMove}
+                        onPointerUp={handleCropPointerUp}
+                        onPointerCancel={handleCropPointerCancel}
+                        onLostPointerCapture={handleCropPointerCancel}
+                      />
+                      {(["n", "ne", "e", "se", "s", "sw", "w", "nw"] as const).map((direction) => (
+                        <button
+                          key={direction}
+                          type="button"
+                          aria-label={`Crop ${direction}`}
+                          className={`${styles.canvasCropHandle} ${styles[`canvasCropHandle${direction.toUpperCase()}`]}`}
+                          onPointerDown={(event) => handleCropPointerDown(event, direction)}
+                          onPointerMove={handleCropPointerMove}
+                          onPointerUp={handleCropPointerUp}
+                          onPointerCancel={handleCropPointerCancel}
+                          onLostPointerCapture={handleCropPointerCancel}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {canvasResizeOverlay && !cropEditingImageId && (
               <div
                 className={styles.canvasResizeOverlay}
                 style={{
@@ -3199,6 +3441,7 @@ export function EditorWorkspace({
                 />
               ))}
             {canvasFocalOverlay &&
+              !cropEditingImageId &&
               displayedCanvasFocalPoint &&
               focalEditingImageId === selectedDocumentElement?.id && (
                 <button
@@ -3333,6 +3576,11 @@ export function EditorWorkspace({
                           }
                           focalEditingImageId={focalEditingImageId}
                           onFocalEditingImageIdChange={setFocalEditingImageId}
+                          cropEditingImageId={cropEditingImageId}
+                          onCropEditingImageIdChange={(id) => {
+                            setCropEditingMode(id);
+                            if (id) setFocalEditingImageId(null);
+                          }}
                           fontResourceControls={{
                             fontResources: presentation.resources?.fonts ?? [],
                             onAddFontFace: addFontFace,

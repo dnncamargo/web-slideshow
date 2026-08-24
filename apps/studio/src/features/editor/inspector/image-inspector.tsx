@@ -55,11 +55,15 @@ export function ImageInspector({
   onPreserveImageProportionChange,
   focalEditing,
   onFocalEditingChange,
+  cropEditing = false,
+  onCropEditingChange = () => {},
 }: TypedInspectorProps<ImageElement> & {
   preserveImageProportion: boolean;
   onPreserveImageProportionChange: (value: boolean) => void;
   focalEditing: boolean;
   onFocalEditingChange: (editing: boolean) => void;
+  cropEditing?: boolean;
+  onCropEditingChange?: (editing: boolean) => void;
 }) {
   const { t } = useStudioI18n();
 
@@ -332,6 +336,16 @@ export function ImageInspector({
             }}
           >
             {t("image.resetFocalPoint")}
+          </button>
+
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => {
+              onCropEditingChange(!cropEditing);
+            }}
+          >
+            {t(cropEditing ? "image.doneCrop" : "image.editCropOnCanvas")}
           </button>
 
           <button

@@ -470,6 +470,8 @@ const englishMessages = {
   "image.resetCrop": "Reset crop",
   "image.editFocalPointOnCanvas": "Edit on Canvas",
   "image.doneFocalPoint": "Done",
+  "image.editCropOnCanvas": "Edit on Canvas",
+  "image.doneCrop": "Done",
   "image.preserveProportion": "Preserve proportion",
   "image.preserveProportionHelp":
     "Preserves the image proportion when resizing it directly on the Canvas.",
@@ -1186,6 +1188,8 @@ const portugueseMessages = {
   "image.resetCrop": "Redefinir recorte",
   "image.editFocalPointOnCanvas": "Editar no Canvas",
   "image.doneFocalPoint": "Concluir",
+  "image.editCropOnCanvas": "Editar no Canvas",
+  "image.doneCrop": "Concluir",
   "image.preserveProportion": "Preservar proporção",
   "image.preserveProportionHelp":
     "Preserva a proporção da imagem ao redimensioná-la diretamente no Canvas.",
