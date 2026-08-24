@@ -711,6 +711,13 @@ describe("ScriptedInspector", () => {
     expect("opacity" in (elementState.style ?? {})).toBe(false);
   });
 
+  it("clears the authored opacity override when the input is emptied", async () => {
+    await act(async () => { mount(scripted({ effect: { opacity: 0.65 } })); });
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-opacity")!, ""); });
+    expect(elementState.effect?.opacity).toBeUndefined();
+    expect("opacity" in (elementState.style ?? {})).toBe(false);
+  });
+
   it("supports gradient borders but does not expose background gradients", async () => {
     await act(async () => { mount(scripted()); });
     expect(container.querySelector("#scripted-background-gradient")).toBeNull();
@@ -754,6 +761,19 @@ describe("ScriptedInspector", () => {
     await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-spread")!, "7"); });
     expect(elementState.effect?.shadow?.spread).toBe(7);
     expect("shadow" in (elementState.style ?? {})).toBe(false);
+  });
+
+  it("restores legacy shadow clearing defaults", async () => {
+    await act(async () => { mount(scripted({ effect: { shadow: { x: 8, y: 9, blur: 10, spread: 11, color: "#000000" } } })); });
+    expect(container.querySelector<HTMLInputElement>("#scripted-shadow-blur")?.min).toBe("0");
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-x")!, ""); });
+    expect(elementState.effect?.shadow?.x).toBe(0);
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-y")!, ""); });
+    expect(elementState.effect?.shadow?.y).toBe(4);
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-blur")!, ""); });
+    expect(elementState.effect?.shadow?.blur).toBe(12);
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-spread")!, ""); });
+    expect(elementState.effect?.shadow?.spread).toBeUndefined();
   });
 });
 

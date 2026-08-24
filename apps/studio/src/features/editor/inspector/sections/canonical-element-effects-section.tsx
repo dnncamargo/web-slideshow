@@ -11,11 +11,13 @@ const defaultShadow = (inset = false): Shadow => ({ x: 0, y: 4, blur: 12, color:
 export function CanonicalElementEffectsSection({ effect, onUpdateEffect, controlPrefix }: Props) {
   const { t } = useStudioI18n();
   const shadow = effect?.shadow;
+  const shadowLabels = { x: t("inspector.shadowX"), y: t("inspector.shadowY"), blur: t("inspector.shadowBlur"), spread: t("inspector.shadowSpread") };
+  const shadowDefaults = { x: 0, y: 4, blur: 12, spread: undefined } as const;
   const updateShadow = (update: (shadow: Shadow) => Shadow) => onUpdateEffect((current) => ({ ...current, shadow: update(current?.shadow ?? defaultShadow()) }));
   return <InspectorSection title={t("inspector.effects")}>
     <label className={styles.field}><span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span><select id={`${controlPrefix}-shadow-mode`} name={getControlName(controlPrefix, "ShadowMode")} value={shadow === undefined ? "none" : shadow.inset ? "inset" : "outer"} onChange={(event) => { const mode = event.target.value; onUpdateEffect((current) => ({ ...current, shadow: mode === "none" ? undefined : current?.shadow === undefined ? defaultShadow(mode === "inset") : { ...current.shadow, inset: mode === "inset" ? true : undefined } })); }}><option value="none">{t("inspector.shadow.none")}</option><option value="outer">{t("inspector.shadow.outer")}</option><option value="inset">{t("inspector.shadow.inset")}</option></select></label>
     {shadow && <><div className={styles.fieldGrid}>
-      {(["x", "y", "blur", "spread"] as const).map((key) => <label className={styles.field} key={key}><span>{key === "spread" ? t("inspector.shadowSpread") : key}</span><div className={styles.unitInput}><input id={`${controlPrefix}-shadow-${key}`} name={getControlName(controlPrefix, `Shadow${key[0].toUpperCase()}${key.slice(1)}`)} type="number" value={readAbsoluteNumber(shadow[key])} onChange={(event) => updateShadow((current) => ({ ...current, [key]: parseOptionalNumber(event.target.value) ?? (key === "spread" ? undefined : 0) }))} /><span>px</span></div></label>)}
+      {(["x", "y", "blur", "spread"] as const).map((key) => <label className={styles.field} key={key}><span>{shadowLabels[key]}</span><div className={styles.unitInput}><input id={`${controlPrefix}-shadow-${key}`} name={getControlName(controlPrefix, `Shadow${key[0].toUpperCase()}${key.slice(1)}`)} type="number" min={key === "blur" ? "0" : undefined} value={readAbsoluteNumber(shadow[key])} onChange={(event) => updateShadow((current) => ({ ...current, [key]: parseOptionalNumber(event.target.value) ?? shadowDefaults[key] }))} /><span>px</span></div></label>)}
     </div><label className={styles.field}><span>{t("inspector.shadowColor")}</span><ColorControl id={`${controlPrefix}-shadow-color`} name={getControlName(controlPrefix, "ShadowColor")} value={shadow.color} onChange={(color) => updateShadow((current) => ({ ...current, color }))} /></label></>}
   </InspectorSection>;
 }
