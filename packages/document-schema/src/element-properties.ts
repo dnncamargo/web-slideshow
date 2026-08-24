@@ -104,6 +104,14 @@ function requireAbsoluteEdges(
   }
 }
 
+export const PositionedElementLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
+  requireAbsoluteEdges,
+);
+
+export type PositionedElementLayout = z.infer<
+  typeof PositionedElementLayoutSchema
+>;
+
 export const TextLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
   requireAbsoluteEdges,
 );

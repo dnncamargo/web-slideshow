@@ -1,4 +1,4 @@
-import type { BlocksElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TextboxElement, TopicsElement } from "@powershow/document-schema";
+import type { BlocksElement, ChartElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TextboxElement, TopicsElement } from "@powershow/document-schema";
 import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@powershow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
@@ -14,7 +14,7 @@ export interface CanonicalTextCanvasGeometry {
 }
 
 type TextFamilyElement = TextElement | TextboxElement;
-type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement;
+type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | ChartElement | InteractiveElement;
 type PositioningEdge = "left" | "right" | "top" | "bottom";
 
 function includes(direction: CanvasResizeDirection, value: string): boolean {
@@ -51,7 +51,7 @@ export function updateCanonicalElementForCanvasDrag(
   if (element.layout?.position !== "absolute" || (deltaX === 0 && deltaY === 0)) return element as CanonicalElement;
 
   const layout = element.layout;
-  const next: ElementLayout | ImageLayout = { ...layout };
+  const next: ElementLayout | ImageLayout | ResizablePositionedLayout | PositionedElementLayout = { ...layout };
   if (deltaX !== 0) {
     if (layout.left !== undefined) {
       next.left = normalizeAuthoringLengthValue(resolveEdgePx("left", layout.left, geometry) + deltaX);

@@ -26,14 +26,14 @@ describe("canonical data element contracts", () => {
     expect(parsed.effect?.shadow?.spread).toBe(2);
   });
 
-  it("accepts structured root styling while preserving legacy ContentSlot styling", () => {
+  it("accepts structured root styling and canonical ContentSlot styling", () => {
     const parsed = StructuredTableElementSchema.parse({
       id: "table-1", type: "table", hidden: false, mode: "structured", layout, style: visual, effect,
-      columns: [{ id: "column-1", width: "30%", header: { id: "header-1", style: { color: "#fff", fontSize: 16 }, children: [] } }],
-      rows: [{ id: "row-1", cells: [{ id: "cell-1", style: { color: "#fff", fontWeight: 700 }, children: [] }] }],
+      columns: [{ id: "column-1", width: "30%", header: { id: "header-1", style: { color: "#fff" }, typography: { fontSize: 16 }, children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", style: { color: "#fff" }, typography: { fontWeight: 700 }, children: [] }] }],
     });
     expect(parsed.columns[0]?.width).toBe("30%");
-    expect(parsed.columns[0]?.header.style?.fontSize).toBe(16);
+    expect(parsed.columns[0]?.header.typography?.fontSize).toBe(16);
   });
 
   it("accepts Blocks root color and preserves graph validation", () => {

@@ -7,7 +7,6 @@ import type {
 import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
 import { renderBackgroundPattern } from "./render-background-pattern";
-import { isAbsolutePlacement } from "./render-placement";
 import { renderLength } from "./render-length";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
@@ -216,19 +215,11 @@ function hasAbsoluteChild(element: ContainerElement): boolean {
       return child.layout?.position === "absolute";
     }
 
-    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics") {
+    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics" || child.type === "chart" || child.type === "interactive") {
       return child.layout?.position === "absolute";
     }
 
-    const legacyStyle = child.style;
-    return (
-      (legacyStyle !== undefined &&
-        "position" in legacyStyle &&
-        legacyStyle.position === "absolute") ||
-      (legacyStyle !== undefined &&
-        "placement" in legacyStyle &&
-        isAbsolutePlacement(legacyStyle.placement))
-    );
+    return false;
   });
 }
 

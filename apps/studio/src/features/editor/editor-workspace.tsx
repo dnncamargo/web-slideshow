@@ -696,9 +696,9 @@ export function EditorWorkspace({
               ? documentElement.layout?.position === "absolute"
               : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks"
                 ? documentElement.layout?.position === "absolute"
-                : documentElement.type === "divider" || documentElement.type === "topics"
+              : documentElement.type === "divider" || documentElement.type === "topics" || documentElement.type === "chart" || documentElement.type === "interactive"
                   ? documentElement.layout?.position === "absolute"
-                  : isCanvasDraggable(documentElement.style);
+                  : false;
 
         if (draggable) {
           candidate.classList.add("powershow-editor-draggable");
@@ -1149,9 +1149,9 @@ export function EditorWorkspace({
           ? selection.documentElement.layout?.position === "absolute"
         : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks"
             ? selection.documentElement.layout?.position === "absolute"
-          : selection.documentElement.type === "divider" || selection.documentElement.type === "topics"
+          : selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive"
             ? selection.documentElement.layout?.position === "absolute"
-            : isCanvasDraggable(selection.documentElement.style);
+            : false;
 
     if (!draggable || !elementTarget) {
       return;
@@ -1201,7 +1201,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -1335,7 +1335,7 @@ export function EditorWorkspace({
                       ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
                       : element;
                   }
-                  if (element.type === "divider" || element.type === "topics") {
+                  if (element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive") {
                     return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
                       parentWidthPx: drag.parentWidthPx,
                       parentHeightPx: drag.parentHeightPx,
@@ -1348,17 +1348,7 @@ export function EditorWorkspace({
                     });
                   }
 
-                  const style = updatePlacementForCanvasDrag(
-                    element.style,
-                    drag.deltaX,
-                    drag.deltaY,
-                    drag.parentWidthPx,
-                    drag.parentHeightPx,
-                  );
-
-                  return style === element.style
-                    ? element
-                    : { ...element, style };
+                  return element;
                 },
               ),
             }
@@ -1775,34 +1765,8 @@ export function EditorWorkspace({
                       ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
-                  if (element.type === "divider" || element.type === "topics") return element;
-                  const resizedStyle = updateStyleForCanvasResize(
-                    element.style,
-                    resize.direction,
-                    resize.deltaX,
-                    resize.deltaY,
-                    resize.initialWidthPx,
-                    resize.initialHeightPx,
-                    resize.parentWidthPx,
-                    resize.parentHeightPx,
-                  );
-                  const adjustment = getCanvasResizePlacementAdjustment(
-                    resize.direction,
-                    resize.deltaX,
-                    resize.deltaY,
-                    element.style?.placement?.anchor,
-                  );
-                  const style = updatePlacementForCanvasDrag(
-                    resizedStyle,
-                    adjustment.x,
-                    adjustment.y,
-                    resize.parentWidthPx,
-                    resize.parentHeightPx,
-                  );
-
-                  return style === element.style
-                    ? element
-                    : { ...element, style };
+                  if (element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive") return element;
+                  return element;
                 },
               ),
             }

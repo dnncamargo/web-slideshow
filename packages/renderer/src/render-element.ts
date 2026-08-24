@@ -17,12 +17,15 @@ import type {
   PowerShowElement,
   TextboxElement,
   TextElement,
+  ChartElement,
+  InteractiveElement,
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
 import { renderStyle } from "./render-style";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
+import { renderLength } from "./render-length";
 import {
   renderCanonicalImageCropMetadata,
   renderCanonicalImageMediaStyle,
@@ -85,14 +88,14 @@ function buildAttributes(
 
   const styles: string[] = [];
 
-  const baseStyle =
-    element.type === "container"
-      ? ""
-      : element.type === "text" || element.type === "textbox"
-        ? renderCanonicalTextStyle(element)
-        : element.type === "image"
-          ? renderCanonicalImageStyle(element)
-        : renderStyle(element.style as ElementStyle | undefined);
+  let baseStyle = "";
+  if (element.type === "text" || element.type === "textbox") {
+    baseStyle = renderCanonicalTextStyle(element);
+  } else if (element.type === "image") {
+    baseStyle = renderCanonicalImageStyle(element);
+  } else if (element.type !== "container" && element.type !== "chart" && element.type !== "interactive") {
+    baseStyle = renderStyle(element.style as ElementStyle | undefined);
+  }
 
   if (baseStyle) {
     styles.push(baseStyle);
@@ -257,15 +260,26 @@ function renderImage(element: ImageElement): string {
   );
 }
 
-function renderPlaceholder(element: PowerShowElement): string {
+function renderPlaceholder(element: ChartElement | InteractiveElement): string {
   if (element.hidden) {
     return "";
   }
 
-  const attributes = buildAttributes(element, [
+  const classes = [
+    "powershow-element",
     "powershow-placeholder",
     `powershow-placeholder-${element.type}`,
-  ]);
+  ];
+  const layout = element.layout;
+  const styles: string[] = [];
+  if (layout?.position !== undefined) styles.push(`position:${layout.position}`);
+  for (const [property, value] of [["top", layout?.top], ["right", layout?.right], ["bottom", layout?.bottom], ["left", layout?.left]] as const) {
+    if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
+  }
+  const attributes = `class="${escapeHtml(classes.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
+    ` data-powershow-type="${escapeHtml(element.type)}"` +
+    (styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "");
 
   return `<div ${attributes}>` + `[${escapeHtml(element.type)}]` + "</div>";
 }

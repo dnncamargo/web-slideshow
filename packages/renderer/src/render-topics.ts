@@ -8,7 +8,7 @@ import type {
 import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";
 import { renderLength } from "./render-length";
-import { renderStyle } from "./render-style";
+import { renderContentSlotStyle } from "./render-content-slot";
 
 type RenderChild = (element: PowerShowElement) => string;
 
@@ -158,7 +158,7 @@ function renderTopicItem(
     classes.push(customClass);
   }
 
-  const style = renderStyle(item.content.style);
+  const style = renderContentSlotStyle(item.content);
 
   const attributes = [
     `class="${escapeHtml(classes.join(" "))}"`,

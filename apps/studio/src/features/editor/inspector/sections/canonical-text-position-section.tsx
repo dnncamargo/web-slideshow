@@ -1,13 +1,13 @@
-import type { BlocksElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, TextboxElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@powershow/document-schema";
+import type { BlocksElement, ChartElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, TextboxElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 import { shouldShowPlacementLayerControls, type ElementLayerControls } from "./element-placement-helpers";
 
 interface Props {
-  element: TextElement | TextboxElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement;
+  element: TextElement | TextboxElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | ChartElement | InteractiveElement;
   parent: ContainerElement | null;
-  onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | undefined) => void;
+  onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => void;
   layerControls: ElementLayerControls;
 }
 

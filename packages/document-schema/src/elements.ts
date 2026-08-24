@@ -34,7 +34,9 @@ import {
   TopicsLayoutSchema,
   TopicsVisualStyleSchema,
   TopicsTypographySchema,
+  PositionedElementLayoutSchema,
 } from "./element-properties";
+import { BorderSchema } from "./visual";
 
 const BaseElementSchema = z.object({
   id: ElementIdSchema,
@@ -276,7 +278,10 @@ export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
 export const ChartElementSchema =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: PositionedElementLayoutSchema.optional(),
     type: z.literal("chart"),
 
     chartType: z.enum([
@@ -298,13 +303,16 @@ export const ChartElementSchema =
         ),
       }),
     ),
-  });
+  }).strict();
 
 export type ChartElement =
   z.infer<typeof ChartElementSchema>;
 
 export const InteractiveElementSchema =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: PositionedElementLayoutSchema.optional(),
     type: z.literal("interactive"),
 
     widget: z.enum([
@@ -318,7 +326,7 @@ export const InteractiveElementSchema =
       z.string(),
       z.unknown(),
     ),
-  });
+  }).strict();
 
 export type InteractiveElement =
   z.infer<typeof InteractiveElementSchema>;
@@ -519,24 +527,50 @@ export type ScriptedElement =
 export type ContentSlot = {
   id: string;
 
-  style?:
-    | z.infer<typeof ElementStyleSchema>
-    | undefined;
+  layout?: z.infer<typeof ContentSlotLayoutSchema> | undefined;
+
+  style?: z.infer<typeof ContentSlotVisualStyleSchema> | undefined;
+
+  typography?: z.infer<typeof ElementTypographySchema> | undefined;
 
   children: PowerShowElement[];
 };
+
+export const ContentSlotLayoutSchema = z.object({
+  padding: LengthSchema.optional(),
+  paddingTop: LengthSchema.optional(),
+  paddingRight: LengthSchema.optional(),
+  paddingBottom: LengthSchema.optional(),
+  paddingLeft: LengthSchema.optional(),
+}).strict();
+
+const ContentSlotBackgroundSchema = z.object({
+  color: ColorSchema.optional(),
+}).strict();
+
+export const ContentSlotVisualStyleSchema = z.object({
+  color: ColorSchema.optional(),
+  background: ContentSlotBackgroundSchema.optional(),
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
 
 export const ContentSlotSchema:
   z.ZodType<ContentSlot> =
   z.object({
     id: ElementIdSchema,
 
-    style: ElementStyleSchema.optional(),
+    layout: ContentSlotLayoutSchema.optional(),
+
+    style: ContentSlotVisualStyleSchema.optional(),
+
+    typography: ElementTypographySchema.optional(),
 
     children: z.array(
       z.lazy(() => PowerShowElementSchema),
     ),
-  });
+  }).strict();
 
 export const SimpleTableElementSchema =
   CanonicalDataElementBaseSchema.extend({

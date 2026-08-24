@@ -59,8 +59,6 @@ export function presentationUsesFontFamily(
       let fontFamily: string | undefined;
       if (element.type === "container" || element.type === "text" || element.type === "textbox" || element.type === "topics") {
         fontFamily = element.typography?.fontFamily;
-      } else if (element.type === "chart" || element.type === "interactive") {
-        fontFamily = element.style?.fontFamily;
       }
 
       return (

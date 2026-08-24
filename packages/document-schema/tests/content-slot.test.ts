@@ -80,13 +80,26 @@ describe("ContentSlotSchema", () => {
     ).toBe(false);
   });
 
-  it("accepts and preserves optional style", () => {
+  it.each([
+    { style: { padding: 1 } },
+    { style: { fontSize: 16 } },
+    { style: { background: "#fff" } },
+    { style: { opacity: 0.5 } },
+    { layout: { position: "absolute" } },
+    { layout: { width: 10 } },
+    { effect: {} },
+    { link: {} },
+    { unknown: true },
+  ])("rejects legacy or forbidden field %j", (extra) => {
+    expect(ContentSlotSchema.safeParse({ id: "slot-1", children: [], ...extra }).success).toBe(false);
+  });
+
+  it("accepts and preserves canonical optional namespaces", () => {
     const result = ContentSlotSchema.safeParse({
       id: "slot-1",
-      style: {
-        opacity: 0.75,
-        className: "slot-body",
-      },
+      layout: { padding: 12 },
+      style: { color: "#fff", className: "slot-body" },
+      typography: { fontSize: 16 },
       children: [],
     });
 
@@ -95,10 +108,9 @@ describe("ContentSlotSchema", () => {
     if (result.success) {
       expect(result.data).toEqual({
         id: "slot-1",
-        style: {
-          opacity: 0.75,
-          className: "slot-body",
-        },
+        layout: { padding: 12 },
+        style: { color: "#ffffff", className: "slot-body" },
+        typography: { fontSize: 16 },
         children: [],
       });
     }
@@ -240,9 +252,9 @@ describe("ContentSlotSchema", () => {
   it("roundtrips through JSON serialization", () => {
     const source = ContentSlotSchema.parse({
       id: "slot-1",
-      style: {
-        opacity: 0.5,
-      },
+      layout: { paddingTop: 4 },
+      style: { background: { color: "#000" } },
+      typography: { fontWeight: 700 },
       children: [
         textElement({
           id: "text-child",

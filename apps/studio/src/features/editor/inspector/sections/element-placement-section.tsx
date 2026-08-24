@@ -6,6 +6,7 @@ import type {
   SignedLength,
   TextElement,
   TextboxElement,
+  ElementStyle,
 } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -56,7 +57,7 @@ interface LayerControls {
 }
 
 interface ElementPlacementSectionProps {
-  element: Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement | Extract<PowerShowElement, { type: "gallery" | "embed" | "scripted" | "code" | "terminal" | "table" | "blocks" | "divider" | "topics" }>>;
+  element: { id: string; style?: ElementStyle };
   parent: ContainerElement | null;
   onUpdateStyle: UpdateElementStyle;
   layerControls: LayerControls;

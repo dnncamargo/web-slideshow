@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { EmbedElement, GalleryElement, ImageElement, ScriptedElement, TextElement, TextboxElement } from "@powershow/document-schema";
 import {
+  updateCanonicalElementForCanvasDrag,
   updateCanonicalTextForCanvasDrag,
   updateCanonicalImageForCanvasDrag,
   updateCanonicalSurfaceForCanvasDrag,
@@ -42,6 +43,29 @@ function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedE
 }
 
 describe("canonical text canvas drag", () => {
+  it.each([
+    ["chart", { type: "chart", id: "chart", hidden: false, chartType: "line", series: [] }],
+    ["interactive", { type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: {} }],
+  ] as const)("moves an absolute %s through canonical layout edges", (_type, element) => {
+    const result = updateCanonicalElementForCanvasDrag(
+      { ...element, layout: { position: "absolute", left: 10, top: "20%" } },
+      15,
+      20,
+      {
+        parentWidthPx: 400,
+        parentHeightPx: 200,
+        initialLeftPx: 10,
+        initialTopPx: 40,
+        initialRightPx: 0,
+        initialBottomPx: 0,
+        initialWidthPx: 100,
+        initialHeightPx: 50,
+      },
+    );
+    expect(result.layout).toEqual({ position: "absolute", left: 25, top: 60 });
+    expect(result).not.toHaveProperty("style");
+    expect(result).not.toHaveProperty("width");
+  });
   it.each([
     ["Text", text()],
     ["Textbox", textbox()],

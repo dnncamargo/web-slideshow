@@ -213,11 +213,9 @@ function ElementTreeNode({
         ? element.layout?.position === "absolute"
         : element.type === "image"
           ? element.layout?.position === "absolute"
-          : element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics"
+          : element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive"
             ? element.layout?.position === "absolute"
-        : element.style?.placement?.mode === "absolute"
-        ? `[${t("inspector.absolute")}]`
-        : null;
+        : false;
   const dropIntent = dropTarget?.id === element.id ? dropTarget.intent : null;
 
   return (

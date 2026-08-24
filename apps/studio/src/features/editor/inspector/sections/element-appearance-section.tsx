@@ -1,5 +1,5 @@
-import type { ContainerElement, ImageElement, PowerShowElement, TextElement, TextboxElement } from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+import type { ContainerElement, ElementStyle, ImageElement, PowerShowElement, TextElement, TextboxElement } from "@powershow/document-schema";
+import { resolveEffectiveElementStyleDefaults, type ThemeStyleDefaultElement } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -26,7 +26,7 @@ import { ElementTypographyControl } from "./element-typography-control";
 
 import { EffectiveLengthInput } from "./effective-length-input";
 
-type LegacyStyledElement = Exclude<PowerShowElement, ContainerElement | TextElement | TextboxElement | ImageElement | Extract<PowerShowElement, { type: "gallery" | "embed" | "scripted" | "code" | "terminal" | "table" | "blocks" | "divider" | "topics" }>>;
+type LegacyStyledElement = ThemeStyleDefaultElement & { id: string; style?: ElementStyle };
 
 interface ElementAppearanceSectionProps {
   element: LegacyStyledElement;

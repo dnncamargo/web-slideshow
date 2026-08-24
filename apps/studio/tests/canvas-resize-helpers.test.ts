@@ -23,6 +23,8 @@ describe("canvas resize helpers", () => {
   it("limits direct resize to existing size-capable visual elements", () => {
     expect(isCanvasResizable({ type: "image", id: "image", hidden: false, src: "/image.png", alt: "", fit: "contain" })).toBe(true);
     expect(isCanvasResizable({ type: "text", id: "text", hidden: false, content: "Text", variant: "body" })).toBe(false);
+    expect(isCanvasResizable({ type: "chart", id: "chart", hidden: false, chartType: "line", series: [] })).toBe(false);
+    expect(isCanvasResizable({ type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: {} })).toBe(false);
   });
 
   it("treats a Gallery as canvas-resizable", () => {

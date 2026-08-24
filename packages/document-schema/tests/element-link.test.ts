@@ -658,7 +658,7 @@ describe("unsupported element types and links", () => {
     ["chart", { type: "chart", id: "chart-1", hidden: false, chartType: "line", series: [] }],
     ["interactive", { type: "interactive", id: "int-1", hidden: false, widget: "function-plot", config: {} }],
   ] as const)(
-    "drops a link property from a %s element per schema strictness conventions",
+    "rejects a link property from a %s element per schema strictness conventions",
     (_type, element) => {
       const result = PowerShowElementSchema.safeParse({
         ...element,
@@ -668,11 +668,7 @@ describe("unsupported element types and links", () => {
         },
       });
 
-      expect(result.success).toBe(true);
-
-      if (result.success) {
-        expect(result.data).not.toHaveProperty("link");
-      }
+      expect(result.success).toBe(false);
     },
   );
 

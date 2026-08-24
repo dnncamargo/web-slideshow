@@ -414,10 +414,8 @@ describe("renderElement topics support", () => {
             id: "topic-styled",
             content: {
               id: "slot-styled",
-              style: {
-                padding: 12,
-                className: 'topic "body"',
-              },
+              layout: { padding: 12 },
+              style: { className: 'topic "body"' },
               children: [
                 textElement({
                   id: "styled-text",

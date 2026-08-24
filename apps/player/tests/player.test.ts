@@ -275,9 +275,9 @@ describe("PowerShow Player", () => {
           ...element.typography,
           fontFamily: "Source Sans 3",
         };
-      } else if (element.type !== "container") {
-        element.style = {
-          ...element.style,
+      } else if (element.type === "container" || element.type === "topics") {
+        element.typography = {
+          ...element.typography,
           fontFamily: "Source Sans 3",
         };
       }
@@ -335,9 +335,9 @@ describe("PowerShow Player", () => {
       ],
     };
     const firstElement = presentation.slides[0]?.elements[0];
-    if (firstElement) {
-      firstElement.style = {
-        ...firstElement.style,
+    if (firstElement && (firstElement.type === "text" || firstElement.type === "textbox" || firstElement.type === "container" || firstElement.type === "topics")) {
+      firstElement.typography = {
+        ...firstElement.typography,
         fontFamily: "Inter",
         fontWeight: 700,
       };
@@ -478,9 +478,9 @@ describe("PowerShow Player", () => {
     };
     const firstElement = presentation.slides[0]?.elements[0];
 
-    if (firstElement) {
-      firstElement.style = {
-        ...firstElement.style,
+    if (firstElement && (firstElement.type === "text" || firstElement.type === "textbox" || firstElement.type === "container" || firstElement.type === "topics")) {
+      firstElement.typography = {
+        ...firstElement.typography,
         fontFamily: "Audiowide",
       };
     }
