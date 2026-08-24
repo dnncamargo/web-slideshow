@@ -187,14 +187,24 @@ export function ImageInspector({
           <div className={styles.fieldGrid}>
             {(["x", "y", "width", "height"] as const).map((field) => (
               <label className={styles.field} key={field}>
-                <span>{field.toUpperCase()}</span>
+                <span>
+                  {field === "x"
+                    ? "X"
+                    : field === "y"
+                      ? "Y"
+                      : t(`inspector.${field}`)}
+                </span>
                 <div className={styles.unitInput}>
                   <input
                     id={`image-crop-${field}`}
                     name={`imageCrop${field[0]!.toUpperCase()}${field.slice(1)}`}
                     type="number"
                     min={field === "x" || field === "y" ? "0" : "1"}
-                    max="100"
+                    max={
+                      field === "x" || field === "y"
+                        ? "99"
+                        : String(100 - crop[field === "width" ? "x" : "y"])
+                    }
                     step="1"
                     value={crop[field]}
                     onChange={(event) => {
