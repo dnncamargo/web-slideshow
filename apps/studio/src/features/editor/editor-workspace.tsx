@@ -6,7 +6,11 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 
-import { renderFontResources, renderSlide } from "@powershow/renderer";
+import {
+  hydrateImageCrops,
+  renderFontResources,
+  renderSlide,
+} from "@powershow/renderer";
 import {
   Button,
   HoverScrollText,
@@ -571,6 +575,13 @@ export function EditorWorkspace({
       ? (canvasFocalPreview ??
         getEffectiveImageFocalPoint(selectedDocumentElement.focalPoint))
       : null;
+
+  useEffect(() => {
+    const canvas = slideCanvasRef.current;
+    if (canvas) {
+      hydrateImageCrops(canvas);
+    }
+  }, [renderedSlide]);
 
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE

@@ -1,6 +1,10 @@
 import type { Presentation } from "@powershow/document-schema";
 
-import { renderFontResources, renderSlide } from "@powershow/renderer";
+import {
+  hydrateImageCrops,
+  renderFontResources,
+  renderSlide,
+} from "@powershow/renderer";
 
 // ============================================================
 // TIPOS PÚBLICOS DO PLAYER
@@ -412,6 +416,8 @@ export function mountPlayer(
     stage.style.width = `${width}px`;
 
     stage.style.height = `${height}px`;
+
+    hydrateImageCrops(slideHost);
   }
 
   // ============================================================
@@ -519,6 +525,8 @@ export function mountPlayer(
     }
 
     slideHost.innerHTML = renderSlide(slide);
+
+    hydrateImageCrops(slideHost);
 
     animateSlide();
 

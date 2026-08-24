@@ -140,6 +140,32 @@ export const TextboxElementSchema =
 export type TextboxElement =
   z.infer<typeof TextboxElementSchema>;
 
+export const ImageCropSchema = z
+  .object({
+    x: z.number().min(0).lt(100),
+    y: z.number().min(0).lt(100),
+    width: z.number().gt(0).max(100),
+    height: z.number().gt(0).max(100),
+  })
+  .strict()
+  .refine((crop) => crop.x + crop.width <= 100, {
+    message: "crop x plus width must be at most 100",
+    path: ["width"],
+  })
+  .refine((crop) => crop.y + crop.height <= 100, {
+    message: "crop y plus height must be at most 100",
+    path: ["height"],
+  })
+  .refine(
+    (crop) =>
+      crop.x !== 0 || crop.y !== 0 || crop.width !== 100 || crop.height !== 100,
+    {
+      message: "a full-source crop must be omitted",
+    },
+  );
+
+export type ImageCrop = z.infer<typeof ImageCropSchema>;
+
 export const ImageElementSchema = z.object({
     id: ElementIdSchema,
     type: z.literal("image"),
@@ -168,6 +194,8 @@ export const ImageElementSchema = z.object({
         y: z.number().min(0).max(100),
       })
       .optional(),
+
+    crop: ImageCropSchema.optional(),
 
     link: ElementLinkSchema.optional(),
   }).strict();

@@ -2,6 +2,7 @@ import type { ImageElement } from "@powershow/document-schema";
 
 import { renderLength } from "./render-length";
 import { renderBorder, renderShadow } from "./render-visual";
+import { escapeHtml } from "./escape-html";
 
 function renderImageLayout(element: ImageElement): string[] {
   const layout = element.layout;
@@ -53,4 +54,17 @@ export function renderCanonicalImageMediaStyle(element: ImageElement): string {
   }
 
   return output.join(";");
+}
+
+export function renderCanonicalImageCropMetadata(element: ImageElement): string {
+  if (!element.crop) return "";
+
+  return [
+    `data-powershow-image-crop="${escapeHtml(JSON.stringify(element.crop))}"`,
+    `data-powershow-image-fit="${element.fit}"`,
+    `data-powershow-image-focal-x="${element.focalPoint?.x ?? 50}"`,
+    `data-powershow-image-focal-y="${element.focalPoint?.y ?? 50}"`,
+    `data-powershow-image-width-authored="${element.layout?.width !== undefined}"`,
+    `data-powershow-image-height-authored="${element.layout?.height !== undefined}"`,
+  ].join(" ");
 }

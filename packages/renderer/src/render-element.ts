@@ -24,6 +24,7 @@ import { renderContainer } from "./render-container";
 import { renderStyle } from "./render-style";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
 import {
+  renderCanonicalImageCropMetadata,
   renderCanonicalImageMediaStyle,
   renderCanonicalImageStyle,
 } from "./render-canonical-image";
@@ -171,6 +172,10 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     styleParts.push(elementStyle);
   }
 
+  if (element.crop) {
+    styleParts.push("position:relative;overflow:hidden");
+  }
+
   const attributes: string[] = [
     `href="${escapeHtml(link.href)}"`,
     'data-powershow-link="true"',
@@ -180,20 +185,25 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     ` style="${escapeHtml(styleParts.join(";"))}"`,
   ];
 
+  const cropMetadata = renderCanonicalImageCropMetadata(element);
+  if (cropMetadata) attributes.push(cropMetadata);
+
   if (link.target === "_blank") {
     attributes.push('target="_blank"', 'rel="noopener noreferrer"');
   } else if (link.target === "_self") {
     attributes.push('target="_self"');
   }
 
-  return (
-    `<a ${attributes.join(" ")}>` +
-    `<img class="powershow-image-media"` +
+  const media = `<img class="powershow-image-media"` +
     ` src="${escapeHtml(element.src)}"` +
     ` alt="${escapeHtml(element.alt)}"` +
-    ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">` +
-    `</a>`
-  );
+    ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">`;
+
+  if (!element.crop) {
+    return `<a ${attributes.join(" ")}>${media}</a>`;
+  }
+
+  return `<a ${attributes.join(" ")}><div class="powershow-image-crop-viewport">${media}</div></a>`;
 }
 
 function renderImage(element: ImageElement): string {
@@ -203,6 +213,23 @@ function renderImage(element: ImageElement): string {
 
   if (element.link) {
     return renderLinkedImage(element, element.link);
+  }
+
+  if (element.crop) {
+    const attributes = buildAttributes(
+      element,
+      ["powershow-image"],
+      "position:relative;overflow:hidden",
+    );
+    return (
+      `<div ${attributes} ${renderCanonicalImageCropMetadata(element)}>` +
+      `<div class="powershow-image-crop-viewport">` +
+      `<img class="powershow-image-media"` +
+      ` src="${escapeHtml(element.src)}"` +
+      ` alt="${escapeHtml(element.alt)}"` +
+      ` style="display:block;position:absolute;max-width:none">` +
+      `</div></div>`
+    );
   }
 
   const attributes = buildAttributes(

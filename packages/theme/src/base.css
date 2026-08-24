@@ -471,6 +471,16 @@ ol.powershow-element.powershow-topics {
   object-fit: contain;
 }
 
+.powershow-image-crop-viewport {
+  position: absolute;
+  overflow: hidden;
+}
+
+.powershow-image-crop-viewport .powershow-image-media {
+  position: absolute;
+  max-width: none;
+}
+
 /* ==========================================================
    END: IMAGE
    ========================================================== */
