@@ -5,6 +5,7 @@ import type {
 import type {
   AuthoringLengthUnit,
 } from "@powershow/theme/element-style-defaults";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -215,11 +216,77 @@ export function DividerInspector({
 
       <InspectorSection title={t("inspector.appearance")}>
         <div className={styles.colorControl}>
-          <label className={styles.field}><span>{t("inspector.background")}</span><ColorControl id="divider-background" name="dividerBackground" value={element.style?.background?.color} onChange={(color) => updateStyle((current) => ({ ...current, background: color === undefined ? undefined : { color } }))} /></label>
+          <label className={styles.field}>
+            <span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span>
+            <ColorControl
+              id="divider-background"
+              name="dividerBackground"
+              value={element.style?.background?.color}
+              onChange={(color) => updateStyle((current) => ({
+                ...current,
+                background: { color },
+              }))}
+            />
+          </label>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => updateStyle((current) => ({
+              ...current,
+              background: undefined,
+            }))}
+          >
+            <span>{t("inspector.clearBackground")}</span>
+          </button>
         </div>
         <div className={styles.fieldGrid}>
-          <label className={styles.field}><span>{t("inspector.roundedCorners")}</span><EffectiveLengthInput id="divider-radius" name="dividerRadius" min="0" value={element.style?.borderRadius} inheritedValue={0} preferredUnit="px" units={["px", "rem"]} stepByUnit={{ px: "1", rem: "0.1" }} onChange={(borderRadius) => updateStyle((current) => ({ ...current, borderRadius }))} onReset={() => updateStyle((current) => ({ ...current, borderRadius: undefined }))} /></label>
-          <label className={styles.field}><span>{t("inspector.opacity")}</span><input id="divider-opacity" name="dividerOpacity" type="number" min="0" max="100" value={(element.effect?.opacity ?? 1) * 100} onChange={(event) => { const value = parseOptionalNumber(event.target.value); updateEffect((current) => ({ ...current, opacity: value === undefined ? undefined : value / 100 })); }} /></label>
+          <div className={styles.field}>
+            <label
+              htmlFor="divider-border-radius"
+              title={t("inspector.roundedCornersHelp")}
+            >
+              {t("inspector.roundedCorners")}
+            </label>
+            <EffectiveLengthInput
+              id="divider-border-radius"
+              name="dividerBorderRadius"
+              min="0"
+              value={element.style?.borderRadius}
+              inheritedValue={resolveEffectiveElementStyleDefaults(element).borderRadius}
+              preferredUnit="px"
+              units={["px", "rem"]}
+              stepByUnit={{ px: "1", rem: "0.1" }}
+              onChange={(borderRadius) => updateStyle((current) => ({
+                ...current,
+                borderRadius,
+              }))}
+              onReset={() => updateStyle((current) => ({
+                ...current,
+                borderRadius: undefined,
+              }))}
+            />
+          </div>
+          <label className={styles.field}>
+            <span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span>
+            <div className={styles.unitInput}>
+              <input
+                id="divider-opacity"
+                name="dividerOpacity"
+                type="number"
+                min="0"
+                max="100"
+                value={(element.effect?.opacity ?? 1) * 100}
+                onChange={(event) => {
+                  const value = parseOptionalNumber(event.target.value);
+                  updateEffect((current) => ({
+                    ...current,
+                    opacity: value === undefined ? undefined : value / 100,
+                  }));
+                }}
+              />
+              <span>%</span>
+            </div>
+          </label>
         </div>
       </InspectorSection>
     </>

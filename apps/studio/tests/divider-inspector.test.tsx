@@ -133,6 +133,18 @@ describe("DividerInspector", () => {
     return input;
   }
 
+  function radiusInput(): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>("#divider-border-radius");
+    if (!input) throw new Error("divider-border-radius input not found");
+    return input;
+  }
+
+  function opacityInput(): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>("#divider-opacity");
+    if (!input) throw new Error("divider-opacity input not found");
+    return input;
+  }
+
   function setNumberInputValue(input: HTMLInputElement, value: string) {
     const setter = Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
@@ -295,6 +307,58 @@ describe("DividerInspector", () => {
     expect(updates).toHaveLength(1);
     expect(updates[0]?.style?.background?.color).toBe("#22d3ee");
     expect(updates[0]?.orientation).toBe("horizontal");
+  });
+
+  it("displays authored background and clears only the canonical background", async () => {
+    await act(async () => {
+      mount(dividerElement({
+        style: {
+          background: { color: "#123456" },
+          borderRadius: 8,
+          className: "preserve-me",
+        },
+      }));
+    });
+
+    expect(container.querySelector<HTMLInputElement>("#divider-background-value")?.value).toBe("#123456");
+    const clear = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Clear"),
+    );
+    expect(clear).toBeDefined();
+
+    await act(async () => clear?.click());
+
+    expect(updates[0]?.style?.background).toBeUndefined();
+    expect(updates[0]?.style?.borderRadius).toBe(8);
+    expect(updates[0]?.style?.className).toBe("preserve-me");
+  });
+
+  it("uses the effective radius baseline without persisting it", async () => {
+    await act(async () => mount(dividerElement()));
+
+    expect(radiusInput().value).toBe("0");
+    expect(updates).toHaveLength(0);
+
+    await act(async () => setNumberInputValue(radiusInput(), "6"));
+    expect(updates[0]?.style?.borderRadius).toBe(6);
+
+    await act(async () => setNumberInputValue(radiusInput(), ""));
+    expect(updates.at(-1)?.style?.borderRadius).toBeUndefined();
+  });
+
+  it("keeps opacity in effect with the established percent UI", async () => {
+    await act(async () => mount(dividerElement()));
+
+    expect(container.textContent).toContain("Opacity");
+    expect(container.querySelector("#divider-opacity")?.parentElement?.textContent).toContain("%");
+    expect(opacityInput().closest("label")?.querySelector("span")?.getAttribute("title")).toContain("transparency");
+
+    await act(async () => setNumberInputValue(opacityInput(), "50"));
+    expect(updates[0]?.effect?.opacity).toBe(0.5);
+    expect("opacity" in (updates[0]?.style ?? {})).toBe(false);
+
+    await act(async () => setNumberInputValue(opacityInput(), ""));
+    expect(updates.at(-1)?.effect?.opacity).toBeUndefined();
   });
 });
 
