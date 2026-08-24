@@ -94,6 +94,8 @@ describe("Container canonical appearance and effects inspector", () => {
     expect(state.style?.background?.pattern).toBeDefined();
 
     await act(async () => changeSelect(host.querySelector("#container-gradient-type")!, "radial"));
+    expect(state.style?.background?.color).toBe("#222222");
+    expect(state.style?.background?.pattern).toBeDefined();
     expect(state.style?.background?.pattern).toBeDefined();
     expect(state.style).not.toHaveProperty("backgroundGradient");
     expect(state.style).not.toHaveProperty("backgroundPattern");
