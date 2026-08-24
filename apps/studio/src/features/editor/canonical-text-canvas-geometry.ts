@@ -14,15 +14,31 @@ export interface CanonicalTextCanvasGeometry {
 }
 
 type TextFamilyElement = TextElement | TextboxElement;
+type PositioningEdge = "left" | "right" | "top" | "bottom";
 
-function edgePx(value: string | number | undefined, fallback: number, parent: number): number {
-  const parsed = value === undefined ? undefined : parseAuthoringLength(value);
-  if (!parsed) return fallback;
-  return parsed.unit === "%" ? (parsed.value / 100) * parent : parsed.value;
+function includes(direction: CanvasResizeDirection, value: string): boolean {
+  return direction.includes(value);
 }
 
-function edgeValue(value: string | number | undefined, fallback: number, parent: number): number {
-  return edgePx(value, fallback, parent);
+function initialEdgeDistance(edge: PositioningEdge, geometry: CanonicalTextCanvasGeometry): number {
+  switch (edge) {
+    case "left": return geometry.initialLeftPx;
+    case "right": return geometry.initialRightPx;
+    case "top": return geometry.initialTopPx;
+    case "bottom": return geometry.initialBottomPx;
+  }
+}
+
+function resolveEdgePx(edge: PositioningEdge, value: string | number, geometry: CanonicalTextCanvasGeometry): number {
+  if (typeof value === "number") return value;
+  const parsed = parseAuthoringLength(value);
+  if (!parsed) return initialEdgeDistance(edge, geometry);
+  if (parsed.unit === "px") return parsed.value;
+  if (parsed.unit === "%") {
+    const parent = edge === "left" || edge === "right" ? geometry.parentWidthPx : geometry.parentHeightPx;
+    return (parsed.value / 100) * parent;
+  }
+  return initialEdgeDistance(edge, geometry);
 }
 
 export function updateCanonicalTextForCanvasDrag(
@@ -31,42 +47,38 @@ export function updateCanonicalTextForCanvasDrag(
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
 ): TextFamilyElement {
-  if (element.layout?.position !== "absolute") return element;
+  if (element.layout?.position !== "absolute" || (deltaX === 0 && deltaY === 0)) return element;
+
   const layout = element.layout;
   const next: ElementLayout = { ...layout };
-
   if (deltaX !== 0) {
     if (layout.left !== undefined) {
-      next.left = normalizeAuthoringLengthValue(edgeValue(layout.left, geometry.initialLeftPx, geometry.parentWidthPx) + deltaX);
-      if (layout.right !== undefined) next.right = normalizeAuthoringLengthValue(edgeValue(layout.right, geometry.initialRightPx, geometry.parentWidthPx) - deltaX);
+      next.left = normalizeAuthoringLengthValue(resolveEdgePx("left", layout.left, geometry) + deltaX);
+      if (layout.right !== undefined) next.right = normalizeAuthoringLengthValue(resolveEdgePx("right", layout.right, geometry) - deltaX);
     } else if (layout.right !== undefined) {
-      next.right = normalizeAuthoringLengthValue(edgeValue(layout.right, geometry.initialRightPx, geometry.parentWidthPx) - deltaX);
+      next.right = normalizeAuthoringLengthValue(resolveEdgePx("right", layout.right, geometry) - deltaX);
     } else {
       next.left = normalizeAuthoringLengthValue(geometry.initialLeftPx + deltaX);
     }
   }
-
   if (deltaY !== 0) {
     if (layout.top !== undefined) {
-      next.top = normalizeAuthoringLengthValue(edgeValue(layout.top, geometry.initialTopPx, geometry.parentHeightPx) + deltaY);
-      if (layout.bottom !== undefined) next.bottom = normalizeAuthoringLengthValue(edgeValue(layout.bottom, geometry.initialBottomPx, geometry.parentHeightPx) - deltaY);
+      next.top = normalizeAuthoringLengthValue(resolveEdgePx("top", layout.top, geometry) + deltaY);
+      if (layout.bottom !== undefined) next.bottom = normalizeAuthoringLengthValue(resolveEdgePx("bottom", layout.bottom, geometry) - deltaY);
     } else if (layout.bottom !== undefined) {
-      next.bottom = normalizeAuthoringLengthValue(edgeValue(layout.bottom, geometry.initialBottomPx, geometry.parentHeightPx) - deltaY);
+      next.bottom = normalizeAuthoringLengthValue(resolveEdgePx("bottom", layout.bottom, geometry) - deltaY);
     } else {
       next.top = normalizeAuthoringLengthValue(geometry.initialTopPx + deltaY);
     }
   }
-
   return { ...element, layout: next };
 }
 
-function includes(direction: CanvasResizeDirection, value: string): boolean {
-  return direction.includes(value);
-}
-
-function serializeSize(value: number, original: string | number | undefined): string | number {
-  if (typeof original === "string" && original.endsWith("%")) return `${value}%`;
-  return value;
+function serializeSize(value: number, original: string | number | undefined, parent: number): string | number {
+  const normalized = normalizeAuthoringLengthValue(value);
+  const parsed = original === undefined ? undefined : parseAuthoringLength(original);
+  if (parsed?.unit === "%" && parent > 0) return `${normalizeAuthoringLengthValue((normalized / parent) * 100)}%`;
+  return normalized;
 }
 
 function updateAxis(
@@ -77,17 +89,22 @@ function updateAxis(
   geometry: CanonicalTextCanvasGeometry,
 ): ElementLayout {
   const isHorizontal = axis === "horizontal";
+  const touched = isHorizontal ? includes(direction, "e") || includes(direction, "w") : includes(direction, "n") || includes(direction, "s");
+  if (!touched || delta === 0) return layout;
+
+  const startEdge: PositioningEdge = isHorizontal ? "left" : "top";
+  const endEdge: PositioningEdge = isHorizontal ? "right" : "bottom";
   const start = isHorizontal ? layout.left : layout.top;
   const end = isHorizontal ? layout.right : layout.bottom;
   const dimension = isHorizontal ? layout.width : layout.height;
   const parent = isHorizontal ? geometry.parentWidthPx : geometry.parentHeightPx;
   const initialDimension = isHorizontal ? geometry.initialWidthPx : geometry.initialHeightPx;
-  const initialStart = isHorizontal ? geometry.initialLeftPx : geometry.initialTopPx;
+  const initialStart = initialEdgeDistance(startEdge, geometry);
+  const startPx = start === undefined ? undefined : resolveEdgePx(startEdge, start, geometry);
+  const endPx = end === undefined ? undefined : resolveEdgePx(endEdge, end, geometry);
   const movesStart = isHorizontal ? includes(direction, "w") : includes(direction, "n");
+  const resized = serializeSize(Math.max(1, initialDimension + (movesStart ? -delta : delta)), dimension, parent);
   const next = { ...layout };
-  const startPx = start === undefined ? undefined : edgeValue(start, initialStart, parent);
-  const endPx = end === undefined ? undefined : edgeValue(end, isHorizontal ? geometry.initialRightPx : geometry.initialBottomPx, parent);
-  const resized = serializeSize(Math.max(1, initialDimension + (movesStart ? -delta : delta)), dimension);
   const setStart = (value: number) => { if (isHorizontal) next.left = normalizeAuthoringLengthValue(value); else next.top = normalizeAuthoringLengthValue(value); };
   const setEnd = (value: number) => { if (isHorizontal) next.right = normalizeAuthoringLengthValue(value); else next.bottom = normalizeAuthoringLengthValue(value); };
   const setDimension = (value: string | number) => { if (isHorizontal) next.width = value; else next.height = value; };
@@ -110,16 +127,17 @@ export function updateTextboxForCanvasResize(
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
 ): TextboxElement {
+  if (deltaX === 0 && deltaY === 0) return element;
   const layout = element.layout ?? {};
   const next = element.layout?.position === "absolute"
     ? updateAxis(updateAxis(layout, "horizontal", direction, deltaX, geometry), "vertical", direction, deltaY, geometry)
     : {
         ...layout,
-        ...(includes(direction, "e") || includes(direction, "w")
-          ? { width: serializeSize(Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width) }
+        ...(deltaX !== 0 && (includes(direction, "e") || includes(direction, "w"))
+          ? { width: serializeSize(Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width, geometry.parentWidthPx) }
           : {}),
-        ...(includes(direction, "n") || includes(direction, "s")
-          ? { height: serializeSize(Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height) }
+        ...(deltaY !== 0 && (includes(direction, "n") || includes(direction, "s"))
+          ? { height: serializeSize(Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height, geometry.parentHeightPx) }
           : {}),
       };
   return { ...element, layout: next };
