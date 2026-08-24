@@ -2,9 +2,7 @@
 
 This document is the **current operational execution order** for PowerShow.
 
-It supersedes the older numbering that treated Audience presence as P10 and the Studio/Library redesign as P11. That sequence became stale after the project moved into the Canonical Authoring / Import Foundation work.
-
-Historical checkpoint and PR labels remain historical and are not retroactively renamed.
+Checkpoint numbering follows the actual execution chronology. Historical PRs and commits remain the authoritative references for past implementation details; the roadmap does not maintain a second table translating obsolete planned numbers into current numbers.
 
 ## Execution policy
 
@@ -22,7 +20,7 @@ inspect current code
 → advance
 ```
 
-Do not reopen completed architecture cleanup speculatively. After P10.10, contract changes should be driven by concrete product requirements.
+Do not reopen completed architecture cleanup speculatively. After P10.11, contract changes should be driven by concrete product requirements.
 
 ---
 
@@ -62,7 +60,7 @@ Current baseline rules:
 - Flow = absence of `layout.position`;
 - Absolute = `layout.position: "absolute"` + direct edges;
 - no persisted `ElementPlacement`, anchor or offset model;
-- no migration/backfill/compatibility aliases introduced by P10.10;
+- no migration/backfill/compatibility aliases introduced by P10.11;
 - published versions remain immutable and self-contained;
 - Player remains independent from Studio.
 
@@ -75,16 +73,16 @@ Current baseline rules:
 | P10.3 | ContentSlot foundation | ✅ |
 | P10.4 | Topics | ✅ |
 | P10.5 | Structured Table | ✅ |
-| P10.x | Inline Text / Rich Text foundation | ✅ |
-| P10.6 | Gallery minimum | ✅ |
-| P10.7 | Embed minimum | ✅ |
-| P10.8 | Blocks + Code semantics | ✅ |
-| P10.9 | Scripted | ✅ |
-| P10.10 | Canonical Contract Cleanup | ✅ |
-| **P10.11** | **JSON Import / Export** | **← NEXT** |
-| P10.12 | Import compatibility gate | planned |
+| P10.6 | Inline Text / Rich Text foundation | ✅ |
+| P10.7 | Gallery minimum | ✅ |
+| P10.8 | Embed minimum | ✅ |
+| P10.9 | Blocks + Code semantics | ✅ |
+| P10.10 | Scripted | ✅ |
+| P10.11 | Canonical Contract Cleanup | ✅ |
+| **P10.12** | **JSON Import / Export** | **← NEXT** |
+| P10.13 | Import compatibility gate | planned |
 
-### P10.8 — Blocks + Code semantics ✅
+### P10.9 — Blocks + Code semantics ✅
 
 Delivered:
 
@@ -96,7 +94,7 @@ Delivered:
 
 Merged through PR #77 with the follow-up Blocks hotfix in PR #78.
 
-### P10.9 — Scripted ✅
+### P10.10 — Scripted ✅
 
 Delivered through PR #79:
 
@@ -120,7 +118,7 @@ Scripted
 → authored HTML/CSS/JS in an isolated renderer-owned sandbox
 ```
 
-### P10.10 — Canonical Contract Cleanup ✅
+### P10.11 — Canonical Contract Cleanup ✅
 
 Completed and merged through PR #81.
 
@@ -147,13 +145,13 @@ Delivered:
 - strict schema tests, renderer tests, Studio tests and Player tests;
 - Studio and Player production builds passing.
 
-P10.10 exists to **free further product development**, not to begin another indefinite schema-cleanup cycle.
+P10.11 exists to **free further product development**, not to begin another indefinite schema-cleanup cycle.
 
-The earlier working-roadmap label "P10.10 Visual vocabulary gaps" is retired. Remaining visual vocabulary and UX gaps are now explicit backlog items unless a concrete feature promotes one into the active roadmap.
+Remaining visual vocabulary and UX gaps are explicit backlog items unless a concrete feature promotes one into the active roadmap.
 
 ---
 
-## P10.11 — JSON Import / Export ← NEXT
+## P10.12 — JSON Import / Export ← NEXT
 
 Goal: make the canonical PowerShow document portable without redesigning the document model again.
 
@@ -165,7 +163,7 @@ Architecture must be frozen at checkpoint start, but the direction is:
 - provide clear validation/error behavior;
 - preserve semantic IDs and authored structure unless the import contract explicitly requires otherwise;
 - do not introduce a second schema language for import/export;
-- do not use P10.11 as an excuse to redesign P10.10 contracts.
+- do not use P10.12 as an excuse to redesign P10.11 contracts.
 
 Required end-to-end invariant:
 
@@ -183,7 +181,7 @@ The exact file UX, collision policy, replacement/copy semantics and error presen
 
 ---
 
-## P10.12 — Import compatibility gate
+## P10.13 — Import compatibility gate
 
 Goal: harden the portability boundary before moving into higher-level organization and production work.
 
@@ -471,10 +469,19 @@ Do not pretend remotely requested browser-restricted behavior succeeded when the
 P9    Live presentation foundation           ✅
 
 P10   Canonical Authoring / Import Foundation
-  10.1–10.9                                  ✅
-  10.10 Canonical Contract Cleanup            ✅
-  10.11 JSON Import / Export                  ← NEXT
-  10.12 Import compatibility gate             planned
+  10.1  Typography & Fonts                   ✅
+  10.2  Links / Interaction                  ✅
+  10.3  ContentSlot foundation               ✅
+  10.4  Topics                               ✅
+  10.5  Structured Table                     ✅
+  10.6  Inline Text / Rich Text              ✅
+  10.7  Gallery minimum                      ✅
+  10.8  Embed minimum                        ✅
+  10.9  Blocks + Code semantics              ✅
+  10.10 Scripted                             ✅
+  10.11 Canonical Contract Cleanup           ✅
+  10.12 JSON Import / Export                 ← NEXT
+  10.13 Import compatibility gate            planned
 
 P11   Resources & Organization                planned
 P12   UX / Properties refinement              planned
@@ -483,4 +490,4 @@ P14   Diagnostics                             deferred
 P15   Audience                                future
 ```
 
-The next implementation checkpoint should start from current `main`, inspect the actual import/export boundaries, freeze P10.11 architecture, and only then create its implementation branch.
+The next implementation checkpoint should start from current `main`, inspect the actual import/export boundaries, freeze P10.12 architecture, and only then create its implementation branch.
