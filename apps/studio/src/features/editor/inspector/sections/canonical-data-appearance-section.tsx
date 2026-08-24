@@ -1,6 +1,7 @@
 import type {
   BlocksVisualStyle,
   ElementEffect,
+  GradientSurfaceBackground,
   GradientSurfaceVisualStyle,
   PowerShowElement,
 } from "@powershow/document-schema";
@@ -16,6 +17,25 @@ import { EffectiveLengthInput } from "./effective-length-input";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | BlocksVisualStyle;
 type DataElement = Extract<PowerShowElement, { type: "code" | "terminal" | "table" | "blocks" }>;
+
+type BackgroundKey = "color" | "gradient";
+
+function updateCanonicalBackground(
+  style: CanonicalDataStyle | undefined,
+  key: BackgroundKey,
+  value: GradientSurfaceBackground[BackgroundKey] | undefined,
+): CanonicalDataStyle {
+  const background = {
+    ...style?.background,
+    [key]: value,
+  } as GradientSurfaceBackground;
+
+  if (background.color === undefined && background.gradient === undefined) {
+    return { ...style, background: undefined };
+  }
+
+  return { ...style, background };
+}
 
 interface Props {
   element: DataElement;
@@ -36,10 +56,10 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       <button className={styles.secondaryButton} type="button" onClick={() => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.color; return next as CanonicalDataStyle; })}>{t("inspector.useThemeDefault")}</button>
     </div>}
     <div className={styles.colorControl}>
-      <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => ({ ...current, background: { ...current?.background, color } }))} /></label>
-      <button className={styles.secondaryButton} type="button" onClick={() => onUpdateStyle((current) => ({ ...current, background: undefined }))}>{t("inspector.clearBackground")}</button>
+      <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => updateCanonicalBackground(current, "color", color))} /></label>
+      <button className={styles.secondaryButton} type="button" onClick={() => onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined))}>{t("inspector.clearBackground")}</button>
     </div>
-    <ElementGradientControl gradient={style?.background?.gradient} controlPrefix={`${controlPrefix}-background`} onChange={(gradient) => onUpdateStyle((current) => ({ ...current, background: { ...current?.background, gradient } }))} />
+    <ElementGradientControl gradient={style?.background?.gradient} controlPrefix={`${controlPrefix}-background`} onChange={(gradient) => onUpdateStyle((current) => updateCanonicalBackground(current, "gradient", gradient))} />
     <div className={styles.fieldGrid}>
       <div className={styles.field}><label htmlFor={`${controlPrefix}-border-radius`}>{t("inspector.roundedCorners")}</label><EffectiveLengthInput id={`${controlPrefix}-border-radius`} name={getControlName(controlPrefix, "BorderRadius")} min="0" value={style?.borderRadius} inheritedValue={radius} preferredUnit="px" units={["px", "rem"]} stepByUnit={{ px: "1", rem: "0.1" }} onChange={(borderRadius) => onUpdateStyle((current) => ({ ...current, borderRadius }))} onReset={() => onUpdateStyle((current) => ({ ...current, borderRadius: undefined }))} /></div>
       <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-opacity`} name={getControlName(controlPrefix, "Opacity")} type="number" min="0" max="100" value={(effect?.opacity ?? 1) * 100} onChange={(event) => { const value = parseOptionalNumber(event.target.value); onUpdateEffect((current) => ({ ...current, opacity: value === undefined ? undefined : Math.max(0, Math.min(1, value / 100)) })); }} /><span>%</span></div></label>
