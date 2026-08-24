@@ -103,8 +103,8 @@ describe("Studio canonical Container producers", () => {
     expect(full.elements[0]).toMatchObject({
       type: "container",
       children: [
-        { type: "text", style: { width: "100%" } },
-        { type: "textbox", style: { width: "100%", height: "100%" } },
+        { type: "text" },
+        { type: "textbox", layout: { width: "100%", height: "100%" } },
       ],
     });
   });

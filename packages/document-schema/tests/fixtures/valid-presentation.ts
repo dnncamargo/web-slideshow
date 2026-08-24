@@ -109,10 +109,8 @@ export const validPresentation: Presentation = {
 
                   hidden: false,
 
-                  style: {
-                    padding: 24,
-                    borderRadius: 12,
-                  },
+                  layout: { width: "100%", height: 120 },
+                  style: { borderRadius: 12 },
                 },
 
                 {

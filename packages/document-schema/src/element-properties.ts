@@ -77,6 +77,47 @@ export const ElementLayoutSchema = z
 
 export type ElementLayout = z.infer<typeof ElementLayoutSchema>;
 
+const PositionedLayoutFieldsSchema = z.object({
+  position: z.literal("absolute").optional(),
+  top: LengthSchema.optional(),
+  right: LengthSchema.optional(),
+  bottom: LengthSchema.optional(),
+  left: LengthSchema.optional(),
+}).strict();
+
+function requireAbsoluteEdges(
+  layout: z.infer<typeof PositionedLayoutFieldsSchema>,
+  context: z.RefinementCtx,
+): void {
+  const hasAuthoredEdge =
+    layout.top !== undefined ||
+    layout.right !== undefined ||
+    layout.bottom !== undefined ||
+    layout.left !== undefined;
+
+  if (hasAuthoredEdge && layout.position !== "absolute") {
+    context.addIssue({
+      code: "custom",
+      path: ["position"],
+      message: "Authored edge offsets require layout.position to be absolute.",
+    });
+  }
+}
+
+export const TextLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
+  requireAbsoluteEdges,
+);
+
+export type TextLayout = z.infer<typeof TextLayoutSchema>;
+
+export const TextboxLayoutSchema = z.object({
+  width: LengthSchema.optional(),
+  height: LengthSchema.optional(),
+  ...PositionedLayoutFieldsSchema.shape,
+}).strict().superRefine(requireAbsoluteEdges);
+
+export type TextboxLayout = z.infer<typeof TextboxLayoutSchema>;
+
 export const ElementBackgroundSchema = z
   .object({
     color: ColorSchema.optional(),
@@ -98,6 +139,23 @@ export const ElementVisualStyleSchema = z
   .strict();
 
 export type ElementVisualStyle = z.infer<typeof ElementVisualStyleSchema>;
+
+export const TextVisualBackgroundSchema = z.object({
+  color: ColorSchema.optional(),
+  gradient: GradientSchema.optional(),
+}).strict();
+
+export type TextVisualBackground = z.infer<typeof TextVisualBackgroundSchema>;
+
+export const TextVisualStyleSchema = z.object({
+  color: ColorSchema.optional(),
+  background: TextVisualBackgroundSchema.optional(),
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export type TextVisualStyle = z.infer<typeof TextVisualStyleSchema>;
 
 export const ElementTypographySchema = z
   .object({

@@ -1,5 +1,8 @@
 import type {
+  ElementEffect,
   ElementStyle,
+  ElementTypography,
+  ElementVisualStyle,
   FontFaceResource,
   FontResource,
   PowerShowElement,
@@ -11,6 +14,22 @@ export type ElementInspectorUpdate = (
 
 export type UpdateElementStyle = (
   update: (style: ElementStyle | undefined) => ElementStyle,
+) => void;
+
+export type UpdateElementTypography = (
+  update: (
+    typography: ElementTypography | undefined,
+  ) => ElementTypography,
+) => void;
+
+export type UpdateElementVisualStyle = (
+  update: (
+    style: ElementVisualStyle | undefined,
+  ) => ElementVisualStyle,
+) => void;
+
+export type UpdateElementEffect = (
+  update: (effect: ElementEffect | undefined) => ElementEffect,
 ) => void;
 
 export interface FontResourceControls {

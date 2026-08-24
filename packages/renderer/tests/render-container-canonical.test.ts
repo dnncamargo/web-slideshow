@@ -199,7 +199,7 @@ describe("production canonical Container renderer", () => {
       role: "main",
       children: [
         createContainerElement({ id: "nested", children: [createTextElement({ id: "text" })] }),
-        createTextElement({ id: "legacy-child", style: { position: "absolute" } }),
+        createTextElement({ id: "canonical-child", layout: { position: "absolute", top: 0, left: 0 } }),
       ],
     }));
 
@@ -207,7 +207,7 @@ describe("production canonical Container renderer", () => {
     expect(rootTag(html)).toContain('data-powershow-role="main"');
     expect(html).toContain('data-powershow-id="nested"');
     expect(html).toContain('data-powershow-id="text"');
-    expect(html).toContain('data-powershow-id="legacy-child"');
+    expect(html).toContain('data-powershow-id="canonical-child"');
     expect(rootTag(html)).toContain("position:relative");
     expect(renderElement(createContainerElement({ hidden: true }))).toBe("");
   });
@@ -267,7 +267,7 @@ describe("production canonical Container renderer", () => {
     expect(patternParent).toContain("powershow-container-background-pattern");
 
     const legacyPlacementParent = renderElement(createContainerElement({
-      children: [createTextElement({ style: { placement: { mode: "absolute" } } })],
+      children: [createTextElement({ layout: { position: "absolute", top: 0, left: 0 } })],
     }));
     expect(rootTag(legacyPlacementParent)).toContain("position:relative");
   });

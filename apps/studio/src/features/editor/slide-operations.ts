@@ -719,13 +719,12 @@ export function createSlideFromPreset(
     };
   }
 
-  const text = (name: string, content: string, style?: TextElement["style"]): TextElement => ({
+  const text = (name: string, content: string): TextElement => ({
     id: elementId(name),
     type: "text",
     hidden: false,
     variant: "title",
     content,
-    ...(style === undefined ? {} : { style }),
   });
 
   switch (preset) {
@@ -740,13 +739,13 @@ export function createSlideFromPreset(
           padding: 56,
           children: { direction: "column", gap: 24, horizontalAlign: "stretch", verticalAlign: "stretch" },
         }, [
-          text("title", "Slide title", { width: "100%" }),
+          text("title", "Slide title"),
           {
             id: elementId("content"),
             type: "textbox",
             hidden: false,
             content: "Add your content here.",
-            style: { width: "100%", height: "100%" },
+            layout: { width: "100%", height: "100%" },
           },
         ]),
       ]);
@@ -765,7 +764,7 @@ export function createSlideFromPreset(
             type: "textbox",
             hidden: false,
             content: "Add your content here.",
-            style: { width: "70%" },
+            layout: { width: "70%" },
           },
         ]),
       ]);
@@ -778,7 +777,7 @@ export function createSlideFromPreset(
           padding: 56,
           children: { direction: "column", gap: 32, horizontalAlign: "center", verticalAlign: "center" },
         }, [
-          text("title", "Slide title", { width: "90%" }),
+          text("title", "Slide title"),
           container("content", {
             width: "90%",
             height: "68%",
@@ -843,7 +842,7 @@ export function createSlideFromPreset(
           padding: 48,
           children: { direction: "column", gap: 28, horizontalAlign: "center", verticalAlign: "center" },
         }, [
-          text("title", "Slide title", { width: "94%" }),
+          text("title", "Slide title"),
           container("columns", {
             width: "94%",
             height: "70%",

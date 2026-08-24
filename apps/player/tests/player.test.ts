@@ -225,10 +225,17 @@ describe("PowerShow Player", () => {
       ],
     };
     presentation.slides[0]?.elements.forEach((element) => {
-      element.style = {
-        ...element.style,
-        fontFamily: "Source Sans 3",
-      };
+      if (element.type === "text" || element.type === "textbox") {
+        element.typography = {
+          ...element.typography,
+          fontFamily: "Source Sans 3",
+        };
+      } else if (element.type !== "container") {
+        element.style = {
+          ...element.style,
+          fontFamily: "Source Sans 3",
+        };
+      }
     });
 
     player = mountPlayer(root, presentation);

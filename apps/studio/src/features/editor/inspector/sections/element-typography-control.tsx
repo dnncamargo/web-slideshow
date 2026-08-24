@@ -1,4 +1,7 @@
-import type { ElementStyle } from "@powershow/document-schema";
+import type {
+  ElementStyle,
+  ElementTypography,
+} from "@powershow/document-schema";
 import {
   convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
@@ -18,6 +21,7 @@ import {
 import type {
   FontResourceControls,
   UpdateElementStyle,
+  UpdateElementTypography,
 } from "../inspector-types";
 
 import { PresentationFontManager } from "./presentation-font-manager";
@@ -28,11 +32,15 @@ import { EffectiveLengthInput } from "./effective-length-input";
 interface ElementTypographyControlProps {
   selectedElementId: string;
 
-  style: ElementStyle | undefined;
+  style?: ElementStyle | undefined;
+
+  typography?: ElementTypography | undefined;
 
   effectiveDefaults: ThemeTypographyDefaults;
 
-  onUpdateStyle: UpdateElementStyle;
+  onUpdateStyle?: UpdateElementStyle;
+
+  onUpdateTypography?: UpdateElementTypography;
 
   controlPrefix: string;
 
@@ -176,20 +184,38 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
 export function ElementTypographyControl({
   selectedElementId,
   style,
+  typography,
   effectiveDefaults,
-  onUpdateStyle,
+  onUpdateStyle: legacyOnUpdateStyle,
+  onUpdateTypography,
   controlPrefix,
   fontResourceControls,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
   const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
 
-  const fontWeightSelection = readFontWeightSelection(style?.fontWeight);
+  const currentTypography = typography ?? style;
+
+  function onUpdateStyle(
+    update: (current: ElementTypography | undefined) => ElementTypography,
+  ): void {
+    if (onUpdateTypography) {
+      onUpdateTypography(update);
+      return;
+    }
+
+    legacyOnUpdateStyle?.((currentStyle) => ({
+      ...currentStyle,
+      ...update(currentStyle),
+    }));
+  }
+
+  const fontWeightSelection = readFontWeightSelection(currentTypography?.fontWeight);
 
   const showUncuratedFontWeight =
-    style?.fontWeight !== undefined &&
-    !isCuratedFontWeight(style.fontWeight);
-  const currentFontFamily = style?.fontFamily ?? "";
+    currentTypography?.fontWeight !== undefined &&
+    !isCuratedFontWeight(currentTypography.fontWeight);
+  const currentFontFamily = currentTypography?.fontFamily ?? "";
   const showUnregisteredFontFamily =
     currentFontFamily !== "" &&
     !fontResourceControls.fontResources.some(
@@ -197,11 +223,11 @@ export function ElementTypographyControl({
     );
   const fontManagerId = `${controlPrefix}-presentation-font-manager`;
   const effectiveFontSizePx =
-    style?.fontSize === undefined
+    currentTypography?.fontSize === undefined
       ? effectiveDefaults.fontSize
-      : convertAuthoringLength(style.fontSize, "px");
+      : convertAuthoringLength(currentTypography.fontSize, "px");
   const lineHeightValue = resolveEffectiveNumericStyleValue(
-    style?.lineHeight,
+    currentTypography?.lineHeight,
     effectiveDefaults.lineHeight,
   );
 
@@ -222,8 +248,8 @@ export function ElementTypographyControl({
             onChange={(event) => {
               const fontFamily = event.target.value || undefined;
 
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
+              onUpdateStyle((currentTypography) => ({
+                ...currentTypography,
 
                 fontFamily,
               }));
@@ -262,8 +288,8 @@ export function ElementTypographyControl({
           selectedElementId={selectedElementId}
           selectedFontFamily={currentFontFamily}
           onApplyFontFamily={(family) => {
-            onUpdateStyle((currentStyle) => ({
-              ...currentStyle,
+            onUpdateStyle((currentTypography) => ({
+              ...currentTypography,
 
               fontFamily: family,
             }));
@@ -282,7 +308,7 @@ export function ElementTypographyControl({
             id={`${controlPrefix}-font-size`}
             name={getControlName(controlPrefix, "FontSize")}
             min="1"
-            value={style?.fontSize}
+            value={currentTypography?.fontSize}
             inheritedValue={effectiveDefaults.fontSize}
             preferredUnit="rem"
             units={["px", "rem"]}
@@ -348,7 +374,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-font-style`}
             name={getControlName(controlPrefix, "FontStyle")}
-            value={style?.fontStyle ?? ""}
+            value={currentTypography?.fontStyle ?? ""}
             onChange={(event) => {
               const fontStyle = parseFontStyleSelection(event.target.value);
 
@@ -373,7 +399,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-text-align`}
             name={getControlName(controlPrefix, "TextAlign")}
-            value={style?.textAlign ?? ""}
+            value={currentTypography?.textAlign ?? ""}
             onChange={(event) => {
               const textAlign = parseTextAlignSelection(event.target.value);
 
@@ -441,7 +467,7 @@ export function ElementTypographyControl({
           <EffectiveLengthInput
             id={`${controlPrefix}-letter-spacing`}
             name={getControlName(controlPrefix, "LetterSpacing")}
-            value={style?.letterSpacing}
+            value={currentTypography?.letterSpacing}
             inheritedValue={effectiveDefaults.letterSpacing}
             preferredUnit="em"
             units={["px", "em", "rem"]}
@@ -471,7 +497,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-text-transform`}
             name={getControlName(controlPrefix, "TextTransform")}
-            value={style?.textTransform ?? "none"}
+            value={currentTypography?.textTransform ?? "none"}
             onChange={(event) => {
               const textTransform = parseTextTransformSelection(
                 event.target.value,
@@ -506,7 +532,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-white-space`}
             name={getControlName(controlPrefix, "WhiteSpace")}
-            value={style?.whiteSpace ?? "normal"}
+            value={currentTypography?.whiteSpace ?? "normal"}
             onChange={(event) => {
               const whiteSpace = parseWhiteSpaceSelection(event.target.value);
 
@@ -537,7 +563,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-text-wrap-style`}
             name={getControlName(controlPrefix, "TextWrapStyle")}
-            value={style?.textWrapStyle ?? "auto"}
+            value={currentTypography?.textWrapStyle ?? "auto"}
             onChange={(event) => {
               const textWrapStyle = parseTextWrapStyleSelection(
                 event.target.value,
@@ -564,7 +590,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-overflow-wrap`}
             name={getControlName(controlPrefix, "OverflowWrap")}
-            value={style?.overflowWrap ?? "normal"}
+            value={currentTypography?.overflowWrap ?? "normal"}
             onChange={(event) => {
               const overflowWrap = parseOverflowWrapSelection(
                 event.target.value,
@@ -597,7 +623,7 @@ export function ElementTypographyControl({
           <select
             id={`${controlPrefix}-text-decoration-line`}
             name={getControlName(controlPrefix, "TextDecorationLine")}
-            value={style?.textDecorationLine ?? "none"}
+            value={currentTypography?.textDecorationLine ?? "none"}
             onChange={(event) => {
               const textDecorationLine = parseTextDecorationLineSelection(
                 event.target.value,

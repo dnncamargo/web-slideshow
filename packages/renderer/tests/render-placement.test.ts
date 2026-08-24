@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import { renderElement } from "../src/render-element";
 
 import {
+  createCodeElement,
   createContainerElement,
   createTextElement,
 } from "./fixtures/render-fixtures";
 
-function absoluteText(overrides: Record<string, unknown> = {}) {
-  return createTextElement({
+function absoluteCode(overrides: Record<string, unknown> = {}) {
+  return createCodeElement({
     id: "absolute-text",
     style: { placement: { mode: "absolute", ...overrides } },
   });
@@ -29,7 +30,7 @@ describe("semantic placement rendering", () => {
 
   it("positions an absolute child from the center by default", () => {
     const html = renderElement(
-      createContainerElement({ children: [absoluteText()] }),
+      createContainerElement({ children: [absoluteCode()] }),
     );
 
     expect(html).toContain("position:relative");
@@ -43,7 +44,7 @@ describe("semantic placement rendering", () => {
     const html = renderElement(
       createContainerElement({
         children: [
-          absoluteText({
+          absoluteCode({
             anchor: "bottom-right",
             offsetX: "-20px",
             offsetY: "10%",
@@ -66,7 +67,7 @@ describe("semantic placement rendering", () => {
           createTextElement({ id: "background", content: "Background" }),
           createContainerElement({
             id: "inner",
-            children: [absoluteText({ anchor: "top-left" })],
+          children: [absoluteCode({ anchor: "top-left" })],
           }),
         ],
       }),

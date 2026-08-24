@@ -240,9 +240,7 @@ describe("linked Container containing block strategy", () => {
         children: [
           createTextElement({
             id: "floating-text",
-            style: {
-              placement: { mode: "absolute" },
-            },
+            layout: { position: "absolute", top: 0, left: 0 },
           }),
         ],
       }),
@@ -261,9 +259,7 @@ describe("linked Container containing block strategy", () => {
         children: [
           createTextElement({
             id: "floating-text",
-            style: {
-              placement: { mode: "absolute", anchor: "top-left" },
-            },
+            layout: { position: "absolute", top: 0, left: 0 },
           }),
         ],
       }),

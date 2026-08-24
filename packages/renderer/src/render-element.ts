@@ -22,6 +22,7 @@ import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
 import { renderLength } from "./render-length";
 import { renderStyle } from "./render-style";
+import { renderCanonicalTextStyle } from "./render-canonical-text";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
 
@@ -63,7 +64,12 @@ function buildAttributes(
 
   const styles: string[] = [];
 
-  const baseStyle = element.type === "container" ? "" : renderStyle(element.style);
+  const baseStyle =
+    element.type === "container"
+      ? ""
+      : element.type === "text" || element.type === "textbox"
+        ? renderCanonicalTextStyle(element)
+        : renderStyle(element.style);
 
   if (baseStyle) {
     styles.push(baseStyle);

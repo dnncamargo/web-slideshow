@@ -30,6 +30,7 @@ import type {
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
 import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
+import { CanonicalTextPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { shouldShowElementPlacement } from "./inspector/sections/element-placement-helpers";
 
 interface ElementInspectorProps {
@@ -259,23 +260,38 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
-        <ElementPlacementSection
-          element={element}
-          parent={parent}
-          onUpdateStyle={(update) => {
-            onUpdate((current) => {
-              if (current.type === "container") {
+        element.type === "text" || element.type === "textbox" ? (
+          <CanonicalTextPositionSection
+            element={element}
+            parent={parent}
+            onUpdateLayout={(update) => {
+              onUpdate((current) => {
+                if (current.type === "textbox") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                if (current.type === "text") {
+                  const next = update(current.layout);
+                  const { width: _width, height: _height, ...textLayout } = next ?? {};
+                  return { ...current, layout: textLayout };
+                }
                 return current;
-              }
-
-              return {
-                ...current,
-                style: update(current.style),
-              };
-            });
-          }}
-          layerControls={layerControls}
-        />
+              });
+            }}
+            layerControls={layerControls}
+          />
+        ) : (
+          <ElementPlacementSection
+            element={element}
+            parent={parent}
+            onUpdateStyle={(update) => {
+              onUpdate((current) => {
+                if (current.type === "container" || current.type === "text" || current.type === "textbox") return current;
+                return { ...current, style: update(current.style) };
+              });
+            }}
+            layerControls={layerControls}
+          />
+        )
       )}
     </>
   );

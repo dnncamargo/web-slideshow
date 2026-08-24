@@ -198,8 +198,8 @@ describe("renderElement topics support", () => {
                   content: "Local override",
                   style: {
                     color: "#facc15",
-                    fontWeight: 700,
                   },
+                  typography: { fontWeight: 700 },
                 }),
               ],
             },

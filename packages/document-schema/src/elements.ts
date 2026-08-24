@@ -19,6 +19,9 @@ import {
   ElementEffectSchema,
   ElementTypographySchema,
   ElementVisualStyleSchema,
+  TextLayoutSchema,
+  TextVisualStyleSchema,
+  TextboxLayoutSchema,
 } from "./element-properties";
 
 const BaseElementSchema = z.object({
@@ -28,6 +31,11 @@ const BaseElementSchema = z.object({
 
   hidden: z.boolean().default(false),
 });
+
+const TextElementBaseSchema = z.object({
+  id: ElementIdSchema,
+  hidden: z.boolean().default(false),
+}).strict();
 
 export const TextRunMarksSchema = z.object({
   bold: z.boolean().optional(),
@@ -65,7 +73,7 @@ export type TextContent =
   z.infer<typeof TextContentSchema>;
 
 export const TextElementSchema =
-  BaseElementSchema.extend({
+  TextElementBaseSchema.extend({
     type: z.literal("text"),
 
     content: TextContentSchema,
@@ -77,22 +85,38 @@ export const TextElementSchema =
       "caption",
     ]).default("body"),
 
+    layout: TextLayoutSchema.optional(),
+
+    style: TextVisualStyleSchema.optional(),
+
+    typography: ElementTypographySchema.optional(),
+
+    effect: ElementEffectSchema.optional(),
+
     link: ElementLinkSchema.optional(),
-  });
+  }).strict();
 
 export type TextElement =
   z.infer<typeof TextElementSchema>;
 
 export const TextboxElementSchema =
-  BaseElementSchema.extend({
+  TextElementBaseSchema.extend({
     type: z.literal("textbox"),
 
     content: z.string(),
 
     preset: z.string().optional(),
 
+    layout: TextboxLayoutSchema.optional(),
+
+    style: TextVisualStyleSchema.optional(),
+
+    typography: ElementTypographySchema.optional(),
+
+    effect: ElementEffectSchema.optional(),
+
     link: ElementLinkSchema.optional(),
-  });
+  }).strict();
 
 export type TextboxElement =
   z.infer<typeof TextboxElementSchema>;

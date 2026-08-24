@@ -209,7 +209,9 @@ function ElementTreeNode({
   const indicator =
     isExpandable && element.type === "container"
       ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
-      : element.style?.placement?.mode === "absolute"
+      : element.type === "text" || element.type === "textbox"
+        ? element.layout?.position === "absolute"
+        : element.style?.placement?.mode === "absolute"
         ? `[${t("inspector.absolute")}]`
         : null;
   const dropIntent = dropTarget?.id === element.id ? dropTarget.intent : null;

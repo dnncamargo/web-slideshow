@@ -52,7 +52,7 @@ describe("renderElement", () => {
         hidden: false,
         variant: "body",
         content: "PowerShow Example",
-        style: { textTransform },
+        typography: { textTransform },
       };
 
       const html = renderElement(element);

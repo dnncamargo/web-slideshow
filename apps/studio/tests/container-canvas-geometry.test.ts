@@ -295,7 +295,7 @@ describe("canonical container canvas drag", () => {
       content: "hello",
       variant: "body" as const,
       hidden: false,
-      style: { placement: { mode: "absolute" as const, offsetX: 5 } },
+      layout: { position: "absolute" as const, left: 5 },
     };
     const absolute = container({
       position: "absolute",

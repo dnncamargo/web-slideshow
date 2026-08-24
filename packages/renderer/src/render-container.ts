@@ -216,6 +216,10 @@ function hasAbsoluteChild(element: ContainerElement): boolean {
       return child.layout?.position === "absolute";
     }
 
+    if (child.type === "text" || child.type === "textbox") {
+      return child.layout?.position === "absolute";
+    }
+
     return (
       child.style?.position === "absolute" ||
       isAbsolutePlacement(child.style?.placement)
