@@ -15,12 +15,22 @@ import { ContainerSizeSection } from "./sections/container-size-section";
 
 import { ContainerSpacingSection } from "./sections/container-spacing-section";
 
+import { ContainerPositionSection } from "./sections/container-position-section";
+
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 
 interface ContainerInspectorProps {
   element: ContainerElement;
 
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+
+  parent?: ContainerElement | null;
+
+  layerControls?: {
+    index: number;
+    count: number;
+    onMoveTo: (index: number) => void;
+  } | null;
 }
 
 // ============================================================
@@ -30,6 +40,8 @@ interface ContainerInspectorProps {
 export function ContainerInspector({
   element,
   onUpdate,
+  parent = null,
+  layerControls = null,
 }: ContainerInspectorProps) {
   function updateContainer(
     update: (container: ContainerElement) => ContainerElement,
@@ -48,6 +60,13 @@ export function ContainerInspector({
       <div className={styles.inspectorDivider} />
 
       <ContainerLayoutSection element={element} onUpdate={updateContainer} />
+
+      <ContainerPositionSection
+        element={element}
+        onUpdate={updateContainer}
+        parent={parent}
+        layerControls={layerControls}
+      />
 
       <ContainerSizeSection element={element} onUpdate={updateContainer} />
 

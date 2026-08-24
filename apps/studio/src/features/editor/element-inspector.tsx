@@ -79,13 +79,22 @@ function ElementTypeInspector({
   focalEditingImageId,
   onFocalEditingImageIdChange,
   unsupportedElementHint,
+  parent,
+  layerControls,
   topicsAuthoringControls,
   blocksAuthoringControls: _blocksAuthoringControls,
   tableAuthoringControls,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
-      return <ContainerInspector element={element} onUpdate={onUpdate} />;
+      return (
+        <ContainerInspector
+          element={element}
+          onUpdate={onUpdate}
+          parent={parent}
+          layerControls={layerControls}
+        />
+      );
 
     case "text":
       return (
@@ -254,10 +263,16 @@ export function ElementInspector({
           element={element}
           parent={parent}
           onUpdateStyle={(update) => {
-            onUpdate((current) => ({
-              ...current,
-              style: update(current.style),
-            }));
+            onUpdate((current) => {
+              if (current.type === "container") {
+                return current;
+              }
+
+              return {
+                ...current,
+                style: update(current.style),
+              };
+            });
           }}
           layerControls={layerControls}
         />

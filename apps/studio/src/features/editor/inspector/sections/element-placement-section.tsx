@@ -53,7 +53,7 @@ interface LayerControls {
 }
 
 interface ElementPlacementSectionProps {
-  element: PowerShowElement;
+  element: Exclude<PowerShowElement, ContainerElement>;
   parent: ContainerElement | null;
   onUpdateStyle: UpdateElementStyle;
   layerControls: LayerControls;
@@ -121,7 +121,7 @@ export function ElementPlacementSection({
   const isAbsolute = placement?.mode === "absolute";
   const layerControlsVisible = shouldShowPlacementLayerControls(
     isAbsolute,
-    parent?.layoutMode,
+    parent?.layout?.children?.mode,
   );
 
   return (
