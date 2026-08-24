@@ -86,9 +86,12 @@ import {
   updatePlacementForCanvasDrag,
 } from "./inspector/sections/element-placement-helpers";
 import {
+  getContainerCanvasResizeDirections,
   isContainerCanvasDraggable,
   updateContainerForCanvasDrag,
+  updateContainerForCanvasResize,
   type ContainerCanvasDragGeometry,
+  type ContainerCanvasResizeGeometry,
 } from "./container-canvas-geometry";
 
 import { editorDemoPresentation } from "./editor-demo-presentation";
@@ -264,6 +267,7 @@ interface CanvasResizeState {
   initialWidthPx: number;
   initialHeightPx: number;
   initialOverlay: CanvasResizeOverlay;
+  containerResizeGeometry?: ContainerCanvasResizeGeometry;
   deltaX: number;
   deltaY: number;
   candidates: CanvasSnapCandidate[];
@@ -628,7 +632,6 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
-      selectedDocumentElement.type === "container" ||
       !isCanvasResizable(selectedDocumentElement)
     ) {
       setCanvasResizeOverlay(null);
@@ -832,6 +835,85 @@ export function EditorWorkspace({
     return {
       candidates: buildCanvasSnapCandidates(parentBounds, siblings),
       parentBounds,
+    };
+  }
+
+  function parseComputedStylePx(
+    value: string | undefined,
+  ): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const numeric = Number.parseFloat(value);
+
+    return Number.isFinite(numeric) ? numeric : undefined;
+  }
+
+  function getContainerCanvasResizeGeometryForTarget(
+    target: HTMLElement,
+    layoutParent: HTMLElement,
+    parentBounds: CanvasBounds,
+    scaleX: number,
+    scaleY: number,
+    isAbsolute: boolean,
+  ): ContainerCanvasResizeGeometry {
+    const parentComputed = getComputedStyle(layoutParent);
+    const parentClientWidth = layoutParent.clientWidth || parentBounds.width;
+    const parentClientHeight = layoutParent.clientHeight || parentBounds.height;
+
+    // Absolute percentage width/height resolves against the parent client
+    // (containing-block) box, excluding its border. Flow percentage sizing
+    // resolves against the direct parent content box, derived from the
+    // client box minus its computed paddings.
+    const parentWidthPx = isAbsolute
+      ? parentClientWidth
+      : Math.max(
+          0,
+          parentClientWidth -
+            (parseComputedStylePx(parentComputed.paddingLeft) ?? 0) -
+            (parseComputedStylePx(parentComputed.paddingRight) ?? 0),
+        );
+    const parentHeightPx = isAbsolute
+      ? parentClientHeight
+      : Math.max(
+          0,
+          parentClientHeight -
+            (parseComputedStylePx(parentComputed.paddingTop) ?? 0) -
+            (parseComputedStylePx(parentComputed.paddingBottom) ?? 0),
+        );
+
+    // Authored canonical width/height map to CSS content width/height.
+    // Prefer the computed content-box value; never use the border-box
+    // offsetWidth/offsetHeight as the authored baseline.
+    const computed = getComputedStyle(target);
+    const computedWidthPx = parseComputedStylePx(computed.width);
+    const computedHeightPx = parseComputedStylePx(computed.height);
+    const elementBounds = target.getBoundingClientRect();
+    const parentClientLeft =
+      parentBounds.left + layoutParent.clientLeft * scaleX;
+    const parentClientTop =
+      parentBounds.top + layoutParent.clientTop * scaleY;
+
+    return {
+      parentWidthPx,
+      parentHeightPx,
+      initialWidthPx:
+        computedWidthPx !== undefined && computedWidthPx > 0
+          ? computedWidthPx
+          : elementBounds.width / scaleX,
+      initialHeightPx:
+        computedHeightPx !== undefined && computedHeightPx > 0
+          ? computedHeightPx
+          : elementBounds.height / scaleY,
+      initialLeftPx: (elementBounds.left - parentClientLeft) / scaleX,
+      initialTopPx: (elementBounds.top - parentClientTop) / scaleY,
+      initialRightPx:
+        (parentClientLeft + parentClientWidth * scaleX - elementBounds.right) /
+        scaleX,
+      initialBottomPx:
+        (parentClientTop + parentClientHeight * scaleY - elementBounds.bottom) /
+        scaleY,
     };
   }
 
@@ -1123,6 +1205,18 @@ export function EditorWorkspace({
       return;
     }
 
+    const channelAllowDirections =
+      selectedDocumentElement.type === "container"
+        ? getContainerCanvasResizeDirections(selectedDocumentElement)
+        : null;
+
+    if (
+      channelAllowDirections !== null &&
+      !channelAllowDirections.includes(direction)
+    ) {
+      return;
+    }
+
     const canvas = slideCanvasRef.current;
 
     if (!canvas || !isCanvasResizable(selectedDocumentElement)) {
@@ -1152,6 +1246,22 @@ export function EditorWorkspace({
       return;
     }
 
+    const scaleX = parentBounds.width / logicalWidth || 1;
+    const scaleY = parentBounds.height / logicalHeight || 1;
+
+    let containerResizeGeometry: ContainerCanvasResizeGeometry | undefined;
+
+    if (selectedDocumentElement.type === "container") {
+      containerResizeGeometry = getContainerCanvasResizeGeometryForTarget(
+        target,
+        layoutParent,
+        parentBounds,
+        scaleX,
+        scaleY,
+        selectedDocumentElement.layout?.position === "absolute",
+      );
+    }
+
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1169,13 +1279,16 @@ export function EditorWorkspace({
       startClientY: event.clientY,
       parentWidthPx: logicalWidth,
       parentHeightPx: logicalHeight,
-      scaleX: parentBounds.width / logicalWidth || 1,
-      scaleY: parentBounds.height / logicalHeight || 1,
+      scaleX,
+      scaleY,
       initialWidthPx:
         target.offsetWidth || target.getBoundingClientRect().width,
       initialHeightPx:
         target.offsetHeight || target.getBoundingClientRect().height,
       initialOverlay: canvasResizeOverlay,
+      ...(containerResizeGeometry
+        ? { containerResizeGeometry }
+        : {}),
       deltaX: 0,
       deltaY: 0,
       candidates: snap.candidates,
@@ -1306,7 +1419,17 @@ export function EditorWorkspace({
                 resize.elementId,
                 (element) => {
                   if (element.type === "container") {
-                    return element;
+                    if (!resize.containerResizeGeometry) {
+                      return element;
+                    }
+
+                    return updateContainerForCanvasResize(
+                      element,
+                      resize.direction,
+                      resize.deltaX,
+                      resize.deltaY,
+                      resize.containerResizeGeometry,
+                    );
                   }
                   const locked =
                     element.type === "image" && preserveImageProportion;
@@ -2907,7 +3030,9 @@ export function EditorWorkspace({
                 {(selectedDocumentElement?.type === "image" &&
                 preserveImageProportion
                   ? CANVAS_IMAGE_CORNER_DIRECTIONS
-                  : CANVAS_RESIZE_DIRECTIONS
+                  : selectedDocumentElement?.type === "container"
+                    ? getContainerCanvasResizeDirections(selectedDocumentElement)
+                    : CANVAS_RESIZE_DIRECTIONS
                 ).map((direction) => (
                   <button
                     key={direction}
