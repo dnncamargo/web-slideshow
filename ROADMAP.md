@@ -1,399 +1,486 @@
 # PowerShow Roadmap
 
-This document is the current execution order for PowerShow.
+This document is the **current operational execution order** for PowerShow.
 
-## Numbering policy
+It supersedes the older numbering that treated Audience presence as P10 and the Studio/Library redesign as P11. That sequence became stale after the project moved into the Canonical Authoring / Import Foundation work.
 
-Historical checkpoint references remain historical and are not retroactively renamed.
+Historical checkpoint and PR labels remain historical and are not retroactively renamed.
 
-From P9 onward, the roadmap is renumbered to reflect product priority rather than the order in which ideas were originally proposed.
+## Execution policy
 
-### Previous planned number → current number
+The roadmap is a work-order document, not a promise that every future contract is already frozen.
 
-| Previous label | Current label | Area |
-|---|---:|---|
-| P12 | **P9** | Control commands, live publishing, fullscreen |
-| P13 | **P10** | Audience presence |
-| P9 | **P11** | PowerShow Studio / Library redesign |
-| P10 | **P12** | Folders + persistence |
-| P11 | **P13** | Saved Styles / reusable libraries |
+For planned work:
 
-P8 remains the completed Control shell / responsive presenter milestone.
+```text
+inspect current code
+→ define the concrete product need
+→ freeze architecture/contract for the checkpoint
+→ implement narrowly
+→ test
+→ review the real remote commit
+→ advance
+```
+
+Do not reopen completed architecture cleanup speculatively. After P10.10, contract changes should be driven by concrete product requirements.
 
 ---
 
-## P8 — Control shell and responsive presenter ✅
+# P9 — Live presentation foundation ✅
 
-Status: **complete and merged**.
+Status: **complete in the previous product cycle**.
+
+The core real-presentation path is already in production code:
+
+- authenticated Studio / Control;
+- live presentation activation;
+- Player live entry from the active session;
+- canonical live slide state;
+- Player ACK / desired-applied state convergence;
+- navigation by logical slide/page id;
+- private slide notes;
+- Presenter / Control view;
+- Current and Next previews;
+- staged publication updates while a Player is live;
+- logical-slide preservation across publication promotion;
+- Watch following applied Player state;
+- reload/convergence hardening for the live protocol.
+
+Deferred product extensions from this area are tracked in Backlog rather than keeping P9 open indefinitely.
+
+---
+
+# P10 — Canonical Authoring / Import Foundation
+
+Goal: provide a complete, semantic, self-contained authoring model that can be safely saved, published, rendered, exported and imported.
+
+Current baseline rules:
+
+- `schemaVersion` remains `1`;
+- one canonical representation per authored intention;
+- no universal persisted `ElementStyle` bag;
+- Flow = absence of `layout.position`;
+- Absolute = `layout.position: "absolute"` + direct edges;
+- no persisted `ElementPlacement`, anchor or offset model;
+- no migration/backfill/compatibility aliases introduced by P10.10;
+- published versions remain immutable and self-contained;
+- Player remains independent from Studio.
+
+## P10 status
+
+| Checkpoint | Area | Status |
+|---|---|---:|
+| P10.1 | Typography & Fonts | ✅ |
+| P10.2 | Links / Interaction | ✅ |
+| P10.3 | ContentSlot foundation | ✅ |
+| P10.4 | Topics | ✅ |
+| P10.5 | Structured Table | ✅ |
+| P10.x | Inline Text / Rich Text foundation | ✅ |
+| P10.6 | Gallery minimum | ✅ |
+| P10.7 | Embed minimum | ✅ |
+| P10.8 | Blocks + Code semantics | ✅ |
+| P10.9 | Scripted | ✅ |
+| P10.10 | Canonical Contract Cleanup | ✅ |
+| **P10.11** | **JSON Import / Export** | **← NEXT** |
+| P10.12 | Import compatibility gate | planned |
+
+### P10.8 — Blocks + Code semantics ✅
 
 Delivered:
 
-- authenticated `/control` surface;
-- Current and Next previews;
-- private Notes;
-- read-only Summary;
-- ACK-authoritative current slide and counter;
-- Previous/Next boundary handling;
-- Live sync / latency status;
-- End presentation;
-- Editor-aligned visual shell;
-- responsive desktop/mobile composition;
-- mobile Library access;
-- inline local clock;
-- final Summary parity with Editor.
+- Code remains static `<pre><code>` content;
+- Blocks is structured visual code, static and provider-neutral;
+- recursive Blocks authoring;
+- persistence/recovery safeguards;
+- regression coverage.
 
-Deferred intentionally:
+Merged through PR #77 with the follow-up Blocks hotfix in PR #78.
 
-- functional fullscreen;
-- session timer without a canonical persisted `startedAt`;
-- richer Control commands.
+### P10.9 — Scripted ✅
 
----
+Delivered through PR #79:
 
-# P9 — Live presentation operations ← NEXT
+- canonical Scripted element;
+- authored HTML/CSS/JavaScript in Studio;
+- explicit Apply / Run authoring flow;
+- renderer-owned sandboxed iframe;
+- exact sandbox policy: `allow-scripts` only;
+- no `allow-same-origin`;
+- fixed CSP and `no-referrer` policy;
+- no `eval`, `Function`, runtime bridge or authored sandbox permissions;
+- Canvas / Player / persistence / publication / recovery coverage.
 
-P9 is now the highest-priority product cycle.
-
-Its purpose is to make PowerShow safe and practical during a real presentation, especially when the operator edits and republishes while a Player is already live.
-
-## P9.0 — Staged Live Publish
-
-### Product contract
-
-PowerShow distinguishes:
+Scripted is intentionally distinct from Embed:
 
 ```text
-latest published version
-        │
-        └── what Control should preview
+Embed
+→ external content in a sandboxed iframe
 
-live/current version
-        │
-        └── what Player is currently projecting
+Scripted
+→ authored HTML/CSS/JS in an isolated renderer-owned sandbox
 ```
 
-A new Publish must not immediately replace the projected Player content.
+### P10.10 — Canonical Contract Cleanup ✅
 
-Flow:
+Completed and merged through PR #81.
+
+Squash merge baseline on `main`:
 
 ```text
-Editor publishes V2
-       │
-       ├── immutable V2 is created
-       └── public pointer moves to V2
-                    │
-                    ▼
-            Control observes V2
-            automatically
-                    │
-                    │ operator reviews
-                    ▼
-             [Update Player]
-                    │
-                    ▼
-              live/current → V2
-                    │
-                    ▼
-              Player reloads V2
+4b7f945fcff38666e73792b9d684cc9cd5f82f04
 ```
 
-No modal is used.
+Delivered:
 
-The Control's existing excess action-area space is the canonical location for version-state messages and the **Update Player** button.
+- responsibility-specific canonical contracts for all current elements;
+- canonical Container / Text / Textbox / Image / surface / data contracts;
+- canonical Image Crop;
+- Divider and Topics contracts;
+- Chart / Interactive semantic position-only contracts;
+- structural canonical ContentSlot;
+- dedicated canonical renderers;
+- removal of `BaseElementSchema`;
+- removal of universal `ElementStyleSchema`;
+- removal of `ElementPlacementSchema`;
+- removal of generic persisted-style `renderStyle()`;
+- removal of legacy Placement Inspector/helpers;
+- strict schema tests, renderer tests, Studio tests and Player tests;
+- Studio and Player production builds passing.
 
-### Frozen behavior
+P10.10 exists to **free further product development**, not to begin another indefinite schema-cleanup cycle.
 
-- Control always follows the latest published pointer.
-- Player stays on the currently released `live/current.currentVersionId` until authorized.
-- Multiple publishes while Player remains old collapse to the latest version.
-- No intermediate version queue.
-- Previous/Next are disabled while Control and Player reference different versions.
-- End presentation remains available.
-- The operator does not choose whether Control updates; Control represents the latest publication.
-- The operator only decides when the Player is promoted.
-- Structural changes produce an inline warning, not a modal.
-- If the currently projected slide was removed, show a stronger inline warning.
-- Promotion keeps the same Live activation/session identity.
-- Version promotion is not a new presentation activation.
-- Stale `slideCommand` / `slideAck` state must not leak across a version promotion.
+The earlier working-roadmap label "P10.10 Visual vocabulary gaps" is retired. Remaining visual vocabulary and UX gaps are now explicit backlog items unless a concrete feature promotes one into the active roadmap.
 
-### Slide preservation
+---
 
-Version changes must preserve the logical slide whenever possible.
+## P10.11 — JSON Import / Export ← NEXT
 
-Example:
+Goal: make the canonical PowerShow document portable without redesigning the document model again.
+
+Architecture must be frozen at checkpoint start, but the direction is:
+
+- export a self-contained canonical Presentation document;
+- import through the canonical schema boundary;
+- preserve resources required by the presentation document;
+- provide clear validation/error behavior;
+- preserve semantic IDs and authored structure unless the import contract explicitly requires otherwise;
+- do not introduce a second schema language for import/export;
+- do not use P10.11 as an excuse to redesign P10.10 contracts.
+
+Required end-to-end invariant:
 
 ```text
-V1: A B C D
-        ^
-        C projected
-
-V2: A X B C D
-          ^
-          preserve C
+Studio
+→ export
+→ import
+→ save/reload
+→ publish
+→ Control
+→ Player
 ```
 
-Mapping rule:
-
-1. take the Player ACK-confirmed index in the currently projected version;
-2. resolve the corresponding `slide.id`;
-3. find the same `slide.id` in the latest publication;
-4. use that mapped index in the new version;
-5. if the slide no longer exists, fall back to a valid clamped index.
-
-Control uses the same mapping while previewing a newer version than Player.
-
-### Structural warning detection
-
-Warn when the ordered slide-id sequence differs because of:
-
-- insertion;
-- removal;
-- reordering.
-
-Simple content edits to an existing slide do not require a structural warning.
-
-### P9.0-A — Dual-version Control state
-
-Goal: Control knows both the version on Player and the latest published version.
-
-Required behavior:
-
-- observe `live/current`;
-- observe the public publication pointer for the same `publicationId`;
-- load the exact latest published version;
-- derive `hasPendingVersion`;
-- Control preview updates automatically when the pointer changes;
-- Player remains unchanged;
-- multiple Control tabs/devices converge from shared persisted state.
-
-Do not change Player promotion yet.
-
-### P9.0-B — Version mapping and pending-version UX
-
-Goal: make the divergence understandable and safe.
-
-Required behavior:
-
-- map Player ACK-confirmed slide → `slide.id` → latest published index;
-- detect structural slide-id changes;
-- render inline pending-version information in the existing Control action area;
-- show **Update Player**;
-- show structural warning when needed;
-- show stronger warning when the projected slide was removed;
-- disable Previous/Next during version divergence;
-- keep End available;
-- no modal;
-- no fake local selection state.
-
-### P9.0-C — Atomic Player promotion and hot reload
-
-Goal: release the reviewed publication to Player.
-
-Required behavior:
-
-- operator clicks **Update Player**;
-- promote `live/current.currentVersionId` to the latest published version;
-- preserve the same Live activation/session revision;
-- clear stale navigation command/ACK state as part of the promotion boundary;
-- Player detects the new version through its existing reactive `live/current` subscription;
-- Player remounts the new immutable version;
-- preserve the logical current slide by `slide.id` when possible;
-- emit the new baseline ACK only after the new Player position is established;
-- Control returns to normal navigation after the new ACK.
-
-Promotion should be atomic at the Live-state boundary.
-
-### P9.0-D — Concurrency, reload, and E2E hardening
-
-Validate:
-
-- Editor + Control + Player on separate devices/tabs;
-- multiple Controls open simultaneously;
-- Publish while Player is active;
-- several publishes before promotion;
-- content-only edit;
-- inserted slide before current slide;
-- reordered slides;
-- current slide removed;
-- Control reload while update is pending;
-- Player reload while update is pending;
-- Player reload after promotion;
-- promotion failure and retry;
-- End during pending update;
-- new Live session after previous update;
-- no stale command/ACK reuse.
+The exact file UX, collision policy, replacement/copy semantics and error presentation must be frozen before implementation.
 
 ---
 
-## P9.1 — Extensible Live command contract
+## P10.12 — Import compatibility gate
 
-After Staged Live Publish is stable:
+Goal: harden the portability boundary before moving into higher-level organization and production work.
 
-- review current `live/slideCommand`;
-- define how additional commands fit without ad-hoc parallel channels;
-- separate durable state from transient commands;
-- preserve ACK authority for state that must be confirmed by Player;
-- keep R1 single-operator semantics.
+Planned validation areas:
 
-Architecture must be frozen before implementation.
+- representative canonical presentations round-trip correctly;
+- invalid documents fail safely and understandably;
+- imported content does not silently widen canonical contracts;
+- persistence and publication remain canonical after import;
+- recovery behavior remains structurally conservative;
+- Studio / renderer / Control / Player agree on imported documents;
+- compatibility expectations are explicit rather than accidental.
 
----
-
-## P9.2 — New Control commands
-
-Add the highest-value presentation commands after the protocol supports them.
-
-Exact command set is intentionally not frozen yet.
-
-Requirements:
-
-- commands must have explicit semantics;
-- command state must survive/recover appropriately across reloads;
-- no command may silently pretend browser-restricted behavior succeeded;
-- desktop and mobile Control surfaces share the same command semantics.
+This checkpoint must not introduce speculative migration architecture.
 
 ---
 
-## P9.3 — Fullscreen
+# P11 — Resources & Organization
 
-Fullscreen is handled separately because native browser fullscreen requires user activation and cannot be assumed to work as an arbitrary remote RTDB command.
+Goal: improve how users organize presentations and reuse authoring resources without leaking private Studio metadata into published documents.
 
-This checkpoint must distinguish, if needed:
+Planned areas, to be frozen checkpoint-by-checkpoint:
 
-- Player display/presentation mode;
-- browser native fullscreen;
-- local Player user gesture;
-- remote Control intent.
+## P11.1 — Studio / Library organization
 
-Do not conflate these concepts.
+Direction:
 
----
-
-## P9.4 — Control command UX and integrated E2E
-
-Finalize:
-
-- command button states;
-- pending / confirmed / failed status;
-- desktop/mobile behavior;
-- reload recovery;
-- Player/Control synchronization;
-- Live termination;
-- production E2E.
-
----
-
-# P10 — Audience presence
-
-Goal: allow public Watch/Audience clients to register lightweight presence for the active session.
-
-Planned concepts:
-
-- public viewer/session id;
-- optional nickname without account;
-- heartbeat / TTL;
-- `onDisconnect` where appropriate;
-- viewer count in Control;
-- optional viewer list;
-- privacy boundaries;
-- multi-tab behavior.
-
-Audience remains unable to control the shared presentation.
-
----
-
-# P11 — PowerShow Studio / Library redesign
-
-Functional live presentation work takes priority over this visual/organizational cycle.
-
-Planned direction:
-
-- UI title **PowerShow Studio**;
+- PowerShow Studio as the authoring home;
 - file-manager style presentation list;
-- presentation thumbnail;
-- selection-first UX;
-- contextual action toolbar;
-- flat Editor/Control visual language;
-- sidebar navigation;
-- archived presentations;
-- responsive behavior.
+- thumbnails;
+- selection-first workflow;
+- contextual actions;
+- active / archived presentation states;
+- responsive Studio navigation.
 
-Contextual actions:
+## P11.2 — Folders and private organization metadata
 
-```text
-no selection
-→ New / New folder
+Rules already established:
 
-inactive presentation
-→ Present / Edit / Archive
+- folders are private Studio metadata;
+- folders are not part of the published Presentation document;
+- Player never depends on folder metadata;
+- exact Firestore persistence shape must be frozen before implementation.
 
-active presentation
-→ Control / End / Edit
+## P11.3 — Reusable resources
 
-archived presentation
-→ Restore
-```
-
-Folder persistence is not introduced here.
-
----
-
-# P12 — Folders and persistence
-
-Add private Studio organization metadata.
-
-Requirements:
-
-- folders are Studio metadata;
-- folders are never part of the published Presentation document;
-- folders are never required by Player;
-- exact Firestore path/schema must be designed before implementation;
-- maintain clean separation between authoring organization and publication.
-
----
-
-# P13 — Saved Styles and reusable libraries
-
-Introduce reusable authoring assets.
-
-Core distinction:
+Preserve this distinction:
 
 ```text
 Theme
-→ presentation-wide visual/structural identity
+→ presentation-wide visual / structural identity
 
 Saved Style
-→ reusable element-level style configuration
+→ reusable element-level authoring configuration
 ```
 
-Frozen concept:
+Potential resource libraries:
 
-- Saved Styles are private Studio/account metadata;
-- Player must never resolve a private Saved Style id at runtime;
-- applying a Saved Style materializes effective values into the Presentation;
-- published snapshots remain self-contained.
-
-Potential future library areas:
-
-- Styles;
-- Colors;
+- Saved Styles;
+- Colors / palettes;
 - Fonts.
 
-Exact persistence schema is not yet frozen.
+A Saved Style must materialize canonical values into the Presentation when applied. Published snapshots must remain self-contained and must never resolve a private Saved Style id at runtime.
 
 ---
 
-# Later / not yet numbered
+# P12 — UX / Properties refinement
 
-These remain valid future product areas but should not distract from P9:
+Goal: refine the Studio after the canonical contracts and portability boundary are stable.
 
-- dedicated PowerShow documentation page;
-- broader Watch/Audience experience;
-- legacy runtime expansion;
+This is the preferred home for broad Inspector/editor polish that should not interrupt the critical feature path.
+
+Planned areas include:
+
+- semantic Inspector ordering and grouping;
+- clearer help text where terminology is ambiguous;
+- consistent Size / Positioning / Appearance / Effects / Interaction ordering;
+- richer but still contract-safe Properties controls;
+- final WYSIWYG-oriented text authoring refinements;
+- authoring ergonomics and visual consistency;
+- targeted Canvas refinements that do not widen canonical contracts.
+
+Do not turn each feature checkpoint before P12 into a general Editor redesign.
+
+---
+
+# P13 — Production Readiness
+
+Goal: move PowerShow from a feature-complete development system into dependable real production use.
+
+Expected areas:
+
+- fix production-blocking known bugs;
+- full Studio → Save/reload → Publish → Control → Player E2E;
+- live-session and publication reliability;
+- authentication / authorization / public-read boundary review;
+- failure and reload recovery;
+- deployment configuration and production smoke tests;
+- performance checks, especially Player and constrained hardware;
+- modern / legacy Player compatibility expectations;
+- responsive desktop/mobile verification;
+- browser compatibility for interactive and sandboxed content;
+- final security review for public Player, Embed and Scripted;
+- production error states and operator-facing recovery behavior;
+- release checklist and rollback expectations.
+
+Production Readiness should prioritize concrete failures over cosmetic backlog.
+
+---
+
+# P14 — Diagnostics — deferred
+
+Diagnostics are useful but are not currently on the critical path.
+
+Potential work:
+
+- production-safe runtime diagnostics;
+- more explicit live latency / convergence instrumentation;
+- operator troubleshooting surfaces;
+- deploy/runtime health visibility.
+
+Diagnostics must remain gated and must not expose sensitive internals to public clients.
+
+---
+
+# P15 — Audience — future
+
+Audience/Watch expansion remains future work after the authoring and production path is stable.
+
+Potential areas:
+
+- lightweight public viewer presence;
+- optional nickname without account;
+- heartbeat / TTL / disconnect semantics;
+- viewer count in Control;
+- optional viewer list;
+- privacy boundaries;
+- multi-tab behavior;
+- richer read-only Watch experience.
+
+Audience clients must never gain control of the shared presentation state through presence features.
+
+---
+
+# Backlog
+
+Backlog items are intentionally preserved but **do not automatically become the next checkpoint**.
+
+Before promoting a backlog item:
+
+```text
+verify current implementation
+→ identify concrete missing behavior
+→ decide whether it blocks the active roadmap
+→ freeze architecture if needed
+→ implement
+```
+
+## Known bugs
+
+### Cropped Image selection visibility — high
+
+- an Image with canonical `crop` may disappear visually when selected in the Studio Canvas;
+- the crop itself persists correctly;
+- after reload, the Image renders with the expected crop;
+- treat as a Studio/Canvas lifecycle/rendering bug, not a canonical-contract failure.
+
+## Image Inspector semantic organization
+
+Preferred future order:
+
+```text
+Source
+  Source
+  Alternative text
+
+Framing
+  Fit
+  Crop
+  Focal Point
+
+Size
+Appearance
+Effects
+Interaction
+```
+
+General preference:
+
+- Size should precede Interaction;
+- Interaction should normally appear near the end of a visual element Inspector.
+
+## Text / rich-authoring refinements
+
+- move inline formatting controls closer to / above Content so selection + formatting feels WYSIWYG;
+- topics/bullets inside richer text authoring where appropriate;
+- verify final nowrap authoring UX;
+- `Normal` should be the first/default text-transform option;
+- ALL CAPS authoring affordance where still needed.
+
+## Fonts / typography UX
+
+- when font variants are listed, Normal / Regular must be first/default when available;
+- do not let provider ordering select Italic by default;
+- keep provider-specific Font Manager UI behind a single Source selector.
+
+## Reusable authoring resources
+
 - reusable custom color palette;
-- border-color reuse;
-- additional interactive element libraries;
-- release hardening and offline resilience work.
+- easier reuse/preservation of border colors;
+- Saved Styles / Colors / Fonts libraries under P11 when their persistence model is frozen.
 
-The documentation page should be created when product terminology and workflows are closer to their final form.
+## Gallery / visual vocabulary
+
+- interactive gallery beyond the current Gallery minimum;
+- broader pattern support where a concrete element contract requires it;
+- additional visual vocabulary gaps discovered during real authoring;
+- do not reintroduce a universal style bag to solve these.
+
+Already implemented and therefore **not generic backlog items**:
+
+- Divider;
+- Topics;
+- Gallery minimum;
+- Embed minimum;
+- Scripted minimum;
+- canonical background pattern support in its approved locations;
+- gradient-border authoring where currently supported.
+
+## Interactive educational elements
+
+Future explicit components may include:
+
+- sine / function plots;
+- linear functions;
+- quadratic functions;
+- square waves;
+- PWM demonstrations;
+- electrical circuits / current-flow visualization;
+- geometry demonstrations;
+- interactive diagrams.
+
+Official interactive components should have explicit semantic contracts. Do not encode a rendering library (Chart.js, D3, React, Canvas, SVG, etc.) into their canonical document schema.
+
+## Scripted future enhancements
+
+The secure Scripted minimum is complete. Future capabilities must preserve the security boundary:
+
+- authored JavaScript never executes in the PowerShow application context;
+- no `eval` / `Function`;
+- sandbox permissions remain renderer-owned unless a future security design explicitly changes that;
+- no PowerShow/session/control runtime bridge by default.
+
+## Control / live extensions
+
+Core live operation is complete, but future operator features remain backlog unless promoted:
+
+- richer Control commands;
+- explicit command protocol extensions;
+- native-browser fullscreen UX / local user-gesture semantics;
+- additional presentation-mode controls.
+
+Do not pretend remotely requested browser-restricted behavior succeeded when the browser requires a local user gesture.
+
+## Studio polish
+
+- use the Chinese ideogram `文` as the translation symbol where that translation action is surfaced;
+- broader visual consistency refinements;
+- concise semantic help text;
+- documentation page when terminology/workflows are closer to final;
+- avoid proliferating top-level Inspector sections for every feature.
+
+## Player / runtime future work
+
+- additional legacy-runtime expansion only when justified by real compatibility needs;
+- offline/resilience improvements;
+- further performance work after measurement;
+- avoid unnecessary polling or continuous rendering loops.
+
+---
+
+# Current execution order
+
+```text
+P9    Live presentation foundation           ✅
+
+P10   Canonical Authoring / Import Foundation
+  10.1–10.9                                  ✅
+  10.10 Canonical Contract Cleanup            ✅
+  10.11 JSON Import / Export                  ← NEXT
+  10.12 Import compatibility gate             planned
+
+P11   Resources & Organization                planned
+P12   UX / Properties refinement              planned
+P13   Production Readiness                    planned
+P14   Diagnostics                             deferred
+P15   Audience                                future
+```
+
+The next implementation checkpoint should start from current `main`, inspect the actual import/export boundaries, freeze P10.11 architecture, and only then create its implementation branch.
