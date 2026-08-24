@@ -1201,6 +1201,12 @@ describe("shared Interaction control in inspectors", () => {
     expect(updated.style ?? {}).not.toHaveProperty("opacity");
 
     await act(async () => {
+      changeSelect(container.querySelector<HTMLSelectElement>("#image-border-style")!, "solid");
+    });
+    expect(updated.style?.border).toBeDefined();
+    expect(updated.style).not.toHaveProperty("width");
+
+    await act(async () => {
       changeInput(container.querySelector<HTMLInputElement>("#image-opacity")!, "80");
     });
     expect(updated.effect?.opacity).toBe(0.8);

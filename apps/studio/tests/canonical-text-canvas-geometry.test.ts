@@ -190,6 +190,19 @@ describe("canonical Image canvas geometry", () => {
     expect(result.layout).not.toHaveProperty("offsetY");
   });
 
+  it("preserves opposite edges for proportional NW resizing", () => {
+    const result = updateImageForCanvasResize(
+      image({ position: "absolute", left: 20, top: 30, right: 40, bottom: 50, width: 200, height: 150 }),
+      "nw",
+      0,
+      -30,
+      geometry,
+      { width: 240, height: 180 },
+    );
+
+    expect(result.layout).toMatchObject({ left: -20, top: 0, right: 40, bottom: 50, width: 240, height: 180 });
+  });
+
   it("clamps Image resize to one logical px", () => {
     const result = updateImageForCanvasResize(image({ position: "absolute", width: 2, height: 2 }), "nw", 300, 300, geometry);
     expect(result.layout).toMatchObject({ width: 1, height: 1 });
