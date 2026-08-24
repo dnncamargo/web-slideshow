@@ -1200,7 +1200,7 @@ const portugueseMessages = {
   "inspector.topics.maxDepth": "Profundidade máxima de tópicos atingida (5)",
   "inspector.topics.remove": "Remover tópico",
   "inspector.topics.empty": "Tópico vazio",
-  "inspector.topics.itemGap": "Espaçamento entre tópicos",
+  "inspector.topics.itemGap": "Espaçamento",
   "inspector.topics.textColor": "Cor do texto",
   "inspector.topics.decorationColor": "Cor da decoração",
   "inspector.topics.markerColor": "Cor do marcador",
