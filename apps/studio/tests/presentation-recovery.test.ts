@@ -79,7 +79,6 @@ function validContainer(
     type: "container",
     id,
     hidden: false,
-    direction: "column",
     children: children as PowerShowElement[],
   };
 }
@@ -358,7 +357,6 @@ describe("presentation recovery analysis", () => {
           type: "container",
           id: "container-broken",
           hidden: false,
-          direction: "column",
           children: "not-an-array",
         },
         validText("after"),

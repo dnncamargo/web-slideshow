@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import {
+  PresentationSchema,
+  type Presentation,
+} from "@powershow/document-schema";
 
 import {
   assertPresentationWithinFirestoreNestingDepth,
@@ -79,7 +82,9 @@ describe("presentation persistence helpers", () => {
   });
 
   it("increments depth for nested objects", () => {
-    expect(estimateFirestoreNestingDepth({ child: { grandchild: true } })).toBe(2);
+    expect(estimateFirestoreNestingDepth({ child: { grandchild: true } })).toBe(
+      2,
+    );
   });
 
   it("increments depth for arrays", () => {
@@ -103,8 +108,12 @@ describe("presentation persistence helpers", () => {
   it("accepts the configured nesting depth of 20", () => {
     const value = buildNestedObject(MAX_FIRESTORE_NESTING_DEPTH);
 
-    expect(() => assertPresentationWithinFirestoreNestingDepth(value)).not.toThrow();
-    expect(estimateFirestoreNestingDepth(value)).toBe(MAX_FIRESTORE_NESTING_DEPTH);
+    expect(() =>
+      assertPresentationWithinFirestoreNestingDepth(value),
+    ).not.toThrow();
+    expect(estimateFirestoreNestingDepth(value)).toBe(
+      MAX_FIRESTORE_NESTING_DEPTH,
+    );
   });
 
   it("throws PresentationTooDeepError above the configured depth", () => {
@@ -166,7 +175,11 @@ describe("presentation persistence helpers", () => {
               type: "container",
               id: "container-1",
               hidden: false,
-              direction: "row",
+              layout: {
+                children: {
+                  direction: "row",
+                },
+              },
               children: [
                 {
                   type: "image",
@@ -208,10 +221,26 @@ describe("presentation persistence helpers", () => {
             type: "container",
             id: "c",
             hidden: false,
-            direction: "column",
+            layout: {
+              children: {
+                direction: "row",
+              },
+            },
             children: [
-              { type: "text", id: "d", hidden: false, variant: "body", content: "x" },
-              { type: "text", id: "e", hidden: false, variant: "body", content: "y" },
+              {
+                type: "text",
+                id: "d",
+                hidden: false,
+                variant: "body",
+                content: "x",
+              },
+              {
+                type: "text",
+                id: "e",
+                hidden: false,
+                variant: "body",
+                content: "y",
+              },
             ],
           },
         ],
@@ -239,7 +268,10 @@ describe("presentation persistence helpers", () => {
 
   it("does not mix persistence metadata into the canonical presentation", () => {
     const source = basePresentation();
-    const safe = makeFirestoreSafePresentation(source) as Record<string, unknown>;
+    const safe = makeFirestoreSafePresentation(source) as Record<
+      string,
+      unknown
+    >;
 
     expect(safe).not.toHaveProperty("createdAt");
     expect(safe).not.toHaveProperty("updatedAt");
@@ -280,7 +312,9 @@ describe("presentation persistence helpers", () => {
   });
 
   it("passes presentations below the safety limit", () => {
-    expect(() => assertPresentationWithinSizeLimit(basePresentation())).not.toThrow();
+    expect(() =>
+      assertPresentationWithinSizeLimit(basePresentation()),
+    ).not.toThrow();
   });
 
   it("throws PresentationTooLargeError above the safety limit", () => {
@@ -342,7 +376,10 @@ describe("presentation persistence helpers", () => {
 describe("persistence round trip with an Embed", () => {
   it("preserves a nested Embed created and inserted through Studio authoring", () => {
     const presentation = basePresentation();
-    const container = createElement("container", []) as Extract<Presentation["slides"][number]["elements"][number], { type: "container" }>;
+    const container = createElement("container", []) as Extract<
+      Presentation["slides"][number]["elements"][number],
+      { type: "container" }
+    >;
     const embed = createElement("embed", []);
 
     presentation.slides = [
@@ -409,7 +446,15 @@ describe("persistence round trip with Blocks", () => {
                 categoryId: "motion",
                 shape: "scope",
                 parts: [{ id: "root-p", type: "text", text: "repeat" }],
-                children: [{ id: "child-a1", categoryId: "motion", shape: "statement", parts: [{ id: "child-p", type: "text", text: "move" }], children: [] }],
+                children: [
+                  {
+                    id: "child-a1",
+                    categoryId: "motion",
+                    shape: "statement",
+                    parts: [{ id: "child-p", type: "text", text: "move" }],
+                    children: [],
+                  },
+                ],
               },
               {
                 id: "root-b",
@@ -445,8 +490,14 @@ describe("persistence round trip with Blocks", () => {
         },
       });
 
-      expect(blocks.categories).toEqual([{ id: "motion", name: "Motion", color: "#123456" }]);
-      expect(blocks.items[0]?.parts[0]).toEqual({ id: "root-p", type: "text", text: "repeat" });
+      expect(blocks.categories).toEqual([
+        { id: "motion", name: "Motion", color: "#123456" },
+      ]);
+      expect(blocks.items[0]?.parts[0]).toEqual({
+        id: "root-p",
+        type: "text",
+        text: "repeat",
+      });
       expect(blocks.items[0]?.children[0]?.id).toBe("child-a1");
     }
   });
@@ -454,7 +505,8 @@ describe("persistence round trip with Blocks", () => {
 
 describe("persistence round trip with Scripted", () => {
   it("preserves nested Scripted source and authored style exactly", () => {
-    const html = '<section data-label="  exact  ">\n  <button>&amp; run</button>\n</section>\n';
+    const html =
+      '<section data-label="  exact  ">\n  <button>&amp; run</button>\n</section>\n';
     const css = '.stage {\n  white-space: pre;\n  content: "  keep  ";\n}\n';
     const script = 'const message = "  exact  ";\nconsole.log(message);\n';
     const presentation = PresentationSchema.parse({
@@ -474,7 +526,6 @@ describe("persistence round trip with Scripted", () => {
               id: "container-1",
               type: "container",
               hidden: false,
-              direction: "column",
               children: [
                 {
                   id: "scripted-1",
@@ -484,7 +535,12 @@ describe("persistence round trip with Scripted", () => {
                   html,
                   css,
                   script,
-                  style: { width: "73%", height: "44%", opacity: 0.8, className: "  authored  " },
+                  style: {
+                    width: "73%",
+                    height: "44%",
+                    opacity: 0.8,
+                    className: "  authored  ",
+                  },
                 },
               ],
             },
@@ -508,7 +564,12 @@ describe("persistence round trip with Scripted", () => {
         html,
         css,
         script,
-        style: { width: "73%", height: "44%", opacity: 0.8, className: "  authored  " },
+        style: {
+          width: "73%",
+          height: "44%",
+          opacity: 0.8,
+          className: "  authored  ",
+        },
       });
     }
   });
@@ -516,21 +577,25 @@ describe("persistence round trip with Scripted", () => {
   it("includes Scripted source in generic presentation byte accounting", () => {
     const presentation = basePresentation();
     const emptyBytes = estimatePresentationBytes(presentation);
-    presentation.slides = [{
-      id: "slide-1",
-      title: "",
-      summary: "",
-      speakerNotes: "",
-      elements: [{
-        id: "scripted-bytes",
-        type: "scripted",
-        hidden: false,
-        title: "Byte accounting",
-        html: "<div>source</div>\n",
-        css: ".source { color: teal; }\n",
-        script: "console.log('source');\n",
-      }],
-    }];
+    presentation.slides = [
+      {
+        id: "slide-1",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [
+          {
+            id: "scripted-bytes",
+            type: "scripted",
+            hidden: false,
+            title: "Byte accounting",
+            html: "<div>source</div>\n",
+            css: ".source { color: teal; }\n",
+            script: "console.log('source');\n",
+          },
+        ],
+      },
+    ];
 
     expect(estimatePresentationBytes(presentation)).toBeGreaterThan(emptyBytes);
   });

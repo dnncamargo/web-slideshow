@@ -29,7 +29,6 @@ function linkedContainerHtml(): string {
     type: "container",
     id: "container-1",
     hidden: false,
-    direction: "column",
     children: [
       {
         type: "text",

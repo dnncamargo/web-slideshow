@@ -55,11 +55,16 @@ export function presentationUsesFontFamily(
   const normalizedFamily = normalizeFontFamily(family);
 
   return presentation.slides.some((slide) =>
-    someElement(
-      slide.elements,
-      (element) =>
-        element.style?.fontFamily !== undefined &&
-        normalizeFontFamily(element.style.fontFamily) === normalizedFamily,
-    ),
+    someElement(slide.elements, (element) => {
+      const fontFamily =
+        element.type === "container"
+          ? element.typography?.fontFamily
+          : element.style?.fontFamily;
+
+      return (
+        fontFamily !== undefined &&
+        normalizeFontFamily(fontFamily) === normalizedFamily
+      );
+    }),
   );
 }

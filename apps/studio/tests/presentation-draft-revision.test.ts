@@ -118,7 +118,6 @@ function nestedContainerElement(depth: number): PowerShowElement {
     type: "container",
     id: `container-${depth}`,
     hidden: false,
-    direction: "column" as const,
     children: [nestedContainerElement(depth - 1)],
   };
 }

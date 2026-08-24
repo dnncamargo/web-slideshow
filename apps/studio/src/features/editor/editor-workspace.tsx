@@ -596,7 +596,11 @@ export function EditorWorkspace({
         ? findElementById(selectedSlide?.elements ?? [], id)
         : null;
 
-      if (documentElement && documentElement.type !== "container" && isCanvasDraggable(documentElement.style)) {
+      if (
+        documentElement &&
+        documentElement.type !== "container" &&
+        isCanvasDraggable(documentElement.style)
+      ) {
         candidate.classList.add("powershow-editor-draggable");
       }
     });
@@ -615,7 +619,8 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
-      selectedDocumentElement.type === "container" || !isCanvasResizable(selectedDocumentElement)
+      selectedDocumentElement.type === "container" ||
+      !isCanvasResizable(selectedDocumentElement)
     ) {
       setCanvasResizeOverlay(null);
       return;
@@ -876,7 +881,11 @@ export function EditorWorkspace({
       contentSlotId: contentSlotId ?? null,
     });
 
-    if (selection.documentElement.type === "container" || !isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
+    if (
+      selection.documentElement.type === "container" ||
+      !isCanvasDraggable(selection.documentElement.style) ||
+      !elementTarget
+    ) {
       return;
     }
 
@@ -982,6 +991,9 @@ export function EditorWorkspace({
                 slide.elements,
                 drag.elementId,
                 (element) => {
+                  if (element.type === "container") {
+                    return element;
+                  }
                   const style = updatePlacementForCanvasDrag(
                     element.style,
                     drag.deltaX,
@@ -1235,6 +1247,9 @@ export function EditorWorkspace({
                 slide.elements,
                 resize.elementId,
                 (element) => {
+                  if (element.type === "container") {
+                    return element;
+                  }
                   const locked =
                     element.type === "image" && preserveImageProportion;
                   const resizedStyle = locked
@@ -1970,10 +1985,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addRootBlock(blocksId: string): string | null {
-    const outcome = addRootBlockToPresentation(
-      presentation.slides,
-      blocksId,
-    );
+    const outcome = addRootBlockToPresentation(presentation.slides, blocksId);
 
     if (!outcome) {
       return null;
@@ -2442,11 +2454,7 @@ export function EditorWorkspace({
     onRemoveColumn: (tableId, index) => {
       setPresentation((current) => ({
         ...current,
-        slides: removeColumnFromStructuredTable(
-          current.slides,
-          tableId,
-          index,
-        ),
+        slides: removeColumnFromStructuredTable(current.slides, tableId, index),
       }));
     },
 
@@ -2528,7 +2536,9 @@ export function EditorWorkspace({
             aria-label={t("topbar.editor")}
             onChange={(event) => {
               const title = event.target.value;
-              setPresentation((current) => updatePresentationTitle(current, title));
+              setPresentation((current) =>
+                updatePresentationTitle(current, title),
+              );
             }}
           />
         </TopbarTitle>
@@ -2694,9 +2704,7 @@ export function EditorWorkspace({
                 >
                   <span className={styles.slideNumber}>{index + 1}</span>
 
-                  <HoverScrollText
-                    text={slide.title || t("slides.untitled")}
-                  />
+                  <HoverScrollText text={slide.title || t("slides.untitled")} />
                 </button>
               );
             })}

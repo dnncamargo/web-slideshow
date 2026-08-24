@@ -15,8 +15,16 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-function containerElement(overrides: Partial<ContainerElement> = {}): ContainerElement {
-  return { type: "container", id: "container-position", hidden: false, children: [], ...overrides };
+function containerElement(
+  overrides: Partial<ContainerElement> = {},
+): ContainerElement {
+  return {
+    type: "container",
+    id: "container-position",
+    hidden: false,
+    children: [],
+    ...overrides,
+  };
 }
 
 function changeSelect(select: HTMLSelectElement, value: string): void {
@@ -25,7 +33,10 @@ function changeSelect(select: HTMLSelectElement, value: string): void {
 }
 
 function changeInput(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  )?.set;
   setter?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -43,7 +54,11 @@ describe("Container canonical position inspector", () => {
         <ContainerInspector
           element={state as ContainerElement}
           parent={parent}
-          layerControls={{ index: 1, count: 3, onMoveTo: (index) => moves.push(index) }}
+          layerControls={{
+            index: 1,
+            count: 3,
+            onMoveTo: (index) => moves.push(index),
+          }}
           onUpdate={(update) => {
             state = update(state);
             renderInspector(parent);
@@ -69,18 +84,36 @@ describe("Container canonical position inspector", () => {
     state = containerElement();
     await act(async () => renderInspector());
 
-    expect(host.querySelector("#container-position-mode")?.value).toBe("flow");
+    expect(
+      host.querySelector<HTMLSelectElement>("#container-position-mode")?.value,
+    ).toBe("flow");
     expect(host.querySelector("#container-position-top")).toBeNull();
     expect(host.textContent).not.toContain("Anchor");
     expect(host.textContent).not.toContain("X offset");
   });
 
   it("enters Absolute with top and left defaults while preserving layout", async () => {
-    state = containerElement({ layout: { width: "80%", height: 200, padding: 16, children: { direction: "row" } } });
+    state = containerElement({
+      layout: {
+        width: "80%",
+        height: 200,
+        padding: 16,
+        children: { direction: "row" },
+      },
+    });
     await act(async () => renderInspector());
-    await act(async () => changeSelect(host.querySelector("#container-position-mode")!, "absolute"));
+    await act(async () =>
+      changeSelect(host.querySelector("#container-position-mode")!, "absolute"),
+    );
 
-    expect(state.layout).toMatchObject({ position: "absolute", top: 0, left: 0, width: "80%", height: 200, padding: 16 });
+    expect(state.layout).toMatchObject({
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "80%",
+      height: 200,
+      padding: 16,
+    });
     expect(state.layout?.children).toEqual({ direction: "row" });
     expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
   });
@@ -89,22 +122,55 @@ describe("Container canonical position inspector", () => {
     state = containerElement({ layout: { position: "absolute" } });
     await act(async () => renderInspector());
 
-    for (const [edge, value] of [["top", "10"], ["right", "20"], ["bottom", "30"], ["left", "40"]] as const) {
-      await act(async () => changeInput(host.querySelector(`#container-position-${edge}`)!, value));
+    for (const [edge, value] of [
+      ["top", "10"],
+      ["right", "20"],
+      ["bottom", "30"],
+      ["left", "40"],
+    ] as const) {
+      await act(async () =>
+        changeInput(host.querySelector(`#container-position-${edge}`)!, value),
+      );
     }
 
-    expect(state.layout).toMatchObject({ position: "absolute", top: 10, right: 20, bottom: 30, left: 40 });
+    expect(state.layout).toMatchObject({
+      position: "absolute",
+      top: 10,
+      right: 20,
+      bottom: 30,
+      left: 40,
+    });
     expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
   });
 
   it("clears one edge and all positioning fields when returning to Flow", async () => {
-    state = containerElement({ layout: { position: "absolute", top: 10, right: 20, bottom: 30, left: 40, width: 100, children: { mode: "stack" } } });
+    state = containerElement({
+      layout: {
+        position: "absolute",
+        top: 10,
+        right: 20,
+        bottom: 30,
+        left: 40,
+        width: 100,
+        children: { mode: "stack" },
+      },
+    });
     await act(async () => renderInspector());
-    await act(async () => changeInput(host.querySelector("#container-position-right")!, ""));
-    expect(state.layout).toMatchObject({ position: "absolute", top: 10, bottom: 30, left: 40, width: 100 });
+    await act(async () =>
+      changeInput(host.querySelector("#container-position-right")!, ""),
+    );
+    expect(state.layout).toMatchObject({
+      position: "absolute",
+      top: 10,
+      bottom: 30,
+      left: 40,
+      width: 100,
+    });
     expect(state.layout?.right).toBeUndefined();
 
-    await act(async () => changeSelect(host.querySelector("#container-position-mode")!, "flow"));
+    await act(async () =>
+      changeSelect(host.querySelector("#container-position-mode")!, "flow"),
+    );
     expect(state.layout).toEqual({ width: 100, children: { mode: "stack" } });
     expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
   });
@@ -113,11 +179,17 @@ describe("Container canonical position inspector", () => {
     state = containerElement({ layout: { position: "absolute" } });
     await act(async () => renderInspector());
     expect(host.textContent).toContain("Send to back");
-    await act(async () => (host.querySelector("button") as HTMLButtonElement).click());
+    await act(async () =>
+      (host.querySelector("button") as HTMLButtonElement).click(),
+    );
     expect(moves).toEqual([0]);
 
     state = containerElement();
-    await act(async () => renderInspector(containerElement({ layout: { children: { mode: "stack" } } })));
+    await act(async () =>
+      renderInspector(
+        containerElement({ layout: { children: { mode: "stack" } } }),
+      ),
+    );
     expect(host.textContent).toContain("Send to back");
   });
 });

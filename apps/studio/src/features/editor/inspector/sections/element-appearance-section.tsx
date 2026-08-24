@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { ContainerElement, PowerShowElement } from "@powershow/document-schema";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -24,11 +24,12 @@ import { ColorControl } from "./color-control";
 
 import { ElementTypographyControl } from "./element-typography-control";
 
-import { EffectiveNumberInput } from "./effective-number-input";
 import { EffectiveLengthInput } from "./effective-length-input";
 
+type LegacyStyledElement = Exclude<PowerShowElement, ContainerElement>;
+
 interface ElementAppearanceSectionProps {
-  element: PowerShowElement;
+  element: LegacyStyledElement;
 
   onUpdateStyle: UpdateElementStyle;
 

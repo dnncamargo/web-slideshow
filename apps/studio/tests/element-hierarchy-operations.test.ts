@@ -58,7 +58,6 @@ function container(id: string, children: PowerShowElement[] = []): PowerShowElem
     type: "container",
     id,
     hidden: false,
-    direction: "column",
     children,
   };
 }
