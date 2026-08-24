@@ -1,6 +1,9 @@
 import type { ImageElement } from "@powershow/document-schema";
 
-import { resolveImageCropGeometry } from "./image-crop";
+import {
+  resolveCroppedImageBoxSize,
+  resolveImageCropGeometry,
+} from "./image-crop";
 
 type CroppedImageRoot = HTMLElement & {
   __powershowCropLoadListener?: EventListener;
@@ -14,34 +17,41 @@ function applyGeometry(root: CroppedImageRoot, image: HTMLImageElement): void {
   const crop = JSON.parse(root.dataset.powershowImageCrop ?? "null") as ImageElement["crop"];
   if (!crop) return;
 
+  const widthAuthored = root.dataset.powershowImageWidthAuthored === "true";
+  const heightAuthored = root.dataset.powershowImageHeightAuthored === "true";
   const box = root.getBoundingClientRect();
-  const croppedAspect = (sourceWidth * crop.width) / (sourceHeight * crop.height);
-  // clientWidth/clientHeight represent the content box and avoid including
-  // authored borders in the crop geometry. The rect fallback keeps the
-  // helper usable with lightweight DOM implementations and test doubles.
-  let boxWidth = root.clientWidth || box.width;
-  let boxHeight = root.clientHeight || box.height;
+  const renderedWidth = root.clientWidth || box.width;
+  const renderedHeight = root.clientHeight || box.height;
+  const naturalCropWidth = sourceWidth * crop.width / 100;
+  const naturalCropHeight = sourceHeight * crop.height / 100;
+  const parent = root.parentElement;
+  const parentRect = parent?.getBoundingClientRect();
+  const availableWidth = parent
+    ? parent.clientWidth || parentRect?.width
+    : undefined;
+  const availableHeight = parent
+    ? parent.clientHeight || parentRect?.height
+    : undefined;
+  const size = resolveCroppedImageBoxSize({
+    naturalCropWidth,
+    naturalCropHeight,
+    widthAuthored,
+    heightAuthored,
+    renderedWidth: widthAuthored ? renderedWidth : undefined,
+    renderedHeight: heightAuthored ? renderedHeight : undefined,
+    availableWidth: !widthAuthored && !heightAuthored ? availableWidth : undefined,
+    availableHeight: !widthAuthored && !heightAuthored ? availableHeight : undefined,
+  });
+  if (!size) return;
 
-  if (!boxWidth && root.dataset.powershowImageWidthAuthored !== "true") {
-    boxWidth = boxHeight ? boxHeight * croppedAspect : sourceWidth * crop.width / 100;
-  }
-  if (!boxHeight && root.dataset.powershowImageHeightAuthored !== "true") {
-    boxHeight = boxWidth ? boxWidth / croppedAspect : sourceHeight * crop.height / 100;
-  }
-  if (!boxWidth || !boxHeight) return;
-
-  if (root.dataset.powershowImageWidthAuthored !== "true" && !box.width) {
-    root.style.width = `${boxWidth}px`;
-  }
-  if (root.dataset.powershowImageHeightAuthored !== "true" && !box.height) {
-    root.style.height = `${boxHeight}px`;
-  }
+  if (!widthAuthored) root.style.width = `${size.width}px`;
+  if (!heightAuthored) root.style.height = `${size.height}px`;
 
   const geometry = resolveImageCropGeometry({
     sourceWidth,
     sourceHeight,
-    boxWidth,
-    boxHeight,
+    boxWidth: size.width,
+    boxHeight: size.height,
     crop,
     fit: (root.dataset.powershowImageFit ?? "contain") as ImageElement["fit"],
     focalPoint: {

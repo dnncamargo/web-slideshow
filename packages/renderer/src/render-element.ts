@@ -31,6 +31,12 @@ import {
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
 
+function renderImageCropBoxStyle(element: ImageElement): string {
+  return element.layout?.position === "absolute"
+    ? "overflow:hidden"
+    : "position:relative;overflow:hidden";
+}
+
 function renderLinkContent(
   content: string,
   link: ElementLink | undefined,
@@ -173,7 +179,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   }
 
   if (element.crop) {
-    styleParts.push("position:relative;overflow:hidden");
+    styleParts.push(renderImageCropBoxStyle(element));
   }
 
   const attributes: string[] = [
@@ -219,7 +225,7 @@ function renderImage(element: ImageElement): string {
     const attributes = buildAttributes(
       element,
       ["powershow-image"],
-      "position:relative;overflow:hidden",
+      renderImageCropBoxStyle(element),
     );
     return (
       `<div ${attributes} ${renderCanonicalImageCropMetadata(element)}>` +

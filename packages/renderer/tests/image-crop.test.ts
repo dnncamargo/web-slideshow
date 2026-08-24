@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { renderElement } from "../src/render-element";
-import { resolveImageCropGeometry } from "../src/image-crop";
+import {
+  resolveCroppedImageBoxSize,
+  resolveImageCropGeometry,
+} from "../src/image-crop";
 
 const crop = { x: 10, y: 20, width: 60, height: 50 } as const;
 const image = (overrides: Record<string, unknown> = {}) => ({
@@ -16,6 +19,27 @@ const image = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("Image crop geometry", () => {
+  it.each([
+    [{ widthAuthored: true, heightAuthored: true, renderedWidth: 400, renderedHeight: 300 }, { width: 400, height: 300 }],
+    [{ widthAuthored: true, heightAuthored: false, renderedWidth: 400 }, { width: 400, height: 222.222222 }],
+    [{ widthAuthored: false, heightAuthored: true, renderedHeight: 300 }, { width: 540, height: 300 }],
+    [{ widthAuthored: false, heightAuthored: false }, { width: 720, height: 400 }],
+    [{ widthAuthored: false, heightAuthored: false, availableWidth: 360 }, { width: 360, height: 200 }],
+    [{ widthAuthored: false, heightAuthored: false, availableHeight: 200 }, { width: 360, height: 200 }],
+    [{ widthAuthored: false, heightAuthored: false, availableWidth: 500, availableHeight: 250 }, { width: 450, height: 250 }],
+  ] as const)("resolves authored and parent-constrained box sizes", (input, expected) => {
+    const size = resolveCroppedImageBoxSize({
+      naturalCropWidth: 720,
+      naturalCropHeight: 400,
+      ...input,
+    });
+    expect(size).toEqual({
+      width: expect.closeTo(expected.width, 5),
+      height: expect.closeTo(expected.height, 5),
+    });
+    expect(size === null || Object.values(size).every(Number.isFinite)).toBe(true);
+  });
+
   it("resolves contain uniformly and positions the effective crop by focal point", () => {
     const geometry = resolveImageCropGeometry({
       sourceWidth: 1200,
@@ -96,6 +120,23 @@ describe("Image crop geometry", () => {
 });
 
 describe("cropped Image DOM", () => {
+  it.each([
+    ["unlinked", image({ layout: { position: "absolute", top: 20, left: 30, width: 400, height: 300 } })],
+    ["linked", image({ layout: { position: "absolute", top: 20, left: 30, width: 400, height: 300 }, link: { kind: "url", href: "https://example.com" } })],
+  ] as const)("preserves absolute positioning on the %s crop box", (_kind, element) => {
+    const html = renderElement(element);
+    const style = html.slice(0, html.indexOf(">"));
+    expect(style).toContain("position:absolute");
+    expect(style).toContain("top:20px");
+    expect(style).toContain("left:30px");
+    expect(style).not.toContain("position:relative");
+  });
+
+  it("gives a flow crop a renderer-owned containing block", () => {
+    const html = renderElement(image());
+    expect(html.slice(0, html.indexOf(">"))).toContain("position:relative");
+  });
+
   it("keeps the canonical box on the outer unlinked node", () => {
     const html = renderElement(image({ layout: { width: 600, height: 400 }, effect: { opacity: 0.8 } }));
     expect(html).toMatch(/^<div /);

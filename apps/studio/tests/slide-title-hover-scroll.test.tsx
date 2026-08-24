@@ -31,6 +31,24 @@ function createTitledPresentation(): Presentation {
   });
 }
 
+function createCroppedImagePresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "presentation-cropped-image",
+    title: "Cropped image",
+    slides: [{
+      id: "cropped-slide",
+      elements: [{
+        type: "image",
+        id: "cropped-image",
+        src: "/assets/example.png",
+        crop: { x: 10, y: 20, width: 60, height: 50 },
+        layout: { width: 400, height: 300 },
+      }],
+    }],
+  });
+}
+
 describe("single-line hover-scroll slide titles", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -66,6 +84,39 @@ describe("single-line hover-scroll slide titles", () => {
 
     expect(longTitle).toBeDefined();
     expect(longTitle?.textContent).toBe(LONG_TITLE);
+  });
+
+  it("hydrates a manually-authored cropped Image through the real Editor Canvas lifecycle", async () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace
+            initialPresentation={createCroppedImagePresentation()}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const imageRoot = container.querySelector<HTMLElement>("[data-powershow-image-crop]");
+    const image = container.querySelector<HTMLImageElement>(".powershow-image-media");
+    const viewport = container.querySelector<HTMLElement>(".powershow-image-crop-viewport");
+
+    expect(imageRoot).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(image).not.toBeNull();
+
+    Object.defineProperty(imageRoot, "clientWidth", { configurable: true, value: 400 });
+    Object.defineProperty(imageRoot, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(image, "naturalWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(image, "naturalHeight", { configurable: true, value: 800 });
+    image?.dispatchEvent(new Event("load"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(viewport?.style.width).toBe("400px");
+    expect(imageRoot?.dataset.powershowImageCrop).toContain("width");
   });
 
   it("uses the same primitive for Control Summary slide titles and keeps the full text available", () => {

@@ -47,6 +47,51 @@ describe("PowerShow Player", () => {
     expect(root.innerHTML).toContain("Slide One");
   });
 
+  it("renders and rehydrates a canonical cropped Image without changing document data", () => {
+    const croppedPresentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "player-cropped-image",
+      slides: [{
+        id: "cropped-slide",
+        elements: [{
+          type: "image",
+          id: "cropped-image",
+          src: "/assets/example.png",
+          crop: { x: 10, y: 20, width: 60, height: 50 },
+          layout: { width: 400, height: 300 },
+        }],
+      }],
+    });
+    const originalCrop = structuredClone(croppedPresentation.slides[0]?.elements[0]);
+
+    player.destroy();
+    player = mountPlayer(root, croppedPresentation, { transition: "none" });
+
+    const imageRoot = root.querySelector<HTMLElement>("[data-powershow-image-crop]");
+    const image = root.querySelector<HTMLImageElement>(".powershow-image-media");
+    const viewport = root.querySelector<HTMLElement>(".powershow-image-crop-viewport");
+
+    expect(imageRoot).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(image).not.toBeNull();
+
+    Object.defineProperty(imageRoot, "clientWidth", { configurable: true, value: 400 });
+    Object.defineProperty(imageRoot, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(image, "naturalWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(image, "naturalHeight", { configurable: true, value: 800 });
+    image?.dispatchEvent(new Event("load"));
+
+    expect(viewport?.style.width).toBe("400px");
+    expect(image?.style.left).toBe("-66.66666666666667px");
+
+    Object.defineProperty(imageRoot, "clientWidth", { configurable: true, value: 300 });
+    Object.defineProperty(imageRoot, "clientHeight", { configurable: true, value: 200 });
+    window.dispatchEvent(new Event("resize"));
+
+    expect(viewport?.style.width).toBe("300px");
+    expect(croppedPresentation.slides[0]?.elements[0]).toEqual(originalCrop);
+  });
+
   it("moves to the next slide", () => {
     player.next();
 

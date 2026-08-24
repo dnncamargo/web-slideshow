@@ -29,6 +29,13 @@ class FakeNode {
     powershowImageHeightAuthored: "true",
   };
   style: Record<string, string> = {};
+  clientWidth = 600;
+  clientHeight = 400;
+  parentElement = {
+    clientWidth: 900,
+    clientHeight: 700,
+    getBoundingClientRect: () => ({ width: 900, height: 700 }),
+  } as unknown as HTMLElement;
   readonly viewport: {
     style: Record<string, string>;
     querySelector: (selector: string) => FakeImage;
@@ -50,6 +57,8 @@ class FakeNode {
   resize(width: number, height: number): void {
     this.width = width;
     this.height = height;
+    this.clientWidth = width;
+    this.clientHeight = height;
   }
 }
 
@@ -73,5 +82,76 @@ describe("hydrateImageCrops", () => {
     hydrateImageCrops(root as unknown as ParentNode);
     expect(node.viewport.style.width).toBe("300px");
     expect(node.image.style.width).toBe("500px");
+  });
+
+  it.each([
+    ["true", "false", 600, 333.333333],
+    ["false", "true", 720, 400],
+  ] as const)("derives the missing authored dimension (%s/%s)", (widthAuthored, heightAuthored, expectedWidth, expectedHeight) => {
+    const node = new FakeNode();
+    node.dataset.powershowImageWidthAuthored = widthAuthored;
+    node.dataset.powershowImageHeightAuthored = heightAuthored;
+    if (widthAuthored === "false") node.clientWidth = 0;
+    if (heightAuthored === "false") node.clientHeight = 0;
+    const root = { querySelectorAll: () => [node] };
+
+    node.image.load(1200, 800);
+
+    hydrateImageCrops(root as unknown as ParentNode);
+    expect(Number.parseFloat(node.style.width ?? `${expectedWidth}`)).toBeCloseTo(expectedWidth);
+    expect(Number.parseFloat(node.style.height ?? `${expectedHeight}`)).toBeCloseTo(expectedHeight);
+  });
+
+  it("uses the natural crop size for neither-authored dimensions and ignores block auto width", () => {
+    const node = new FakeNode();
+    node.dataset.powershowImageWidthAuthored = "false";
+    node.dataset.powershowImageHeightAuthored = "false";
+    node.clientWidth = 900;
+    node.clientHeight = 0;
+    node.parentElement = {
+      clientWidth: 900,
+      clientHeight: 700,
+      getBoundingClientRect: () => ({ width: 900, height: 700 }),
+    } as unknown as HTMLElement;
+    const root = { querySelectorAll: () => [node] };
+
+    node.image.load(1200, 800);
+    hydrateImageCrops(root as unknown as ParentNode);
+
+    expect(node.style.width).toBe("720px");
+    expect(node.style.height).toBe("400px");
+  });
+
+  it("scales neither-authored dimensions proportionally to parent constraints", () => {
+    const node = new FakeNode();
+    node.dataset.powershowImageWidthAuthored = "false";
+    node.dataset.powershowImageHeightAuthored = "false";
+    node.parentElement = {
+      clientWidth: 300,
+      clientHeight: 100,
+      getBoundingClientRect: () => ({ width: 300, height: 100 }),
+    } as unknown as HTMLElement;
+    const root = { querySelectorAll: () => [node] };
+
+    node.image.load(1200, 800);
+    hydrateImageCrops(root as unknown as ParentNode);
+
+    expect(node.style.width).toBe("180px");
+    expect(node.style.height).toBe("100px");
+
+    node.parentElement = {
+      clientWidth: 120,
+      clientHeight: 700,
+      getBoundingClientRect: () => ({ width: 120, height: 700 }),
+    } as unknown as HTMLElement;
+    hydrateImageCrops(root as unknown as ParentNode);
+    expect(node.style.width).toBe("120px");
+    expect(Number.parseFloat(node.style.height ?? "")).toBeCloseTo(66.666666, 5);
+  });
+
+  it("does nothing for non-cropped images", () => {
+    const root = { querySelectorAll: () => [] };
+    hydrateImageCrops(root as unknown as ParentNode);
+    expect(true).toBe(true);
   });
 });
