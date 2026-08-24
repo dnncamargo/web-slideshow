@@ -268,6 +268,25 @@ describe("TopicsElementSchema", () => {
       ).success,
     ).toBe(false);
   });
+
+  it("accepts canonical root positioning, style, and narrow typography", () => {
+    expect(TopicsElementSchema.safeParse(topicsElement({
+      layout: { position: "absolute", top: "10%", right: 4 },
+      style: { color: "#fff", className: "root" },
+      typography: { fontFamily: "Inter", fontSize: 20, textDecorationLine: "underline" },
+    })).success).toBe(true);
+  });
+
+  it.each([
+    { layout: { width: 10 } },
+    { style: { background: { color: "#fff" } } },
+    { style: { borderRadius: 4 } },
+    { effect: { opacity: 0.5 } },
+    { typography: { textDecorationColor: "#fff" } },
+    { typography: { textStroke: { width: 1, color: "#fff" } } },
+  ])("rejects unsupported root fields %#", (unsupported) => {
+    expect(TopicsElementSchema.safeParse(topicsElement(unsupported)).success).toBe(false);
+  });
 });
 
 describe("TopicItemSchema", () => {
@@ -612,8 +631,8 @@ describe("Topics serialization", () => {
         itemGap: 12,
         style: {
           className: "topics-root",
-          opacity: 0.8,
         },
+        typography: { fontSize: "1.2rem", textDecorationLine: "underline" },
         items: [
           topicItem({
             id: "topic-roundtrip",

@@ -1,5 +1,4 @@
 import type {
-  ElementStyle,
   PowerShowElement,
   TopicItem,
   TopicMarkerStyle,
@@ -97,198 +96,28 @@ export function resolveTopicMarkerStyle(
   return sequenceAt(ORDERED_LOWERCASE_SEQUENCE, start, depth);
 }
 
-type TopicsTextStyle = Pick<
-  ElementStyle,
-  | "color"
-  | "textDecorationColor"
-  | "fontFamily"
-  | "fontSize"
-  | "fontWeight"
-  | "fontStyle"
-  | "textAlign"
-  | "lineHeight"
-  | "letterSpacing"
-  | "textTransform"
-  | "whiteSpace"
-  | "textWrapStyle"
-  | "overflowWrap"
-  | "textDecorationLine"
->;
-
-function splitTopicsStyle(style: ElementStyle | undefined): {
-  containerStyle: ElementStyle | undefined;
-  topicTextStyle: TopicsTextStyle | undefined;
-} {
-  if (!style) {
-    return {
-      containerStyle: undefined,
-      topicTextStyle: undefined,
-    };
-  }
-
-  const {
-    color,
-    textDecorationColor,
-    fontFamily,
-    fontSize,
-    fontWeight,
-    fontStyle,
-    textAlign,
-    lineHeight,
-    letterSpacing,
-    textTransform,
-    whiteSpace,
-    textWrapStyle,
-    overflowWrap,
-    textDecorationLine,
-    ...containerStyle
-  } = style;
-
-  const topicTextStyle: TopicsTextStyle = {};
-
-  if (color !== undefined) {
-    topicTextStyle.color = color;
-  }
-
-  if (textDecorationColor !== undefined) {
-    topicTextStyle.textDecorationColor = textDecorationColor;
-  }
-
-  if (fontFamily !== undefined) {
-    topicTextStyle.fontFamily = fontFamily;
-  }
-
-  if (fontSize !== undefined) {
-    topicTextStyle.fontSize = fontSize;
-  }
-
-  if (fontWeight !== undefined) {
-    topicTextStyle.fontWeight = fontWeight;
-  }
-
-  if (fontStyle !== undefined) {
-    topicTextStyle.fontStyle = fontStyle;
-  }
-
-  if (textAlign !== undefined) {
-    topicTextStyle.textAlign = textAlign;
-  }
-
-  if (lineHeight !== undefined) {
-    topicTextStyle.lineHeight = lineHeight;
-  }
-
-  if (letterSpacing !== undefined) {
-    topicTextStyle.letterSpacing = letterSpacing;
-  }
-
-  if (textTransform !== undefined) {
-    topicTextStyle.textTransform = textTransform;
-  }
-
-  if (whiteSpace !== undefined) {
-    topicTextStyle.whiteSpace = whiteSpace;
-  }
-
-  if (textWrapStyle !== undefined) {
-    topicTextStyle.textWrapStyle = textWrapStyle;
-  }
-
-  if (overflowWrap !== undefined) {
-    topicTextStyle.overflowWrap = overflowWrap;
-  }
-
-  if (textDecorationLine !== undefined) {
-    topicTextStyle.textDecorationLine = textDecorationLine;
-  }
-
-  return {
-    containerStyle: Object.keys(containerStyle).length > 0
-      ? containerStyle
-      : undefined,
-    topicTextStyle: Object.keys(topicTextStyle).length > 0
-      ? topicTextStyle
-      : undefined,
-  };
-}
-
-function renderTopicsStyleOverrides(
-  element: TopicsElement,
-): string {
+function renderTopicsStyleOverrides(element: TopicsElement): string {
   const styles: string[] = [];
-  const { containerStyle, topicTextStyle } = splitTopicsStyle(element.style);
-
-  const baseStyle = renderStyle(containerStyle);
-
-  if (baseStyle) {
-    styles.push(baseStyle);
-  }
-
-  if (topicTextStyle) {
-    if (topicTextStyle.color !== undefined) {
-      styles.push(`--powershow-topic-color:${topicTextStyle.color}`);
-    }
-
-    if (topicTextStyle.textDecorationColor !== undefined) {
-      styles.push(
-        `--powershow-topic-text-decoration-color:${topicTextStyle.textDecorationColor}`,
-      );
-    }
-
-    if (topicTextStyle.fontFamily !== undefined) {
-      styles.push(
-        `--powershow-topic-font-family:${quoteCssString(topicTextStyle.fontFamily)}`,
-      );
-    }
-
-    if (topicTextStyle.fontSize !== undefined) {
-      styles.push(`--powershow-topic-font-size:${renderLength(topicTextStyle.fontSize)}`);
-    }
-
-    if (topicTextStyle.fontWeight !== undefined) {
-      styles.push(`--powershow-topic-font-weight:${topicTextStyle.fontWeight}`);
-    }
-
-    if (topicTextStyle.fontStyle !== undefined) {
-      styles.push(`--powershow-topic-font-style:${topicTextStyle.fontStyle}`);
-    }
-
-    if (topicTextStyle.textAlign !== undefined) {
-      styles.push(`--powershow-topic-text-align:${topicTextStyle.textAlign}`);
-    }
-
-    if (topicTextStyle.lineHeight !== undefined) {
-      styles.push(`--powershow-topic-line-height:${topicTextStyle.lineHeight}`);
-    }
-
-    if (topicTextStyle.letterSpacing !== undefined) {
-      styles.push(
-        `--powershow-topic-letter-spacing:${renderLength(topicTextStyle.letterSpacing)}`,
-      );
-    }
-
-    if (topicTextStyle.textTransform !== undefined) {
-      styles.push(`--powershow-topic-text-transform:${topicTextStyle.textTransform}`);
-    }
-
-    if (topicTextStyle.whiteSpace !== undefined) {
-      styles.push(`--powershow-topic-white-space:${topicTextStyle.whiteSpace}`);
-    }
-
-    if (topicTextStyle.textWrapStyle !== undefined) {
-      styles.push(`--powershow-topic-text-wrap-style:${topicTextStyle.textWrapStyle}`);
-    }
-
-    if (topicTextStyle.overflowWrap !== undefined) {
-      styles.push(`--powershow-topic-overflow-wrap:${topicTextStyle.overflowWrap}`);
-    }
-
-    if (topicTextStyle.textDecorationLine !== undefined) {
-      styles.push(
-        `--powershow-topic-text-decoration-line:${topicTextStyle.textDecorationLine}`,
-      );
+  if (element.layout) {
+    if (element.layout.position !== undefined) styles.push(`position:${element.layout.position}`);
+    for (const [property, value] of [["top", element.layout.top], ["right", element.layout.right], ["bottom", element.layout.bottom], ["left", element.layout.left]] as const) {
+      if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
     }
   }
+  if (element.style?.color !== undefined) styles.push(`--powershow-topic-color:${element.style.color}`);
+  const typography = element.typography;
+  if (typography?.fontFamily !== undefined) styles.push(`--powershow-topic-font-family:${quoteCssString(typography.fontFamily)}`);
+  if (typography?.fontSize !== undefined) styles.push(`--powershow-topic-font-size:${renderLength(typography.fontSize)}`);
+  if (typography?.fontWeight !== undefined) styles.push(`--powershow-topic-font-weight:${typography.fontWeight}`);
+  if (typography?.fontStyle !== undefined) styles.push(`--powershow-topic-font-style:${typography.fontStyle}`);
+  if (typography?.textAlign !== undefined) styles.push(`--powershow-topic-text-align:${typography.textAlign}`);
+  if (typography?.lineHeight !== undefined) styles.push(`--powershow-topic-line-height:${typography.lineHeight}`);
+  if (typography?.letterSpacing !== undefined) styles.push(`--powershow-topic-letter-spacing:${renderLength(typography.letterSpacing)}`);
+  if (typography?.textTransform !== undefined) styles.push(`--powershow-topic-text-transform:${typography.textTransform}`);
+  if (typography?.whiteSpace !== undefined) styles.push(`--powershow-topic-white-space:${typography.whiteSpace}`);
+  if (typography?.textWrapStyle !== undefined) styles.push(`--powershow-topic-text-wrap-style:${typography.textWrapStyle}`);
+  if (typography?.overflowWrap !== undefined) styles.push(`--powershow-topic-overflow-wrap:${typography.overflowWrap}`);
+  if (typography?.textDecorationLine !== undefined) styles.push(`--powershow-topic-text-decoration-line:${typography.textDecorationLine}`);
 
   styles.push(
     `--powershow-topic-marker-style:${resolveTopicMarkerStyle(

@@ -96,6 +96,7 @@ import {
   updateCanonicalTextForCanvasDrag,
   updateCanonicalImageForCanvasDrag,
   updateCanonicalSurfaceForCanvasDrag,
+  updateCanonicalElementForCanvasDrag,
   updateTextboxForCanvasResize,
   updateImageForCanvasResize,
   updateSurfaceForCanvasResize,
@@ -624,7 +625,9 @@ export function EditorWorkspace({
               ? documentElement.layout?.position === "absolute"
               : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks"
                 ? documentElement.layout?.position === "absolute"
-            : isCanvasDraggable(documentElement.style);
+                : documentElement.type === "divider" || documentElement.type === "topics"
+                  ? documentElement.layout?.position === "absolute"
+                  : isCanvasDraggable(documentElement.style);
 
         if (draggable) {
           candidate.classList.add("powershow-editor-draggable");
@@ -1002,7 +1005,9 @@ export function EditorWorkspace({
           ? selection.documentElement.layout?.position === "absolute"
         : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks"
             ? selection.documentElement.layout?.position === "absolute"
-        : isCanvasDraggable(selection.documentElement.style);
+          : selection.documentElement.type === "divider" || selection.documentElement.type === "topics"
+            ? selection.documentElement.layout?.position === "absolute"
+            : isCanvasDraggable(selection.documentElement.style);
 
     if (!draggable || !elementTarget) {
       return;
@@ -1052,7 +1057,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -1185,6 +1190,18 @@ export function EditorWorkspace({
                     return drag.canonicalTextGeometry
                       ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
                       : element;
+                  }
+                  if (element.type === "divider" || element.type === "topics") {
+                    return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
+                      parentWidthPx: drag.parentWidthPx,
+                      parentHeightPx: drag.parentHeightPx,
+                      initialLeftPx: 0,
+                      initialTopPx: 0,
+                      initialRightPx: 0,
+                      initialBottomPx: 0,
+                      initialWidthPx: 0,
+                      initialHeightPx: 0,
+                    });
                   }
 
                   const style = updatePlacementForCanvasDrag(
@@ -1537,6 +1554,7 @@ export function EditorWorkspace({
                       ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
+                  if (element.type === "divider" || element.type === "topics") return element;
                   const resizedStyle = updateStyleForCanvasResize(
                     element.style,
                     resize.direction,

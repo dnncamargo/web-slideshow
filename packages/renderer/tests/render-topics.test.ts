@@ -102,8 +102,11 @@ describe("renderElement topics support", () => {
     const html = renderElement(
       topicsElement({
         id: "topics-root",
+        layout: {
+          position: "absolute",
+          left: 12,
+        },
         style: {
-          width: "50%",
           className: "topic-root",
         },
       }),
@@ -114,7 +117,7 @@ describe("renderElement topics support", () => {
     );
     expect(html).toContain('data-powershow-id="topics-root"');
     expect(html).toContain('data-powershow-type="topics"');
-    expect(html).toContain("width:50%");
+    expect(html).toContain("position:absolute");
   });
 
   it("renders an ordered root as an ol", () => {
@@ -184,6 +187,8 @@ describe("renderElement topics support", () => {
         id: "styled-topics",
         style: {
           color: "#ffffff",
+        },
+        typography: {
           fontSize: 30,
           fontWeight: 400,
         },
@@ -220,6 +225,8 @@ describe("renderElement topics support", () => {
         id: "styled-topics",
         style: {
           color: "#ffffff",
+        },
+        typography: {
           fontFamily: "Inter",
           fontSize: 24,
           fontStyle: "italic",
@@ -227,7 +234,6 @@ describe("renderElement topics support", () => {
           lineHeight: 1.4,
           letterSpacing: 1,
           textDecorationLine: "underline",
-          textDecorationColor: "#22d3ee",
         },
         items: [
           topicItem({
@@ -254,7 +260,6 @@ describe("renderElement topics support", () => {
     expect(html).toContain("--powershow-topic-line-height:1.4");
     expect(html).toContain("--powershow-topic-letter-spacing:1px");
     expect(html).toContain("--powershow-topic-text-decoration-line:underline");
-    expect(html).toContain("--powershow-topic-text-decoration-color:#22d3ee");
     expect(html).not.toContain('style="text-decoration-line:underline"');
   });
 

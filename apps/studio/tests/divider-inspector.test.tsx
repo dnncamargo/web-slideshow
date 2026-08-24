@@ -182,15 +182,15 @@ describe("DividerInspector", () => {
 
     expect(updates).toHaveLength(1);
     expect(updates[0]?.orientation).toBe("vertical");
-    expect(updates[0]?.style?.width).toBeUndefined();
-    expect(updates[0]?.style?.height).toBeUndefined();
+    expect(updates[0]?.layout?.width).toBeUndefined();
+    expect(updates[0]?.layout?.height).toBeUndefined();
   });
 
   it("swaps both explicit dimensions when switching orientation", async () => {
     await act(async () => {
       mount(
         dividerElement({
-          style: { width: "50%", height: "6px" },
+          layout: { width: "50%", height: "6px" },
         }),
       );
     });
@@ -200,15 +200,15 @@ describe("DividerInspector", () => {
     });
 
     expect(updates[0]?.orientation).toBe("vertical");
-    expect(updates[0]?.style?.width).toBe("6px");
-    expect(updates[0]?.style?.height).toBe("50%");
+    expect(updates[0]?.layout?.width).toBe("6px");
+    expect(updates[0]?.layout?.height).toBe("50%");
   });
 
   it("moves a lone explicit width to height when switching orientation", async () => {
     await act(async () => {
       mount(
         dividerElement({
-          style: { width: "50%" },
+          layout: { width: "50%" },
         }),
       );
     });
@@ -218,15 +218,15 @@ describe("DividerInspector", () => {
     });
 
     expect(updates[0]?.orientation).toBe("vertical");
-    expect(updates[0]?.style?.width).toBeUndefined();
-    expect(updates[0]?.style?.height).toBe("50%");
+    expect(updates[0]?.layout?.width).toBeUndefined();
+    expect(updates[0]?.layout?.height).toBe("50%");
   });
 
   it("moves a lone explicit height to width when switching orientation", async () => {
     await act(async () => {
       mount(
         dividerElement({
-          style: { height: "6px" },
+          layout: { height: "6px" },
         }),
       );
     });
@@ -236,11 +236,11 @@ describe("DividerInspector", () => {
     });
 
     expect(updates[0]?.orientation).toBe("vertical");
-    expect(updates[0]?.style?.width).toBe("6px");
-    expect(updates[0]?.style?.height).toBeUndefined();
+    expect(updates[0]?.layout?.width).toBe("6px");
+    expect(updates[0]?.layout?.height).toBeUndefined();
   });
 
-  it("writes an explicit width edit to ElementStyle.width", async () => {
+  it("writes an explicit width edit to layout.width", async () => {
     await act(async () => {
       mount(dividerElement());
     });
@@ -250,10 +250,10 @@ describe("DividerInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(updates[0]?.style?.width).toBe("40%");
+    expect(updates[0]?.layout?.width).toBe("40%");
   });
 
-  it("writes an explicit height edit to ElementStyle.height", async () => {
+  it("writes an explicit height edit to layout.height", async () => {
     await act(async () => {
       mount(dividerElement());
     });
@@ -263,7 +263,7 @@ describe("DividerInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(updates[0]?.style?.height).toBe(4);
+    expect(updates[0]?.layout?.height).toBe(4);
   });
 
   it("writes appearance updates to canonical ElementStyle, not a Divider field", async () => {
@@ -293,7 +293,7 @@ describe("DividerInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(updates[0]?.style?.background).toBe("#22d3ee");
+    expect(updates[0]?.style?.background?.color).toBe("#22d3ee");
     expect(updates[0]?.orientation).toBe("horizontal");
   });
 });

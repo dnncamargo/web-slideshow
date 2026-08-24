@@ -276,4 +276,51 @@ export const ContainerLayoutSchema = ElementLayoutSchema.extend({
   children: ContainerChildrenLayoutSchema.optional(),
 });
 
+export const DividerLayoutSchema = z.object({
+  width: LengthSchema.optional(),
+  height: LengthSchema.optional(),
+  ...PositionedLayoutFieldsSchema.shape,
+}).strict().superRefine(requireAbsoluteEdges);
+
+export const DividerVisualStyleSchema = z.object({
+  background: z.object({ color: ColorSchema.optional() }).strict().optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export const DividerEffectSchema = z.object({
+  opacity: z.number().min(0).max(1).optional(),
+}).strict();
+
+export const TopicsLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
+  requireAbsoluteEdges,
+);
+
+export const TopicsVisualStyleSchema = z.object({
+  color: ColorSchema.optional(),
+  className: z.string().optional(),
+}).strict();
+
+export const TopicsTypographySchema = z.object({
+  fontFamily: FontFamilySchema.optional(),
+  fontSize: LengthSchema.optional(),
+  fontWeight: FontWeightSchema.optional(),
+  fontStyle: FontStyleSchema.optional(),
+  textAlign: TextAlignSchema.optional(),
+  lineHeight: LineHeightSchema.optional(),
+  letterSpacing: LengthSchema.optional(),
+  textTransform: TextTransformSchema.optional(),
+  whiteSpace: WhiteSpaceSchema.optional(),
+  textWrapStyle: TextWrapStyleSchema.optional(),
+  overflowWrap: OverflowWrapSchema.optional(),
+  textDecorationLine: TextDecorationLineSchema.optional(),
+}).strict();
+
+export type DividerLayout = z.infer<typeof DividerLayoutSchema>;
+export type DividerVisualStyle = z.infer<typeof DividerVisualStyleSchema>;
+export type DividerEffect = z.infer<typeof DividerEffectSchema>;
+export type TopicsLayout = z.infer<typeof TopicsLayoutSchema>;
+export type TopicsVisualStyle = z.infer<typeof TopicsVisualStyleSchema>;
+export type TopicsTypography = z.infer<typeof TopicsTypographySchema>;
+
 export type ContainerLayout = z.infer<typeof ContainerLayoutSchema>;

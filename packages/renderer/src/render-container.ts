@@ -216,7 +216,7 @@ function hasAbsoluteChild(element: ContainerElement): boolean {
       return child.layout?.position === "absolute";
     }
 
-    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks") {
+    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics") {
       return child.layout?.position === "absolute";
     }
 

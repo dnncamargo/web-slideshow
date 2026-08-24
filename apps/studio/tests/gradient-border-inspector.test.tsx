@@ -57,8 +57,8 @@ const DEFAULT_BORDER_GRADIENT: Gradient = {
 describe("Gradient Border authoring", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let state: PowerShowElement;
-  let updates: PowerShowElement[];
+  let state: ContainerElement;
+  let updates: ContainerElement[];
 
   function renderInspector(): void {
     root.render(
@@ -66,7 +66,9 @@ describe("Gradient Border authoring", () => {
         <ContainerInspector
           element={state as ContainerElement}
           onUpdate={(update) => {
-            state = update(state);
+            const next = update(state);
+            if (next.type !== "container") return;
+            state = next;
             updates.push(state);
             renderInspector();
           }}
@@ -75,7 +77,7 @@ describe("Gradient Border authoring", () => {
     );
   }
 
-  function mount(element: PowerShowElement): void {
+  function mount(element: ContainerElement): void {
     state = element;
     updates = [];
     renderInspector();

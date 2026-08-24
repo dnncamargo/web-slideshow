@@ -260,7 +260,7 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && shouldShowElementPlacement(layerControls) && (
-        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" ? (
+        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" ? (
           <CanonicalElementPositionSection
             element={element}
             parent={parent}
@@ -271,7 +271,9 @@ export function ElementInspector({
                 }
                 if (current.type === "text") {
                   const next = update(current.layout);
-                  const { width: _width, height: _height, ...textLayout } = next ?? {};
+                  const textLayout = next && "width" in next
+                    ? Object.fromEntries(Object.entries(next).filter(([key]) => key !== "width" && key !== "height"))
+                    : next;
                   return { ...current, layout: textLayout };
                 }
                 if (current.type === "image") {
@@ -281,6 +283,9 @@ export function ElementInspector({
                   return { ...current, layout: update(current.layout) };
                 }
                 if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                if (current.type === "divider" || current.type === "topics") {
                   return { ...current, layout: update(current.layout) };
                 }
                 return current;
@@ -294,7 +299,7 @@ export function ElementInspector({
             parent={parent}
             onUpdateStyle={(update) => {
               onUpdate((current) => {
-                if (current.type === "container" || current.type === "text" || current.type === "textbox" || current.type === "image" || current.type === "gallery" || current.type === "embed" || current.type === "scripted") return current;
+                if (current.type === "container" || current.type === "text" || current.type === "textbox" || current.type === "image" || current.type === "gallery" || current.type === "embed" || current.type === "scripted" || current.type === "divider" || current.type === "topics") return current;
                 if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") return current;
                 return { ...current, style: update(current.style) };
               });

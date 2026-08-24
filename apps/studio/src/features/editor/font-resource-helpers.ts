@@ -56,14 +56,12 @@ export function presentationUsesFontFamily(
 
   return presentation.slides.some((slide) =>
     someElement(slide.elements, (element) => {
-      const fontFamily =
-        element.type === "container" || element.type === "text" || element.type === "textbox"
-          ? element.typography?.fontFamily
-          : element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks"
-            ? undefined
-          : element.type === "chart" || element.type === "interactive" || element.type === "divider" || element.type === "topics"
-            ? element.style?.fontFamily
-            : undefined;
+      let fontFamily: string | undefined;
+      if (element.type === "container" || element.type === "text" || element.type === "textbox" || element.type === "topics") {
+        fontFamily = element.typography?.fontFamily;
+      } else if (element.type === "chart" || element.type === "interactive") {
+        fontFamily = element.style?.fontFamily;
+      }
 
       return (
         fontFamily !== undefined &&

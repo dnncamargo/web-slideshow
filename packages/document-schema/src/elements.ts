@@ -28,6 +28,12 @@ import {
   SurfaceVisualStyleSchema,
   GradientSurfaceVisualStyleSchema,
   BlocksVisualStyleSchema,
+  DividerLayoutSchema,
+  DividerVisualStyleSchema,
+  DividerEffectSchema,
+  TopicsLayoutSchema,
+  TopicsVisualStyleSchema,
+  TopicsTypographySchema,
 } from "./element-properties";
 
 const BaseElementSchema = z.object({
@@ -290,14 +296,23 @@ export type InteractiveElement =
   z.infer<typeof InteractiveElementSchema>;
 
 export const DividerElementSchema =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
     type: z.literal("divider"),
+
+    hidden: z.boolean().default(false),
+
+    layout: DividerLayoutSchema.optional(),
+
+    style: DividerVisualStyleSchema.optional(),
+
+    effect: DividerEffectSchema.optional(),
 
     orientation: z.enum([
       "horizontal",
       "vertical",
     ]).default("horizontal"),
-  });
+  }).strict();
 
 export type DividerElement =
   z.infer<typeof DividerElementSchema>;
@@ -640,17 +655,28 @@ export type TopicsElement = {
     | number
     | undefined;
 
-  style?:
-    | z.infer<typeof ElementStyleSchema>
-    | undefined;
+  layout?: z.infer<typeof TopicsLayoutSchema> | undefined;
+
+  style?: z.infer<typeof TopicsVisualStyleSchema> | undefined;
+
+  typography?: z.infer<typeof TopicsTypographySchema> | undefined;
 
   hidden: boolean;
 };
 
 export const TopicsElementSchema:
   z.ZodType<TopicsElement> =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
     type: z.literal("topics"),
+
+    hidden: z.boolean().default(false),
+
+    layout: TopicsLayoutSchema.optional(),
+
+    style: TopicsVisualStyleSchema.optional(),
+
+    typography: TopicsTypographySchema.optional(),
 
     kind: z.enum([
       "unordered",
@@ -664,7 +690,7 @@ export const TopicsElementSchema:
     markerColor: ColorSchema.optional(),
 
     itemGap: z.number().min(0).optional(),
-  });
+  }).strict();
 
 export type ContainerElement = {
   id: string;
