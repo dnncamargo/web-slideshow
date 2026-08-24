@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ElementStyle } from "@powershow/document-schema";
+import type { ElementTypography } from "@powershow/document-schema";
 
 import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -47,17 +47,17 @@ function changeSelect(container: HTMLElement, id: string, value: string) {
 describe("ElementTypographyControl text capabilities", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let updates: ElementStyle[];
-  let styleState: ElementStyle | undefined;
+  let updates: ElementTypography[];
+  let styleState: ElementTypography | undefined;
 
   function renderControl() {
     root.render(
       <StudioI18nProvider>
         <ElementTypographyControl
           selectedElementId="text-1"
-          style={styleState}
+          typography={styleState}
           effectiveDefaults={EFFECTIVE_DEFAULTS}
-          onUpdateStyle={(update) => {
+          onUpdateTypography={(update) => {
             styleState = update(styleState);
             updates.push(styleState);
             renderControl();
@@ -69,7 +69,7 @@ describe("ElementTypographyControl text capabilities", () => {
     );
   }
 
-  function mount(style: ElementStyle | undefined) {
+  function mount(style: ElementTypography | undefined) {
     styleState = style;
     renderControl();
   }
@@ -109,7 +109,7 @@ describe("ElementTypographyControl text capabilities", () => {
     expect(updates).toHaveLength(0);
   });
 
-  it("changing each control writes the canonical ElementStyle property", async () => {
+  it("changing each control writes the canonical typography property", async () => {
     await act(async () => {
       mount(undefined);
     });

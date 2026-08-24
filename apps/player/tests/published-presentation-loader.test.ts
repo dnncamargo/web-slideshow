@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import {
+  PresentationSchema,
+  type Presentation,
+} from "@powershow/document-schema";
 
 const mocks = vi.hoisted(() => ({
   initializeApp: vi.fn(),
@@ -30,7 +33,64 @@ function validPresentation(): Presentation {
     title: "Published",
     description: "",
     aspectRatio: "16:9",
-    slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [] }],
+    slides: [
+      { id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [] },
+    ],
+  });
+}
+
+function canonicalContainerPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "pres-container",
+    title: "Canonical Container",
+    description: "",
+    aspectRatio: "16:9",
+    slides: [
+      {
+        id: "slide-container",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [
+          {
+            id: "container-player",
+            type: "container",
+            hidden: false,
+            layout: {
+              width: "70%",
+              height: "60%",
+              position: "absolute",
+              bottom: 20,
+              right: 30,
+              children: {
+                direction: "column",
+                gap: 8,
+              },
+            },
+            style: {
+              color: "#ffffff",
+              background: {
+                color: "#111827",
+              },
+              borderRadius: 10,
+            },
+            effect: {
+              opacity: 0.85,
+            },
+            children: [
+              {
+                id: "player-child",
+                type: "text",
+                hidden: false,
+                variant: "body",
+                content: "Loaded canonical Container",
+              },
+            ],
+          },
+        ],
+      },
+    ],
   });
 }
 
@@ -49,7 +109,11 @@ function versionDoc(presentation: unknown) {
 }
 
 function setViteEnv(present: boolean) {
-  const keys = ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_AUTH_DOMAIN", "VITE_FIREBASE_PROJECT_ID"] as const;
+  const keys = [
+    "VITE_FIREBASE_API_KEY",
+    "VITE_FIREBASE_AUTH_DOMAIN",
+    "VITE_FIREBASE_PROJECT_ID",
+  ] as const;
 
   for (const key of keys) {
     vi.stubEnv(key, present ? "set" : "");
@@ -79,14 +143,20 @@ describe("published presentation loader via pointer", () => {
       .mockResolvedValueOnce(pointerDoc("version-current"))
       .mockResolvedValueOnce(versionDoc(validPresentation()));
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result.kind).toBe("ok");
     if (result.kind === "ok") {
       expect(result.presentation.id).toBe("pres-1");
     }
-    expect(mocks.doc).toHaveBeenNthCalledWith(1, expect.anything(), "publishedPresentations", "publication-1");
+    expect(mocks.doc).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "publishedPresentations",
+      "publication-1",
+    );
     expect(mocks.doc).toHaveBeenNthCalledWith(
       2,
       expect.anything(),
@@ -103,7 +173,8 @@ describe("published presentation loader via pointer", () => {
     mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
     mocks.getDoc.mockResolvedValueOnce({ exists: () => false });
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "not-found" });
@@ -125,9 +196,13 @@ describe("published presentation loader via pointer", () => {
       vi.clearAllMocks();
       defaultAppMocks();
       mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
-      mocks.getDoc.mockResolvedValueOnce({ exists: () => true, data: () => data });
+      mocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => data,
+      });
 
-      const { loadPublishedPresentation: reload } = await import("../src/published-presentation-loader");
+      const { loadPublishedPresentation: reload } =
+        await import("../src/published-presentation-loader");
       const result = await reload("publication-1");
 
       expect(result).toEqual({ kind: "error" });
@@ -144,7 +219,8 @@ describe("published presentation loader via pointer", () => {
       .mockResolvedValueOnce(pointerDoc("version-current"))
       .mockResolvedValueOnce({ exists: () => false });
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "not-found" });
@@ -161,7 +237,8 @@ describe("published presentation loader via pointer", () => {
       .mockResolvedValueOnce(pointerDoc("version-current"))
       .mockResolvedValueOnce(versionDoc({ schemaVersion: 999, slides: [] }));
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "error" });
@@ -173,7 +250,8 @@ describe("published presentation loader via pointer", () => {
     mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
     mocks.getDoc.mockRejectedValueOnce(new Error("permission denied"));
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "error" });
@@ -189,7 +267,8 @@ describe("published presentation loader via pointer", () => {
       .mockResolvedValueOnce(pointerDoc("version-current"))
       .mockRejectedValueOnce(new Error("version read failed"));
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "error" });
@@ -198,9 +277,12 @@ describe("published presentation loader via pointer", () => {
   it("returns error without rejecting when Firebase initialization fails", async () => {
     setViteEnv(true);
     defaultAppMocks();
-    mocks.initializeApp.mockImplementationOnce(() => { throw new Error("bad config"); });
+    mocks.initializeApp.mockImplementationOnce(() => {
+      throw new Error("bad config");
+    });
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedPresentation("publication-1");
 
     expect(result).toEqual({ kind: "error" });
@@ -213,11 +295,101 @@ describe("published presentation loader via pointer", () => {
     mocks.doc.mockReturnValueOnce({ id: "pointer-ref" });
     mocks.getDoc.mockResolvedValueOnce({ exists: () => false });
 
-    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
     await loadPublishedPresentation("publication-1");
 
     expect(initializeApp).not.toHaveBeenCalled();
     expect(mocks.getFirestore).toHaveBeenCalledWith({ name: "existing" });
+  });
+
+  it("loads a published presentation containing a canonical Container", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+
+    const presentation = canonicalContainerPresentation();
+
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-container"))
+      .mockResolvedValueOnce(versionDoc(presentation));
+
+    const { loadPublishedPresentation } =
+      await import("../src/published-presentation-loader");
+
+    const result = await loadPublishedPresentation("publication-container");
+
+    expect(result.kind).toBe("ok");
+
+    if (result.kind !== "ok") {
+      throw new Error("Expected canonical published presentation to load.");
+    }
+
+    expect(result.presentation).toEqual(presentation);
+
+    const container = result.presentation.slides[0]?.elements[0];
+
+    expect(container?.type).toBe("container");
+
+    if (container?.type !== "container") {
+      throw new Error("Expected first element to be a Container.");
+    }
+
+    expect(container.layout).toMatchObject({
+      width: "70%",
+      height: "60%",
+      position: "absolute",
+      bottom: 20,
+      right: 30,
+      children: {
+        direction: "column",
+        gap: 8,
+      },
+    });
+
+    expect(container.style).toMatchObject({
+      color: "#ffffff",
+      background: {
+        color: "#111827",
+      },
+      borderRadius: 10,
+    });
+
+    expect(container.effect).toEqual({
+      opacity: 0.85,
+    });
+
+    expect(container.children[0]).toMatchObject({
+      id: "player-child",
+      type: "text",
+      content: "Loaded canonical Container",
+    });
+
+    expect(container).not.toHaveProperty("direction");
+    expect(container).not.toHaveProperty("layoutMode");
+    expect(container).not.toHaveProperty("style.width");
+    expect(container).not.toHaveProperty("style.position");
+    expect(container).not.toHaveProperty("style.opacity");
+    expect(container).not.toHaveProperty("style.placement");
+
+    expect(mocks.doc).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "publishedPresentations",
+      "publication-container",
+    );
+
+    expect(mocks.doc).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "publishedPresentations",
+      "publication-container",
+      "versions",
+      "version-container",
+    );
   });
 });
 
@@ -228,7 +400,8 @@ describe("published presentation loader by exact version", () => {
     mocks.doc.mockReturnValueOnce({ id: "version-ref" });
     mocks.getDoc.mockResolvedValueOnce(versionDoc(validPresentation()));
 
-    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const { loadPublishedVersion } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedVersion("publication-1", "version-exact");
 
     expect(result.kind).toBe("ok");
@@ -251,8 +424,12 @@ describe("published presentation loader by exact version", () => {
     mocks.doc.mockReturnValueOnce({ id: "version-ref" });
     mocks.getDoc.mockResolvedValueOnce({ exists: () => false });
 
-    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
-    const result = await loadPublishedVersion("publication-1", "version-missing");
+    const { loadPublishedVersion } =
+      await import("../src/published-presentation-loader");
+    const result = await loadPublishedVersion(
+      "publication-1",
+      "version-missing",
+    );
 
     expect(result).toEqual({ kind: "not-found" });
   });
@@ -261,9 +438,12 @@ describe("published presentation loader by exact version", () => {
     setViteEnv(true);
     defaultAppMocks();
     mocks.doc.mockReturnValueOnce({ id: "version-ref" });
-    mocks.getDoc.mockResolvedValueOnce(versionDoc({ schemaVersion: 999, slides: [] }));
+    mocks.getDoc.mockResolvedValueOnce(
+      versionDoc({ schemaVersion: 999, slides: [] }),
+    );
 
-    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const { loadPublishedVersion } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedVersion("publication-1", "version-bad");
 
     expect(result).toEqual({ kind: "error" });
@@ -275,7 +455,8 @@ describe("published presentation loader by exact version", () => {
     mocks.doc.mockReturnValueOnce({ id: "version-ref" });
     mocks.getDoc.mockRejectedValueOnce(new Error("version read failed"));
 
-    const { loadPublishedVersion } = await import("../src/published-presentation-loader");
+    const { loadPublishedVersion } =
+      await import("../src/published-presentation-loader");
     const result = await loadPublishedVersion("publication-1", "version-exact");
 
     expect(result).toEqual({ kind: "error" });

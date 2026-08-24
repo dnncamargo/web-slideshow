@@ -1,8 +1,7 @@
 export * from "./escape-html";
 export * from "./render-font-resources";
 export * from "./render-length";
-export * from "./render-placement";
-export * from "./render-style";
+export * from "./render-content-slot";
 export * from "./render-background-pattern";
 export * from "./render-visual";
 export * from "./render-element";
@@ -13,3 +12,5 @@ export * from "./render-blocks";
 export * from "./render-scripted";
 export * from "./render-slide";
 export * from "./render-presentation";
+export * from "./image-crop";
+export * from "./image-crop-runtime";

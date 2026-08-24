@@ -1,7 +1,7 @@
 import type { BlockItem, BlockPart, BlocksElement } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderStyle } from "./render-style";
+import { renderCanonicalDataStyle } from "./render-canonical-data";
 
 export const BLOCK_CONNECTOR_WIDTH = 14;
 export const BLOCK_CONNECTOR_HEIGHT = 5;
@@ -138,7 +138,7 @@ export function renderBlocks(element: BlocksElement): string {
   const classes = ["powershow-element", "powershow-blocks"];
   const customClass = element.style?.className?.trim();
   if (customClass) classes.push(customClass);
-  const rootStyle = renderStyle(element.style);
+  const rootStyle = renderCanonicalDataStyle(element);
   const styleAttribute = rootStyle ? ` style="${escapeHtml(rootStyle)}"` : "";
   const categories = new Map(element.categories.map((category) => [category.id, category.color]));
   return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="blocks"${styleAttribute}><div class="powershow-blocks-stack" style="${stackStyle}">${element.items.map((item) => renderBlock(item, categories)).join("")}</div></div>`;

@@ -11,18 +11,39 @@ import { renderScripted } from "./render-scripted";
 
 import type {
   ElementLink,
+  ContainerElement,
   ImageElement,
   PowerShowElement,
   TextboxElement,
   TextElement,
+  ChartElement,
+  InteractiveElement,
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
+import { renderCanonicalTextStyle } from "./render-canonical-text";
 import { renderLength } from "./render-length";
-import { renderStyle } from "./render-style";
+import {
+  renderCanonicalImageCropMetadata,
+  renderCanonicalImageMediaStyle,
+  renderCanonicalImageStyle,
+} from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
+
+function renderImageCropBoxStyle(element: ImageElement): string {
+  return element.layout?.position === "absolute"
+    ? "overflow:hidden"
+    : "position:relative;overflow:hidden";
+}
+
+function renderCroppedImageMedia(element: ImageElement): string {
+  return `<img class="powershow-image-media"` +
+    ` src="${escapeHtml(element.src)}"` +
+    ` alt="${escapeHtml(element.alt)}"` +
+    ` style="display:block;position:absolute;max-width:none">`;
+}
 
 function renderLinkContent(
   content: string,
@@ -54,7 +75,10 @@ function buildAttributes(
 ): string {
   const outputClasses = ["powershow-element", ...classes];
 
-  const customClass = element.style?.className?.trim();
+  const customClass =
+    element.type === "container" || element.type === "text" || element.type === "textbox" || element.type === "image"
+      ? element.style?.className?.trim()
+      : undefined;
 
   if (customClass) {
     outputClasses.push(customClass);
@@ -62,7 +86,12 @@ function buildAttributes(
 
   const styles: string[] = [];
 
-  const baseStyle = renderStyle(element.style);
+  let baseStyle = "";
+  if (element.type === "text" || element.type === "textbox") {
+    baseStyle = renderCanonicalTextStyle(element);
+  } else if (element.type === "image") {
+    baseStyle = renderCanonicalImageStyle(element);
+  }
 
   if (baseStyle) {
     styles.push(baseStyle);
@@ -134,35 +163,6 @@ function renderTextbox(element: TextboxElement): string {
   );
 }
 
-function renderImageMediaStyle(element: ImageElement): string {
-  const styles: string[] = [
-    "display:block",
-    `object-fit:${element.fit}`,
-    `object-position:${element.focalPoint?.x ?? 50}% ${element.focalPoint?.y ?? 50}%`,
-  ];
-
-  // The media fills an explicitly sized root dimension so object-fit
-  // resolves against the PowerShow element box. Dimensions that are not
-  // defined on the canonical element are intentionally left alone so the
-  // media keeps its intrinsic sizing behavior.
-  if (element.style?.width !== undefined) {
-    styles.push("width:100%");
-  }
-
-  if (element.style?.height !== undefined) {
-    styles.push("height:100%");
-  }
-
-  // Border radius is duplicated onto the media so the rounded appearance
-  // of the rendered bitmap matches the unlinked Image, where the radius
-  // sits on the img root itself.
-  if (element.style?.borderRadius !== undefined) {
-    styles.push(`border-radius:${renderLength(element.style.borderRadius)}`);
-  }
-
-  return styles.join(";");
-}
-
 function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   const classes = ["powershow-element", "powershow-image"];
 
@@ -178,10 +178,14 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   // stays suppressed otherwise.
   const styleParts = ["display:inline-block", AUTHORED_LINK_APPEARANCE];
 
-  const elementStyle = renderStyle(element.style);
+  const elementStyle = renderCanonicalImageStyle(element);
 
   if (elementStyle) {
     styleParts.push(elementStyle);
+  }
+
+  if (element.crop) {
+    styleParts.push(renderImageCropBoxStyle(element));
   }
 
   const attributes: string[] = [
@@ -193,20 +197,27 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     ` style="${escapeHtml(styleParts.join(";"))}"`,
   ];
 
+  const cropMetadata = renderCanonicalImageCropMetadata(element);
+  if (cropMetadata) attributes.push(cropMetadata);
+
   if (link.target === "_blank") {
     attributes.push('target="_blank"', 'rel="noopener noreferrer"');
   } else if (link.target === "_self") {
     attributes.push('target="_self"');
   }
 
-  return (
-    `<a ${attributes.join(" ")}>` +
-    `<img class="powershow-image-media"` +
-    ` src="${escapeHtml(element.src)}"` +
-    ` alt="${escapeHtml(element.alt)}"` +
-    ` style="${escapeHtml(renderImageMediaStyle(element))}">` +
-    `</a>`
-  );
+  const media = element.crop
+    ? renderCroppedImageMedia(element)
+    : `<img class="powershow-image-media"` +
+      ` src="${escapeHtml(element.src)}"` +
+      ` alt="${escapeHtml(element.alt)}"` +
+      ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">`;
+
+  if (!element.crop) {
+    return `<a ${attributes.join(" ")}>${media}</a>`;
+  }
+
+  return `<a ${attributes.join(" ")}><div class="powershow-image-crop-viewport">${media}</div></a>`;
 }
 
 function renderImage(element: ImageElement): string {
@@ -216,6 +227,20 @@ function renderImage(element: ImageElement): string {
 
   if (element.link) {
     return renderLinkedImage(element, element.link);
+  }
+
+  if (element.crop) {
+    const attributes = buildAttributes(
+      element,
+      ["powershow-image"],
+      renderImageCropBoxStyle(element),
+    );
+    return (
+      `<div ${attributes} ${renderCanonicalImageCropMetadata(element)}>` +
+      `<div class="powershow-image-crop-viewport">` +
+      renderCroppedImageMedia(element) +
+      `</div></div>`
+    );
   }
 
   const attributes = buildAttributes(
@@ -231,15 +256,26 @@ function renderImage(element: ImageElement): string {
   );
 }
 
-function renderPlaceholder(element: PowerShowElement): string {
+function renderPlaceholder(element: ChartElement | InteractiveElement): string {
   if (element.hidden) {
     return "";
   }
 
-  const attributes = buildAttributes(element, [
+  const classes = [
+    "powershow-element",
     "powershow-placeholder",
     `powershow-placeholder-${element.type}`,
-  ]);
+  ];
+  const layout = element.layout;
+  const styles: string[] = [];
+  if (layout?.position !== undefined) styles.push(`position:${layout.position}`);
+  for (const [property, value] of [["top", layout?.top], ["right", layout?.right], ["bottom", layout?.bottom], ["left", layout?.left]] as const) {
+    if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
+  }
+  const attributes = `class="${escapeHtml(classes.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
+    ` data-powershow-type="${escapeHtml(element.type)}"` +
+    (styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "");
 
   return `<div ${attributes}>` + `[${escapeHtml(element.type)}]` + "</div>";
 }

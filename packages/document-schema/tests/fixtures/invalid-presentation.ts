@@ -89,9 +89,7 @@ export const invalidPresentationFixtures = [
         id: "negative-opacity",
         type: "text",
         content: "Invisible",
-        style: {
-          opacity: -0.01,
-        },
+        effect: { opacity: -0.01 },
       },
     ]),
   },
@@ -102,9 +100,7 @@ export const invalidPresentationFixtures = [
         id: "excessive-opacity",
         type: "text",
         content: "Too visible",
-        style: {
-          opacity: 1.01,
-        },
+        effect: { opacity: 1.01 },
       },
     ]),
   },

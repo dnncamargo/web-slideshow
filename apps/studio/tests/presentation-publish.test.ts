@@ -6,7 +6,10 @@ const mocks = vi.hoisted(() => ({
   runTransaction: vi.fn(),
   serverTimestamp: vi.fn(),
   getFirebaseFirestore: vi.fn(() => ({})),
-  getCurrentNonAnonymousUser: vi.fn(() => ({ uid: "user-1", isAnonymous: false })),
+  getCurrentNonAnonymousUser: vi.fn(() => ({
+    uid: "user-1",
+    isAnonymous: false,
+  })),
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -58,18 +61,74 @@ function setupTransaction(data: Record<string, unknown>, exists = true) {
   };
 
   mocks.runTransaction.mockImplementation(
-    async (_firestore: unknown, callback: (value: typeof transaction) => unknown) =>
-      callback(transaction),
+    async (
+      _firestore: unknown,
+      callback: (value: typeof transaction) => unknown,
+    ) => callback(transaction),
   );
 
   return transaction;
+}
+
+function canonicalContainerPresentation() {
+  return PresentationSchema.parse({
+    ...createBlankPresentation("pres-1"),
+    slides: [
+      {
+        id: "slide-1",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [
+          {
+            id: "container-canonical",
+            type: "container",
+            hidden: false,
+            layout: {
+              width: "80%",
+              padding: 16,
+              position: "absolute",
+              top: 24,
+              left: 32,
+              children: {
+                direction: "column",
+                gap: 12,
+              },
+            },
+            style: {
+              color: "#ffffff",
+              background: {
+                color: "#0f172a",
+              },
+              borderRadius: 12,
+            },
+            effect: {
+              opacity: 0.9,
+            },
+            children: [
+              {
+                id: "text-child",
+                type: "text",
+                hidden: false,
+                variant: "body",
+                content: "Canonical child",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
 }
 
 describe("transactional presentation publishing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getFirebaseFirestore.mockReturnValue({});
-    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1", isAnonymous: false });
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({
+      uid: "user-1",
+      isAnonymous: false,
+    });
     mocks.collection.mockImplementation((...path: unknown[]) => ({ path }));
     mocks.serverTimestamp.mockReturnValue("server-ts");
   });
@@ -100,8 +159,13 @@ describe("transactional presentation publishing", () => {
         publishedAt: "server-ts",
       }),
     );
-    const versionPayload = transaction.set.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(versionPayload?.presentation).toEqual(expect.objectContaining({ id: "pres-1" }));
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as Record<
+      string,
+      unknown
+    >;
+    expect(versionPayload?.presentation).toEqual(
+      expect.objectContaining({ id: "pres-1" }),
+    );
     expect(versionPayload).not.toHaveProperty("draftRevision");
     expect(versionPayload).not.toHaveProperty("createdAt");
     expect(versionPayload).not.toHaveProperty("updatedAt");
@@ -211,27 +275,38 @@ describe("transactional presentation publishing", () => {
   });
 
   it("preserves canonical Scripted source exactly in the immutable version payload", async () => {
-    const html = '<div data-value="  raw  ">\n  publish &amp; preserve\n</div>\n';
+    const html =
+      '<div data-value="  raw  ">\n  publish &amp; preserve\n</div>\n';
     const css = ".published {\n  padding:  4px;\n}\n";
     const script = 'const raw = "  publish  ";\nconsole.log(raw);\n';
     const presentation = PresentationSchema.parse({
       ...createBlankPresentation("pres-1"),
-      slides: [{
-        id: "slide-scripted",
-        title: "",
-        summary: "",
-        speakerNotes: "",
-        elements: [{
-          id: "scripted-publish",
-          type: "scripted",
-          hidden: true,
-          title: "Publish exact source",
-          html,
-          css,
-          script,
-          style: { width: "71%", height: "41%", className: "published-scripted" },
-        }],
-      }],
+      slides: [
+        {
+          id: "slide-scripted",
+          title: "",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "scripted-publish",
+              type: "scripted",
+              hidden: true,
+              title: "Publish exact source",
+              html,
+              css,
+              script,
+              layout: {
+                width: "71%",
+                height: "41%",
+              },
+              style: {
+                className: "published-scripted",
+              },
+            },
+          ],
+        },
+      ],
     });
     const transaction = setupTransaction(draftData({ presentation }));
     mocks.doc
@@ -253,7 +328,8 @@ describe("transactional presentation publishing", () => {
       html,
       css,
       script,
-      style: { width: "71%", height: "41%", className: "published-scripted" },
+      layout: { width: "71%", height: "41%" },
+      style: { className: "published-scripted" },
     });
   });
 
@@ -274,7 +350,10 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).not.toHaveBeenCalled();
 
     vi.clearAllMocks();
-    transaction = setupTransaction({ presentation: { id: "invalid" }, draftRevision: 1 });
+    transaction = setupTransaction({
+      presentation: { id: "invalid" },
+      draftRevision: 1,
+    });
     mocks.doc.mockReturnValueOnce({ id: "private-draft" });
     await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
       "Persisted presentation is not a valid PowerShow document",
@@ -303,7 +382,136 @@ describe("transactional presentation publishing", () => {
     await onPublish();
 
     expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
-    expect(mocks.doc).toHaveBeenCalledWith(expect.anything(), "users", "user-1", "presentations", "pres-mount");
+    expect(mocks.doc).toHaveBeenCalledWith(
+      expect.anything(),
+      "users",
+      "user-1",
+      "presentations",
+      "pres-mount",
+    );
     expect(transaction.set).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes a canonical Container without rewriting its contract", async () => {
+    const presentation = canonicalContainerPresentation();
+
+    const transaction = setupTransaction(
+      draftData({
+        presentation,
+      }),
+    );
+
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-auto" })
+      .mockReturnValueOnce({ id: "version-auto" })
+      .mockReturnValueOnce({ id: "pointer-auto" });
+
+    const result = await repository.publishPresentation("pres-1");
+
+    expect(result).toEqual({
+      publicationId: "publication-auto",
+      versionId: "version-auto",
+      publishedRevision: 3,
+      createdVersion: true,
+    });
+
+    expect(transaction.get).toHaveBeenCalledWith({
+      id: "private-draft",
+    });
+
+    expect(transaction.set).toHaveBeenCalledWith(
+      { id: "version-auto" },
+      expect.objectContaining({
+        presentation,
+        publishedRevision: 3,
+        publishedAt: "server-ts",
+      }),
+    );
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentation?: {
+        slides?: Array<{
+          elements?: unknown[];
+        }>;
+      };
+      publishedRevision?: number;
+      publishedAt?: unknown;
+    };
+
+    const container = versionPayload.presentation?.slides?.[0]?.elements?.[0];
+
+    expect(container).toMatchObject({
+      id: "container-canonical",
+      type: "container",
+      hidden: false,
+      layout: {
+        width: "80%",
+        padding: 16,
+        position: "absolute",
+        top: 24,
+        left: 32,
+        children: {
+          direction: "column",
+          gap: 12,
+        },
+      },
+      style: {
+        color: "#ffffff",
+        background: {
+          color: "#0f172a",
+        },
+        borderRadius: 12,
+      },
+      effect: {
+        opacity: 0.9,
+      },
+      children: [
+        {
+          id: "text-child",
+          type: "text",
+          hidden: false,
+          variant: "body",
+          content: "Canonical child",
+        },
+      ],
+    });
+
+    expect(container).not.toHaveProperty("direction");
+    expect(container).not.toHaveProperty("layoutMode");
+
+    expect(container).not.toHaveProperty("style.width");
+    expect(container).not.toHaveProperty("style.height");
+    expect(container).not.toHaveProperty("style.padding");
+    expect(container).not.toHaveProperty("style.position");
+    expect(container).not.toHaveProperty("style.top");
+    expect(container).not.toHaveProperty("style.left");
+
+    expect(container).not.toHaveProperty("style.backgroundGradient");
+    expect(container).not.toHaveProperty("style.backgroundPattern");
+    expect(container).not.toHaveProperty("style.opacity");
+    expect(container).not.toHaveProperty("style.shadow");
+    expect(container).not.toHaveProperty("style.placement");
+
+    expect(transaction.set).toHaveBeenCalledWith(
+      { id: "pointer-auto" },
+      {
+        currentVersionId: "version-auto",
+        publishedRevision: 3,
+        publishedAt: "server-ts",
+      },
+    );
+
+    expect(transaction.update).toHaveBeenCalledWith(
+      { id: "private-draft" },
+      {
+        publication: {
+          publicationId: "publication-auto",
+          currentVersionId: "version-auto",
+          publishedRevision: 3,
+          publishedAt: "server-ts",
+        },
+      },
+    );
   });
 });

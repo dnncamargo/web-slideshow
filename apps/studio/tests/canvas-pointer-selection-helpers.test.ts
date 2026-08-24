@@ -26,7 +26,7 @@ describe("canvas pointerdown selection", () => {
     textElement({ id: "flow-text", content: "Flow" }),
     textElement({
       id: "absolute-text",
-      style: { placement: { mode: "absolute", anchor: "center" } },
+      layout: { position: "absolute", top: 0, left: 0 },
     }),
   ];
 

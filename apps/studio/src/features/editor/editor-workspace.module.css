@@ -1106,6 +1106,118 @@
   cursor: grabbing;
 }
 
+.canvasCropSourcePreview {
+  position: fixed;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.canvasCropSourceLoader {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.canvasCropAppearanceFrame {
+  position: fixed;
+  z-index: 13;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.canvasCropSourceImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+}
+
+.canvasCropMaskTop,
+.canvasCropMaskLeft,
+.canvasCropMaskRight,
+.canvasCropMaskBottom {
+  position: absolute;
+  background: rgba(15, 23, 42, 0.58);
+  pointer-events: none;
+}
+
+.canvasCropMaskTop,
+.canvasCropMaskBottom {
+  left: 0;
+  right: 0;
+}
+
+.canvasCropMaskLeft,
+.canvasCropMaskRight {
+  width: auto;
+}
+
+.canvasCropSelection {
+  position: absolute;
+  z-index: 14;
+  border: 1px solid #ecfeff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.65);
+  pointer-events: none;
+}
+
+.canvasCropMoveSurface {
+  position: absolute;
+  inset: 0;
+  cursor: move;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.canvasCropHandle {
+  position: absolute;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid #ecfeff;
+  border-radius: 2px;
+  background: #0891b2;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.canvasCropHandleN,
+.canvasCropHandleS {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.canvasCropHandleE,
+.canvasCropHandleW {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.canvasCropHandleN,
+.canvasCropHandleNE,
+.canvasCropHandleNW { top: -7px; }
+.canvasCropHandleS,
+.canvasCropHandleSE,
+.canvasCropHandleSW { bottom: -7px; }
+.canvasCropHandleE,
+.canvasCropHandleNE,
+.canvasCropHandleSE { right: -7px; }
+.canvasCropHandleW,
+.canvasCropHandleNW,
+.canvasCropHandleSW { left: -7px; }
+
+.canvasCropHandleN,
+.canvasCropHandleS { cursor: ns-resize; }
+.canvasCropHandleE,
+.canvasCropHandleW { cursor: ew-resize; }
+.canvasCropHandleNE,
+.canvasCropHandleSW { cursor: nesw-resize; }
+.canvasCropHandleNW,
+.canvasCropHandleSE { cursor: nwse-resize; }
+
 .imageFocalPresetGrid {
   display: grid;
   grid-template-columns: repeat(3, 24px);

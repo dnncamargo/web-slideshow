@@ -1,4 +1,9 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type {
+  ElementEffect,
+  ElementTypography,
+  PowerShowElement,
+  TextVisualStyle,
+} from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,14 +13,13 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TypographyInspectorProps,
-  UpdateElementStyle,
 } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
+import { CanonicalTextAppearanceSection } from "./sections/canonical-text-appearance-section";
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
 type TextboxElement = Extract<PowerShowElement, { type: "textbox" }>;
 
@@ -30,7 +34,7 @@ export function TextboxInspector({
 }: TypographyInspectorProps<TextboxElement>) {
   const { t } = useStudioI18n();
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
       if (current.type !== "textbox") {
         return current;
@@ -42,6 +46,14 @@ export function TextboxInspector({
         style: update(current.style),
       };
     });
+  };
+
+  const updateTypography = (update: (value: ElementTypography | undefined) => ElementTypography) => {
+    onUpdate((current) => current.type === "textbox" ? { ...current, typography: update(current.typography) } : current);
+  };
+
+  const updateEffect = (update: (value: ElementEffect | undefined) => ElementEffect) => {
+    onUpdate((current) => current.type === "textbox" ? { ...current, effect: update(current.effect) } : current);
   };
 
   return (
@@ -83,25 +95,25 @@ export function TextboxInspector({
         controlPrefix="textbox"
       />
 
-      <ElementAppearanceSection
+      <CanonicalTextAppearanceSection
         element={element}
+        style={element.style}
+        typography={element.typography}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateTypography={updateTypography}
+        onUpdateEffect={updateEffect}
         controlPrefix="textbox"
-        showTypography
         fontResourceControls={fontResourceControls}
-        showColor
-        showBackground
-        showBackgroundGradient
-        showRoundedCorners
-        showOpacity
-        showBorder
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalTextEffectsSection
+        effect={element.effect}
+        typography={element.typography}
+        textColor={element.style?.color}
+        onUpdateEffect={updateEffect}
+        onUpdateTypography={updateTypography}
         controlPrefix="textbox"
-        showTextStroke
       />
     </>
   );

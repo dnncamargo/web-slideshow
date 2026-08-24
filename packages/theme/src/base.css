@@ -90,7 +90,7 @@
 
    Textbox é um bloco textual, não apenas uma linha de texto.
 
-   Ele pode receber background/border via ElementStyle,
+   Ele pode receber background/border via estilo visual canônico,
    mas precisa permanecer legível sem configuração adicional.
    ========================================================== */
 
@@ -469,6 +469,16 @@ ol.powershow-element.powershow-topics {
   max-height: 100%;
 
   object-fit: contain;
+}
+
+.powershow-image-crop-viewport {
+  position: absolute;
+  overflow: hidden;
+}
+
+.powershow-image-crop-viewport .powershow-image-media {
+  position: absolute;
+  max-width: none;
 }
 
 /* ==========================================================

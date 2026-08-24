@@ -1,12 +1,6 @@
 import type {
-  ElementStyle,
-  PositionAnchor,
   PowerShowElement,
 } from "@powershow/document-schema";
-import {
-  normalizeAuthoringLengthValue,
-  parseAuthoringLength,
-} from "@powershow/theme/element-style-defaults";
 
 export type CanvasResizeDirection =
   | "n"
@@ -49,20 +43,6 @@ function includesSouth(direction: CanvasResizeDirection): boolean {
   return direction === "s" || direction === "sw" || direction === "se";
 }
 
-function serializeResizedDimension(
-  value: number,
-  original: number | string | undefined,
-  parentDimension: number,
-): number | string {  const parsed = original === undefined ? undefined : parseAuthoringLength(original);
-  const normalized = normalizeAuthoringLengthValue(value);
-
-  if (parsed?.unit === "%" && parentDimension > 0) {
-    return `${normalizeAuthoringLengthValue((normalized / parentDimension) * 100)}%`;
-  }
-
-  return normalized;
-}
-
 export function isCanvasResizable(element: PowerShowElement): boolean {
   return RESIZABLE_ELEMENT_TYPES.has(element.type);
 }
@@ -96,44 +76,6 @@ export function toLogicalCanvasResizeDelta(
   scale: number,
 ): number {
   return clientDelta / (scale || 1);
-}
-
-export function updateStyleForCanvasResize(
-  style: ElementStyle | undefined,
-  direction: CanvasResizeDirection,
-  deltaX: number,
-  deltaY: number,
-  initialWidthPx: number,
-  initialHeightPx: number,
-  parentWidthPx: number,
-  parentHeightPx: number,
-): ElementStyle | undefined {
-  const deltas = getCanvasResizeDeltas(direction, deltaX, deltaY);
-
-  if (deltas.width === 0 && deltas.height === 0) {
-    return style;
-  }
-
-  const width = deltas.width === 0
-    ? style?.width
-    : serializeResizedDimension(
-        Math.max(MINIMUM_SIZE_PX, initialWidthPx + deltas.width),
-        style?.width,
-        parentWidthPx,
-      );
-  const height = deltas.height === 0
-    ? style?.height
-    : serializeResizedDimension(
-        Math.max(MINIMUM_SIZE_PX, initialHeightPx + deltas.height),
-        style?.height,
-        parentHeightPx,
-      );
-
-  return {
-    ...style,
-    ...(deltas.width === 0 ? {} : { width }),
-    ...(deltas.height === 0 ? {} : { height }),
-  };
 }
 
 const RATIO_EPSILON = 1e-9;
@@ -205,35 +147,6 @@ export function resolveProportionalResize(
   return { width, height, ratio };
 }
 
-export function updateStyleForProportionalResize(
-  style: ElementStyle | undefined,
-  direction: CanvasResizeDirection,
-  deltaX: number,
-  deltaY: number,
-  initialWidthPx: number,
-  initialHeightPx: number,
-  parentWidthPx: number,
-  parentHeightPx: number,
-): ElementStyle | undefined {
-  if (deltaX === 0 && deltaY === 0) {
-    return style;
-  }
-
-  const { width, height } = resolveProportionalResize(
-    direction,
-    deltaX,
-    deltaY,
-    initialWidthPx,
-    initialHeightPx,
-  );
-
-  return {
-    ...style,
-    width: serializeResizedDimension(width, style?.width, parentWidthPx),
-    height: serializeResizedDimension(height, style?.height, parentHeightPx),
-  };
-}
-
 export function getCanvasResizeCursor(direction: CanvasResizeDirection): string {
   if (direction === "n" || direction === "s") {
     return "ns-resize";
@@ -244,29 +157,4 @@ export function getCanvasResizeCursor(direction: CanvasResizeDirection): string 
   }
 
   return direction === "ne" || direction === "sw" ? "nesw-resize" : "nwse-resize";
-}
-
-export function getCanvasResizePlacementAdjustment(
-  direction: CanvasResizeDirection,
-  deltaX: number,
-  deltaY: number,
-  anchor: PositionAnchor | undefined,
-): { x: number; y: number } {
-  const deltas = getCanvasResizeDeltas(direction, deltaX, deltaY);
-  const effectiveAnchor = anchor ?? "center";
-  const xFactor = effectiveAnchor.includes("left")
-    ? 1
-    : effectiveAnchor.includes("right")
-      ? 0
-      : 0.5;
-  const yFactor = effectiveAnchor.startsWith("top")
-    ? 1
-    : effectiveAnchor.startsWith("bottom")
-      ? 0
-      : 0.5;
-
-  return {
-    x: deltas.offsetX * xFactor,
-    y: deltas.offsetY * yFactor,
-  };
 }

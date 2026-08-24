@@ -40,9 +40,7 @@ export const validPresentation: Presentation = {
 
           role: "main",
 
-          direction: "row",
-
-          gap: 32,
+          layout: { children: { direction: "row", gap: 32 } },
 
           hidden: false,
 
@@ -54,11 +52,7 @@ export const validPresentation: Presentation = {
 
               role: "column",
 
-              direction: "column",
-
-              width: "45%",
-
-              verticalAlign: "center",
+              layout: { width: "45%", children: { verticalAlign: "center" } },
 
               hidden: false,
 
@@ -86,13 +80,7 @@ export const validPresentation: Presentation = {
 
               role: "column",
 
-              direction: "column",
-
-              width: "55%",
-
-              gap: 24,
-
-              verticalAlign: "center",
+              layout: { width: "55%", children: { gap: 24, verticalAlign: "center" } },
 
               hidden: false,
 
@@ -121,10 +109,8 @@ export const validPresentation: Presentation = {
 
                   hidden: false,
 
-                  style: {
-                    padding: 24,
-                    borderRadius: 12,
-                  },
+                  layout: { width: "100%", height: 120 },
+                  style: { borderRadius: 12 },
                 },
 
                 {
@@ -159,15 +145,9 @@ export const validPresentation: Presentation = {
 
           role: "footer",
 
-          direction: "row",
-
-          horizontalAlign: "center",
+          layout: { paddingTop: 12, children: { direction: "row", horizontalAlign: "center" } },
 
           hidden: false,
-
-          style: {
-            paddingTop: 12,
-          },
 
           children: [
             {
@@ -207,13 +187,7 @@ export const validPresentation: Presentation = {
 
           role: "main",
 
-          direction: "column",
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          gap: 24,
+          layout: { children: { horizontalAlign: "center", verticalAlign: "center", gap: 24 } },
 
           hidden: false,
 

@@ -378,9 +378,11 @@ describe("ScriptedInspector", () => {
     await act(async () => {
       mount(
         scripted({
-          style: {
+          layout: {
             width: "70%",
             height: "40%",
+          },
+          style: {
             borderRadius: 8,
           },
         }),
@@ -401,11 +403,8 @@ describe("ScriptedInspector", () => {
 
     expect(elementState.hidden).toBe(false);
 
-    expect(elementState.style).toEqual({
-      width: "70%",
-      height: "40%",
-      borderRadius: 8,
-    });
+    expect(elementState.layout).toEqual({ width: "70%", height: "40%" });
+    expect(elementState.style).toEqual({ borderRadius: 8 });
   });
 
   it("preserves the authored HTML exactly on Apply", async () => {
@@ -689,7 +688,7 @@ describe("ScriptedInspector", () => {
     expect(shadowMode).not.toBeNull();
   });
 
-  it("keeps style updates on the canonical style path", async () => {
+  it("writes appearance updates to the canonical surface style path", async () => {
     await act(async () => {
       mount(scripted());
     });
@@ -702,7 +701,79 @@ describe("ScriptedInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(elementState.style?.background).toBe("#ff0000");
+    expect(elementState.style?.background?.color).toBe("#ff0000");
+  });
+
+  it("keeps opacity in Appearance while persisting effect.opacity", async () => {
+    await act(async () => { mount(scripted()); });
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-opacity")!, "65"); });
+    expect(elementState.effect?.opacity).toBe(0.65);
+    expect("opacity" in (elementState.style ?? {})).toBe(false);
+  });
+
+  it("clears the authored opacity override when the input is emptied", async () => {
+    await act(async () => { mount(scripted({ effect: { opacity: 0.65 } })); });
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-opacity")!, ""); });
+    expect(elementState.effect?.opacity).toBeUndefined();
+    expect("opacity" in (elementState.style ?? {})).toBe(false);
+  });
+
+  it("supports gradient borders but does not expose background gradients", async () => {
+    await act(async () => { mount(scripted()); });
+    expect(container.querySelector("#scripted-background-gradient")).toBeNull();
+    const borderStyle = container.querySelector<HTMLSelectElement>("#scripted-border-style")!;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+      setter?.call(borderStyle, "solid");
+      borderStyle.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const paint = container.querySelector<HTMLSelectElement>("#scripted-border-paint");
+    expect(paint).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+      setter?.call(paint, "gradient");
+      paint?.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect("gradient" in (elementState.style?.background ?? {})).toBe(false);
+    expect(elementState.style?.border?.gradient).toBeDefined();
+  });
+
+  it("preserves authored shadow values across outer and inset mode changes", async () => {
+    await act(async () => {
+      mount(scripted({ effect: { shadow: { x: 1, y: 2, blur: 3, spread: 4, color: "#123456" } } }));
+    });
+    const mode = container.querySelector<HTMLSelectElement>("#scripted-shadow-mode")!;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+    await act(async () => {
+      setter?.call(mode, "inset");
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(elementState.effect?.shadow).toEqual({ x: 1, y: 2, blur: 3, spread: 4, color: "#123456", inset: true });
+    await act(async () => {
+      setter?.call(mode, "outer");
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(elementState.effect?.shadow).toEqual({ x: 1, y: 2, blur: 3, spread: 4, color: "#123456", inset: undefined });
+  });
+
+  it("writes shadow spread to effect.shadow.spread", async () => {
+    await act(async () => { mount(scripted({ effect: { shadow: { x: 0, y: 1, blur: 2, color: "#000000" } } })); });
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-spread")!, "7"); });
+    expect(elementState.effect?.shadow?.spread).toBe(7);
+    expect("shadow" in (elementState.style ?? {})).toBe(false);
+  });
+
+  it("restores legacy shadow clearing defaults", async () => {
+    await act(async () => { mount(scripted({ effect: { shadow: { x: 8, y: 9, blur: 10, spread: 11, color: "#000000" } } })); });
+    expect(container.querySelector<HTMLInputElement>("#scripted-shadow-blur")?.min).toBe("0");
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-x")!, ""); });
+    expect(elementState.effect?.shadow?.x).toBe(0);
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-y")!, ""); });
+    expect(elementState.effect?.shadow?.y).toBe(4);
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-blur")!, ""); });
+    expect(elementState.effect?.shadow?.blur).toBe(12);
+    await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-spread")!, ""); });
+    expect(elementState.effect?.shadow?.spread).toBeUndefined();
   });
 });
 

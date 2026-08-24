@@ -2,6 +2,9 @@ import type {
   Color,
   PowerShowElement,
   TextElement,
+  ElementEffect,
+  ElementTypography,
+  TextVisualStyle,
 } from "@powershow/document-schema";
 import { useEffect, useRef, useState } from "react";
 
@@ -26,14 +29,13 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TypographyInspectorProps,
-  UpdateElementStyle,
 } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
+import { CanonicalTextAppearanceSection } from "./sections/canonical-text-appearance-section";
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
 import { ColorControl } from "./sections/color-control";
 
@@ -139,7 +141,7 @@ export function TextInspector({
     }
   }, [plainText.length, selection]);
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
       if (current.type !== "text") {
         return current;
@@ -151,6 +153,14 @@ export function TextInspector({
         style: update(current.style),
       };
     });
+  };
+
+  const updateTypography = (update: (value: ElementTypography | undefined) => ElementTypography) => {
+    onUpdate((current) => current.type === "text" ? { ...current, typography: update(current.typography) } : current);
+  };
+
+  const updateEffect = (update: (value: ElementEffect | undefined) => ElementEffect) => {
+    onUpdate((current) => current.type === "text" ? { ...current, effect: update(current.effect) } : current);
   };
 
   function updateTextElementContent(
@@ -396,25 +406,25 @@ export function TextInspector({
         controlPrefix="text"
       />
 
-      <ElementAppearanceSection
+      <CanonicalTextAppearanceSection
         element={element}
+        style={element.style}
+        typography={element.typography}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateTypography={updateTypography}
+        onUpdateEffect={updateEffect}
         controlPrefix="text"
-        showTypography
         fontResourceControls={fontResourceControls}
-        showColor
-        showBackground
-        showBackgroundGradient
-        showRoundedCorners
-        showOpacity
-        showBorder
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalTextEffectsSection
+        effect={element.effect}
+        typography={element.typography}
+        textColor={element.style?.color}
+        onUpdateEffect={updateEffect}
+        onUpdateTypography={updateTypography}
         controlPrefix="text"
-        showTextStroke
       />
     </>
   );

@@ -68,13 +68,11 @@ describe("renderDivider", () => {
   it("lets explicit width, height and background override effective defaults", () => {
     const html = renderDivider(
       divider({
-        style: {
+        layout: {
           width: "40%",
-
           height: "6px",
-
-          background: "#0ea5e9",
         },
+        style: { background: { color: "#0ea5e9" } },
       }),
     );
 

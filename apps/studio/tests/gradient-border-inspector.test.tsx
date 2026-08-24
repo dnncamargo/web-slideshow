@@ -22,7 +22,6 @@ function containerElement(
     type: "container",
     id: "gradient-border",
     hidden: false,
-    direction: "column",
     children: [],
     ...overrides,
   };
@@ -58,8 +57,8 @@ const DEFAULT_BORDER_GRADIENT: Gradient = {
 describe("Gradient Border authoring", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let state: PowerShowElement;
-  let updates: PowerShowElement[];
+  let state: ContainerElement;
+  let updates: ContainerElement[];
 
   function renderInspector(): void {
     root.render(
@@ -67,7 +66,9 @@ describe("Gradient Border authoring", () => {
         <ContainerInspector
           element={state as ContainerElement}
           onUpdate={(update) => {
-            state = update(state);
+            const next = update(state);
+            if (next.type !== "container") return;
+            state = next;
             updates.push(state);
             renderInspector();
           }}
@@ -76,7 +77,7 @@ describe("Gradient Border authoring", () => {
     );
   }
 
-  function mount(element: PowerShowElement): void {
+  function mount(element: ContainerElement): void {
     state = element;
     updates = [];
     renderInspector();
@@ -537,17 +538,17 @@ describe("Gradient Border authoring", () => {
     expect(state.style?.border?.gradient?.stops[0]?.position).toBe(25);
   });
 
-  it("21. unrelated ElementStyle properties survive Border edits", async () => {
+  it("21. unrelated canonical properties survive Border edits", async () => {
     await act(async () =>
       mount(
         containerElement({
           style: {
-            background: "#0f172a",
-            opacity: 0.5,
+            background: { color: "#0f172a" },
             borderRadius: 8,
-            padding: 12,
             border: { width: 2, style: "solid", color: "#ff00ff" },
           },
+          layout: { padding: 12 },
+          effect: { opacity: 0.5 },
         }),
       ),
     );
@@ -569,21 +570,19 @@ describe("Gradient Border authoring", () => {
     );
 
     expect(state.style).toMatchObject({
-      background: "#0f172a",
-      opacity: 0.5,
+      background: { color: "#0f172a" },
       borderRadius: 8,
-      padding: 12,
     });
+    expect(state).toMatchObject({ layout: { padding: 12 }, effect: { opacity: 0.5 } });
     expect(state.style?.border?.width).toBe(5);
 
     await act(async () => changeSelect(borderPaintSelect(), "color"));
 
     expect(state.style).toMatchObject({
-      background: "#0f172a",
-      opacity: 0.5,
+      background: { color: "#0f172a" },
       borderRadius: 8,
-      padding: 12,
     });
+    expect(state).toMatchObject({ layout: { padding: 12 }, effect: { opacity: 0.5 } });
   });
 
   it("22. Border None removes the entire Border", async () => {
@@ -659,8 +658,7 @@ describe("Gradient Border authoring", () => {
       mount(
         containerElement({
           style: {
-            background: "#0f172a",
-            opacity: 0.8,
+            background: { color: "#0f172a" },
             borderRadius: 12,
             border: {
               width: 3,
@@ -668,6 +666,7 @@ describe("Gradient Border authoring", () => {
               gradient: DEFAULT_BORDER_GRADIENT,
             },
           },
+          effect: { opacity: 0.8 },
         }),
       ),
     );
@@ -685,8 +684,8 @@ describe("Gradient Border authoring", () => {
 
     await act(async () => changeSelect(gradientSelect!, "linear"));
 
-    expect(state.style?.backgroundGradient).toEqual(DEFAULT_BORDER_GRADIENT);
-    expect(state.style?.backgroundPattern).toBeUndefined();
+    expect((state as ContainerElement).style?.background?.gradient).toEqual(DEFAULT_BORDER_GRADIENT);
+    expect((state as ContainerElement).style?.background?.pattern).toBeUndefined();
   });
 
   it("29. Background Gradient still clears backgroundPattern", async () => {
@@ -694,9 +693,11 @@ describe("Gradient Border authoring", () => {
       mount(
         containerElement({
           style: {
-            backgroundGradient: {
-              type: "linear",
-              stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+            background: {
+              gradient: {
+                type: "linear",
+                stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+              },
             },
           },
         }),
@@ -716,15 +717,15 @@ describe("Gradient Border authoring", () => {
       ),
     );
 
-    expect(state.style?.backgroundPattern).toBeUndefined();
-    expect(state.style?.backgroundGradient).toBeDefined();
+    expect((state as ContainerElement).style?.background?.pattern).toBeDefined();
+    expect((state as ContainerElement).style?.background?.gradient).toBeDefined();
   });
 
   it("30. Pattern authoring still clears backgroundGradient", async () => {
     await act(async () =>
       mount(
         containerElement({
-          style: { backgroundPattern: { image: "linear-gradient(#000, #fff)" } },
+          style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } } },
         }),
       ),
     );
@@ -736,7 +737,7 @@ describe("Gradient Border authoring", () => {
       ),
     );
 
-    expect(state.style?.backgroundGradient).toBeUndefined();
-    expect(state.style?.backgroundPattern).toBeDefined();
+    expect((state as ContainerElement).style?.background?.gradient).toBeUndefined();
+    expect((state as ContainerElement).style?.background?.pattern).toBeDefined();
   });
 });

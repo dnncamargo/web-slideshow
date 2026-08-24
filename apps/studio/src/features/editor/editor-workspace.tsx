@@ -6,7 +6,11 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 
-import { renderFontResources, renderSlide } from "@powershow/renderer";
+import {
+  hydrateImageCrops,
+  renderFontResources,
+  renderSlide,
+} from "@powershow/renderer";
 import {
   Button,
   HoverScrollText,
@@ -62,6 +66,17 @@ import {
   type ImageFocalPoint,
 } from "./inspector/sections/image-focal-point-helpers";
 import {
+  areImageCropsEqual,
+  normalizeCropCanvasValue,
+  resolveCropCanvasRect,
+  resolveSourcePreviewBounds,
+  resolveCropPointerValue,
+  type CropCanvasBounds,
+  type CropCanvasHandle,
+  type CropCanvasOperation,
+} from "./crop-canvas-geometry";
+import { getEffectiveImageCrop } from "./inspector/sections/image-crop-helpers";
+import {
   buildCanvasSnapCandidates,
   resolveCanvasAxisSnap,
   type CanvasBounds,
@@ -73,18 +88,29 @@ import {
   DEFAULT_IMAGE_PROPORTION_PRESERVED,
   getCanvasResizeCursor,
   getCanvasResizeDeltas,
-  getCanvasResizePlacementAdjustment,
   isCanvasResizable,
   resolveProportionalResize,
   toLogicalCanvasResizeDelta,
   type CanvasResizeDirection,
-  updateStyleForCanvasResize,
-  updateStyleForProportionalResize,
 } from "./canvas-resize-helpers";
 import {
-  isCanvasDraggable,
-  updatePlacementForCanvasDrag,
-} from "./inspector/sections/element-placement-helpers";
+  getContainerCanvasResizeDirections,
+  isContainerCanvasDraggable,
+  updateContainerForCanvasDrag,
+  updateContainerForCanvasResize,
+  type ContainerCanvasDragGeometry,
+  type ContainerCanvasResizeGeometry,
+} from "./container-canvas-geometry";
+import {
+  updateCanonicalTextForCanvasDrag,
+  updateCanonicalImageForCanvasDrag,
+  updateCanonicalSurfaceForCanvasDrag,
+  updateCanonicalElementForCanvasDrag,
+  updateTextboxForCanvasResize,
+  updateImageForCanvasResize,
+  updateSurfaceForCanvasResize,
+  type CanonicalTextCanvasGeometry,
+} from "./canonical-text-canvas-geometry";
 
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
@@ -229,6 +255,8 @@ interface CanvasDragState {
   parentHeightPx: number;
   scaleX: number;
   scaleY: number;
+  containerGeometry?: ContainerCanvasDragGeometry;
+  canonicalTextGeometry?: CanonicalTextCanvasGeometry;
   deltaX: number;
   deltaY: number;
   initialBounds: CanvasBounds;
@@ -258,6 +286,8 @@ interface CanvasResizeState {
   initialWidthPx: number;
   initialHeightPx: number;
   initialOverlay: CanvasResizeOverlay;
+  containerResizeGeometry?: ContainerCanvasResizeGeometry;
+  canonicalTextResizeGeometry?: CanonicalTextCanvasGeometry;
   deltaX: number;
   deltaY: number;
   candidates: CanvasSnapCandidate[];
@@ -277,6 +307,28 @@ interface CanvasFocalDragState {
   imageId: string;
   handle: HTMLElement;
   bounds: CanvasFocalOverlay;
+}
+
+interface CanvasCropOverlay extends CropCanvasBounds {
+  elementId: string;
+  source: string;
+  crop: CropCanvasBounds;
+}
+
+interface CanvasCropAppearance extends CropCanvasBounds {
+  border: string;
+  borderRadius: string;
+  boxShadow: string;
+}
+
+interface CanvasCropDragState {
+  pointerId: number;
+  imageId: string;
+  operation: CropCanvasOperation;
+  startClientX: number;
+  startClientY: number;
+  initialCrop: NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]>;
+  previewBounds: CropCanvasBounds;
 }
 
 const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
@@ -376,6 +428,9 @@ export function EditorWorkspace({
   const [focalEditingImageId, setFocalEditingImageId] = useState<string | null>(
     null,
   );
+  const [cropEditingImageId, setCropEditingImageId] = useState<string | null>(
+    null,
+  );
 
   // ==========================================================
   // END: SELEÇÃO
@@ -419,6 +474,7 @@ export function EditorWorkspace({
   const canvasDragRef = useRef<CanvasDragState | null>(null);
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
   const canvasFocalDragRef = useRef<CanvasFocalDragState | null>(null);
+  const canvasCropDragRef = useRef<CanvasCropDragState | null>(null);
   const [canvasResizeOverlay, setCanvasResizeOverlay] =
     useState<CanvasResizeOverlay | null>(null);
   const [canvasGuides, setCanvasGuides] = useState<CanvasSnapGuide[]>([]);
@@ -428,6 +484,29 @@ export function EditorWorkspace({
     useState<CanvasFocalOverlay | null>(null);
   const [canvasFocalPreview, setCanvasFocalPreview] =
     useState<ImageFocalPoint | null>(null);
+  const [canvasCropOverlay, setCanvasCropOverlay] =
+    useState<CanvasCropOverlay | null>(null);
+  const [canvasCropPreview, setCanvasCropPreview] = useState<
+    NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]> | null
+  >(null);
+  const [cropSourceMetrics, setCropSourceMetrics] = useState<{
+    key: string;
+    imageId: string;
+    src: string;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [canvasCropAppearance, setCanvasCropAppearance] =
+    useState<CanvasCropAppearance | null>(null);
+  const [cropMeasureVersion, setCropMeasureVersion] = useState(0);
+
+  function setCropEditingMode(id: string | null) {
+    if (id === null) {
+      canvasCropDragRef.current = null;
+      setCanvasCropPreview(null);
+    }
+    setCropEditingImageId(id);
+  }
 
   // ==========================================================
   // END: REFERÊNCIA DO CANVAS
@@ -551,6 +630,13 @@ export function EditorWorkspace({
         getEffectiveImageFocalPoint(selectedDocumentElement.focalPoint))
       : null;
 
+  useEffect(() => {
+    const canvas = slideCanvasRef.current;
+    if (canvas) {
+      hydrateImageCrops(canvas);
+    }
+  }, [renderedSlide]);
+
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
   // ==========================================================
@@ -596,8 +682,21 @@ export function EditorWorkspace({
         ? findElementById(selectedSlide?.elements ?? [], id)
         : null;
 
-      if (documentElement && isCanvasDraggable(documentElement.style)) {
-        candidate.classList.add("powershow-editor-draggable");
+      if (documentElement) {
+        const draggable =
+          documentElement.type === "container"
+            ? isContainerCanvasDraggable(documentElement)
+            : documentElement.type === "text" || documentElement.type === "textbox"
+              ? documentElement.layout?.position === "absolute"
+              : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks"
+                ? documentElement.layout?.position === "absolute"
+              : documentElement.type === "divider" || documentElement.type === "topics" || documentElement.type === "chart" || documentElement.type === "interactive"
+                  ? documentElement.layout?.position === "absolute"
+                  : false;
+
+        if (draggable) {
+          candidate.classList.add("powershow-editor-draggable");
+        }
       }
     });
 
@@ -680,8 +779,78 @@ export function EditorWorkspace({
   }, [focalEditingImageId, renderedSlide, selectedDocumentElement]);
 
   useEffect(() => {
+    if (
+      !cropEditingImageId ||
+      selectedDocumentElement?.type !== "image" ||
+      selectedDocumentElement.id !== cropEditingImageId
+    ) {
+      setCanvasCropOverlay(null);
+      setCanvasCropPreview(null);
+      setCropSourceMetrics(null);
+      setCanvasCropAppearance(null);
+      if (cropEditingImageId) setCropEditingMode(null);
+      return;
+    }
+
+    const canvas = slideCanvasRef.current;
+    const target = canvas
+      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
+          .find((candidate) => candidate.dataset.powershowId === cropEditingImageId)
+      : undefined;
+    const sourceKey = `${cropEditingImageId}:${selectedDocumentElement.src}`;
+    const preview = cropSourceMetrics?.key === sourceKey && target
+      ? resolveSourcePreviewBounds(
+          getCanvasBounds(target),
+          cropSourceMetrics.width,
+          cropSourceMetrics.height,
+        )
+      : null;
+
+    if (target) {
+      const computed = getComputedStyle(target);
+      const bounds = getCanvasBounds(target);
+      setCanvasCropAppearance({
+        ...bounds,
+        border: computed.border || target.style.border || "",
+        borderRadius: computed.borderRadius || target.style.borderRadius || "0px",
+        boxShadow: computed.boxShadow || target.style.boxShadow || "none",
+      });
+    } else {
+      setCanvasCropAppearance(null);
+    }
+
+    if (!preview) {
+      setCanvasCropOverlay(null);
+      return;
+    }
+
+    const crop = canvasCropPreview ?? getEffectiveImageCrop(selectedDocumentElement.crop);
+    setCanvasCropOverlay({
+      ...preview,
+      elementId: cropEditingImageId,
+      source: selectedDocumentElement.src,
+      crop: resolveCropCanvasRect(preview, crop),
+    });
+  }, [cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
+
+  useEffect(() => {
+    if (!cropEditingImageId) return;
+    const handleResize = () => {
+      setCropMeasureVersion((current) => current + 1);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [cropEditingImageId]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (canvasCropDragRef.current) {
+          canvasCropDragRef.current = null;
+          setCanvasCropPreview(null);
+        }
+        setCanvasCropOverlay(null);
+        setCropEditingMode(null);
         setFocalEditingImageId(null);
         setCanvasFocalPreview(null);
       }
@@ -756,6 +925,15 @@ export function EditorWorkspace({
     }
 
     if (position.parentRef.kind === "slide") {
+      const documentElement = findElementById(
+        selectedSlide.elements,
+        elementId,
+      );
+
+      if (documentElement?.type === "container") {
+        return canvas.querySelector<HTMLElement>(".powershow-slide-content");
+      }
+
       return canvas.querySelector<HTMLElement>(".powershow-slide");
     }
 
@@ -812,12 +990,94 @@ export function EditorWorkspace({
     };
   }
 
+  function parseComputedStylePx(
+    value: string | undefined,
+  ): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const numeric = Number.parseFloat(value);
+
+    return Number.isFinite(numeric) ? numeric : undefined;
+  }
+
+  function getContainerCanvasResizeGeometryForTarget(
+    target: HTMLElement,
+    layoutParent: HTMLElement,
+    parentBounds: CanvasBounds,
+    scaleX: number,
+    scaleY: number,
+    isAbsolute: boolean,
+  ): ContainerCanvasResizeGeometry {
+    const parentComputed = getComputedStyle(layoutParent);
+    const parentClientWidth = layoutParent.clientWidth || parentBounds.width;
+    const parentClientHeight = layoutParent.clientHeight || parentBounds.height;
+
+    // Absolute percentage width/height resolves against the parent client
+    // (containing-block) box, excluding its border. Flow percentage sizing
+    // resolves against the direct parent content box, derived from the
+    // client box minus its computed paddings.
+    const parentWidthPx = isAbsolute
+      ? parentClientWidth
+      : Math.max(
+          0,
+          parentClientWidth -
+            (parseComputedStylePx(parentComputed.paddingLeft) ?? 0) -
+            (parseComputedStylePx(parentComputed.paddingRight) ?? 0),
+        );
+    const parentHeightPx = isAbsolute
+      ? parentClientHeight
+      : Math.max(
+          0,
+          parentClientHeight -
+            (parseComputedStylePx(parentComputed.paddingTop) ?? 0) -
+            (parseComputedStylePx(parentComputed.paddingBottom) ?? 0),
+        );
+
+    // Authored canonical width/height map to CSS content width/height.
+    // Prefer the computed content-box value; never use the border-box
+    // offsetWidth/offsetHeight as the authored baseline.
+    const computed = getComputedStyle(target);
+    const computedWidthPx = parseComputedStylePx(computed.width);
+    const computedHeightPx = parseComputedStylePx(computed.height);
+    const elementBounds = target.getBoundingClientRect();
+    const parentClientLeft =
+      parentBounds.left + layoutParent.clientLeft * scaleX;
+    const parentClientTop =
+      parentBounds.top + layoutParent.clientTop * scaleY;
+
+    return {
+      parentWidthPx,
+      parentHeightPx,
+      initialWidthPx:
+        computedWidthPx !== undefined && computedWidthPx > 0
+          ? computedWidthPx
+          : elementBounds.width / scaleX,
+      initialHeightPx:
+        computedHeightPx !== undefined && computedHeightPx > 0
+          ? computedHeightPx
+          : elementBounds.height / scaleY,
+      initialLeftPx: (elementBounds.left - parentClientLeft) / scaleX,
+      initialTopPx: (elementBounds.top - parentClientTop) / scaleY,
+      initialRightPx:
+        (parentClientLeft + parentClientWidth * scaleX - elementBounds.right) /
+        scaleX,
+      initialBottomPx:
+        (parentClientTop + parentClientHeight * scaleY - elementBounds.bottom) /
+        scaleY,
+    };
+  }
+
   function clearCanvasGuides() {
     setCanvasGuides([]);
     setCanvasGuideBounds(null);
   }
 
   function handleCanvasPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (cropEditingImageId) {
+      return;
+    }
     const target = event.target;
 
     if (!(target instanceof Element) || !selectedSlide) {
@@ -876,7 +1136,18 @@ export function EditorWorkspace({
       contentSlotId: contentSlotId ?? null,
     });
 
-    if (!isCanvasDraggable(selection.documentElement.style) || !elementTarget) {
+    const draggable =
+      selection.documentElement.type === "container"
+        ? isContainerCanvasDraggable(selection.documentElement)
+        : selection.documentElement.type === "text" || selection.documentElement.type === "textbox"
+          ? selection.documentElement.layout?.position === "absolute"
+        : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks"
+            ? selection.documentElement.layout?.position === "absolute"
+          : selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive"
+            ? selection.documentElement.layout?.position === "absolute"
+            : false;
+
+    if (!draggable || !elementTarget) {
       return;
     }
 
@@ -897,6 +1168,44 @@ export function EditorWorkspace({
       return;
     }
 
+    const scaleX = parentBounds.width / logicalWidth || 1;
+    const scaleY = parentBounds.height / logicalHeight || 1;
+
+    let containerGeometry: ContainerCanvasDragGeometry | undefined;
+    let canonicalTextGeometry: CanonicalTextCanvasGeometry | undefined;
+
+    if (selection.documentElement.type === "container") {
+      const clientWidth = layoutParent.clientWidth || parentBounds.width;
+      const clientHeight = layoutParent.clientHeight || parentBounds.height;
+      const parentClientLeft =
+        parentBounds.left + layoutParent.clientLeft * scaleX;
+      const parentClientTop =
+        parentBounds.top + layoutParent.clientTop * scaleY;
+      const elementBounds = elementTarget.getBoundingClientRect();
+
+      containerGeometry = {
+        parentWidthPx: clientWidth,
+        parentHeightPx: clientHeight,
+        initialLeftPx: (elementBounds.left - parentClientLeft) / scaleX,
+        initialTopPx: (elementBounds.top - parentClientTop) / scaleY,
+        initialRightPx:
+          (parentClientLeft + clientWidth * scaleX - elementBounds.right) /
+          scaleX,
+        initialBottomPx:
+          (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
+          scaleY,
+      };
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive") {
+      canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
+        elementTarget,
+        layoutParent,
+        parentBounds,
+        scaleX,
+        scaleY,
+        true,
+      );
+    }
+
     event.preventDefault();
     elementTarget.setPointerCapture(event.pointerId);
     const snap = getCanvasSnapCandidates(layoutParent, selection.id);
@@ -910,8 +1219,10 @@ export function EditorWorkspace({
       startClientY: event.clientY,
       parentWidthPx: logicalWidth,
       parentHeightPx: logicalHeight,
-      scaleX: parentBounds.width / logicalWidth || 1,
-      scaleY: parentBounds.height / logicalHeight || 1,
+      scaleX,
+      scaleY,
+      ...(containerGeometry ? { containerGeometry } : {}),
+      ...(canonicalTextGeometry ? { canonicalTextGeometry } : {}),
       deltaX: 0,
       deltaY: 0,
       initialBounds: getCanvasBounds(elementTarget),
@@ -982,17 +1293,56 @@ export function EditorWorkspace({
                 slide.elements,
                 drag.elementId,
                 (element) => {
-                  const style = updatePlacementForCanvasDrag(
-                    element.style,
-                    drag.deltaX,
-                    drag.deltaY,
-                    drag.parentWidthPx,
-                    drag.parentHeightPx,
-                  );
+                  if (element.type === "container") {
+                    if (!drag.containerGeometry) {
+                      return element;
+                    }
 
-                  return style === element.style
-                    ? element
-                    : { ...element, style };
+                    return updateContainerForCanvasDrag(
+                      element,
+                      drag.deltaX,
+                      drag.deltaY,
+                      drag.containerGeometry,
+                    );
+                  }
+
+                  if (element.type === "text" || element.type === "textbox") {
+                    return drag.canonicalTextGeometry
+                      ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                      : element;
+                  }
+
+                  if (element.type === "image") {
+                    return drag.canonicalTextGeometry
+                      ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                      : element;
+                  }
+
+                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
+                    return drag.canonicalTextGeometry
+                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                      : element;
+                  }
+
+                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
+                    return drag.canonicalTextGeometry
+                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                      : element;
+                  }
+                  if (element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive") {
+                    return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
+                      parentWidthPx: drag.parentWidthPx,
+                      parentHeightPx: drag.parentHeightPx,
+                      initialLeftPx: 0,
+                      initialTopPx: 0,
+                      initialRightPx: 0,
+                      initialBottomPx: 0,
+                      initialWidthPx: 0,
+                      initialHeightPx: 0,
+                    });
+                  }
+
+                  return element;
                 },
               ),
             }
@@ -1011,6 +1361,83 @@ export function EditorWorkspace({
     if (canvasDragRef.current?.pointerId === event.pointerId) {
       clearCanvasDragPreview();
     }
+  }
+
+  function handleCropPointerDown(
+    event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>,
+    operation: "move" | CropCanvasHandle,
+  ) {
+    const overlay = canvasCropOverlay;
+    const image = selectedDocumentElement;
+    if (!overlay || !image || image.type !== "image" || !cropEditingImageId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    canvasCropDragRef.current = {
+      pointerId: event.pointerId,
+      imageId: image.id,
+      operation,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      initialCrop: getEffectiveImageCrop(image.crop),
+      previewBounds: overlay,
+    };
+  }
+
+  function handleCropPointerMove(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
+    const drag = canvasCropDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setCanvasCropPreview(resolveCropPointerValue(
+      drag.initialCrop,
+      drag.operation,
+      drag.startClientX,
+      drag.startClientY,
+      drag.previewBounds,
+      event.clientX,
+      event.clientY,
+    ));
+  }
+
+  function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, imageId: string) {
+    const normalized = normalizeCropCanvasValue(crop);
+    const authored = presentation.slides[selectedSlideIndex]
+      ? findElementById(presentation.slides[selectedSlideIndex].elements, imageId)
+      : null;
+    if (authored?.type !== "image" || areImageCropsEqual(authored.crop, normalized)) return;
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) => index === selectedSlideIndex
+        ? { ...slide, elements: updateElementById(slide.elements, imageId, (element) => element.type === "image" ? { ...element, crop: normalized } : element) }
+        : slide),
+    }));
+  }
+
+  function handleCropPointerUp(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
+    const drag = canvasCropDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const crop = resolveCropPointerValue(
+      drag.initialCrop,
+      drag.operation,
+      drag.startClientX,
+      drag.startClientY,
+      drag.previewBounds,
+      event.clientX,
+      event.clientY,
+    );
+    canvasCropDragRef.current = null;
+    setCanvasCropPreview(null);
+    commitCanvasCrop(crop, drag.imageId);
+  }
+
+  function handleCropPointerCancel(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
+    if (canvasCropDragRef.current?.pointerId !== event.pointerId) return;
+    canvasCropDragRef.current = null;
+    setCanvasCropPreview(null);
   }
 
   // ==========================================================
@@ -1049,7 +1476,19 @@ export function EditorWorkspace({
     event: ReactPointerEvent<HTMLButtonElement>,
     direction: CanvasResizeDirection,
   ) {
-    if (!selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+    if (cropEditingImageId || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+      return;
+    }
+
+    const channelAllowDirections =
+      selectedDocumentElement.type === "container"
+        ? getContainerCanvasResizeDirections(selectedDocumentElement)
+        : null;
+
+    if (
+      channelAllowDirections !== null &&
+      !channelAllowDirections.includes(direction)
+    ) {
       return;
     }
 
@@ -1082,6 +1521,32 @@ export function EditorWorkspace({
       return;
     }
 
+    const scaleX = parentBounds.width / logicalWidth || 1;
+    const scaleY = parentBounds.height / logicalHeight || 1;
+
+    let containerResizeGeometry: ContainerCanvasResizeGeometry | undefined;
+    let canonicalTextResizeGeometry: CanonicalTextCanvasGeometry | undefined;
+
+    if (selectedDocumentElement.type === "container") {
+      containerResizeGeometry = getContainerCanvasResizeGeometryForTarget(
+        target,
+        layoutParent,
+        parentBounds,
+        scaleX,
+        scaleY,
+        selectedDocumentElement.layout?.position === "absolute",
+      );
+    } else if (selectedDocumentElement.type === "textbox" || selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks") {
+      canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
+        target,
+        layoutParent,
+        parentBounds,
+        scaleX,
+        scaleY,
+        selectedDocumentElement.layout?.position === "absolute",
+      );
+    }
+
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1099,13 +1564,19 @@ export function EditorWorkspace({
       startClientY: event.clientY,
       parentWidthPx: logicalWidth,
       parentHeightPx: logicalHeight,
-      scaleX: parentBounds.width / logicalWidth || 1,
-      scaleY: parentBounds.height / logicalHeight || 1,
+      scaleX,
+      scaleY,
       initialWidthPx:
-        target.offsetWidth || target.getBoundingClientRect().width,
+        (canonicalTextResizeGeometry?.initialWidthPx ?? (target.offsetWidth || target.getBoundingClientRect().width)),
       initialHeightPx:
-        target.offsetHeight || target.getBoundingClientRect().height,
+        (canonicalTextResizeGeometry?.initialHeightPx ?? (target.offsetHeight || target.getBoundingClientRect().height)),
       initialOverlay: canvasResizeOverlay,
+      ...(containerResizeGeometry
+        ? { containerResizeGeometry }
+        : {}),
+      ...(canonicalTextResizeGeometry
+        ? { canonicalTextResizeGeometry }
+        : {}),
       deltaX: 0,
       deltaY: 0,
       candidates: snap.candidates,
@@ -1235,46 +1706,61 @@ export function EditorWorkspace({
                 slide.elements,
                 resize.elementId,
                 (element) => {
-                  const locked =
-                    element.type === "image" && preserveImageProportion;
-                  const resizedStyle = locked
-                    ? updateStyleForProportionalResize(
-                        element.style,
-                        resize.direction,
-                        resize.deltaX,
-                        resize.deltaY,
-                        resize.initialWidthPx,
-                        resize.initialHeightPx,
-                        resize.parentWidthPx,
-                        resize.parentHeightPx,
-                      )
-                    : updateStyleForCanvasResize(
-                        element.style,
-                        resize.direction,
-                        resize.deltaX,
-                        resize.deltaY,
-                        resize.initialWidthPx,
-                        resize.initialHeightPx,
-                        resize.parentWidthPx,
-                        resize.parentHeightPx,
-                      );
-                  const adjustment = getCanvasResizePlacementAdjustment(
-                    resize.direction,
-                    resize.deltaX,
-                    resize.deltaY,
-                    element.style?.placement?.anchor,
-                  );
-                  const style = updatePlacementForCanvasDrag(
-                    resizedStyle,
-                    adjustment.x,
-                    adjustment.y,
-                    resize.parentWidthPx,
-                    resize.parentHeightPx,
-                  );
+                  if (element.type === "container") {
+                    if (!resize.containerResizeGeometry) {
+                      return element;
+                    }
 
-                  return style === element.style
-                    ? element
-                    : { ...element, style };
+                    return updateContainerForCanvasResize(
+                      element,
+                      resize.direction,
+                      resize.deltaX,
+                      resize.deltaY,
+                      resize.containerResizeGeometry,
+                    );
+                  }
+                  if (element.type === "text") {
+                    return element;
+                  }
+                  if (element.type === "textbox") {
+                    return resize.canonicalTextResizeGeometry
+                      ? updateTextboxForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
+                      : element;
+                  }
+                  if (element.type === "image") {
+                    const locked = preserveImageProportion;
+                    const proportional = locked
+                      ? resolveProportionalResize(
+                          resize.direction,
+                          resize.deltaX,
+                          resize.deltaY,
+                          resize.initialWidthPx,
+                          resize.initialHeightPx,
+                        )
+                      : undefined;
+                    return resize.canonicalTextResizeGeometry
+                      ? updateImageForCanvasResize(
+                          element,
+                          resize.direction,
+                          resize.deltaX,
+                          resize.deltaY,
+                          resize.canonicalTextResizeGeometry,
+                          proportional,
+                        )
+                      : element;
+                  }
+                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
+                    return resize.canonicalTextResizeGeometry
+                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
+                      : element;
+                  }
+                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
+                    return resize.canonicalTextResizeGeometry
+                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
+                      : element;
+                  }
+                  if (element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive") return element;
+                  return element;
                 },
               ),
             }
@@ -1970,10 +2456,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addRootBlock(blocksId: string): string | null {
-    const outcome = addRootBlockToPresentation(
-      presentation.slides,
-      blocksId,
-    );
+    const outcome = addRootBlockToPresentation(presentation.slides, blocksId);
 
     if (!outcome) {
       return null;
@@ -2442,11 +2925,7 @@ export function EditorWorkspace({
     onRemoveColumn: (tableId, index) => {
       setPresentation((current) => ({
         ...current,
-        slides: removeColumnFromStructuredTable(
-          current.slides,
-          tableId,
-          index,
-        ),
+        slides: removeColumnFromStructuredTable(current.slides, tableId, index),
       }));
     },
 
@@ -2528,7 +3007,9 @@ export function EditorWorkspace({
             aria-label={t("topbar.editor")}
             onChange={(event) => {
               const title = event.target.value;
-              setPresentation((current) => updatePresentationTitle(current, title));
+              setPresentation((current) =>
+                updatePresentationTitle(current, title),
+              );
             }}
           />
         </TopbarTitle>
@@ -2694,9 +3175,7 @@ export function EditorWorkspace({
                 >
                   <span className={styles.slideNumber}>{index + 1}</span>
 
-                  <HoverScrollText
-                    text={slide.title || t("slides.untitled")}
-                  />
+                  <HoverScrollText text={slide.title || t("slides.untitled")} />
                 </button>
               );
             })}
@@ -2828,7 +3307,106 @@ export function EditorWorkspace({
                 __html: renderedSlide,
               }}
             />
-            {canvasResizeOverlay && (
+            {cropEditingImageId && selectedDocumentElement?.type === "image" && (
+              <img
+                key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
+                className={styles.canvasCropSourceLoader}
+                src={selectedDocumentElement.src}
+                alt=""
+                draggable={false}
+                data-crop-source-key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  if (
+                    cropEditingImageId !== selectedDocumentElement.id ||
+                    selectedDocumentElement.src !== image.getAttribute("src")
+                  ) return;
+                  setCropSourceMetrics({
+                    key: `${selectedDocumentElement.id}:${selectedDocumentElement.src}`,
+                    imageId: selectedDocumentElement.id,
+                    src: selectedDocumentElement.src,
+                    width: image.naturalWidth,
+                    height: image.naturalHeight,
+                  });
+                }}
+                onError={(event) => {
+                  if (
+                    cropEditingImageId === selectedDocumentElement.id &&
+                    selectedDocumentElement.src === event.currentTarget.getAttribute("src")
+                  ) {
+                    setCropSourceMetrics(null);
+                  }
+                }}
+              />
+            )}
+            {cropEditingImageId && canvasCropAppearance && (
+              <div
+                className={styles.canvasCropAppearanceFrame}
+                aria-hidden="true"
+                style={{
+                  left: `${canvasCropAppearance.left}px`,
+                  top: `${canvasCropAppearance.top}px`,
+                  width: `${canvasCropAppearance.width}px`,
+                  height: `${canvasCropAppearance.height}px`,
+                  border: canvasCropAppearance.border,
+                  borderRadius: canvasCropAppearance.borderRadius,
+                  boxShadow: canvasCropAppearance.boxShadow,
+                }}
+              />
+            )}
+            {cropEditingImageId && selectedDocumentElement?.type === "image" && canvasCropOverlay && (
+              <div
+                className={styles.canvasCropSourcePreview}
+                style={{
+                  left: `${canvasCropOverlay.left}px`,
+                  top: `${canvasCropOverlay.top}px`,
+                  width: `${canvasCropOverlay.width}px`,
+                  height: `${canvasCropOverlay.height}px`,
+                }}
+              >
+                <img
+                  className={styles.canvasCropSourceImage}
+                  src={selectedDocumentElement.src}
+                  alt=""
+                  draggable={false}
+                />
+                {canvasCropOverlay && (
+                  <>
+                    <div className={styles.canvasCropMaskTop} style={{ height: `${Math.max(0, canvasCropOverlay.crop.top - canvasCropOverlay.top)}px` }} />
+                    <div className={styles.canvasCropMaskLeft} style={{ left: 0, top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top}px`, width: `${Math.max(0, canvasCropOverlay.crop.left - canvasCropOverlay.left)}px`, height: `${canvasCropOverlay.crop.height}px` }} />
+                    <div className={styles.canvasCropMaskRight} style={{ left: `${canvasCropOverlay.crop.left - canvasCropOverlay.left + canvasCropOverlay.crop.width}px`, top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top}px`, right: 0, height: `${canvasCropOverlay.crop.height}px` }} />
+                    <div className={styles.canvasCropMaskBottom} style={{ top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top + canvasCropOverlay.crop.height}px`, left: 0, right: 0, bottom: 0 }} />
+                    <div
+                      className={styles.canvasCropSelection}
+                      style={{ left: `${canvasCropOverlay.crop.left - canvasCropOverlay.left}px`, top: `${canvasCropOverlay.crop.top - canvasCropOverlay.top}px`, width: `${canvasCropOverlay.crop.width}px`, height: `${canvasCropOverlay.crop.height}px` }}
+                    >
+                      <div
+                        className={styles.canvasCropMoveSurface}
+                        onPointerDown={(event) => handleCropPointerDown(event, "move")}
+                        onPointerMove={handleCropPointerMove}
+                        onPointerUp={handleCropPointerUp}
+                        onPointerCancel={handleCropPointerCancel}
+                        onLostPointerCapture={handleCropPointerCancel}
+                      />
+                      {(["n", "ne", "e", "se", "s", "sw", "w", "nw"] as const).map((direction) => (
+                        <button
+                          key={direction}
+                          type="button"
+                          aria-label={`Crop ${direction}`}
+                          className={`${styles.canvasCropHandle} ${styles[`canvasCropHandle${direction.toUpperCase()}`]}`}
+                          onPointerDown={(event) => handleCropPointerDown(event, direction)}
+                          onPointerMove={handleCropPointerMove}
+                          onPointerUp={handleCropPointerUp}
+                          onPointerCancel={handleCropPointerCancel}
+                          onLostPointerCapture={handleCropPointerCancel}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {canvasResizeOverlay && !cropEditingImageId && (
               <div
                 className={styles.canvasResizeOverlay}
                 style={{
@@ -2841,7 +3419,9 @@ export function EditorWorkspace({
                 {(selectedDocumentElement?.type === "image" &&
                 preserveImageProportion
                   ? CANVAS_IMAGE_CORNER_DIRECTIONS
-                  : CANVAS_RESIZE_DIRECTIONS
+                  : selectedDocumentElement?.type === "container"
+                    ? getContainerCanvasResizeDirections(selectedDocumentElement)
+                    : CANVAS_RESIZE_DIRECTIONS
                 ).map((direction) => (
                   <button
                     key={direction}
@@ -2886,6 +3466,7 @@ export function EditorWorkspace({
                 />
               ))}
             {canvasFocalOverlay &&
+              !cropEditingImageId &&
               displayedCanvasFocalPoint &&
               focalEditingImageId === selectedDocumentElement?.id && (
                 <button
@@ -3020,6 +3601,11 @@ export function EditorWorkspace({
                           }
                           focalEditingImageId={focalEditingImageId}
                           onFocalEditingImageIdChange={setFocalEditingImageId}
+                          cropEditingImageId={cropEditingImageId}
+                          onCropEditingImageIdChange={(id) => {
+                            setCropEditingMode(id);
+                            if (id) setFocalEditingImageId(null);
+                          }}
                           fontResourceControls={{
                             fontResources: presentation.resources?.fonts ?? [],
                             onAddFontFace: addFontFace,

@@ -5,6 +5,7 @@ import type {
 import type {
   AuthoringLengthUnit,
 } from "@powershow/theme/element-style-defaults";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -14,10 +15,9 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TypedInspectorProps,
-  UpdateElementStyle,
 } from "./inspector-types";
-
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
+import { ColorControl } from "./sections/color-control";
+import { parseOptionalNumber } from "./inspector-helpers";
 
 import { EffectiveLengthInput } from "./sections/effective-length-input";
 
@@ -73,7 +73,7 @@ export function DividerInspector({
 }: TypedInspectorProps<DividerElement>) {
   const { t } = useStudioI18n();
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateLayout = (update: (layout: DividerElement["layout"] | undefined) => DividerElement["layout"] | undefined) => {
     onUpdate((current) => {
       if (current.type !== "divider") {
         return current;
@@ -82,9 +82,15 @@ export function DividerInspector({
       return {
         ...current,
 
-        style: update(current.style),
+        layout: update(current.layout),
       };
     });
+  };
+  const updateStyle = (update: (style: DividerElement["style"] | undefined) => DividerElement["style"] | undefined) => {
+    onUpdate((current) => current.type === "divider" ? { ...current, style: update(current.style) } : current);
+  };
+  const updateEffect = (update: (effect: DividerElement["effect"] | undefined) => DividerElement["effect"] | undefined) => {
+    onUpdate((current) => current.type === "divider" ? { ...current, effect: update(current.effect) } : current);
   };
 
   const geometry =
@@ -111,9 +117,9 @@ export function DividerInspector({
                   return current;
                 }
 
-                const width = current.style?.width;
+                const width = current.layout?.width;
 
-                const height = current.style?.height;
+                const height = current.layout?.height;
 
                 if (width === undefined && height === undefined) {
                   return { ...current, orientation };
@@ -124,8 +130,8 @@ export function DividerInspector({
 
                   orientation,
 
-                  style: {
-                    ...current.style,
+                    layout: {
+                    ...current.layout,
 
                     width: height,
 
@@ -154,21 +160,21 @@ export function DividerInspector({
             <EffectiveLengthInput
               id="divider-width"
               name="dividerWidth"
-              value={element.style?.width}
+              value={element.layout?.width}
               inheritedValue={geometry.width.value}
               preferredUnit={geometry.width.unit}
               units={["px", "%"]}
               min="0"
               stepByUnit={{ px: "1", "%": "1" }}
               onChange={(width) => {
-                updateStyle((currentStyle) => ({
+                updateLayout((currentStyle) => ({
                   ...currentStyle,
 
                   width,
                 }));
               }}
               onReset={() => {
-                updateStyle((currentStyle) => ({
+                updateLayout((currentStyle) => ({
                   ...currentStyle,
 
                   width: undefined,
@@ -183,21 +189,21 @@ export function DividerInspector({
             <EffectiveLengthInput
               id="divider-height"
               name="dividerHeight"
-              value={element.style?.height}
+              value={element.layout?.height}
               inheritedValue={geometry.height.value}
               preferredUnit={geometry.height.unit}
               units={["px", "%"]}
               min="0"
               stepByUnit={{ px: "1", "%": "1" }}
               onChange={(height) => {
-                updateStyle((currentStyle) => ({
+                updateLayout((currentStyle) => ({
                   ...currentStyle,
 
                   height,
                 }));
               }}
               onReset={() => {
-                updateStyle((currentStyle) => ({
+                updateLayout((currentStyle) => ({
                   ...currentStyle,
 
                   height: undefined,
@@ -208,14 +214,81 @@ export function DividerInspector({
         </div>
       </InspectorSection>
 
-      <ElementAppearanceSection
-        element={element}
-        onUpdateStyle={updateStyle}
-        controlPrefix="divider"
-        showBackground
-        showOpacity
-        showRoundedCorners
-      />
+      <InspectorSection title={t("inspector.appearance")}>
+        <div className={styles.colorControl}>
+          <label className={styles.field}>
+            <span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span>
+            <ColorControl
+              id="divider-background"
+              name="dividerBackground"
+              value={element.style?.background?.color}
+              onChange={(color) => updateStyle((current) => ({
+                ...current,
+                background: { color },
+              }))}
+            />
+          </label>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => updateStyle((current) => ({
+              ...current,
+              background: undefined,
+            }))}
+          >
+            <span>{t("inspector.clearBackground")}</span>
+          </button>
+        </div>
+        <div className={styles.fieldGrid}>
+          <div className={styles.field}>
+            <label
+              htmlFor="divider-border-radius"
+              title={t("inspector.roundedCornersHelp")}
+            >
+              {t("inspector.roundedCorners")}
+            </label>
+            <EffectiveLengthInput
+              id="divider-border-radius"
+              name="dividerBorderRadius"
+              min="0"
+              value={element.style?.borderRadius}
+              inheritedValue={resolveEffectiveElementStyleDefaults(element).borderRadius}
+              preferredUnit="px"
+              units={["px", "rem"]}
+              stepByUnit={{ px: "1", rem: "0.1" }}
+              onChange={(borderRadius) => updateStyle((current) => ({
+                ...current,
+                borderRadius,
+              }))}
+              onReset={() => updateStyle((current) => ({
+                ...current,
+                borderRadius: undefined,
+              }))}
+            />
+          </div>
+          <label className={styles.field}>
+            <span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span>
+            <div className={styles.unitInput}>
+              <input
+                id="divider-opacity"
+                name="dividerOpacity"
+                type="number"
+                min="0"
+                max="100"
+                value={(element.effect?.opacity ?? 1) * 100}
+                onChange={(event) => {
+                  const value = parseOptionalNumber(event.target.value);
+                  updateEffect((current) => ({
+                    ...current,
+                    opacity: value === undefined ? undefined : value / 100,
+                  }));
+                }}
+              />
+              <span>%</span>
+            </div>
+          </label>
+        </div>
+      </InspectorSection>
     </>
   );
 }

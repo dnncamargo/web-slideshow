@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { updateContainerLayoutMode } from "../src/features/editor/inspector/container-inspector-helpers";
-import { updatePlacementMode } from "../src/features/editor/inspector/sections/element-placement-helpers";
+import {
+  updateContainerLayoutMode,
+  updateContainerPositionEdge,
+  updateContainerPositionMode,
+} from "../src/features/editor/inspector/container-inspector-helpers";
 
 describe("container layout mode updates", () => {
   it("changes only layout mode when selecting stack", () => {
@@ -9,72 +12,99 @@ describe("container layout mode updates", () => {
       type: "container" as const,
       id: "container",
       hidden: false,
-      direction: "row" as const,
-      distribution: "space-between" as const,
-      horizontalAlign: "center" as const,
-      verticalAlign: "end" as const,
-      style: { width: "80%" },
+      layout: {
+        width: "80%",
+        children: {
+          direction: "row" as const,
+          distribution: "space-between" as const,
+          horizontalAlign: "center" as const,
+          verticalAlign: "end" as const,
+        },
+      },
       children: [],
     };
 
     expect(updateContainerLayoutMode(container, "stack")).toEqual({
       ...container,
-      layoutMode: "stack",
+      layout: {
+        ...container.layout,
+        children: { ...container.layout.children, mode: "stack" },
+      },
     });
   });
 
-  it("preserves flow settings when switching back to flow", () => {
+  it("clears mode when switching back to flow and preserves child layout", () => {
     const container = {
       type: "container" as const,
       id: "container",
       hidden: false,
-      direction: "column" as const,
-      distribution: "space-around" as const,
-      horizontalAlign: "center" as const,
-      verticalAlign: "center" as const,
-      children: [],
-      layoutMode: "stack" as const,
-    };
-
-    expect(updateContainerLayoutMode(container, "flow")).toEqual({
-      ...container,
-      layoutMode: "flow",
-    });
-  });
-
-  it("preserves layout mode when container placement becomes absolute", () => {
-    const container = {
-      type: "container" as const,
-      id: "container",
-      hidden: false,
-      direction: "column" as const,
-      layoutMode: "stack" as const,
-      style: { width: "80%" },
-      children: [],
-    };
-
-    expect(
-      updatePlacementMode(container.style, "absolute"),
-    ).toEqual({
-      width: "80%",
-      placement: { mode: "absolute" },
-    });
-  });
-
-  it("keeps placement when layout mode changes", () => {
-    const container = {
-      type: "container" as const,
-      id: "container",
-      hidden: false,
-      direction: "column" as const,
-      layoutMode: "stack" as const,
-      style: { placement: { mode: "absolute" as const, anchor: "center" as const } },
+      layout: {
+        children: {
+          mode: "stack" as const,
+          direction: "column" as const,
+          distribution: "space-around" as const,
+          horizontalAlign: "center" as const,
+          verticalAlign: "center" as const,
+        },
+      },
       children: [],
     };
 
     expect(updateContainerLayoutMode(container, "flow")).toEqual({
       ...container,
-      layoutMode: "flow",
+      layout: {
+        ...container.layout,
+        children: { ...container.layout.children, mode: undefined },
+      },
+    });
+  });
+});
+
+describe("container position updates", () => {
+  const container = {
+    type: "container" as const,
+    id: "container",
+    hidden: false,
+    layout: {
+      width: "80%" as const,
+      height: 200,
+      padding: 16,
+      children: { direction: "column" as const, mode: "stack" as const },
+    },
+    children: [],
+  };
+
+  it("initializes top and left when entering absolute positioning", () => {
+    expect(updateContainerPositionMode(container, "absolute")).toEqual({
+      ...container,
+      layout: { ...container.layout, position: "absolute", top: 0, left: 0 },
+    });
+  });
+
+  it("clears all position edges when returning to flow", () => {
+    const absolute = updateContainerPositionMode(container, "absolute");
+    const positioned = updateContainerPositionEdge(absolute, "right", "10%");
+
+    expect(updateContainerPositionMode(positioned, "flow")).toEqual({
+      ...container,
+      layout: container.layout,
+    });
+  });
+
+  it("updates one edge without removing opposite edges", () => {
+    const absolute = updateContainerPositionMode(container, "absolute");
+    const withTopAndLeft = updateContainerPositionEdge(absolute, "top", 12);
+    const withOppositeEdges = updateContainerPositionEdge(
+      withTopAndLeft,
+      "bottom",
+      24,
+    );
+
+    expect(withOppositeEdges.layout).toMatchObject({
+      position: "absolute",
+      top: 12,
+      bottom: 24,
+      left: 0,
     });
   });
 });

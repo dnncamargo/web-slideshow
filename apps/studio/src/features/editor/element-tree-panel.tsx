@@ -208,10 +208,14 @@ function ElementTreeNode({
       : selectedElementId === element.id;
   const indicator =
     isExpandable && element.type === "container"
-      ? `[${t(element.layoutMode === "stack" ? "inspector.stack" : "inspector.flow")}]`
-      : element.style?.placement?.mode === "absolute"
-        ? `[${t("inspector.absolute")}]`
-        : null;
+      ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
+      : element.type === "text" || element.type === "textbox"
+        ? element.layout?.position === "absolute"
+        : element.type === "image"
+          ? element.layout?.position === "absolute"
+          : element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive"
+            ? element.layout?.position === "absolute"
+        : false;
   const dropIntent = dropTarget?.id === element.id ? dropTarget.intent : null;
 
   return (

@@ -156,20 +156,18 @@ describe("renderGallery", () => {
     );
   });
 
-  it("applies generic ElementStyle to the Gallery root", () => {
+  it("applies canonical surface namespaces to the Gallery root", () => {
     const html = renderGallery(
       gallery({
-        style: {
+        layout: {
           width: "80%",
-
           height: 400,
-
-          background: "#0f172a",
-
-          borderRadius: 8,
-
-          opacity: 0.9,
         },
+        style: {
+          background: { color: "#0f172a" },
+          borderRadius: 8,
+        },
+        effect: { opacity: 0.9 },
       }),
     );
 

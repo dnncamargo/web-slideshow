@@ -12,12 +12,11 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TypedInspectorProps,
-  UpdateElementStyle,
+  UpdateSurfaceStyle,
 } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-appearance-section";
+import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 
 // ============================================================
 // BEGIN: SCRIPTED INSPECTOR
@@ -104,7 +103,7 @@ export function ScriptedInspector({
     cssDraft !== element.css ||
     scriptDraft !== element.script;
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle: UpdateSurfaceStyle = (update) => {
     onUpdate((current) => {
       if (current.type !== "scripted") {
         return current;
@@ -279,19 +278,18 @@ export function ScriptedInspector({
         </small>
       </InspectorSection>
 
-      <ElementAppearanceSection
+      <CanonicalSurfaceAppearanceSection
         element={element}
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateEffect={(update) => onUpdate((current) => current.type === "scripted" ? { ...current, effect: update(current.effect) } : current)}
         controlPrefix="scripted"
-        showBackground
-        showRoundedCorners
-        showOpacity
-        showBorder
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalElementEffectsSection
+        effect={element.effect}
+        onUpdateEffect={(update) => onUpdate((current) => current.type === "scripted" ? { ...current, effect: update(current.effect) } : current)}
         controlPrefix="scripted"
       />
     </>

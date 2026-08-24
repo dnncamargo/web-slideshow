@@ -54,25 +54,36 @@ describe("Divider element schema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts a normal ElementStyle", () => {
+  it("accepts the canonical Divider namespaces", () => {
     const result = PowerShowElementSchema.safeParse(
       divider({
         orientation: "vertical",
 
-        style: {
+        layout: {
           width: "2px",
-
           height: "100%",
-
-          background: "#334155",
-
-          opacity: 0.8,
-
+          position: "absolute",
+          left: 4,
+        },
+        style: {
+          background: { color: "#334155" },
           borderRadius: 4,
         },
+        effect: { opacity: 0.8 },
       }),
     );
 
     expect(result.success).toBe(true);
+  });
+
+  it.each([
+    { style: { width: 10 } },
+    { style: { opacity: 0.5 } },
+    { style: { border: { width: 1 } } },
+    { effect: { shadow: { color: "#000", blur: 2, offsetX: 0, offsetY: 0 } } },
+    { typography: { fontSize: 12 } },
+    { layout: { margin: 1 } },
+  ])("rejects unsupported canonical entitlement %#", (unsupported) => {
+    expect(PowerShowElementSchema.safeParse(divider(unsupported)).success).toBe(false);
   });
 });

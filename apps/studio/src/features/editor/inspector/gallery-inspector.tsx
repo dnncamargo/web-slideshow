@@ -10,12 +10,11 @@ import { InspectorSection } from "./inspector-section";
 
 import type {
   TypedInspectorProps,
-  UpdateElementStyle,
+  UpdateSurfaceStyle,
 } from "./inspector-types";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-appearance-section";
+import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 
 type GalleryFit = GalleryElement["fit"];
 
@@ -51,7 +50,7 @@ export function GalleryInspector({
     });
   };
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle: UpdateSurfaceStyle = (update) => {
     updateGallery((gallery) => ({
       ...gallery,
 
@@ -282,19 +281,18 @@ export function GalleryInspector({
         </button>
       </InspectorSection>
 
-      <ElementAppearanceSection
+      <CanonicalSurfaceAppearanceSection
         element={element}
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
+        onUpdateEffect={(update) => updateGallery((gallery) => ({ ...gallery, effect: update(gallery.effect) }))}
         controlPrefix="gallery"
-        showBackground
-        showRoundedCorners
-        showOpacity
-        showBorder
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
+      <CanonicalElementEffectsSection
+        effect={element.effect}
+        onUpdateEffect={(update) => updateGallery((gallery) => ({ ...gallery, effect: update(gallery.effect) }))}
         controlPrefix="gallery"
       />
     </>

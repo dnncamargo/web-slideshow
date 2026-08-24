@@ -114,7 +114,7 @@ describe("Scripted element authoring", () => {
     const created = createElement("scripted", []);
 
     if (created.type === "scripted") {
-      expect(created.style?.width).toBe("60%");
+      expect(created.layout?.width).toBe("60%");
     }
   });
 
@@ -122,7 +122,7 @@ describe("Scripted element authoring", () => {
     const created = createElement("scripted", []);
 
     if (created.type === "scripted") {
-      expect(created.style?.height).toBe("55%");
+      expect(created.layout?.height).toBe("55%");
     }
   });
 
@@ -170,14 +170,14 @@ describe("Scripted element authoring", () => {
   });
 
   it("duplicate preserves style and does not share the reference", () => {
-    const source = scripted({ style: { width: "60%", height: "55%" } });
+    const source = scripted({ layout: { width: "60%", height: "55%" } });
 
     const duplicate = duplicateElement(source, [slide()]);
 
     if (duplicate.type === "scripted") {
-      expect(duplicate.style).toEqual({ width: "60%", height: "55%" });
+      expect(duplicate.layout).toEqual({ width: "60%", height: "55%" });
 
-      expect(duplicate.style).not.toBe(source.style);
+      expect(duplicate.layout).not.toBe(source.layout);
     }
   });
 

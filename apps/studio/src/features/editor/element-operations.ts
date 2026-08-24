@@ -1881,23 +1881,8 @@ export function createElement(
 
         hidden: false,
 
-        direction: "column",
-
-        gap: 16,
-
-        horizontalAlign: "center",
-
-        verticalAlign: "center",
-
-        style: {
-          width: "70%",
-
-          height: "60%",
-
-          padding: 24,
-
-          background: "rgba(15, 23, 42, 0.55)",
-        },
+        layout: { width: "70%", height: "60%", padding: 24, children: { gap: 16, horizontalAlign: "center", verticalAlign: "center" } },
+        style: { background: { color: "rgba(15, 23, 42, 0.55)" } },
 
         children: [],
       };
@@ -1917,9 +1902,8 @@ export function createElement(
 
         fit: "contain",
 
-        style: {
+        layout: {
           width: "60%",
-
           height: "55%",
         },
       };
@@ -1943,7 +1927,7 @@ export function createElement(
           },
         ],
 
-        style: {
+        layout: {
           width: "60%",
 
           height: "55%",
@@ -1963,7 +1947,7 @@ export function createElement(
 
         title: "Embedded content",
 
-        style: {
+        layout: {
           width: "60%",
 
           height: "55%",
@@ -1987,7 +1971,7 @@ export function createElement(
 
         script: "",
 
-        style: {
+        layout: {
           width: "60%",
 
           height: "55%",

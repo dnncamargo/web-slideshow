@@ -67,24 +67,24 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
           hidden: false,
 
-          direction: "column",
-
-          gap: 24,
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          style: {
+          layout: {
             width: "70%",
             height: "60%",
-
             padding: 40,
+            children: {
+              direction: "column",
+              gap: 24,
+              horizontalAlign: "center",
+              verticalAlign: "center",
+            },
+          },
 
+          style: {
             borderRadius: 24,
+            background: { color: "rgba(15,23,42,0.88)" },
+          },
 
-            background: "rgba(15,23,42,0.88)",
-
+          effect: {
             shadow: {
               x: 0,
               y: 20,
@@ -150,19 +150,16 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
           hidden: false,
 
-          direction: "column",
-
-          gap: 24,
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          style: {
+          layout: {
             width: "100%",
             height: "100%",
-
             padding: 64,
+            children: {
+              direction: "column",
+              gap: 24,
+              horizontalAlign: "center",
+              verticalAlign: "center",
+            },
           },
 
           children: [
@@ -193,7 +190,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               highlightedLines: [1],
 
-              style: {
+              layout: {
                 width: "72%",
               },
             },
@@ -221,17 +218,15 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
           hidden: false,
 
-          direction: "column",
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          style: {
+          layout: {
             width: "100%",
             height: "100%",
-
             padding: 72,
+            children: {
+              direction: "column",
+              horizontalAlign: "center",
+              verticalAlign: "center",
+            },
           },
 
           children: [
@@ -244,7 +239,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               title: "PowerShow",
 
-              style: {
+              layout: {
                 width: "70%",
               },
 
@@ -311,19 +306,16 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
           hidden: false,
 
-          direction: "column",
-
-          gap: 24,
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          style: {
+          layout: {
             width: "100%",
             height: "100%",
-
             padding: 64,
+            children: {
+              direction: "column",
+              gap: 24,
+              horizontalAlign: "center",
+              verticalAlign: "center",
+            },
           },
 
           children: [
@@ -352,10 +344,11 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               fit: "contain",
 
-              style: {
+              layout: {
                 width: "62%",
                 height: "58%",
-
+              },
+              style: {
                 borderRadius: 20,
 
                 border: {
@@ -405,19 +398,16 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
           hidden: false,
 
-          direction: "column",
-
-          gap: 24,
-
-          horizontalAlign: "center",
-
-          verticalAlign: "center",
-
-          style: {
+          layout: {
             width: "100%",
             height: "100%",
-
             padding: 64,
+            children: {
+              direction: "column",
+              gap: 24,
+              horizontalAlign: "center",
+              verticalAlign: "center",
+            },
           },
 
           children: [
@@ -440,7 +430,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               hidden: false,
 
-              style: {
+              layout: {
                 width: "82%",
               },
 

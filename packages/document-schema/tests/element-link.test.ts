@@ -41,13 +41,12 @@ function imageElement(overrides: Record<string, unknown> = {}) {
 
 function containerElement(overrides: Record<string, unknown> = {}) {
   return {
-    type: "container",
-    id: "container-1",
-    hidden: false,
-    direction: "column",
-    children: [],
-    ...overrides,
-  };
+  type: "container",
+  id: "container-1",
+  hidden: false,
+  children: [],
+  ...overrides
+};
 }
 
 describe("isAbsoluteHttpHref URL validation policy", () => {
@@ -410,12 +409,12 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "https://example.com/hero",
-        },
-      });
+        }
+});
     }
   });
 
@@ -433,12 +432,12 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "http://example.com/hero",
-        },
-      });
+        }
+});
     }
   });
 
@@ -457,13 +456,13 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "https://example.com/hero",
           target: "_self",
-        },
-      });
+        }
+});
     }
   });
 
@@ -482,13 +481,13 @@ describe("Container element links", () => {
 
     if (result.success) {
       expect(result.data).toMatchObject({
-        type: "container",
-        link: {
+  type: "container",
+  link: {
           kind: "url",
           href: "https://example.com/hero",
           target: "_blank",
-        },
-      });
+        }
+});
     }
   });
 
@@ -656,13 +655,10 @@ describe("Container element links", () => {
 
 describe("unsupported element types and links", () => {
   it.each([
-    ["code", { type: "code", id: "code-1", hidden: false, code: "x" }],
-    ["terminal", { type: "terminal", id: "term-1", hidden: false, lines: [] }],
-    ["table", { type: "table", id: "table-1", hidden: false, columns: [], rows: [] }],
     ["chart", { type: "chart", id: "chart-1", hidden: false, chartType: "line", series: [] }],
     ["interactive", { type: "interactive", id: "int-1", hidden: false, widget: "function-plot", config: {} }],
   ] as const)(
-    "drops a link property from a %s element per schema strictness conventions",
+    "rejects a link property from a %s element per schema strictness conventions",
     (_type, element) => {
       const result = PowerShowElementSchema.safeParse({
         ...element,
@@ -672,13 +668,17 @@ describe("unsupported element types and links", () => {
         },
       });
 
-      expect(result.success).toBe(true);
-
-      if (result.success) {
-        expect(result.data).not.toHaveProperty("link");
-      }
+      expect(result.success).toBe(false);
     },
   );
+
+  it.each([
+    ["code", { type: "code", id: "code-1", hidden: false, code: "x" }],
+    ["terminal", { type: "terminal", id: "term-1", hidden: false, lines: [] }],
+    ["table", { type: "table", id: "table-1", hidden: false, columns: [], rows: [] }],
+  ] as const)("rejects a link property from a canonical %s element", (_type, element) => {
+    expect(PowerShowElementSchema.safeParse({ ...element, link: { kind: "url", href: "https://example.com" } }).success).toBe(false);
+  });
 });
 
 describe("no-link backward compatibility", () => {

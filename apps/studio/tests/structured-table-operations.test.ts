@@ -60,7 +60,6 @@ function container(id: string, children: PowerShowElement[] = []): PowerShowElem
     type: "container",
     id,
     hidden: false,
-    direction: "column",
     children,
   };
 }
@@ -678,5 +677,19 @@ describe("structured table creation and structure", () => {
       expect(resultingTable.columns[0]?.header!.id).toBe(headerBefore?.id);
       expect(resultingTable.columns[0]?.header!.children[0]).toBe(headerTextBefore);
     }
+  });
+
+  it("preserves canonical ContentSlot metadata when adding a child", () => {
+    const metadata = {
+      layout: { padding: "12px" },
+      style: { color: "#fff", background: { color: "#111827" }, borderRadius: "4px", className: "slot" },
+      typography: { fontSize: "1rem", fontWeight: 600 },
+    } as const;
+    const table = structuredTable({
+      columns: [{ id: "col-1", header: { id: "hdr-1", children: [], ...metadata } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1-1", children: [], ...metadata }] }],
+    });
+    const result = appendElementToContentSlot([table], "cell-1-1", text("new"))[0];
+    expect(result?.type === "table" && result.mode === "structured" ? result.rows[0]?.cells[0] : undefined).toMatchObject(metadata);
   });
 });

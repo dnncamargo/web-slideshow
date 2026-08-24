@@ -102,15 +102,13 @@ describe("Scripted element schema", () => {
     }
   });
 
-  it("follows normal hidden and style element behavior", () => {
+  it("follows canonical hidden, style, and effect behavior", () => {
     const result = ScriptedElementSchema.safeParse(
       scripted({
         hidden: true,
 
-        style: {
-          opacity: 0.75,
-          className: "scripted-stage",
-        },
+        style: { className: "scripted-stage" },
+        effect: { opacity: 0.75 },
       }),
     );
 
@@ -119,10 +117,8 @@ describe("Scripted element schema", () => {
     if (result.success) {
       expect(result.data.hidden).toBe(true);
 
-      expect(result.data.style).toEqual({
-        opacity: 0.75,
-        className: "scripted-stage",
-      });
+      expect(result.data.style).toEqual({ className: "scripted-stage" });
+      expect(result.data.effect).toEqual({ opacity: 0.75 });
     }
   });
 
@@ -142,16 +138,14 @@ describe("Scripted element schema", () => {
   it("rejects invalid style like other elements", () => {
     const result = ScriptedElementSchema.safeParse(
       scripted({
-        style: {
-          opacity: 2,
-        },
+        effect: { opacity: 2 },
       }),
     );
 
     expect(result.success).toBe(false);
   });
 
-  it("strips unknown sandbox and permission configuration fields", () => {
+  it("rejects unknown sandbox and permission configuration fields", () => {
     const result = ScriptedElementSchema.safeParse(
       scripted({
         sandbox: "allow-scripts",
@@ -166,27 +160,7 @@ describe("Scripted element schema", () => {
       }),
     );
 
-    expect(result.success).toBe(true);
-
-    if (result.success) {
-      expect(result.data).not.toHaveProperty("sandbox");
-
-      expect(result.data).not.toHaveProperty("permissions");
-
-      expect(result.data).not.toHaveProperty("allowSameOrigin");
-
-      expect(result.data).not.toHaveProperty("allowNetwork");
-
-      expect(result.data).not.toHaveProperty("allowForms");
-
-      expect(result.data).not.toHaveProperty("allowPopups");
-
-      expect(result.data).not.toHaveProperty("allowStorage");
-
-      expect(result.data).not.toHaveProperty("runtime");
-
-      expect(result.data).not.toHaveProperty("provider");
-    }
+    expect(result.success).toBe(false);
   });
 
   it("accepts Scripted through PowerShowElementSchema", () => {
@@ -229,7 +203,7 @@ describe("Scripted element schema", () => {
 
       type: "container",
 
-      direction: "column",
+      layout: { children: { direction: "column" } },
 
       hidden: false,
 
@@ -239,7 +213,7 @@ describe("Scripted element schema", () => {
 
           type: "container",
 
-          direction: "row",
+          layout: { children: { direction: "row" } },
 
           hidden: false,
 
@@ -349,5 +323,15 @@ describe("Scripted element schema", () => {
 
       expect(result.data).not.toHaveProperty("script");
     }
+  });
+
+  it("accepts the canonical surface envelope and rejects legacy aggregate fields", () => {
+    expect(ScriptedElementSchema.safeParse(scripted({
+      layout: { width: "80%", height: 240, position: "absolute", top: 10, right: "5%", bottom: 20, left: 30 },
+      style: { background: { color: "#123456" }, borderRadius: 8, className: "scripted" },
+      effect: { opacity: 0.8 },
+    })).success).toBe(true);
+    expect(ScriptedElementSchema.safeParse(scripted({ style: { shadow: { x: 0, y: 1, blur: 2, color: "#000" } } })).success).toBe(false);
+    expect(ScriptedElementSchema.safeParse(scripted({ layout: { margin: 8 } })).success).toBe(false);
   });
 });

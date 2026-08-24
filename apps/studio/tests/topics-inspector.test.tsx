@@ -307,7 +307,6 @@ describe("TopicsInspector", () => {
       type: "container",
       id,
       hidden: false,
-      direction: "column",
       children,
     };
   }
@@ -650,7 +649,7 @@ describe("TopicsInspector", () => {
     expect(updates[0]?.items[0]?.content.children[0]).toBe(firstChildText);
   });
 
-  it("font size updates TopicsElement.style only", async () => {
+  it("font size updates TopicsElement.typography only", async () => {
     await act(async () => {
       mount(topicsElement());
     });
@@ -672,11 +671,11 @@ describe("TopicsInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(updates[0]?.style?.fontSize).toBe(24);
+    expect(updates[0]?.typography?.fontSize).toBe(24);
     expect(updates[0]?.items[0]).toBe(elementState.items[0]);
   });
 
-  it("decoration line updates TopicsElement.style only", async () => {
+  it("decoration line updates TopicsElement.typography only", async () => {
     await act(async () => {
       mount(topicsElement());
     });
@@ -695,11 +694,11 @@ describe("TopicsInspector", () => {
     });
 
     expect(updates).toHaveLength(1);
-    expect(updates[0]?.style?.textDecorationLine).toBe("underline");
+    expect(updates[0]?.typography?.textDecorationLine).toBe("underline");
     expect(updates[0]?.items[0]).toBe(elementState.items[0]);
   });
 
-  it("decoration color updates TopicsElement.style only", async () => {
+  it("does not expose unsupported decoration color", async () => {
     await act(async () => {
       mount(topicsElement());
     });
@@ -708,17 +707,8 @@ describe("TopicsInspector", () => {
       "#topics-decoration-color-value",
     );
 
-    if (!input) {
-      throw new Error("topics-decoration-color-value input not found");
-    }
-
-    await act(async () => {
-      setTextInputValue(input, "#22d3ee");
-    });
-
-    expect(updates).toHaveLength(1);
-    expect(updates[0]?.style?.textDecorationColor).toBe("#22d3ee");
-    expect(updates[0]?.items[0]).toBe(elementState.items[0]);
+    expect(input).toBeNull();
+    expect(updates).toHaveLength(0);
   });
 
   it("starts topic spacing from the effective default when undefined", async () => {

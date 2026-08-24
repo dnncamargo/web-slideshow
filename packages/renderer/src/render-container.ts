@@ -4,54 +4,169 @@ import type {
   PowerShowElement,
 } from "@powershow/document-schema";
 
+import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
-import { renderStyle } from "./render-style";
-import { isAbsolutePlacement } from "./render-placement";
 import { renderBackgroundPattern } from "./render-background-pattern";
-
 import { renderLength } from "./render-length";
+import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
 type RenderChild = (element: PowerShowElement) => string;
-
 type Alignment = "start" | "center" | "end" | "stretch";
-
-// ============================================================
-// BEGIN: CONTAINER LINK SURFACE
-//
-// A linked Container renders one clickable surface covering its
-// whole box. The surface is an internal transparent anchor overlay
-// owned by the renderer; the Container keeps its semantic root
-// (<div>, <main>, <header> or <footer>).
-//
-// The overlay is positioned against the Container box and must win
-// pointer input over rendered descendants, including linked child
-// elements. The linked Container root therefore creates a stacking
-// context (z-index:0) that traps descendant layers, and the surface
-// itself uses a deterministic overlay z-index owned by the renderer.
-// One pointer click still produces at most one navigation because
-// only the topmost native anchor at the clicked point activates.
-// ============================================================
 
 const CONTAINER_LINK_SURFACE_Z_INDEX = 100;
 
-// ============================================================
-// END: CONTAINER LINK SURFACE
-// ============================================================
+function addStyle(
+  output: string[],
+  property: string,
+  value: string | number | undefined,
+): void {
+  if (value !== undefined) {
+    output.push(`${property}:${value}`);
+  }
+}
+
+function addLength(
+  output: string[],
+  property: string,
+  value: Parameters<typeof renderLength>[0] | undefined,
+): void {
+  if (value !== undefined) {
+    output.push(`${property}:${renderLength(value)}`);
+  }
+}
+
+function renderLayout(element: ContainerElement): string[] {
+  const layout = element.layout;
+  const output: string[] = [];
+
+  if (!layout) {
+    return output;
+  }
+
+  const lengths = [
+    ["width", layout.width],
+    ["height", layout.height],
+    ["min-width", layout.minWidth],
+    ["min-height", layout.minHeight],
+    ["max-width", layout.maxWidth],
+    ["max-height", layout.maxHeight],
+    ["margin", layout.margin],
+    ["margin-top", layout.marginTop],
+    ["margin-right", layout.marginRight],
+    ["margin-bottom", layout.marginBottom],
+    ["margin-left", layout.marginLeft],
+    ["padding", layout.padding],
+    ["padding-top", layout.paddingTop],
+    ["padding-right", layout.paddingRight],
+    ["padding-bottom", layout.paddingBottom],
+    ["padding-left", layout.paddingLeft],
+  ] as const;
+
+  for (const [property, value] of lengths) {
+    addLength(output, property, value);
+  }
+
+  addStyle(output, "overflow", layout.overflow);
+  addStyle(output, "position", layout.position);
+
+  for (const [property, value] of [
+    ["top", layout.top],
+    ["right", layout.right],
+    ["bottom", layout.bottom],
+    ["left", layout.left],
+  ] as const) {
+    addLength(output, property, value);
+  }
+
+  return output;
+}
+
+function renderVisualStyle(element: ContainerElement): string[] {
+  const style = element.style;
+  const output: string[] = [];
+
+  if (!style) {
+    return output;
+  }
+
+  addStyle(output, "color", style.color);
+
+  if (style.background?.color) {
+    addStyle(output, "background", style.background.color);
+  }
+
+  if (style.background?.gradient) {
+    output.push(`background-image:${renderGradient(style.background.gradient)}`);
+  }
+
+  if (style.border) {
+    output.push(...renderBorder(style.border));
+  }
+
+  addLength(output, "border-radius", style.borderRadius);
+  return output;
+}
+
+function renderTypography(element: ContainerElement): string[] {
+  const typography = element.typography;
+  const output: string[] = [];
+
+  if (!typography) {
+    return output;
+  }
+
+  if (typography.fontFamily !== undefined) {
+    output.push(`font-family:${quoteCssString(typography.fontFamily)}`);
+  }
+
+  addLength(output, "font-size", typography.fontSize);
+  addStyle(output, "font-weight", typography.fontWeight);
+  addStyle(output, "font-style", typography.fontStyle);
+  addStyle(output, "text-align", typography.textAlign);
+  addStyle(output, "line-height", typography.lineHeight);
+  addLength(output, "letter-spacing", typography.letterSpacing);
+  addStyle(output, "text-transform", typography.textTransform);
+  addStyle(output, "white-space", typography.whiteSpace);
+  addStyle(output, "text-wrap-style", typography.textWrapStyle);
+  addStyle(output, "overflow-wrap", typography.overflowWrap);
+  addStyle(output, "text-decoration-line", typography.textDecorationLine);
+  addStyle(output, "text-decoration-color", typography.textDecorationColor);
+
+  if (typography.textStroke) {
+    output.push(
+      `-webkit-text-stroke:${renderLength(typography.textStroke.width)} ${typography.textStroke.color}`,
+    );
+  }
+
+  return output;
+}
+
+function renderEffect(element: ContainerElement): string[] {
+  const effect = element.effect;
+  const output: string[] = [];
+
+  if (!effect) {
+    return output;
+  }
+
+  addStyle(output, "opacity", effect.opacity);
+
+  if (effect.shadow) {
+    output.push(`box-shadow:${renderShadow(effect.shadow)}`);
+  }
+
+  return output;
+}
 
 function renderMainAxisAlignment(value: Alignment): string {
   switch (value) {
     case "start":
+    case "stretch":
       return "flex-start";
-
     case "center":
       return "center";
-
     case "end":
       return "flex-end";
-
-    case "stretch":
-      // Flexbox não estica itens no eixo principal.
-      return "flex-start";
   }
 }
 
@@ -59,29 +174,10 @@ function renderCrossAxisAlignment(value: Alignment): string {
   switch (value) {
     case "start":
       return "flex-start";
-
     case "center":
       return "center";
-
     case "end":
       return "flex-end";
-
-    case "stretch":
-      return "stretch";
-  }
-}
-
-function renderGridAlignment(value: Alignment): string {
-  switch (value) {
-    case "start":
-      return "start";
-
-    case "center":
-      return "center";
-
-    case "end":
-      return "end";
-
     case "stretch":
       return "stretch";
   }
@@ -92,11 +188,12 @@ function renderStackChild(child: string): string {
     return "";
   }
 
-  const stackArea = "grid-area:1 / 1";
-
   return child.includes(" style=")
-    ? child.replace(" style=\"", ` style=\"${stackArea};`)
-    : child.replace(/^(<[^\s>]+)/, `$1 style=\"${stackArea}\"`);
+    ? child.replace(" style=\"", " style=\"grid-area:1 / 1;")
+    : child.replace(
+        /^(<[\s\S]*?)(?=\s|>)/,
+        "$1 style=\"grid-area:1 / 1\"",
+      );
 }
 
 function getTagName(
@@ -104,42 +201,30 @@ function getTagName(
 ): "div" | "main" | "header" | "footer" {
   switch (role) {
     case "main":
-      return "main";
-
     case "header":
-      return "header";
-
     case "footer":
-      return "footer";
-
+      return role;
     default:
       return "div";
   }
 }
 
-// The Container box is the containing block for the absolute link
-// surface. Absolute placement and explicit non-static positioning
-// already establish a containing block; anything else needs the
-// smallest renderer-only requirement: position:relative.
-function establishesContainingBlock(
-  element: ContainerElement,
-  hasAbsoluteChild: boolean,
-): boolean {
-  if (hasAbsoluteChild) {
-    return true;
-  }
+function hasAbsoluteChild(element: ContainerElement): boolean {
+  return element.children.some((child) => {
+    if (child.type === "container") {
+      return child.layout?.position === "absolute";
+    }
 
-  if (element.style?.placement?.mode === "absolute") {
-    return true;
-  }
+    if (child.type === "text" || child.type === "textbox" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics" || child.type === "chart" || child.type === "interactive") {
+      return child.layout?.position === "absolute";
+    }
 
-  const position = element.style?.position;
-
-  return position !== undefined && position !== "static";
+    return false;
+  });
 }
 
-function renderContainerLinkSurface(link: ElementLink): string {
-  const attributes: string[] = [
+function renderLinkSurface(link: ElementLink): string {
+  const attributes = [
     `href="${escapeHtml(link.href)}"`,
     'data-powershow-link="true"',
     'data-powershow-container-link-surface="true"',
@@ -163,216 +248,98 @@ export function renderContainer(
     return "";
   }
 
-  const styles: string[] = [];
-
-  const baseStyle = renderStyle(element.style);
-
-  if (baseStyle) {
-    styles.push(baseStyle);
-  }
-
-  const isStack = element.layoutMode === "stack";
-  const hasBackgroundPattern = element.style?.backgroundPattern !== undefined;
-  const hasAbsoluteChild = element.children.some((child) =>
-    isAbsolutePlacement(child.style?.placement),
-  );
-
+  const styles = [
+    ...renderLayout(element),
+    ...renderVisualStyle(element),
+    ...renderTypography(element),
+    ...renderEffect(element),
+  ];
+  const childrenLayout = element.layout?.children;
+  const mode = childrenLayout?.mode ?? "flow";
+  const direction = childrenLayout?.direction ?? "column";
+  const distribution = childrenLayout?.distribution ?? "packed";
+  const horizontalAlign = childrenLayout?.horizontalAlign;
+  const verticalAlign = childrenLayout?.verticalAlign;
+  const isStack = mode === "stack";
   const isLinked = element.link !== undefined;
+  const hasPattern = element.style?.background?.pattern !== undefined;
+  const needsContainingBlock = hasAbsoluteChild(element) || isLinked || hasPattern;
+  const hasAuthoredAbsolute = element.layout?.position === "absolute";
 
   styles.push(isStack ? "display:grid" : "display:flex");
 
-  if (hasAbsoluteChild) {
+  if (needsContainingBlock && !hasAuthoredAbsolute) {
     styles.push("position:relative");
   }
 
-  // A linked Container becomes the containing block for its internal
-  // link-surface overlay. If the container is not already positioned
-  // by canonical style/placement, add the smallest renderer-only
-  // requirement (position:relative). Preserve canonical positioning
-  // otherwise.
-  if (isLinked && !establishesContainingBlock(element, hasAbsoluteChild)) {
-    styles.push("position:relative");
-  }
-
-  // Pattern layers are renderer-owned positioned descendants. Isolate only
-  // patterned Containers so the negative layer stays above this root's own
-  // background/gradient and below its authored children.
-  if (hasBackgroundPattern) {
-    if (!establishesContainingBlock(element, hasAbsoluteChild)) {
-      styles.push("position:relative");
-    }
-
+  if (hasPattern) {
     styles.push("isolation:isolate");
   }
 
-  // The linked Container root establishes a stacking context so
-  // descendant positioned layers (including nested linked surfaces)
-  // are trapped beneath the renderer-owned overlay z-index. This is
-  // what makes the largest linked Container capture the pointer.
   if (isLinked) {
     styles.push("z-index:0");
   }
 
-  if (!isStack) {
-    styles.push(`flex-direction:${element.direction}`);
-  }
-
-  if (!isStack && element.gap !== undefined) {
-    styles.push(`gap:${renderLength(element.gap)}`);
-  }
-
-  if (element.width !== undefined) {
-    styles.push(`width:${renderLength(element.width)}`);
-  }
-
-  const horizontalAlign =
-    element.horizontalAlign ?? element.style?.horizontalAlign;
-
-  const verticalAlign = element.verticalAlign ?? element.style?.verticalAlign;
-
   if (isStack) {
     if (horizontalAlign) {
-      styles.push(`justify-items:${renderGridAlignment(horizontalAlign)}`);
+      styles.push(`justify-items:${horizontalAlign}`);
     }
-
     if (verticalAlign) {
-      styles.push(`align-items:${renderGridAlignment(verticalAlign)}`);
+      styles.push(`align-items:${verticalAlign}`);
     }
   } else {
-    const distribution = element.distribution ?? "packed";
+    styles.push(`flex-direction:${direction}`);
 
-    const distributedMainAxis = renderDistribution(distribution);
-
-    // ============================================================
-    // BEGIN: CONTAINER ALIGNMENT + DISTRIBUTION
-    // ============================================================
-
-    if (element.direction === "row") {
-    // ----------------------------------------------------------
-    // MAIN AXIS = HORIZONTAL
-    // ----------------------------------------------------------
-
-    if (distributedMainAxis) {
-      styles.push(`justify-content:${distributedMainAxis}`);
-    } else if (horizontalAlign) {
-      styles.push(
-        `justify-content:${renderMainAxisAlignment(horizontalAlign)}`,
-      );
+    if (childrenLayout?.gap !== undefined) {
+      styles.push(`gap:${renderLength(childrenLayout.gap)}`);
     }
 
-    // ----------------------------------------------------------
-    // CROSS AXIS = VERTICAL
-    // ----------------------------------------------------------
-
-    if (verticalAlign) {
-      styles.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
-    }
-    } else {
-    // ----------------------------------------------------------
-    // CROSS AXIS = HORIZONTAL
-    // ----------------------------------------------------------
-
-    if (horizontalAlign) {
-      styles.push(`align-items:${renderCrossAxisAlignment(horizontalAlign)}`);
-    }
-
-    // ----------------------------------------------------------
-    // MAIN AXIS = VERTICAL
-    // ----------------------------------------------------------
-
-    if (distributedMainAxis) {
-      styles.push(`justify-content:${distributedMainAxis}`);
-    } else if (verticalAlign) {
+    if (distribution !== "packed") {
+      styles.push(`justify-content:${distribution}`);
+    } else if (direction === "row" && horizontalAlign) {
+      styles.push(`justify-content:${renderMainAxisAlignment(horizontalAlign)}`);
+    } else if (direction === "column" && verticalAlign) {
       styles.push(`justify-content:${renderMainAxisAlignment(verticalAlign)}`);
     }
-    }
 
-    // ============================================================
-    // END: CONTAINER ALIGNMENT + DISTRIBUTION
-    // ============================================================
+    if (direction === "row" && verticalAlign) {
+      styles.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
+    } else if (direction === "column" && horizontalAlign) {
+      styles.push(`align-items:${renderCrossAxisAlignment(horizontalAlign)}`);
+    }
   }
 
   const classes = ["powershow-element", "powershow-container"];
-
-  if (isStack) {
-    classes.push("powershow-container-stack");
-  }
-
-  if (element.role) {
-    classes.push(`powershow-container-${element.role}`);
-  }
-
-  const customClass = element.style?.className?.trim();
-
-  if (customClass) {
-    classes.push(customClass);
-  }
+  if (isStack) classes.push("powershow-container-stack");
+  if (element.role) classes.push(`powershow-container-${element.role}`);
+  if (element.style?.className?.trim()) classes.push(element.style.className.trim());
 
   const tag = getTagName(element.role);
-
-  const backgroundPattern = element.style?.backgroundPattern;
-
-  const patternLayer = backgroundPattern
-    ? `<div` +
-      ` class="powershow-container-background-pattern"` +
-      ` aria-hidden="true"` +
-      ` style="${escapeHtml(
-        "position:absolute;inset:0;z-index:-1;pointer-events:none;" +
-          "border-radius:inherit;" +
-          renderBackgroundPattern(backgroundPattern),
-      )}"` +
-      `></div>`
+  const pattern = element.style?.background?.pattern;
+  const patternLayer = pattern
+    ? `<div class="powershow-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+        "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;" +
+          renderBackgroundPattern(pattern),
+      )}"></div>`
     : "";
-
   const children = element.children
     .map((child) => {
-      const renderedChild = renderChild(child);
-
-      return isStack ? renderStackChild(renderedChild) : renderedChild;
+      const rendered = renderChild(child);
+      return isStack ? renderStackChild(rendered) : rendered;
     })
     .join("");
-
-  const roleAttribute = element.role
+  const role = element.role
     ? ` data-powershow-role="${escapeHtml(element.role)}"`
     : "";
 
   return (
-    `<${tag}` +
-    ` class="${escapeHtml(classes.join(" "))}"` +
+    `<${tag} class="${escapeHtml(classes.join(" "))}"` +
     ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="container"` +
-    roleAttribute +
-    ` style="${escapeHtml(styles.join(";"))}"` +
-    `>` +
+    ` data-powershow-type="container"${role}` +
+    ` style="${escapeHtml(styles.join(";"))}">` +
     patternLayer +
     children +
-    (element.link ? renderContainerLinkSurface(element.link) : "") +
+    (element.link ? renderLinkSurface(element.link) : "") +
     `</${tag}>`
   );
 }
-
-// ============================================================
-// BEGIN: DISTRIBUTION RENDERING
-// ============================================================
-
-type Distribution = NonNullable<ContainerElement["distribution"]>;
-
-function renderDistribution(value: Distribution): string | null {
-  switch (value) {
-    case "packed":
-      return null;
-
-    case "space-between":
-      return "space-between";
-
-    case "space-around":
-      return "space-around";
-
-    case "space-evenly":
-      return "space-evenly";
-  }
-}
-
-// ============================================================
-// END: DISTRIBUTION RENDERING
-// ============================================================

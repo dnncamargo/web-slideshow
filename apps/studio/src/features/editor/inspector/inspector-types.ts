@@ -1,5 +1,9 @@
 import type {
-  ElementStyle,
+  ElementEffect,
+  ElementTypography,
+  ElementVisualStyle,
+  ResizablePositionedLayout,
+  SurfaceVisualStyle,
   FontFaceResource,
   FontResource,
   PowerShowElement,
@@ -9,8 +13,28 @@ export type ElementInspectorUpdate = (
   update: (element: PowerShowElement) => PowerShowElement,
 ) => void;
 
-export type UpdateElementStyle = (
-  update: (style: ElementStyle | undefined) => ElementStyle,
+export type UpdateElementTypography = (
+  update: (
+    typography: ElementTypography | undefined,
+  ) => ElementTypography,
+) => void;
+
+export type UpdateElementVisualStyle = (
+  update: (
+    style: ElementVisualStyle | undefined,
+  ) => ElementVisualStyle,
+) => void;
+
+export type UpdateElementEffect = (
+  update: (effect: ElementEffect | undefined) => ElementEffect,
+) => void;
+
+export type UpdateSurfaceStyle = (
+  update: (style: SurfaceVisualStyle | undefined) => SurfaceVisualStyle,
+) => void;
+
+export type UpdateElementLayout = (
+  update: (layout: ResizablePositionedLayout | undefined) => ResizablePositionedLayout | undefined,
 ) => void;
 
 export interface FontResourceControls {

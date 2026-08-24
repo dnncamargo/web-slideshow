@@ -26,7 +26,6 @@ const makeContainer = (
 ) => ({
   id,
   type: "container",
-  direction: "column",
   children,
   ...properties,
 });
@@ -196,7 +195,7 @@ export const validStructureFixtures = [
           ],
           {
             role: "main",
-            direction: "row",
+            layout: { children: { direction: "row" } },
           },
         ),
       ]),
@@ -227,7 +226,7 @@ export const validStructureFixtures = [
           ],
           {
             role: "main",
-            direction: "row",
+            layout: { children: { direction: "row" } },
           },
         ),
       ]),
@@ -349,8 +348,8 @@ export const validStyleFixtures = [
     input: makePresentation([
       makeSlide([
         {
-          ...textElement,
-          style: {
+          ...textboxElement,
+          layout: {
             width: 640,
             height: 360,
           },
@@ -363,8 +362,8 @@ export const validStyleFixtures = [
     input: makePresentation([
       makeSlide([
         {
-          ...textElement,
-          style: {
+          ...textboxElement,
+          layout: {
             width: "50%",
             height: "calc(100vh - 2rem)",
           },
@@ -378,7 +377,7 @@ export const validStyleFixtures = [
       makeSlide([
         {
           ...textboxElement,
-          style: {
+          layout: {
             position: "absolute",
             top: "2rem",
             right: 24,
@@ -398,16 +397,9 @@ export const validStyleFixtures = [
           [
             {
               ...textElement,
-              style: {
-                horizontalAlign: "end",
-                verticalAlign: "stretch",
-              },
             },
           ],
-          {
-            horizontalAlign: "center",
-            verticalAlign: "start",
-          },
+          { layout: { children: { horizontalAlign: "center", verticalAlign: "start" } } },
         ),
       ]),
     ]),
@@ -419,9 +411,7 @@ export const validStyleFixtures = [
         ...makeSlide([
           {
             ...textElement,
-            style: {
-              background: "rgba(10, 20, 30, 1)",
-            },
+            style: { background: { color: "rgba(10, 20, 30, 1)" } },
           },
         ]),
         background: {
@@ -437,7 +427,7 @@ export const validStyleFixtures = [
       makeSlide([
         {
           ...textElement,
-          style: {
+          typography: {
             textTransform: "uppercase",
             whiteSpace: "pre-line",
             textWrapStyle: "balance",
@@ -493,7 +483,6 @@ export const expectedDefaultsOutput = {
           id: "defaults-container",
           type: "container",
           hidden: false,
-          direction: "column",
           children: [
             {
               id: "defaults-text",

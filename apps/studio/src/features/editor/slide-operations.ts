@@ -1,8 +1,10 @@
 import type {
   BlockItem,
+  ContainerElement,
   PowerShowElement,
   Slide,
   StructuredTableElement,
+  TextElement,
   TopicItem,
 } from "@powershow/document-schema";
 
@@ -690,871 +692,165 @@ export function createSlideFromPreset(
   }
 
 
-  // ----------------------------------------------------------
-  // Base comum para todos os presets.
-  // ----------------------------------------------------------
-
-  function buildSlide(
-    elements: PowerShowElement[],
-  ): Slide {
+  function buildSlide(elements: PowerShowElement[]): Slide {
     return {
-      id:
-        slideId,
-
-      title:
-        "Untitled slide",
-
-      summary:
-        "",
-
-      speakerNotes:
-        "",
-
-      background: {
-        color:
-          "#0b1020",
-      },
-
+      id: slideId,
+      title: "Untitled slide",
+      summary: "",
+      speakerNotes: "",
+      background: { color: "#0b1020" },
       elements,
     };
   }
 
+  function container(
+    name: string,
+    layout: NonNullable<ContainerElement["layout"]>,
+    children: PowerShowElement[] = [],
+    style?: ContainerElement["style"],
+  ): ContainerElement {
+    return {
+      id: elementId(name),
+      type: "container",
+      hidden: false,
+      layout,
+      ...(style === undefined ? {} : { style }),
+      children,
+    };
+  }
+
+  const text = (name: string, content: string): TextElement => ({
+    id: elementId(name),
+    type: "text",
+    hidden: false,
+    variant: "title",
+    content,
+  });
 
   switch (preset) {
-    // ========================================================
-    // BEGIN: BLANK
-    // ========================================================
-
     case "blank":
-      return buildSlide(
-        [],
-      );
-
-    // ========================================================
-    // END: BLANK
-    // ========================================================
-
-
-    // ========================================================
-    // BEGIN: FULL
-    // ========================================================
+      return buildSlide([]);
 
     case "full":
       return buildSlide([
-        {
-          id:
-            elementId(
-              "root",
-            ),
-
-          type:
-            "container",
-
-          hidden:
-            false,
-
-          direction:
-            "column",
-
-          gap:
-            24,
-
-          horizontalAlign:
-            "stretch",
-
-          verticalAlign:
-            "stretch",
-
-          style: {
-            width:
-              "100%",
-
-            height:
-              "100%",
-
-            padding:
-              56,
+        container("root", {
+          width: "100%",
+          height: "100%",
+          padding: 56,
+          children: { direction: "column", gap: 24, horizontalAlign: "stretch", verticalAlign: "stretch" },
+        }, [
+          text("title", "Slide title"),
+          {
+            id: elementId("content"),
+            type: "textbox",
+            hidden: false,
+            content: "Add your content here.",
+            layout: { width: "100%", height: "100%" },
           },
-
-          children: [
-            {
-              id:
-                elementId(
-                  "title",
-                ),
-
-              type:
-                "text",
-
-              hidden:
-                false,
-
-              variant:
-                "title",
-
-              content:
-                "Slide title",
-
-              style: {
-                width:
-                  "100%",
-              },
-            },
-
-            {
-              id:
-                elementId(
-                  "content",
-                ),
-
-              type:
-                "textbox",
-
-              hidden:
-                false,
-
-              content:
-                "Add your content here.",
-
-              style: {
-                width:
-                  "100%",
-
-                height:
-                  "100%",
-              },
-            },
-          ],
-        },
+        ]),
       ]);
-
-    // ========================================================
-    // END: FULL
-    // ========================================================
-
-
-    // ========================================================
-    // BEGIN: CENTERED
-    // ========================================================
 
     case "centered":
       return buildSlide([
-        {
-          id:
-            elementId(
-              "root",
-            ),
-
-          type:
-            "container",
-
-          hidden:
-            false,
-
-          direction:
-            "column",
-
-          gap:
-            20,
-
-          horizontalAlign:
-            "center",
-
-          verticalAlign:
-            "center",
-
-          style: {
-            width:
-              "100%",
-
-            height:
-              "100%",
-
-            padding:
-              64,
+        container("root", {
+          width: "100%",
+          height: "100%",
+          padding: 64,
+          children: { direction: "column", gap: 20, horizontalAlign: "center", verticalAlign: "center" },
+        }, [
+          text("title", "Centered slide"),
+          {
+            id: elementId("content"),
+            type: "textbox",
+            hidden: false,
+            content: "Add your content here.",
+            layout: { width: "70%" },
           },
-
-          children: [
-            {
-              id:
-                elementId(
-                  "title",
-                ),
-
-              type:
-                "text",
-
-              hidden:
-                false,
-
-              variant:
-                "title",
-
-              content:
-                "Centered slide",
-            },
-
-            {
-              id:
-                elementId(
-                  "content",
-                ),
-
-              type:
-                "textbox",
-
-              hidden:
-                false,
-
-              content:
-                "Add your content here.",
-
-              style: {
-                width:
-                  "70%",
-              },
-            },
-          ],
-        },
+        ]),
       ]);
-
-    // ========================================================
-    // END: CENTERED
-    // ========================================================
-
-
-    // ========================================================
-    // BEGIN: TITLE + CONTENT
-    // ========================================================
 
     case "title-content":
       return buildSlide([
-        {
-          id:
-            elementId(
-              "root",
-            ),
-
-          type:
-            "container",
-
-          hidden:
-            false,
-
-          direction:
-            "column",
-
-          gap:
-            32,
-
-          horizontalAlign:
-            "center",
-
-          verticalAlign:
-            "center",
-
-          style: {
-            width:
-              "100%",
-
-            height:
-              "100%",
-
-            padding:
-              56,
-          },
-
-          children: [
+        container("root", {
+          width: "100%",
+          height: "100%",
+          padding: 56,
+          children: { direction: "column", gap: 32, horizontalAlign: "center", verticalAlign: "center" },
+        }, [
+          text("title", "Slide title"),
+          container("content", {
+            width: "90%",
+            height: "68%",
+            padding: 32,
+            children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
+          }, [
             {
-              id:
-                elementId(
-                  "title",
-                ),
-
-              type:
-                "text",
-
-              hidden:
-                false,
-
-              variant:
-                "title",
-
-              content:
-                "Slide title",
-
-              style: {
-                width:
-                  "90%",
-              },
+              id: elementId("body"),
+              type: "textbox",
+              hidden: false,
+              content: "Add your content here.",
             },
-
-            {
-              id:
-                elementId(
-                  "content",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "column",
-
-              gap:
-                16,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "90%",
-
-                height:
-                  "68%",
-
-                padding:
-                  32,
-
-                background:
-                  "rgba(15, 23, 42, 0.45)",
-              },
-
-              children: [
-                {
-                  id:
-                    elementId(
-                      "body",
-                    ),
-
-                  type:
-                    "textbox",
-
-                  hidden:
-                    false,
-
-                  content:
-                    "Add your content here.",
-                },
-              ],
-            },
-          ],
-        },
+          ], { background: { color: "rgba(15, 23, 42, 0.45)" } }),
+        ]),
       ]);
 
-    // ========================================================
-    // END: TITLE + CONTENT
-    // ========================================================
-
-
-    // ========================================================
-    // BEGIN: TWO COLUMNS
-    // ========================================================
-
-    case "two-columns":
+    case "two-columns": {
+      const column = (name: string): ContainerElement => container(name, {
+        width: "47%",
+        height: "82%",
+        padding: 24,
+        children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
+      }, [], { background: { color: "rgba(15, 23, 42, 0.45)" } });
       return buildSlide([
-        {
-          id:
-            elementId(
-              "root",
-            ),
-
-          type:
-            "container",
-
-          hidden:
-            false,
-
-          direction:
-            "row",
-
-          gap:
-            32,
-
-          horizontalAlign:
-            "center",
-
-          verticalAlign:
-            "center",
-
-          style: {
-            width:
-              "100%",
-
-            height:
-              "100%",
-
-            padding:
-              48,
-          },
-
-          children: [
-            {
-              id:
-                elementId(
-                  "left",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "column",
-
-              gap:
-                16,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "47%",
-
-                height:
-                  "82%",
-
-                padding:
-                  24,
-
-                background:
-                  "rgba(15, 23, 42, 0.45)",
-              },
-
-              children:
-                [],
-            },
-
-            {
-              id:
-                elementId(
-                  "right",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "column",
-
-              gap:
-                16,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "47%",
-
-                height:
-                  "82%",
-
-                padding:
-                  24,
-
-                background:
-                  "rgba(15, 23, 42, 0.45)",
-              },
-
-              children:
-                [],
-            },
-          ],
-        },
+        container("root", {
+          width: "100%",
+          height: "100%",
+          padding: 48,
+          children: { direction: "row", gap: 32, horizontalAlign: "center", verticalAlign: "center" },
+        }, [column("left"), column("right")]),
       ]);
+    }
 
-    // ========================================================
-    // END: TWO COLUMNS
-    // ========================================================
-
-
-    // ========================================================
-    // BEGIN: THREE COLUMNS
-    // ========================================================
-
-    case "three-columns":
+    case "three-columns": {
+      const column = (name: string): ContainerElement => container(name, {
+        width: "30%",
+        height: "82%",
+        padding: 20,
+        children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
+      }, [], { background: { color: "rgba(15, 23, 42, 0.45)" } });
       return buildSlide([
-        {
-          id:
-            elementId(
-              "root",
-            ),
-
-          type:
-            "container",
-
-          hidden:
-            false,
-
-          direction:
-            "row",
-
-          gap:
-            24,
-
-          horizontalAlign:
-            "center",
-
-          verticalAlign:
-            "center",
-
-          style: {
-            width:
-              "100%",
-
-            height:
-              "100%",
-
-            padding:
-              48,
-          },
-
-          children: [
-            {
-              id:
-                elementId(
-                  "column-1",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "column",
-
-              gap:
-                16,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "30%",
-
-                height:
-                  "82%",
-
-                padding:
-                  20,
-
-                background:
-                  "rgba(15, 23, 42, 0.45)",
-              },
-
-              children:
-                [],
-            },
-
-            {
-              id:
-                elementId(
-                  "column-2",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "column",
-
-              gap:
-                16,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "30%",
-
-                height:
-                  "82%",
-
-                padding:
-                  20,
-
-                background:
-                  "rgba(15, 23, 42, 0.45)",
-              },
-
-              children:
-                [],
-            },
-
-            {
-              id:
-                elementId(
-                  "column-3",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "column",
-
-              gap:
-                16,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "30%",
-
-                height:
-                  "82%",
-
-                padding:
-                  20,
-
-                background:
-                  "rgba(15, 23, 42, 0.45)",
-              },
-
-              children:
-                [],
-            },
-          ],
-        },
+        container("root", {
+          width: "100%",
+          height: "100%",
+          padding: 48,
+          children: { direction: "row", gap: 24, horizontalAlign: "center", verticalAlign: "center" },
+        }, [column("column-1"), column("column-2"), column("column-3")]),
       ]);
+    }
 
-    // ========================================================
-    // END: THREE COLUMNS
-    // ========================================================
-
-
-    // ========================================================
-    // BEGIN: TITLE + TWO COLUMNS
-    // ========================================================
-
-    case "title-two-columns":
+    case "title-two-columns": {
+      const column = (name: string): ContainerElement => container(name, {
+        width: "48%",
+        height: "100%",
+        padding: 24,
+        children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
+      }, [], { background: { color: "rgba(15, 23, 42, 0.45)" } });
       return buildSlide([
-        {
-          id:
-            elementId(
-              "root",
-            ),
-
-          type:
-            "container",
-
-          hidden:
-            false,
-
-          direction:
-            "column",
-
-          gap:
-            28,
-
-          horizontalAlign:
-            "center",
-
-          verticalAlign:
-            "center",
-
-          style: {
-            width:
-              "100%",
-
-            height:
-              "100%",
-
-            padding:
-              48,
-          },
-
-          children: [
-            {
-              id:
-                elementId(
-                  "title",
-                ),
-
-              type:
-                "text",
-
-              hidden:
-                false,
-
-              variant:
-                "title",
-
-              content:
-                "Slide title",
-
-              style: {
-                width:
-                  "94%",
-              },
-            },
-
-            {
-              id:
-                elementId(
-                  "columns",
-                ),
-
-              type:
-                "container",
-
-              hidden:
-                false,
-
-              direction:
-                "row",
-
-              gap:
-                28,
-
-              horizontalAlign:
-                "center",
-
-              verticalAlign:
-                "center",
-
-              style: {
-                width:
-                  "94%",
-
-                height:
-                  "70%",
-              },
-
-              children: [
-                {
-                  id:
-                    elementId(
-                      "left",
-                    ),
-
-                  type:
-                    "container",
-
-                  hidden:
-                    false,
-
-                  direction:
-                    "column",
-
-                  gap:
-                    16,
-
-                  horizontalAlign:
-                    "center",
-
-                  verticalAlign:
-                    "center",
-
-                  style: {
-                    width:
-                      "48%",
-
-                    height:
-                      "100%",
-
-                    padding:
-                      24,
-
-                    background:
-                      "rgba(15, 23, 42, 0.45)",
-                  },
-
-                  children:
-                    [],
-                },
-
-                {
-                  id:
-                    elementId(
-                      "right",
-                    ),
-
-                  type:
-                    "container",
-
-                  hidden:
-                    false,
-
-                  direction:
-                    "column",
-
-                  gap:
-                    16,
-
-                  horizontalAlign:
-                    "center",
-
-                  verticalAlign:
-                    "center",
-
-                  style: {
-                    width:
-                      "48%",
-
-                    height:
-                      "100%",
-
-                    padding:
-                      24,
-
-                    background:
-                      "rgba(15, 23, 42, 0.45)",
-                  },
-
-                  children:
-                    [],
-                },
-              ],
-            },
-          ],
-        },
+        container("root", {
+          width: "100%",
+          height: "100%",
+          padding: 48,
+          children: { direction: "column", gap: 28, horizontalAlign: "center", verticalAlign: "center" },
+        }, [
+          text("title", "Slide title"),
+          container("columns", {
+            width: "94%",
+            height: "70%",
+            children: { direction: "row", gap: 28, horizontalAlign: "center", verticalAlign: "center" },
+          }, [column("left"), column("right")]),
+        ]),
       ]);
-
-    // ========================================================
-    // END: TITLE + TWO COLUMNS
-    // ========================================================
+    }
   }
 }
 

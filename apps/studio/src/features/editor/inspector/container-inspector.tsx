@@ -7,22 +7,30 @@ import styles from "../editor-workspace.module.css";
 
 import { ContainerLayoutSection } from "./sections/container-layout-section";
 
+import { ContainerAppearanceSection } from "./sections/container-appearance-section";
+
+import { ContainerEffectsSection } from "./sections/container-effects-section";
+
 import { ContainerSizeSection } from "./sections/container-size-section";
 
 import { ContainerSpacingSection } from "./sections/container-spacing-section";
 
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
+import { ContainerPositionSection } from "./sections/container-position-section";
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
-
-import type { UpdateElementStyle } from "./inspector-types";
 
 interface ContainerInspectorProps {
   element: ContainerElement;
 
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+
+  parent?: ContainerElement | null;
+
+  layerControls?: {
+    index: number;
+    count: number;
+    onMoveTo: (index: number) => void;
+  } | null;
 }
 
 // ============================================================
@@ -32,6 +40,8 @@ interface ContainerInspectorProps {
 export function ContainerInspector({
   element,
   onUpdate,
+  parent = null,
+  layerControls = null,
 }: ContainerInspectorProps) {
   function updateContainer(
     update: (container: ContainerElement) => ContainerElement,
@@ -45,35 +55,26 @@ export function ContainerInspector({
     });
   }
 
-  const updateStyle: UpdateElementStyle = (update) => {
-    updateContainer((container) => ({
-      ...container,
-
-      style: update(container.style),
-    }));
-  };
-
   return (
     <>
       <div className={styles.inspectorDivider} />
 
       <ContainerLayoutSection element={element} onUpdate={updateContainer} />
 
+      <ContainerPositionSection
+        element={element}
+        onUpdate={updateContainer}
+        parent={parent}
+        layerControls={layerControls}
+      />
+
       <ContainerSizeSection element={element} onUpdate={updateContainer} />
 
       <ContainerSpacingSection element={element} onUpdate={updateContainer} />
 
-      <ElementAppearanceSection
-        element={element}
-        onUpdateStyle={updateStyle}
-        controlPrefix="container"
-        showBackground
-        showBackgroundGradient
-        showBackgroundPattern
-        showRoundedCorners
-        showOpacity
-        showBorder
-      />
+      <ContainerAppearanceSection element={element} onUpdate={updateContainer} />
+
+      <ContainerEffectsSection element={element} onUpdate={updateContainer} />
 
       <ElementInteractionSection
         element={element}
@@ -81,11 +82,6 @@ export function ContainerInspector({
         controlPrefix="container"
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
-        controlPrefix="container"
-      />
     </>
   );
 }

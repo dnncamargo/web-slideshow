@@ -6,7 +6,8 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
-import { renderStyle } from "./render-style";
+import { renderCanonicalDataStyle } from "./render-canonical-data";
+import { renderContentSlotStyle } from "./render-content-slot";
 
 type RenderChild = (element: PowerShowElement) => string;
 
@@ -45,8 +46,7 @@ export function renderTable(
     classes.push(customClass);
   }
 
-  const baseStyle =
-    renderStyle(element.style);
+  const baseStyle = renderCanonicalDataStyle(element);
 
   const styleAttribute = baseStyle
     ? ` style="${escapeHtml(baseStyle)}"`
@@ -104,7 +104,7 @@ export function renderTable(
     columnId?: string,
   ): string => {
     const classes = slot.style?.className?.trim();
-    const style = renderStyle(slot.style);
+    const style = renderContentSlotStyle(slot);
     const attributes = [
       tag === "th" ? `scope="col"` : "",
       `data-powershow-content-slot-id="${escapeHtml(slot.id)}"`,

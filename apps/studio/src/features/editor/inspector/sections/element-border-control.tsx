@@ -10,8 +10,6 @@ import {
   readAbsoluteNumber,
 } from "../inspector-helpers";
 
-import type { UpdateElementStyle } from "../inspector-types";
-
 import { ColorControl } from "./color-control";
 
 import {
@@ -22,9 +20,11 @@ import {
 interface ElementBorderControlProps {
   border: Border | undefined;
 
-  onUpdateStyle: UpdateElementStyle;
+  onChange: (border: Border | undefined) => void;
 
   controlPrefix: string;
+
+  allowGradient?: boolean;
 }
 
 type EnabledBorderStyle = NonNullable<Border["style"]>;
@@ -69,14 +69,19 @@ function isEnabledBorderStyle(value: string): value is EnabledBorderStyle {
 
 export function ElementBorderControl({
   border,
-  onUpdateStyle,
+  onChange,
   controlPrefix,
+  allowGradient = true,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
 
-  const paintSelection = getPaintSelection(border);
+  const paintSelection = allowGradient
+    ? getPaintSelection(border)
+    : border === undefined
+      ? "none"
+      : "color";
 
-  const gradientPaint = paintSelection === "gradient";
+  const gradientPaint = allowGradient && paintSelection === "gradient";
 
   return (
     <>
@@ -93,11 +98,7 @@ export function ElementBorderControl({
             const borderSelection = event.target.value;
 
             if (borderSelection === "none") {
-              onUpdateStyle((currentStyle) => ({
-                ...currentStyle,
-
-                border: undefined,
-              }));
+              onChange(undefined);
 
               return;
             }
@@ -106,42 +107,21 @@ export function ElementBorderControl({
               return;
             }
 
-            onUpdateStyle((currentStyle) => {
-              if (gradientPaint) {
-                if (currentStyle?.border === undefined) {
-                  return { ...currentStyle };
-                }
+            if (gradientPaint) {
+              if (border === undefined) return;
+              onChange({ ...border, style: "solid" });
+              return;
+            }
 
-                return {
-                  ...currentStyle,
-
-                  border: {
-                    ...currentStyle.border,
-
-                    style: "solid",
-                  },
-                };
-              }
-
-              return {
-                ...currentStyle,
-
-                border:
-                  currentStyle?.border === undefined
-                    ? {
-                        width: DEFAULT_BORDER_WIDTH,
-
-                        style: borderSelection,
-
-                        color: DEFAULT_BORDER_COLOR,
-                      }
-                    : {
-                        ...currentStyle.border,
-
-                        style: borderSelection,
-                      },
-              };
-            });
+            onChange(
+              border === undefined
+                ? {
+                    width: DEFAULT_BORDER_WIDTH,
+                    style: borderSelection,
+                    color: DEFAULT_BORDER_COLOR,
+                  }
+                : { ...border, style: borderSelection },
+            );
           }}
         >
           <option value="none">{t("inspector.border.none")}</option>
@@ -158,7 +138,7 @@ export function ElementBorderControl({
         </select>
       </label>
 
-      {border !== undefined && (
+      {allowGradient && border !== undefined && (
         <label className={styles.field}>
           <span title={t("inspector.borderPaintHelp")}>
             {t("inspector.borderPaint")}
@@ -175,39 +155,22 @@ export function ElementBorderControl({
                 return;
               }
 
-              onUpdateStyle((currentStyle) => {
-                if (currentStyle?.border === undefined) {
-                  return { ...currentStyle };
-                }
+              if (border === undefined) return;
 
-                if (paint === "gradient") {
-                  return {
-                    ...currentStyle,
-
-                    border: {
-                      ...currentStyle.border,
-
+              onChange(
+                paint === "gradient"
+                  ? {
+                      ...border,
                       style: "solid",
-
                       color: undefined,
-
                       gradient: createDefaultGradient("linear"),
+                    }
+                  : {
+                      ...border,
+                      color: DEFAULT_BORDER_COLOR,
+                      gradient: undefined,
                     },
-                  };
-                }
-
-                return {
-                  ...currentStyle,
-
-                  border: {
-                    ...currentStyle.border,
-
-                    color: DEFAULT_BORDER_COLOR,
-
-                    gradient: undefined,
-                  },
-                };
-              });
+              );
             }}
           >
             <option value="color">{t("inspector.borderPaint.color")}</option>
@@ -236,24 +199,15 @@ export function ElementBorderControl({
                     parseOptionalNumber(event.target.value) ??
                     DEFAULT_BORDER_WIDTH;
 
-                  onUpdateStyle((currentStyle) => ({
-                    ...currentStyle,
-
-                    border:
-                      currentStyle?.border === undefined
-                        ? {
-                            width,
-
-                            style: "solid",
-
-                            color: DEFAULT_BORDER_COLOR,
-                          }
-                        : {
-                            ...currentStyle.border,
-
-                            width,
-                          },
-                  }));
+                  onChange(
+                    border === undefined
+                      ? {
+                          width,
+                          style: "solid",
+                          color: DEFAULT_BORDER_COLOR,
+                        }
+                      : { ...border, width },
+                  );
                 }}
               />
 
@@ -269,28 +223,17 @@ export function ElementBorderControl({
                 id={`${controlPrefix}-border-color`}
                 name={getControlName(controlPrefix, "BorderColor")}
                 value={border.color}
-                onChange={(color) => {
-                  onUpdateStyle((currentStyle) => ({
-                    ...currentStyle,
-
-                    border:
-                      currentStyle?.border === undefined
-                        ? {
-                            width: DEFAULT_BORDER_WIDTH,
-
-                            style: "solid",
-
-                            color,
-                          }
-                        : {
-                            ...currentStyle.border,
-
-                            color,
-
-                            gradient: undefined,
-                          },
-                  }));
-                }}
+                onChange={(color) =>
+                  onChange(
+                    border === undefined
+                      ? {
+                          width: DEFAULT_BORDER_WIDTH,
+                          style: "solid",
+                          color,
+                        }
+                      : { ...border, color, gradient: undefined },
+                  )
+                }
               />
             </label>
           )}
@@ -307,24 +250,13 @@ export function ElementBorderControl({
               return;
             }
 
-            onUpdateStyle((currentStyle) => {
-              if (currentStyle?.border === undefined) {
-                return { ...currentStyle };
-              }
+            if (border === undefined) return;
 
-              return {
-                ...currentStyle,
-
-                border: {
-                  ...currentStyle.border,
-
-                  style: "solid",
-
-                  color: undefined,
-
-                  gradient,
-                },
-              };
+            onChange({
+              ...border,
+              style: "solid",
+              color: undefined,
+              gradient,
             });
           }}
         />

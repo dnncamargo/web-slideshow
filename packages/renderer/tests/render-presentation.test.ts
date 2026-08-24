@@ -168,11 +168,13 @@ describe("renderPresentation", () => {
       id: "textbox-1",
       hidden: false,
       content: "Also Inter",
-      style: { fontFamily: "Inter" },
+      typography: { fontFamily: "Inter" },
     });
     const firstElement = presentation.slides[0]?.elements[0];
     if (firstElement) {
-      firstElement.style = { fontFamily: "Inter" };
+      if (firstElement.type === "text" || firstElement.type === "textbox") {
+        firstElement.typography = { fontFamily: "Inter" };
+      }
     }
 
     const html = renderPresentation(presentation);

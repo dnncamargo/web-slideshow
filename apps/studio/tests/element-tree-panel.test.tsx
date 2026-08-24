@@ -58,7 +58,6 @@ function topicContainer(
     type: "container",
     id,
     hidden: false,
-    direction: "column",
     children,
   };
 }

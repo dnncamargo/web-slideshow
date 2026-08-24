@@ -1,4 +1,8 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type {
+  ElementEffect,
+  ImageVisualStyle,
+  PowerShowElement,
+} from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,16 +12,11 @@ import { InspectorSection } from "./inspector-section";
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 
-import type {
-  TypedInspectorProps,
-  UpdateElementStyle,
-} from "./inspector-types";
-
-import { ElementAppearanceSection } from "./sections/element-appearance-section";
-
-import { ElementEffectsSection } from "./sections/element-effects-section";
+import type { TypedInspectorProps } from "./inspector-types";
 
 import { ImageSizeSection } from "./sections/image-size-section";
+import { CanonicalImageAppearanceSection } from "./sections/canonical-image-appearance-section";
+import { CanonicalImageEffectsSection } from "./sections/canonical-image-effects-section";
 import {
   getEffectiveImageFocalPoint,
   getImageFocalPointPresetIndex,
@@ -25,6 +24,11 @@ import {
   isImageFocalPointResetAvailable,
   updateImageFocalPoint,
 } from "./sections/image-focal-point-helpers";
+import {
+  getEffectiveImageCrop,
+  isImageCropResetAvailable,
+  updateImageCropField,
+} from "./sections/image-crop-helpers";
 
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
@@ -51,28 +55,39 @@ export function ImageInspector({
   onPreserveImageProportionChange,
   focalEditing,
   onFocalEditingChange,
+  cropEditing = false,
+  onCropEditingChange = () => {},
 }: TypedInspectorProps<ImageElement> & {
   preserveImageProportion: boolean;
   onPreserveImageProportionChange: (value: boolean) => void;
   focalEditing: boolean;
   onFocalEditingChange: (editing: boolean) => void;
+  cropEditing?: boolean;
+  onCropEditingChange?: (editing: boolean) => void;
 }) {
   const { t } = useStudioI18n();
 
-  const updateStyle: UpdateElementStyle = (update) => {
+  const updateStyle = (
+    update: (style: ImageVisualStyle | undefined) => ImageVisualStyle,
+  ) => {
     onUpdate((current) => {
       if (current.type !== "image") {
         return current;
       }
+      return { ...current, style: update(current.style) };
+    });
+  };
 
-      return {
-        ...current,
-
-        style: update(current.style),
-      };
+  const updateEffect = (
+    update: (effect: ElementEffect | undefined) => ElementEffect,
+  ) => {
+    onUpdate((current) => {
+      if (current.type !== "image") return current;
+      return { ...current, effect: update(current.effect) };
     });
   };
   const focalPoint = getEffectiveImageFocalPoint(element.focalPoint);
+  const crop = getEffectiveImageCrop(element.crop);
   const activeFocalPreset = getImageFocalPointPresetIndex(focalPoint);
 
   return (
@@ -171,6 +186,87 @@ export function ImageInspector({
         </label>
 
         <div className={styles.field}>
+          <span title={t("image.cropHelp")}>{t("image.crop")}</span>
+
+          <div className={styles.fieldGrid}>
+            {(["x", "y", "width", "height"] as const).map((field) => (
+              <label className={styles.field} key={field}>
+                <span>
+                  {field === "x"
+                    ? "X"
+                    : field === "y"
+                      ? "Y"
+                      : t(`inspector.${field}`)}
+                </span>
+                <div className={styles.unitInput}>
+                  <input
+                    id={`image-crop-${field}`}
+                    name={`imageCrop${field[0]!.toUpperCase()}${field.slice(1)}`}
+                    type="number"
+                    min={field === "x" || field === "y" ? "0" : "1"}
+                    max={
+                      field === "x" || field === "y"
+                        ? "99"
+                        : String(100 - crop[field === "width" ? "x" : "y"])
+                    }
+                    step="1"
+                    value={crop[field]}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+
+                      if (!Number.isFinite(value)) {
+                        return;
+                      }
+
+                      onUpdate((current) =>
+                        current.type === "image"
+                          ? {
+                              ...current,
+                              crop: updateImageCropField(
+                                current.crop,
+                                field,
+                                value,
+                              ),
+                            }
+                          : current,
+                      );
+                    }}
+                  />
+                  <span>%</span>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <small className={styles.fieldHint}>
+            <span>{t("image.cropHelp")}</span>
+          </small>
+
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            disabled={!isImageCropResetAvailable(element.crop)}
+            onClick={() => {
+              onUpdate((current) =>
+                current.type === "image"
+                  ? { ...current, crop: undefined }
+                  : current,
+              );
+            }}
+          >
+            {t("image.resetCrop")}
+          </button>
+
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => onCropEditingChange(!cropEditing)}
+          >
+            {t(cropEditing ? "image.doneCrop" : "image.editCropOnCanvas")}
+          </button>
+        </div>
+
+        <div className={styles.field}>
           <span title={t("image.focalPointHelp")}>{t("image.focalPoint")}</span>
 
           <div className={styles.imageFocalPresetGrid}>
@@ -253,12 +349,11 @@ export function ImageInspector({
           <button
             className={styles.secondaryButton}
             type="button"
-            onClick={() => {
-              onFocalEditingChange(!focalEditing);
-            }}
+            onClick={() => onFocalEditingChange(!focalEditing)}
           >
             {t(focalEditing ? "image.doneFocalPoint" : "image.editFocalPointOnCanvas")}
           </button>
+
         </div>
        </InspectorSection>
 
@@ -270,24 +365,27 @@ export function ImageInspector({
 
        <ImageSizeSection
          element={element}
-         onUpdateStyle={updateStyle}
+         onUpdateLayout={(update) => {
+           onUpdate((current) =>
+             current.type === "image"
+               ? { ...current, layout: update(current.layout) }
+               : current,
+           );
+         }}
          preserveImageProportion={preserveImageProportion}
          onPreserveImageProportionChange={onPreserveImageProportionChange}
        />
 
-       <ElementAppearanceSection
-        element={element}
+      <CanonicalImageAppearanceSection
+        style={element.style}
+        effect={element.effect}
         onUpdateStyle={updateStyle}
-        controlPrefix="image"
-        showRoundedCorners
-        showOpacity
-        showBorder
+        onUpdateEffect={updateEffect}
       />
 
-      <ElementEffectsSection
-        style={element.style}
-        onUpdateStyle={updateStyle}
-        controlPrefix="image"
+      <CanonicalImageEffectsSection
+        effect={element.effect}
+        onUpdateEffect={updateEffect}
       />
     </>
   );

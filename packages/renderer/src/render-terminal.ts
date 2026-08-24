@@ -6,9 +6,7 @@ import {
   escapeHtml,
 } from "./escape-html";
 
-import {
-  renderStyle,
-} from "./render-style";
+import { renderCanonicalDataStyle } from "./render-canonical-data";
 
 export function renderTerminal(
   element: TerminalElement,
@@ -29,8 +27,7 @@ export function renderTerminal(
     classes.push(customClass);
   }
 
-  const baseStyle =
-    renderStyle(element.style);
+  const baseStyle = renderCanonicalDataStyle(element);
 
   const styleAttribute = baseStyle
     ? ` style="${escapeHtml(baseStyle)}"`

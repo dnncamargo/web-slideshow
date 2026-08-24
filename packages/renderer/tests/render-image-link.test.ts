@@ -216,7 +216,7 @@ describe("renderElement linked Image support", () => {
   it("fills the root width when the canonical style defines width only", () => {
     const html = renderElement(
       imageElement({
-        style: {
+        layout: {
           width: "60%",
         },
         link: HTTPS_LINK,
@@ -234,7 +234,7 @@ describe("renderElement linked Image support", () => {
   it("fills the media height when the canonical style defines height only", () => {
     const html = renderElement(
       imageElement({
-        style: {
+        layout: {
           height: 320,
         },
         link: HTTPS_LINK,
@@ -252,7 +252,7 @@ describe("renderElement linked Image support", () => {
   it("fills both media dimensions when width and height are defined", () => {
     const html = renderElement(
       imageElement({
-        style: {
+        layout: {
           width: "60%",
           height: 240,
         },
@@ -269,7 +269,7 @@ describe("renderElement linked Image support", () => {
   it("makes the linked Image root a dimension-capable inline surface", () => {
     const html = renderElement(
       imageElement({
-        style: {
+        layout: {
           width: "60%",
           height: 240,
         },
@@ -300,7 +300,7 @@ describe("renderElement linked Image support", () => {
   it("keeps placement properties on the PowerShow root, not the media", () => {
     const html = renderElement(
       imageElement({
-        style: {
+        layout: {
           width: 300,
           position: "absolute",
           top: 12,
@@ -325,17 +325,20 @@ describe("renderElement linked Image support", () => {
   it("keeps border, radius, shadow and opacity on the root and duplicates radius on the media", () => {
     const html = renderElement(
       imageElement({
-        style: {
+        layout: {
           width: 300,
           height: 200,
+        },
+        style: {
           borderRadius: 16,
-          opacity: 0.8,
-          background: "#101218",
           border: {
             width: 2,
             style: "solid",
             color: "#ffffff",
           },
+        },
+        effect: {
+          opacity: 0.8,
           shadow: {
             x: 0,
             y: 4,
@@ -352,7 +355,6 @@ describe("renderElement linked Image support", () => {
 
     expect(anchor).toContain("border-radius:16px");
     expect(anchor).toContain("opacity:0.8");
-    expect(anchor).toContain("background:#101218");
     expect(anchor).toContain("border-width:2px");
     expect(anchor).toContain("border-color:#ffffff");
     expect(anchor).toContain("box-shadow:0px 4px 12px 0px rgba(0,0,0,0.5)");

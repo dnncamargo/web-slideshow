@@ -29,8 +29,8 @@ import type {
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
-import { ElementPlacementSection } from "./inspector/sections/element-placement-section";
-import { shouldShowElementPlacement } from "./inspector/sections/element-placement-helpers";
+import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
+import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 
 interface ElementInspectorProps {
   element: PowerShowElement;
@@ -46,6 +46,10 @@ interface ElementInspectorProps {
   focalEditingImageId: string | null;
 
   onFocalEditingImageIdChange: (id: string | null) => void;
+
+  cropEditingImageId?: string | null;
+
+  onCropEditingImageIdChange?: (id: string | null) => void;
 
   parent: ContainerElement | null;
 
@@ -78,14 +82,25 @@ function ElementTypeInspector({
   onPreserveImageProportionChange,
   focalEditingImageId,
   onFocalEditingImageIdChange,
+  cropEditingImageId,
+  onCropEditingImageIdChange,
   unsupportedElementHint,
+  parent,
+  layerControls,
   topicsAuthoringControls,
   blocksAuthoringControls: _blocksAuthoringControls,
   tableAuthoringControls,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
-      return <ContainerInspector element={element} onUpdate={onUpdate} />;
+      return (
+        <ContainerInspector
+          element={element}
+          onUpdate={onUpdate}
+          parent={parent}
+          layerControls={layerControls}
+        />
+      );
 
     case "text":
       return (
@@ -122,7 +137,13 @@ function ElementTypeInspector({
           onPreserveImageProportionChange={onPreserveImageProportionChange}
           focalEditing={focalEditingImageId === element.id}
           onFocalEditingChange={(editing) => {
+            if (editing) onCropEditingImageIdChange?.(null);
             onFocalEditingImageIdChange(editing ? element.id : null);
+          }}
+          cropEditing={cropEditingImageId === element.id}
+          onCropEditingChange={(editing) => {
+            if (editing) onFocalEditingImageIdChange(null);
+            onCropEditingImageIdChange?.(editing ? element.id : null);
           }}
         />
       );
@@ -201,6 +222,8 @@ export function ElementInspector({
   onPreserveImageProportionChange,
   focalEditingImageId,
   onFocalEditingImageIdChange,
+  cropEditingImageId = null,
+  onCropEditingImageIdChange = () => {},
   parent,
   layerControls,
   topicsAuthoringControls,
@@ -241,6 +264,8 @@ export function ElementInspector({
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditingImageId={focalEditingImageId}
         onFocalEditingImageIdChange={onFocalEditingImageIdChange}
+        cropEditingImageId={cropEditingImageId}
+        onCropEditingImageIdChange={onCropEditingImageIdChange}
         parent={parent}
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
@@ -249,18 +274,41 @@ export function ElementInspector({
         tableAuthoringControls={tableAuthoringControls}
       />
 
-      {shouldShowElementPlacement(layerControls) && (
-        <ElementPlacementSection
-          element={element}
-          parent={parent}
-          onUpdateStyle={(update) => {
-            onUpdate((current) => ({
-              ...current,
-              style: update(current.style),
-            }));
-          }}
-          layerControls={layerControls}
-        />
+      {element.type !== "container" && shouldShowElementPositioning(layerControls) && (
+        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
+          <CanonicalElementPositionSection
+            element={element}
+            parent={parent}
+            onUpdateLayout={(update) => {
+              onUpdate((current) => {
+                if (current.type === "textbox") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                if (current.type === "text") {
+                  const next = update(current.layout);
+                  const textLayout = next && "width" in next
+                    ? Object.fromEntries(Object.entries(next).filter(([key]) => key !== "width" && key !== "height"))
+                    : next;
+                  return { ...current, layout: textLayout };
+                }
+                if (current.type === "image") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                if (current.type === "gallery" || current.type === "embed" || current.type === "scripted") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                if (current.type === "divider" || current.type === "topics" || current.type === "chart" || current.type === "interactive") {
+                  return { ...current, layout: update(current.layout) };
+                }
+                return current;
+              });
+            }}
+            layerControls={layerControls}
+          />
+        ) : null
       )}
     </>
   );

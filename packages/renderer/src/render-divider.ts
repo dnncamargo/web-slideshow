@@ -3,7 +3,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderStyle } from "./render-style";
+import { renderLength } from "./render-length";
 
 // ============================================================
 // BEGIN: DIVIDER EFFECTIVE GEOMETRY DEFAULTS
@@ -43,12 +43,14 @@ export function renderDivider(
 
   const styles: string[] = [];
 
-  const baseStyle = renderStyle(
-    element.style,
-  );
-
-  if (baseStyle) {
-    styles.push(baseStyle);
+  const layout = element.layout;
+  if (layout) {
+    if (layout.width !== undefined) styles.push(`width:${renderLength(layout.width)}`);
+    if (layout.height !== undefined) styles.push(`height:${renderLength(layout.height)}`);
+    if (layout.position !== undefined) styles.push(`position:${layout.position}`);
+    for (const [property, value] of [["top", layout.top], ["right", layout.right], ["bottom", layout.bottom], ["left", layout.left]] as const) {
+      if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
+    }
   }
 
   const defaults =
@@ -56,21 +58,22 @@ export function renderDivider(
       element.orientation
     ];
 
-  if (element.style?.width === undefined) {
+  if (layout?.width === undefined) {
     styles.push(`width:${defaults.width}`);
   }
 
-  if (element.style?.height === undefined) {
+  if (layout?.height === undefined) {
     styles.push(`height:${defaults.height}`);
   }
 
-  const hasBackground =
-    element.style?.background !== undefined ||
-    element.style?.backgroundGradient !== undefined;
-
-  if (!hasBackground) {
+  if (element.style?.background?.color !== undefined) {
+    styles.push(`background:${element.style.background.color}`);
+  } else {
     styles.push("background:currentColor");
   }
+
+  if (element.style?.borderRadius !== undefined) styles.push(`border-radius:${renderLength(element.style.borderRadius)}`);
+  if (element.effect?.opacity !== undefined) styles.push(`opacity:${element.effect.opacity}`);
 
   const customClass =
     element.style?.className?.trim();

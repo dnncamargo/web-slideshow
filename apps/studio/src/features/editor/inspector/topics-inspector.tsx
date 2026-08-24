@@ -307,17 +307,17 @@ export function TopicsInspector({
     });
   }
 
-  function updateTopicsStyle(
-    update: (style: TopicsElement["style"]) => TopicsElement["style"],
+  function updateTopicsTypography(
+    update: (typography: TopicsElement["typography"]) => TopicsElement["typography"],
   ) {
     updateCurrentTopics((current) => {
-      const style = update(current.style);
+      const typography = update(current.typography);
 
-      return style === current.style
+      return typography === current.typography
         ? current
         : {
             ...current,
-            style,
+            typography,
           };
     });
   }
@@ -493,10 +493,10 @@ function addChildTopic(topicItemId: string) {
           {topicStyleDefaults && (
             <ElementTypographyControl
               selectedElementId={element.id}
-              style={element.style}
+              typography={element.typography}
               effectiveDefaults={topicStyleDefaults}
-              onUpdateStyle={(update) => {
-                updateTopicsStyle((currentStyle) => update(currentStyle));
+              onUpdateTypography={(update) => {
+                updateTopicsTypography((currentTypography) => update(currentTypography));
               }}
               controlPrefix="topics"
               fontResourceControls={fontResourceControls}
@@ -512,9 +512,9 @@ function addChildTopic(topicItemId: string) {
                 name="topicsTextColor"
                 value={element.style?.color}
                 onChange={(color) => {
-                  updateTopicsStyle((currentStyle) => ({
-                    ...currentStyle,
-                    color,
+                  updateCurrentTopics((current) => ({
+                    ...current,
+                    style: { ...current.style, color },
                   }));
                 }}
               />
@@ -524,9 +524,9 @@ function addChildTopic(topicItemId: string) {
               className={styles.secondaryButton}
               type="button"
               onClick={() => {
-                updateTopicsStyle((currentStyle) => ({
-                  ...currentStyle,
-                  color: undefined,
+                updateCurrentTopics((current) => ({
+                  ...current,
+                  style: { ...current.style, color: undefined },
                 }));
               }}
             >
@@ -534,36 +534,6 @@ function addChildTopic(topicItemId: string) {
             </button>
           </div>
 
-          <div className={styles.colorControl}>
-            <label className={styles.field}>
-              <span>{t("inspector.topics.decorationColor")}</span>
-
-              <ColorControl
-                id="topics-decoration-color"
-                name="topicsDecorationColor"
-                value={element.style?.textDecorationColor}
-                onChange={(textDecorationColor) => {
-                  updateTopicsStyle((currentStyle) => ({
-                    ...currentStyle,
-                    textDecorationColor,
-                  }));
-                }}
-              />
-            </label>
-
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={() => {
-                updateTopicsStyle((currentStyle) => ({
-                  ...currentStyle,
-                  textDecorationColor: undefined,
-                }));
-              }}
-            >
-              <span>{t("inspector.useThemeDefault")}</span>
-            </button>
-          </div>
         </div>
 
         <div className={styles.appearanceSubgroup}>

@@ -465,8 +465,13 @@ const englishMessages = {
   "image.focalPointHelp":
     "Controls which part of the image stays in focus when the image is fitted inside its box.",
   "image.resetFocalPoint": "Reset to center",
+  "image.crop": "Crop",
+  "image.cropHelp": "Define the visible source area as percentages.",
+  "image.resetCrop": "Reset crop",
   "image.editFocalPointOnCanvas": "Edit on Canvas",
   "image.doneFocalPoint": "Done",
+  "image.editCropOnCanvas": "Edit on Canvas",
+  "image.doneCrop": "Done",
   "image.preserveProportion": "Preserve proportion",
   "image.preserveProportionHelp":
     "Preserves the image proportion when resizing it directly on the Canvas.",
@@ -1178,8 +1183,13 @@ const portugueseMessages = {
   "image.focalPointHelp":
     "Controla qual parte da imagem permanece em destaque ao ajustá-la dentro da caixa.",
   "image.resetFocalPoint": "Redefinir ao centro",
+  "image.crop": "Recorte",
+  "image.cropHelp": "Defina a área visível da origem em porcentagens.",
+  "image.resetCrop": "Redefinir recorte",
   "image.editFocalPointOnCanvas": "Editar no Canvas",
   "image.doneFocalPoint": "Concluir",
+  "image.editCropOnCanvas": "Editar no Canvas",
+  "image.doneCrop": "Concluir",
   "image.preserveProportion": "Preservar proporção",
   "image.preserveProportionHelp":
     "Preserva a proporção da imagem ao redimensioná-la diretamente no Canvas.",
@@ -1200,7 +1210,7 @@ const portugueseMessages = {
   "inspector.topics.maxDepth": "Profundidade máxima de tópicos atingida (5)",
   "inspector.topics.remove": "Remover tópico",
   "inspector.topics.empty": "Tópico vazio",
-  "inspector.topics.itemGap": "Espaçamento entre tópicos",
+  "inspector.topics.itemGap": "Espaçamento",
   "inspector.topics.textColor": "Cor do texto",
   "inspector.topics.decorationColor": "Cor da decoração",
   "inspector.topics.markerColor": "Cor do marcador",

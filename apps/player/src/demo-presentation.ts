@@ -752,7 +752,7 @@ export const demoPresentation =
                 highlightedLines:
                   [2, 3],
 
-                style: {
+                layout: {
                   width: "76%",
                 },
               },

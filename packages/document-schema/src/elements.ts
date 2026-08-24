@@ -1,32 +1,50 @@
 import { z } from "zod";
 
 import {
-  DirectionSchema,
-  DistributionSchema,
   ElementIdSchema,
-  HorizontalAlignmentSchema,
-  LayoutModeSchema,
   LengthSchema,
   ColorSchema,
-  VerticalAlignmentSchema,
 } from "./primitives";
-
-import {
-  ElementStyleSchema,
-} from "./style";
 
 import {
   ElementLinkSchema,
   isAbsoluteHttpHref,
 } from "./links";
+import {
+  ContainerLayoutSchema,
+  ElementEffectSchema,
+  ElementTypographySchema,
+  ElementVisualStyleSchema,
+  TextLayoutSchema,
+  TextVisualStyleSchema,
+  TextboxLayoutSchema,
+  ImageLayoutSchema,
+  ImageVisualStyleSchema,
+  ResizablePositionedLayoutSchema,
+  SurfaceVisualStyleSchema,
+  GradientSurfaceVisualStyleSchema,
+  BlocksVisualStyleSchema,
+  DividerLayoutSchema,
+  DividerVisualStyleSchema,
+  DividerEffectSchema,
+  TopicsLayoutSchema,
+  TopicsVisualStyleSchema,
+  TopicsTypographySchema,
+  PositionedElementLayoutSchema,
+} from "./element-properties";
+import { BorderSchema } from "./visual";
 
-const BaseElementSchema = z.object({
+const CanonicalDataElementBaseSchema = z.object({
   id: ElementIdSchema,
-
-  style: ElementStyleSchema.optional(),
-
   hidden: z.boolean().default(false),
+  layout: ResizablePositionedLayoutSchema.optional(),
+  effect: ElementEffectSchema.optional(),
 });
+
+const TextElementBaseSchema = z.object({
+  id: ElementIdSchema,
+  hidden: z.boolean().default(false),
+}).strict();
 
 export const TextRunMarksSchema = z.object({
   bold: z.boolean().optional(),
@@ -64,7 +82,7 @@ export type TextContent =
   z.infer<typeof TextContentSchema>;
 
 export const TextElementSchema =
-  BaseElementSchema.extend({
+  TextElementBaseSchema.extend({
     type: z.literal("text"),
 
     content: TextContentSchema,
@@ -76,29 +94,79 @@ export const TextElementSchema =
       "caption",
     ]).default("body"),
 
+    layout: TextLayoutSchema.optional(),
+
+    style: TextVisualStyleSchema.optional(),
+
+    typography: ElementTypographySchema.optional(),
+
+    effect: ElementEffectSchema.optional(),
+
     link: ElementLinkSchema.optional(),
-  });
+  }).strict();
 
 export type TextElement =
   z.infer<typeof TextElementSchema>;
 
 export const TextboxElementSchema =
-  BaseElementSchema.extend({
+  TextElementBaseSchema.extend({
     type: z.literal("textbox"),
 
     content: z.string(),
 
     preset: z.string().optional(),
 
+    layout: TextboxLayoutSchema.optional(),
+
+    style: TextVisualStyleSchema.optional(),
+
+    typography: ElementTypographySchema.optional(),
+
+    effect: ElementEffectSchema.optional(),
+
     link: ElementLinkSchema.optional(),
-  });
+  }).strict();
 
 export type TextboxElement =
   z.infer<typeof TextboxElementSchema>;
 
-export const ImageElementSchema =
-  BaseElementSchema.extend({
+export const ImageCropSchema = z
+  .object({
+    x: z.number().min(0).lt(100),
+    y: z.number().min(0).lt(100),
+    width: z.number().gt(0).max(100),
+    height: z.number().gt(0).max(100),
+  })
+  .strict()
+  .refine((crop) => crop.x + crop.width <= 100, {
+    message: "crop x plus width must be at most 100",
+    path: ["width"],
+  })
+  .refine((crop) => crop.y + crop.height <= 100, {
+    message: "crop y plus height must be at most 100",
+    path: ["height"],
+  })
+  .refine(
+    (crop) =>
+      crop.x !== 0 || crop.y !== 0 || crop.width !== 100 || crop.height !== 100,
+    {
+      message: "a full-source crop must be omitted",
+    },
+  );
+
+export type ImageCrop = z.infer<typeof ImageCropSchema>;
+
+export const ImageElementSchema = z.object({
+    id: ElementIdSchema,
     type: z.literal("image"),
+
+    hidden: z.boolean().default(false),
+
+    layout: ImageLayoutSchema.optional(),
+
+    style: ImageVisualStyleSchema.optional(),
+
+    effect: ElementEffectSchema.optional(),
 
     src: z.string().min(1),
 
@@ -117,11 +185,12 @@ export const ImageElementSchema =
       })
       .optional(),
 
-    link: ElementLinkSchema.optional(),
-  });
+    crop: ImageCropSchema.optional(),
 
-export type ImageElement =
-  z.infer<typeof ImageElementSchema>;
+    link: ElementLinkSchema.optional(),
+  }).strict();
+
+export type ImageElement = z.infer<typeof ImageElementSchema>;
 
 export const GalleryItemSchema = z.object({
   src: z.string().min(1),
@@ -131,8 +200,12 @@ export const GalleryItemSchema = z.object({
 export type GalleryItem =
   z.infer<typeof GalleryItemSchema>;
 
-export const GalleryElementSchema =
-  BaseElementSchema.extend({
+export const GalleryElementSchema = z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: SurfaceVisualStyleSchema.optional(),
+    effect: ElementEffectSchema.optional(),
     type: z.literal("gallery"),
 
     items: z.array(GalleryItemSchema),
@@ -142,14 +215,16 @@ export const GalleryElementSchema =
       "cover",
       "fill",
     ]).default("contain"),
-  });
+  }).strict();
 
 export type GalleryElement =
   z.infer<typeof GalleryElementSchema>;
 
 export const CodeElementSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("code"),
+
+    style: GradientSurfaceVisualStyleSchema.optional(),
 
     code: z.string(),
 
@@ -160,14 +235,16 @@ export const CodeElementSchema =
     highlightedLines: z
       .array(z.number().int().positive())
       .default([]),
-  });
+  }).strict();
 
 export type CodeElement =
   z.infer<typeof CodeElementSchema>;
 
 export const TerminalElementSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("terminal"),
+
+    style: GradientSurfaceVisualStyleSchema.optional(),
 
     title: z.string().optional(),
 
@@ -183,13 +260,16 @@ export const TerminalElementSchema =
         content: z.string(),
       }),
     ),
-  });
+  }).strict();
 
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
 export const ChartElementSchema =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: PositionedElementLayoutSchema.optional(),
     type: z.literal("chart"),
 
     chartType: z.enum([
@@ -211,13 +291,16 @@ export const ChartElementSchema =
         ),
       }),
     ),
-  });
+  }).strict();
 
 export type ChartElement =
   z.infer<typeof ChartElementSchema>;
 
 export const InteractiveElementSchema =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: PositionedElementLayoutSchema.optional(),
     type: z.literal("interactive"),
 
     widget: z.enum([
@@ -231,26 +314,39 @@ export const InteractiveElementSchema =
       z.string(),
       z.unknown(),
     ),
-  });
+  }).strict();
 
 export type InteractiveElement =
   z.infer<typeof InteractiveElementSchema>;
 
 export const DividerElementSchema =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
     type: z.literal("divider"),
+
+    hidden: z.boolean().default(false),
+
+    layout: DividerLayoutSchema.optional(),
+
+    style: DividerVisualStyleSchema.optional(),
+
+    effect: DividerEffectSchema.optional(),
 
     orientation: z.enum([
       "horizontal",
       "vertical",
     ]).default("horizontal"),
-  });
+  }).strict();
 
 export type DividerElement =
   z.infer<typeof DividerElementSchema>;
 
-export const EmbedElementSchema =
-  BaseElementSchema.extend({
+export const EmbedElementSchema = z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: SurfaceVisualStyleSchema.optional(),
+    effect: ElementEffectSchema.optional(),
     type: z.literal("embed"),
 
     src: z.string().refine(isAbsoluteHttpHref, {
@@ -262,7 +358,7 @@ export const EmbedElementSchema =
       .string()
       .min(1)
       .default("Embedded content"),
-  });
+  }).strict();
 
 export type EmbedElement =
   z.infer<typeof EmbedElementSchema>;
@@ -345,11 +441,12 @@ export const BlockItemSchema: z.ZodType<BlockItem> = z.lazy(() =>
   }),
 );
 
-export const BlocksElementSchema = BaseElementSchema.extend({
+export const BlocksElementSchema = CanonicalDataElementBaseSchema.extend({
   type: z.literal("blocks"),
+  style: BlocksVisualStyleSchema.optional(),
   categories: z.array(BlockCategorySchema),
   items: z.array(BlockItemSchema),
-}).superRefine((element, context) => {
+}).strict().superRefine((element, context) => {
   const categoryIds = new Set<string>();
   element.categories.forEach((category, index) => {
     if (categoryIds.has(category.id)) {
@@ -392,8 +489,12 @@ export const BlocksElementSchema = BaseElementSchema.extend({
 export type BlocksElement =
   z.infer<typeof BlocksElementSchema>;
 
-export const ScriptedElementSchema =
-  BaseElementSchema.extend({
+export const ScriptedElementSchema = z.object({
+    id: ElementIdSchema,
+    hidden: z.boolean().default(false),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: SurfaceVisualStyleSchema.optional(),
+    effect: ElementEffectSchema.optional(),
     type: z.literal("scripted"),
 
     title: z
@@ -406,7 +507,7 @@ export const ScriptedElementSchema =
     css: z.string().default(""),
 
     script: z.string().default(""),
-  });
+  }).strict();
 
 export type ScriptedElement =
   z.infer<typeof ScriptedElementSchema>;
@@ -414,28 +515,56 @@ export type ScriptedElement =
 export type ContentSlot = {
   id: string;
 
-  style?:
-    | z.infer<typeof ElementStyleSchema>
-    | undefined;
+  layout?: z.infer<typeof ContentSlotLayoutSchema> | undefined;
+
+  style?: z.infer<typeof ContentSlotVisualStyleSchema> | undefined;
+
+  typography?: z.infer<typeof ElementTypographySchema> | undefined;
 
   children: PowerShowElement[];
 };
+
+export const ContentSlotLayoutSchema = z.object({
+  padding: LengthSchema.optional(),
+  paddingTop: LengthSchema.optional(),
+  paddingRight: LengthSchema.optional(),
+  paddingBottom: LengthSchema.optional(),
+  paddingLeft: LengthSchema.optional(),
+}).strict();
+
+const ContentSlotBackgroundSchema = z.object({
+  color: ColorSchema.optional(),
+}).strict();
+
+export const ContentSlotVisualStyleSchema = z.object({
+  color: ColorSchema.optional(),
+  background: ContentSlotBackgroundSchema.optional(),
+  border: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
+  className: z.string().optional(),
+}).strict();
 
 export const ContentSlotSchema:
   z.ZodType<ContentSlot> =
   z.object({
     id: ElementIdSchema,
 
-    style: ElementStyleSchema.optional(),
+    layout: ContentSlotLayoutSchema.optional(),
+
+    style: ContentSlotVisualStyleSchema.optional(),
+
+    typography: ElementTypographySchema.optional(),
 
     children: z.array(
       z.lazy(() => PowerShowElementSchema),
     ),
-  });
+  }).strict();
 
 export const SimpleTableElementSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
+
+    style: GradientSurfaceVisualStyleSchema.optional(),
 
     mode: z.literal("simple").optional(),
 
@@ -457,7 +586,7 @@ export const SimpleTableElementSchema =
         ]),
       ),
     ),
-  });
+  }).strict();
 
 export type SimpleTableElement =
   z.infer<typeof SimpleTableElementSchema>;
@@ -482,8 +611,9 @@ export type StructuredTableRow =
   z.infer<typeof StructuredTableRowSchema>;
 
 const StructuredTableElementBaseSchema =
-  BaseElementSchema.extend({
+  CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
+    style: GradientSurfaceVisualStyleSchema.optional(),
     mode: z.literal("structured"),
     showHeader: z.boolean().default(true),
     columns: z.array(StructuredTableColumnSchema),
@@ -575,17 +705,28 @@ export type TopicsElement = {
     | number
     | undefined;
 
-  style?:
-    | z.infer<typeof ElementStyleSchema>
-    | undefined;
+  layout?: z.infer<typeof TopicsLayoutSchema> | undefined;
+
+  style?: z.infer<typeof TopicsVisualStyleSchema> | undefined;
+
+  typography?: z.infer<typeof TopicsTypographySchema> | undefined;
 
   hidden: boolean;
 };
 
 export const TopicsElementSchema:
   z.ZodType<TopicsElement> =
-  BaseElementSchema.extend({
+  z.object({
+    id: ElementIdSchema,
     type: z.literal("topics"),
+
+    hidden: z.boolean().default(false),
+
+    layout: TopicsLayoutSchema.optional(),
+
+    style: TopicsVisualStyleSchema.optional(),
+
+    typography: TopicsTypographySchema.optional(),
 
     kind: z.enum([
       "unordered",
@@ -599,7 +740,7 @@ export const TopicsElementSchema:
     markerColor: ColorSchema.optional(),
 
     itemGap: z.number().min(0).optional(),
-  });
+  }).strict();
 
 export type ContainerElement = {
   id: string;
@@ -615,49 +756,13 @@ export type ContainerElement = {
     | "content"
     | undefined;
 
-  direction:
-    | "row"
-    | "column";
+  layout?: z.infer<typeof ContainerLayoutSchema> | undefined;
 
-  layoutMode?:
-    | "flow"
-    | "stack"
-    | undefined;
+  style?: z.infer<typeof ElementVisualStyleSchema> | undefined;
 
-distribution?:
-  | "packed"
-  | "space-between"
-  | "space-around"
-  | "space-evenly"
-  | undefined;
+  typography?: z.infer<typeof ElementTypographySchema> | undefined;
 
-  gap?:
-    | number
-    | string
-    | undefined;
-
-  horizontalAlign?:
-    | "start"
-    | "center"
-    | "end"
-    | "stretch"
-    | undefined;
-
-  verticalAlign?:
-    | "start"
-    | "center"
-    | "end"
-    | "stretch"
-    | undefined;
-
-  width?:
-    | number
-    | string
-    | undefined;
-
-  style?:
-    | z.infer<typeof ElementStyleSchema>
-    | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
 
   hidden: boolean;
 
@@ -704,7 +809,8 @@ export const PowerShowElementSchema:
       ScriptedElementSchema,
       TopicsElementSchema,
 
-      BaseElementSchema.extend({
+      z.object({
+        id: ElementIdSchema,
         type: z.literal("container"),
 
         role: z
@@ -718,30 +824,21 @@ export const PowerShowElementSchema:
           ])
           .optional(),
 
-        direction:
-          DirectionSchema.default("column"),
+        hidden: z.boolean().default(false),
 
-        layoutMode:
-          LayoutModeSchema.optional(),
+        layout: ContainerLayoutSchema.optional(),
 
-        distribution:
-          DistributionSchema.optional(),
+        style: ElementVisualStyleSchema.optional(),
 
-        gap: LengthSchema.optional(),
+        typography: ElementTypographySchema.optional(),
 
-        horizontalAlign:
-          HorizontalAlignmentSchema.optional(),
-
-        verticalAlign:
-          VerticalAlignmentSchema.optional(),
-
-        width: LengthSchema.optional(),
+        effect: ElementEffectSchema.optional(),
 
         link: ElementLinkSchema.optional(),
 
         children: z.array(
           PowerShowElementSchema,
         ),
-      }),
+      }).strict(),
     ]),
   );

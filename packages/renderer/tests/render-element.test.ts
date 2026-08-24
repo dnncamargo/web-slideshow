@@ -52,7 +52,7 @@ describe("renderElement", () => {
         hidden: false,
         variant: "body",
         content: "PowerShow Example",
-        style: { textTransform },
+        typography: { textTransform },
       };
 
       const html = renderElement(element);
@@ -123,7 +123,8 @@ describe("renderElement", () => {
       alt: "Example image",
       fit: "cover",
       focalPoint: { x: 25, y: 70 },
-      style: { width: "60%", height: 200, borderRadius: 8 },
+      layout: { width: "60%", height: 200 },
+      style: { borderRadius: 8 },
     });
 
     expect(html).toContain("object-fit:cover");
@@ -172,7 +173,7 @@ describe("renderElement", () => {
       type: "container",
       id: "row-1",
       hidden: false,
-      direction: "row",
+      layout: { children: { direction: "row" } },
       children: [],
     };
 
@@ -183,12 +184,32 @@ describe("renderElement", () => {
     expect(html).toContain("flex-direction:row");
   });
 
+  it("makes a container containing-block for an absolute canonical Image", () => {
+    const html = renderElement({
+      type: "container",
+      id: "container",
+      hidden: false,
+      children: [{
+        type: "image",
+        id: "image",
+        hidden: false,
+        src: "/image.png",
+        alt: "",
+        fit: "contain",
+        layout: { position: "absolute", left: 10, top: 20 },
+      }],
+    });
+
+    expect(html).toContain("position:relative");
+    expect(html).toContain("position:absolute");
+  });
+
   it("renders a column container", () => {
     const element: PowerShowElement = {
       type: "container",
       id: "column-1",
       hidden: false,
-      direction: "column",
+      layout: { children: { direction: "column" } },
       children: [],
     };
 
@@ -202,9 +223,7 @@ describe("renderElement", () => {
       type: "container",
       id: "row-aligned",
       hidden: false,
-      direction: "row",
-      horizontalAlign: "center",
-      verticalAlign: "end",
+      layout: { children: { direction: "row", horizontalAlign: "center", verticalAlign: "end" } },
       children: [],
     };
 
@@ -220,9 +239,7 @@ describe("renderElement", () => {
       type: "container",
       id: "column-aligned",
       hidden: false,
-      direction: "column",
-      horizontalAlign: "center",
-      verticalAlign: "end",
+      layout: { children: { direction: "column", horizontalAlign: "center", verticalAlign: "end" } },
       children: [],
     };
 
@@ -238,14 +255,14 @@ describe("renderElement", () => {
       type: "container",
       id: "root",
       hidden: false,
-      direction: "column",
+      layout: { children: { direction: "column" } },
 
       children: [
         {
           type: "container",
           id: "nested",
           hidden: false,
-          direction: "row",
+          layout: { children: { direction: "row" } },
 
           children: [
             {
@@ -280,7 +297,7 @@ describe("renderElement", () => {
       type: "container",
       id: `${role}-1`,
       hidden: false,
-      direction: "column",
+      layout: { children: { direction: "column" } },
       role,
       children: [],
     };
@@ -297,7 +314,7 @@ describe("renderElement", () => {
       type: "container",
       id: "mixed-content",
       hidden: false,
-      direction: "row",
+      layout: { children: { direction: "row" } },
 
       children: [
         {
@@ -501,12 +518,7 @@ describe("renderElement", () => {
 
       hidden: false,
 
-      direction: "column",
-
-      style: {
-        width: "68%",
-        height: "60%",
-      },
+      layout: { width: "68%", height: "60%", children: { direction: "column" } },
 
       children: [],
     });

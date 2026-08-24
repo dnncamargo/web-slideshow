@@ -96,7 +96,6 @@ export function createContainerElement(
     type: "container",
     id: "container-fixture",
     hidden: false,
-    direction: "column",
     children: [],
     ...overrides,
   };

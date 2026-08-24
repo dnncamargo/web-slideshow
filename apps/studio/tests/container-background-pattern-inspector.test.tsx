@@ -8,8 +8,8 @@ import type { ContainerElement, PowerShowElement, TextElement } from "@powershow
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
-import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
+import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -20,25 +20,23 @@ const FONT_RESOURCE_CONTROLS: FontResourceControls = {
   isFontFamilyInUse: () => false,
 };
 
+const gradient = {
+  type: "linear" as const,
+  stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+};
+
 function containerElement(overrides: Partial<ContainerElement> = {}): ContainerElement {
   return {
     type: "container",
     id: "container-pattern",
     hidden: false,
-    direction: "column",
     children: [],
     ...overrides,
   };
 }
 
 function textElement(): TextElement {
-  return {
-    type: "text",
-    id: "text-pattern",
-    hidden: false,
-    variant: "body",
-    content: "Text",
-  };
+  return { type: "text", id: "text-pattern", hidden: false, variant: "body", content: "Text" };
 }
 
 function setValue(element: HTMLInputElement | HTMLTextAreaElement, value: string): void {
@@ -55,7 +53,7 @@ function changeSelect(select: HTMLSelectElement, value: string): void {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-describe("Container background pattern inspector", () => {
+describe("Container canonical background pattern inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
   let state: PowerShowElement;
@@ -78,10 +76,7 @@ describe("Container background pattern inspector", () => {
             element={state as TextElement}
             fontResourceControls={FONT_RESOURCE_CONTROLS}
             onUpdate={(update) => {
-              if (state.type !== "text") {
-                return;
-              }
-
+              if (state.type !== "text") return;
               state = update(state);
               updates.push(state);
               renderInspector();
@@ -98,6 +93,11 @@ describe("Container background pattern inspector", () => {
     renderInspector();
   }
 
+  function currentContainer(): ContainerElement {
+    expect(state.type).toBe("container");
+    return state as ContainerElement;
+  }
+
   beforeEach(() => {
     host = document.createElement("div");
     document.body.appendChild(host);
@@ -109,7 +109,7 @@ describe("Container background pattern inspector", () => {
     document.body.innerHTML = "";
   });
 
-  it("exposes Pattern in Container Appearance but not Text", async () => {
+  it("exposes Pattern for Containers but not Text", async () => {
     await act(async () => mount(containerElement()));
     expect(host.querySelector("#container-background-pattern")).not.toBeNull();
 
@@ -123,54 +123,44 @@ describe("Container background pattern inspector", () => {
     ["dots", "radial-gradient"],
     ["offset-dots", "radial-gradient"],
     ["diagonal-lines", "repeating-linear-gradient"],
-  ])("selecting %s writes canonical Pattern data", async (mode, imageKind) => {
+  ])("preset %s writes canonical Pattern data", async (mode, imageKind) => {
     await act(async () => mount(containerElement()));
-    const select = host.querySelector<HTMLSelectElement>("#container-background-pattern");
-    expect(select).not.toBeNull();
-
-    await act(async () => changeSelect(select!, mode));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
 
     expect(updates).toHaveLength(1);
-    expect(state).toMatchObject({ type: "container", style: { backgroundPattern: { image: expect.stringContaining(imageKind) } } });
-    expect(state).not.toHaveProperty("preset");
-    expect(state).not.toHaveProperty("patternId");
+    expect(state).toMatchObject({ style: { background: { pattern: { image: expect.stringContaining(imageKind) } } } });
+    expect(currentContainer().style).not.toHaveProperty("backgroundPattern");
+    expect(currentContainer().style).not.toHaveProperty("backgroundGradient");
   });
 
-  it("Pattern selection clears Gradient and preserves base background", async () => {
-    await act(async () => mount(containerElement({
-      style: {
-        background: "#0f172a",
-        backgroundGradient: {
-          type: "linear",
-          stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
-        },
-      },
-    })));
-
+  it("preserves color and gradient when adding a Pattern", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#0f172a", gradient } } })));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
 
-    expect(state.style?.background).toBe("#0f172a");
-    expect(state.style?.backgroundGradient).toBeUndefined();
-    expect(state.style?.backgroundPattern).toBeDefined();
+    expect(currentContainer().style?.background).toMatchObject({ color: "#0f172a", gradient });
+    expect(currentContainer().style?.background?.pattern).toBeDefined();
   });
 
-  it("Gradient selection clears an existing Pattern", async () => {
-    await act(async () => mount(containerElement({
-      style: { backgroundPattern: { image: "linear-gradient(#000, #fff)" } },
-    })));
-
+  it("preserves color and Pattern when changing Gradient", async () => {
+    const pattern = { image: "linear-gradient(#000, #fff)", size: "12px", repeat: "repeat" as const };
+    await act(async () => mount(containerElement({ style: { background: { color: "#0f172a", pattern } } })));
     await act(async () => changeSelect(host.querySelector("#container-gradient-type")!, "linear"));
 
-    expect(state.style?.backgroundPattern).toBeUndefined();
-    expect(state.style?.backgroundGradient?.type).toBe("linear");
+    expect(currentContainer().style?.background).toMatchObject({ color: "#0f172a", pattern });
+    expect(currentContainer().style?.background?.gradient).toBeDefined();
   });
 
-  it("None clears only Pattern", async () => {
-    await act(async () => mount(containerElement({ style: { background: "#000", opacity: 0.6, backgroundPattern: { image: "linear-gradient(#000, #fff)" }, borderRadius: 8 } })));
+  it("none clears only Pattern", async () => {
+    await act(async () => mount(containerElement({
+      style: { background: { color: "#000", gradient, pattern: { image: "linear-gradient(#000, #fff)" }, }, borderRadius: 8 },
+      effect: { opacity: 0.6 },
+    })));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "none"));
 
-    expect(state.style).toMatchObject({ background: "#000", opacity: 0.6, borderRadius: 8 });
-    expect(state.style?.backgroundPattern).toBeUndefined();
+    expect(currentContainer().style?.background).toMatchObject({ color: "#000", gradient });
+    expect(currentContainer().style?.background?.pattern).toBeUndefined();
+    expect(currentContainer().effect?.opacity).toBe(0.6);
+    expect(currentContainer().style?.borderRadius).toBe(8);
   });
 
   it("typing Custom CSS performs zero canonical writes", async () => {
@@ -180,15 +170,19 @@ describe("Container background pattern inspector", () => {
     expect(updates).toHaveLength(0);
   });
 
-  it("successfully applying Custom CSS performs one update and leaves element opacity alone", async () => {
-    await act(async () => mount(containerElement({ style: { opacity: 0.8, background: "#111" } })));
+  it("applies Custom CSS canonically and preserves Gradient and element opacity", async () => {
+    await act(async () => mount(containerElement({
+      style: { background: { color: "#111", gradient } },
+      effect: { opacity: 0.8 },
+    })));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "custom"));
-    await act(async () => setValue(host.querySelector("#container-custom-pattern-css")!, "background-color: #0f172a; background-image: linear-gradient(#000, #fff); opacity: 0.25;"));
+    await act(async () => setValue(host.querySelector("#container-custom-pattern-css")!, "background-color: #0f172a; background-image: linear-gradient(#000, #fff); background-size: 12px; background-position: 2px; background-repeat: repeat; opacity: 0.25;"));
     await act(async () => host.querySelector<HTMLButtonElement>("#container-apply-background-pattern")?.click());
 
     expect(updates).toHaveLength(1);
-    expect(state.style).toMatchObject({ background: "#0f172a", opacity: 0.8, backgroundPattern: { opacity: 0.25 } });
-    expect(state.style?.backgroundGradient).toBeUndefined();
+    expect(currentContainer().style?.background).toMatchObject({ color: "#0f172a", gradient, pattern: { image: "linear-gradient(#000, #fff)", size: "12px", position: "2px", repeat: "repeat", opacity: 0.25 } });
+    expect(currentContainer().effect?.opacity).toBe(0.8);
+    expect(currentContainer().style).not.toHaveProperty("opacity");
   });
 
   it("invalid Custom CSS performs zero writes and shows an error", async () => {
@@ -201,20 +195,19 @@ describe("Container background pattern inspector", () => {
     expect(host.querySelector('[role="alert"]')).not.toBeNull();
   });
 
-  it("hydrates existing custom Pattern without a write and preserves a dirty draft across unrelated edits", async () => {
-    await act(async () => mount(containerElement({ style: { backgroundPattern: { image: "linear-gradient(#000, #fff)", size: "12px" } } })));
+  it("hydrates a custom Pattern and preserves a dirty draft across a color rerender", async () => {
+    const pattern = { image: "linear-gradient(#000, #fff)", size: "12px", repeat: "repeat" as const };
+    await act(async () => mount(containerElement({ style: { background: { color: "#fff", pattern } } })));
     const textarea = host.querySelector<HTMLTextAreaElement>("#container-custom-pattern-css");
     expect(textarea?.value).toContain("background-size: 12px;");
     expect(updates).toHaveLength(0);
 
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "custom"));
     await act(async () => setValue(textarea!, "background-image: linear-gradient(#123, #456);"));
     expect(updates).toHaveLength(0);
 
-    await act(async () => {
-      state = containerElement({ style: { backgroundPattern: { image: "linear-gradient(#000, #fff)", size: "12px" }, background: "#fff" } });
-      renderInspector();
-    });
-
+    await act(async () => setValue(host.querySelector("#container-background-value")!, "#eeeeee"));
+    expect(updates).toHaveLength(1);
     expect(host.querySelector<HTMLTextAreaElement>("#container-custom-pattern-css")?.value).toBe("background-image: linear-gradient(#123, #456);");
   });
 });

@@ -16,7 +16,7 @@ function text(id: string, fontFamily: string): PowerShowElement {
     hidden: false,
     variant: "body",
     content: id,
-    style: { fontFamily },
+    typography: { fontFamily },
   };
 }
 
