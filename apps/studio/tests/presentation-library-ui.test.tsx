@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PresentationSchema, type Presentation } from "@powershow/document-schema";
 
 type TestLiveState =
   | { kind: "none" }
@@ -78,6 +79,30 @@ function summary(
   };
 }
 
+function presentation(id = "presentation-source"): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id,
+    title: "Imported presentation",
+    description: "Imported description",
+    aspectRatio: "16:9",
+    slides: [
+      {
+        id: "slide-source",
+        elements: [{ id: "text-source", type: "text", content: "Imported text" }],
+      },
+    ],
+  });
+}
+
+function importFile(text: string): File {
+  return {
+    name: "source.json",
+    type: "application/json",
+    text: async () => text,
+  } as unknown as File;
+}
+
 /** Minimal Firestore-server-timestamp-like shape used by the SDK. */
 function firestoreTimestamp(millis: number) {
   return {
@@ -148,8 +173,23 @@ async function flushWorkspaceEffects() {
   });
 }
 
+async function selectImportFile(container: HTMLDivElement, file: File) {
+  const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+  if (!input) throw new Error("expected import input");
+
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [file],
+  });
+  await act(async () => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+  });
+}
+
 function repositoryFor(
   initialSummaries: PresentationSummary[],
+  presentations: Record<string, Presentation | null> = {},
 ): {
   repository: PresentationRepository;
   getCurrent: () => PresentationSummary[];
@@ -159,7 +199,7 @@ function repositoryFor(
   const listPresentations = vi.fn(async () => current);
   const repository: PresentationRepository = {
     listPresentations,
-    getPresentation: vi.fn(async () => null),
+    getPresentation: vi.fn(async (id: string) => presentations[id] ?? null),
     createPresentation: vi.fn(async () => {}),
     savePresentation: vi.fn(async () => {}),
     archivePresentation: vi.fn(async (id: string) => {
@@ -203,6 +243,8 @@ describe("presentation library workspace controls", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("shows New with enabled Import and enabled New folder actions when nothing is selected", () => {
@@ -277,6 +319,193 @@ describe("presentation library workspace controls", () => {
     );
     expect(draftExport).toBeTruthy();
     expect(draftExport?.disabled).toBe(false);
+  });
+
+  it("exports the selected full presentation, downloads it, and revokes the object URL", async () => {
+    const source = presentation("selected-id");
+    const { repository } = repositoryFor([summary("selected-id")], {
+      "selected-id": source,
+    });
+    const createObjectURL = vi.fn(() => "blob:test");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select presentation Title selected-id"]',
+    );
+    if (!row) throw new Error("expected selected presentation row");
+    act(() => row.click());
+
+    const exportButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Export",
+    );
+    if (!exportButton) throw new Error("expected Export action");
+    await act(async () => {
+      exportButton.click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+
+    expect(repository.getPresentation).toHaveBeenCalledWith("selected-id");
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:test");
+  });
+
+  it("fails safely when the selected presentation is missing during export", async () => {
+    const { repository } = repositoryFor([summary("missing")]);
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select presentation Title missing"]',
+    );
+    if (!row) throw new Error("expected missing presentation row");
+    act(() => row.click());
+
+    const exportButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Export",
+    );
+    if (!exportButton) throw new Error("expected Export action");
+    await act(async () => {
+      exportButton.click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not export presentation.",
+    );
+  });
+
+  it("imports a new root id while preserving canonical internal ids and navigates to the Editor", async () => {
+    const source = presentation();
+    const { repository } = repositoryFor([]);
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+
+    await selectImportFile(
+      container,
+      importFile(JSON.stringify(source)),
+    );
+
+    const imported = (repository.createPresentation as ReturnType<typeof vi.fn>)
+      .mock.calls[0]?.[0] as Presentation;
+    expect(imported.id).not.toBe(source.id);
+    expect(imported.slides[0]?.id).toBe("slide-source");
+    expect(imported.slides[0]?.elements[0]?.id).toBe("text-source");
+    expect(testDependencies.push).toHaveBeenCalledWith(
+      `/studio/editor?id=${encodeURIComponent(imported.id)}`,
+    );
+  });
+
+  it("passes the current folder id when importing inside a folder", async () => {
+    const source = presentation();
+    const { repository } = repositoryFor([]);
+    const folderRepository: PresentationFolderRepository = {
+      ...emptyFolderRepository(),
+      listFolders: vi.fn(async () => [
+        { id: "folder-1", name: "Folder 1", createdAt: "now", updatedAt: "now" },
+      ]),
+    };
+    act(() => root.render(renderLibrary(repository, folderRepository)));
+    await flushWorkspaceEffects();
+
+    const folder = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Folder 1",
+    );
+    if (!folder) throw new Error("expected folder destination");
+    act(() => folder.click());
+    await flushWorkspaceEffects();
+    await selectImportFile(
+      container,
+      importFile(JSON.stringify(source)),
+    );
+
+    expect(repository.createPresentation).toHaveBeenCalledWith(
+      expect.anything(),
+      { folderId: "folder-1" },
+    );
+  });
+
+  it.each([
+    ["malformed JSON", "{", "The selected file is not valid JSON."],
+    [
+      "schema-invalid JSON",
+      JSON.stringify({ schemaVersion: 2 }),
+      "The selected file is not a valid PowerShow presentation.",
+    ],
+  ])("does not write when importing %s", async (_name, text, message) => {
+    const { repository } = repositoryFor([]);
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+
+    await selectImportFile(
+      container,
+      importFile(text),
+    );
+
+    expect(repository.createPresentation).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(message);
+  });
+
+  it("does not navigate when import persistence fails", async () => {
+    const { repository } = repositoryFor([]);
+    (repository.createPresentation as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("write failed"),
+    );
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+
+    await selectImportFile(
+      container,
+      importFile(JSON.stringify(presentation())),
+    );
+
+    expect(testDependencies.push).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not import presentation.",
+    );
+  });
+
+  it("checks another generated id after a collision before creating an import", async () => {
+    const source = presentation();
+    const { repository } = repositoryFor([]);
+    const getPresentation = repository.getPresentation as ReturnType<typeof vi.fn>;
+    getPresentation
+      .mockResolvedValueOnce(presentation("collision"))
+      .mockResolvedValueOnce(null);
+
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    await selectImportFile(
+      container,
+      importFile(JSON.stringify(source)),
+    );
+
+    const firstCandidate = getPresentation.mock.calls[0]?.[0];
+    const secondCandidate = getPresentation.mock.calls[1]?.[0];
+    expect(firstCandidate).toBeDefined();
+    expect(secondCandidate).toBeDefined();
+    expect(secondCandidate).not.toBe(firstCandidate);
+    expect(repository.createPresentation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: secondCandidate }),
+    );
+  });
+
+  it("allows the same file to be selected again after handling it", async () => {
+    const source = presentation();
+    const { repository } = repositoryFor([]);
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    const file = importFile(JSON.stringify(source));
+
+    await selectImportFile(container, file);
+    await selectImportFile(container, file);
+
+    expect(repository.createPresentation).toHaveBeenCalledTimes(2);
   });
 
   it("shows contextual actions for published, unpublished, and live selections", () => {

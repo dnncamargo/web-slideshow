@@ -61,6 +61,7 @@ import {
   prepareImportedPresentation,
   serializePresentationForExport,
 } from "./presentation-transfer";
+import { PresentationImportError } from "./presentation-transfer";
 
 interface PresentationLibraryProps {
   repository?: PresentationRepository;
@@ -348,7 +349,15 @@ export function PresentationLibrary({
         if (mountedRef.current) router.push(buildStudioEditorHref(imported.id));
       } catch (error) {
         console.error("Library: could not import presentation", error);
-        if (mountedRef.current) setActionError(t("library.couldNotImport"));
+        if (mountedRef.current) {
+          const message =
+            error instanceof PresentationImportError
+              ? error.kind === "malformed-json"
+                ? t("library.importMalformed")
+                : t("library.importInvalidPresentation")
+              : t("library.couldNotImport");
+          setActionError(message);
+        }
       } finally {
         if (mountedRef.current) setTransferBusy(false);
       }
