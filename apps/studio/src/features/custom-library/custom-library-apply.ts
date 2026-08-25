@@ -20,20 +20,20 @@ export type CustomLibraryElementApplyResult =
   | { ok: true; element: PowerShowElement }
   | { ok: false; reason: CustomLibraryApplyFailureReason };
 
-const ELEMENT_CREATE_TYPES: ReadonlySet<PowerShowElement["type"]> = new Set([
-  "text",
-  "container",
-  "image",
-  "code",
-  "terminal",
-  "table",
-  "topics",
-  "divider",
-  "gallery",
-  "embed",
-  "blocks",
-  "scripted",
-]);
+const ELEMENT_CREATE_TYPE_FLAGS = {
+  text: true,
+  container: true,
+  image: true,
+  code: true,
+  terminal: true,
+  table: true,
+  topics: true,
+  divider: true,
+  gallery: true,
+  embed: true,
+  blocks: true,
+  scripted: true,
+} satisfies Record<ElementCreateType, true>;
 
 const FORBIDDEN_PATH_SEGMENTS = new Set([
   "__proto__",
@@ -42,11 +42,17 @@ const FORBIDDEN_PATH_SEGMENTS = new Set([
 ]);
 
 function isElementCreateType(type: PowerShowElement["type"]): type is ElementCreateType {
-  return ELEMENT_CREATE_TYPES.has(type);
+  return Object.prototype.hasOwnProperty.call(ELEMENT_CREATE_TYPE_FLAGS, type);
 }
 
-function cloneValue(value: unknown): unknown {
-  return structuredClone(value);
+function cloneValue(
+  value: unknown,
+): { ok: true; value: unknown } | { ok: false } {
+  try {
+    return { ok: true, value: structuredClone(value) };
+  } catch {
+    return { ok: false };
+  }
 }
 
 function applyProperty(
@@ -97,8 +103,12 @@ function applyProperty(
     return false;
   }
 
-  (current as Record<string, unknown>)[segments[segments.length - 1]!] =
-    cloneValue(value);
+  const cloned = cloneValue(value);
+  if (!cloned.ok) {
+    return false;
+  }
+
+  (current as Record<string, unknown>)[segments[segments.length - 1]!] = cloned.value;
   return true;
 }
 
