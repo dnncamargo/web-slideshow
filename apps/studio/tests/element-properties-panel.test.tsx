@@ -199,10 +199,12 @@ describe("ElementPropertiesPanel", () => {
 
   it("does not offer save for no selection or a structural content slot", () => {
     renderPanel(root, null);
-    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector("[data-custom-library-save]")).toBeNull();
+    expect(container.querySelector("[data-custom-library-apply]")).not.toBeNull();
 
     renderPanel(root, textElement, true);
-    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector("[data-custom-library-save]")).toBeNull();
+    expect(container.querySelector("[data-custom-library-apply]")).not.toBeNull();
   });
 
   it("opens, cancels, and resets the save form without saving", () => {
