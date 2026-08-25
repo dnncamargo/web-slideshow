@@ -4,6 +4,11 @@ import type { PowerShowElement } from "@powershow/document-schema";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
+import {
+  CustomLibraryApplyPicker,
+  type CustomLibraryApplyOutcome,
+} from "@/features/custom-library/custom-library-apply-picker";
+import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
 import { CustomLibrarySaveForm } from "@/features/custom-library/custom-library-save-form";
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
@@ -22,6 +27,9 @@ interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
   isStructuralTopicSelection: boolean;
   customLibraryRepository?: CustomLibraryRepository;
+  onApplyCustomLibraryRecipe?: (
+    recipe: CustomLibraryElementRecipe,
+  ) => CustomLibraryApplyOutcome;
 }
 
 function getElementIdentity(
@@ -35,6 +43,7 @@ export function ElementPropertiesPanel({
   selectedElement,
   isStructuralTopicSelection,
   customLibraryRepository,
+  onApplyCustomLibraryRecipe = () => ({ ok: true }),
 }: ElementPropertiesPanelProps) {
   const { t } = useStudioI18n();
   const selectableProperties = useMemo(
@@ -90,6 +99,7 @@ export function ElementPropertiesPanel({
             <button
               className={styles.customLibrarySaveButton}
               type="button"
+              data-custom-library-save
               onClick={() => {
                 setSaveFeedback(null);
                 setSaveFormElementId(selectedElement.id);
@@ -147,6 +157,10 @@ export function ElementPropertiesPanel({
       ) : (
         <p className={styles.elementPropertiesEmpty}>{t("properties.noSelection")}</p>
       )}
+      <CustomLibraryApplyPicker
+        repository={customLibraryRepository}
+        onApply={onApplyCustomLibraryRecipe}
+      />
     </section>
   );
 }

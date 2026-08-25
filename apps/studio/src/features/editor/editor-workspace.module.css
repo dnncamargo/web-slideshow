@@ -829,6 +829,74 @@
   text-align: left;
 }
 
+.customLibraryApply {
+  margin-bottom: 8px;
+}
+
+.customLibraryApplyPanel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customLibraryApplyList {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+}
+
+.customLibraryApplyItem {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  background: #111827;
+  color: #cbd5e1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 10px;
+  text-align: left;
+}
+
+.customLibraryApplyItem[aria-pressed="true"] {
+  border-color: #22d3ee;
+  background: #172033;
+}
+
+.customLibraryApplyItem span {
+  min-width: 0;
+  overflow: hidden;
+  color: #94a3b8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customLibraryApplyPanel > button {
+  align-self: flex-end;
+  padding: 4px 7px;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  background: #172033;
+  color: #cbd5e1;
+  font-size: 10px;
+}
+
+.customLibraryApplyStatus {
+  margin: 0;
+  color: #86efac;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .customLibrarySaveForm {
   display: flex;
   min-width: 0;

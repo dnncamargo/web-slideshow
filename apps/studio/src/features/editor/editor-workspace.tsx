@@ -29,6 +29,10 @@ import {
 } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
+import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
+import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
+import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
+import { placeCustomLibraryElementRecipe } from "@/features/custom-library/custom-library-placement";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -366,11 +370,13 @@ export function EditorWorkspace({
   onSave,
   onPublish,
   notesRepository,
+  customLibraryRepository,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
   onPublish?: () => Promise<void>;
   notesRepository?: PresentationNotesRepository;
+  customLibraryRepository?: CustomLibraryRepository;
 } = {}) {
   const { locale, t } = useStudioI18n();
 
@@ -2307,6 +2313,49 @@ export function EditorWorkspace({
   // END: ADD ELEMENT
   // ==========================================================
 
+  function applyCustomLibraryRecipe(
+    recipe: CustomLibraryElementRecipe,
+  ): CustomLibraryApplyOutcome {
+    if (!selectedSlide) {
+      return { ok: false, reason: "invalid-recipe-application" };
+    }
+
+    const selectedElementId = selectedElement?.contentSlotId != null
+      ? null
+      : selectedElement?.id ?? null;
+    const result = placeCustomLibraryElementRecipe(
+      recipe,
+      selectedSlide,
+      presentation.slides,
+      selectedElementId,
+    );
+
+    if (!result.ok) {
+      return result;
+    }
+
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex ? result.slide : slide,
+      ),
+    }));
+
+    const appliedElement = findElementById(
+      result.slide.elements,
+      result.appliedElementId,
+    );
+    if (appliedElement) {
+      setSelectedElement({
+        id: appliedElement.id,
+        type: appliedElement.type,
+        contentSlotId: null,
+      });
+    }
+
+    return { ok: true };
+  }
+
   // ==========================================================
   // BEGIN: ADD TOP LEVEL TOPIC
   //
@@ -3539,6 +3588,8 @@ export function EditorWorkspace({
                     setSelectedElement(selection);
                   }}
                   onMoveElement={moveElementInTree}
+                  customLibraryRepository={customLibraryRepository}
+                  onApplyCustomLibraryRecipe={applyCustomLibraryRecipe}
                 />
               ) : (
                 <>
