@@ -784,6 +784,10 @@
   color: #ecfeff;
 }
 
+.elementTreeFooter select {
+  padding-left: 4px;
+}
+
 .elementProperties {
   min-width: 0;
   min-height: 0;
