@@ -17,6 +17,7 @@ interface PresentationToolbarProps {
   archivingId: string | null;
   restoringId: string | null;
   deletingId: string | null;
+  transferBusy: boolean;
   newFolderDisabled: boolean;
   onNew: () => void;
   onNewFolder: () => void;
@@ -27,6 +28,8 @@ interface PresentationToolbarProps {
   onArchive: (id: string) => void;
   onRestore: (id: string) => void;
   onDelete: (summary: PresentationSummary) => void;
+  onImport: () => void;
+  onExport: () => void;
 }
 
 /**
@@ -50,6 +53,7 @@ export function PresentationToolbar({
   archivingId,
   restoringId,
   deletingId,
+  transferBusy,
   newFolderDisabled,
   onNew,
   onNewFolder,
@@ -60,6 +64,8 @@ export function PresentationToolbar({
   onArchive,
   onRestore,
   onDelete,
+  onImport,
+  onExport,
 }: PresentationToolbarProps) {
   const { t } = useStudioI18n();
   const state = resolvePresentationToolbarState(selected, liveState);
@@ -175,18 +181,18 @@ export function PresentationToolbar({
         {state.transferAction === "import" ? (
           <Button
             size="compact"
-            disabled
-            title={t("library.importUnavailable")}
-            aria-label={t("library.importUnavailable")}
+            disabled={transferBusy}
+            onClick={onImport}
+            aria-label={t("library.import")}
           >
             {t("library.import")}
           </Button>
         ) : (
           <Button
             size="compact"
-            disabled
-            title={t("library.exportUnavailable")}
-            aria-label={t("library.exportUnavailable")}
+            disabled={transferBusy}
+            onClick={onExport}
+            aria-label={t("library.export")}
           >
             {t("library.export")}
           </Button>

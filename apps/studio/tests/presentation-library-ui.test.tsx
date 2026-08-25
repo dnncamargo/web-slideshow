@@ -102,6 +102,7 @@ function renderToolbar(
         archivingId={null}
         restoringId={null}
         deletingId={null}
+        transferBusy={false}
         newFolderDisabled={false}
         onNew={vi.fn()}
         onNewFolder={vi.fn()}
@@ -112,6 +113,8 @@ function renderToolbar(
         onArchive={vi.fn()}
         onRestore={vi.fn()}
         onDelete={vi.fn()}
+        onImport={vi.fn()}
+        onExport={vi.fn()}
       />
     </StudioI18nProvider>
   );
@@ -202,7 +205,7 @@ describe("presentation library workspace controls", () => {
     document.body.innerHTML = "";
   });
 
-  it("shows New with reserved disabled Import and enabled New folder actions when nothing is selected", () => {
+  it("shows New with enabled Import and enabled New folder actions when nothing is selected", () => {
     act(() => root.render(renderToolbar(null)));
 
     expect(container.textContent).toContain("+ New presentation");
@@ -211,7 +214,7 @@ describe("presentation library workspace controls", () => {
       (button) => button.textContent === "Import",
     );
     expect(importButton).toBeTruthy();
-    expect(importButton?.disabled).toBe(true);
+    expect(importButton?.disabled).toBe(false);
 
     const folder = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "New folder",
@@ -242,7 +245,7 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).toContain("+ New presentation");
   });
 
-  it("shows Export reserved and disabled whenever a presentation is selected", () => {
+  it("shows enabled Export whenever a presentation is selected", () => {
     act(() => root.render(renderToolbar(null)));
     expect(
       Array.from(container.querySelectorAll("button")).some(
@@ -260,7 +263,7 @@ describe("presentation library workspace controls", () => {
       (button) => button.textContent === "Export",
     );
     expect(publishedExport).toBeTruthy();
-    expect(publishedExport?.disabled).toBe(true);
+    expect(publishedExport?.disabled).toBe(false);
     // Export replaces Import in the transfer slot when selected.
     expect(
       Array.from(container.querySelectorAll("button")).some(
@@ -273,7 +276,7 @@ describe("presentation library workspace controls", () => {
       (button) => button.textContent === "Export",
     );
     expect(draftExport).toBeTruthy();
-    expect(draftExport?.disabled).toBe(true);
+    expect(draftExport?.disabled).toBe(false);
   });
 
   it("shows contextual actions for published, unpublished, and live selections", () => {
