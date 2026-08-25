@@ -136,3 +136,13 @@ export function getSelectableElementProperties(
     (entryOrder.get(right.path) ?? Number.MAX_SAFE_INTEGER),
   );
 }
+
+export function getDefaultSelectedPropertyPaths(
+  element: PowerShowElement,
+): Set<string> {
+  return new Set(
+    getSelectableElementProperties(element)
+      .filter((property) => property.defaultSelected)
+      .map((property) => property.path),
+  );
+}
