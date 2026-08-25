@@ -1206,4 +1206,77 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).toContain("Select an item to view details.");
     expect(repository.deleteArchivedPresentation).not.toHaveBeenCalled();
   });
+
+  it("keeps a failed Custom Library delete open and retries it successfully", async () => {
+    const { repository } = repositoryFor([]);
+    const custom = customLibraryRepositoryFor([
+      customLibraryItem("retry-doc-id", "Retry delete", "Retained while retrying"),
+    ]);
+    custom.deleteItem.mockRejectedValueOnce(new Error("delete failed"));
+
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
+    await flushWorkspaceEffects();
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Custom Library",
+    );
+    if (!destination) throw new Error("expected Custom Library destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+
+    const row = container.querySelector<HTMLButtonElement>('[data-custom-library-row]');
+    if (!row) throw new Error("expected Custom Library row");
+    act(() => row.click());
+    const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
+    if (!details) throw new Error("expected Custom Library details");
+
+    const deleteButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete",
+    );
+    if (!deleteButton) throw new Error("expected Custom Library Delete action");
+    act(() => deleteButton.click());
+
+    let confirm = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Delete");
+    if (!confirm) throw new Error("expected delete confirmation");
+    await act(async () => {
+      confirm?.click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+
+    expect(custom.deleteItem).toHaveBeenCalledTimes(1);
+    expect(custom.deleteItem).toHaveBeenNthCalledWith(1, "retry-doc-id");
+    expect(container.textContent).toContain("Retry delete");
+    expect(details.textContent).toContain("Retained while retrying");
+    expect(container.textContent).toContain("Delete Custom Library item?");
+    expect(container.textContent).toContain("Could not delete Custom Library item.");
+    expect(repository.createPresentation).not.toHaveBeenCalled();
+    expect(repository.savePresentation).not.toHaveBeenCalled();
+    expect(repository.archivePresentation).not.toHaveBeenCalled();
+    expect(repository.restorePresentation).not.toHaveBeenCalled();
+    expect(repository.deleteArchivedPresentation).not.toHaveBeenCalled();
+    expect(repository.movePresentationToFolder).not.toHaveBeenCalled();
+
+    confirm = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Delete");
+    if (!confirm) throw new Error("expected retry delete confirmation");
+    await act(async () => {
+      confirm?.click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+
+    expect(custom.deleteItem).toHaveBeenCalledTimes(2);
+    expect(custom.deleteItem).toHaveBeenNthCalledWith(2, "retry-doc-id");
+    expect(container.textContent).not.toContain("Retry delete");
+    expect(container.textContent).toContain("Select an item to view details.");
+    expect(container.textContent).not.toContain("Delete Custom Library item?");
+    expect(container.textContent).not.toContain("Could not delete Custom Library item.");
+    expect(repository.createPresentation).not.toHaveBeenCalled();
+    expect(repository.savePresentation).not.toHaveBeenCalled();
+    expect(repository.archivePresentation).not.toHaveBeenCalled();
+    expect(repository.restorePresentation).not.toHaveBeenCalled();
+    expect(repository.deleteArchivedPresentation).not.toHaveBeenCalled();
+    expect(repository.movePresentationToFolder).not.toHaveBeenCalled();
+  });
 });
