@@ -86,30 +86,6 @@
    ========================================================== */
 
 /* ==========================================================
-   BEGIN: TEXTBOX
-
-   Textbox é um bloco textual, não apenas uma linha de texto.
-
-   Ele pode receber background/border via estilo visual canônico,
-   mas precisa permanecer legível sem configuração adicional.
-   ========================================================== */
-
-.powershow-textbox {
-  color: var(--powershow-text-secondary);
-
-  font-family: var(--powershow-font-sans);
-
-  font-size: 1.05rem;
-  line-height: 1.65;
-
-  overflow-wrap: anywhere;
-}
-
-/* ==========================================================
-   END: TEXTBOX
-   ========================================================== */
-
-/* ==========================================================
    BEGIN: CODE
    ========================================================== */
 

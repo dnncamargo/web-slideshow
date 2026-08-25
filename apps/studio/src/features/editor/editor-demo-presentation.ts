@@ -109,11 +109,13 @@ export const editorDemoPresentation = PresentationSchema.parse({
             },
 
             {
-              type: "textbox",
+              type: "text",
 
               id: "welcome-message",
 
               hidden: false,
+
+              variant: "body",
 
               content:
                 "The canvas is rendered by the same PowerShow renderer used by the Player.",

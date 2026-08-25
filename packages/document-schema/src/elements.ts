@@ -17,7 +17,6 @@ import {
   ElementVisualStyleSchema,
   TextLayoutSchema,
   TextVisualStyleSchema,
-  TextboxLayoutSchema,
   ImageLayoutSchema,
   ImageVisualStyleSchema,
   ResizablePositionedLayoutSchema,
@@ -107,28 +106,6 @@ export const TextElementSchema =
 
 export type TextElement =
   z.infer<typeof TextElementSchema>;
-
-export const TextboxElementSchema =
-  TextElementBaseSchema.extend({
-    type: z.literal("textbox"),
-
-    content: z.string(),
-
-    preset: z.string().optional(),
-
-    layout: TextboxLayoutSchema.optional(),
-
-    style: TextVisualStyleSchema.optional(),
-
-    typography: ElementTypographySchema.optional(),
-
-    effect: ElementEffectSchema.optional(),
-
-    link: ElementLinkSchema.optional(),
-  }).strict();
-
-export type TextboxElement =
-  z.infer<typeof TextboxElementSchema>;
 
 export const ImageCropSchema = z
   .object({
@@ -775,7 +752,6 @@ export type ContainerElement = {
 
 export type PowerShowElement =
   | TextElement
-  | TextboxElement
   | ImageElement
   | GalleryElement
   | CodeElement
@@ -795,7 +771,6 @@ export const PowerShowElementSchema:
   z.lazy(() =>
     z.union([
       TextElementSchema,
-      TextboxElementSchema,
       ImageElementSchema,
       GalleryElementSchema,
       CodeElementSchema,

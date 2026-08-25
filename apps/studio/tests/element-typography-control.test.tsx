@@ -9,7 +9,6 @@ import type { ElementTypography } from "@powershow/document-schema";
 import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
-import { TextboxInspector } from "../src/features/editor/inspector/textbox-inspector";
 import { ElementTypographyControl } from "../src/features/editor/inspector/sections/element-typography-control";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -187,33 +186,20 @@ describe("shared text capability controls", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  function mountInspector(elementType: "text" | "textbox") {
+  function mountInspector() {
     root.render(
       <StudioI18nProvider>
-        {elementType === "text" ? (
-          <TextInspector
-            element={{
-              type: "text",
-              id: "text-1",
-              hidden: false,
-              variant: "body",
-              content: "PowerShow Example",
-            }}
-            onUpdate={() => {}}
-            fontResourceControls={FONT_RESOURCES}
-          />
-        ) : (
-          <TextboxInspector
-            element={{
-              type: "textbox",
-              id: "textbox-1",
-              hidden: false,
-              content: "A highlighted explanation",
-            }}
-            onUpdate={() => {}}
-            fontResourceControls={FONT_RESOURCES}
-          />
-        )}
+        <TextInspector
+          element={{
+            type: "text",
+            id: "text-1",
+            hidden: false,
+            variant: "body",
+            content: "PowerShow Example",
+          }}
+          onUpdate={() => {}}
+          fontResourceControls={FONT_RESOURCES}
+        />
       </StudioI18nProvider>,
     );
   }
@@ -234,7 +220,7 @@ describe("shared text capability controls", () => {
 
   it("Text renders the shared text-capability controls", async () => {
     await act(async () => {
-      mountInspector("text");
+      mountInspector();
     });
 
     expect(
@@ -242,21 +228,6 @@ describe("shared text capability controls", () => {
     ).not.toBeNull();
     expect(
       container.querySelector<HTMLSelectElement>("#text-text-decoration-line"),
-    ).not.toBeNull();
-  });
-
-  it("Textbox renders the same shared text-capability controls", async () => {
-    await act(async () => {
-      mountInspector("textbox");
-    });
-
-    expect(
-      container.querySelector<HTMLSelectElement>("#textbox-text-transform"),
-    ).not.toBeNull();
-    expect(
-      container.querySelector<HTMLSelectElement>(
-        "#textbox-text-decoration-line",
-      ),
     ).not.toBeNull();
   });
 });

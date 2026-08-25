@@ -118,14 +118,6 @@ export const TextLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
 
 export type TextLayout = z.infer<typeof TextLayoutSchema>;
 
-export const TextboxLayoutSchema = z.object({
-  width: LengthSchema.optional(),
-  height: LengthSchema.optional(),
-  ...PositionedLayoutFieldsSchema.shape,
-}).strict().superRefine(requireAbsoluteEdges);
-
-export type TextboxLayout = z.infer<typeof TextboxLayoutSchema>;
-
 export const ImageLayoutSchema = PositionedLayoutFieldsSchema.extend({
   width: LengthSchema.optional(),
   height: LengthSchema.optional(),

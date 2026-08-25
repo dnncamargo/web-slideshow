@@ -1,4 +1,4 @@
-import type { BlocksElement, ChartElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TextboxElement, TopicsElement } from "@powershow/document-schema";
+import type { BlocksElement, ChartElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@powershow/document-schema";
 import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@powershow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
@@ -13,7 +13,7 @@ export interface CanonicalTextCanvasGeometry {
   initialHeightPx: number;
 }
 
-type TextFamilyElement = TextElement | TextboxElement;
+type TextFamilyElement = TextElement;
 type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | ChartElement | InteractiveElement;
 type PositioningEdge = "left" | "right" | "top" | "bottom";
 
@@ -146,29 +146,6 @@ function updateAxis(
   setDimension(resized);
   if (startPx === undefined && endPx === undefined) setStart(movesStart ? initialStart + delta : initialStart);
   return next;
-}
-
-export function updateTextboxForCanvasResize(
-  element: TextboxElement,
-  direction: CanvasResizeDirection,
-  deltaX: number,
-  deltaY: number,
-  geometry: CanonicalTextCanvasGeometry,
-): TextboxElement {
-  if (deltaX === 0 && deltaY === 0) return element;
-  const layout = element.layout ?? {};
-  const next = element.layout?.position === "absolute"
-    ? updateAxis(updateAxis(layout, "horizontal", direction, deltaX, geometry), "vertical", direction, deltaY, geometry)
-    : {
-        ...layout,
-        ...(deltaX !== 0 && (includes(direction, "e") || includes(direction, "w"))
-          ? { width: serializeSize(Math.max(1, geometry.initialWidthPx + (includes(direction, "w") ? -deltaX : deltaX)), layout.width, geometry.parentWidthPx) }
-          : {}),
-        ...(deltaY !== 0 && (includes(direction, "n") || includes(direction, "s"))
-          ? { height: serializeSize(Math.max(1, geometry.initialHeightPx + (includes(direction, "n") ? -deltaY : deltaY)), layout.height, geometry.parentHeightPx) }
-          : {}),
-      };
-  return { ...element, layout: next };
 }
 
 export function updateImageForCanvasResize(

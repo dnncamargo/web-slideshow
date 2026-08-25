@@ -141,7 +141,6 @@ Presentation
 └── Slide[]
     └── Element[]
         ├── text
-        ├── textbox
         ├── image
         ├── code
         ├── terminal
@@ -189,7 +188,7 @@ Slide
 │   │   └── Image
 │   │
 │   └── Column
-│       ├── Textbox
+│       ├── Text
 │       ├── Terminal
 │       └── Chart
 │

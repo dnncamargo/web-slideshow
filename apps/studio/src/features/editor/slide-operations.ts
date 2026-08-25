@@ -740,13 +740,19 @@ export function createSlideFromPreset(
           children: { direction: "column", gap: 24, horizontalAlign: "stretch", verticalAlign: "stretch" },
         }, [
           text("title", "Slide title"),
-          {
-            id: elementId("content"),
-            type: "textbox",
-            hidden: false,
-            content: "Add your content here.",
-            layout: { width: "100%", height: "100%" },
-          },
+          container("content", {
+            width: "100%",
+            height: "100%",
+            children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
+          }, [
+            {
+              id: elementId("content-body"),
+              type: "text",
+              hidden: false,
+              variant: "body",
+              content: "Add your content here.",
+            },
+          ]),
         ]),
       ]);
 
@@ -759,13 +765,18 @@ export function createSlideFromPreset(
           children: { direction: "column", gap: 20, horizontalAlign: "center", verticalAlign: "center" },
         }, [
           text("title", "Centered slide"),
-          {
-            id: elementId("content"),
-            type: "textbox",
-            hidden: false,
-            content: "Add your content here.",
-            layout: { width: "70%" },
-          },
+          container("content", {
+            width: "70%",
+            children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
+          }, [
+            {
+              id: elementId("content-body"),
+              type: "text",
+              hidden: false,
+              variant: "body",
+              content: "Add your content here.",
+            },
+          ]),
         ]),
       ]);
 
@@ -786,8 +797,9 @@ export function createSlideFromPreset(
           }, [
             {
               id: elementId("body"),
-              type: "textbox",
+              type: "text",
               hidden: false,
+              variant: "body",
               content: "Add your content here.",
             },
           ], { background: { color: "rgba(15, 23, 42, 0.45)" } }),

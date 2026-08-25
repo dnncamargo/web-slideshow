@@ -19,16 +19,6 @@ function textElement(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function textboxElement(overrides: Record<string, unknown> = {}) {
-  return {
-    type: "textbox",
-    id: "textbox-1",
-    hidden: false,
-    content: "PowerShow",
-    ...overrides,
-  };
-}
-
 function imageElement(overrides: Record<string, unknown> = {}) {
   return {
     type: "image",
@@ -386,7 +376,6 @@ describe("ContentSlotSchema", () => {
         id: "slot-mixed",
         children: [
           textElement({ id: "text-child" }),
-          textboxElement({ id: "textbox-child" }),
           imageElement({ id: "image-child" }),
           containerElement({
             id: "container-child",
@@ -408,7 +397,6 @@ describe("ContentSlotSchema", () => {
     if (result.success) {
       expect(result.data.children.map((child) => child.type)).toEqual([
         "text",
-        "textbox",
         "image",
         "container",
         "code",

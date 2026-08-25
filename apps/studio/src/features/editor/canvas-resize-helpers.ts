@@ -14,7 +14,6 @@ export type CanvasResizeDirection =
 
 const RESIZABLE_ELEMENT_TYPES = new Set<PowerShowElement["type"]>([
   "container",
-  "textbox",
   "image",
   "code",
   "terminal",

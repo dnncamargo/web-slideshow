@@ -2,7 +2,6 @@ import type {
   ElementTypography,
   TextElement,
   TextVisualStyle,
-  TextboxElement,
 } from "@powershow/document-schema";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
@@ -24,7 +23,7 @@ import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 import { ElementTypographyControl } from "./element-typography-control";
 
-type CanonicalTextElement = TextElement | TextboxElement;
+type CanonicalTextElement = TextElement;
 
 interface CanonicalTextAppearanceSectionProps {
   element: CanonicalTextElement;

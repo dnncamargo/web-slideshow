@@ -36,11 +36,17 @@ const textElement = {
   content: "PowerShow",
 };
 
-const textboxElement = {
-  id: "textbox-element",
-  type: "textbox",
-  content: "A highlighted explanation",
-  preset: "definition",
+const highlightBoxElement = {
+  id: "highlight-box",
+  type: "container",
+  role: "content",
+  children: [
+    {
+      id: "highlight-box-text",
+      type: "text",
+      content: "A highlighted explanation",
+    },
+  ],
 };
 
 const imageElement = {
@@ -299,9 +305,9 @@ export const validElementFixtures = [
     ]),
   },
   {
-    name: "textbox element",
+    name: "highlight box element",
     input: makePresentation([
-      makeSlide([textboxElement]),
+      makeSlide([highlightBoxElement]),
     ]),
   },
   {
@@ -348,7 +354,7 @@ export const validStyleFixtures = [
     input: makePresentation([
       makeSlide([
         {
-          ...textboxElement,
+          ...highlightBoxElement,
           layout: {
             width: 640,
             height: 360,
@@ -362,7 +368,7 @@ export const validStyleFixtures = [
     input: makePresentation([
       makeSlide([
         {
-          ...textboxElement,
+          ...highlightBoxElement,
           layout: {
             width: "50%",
             height: "calc(100vh - 2rem)",
@@ -376,7 +382,7 @@ export const validStyleFixtures = [
     input: makePresentation([
       makeSlide([
         {
-          ...textboxElement,
+          ...highlightBoxElement,
           layout: {
             position: "absolute",
             top: "2rem",

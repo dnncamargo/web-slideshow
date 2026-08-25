@@ -16,7 +16,7 @@ import type { ElementInspectorUpdate } from "../inspector-types";
 
 type LinkableElement = Extract<
   PowerShowElement,
-  { type: "text" | "textbox" | "image" | "container" }
+  { type: "text" | "image" | "container" }
 >;
 
 type OpenInSelection = "same" | "new";
@@ -34,7 +34,6 @@ function isLinkableElement(
 ): element is LinkableElement {
   return (
     element.type === "text" ||
-    element.type === "textbox" ||
     element.type === "image" ||
     element.type === "container"
   );
@@ -64,7 +63,7 @@ function elementWithoutLink(element: LinkableElement): LinkableElement {
 // ============================================================
 // BEGIN: ELEMENT INTERACTION SECTION
 //
-// Shared semantic Interaction control used by Text, Textbox, Image
+// Shared semantic Interaction control used by Text, Image
 // and Container.
 //
 // The section never creates a link just by mounting. URL commits

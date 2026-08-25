@@ -7,7 +7,6 @@ import type {
   SimpleTableElement,
   TerminalElement,
   TextElement,
-  TextboxElement,
 } from "@powershow/document-schema";
 
 export function createCodeElement(
@@ -59,18 +58,6 @@ export function createTextElement(
     hidden: false,
     variant: "body",
     content: "Fixture text",
-    ...overrides,
-  };
-}
-
-export function createTextboxElement(
-  overrides: Partial<TextboxElement> = {},
-): TextboxElement {
-  return {
-    type: "textbox",
-    id: "textbox-fixture",
-    hidden: false,
-    content: "Fixture textbox",
     ...overrides,
   };
 }

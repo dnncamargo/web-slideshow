@@ -209,7 +209,7 @@ function ElementTreeNode({
   const indicator =
     isExpandable && element.type === "container"
       ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
-      : element.type === "text" || element.type === "textbox"
+      : element.type === "text"
         ? element.layout?.position === "absolute"
         : element.type === "image"
           ? element.layout?.position === "absolute"

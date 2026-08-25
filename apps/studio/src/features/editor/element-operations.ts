@@ -41,7 +41,6 @@ import {
 
 export type ElementCreateType =
   | "text"
-  | "textbox"
   | "container"
   | "image"
   | "code"
@@ -1858,18 +1857,6 @@ export function createElement(
         content: "New text",
 
         variant: "body",
-      };
-    }
-
-    case "textbox": {
-      return {
-        id: createUniqueId("textbox-element", usedIds),
-
-        type: "textbox",
-
-        hidden: false,
-
-        content: "New textbox",
       };
     }
 

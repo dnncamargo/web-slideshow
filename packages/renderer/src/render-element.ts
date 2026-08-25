@@ -14,7 +14,6 @@ import type {
   ContainerElement,
   ImageElement,
   PowerShowElement,
-  TextboxElement,
   TextElement,
   ChartElement,
   InteractiveElement,
@@ -76,7 +75,7 @@ function buildAttributes(
   const outputClasses = ["powershow-element", ...classes];
 
   const customClass =
-    element.type === "container" || element.type === "text" || element.type === "textbox" || element.type === "image"
+    element.type === "container" || element.type === "text" || element.type === "image"
       ? element.style?.className?.trim()
       : undefined;
 
@@ -87,7 +86,7 @@ function buildAttributes(
   const styles: string[] = [];
 
   let baseStyle = "";
-  if (element.type === "text" || element.type === "textbox") {
+  if (element.type === "text") {
     baseStyle = renderCanonicalTextStyle(element);
   } else if (element.type === "image") {
     baseStyle = renderCanonicalImageStyle(element);
@@ -141,26 +140,6 @@ function renderText(element: TextElement): string {
     case "body":
       return `<p ${attributes}>${content}</p>`;
   }
-}
-
-function renderTextbox(element: TextboxElement): string {
-  if (element.hidden) {
-    return "";
-  }
-
-  const classes = ["powershow-textbox"];
-
-  if (element.preset) {
-    classes.push(`powershow-textbox-${element.preset}`);
-  }
-
-  const attributes = buildAttributes(element, classes);
-
-  return (
-    `<div ${attributes}>` +
-    renderLinkContent(escapeHtml(element.content), element.link) +
-    "</div>"
-  );
 }
 
 function renderLinkedImage(element: ImageElement, link: ElementLink): string {
@@ -288,9 +267,6 @@ export function renderElement(element: PowerShowElement): string {
   switch (element.type) {
     case "text":
       return renderText(element);
-
-    case "textbox":
-      return renderTextbox(element);
 
     case "image":
       return renderImage(element);

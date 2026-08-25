@@ -8,7 +8,6 @@ import {
   createContainerElement,
   createImageElement,
   createTextElement,
-  createTextboxElement,
 } from "./fixtures/render-fixtures";
 
 const HTTPS_LINK = {
@@ -456,28 +455,6 @@ describe("nested linked Containers", () => {
     expect(outerSurfaceStart).toBeGreaterThan(
       html.indexOf('data-powershow-id="child-text"'),
     );
-  });
-
-  it("renders a linked Textbox descendant with its own anchor preserved", () => {
-    const html = renderElement(
-      containerElement({
-        id: "outer",
-        link: HTTPS_LINK,
-        children: [
-          createTextboxElement({
-            id: "child-textbox",
-            content: "Boxed",
-            link: {
-              kind: "url",
-              href: "http://example.com/textbox",
-            },
-          }),
-        ],
-      }),
-    );
-
-    expect(countOccurrences(html, 'href="http://example.com/textbox"')).toBe(1);
-    expect(html).toContain('data-powershow-id="child-textbox"');
   });
 });
 

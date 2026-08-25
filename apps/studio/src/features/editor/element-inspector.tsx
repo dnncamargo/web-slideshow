@@ -17,7 +17,6 @@ import {
   ScriptedInspector,
   TableInspector,
   TerminalInspector,
-  TextboxInspector,
   TextInspector,
   TopicsInspector,
 } from "./inspector";
@@ -105,15 +104,6 @@ function ElementTypeInspector({
     case "text":
       return (
         <TextInspector
-          element={element}
-          onUpdate={onUpdate}
-          fontResourceControls={fontResourceControls}
-        />
-      );
-
-    case "textbox":
-      return (
-        <TextboxInspector
           element={element}
           onUpdate={onUpdate}
           fontResourceControls={fontResourceControls}
@@ -275,15 +265,12 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && shouldShowElementPositioning(layerControls) && (
-        element.type === "text" || element.type === "textbox" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
+        element.type === "text" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
           <CanonicalElementPositionSection
             element={element}
             parent={parent}
             onUpdateLayout={(update) => {
               onUpdate((current) => {
-                if (current.type === "textbox") {
-                  return { ...current, layout: update(current.layout) };
-                }
                 if (current.type === "text") {
                   const next = update(current.layout);
                   const textLayout = next && "width" in next

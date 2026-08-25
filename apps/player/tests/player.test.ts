@@ -270,7 +270,7 @@ describe("PowerShow Player", () => {
       ],
     };
     presentation.slides[0]?.elements.forEach((element) => {
-      if (element.type === "text" || element.type === "textbox") {
+      if (element.type === "text") {
         element.typography = {
           ...element.typography,
           fontFamily: "Source Sans 3",
@@ -335,7 +335,7 @@ describe("PowerShow Player", () => {
       ],
     };
     const firstElement = presentation.slides[0]?.elements[0];
-    if (firstElement && (firstElement.type === "text" || firstElement.type === "textbox" || firstElement.type === "container" || firstElement.type === "topics")) {
+    if (firstElement && (firstElement.type === "text" || firstElement.type === "container" || firstElement.type === "topics")) {
       firstElement.typography = {
         ...firstElement.typography,
         fontFamily: "Inter",
@@ -478,7 +478,7 @@ describe("PowerShow Player", () => {
     };
     const firstElement = presentation.slides[0]?.elements[0];
 
-    if (firstElement && (firstElement.type === "text" || firstElement.type === "textbox" || firstElement.type === "container" || firstElement.type === "topics")) {
+    if (firstElement && (firstElement.type === "text" || firstElement.type === "container" || firstElement.type === "topics")) {
       firstElement.typography = {
         ...firstElement.typography,
         fontFamily: "Audiowide",
