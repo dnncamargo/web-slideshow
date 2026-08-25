@@ -536,6 +536,54 @@
   gap: 12px;
 }
 
+.customLibraryTypeMark {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: #172131;
+  color: var(--ps-ui-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.recipeTree,
+.recipeProperties,
+.recipeChildren {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipeTree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recipeNode {
+  color: var(--ps-ui-text-primary);
+  font-size: 13px;
+}
+
+.recipeProperties {
+  display: flex;
+  margin-top: 4px;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--ps-ui-text-muted);
+  font-size: 12px;
+}
+
+.recipeChildren {
+  display: flex;
+  margin-top: 8px;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .rowOpening {
   color: var(--ps-ui-text-muted);
   font-size: 12px;

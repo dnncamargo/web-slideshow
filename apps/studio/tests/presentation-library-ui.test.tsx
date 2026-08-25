@@ -51,6 +51,10 @@ import type { PresentationRepository } from "../src/features/persistence/present
 import type { PresentationRecoveryInspection } from "../src/features/persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../src/features/persistence/presentation-folder-repository";
 import type { PresentationSummary } from "../src/features/persistence/presentation-persistence";
+import type {
+  CustomLibraryItemRecord,
+  CustomLibraryRepository,
+} from "../src/features/custom-library/custom-library-repository";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -148,15 +152,64 @@ function renderToolbar(
 function renderLibrary(
   repository: PresentationRepository,
   folderRepository?: PresentationFolderRepository,
+  customLibraryRepository?: CustomLibraryRepository,
 ) {
   return (
     <StudioI18nProvider>
       <PresentationLibrary
         repository={repository}
         folderRepository={folderRepository ?? emptyFolderRepository()}
+        customLibraryRepository={customLibraryRepository}
       />
     </StudioI18nProvider>
   );
+}
+
+function customLibraryItem(
+  id: string,
+  name: string,
+  description?: string,
+): CustomLibraryItemRecord {
+  return {
+    id,
+    item: {
+      name,
+      ...(description ? { description } : {}),
+      root: {
+        type: "container",
+        properties: [
+          { path: "layout.width", value: "100%" },
+          { path: "style.background", value: "#secret-background" },
+        ],
+        children: [
+          {
+            type: "scripted",
+            properties: [
+              { path: "html", value: "<p>secret html</p>" },
+              { path: "css", value: ".secret { color: red; }" },
+              { path: "script", value: "alert('secret')" },
+            ],
+          },
+          { type: "text", properties: [] },
+        ],
+      },
+    },
+  };
+}
+
+function customLibraryRepositoryFor(initialItems: CustomLibraryItemRecord[]) {
+  let current = initialItems;
+  const listItems = vi.fn(async () => current);
+  const deleteItem = vi.fn(async (id: string) => {
+    current = current.filter((item) => item.id !== id);
+  });
+  const repository: CustomLibraryRepository = {
+    saveItem: vi.fn(async () => "unused"),
+    listItems,
+    getItem: vi.fn(async () => null),
+    deleteItem,
+  };
+  return { repository, listItems, deleteItem, getCurrent: () => current };
 }
 
 function emptyFolderRepository(): PresentationFolderRepository {
@@ -1004,5 +1057,153 @@ describe("presentation library workspace controls", () => {
 
     expect(details.textContent).toContain("Live");
     expect(repository.getPresentation).not.toHaveBeenCalled();
+  });
+
+  it("lazily loads Custom Library and preserves repository order", async () => {
+    const { repository } = repositoryFor([]);
+    const custom = customLibraryRepositoryFor([
+      customLibraryItem("doc-1", "First item", "First description"),
+      customLibraryItem("doc-2", "Second item"),
+    ]);
+
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
+    await flushWorkspaceEffects();
+    expect(custom.listItems).not.toHaveBeenCalled();
+
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Custom Library",
+    );
+    if (!destination) throw new Error("expected Custom Library destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+
+    expect(custom.listItems).toHaveBeenCalledTimes(1);
+    expect(container.textContent?.indexOf("First item")).toBeLessThan(
+      container.textContent?.indexOf("Second item") ?? -1,
+    );
+    expect(container.textContent).toContain("Container");
+    expect(container.textContent).not.toContain("doc-1");
+  });
+
+  it("shows loading and generic retryable failure states", async () => {
+    const { repository } = repositoryFor([]);
+    let resolve: ((items: CustomLibraryItemRecord[]) => void) | undefined;
+    const listItems = vi.fn(
+      () => new Promise<CustomLibraryItemRecord[]>((done) => { resolve = done; }),
+    );
+    const custom: CustomLibraryRepository = {
+      saveItem: vi.fn(async () => "unused"),
+      listItems,
+      getItem: vi.fn(async () => null),
+      deleteItem: vi.fn(async () => {}),
+    };
+
+    act(() => root.render(renderLibrary(repository, undefined, custom)));
+    await flushWorkspaceEffects();
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Custom Library",
+    );
+    if (!destination) throw new Error("expected Custom Library destination");
+    act(() => destination.click());
+    expect(container.textContent).toContain("Loading Custom Library…");
+    resolve?.([]);
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("No Custom Library items yet.");
+
+    const failingList = vi.fn(async () => { throw new Error("malformed persisted record"); });
+    const failingCustom: CustomLibraryRepository = { ...custom, listItems: failingList };
+    act(() => root.render(renderLibrary(repository, undefined, failingCustom)));
+    await flushWorkspaceEffects();
+    const failingDestination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Custom Library",
+    );
+    if (!failingDestination) throw new Error("expected Custom Library destination");
+    act(() => failingDestination.click());
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("Could not load Custom Library.");
+    const retry = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Retry",
+    );
+    if (!retry) throw new Error("expected Custom Library retry");
+    act(() => retry.click());
+    await flushWorkspaceEffects();
+    expect(failingList).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("No Custom Library items yet.");
+  });
+
+  it("inspects recursive property paths without rendering persisted values", async () => {
+    const { repository } = repositoryFor([]);
+    const custom = customLibraryRepositoryFor([customLibraryItem("doc-1", "Reusable warning", "Warning description")]);
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
+    await flushWorkspaceEffects();
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Custom Library",
+    );
+    if (!destination) throw new Error("expected Custom Library destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>('[data-custom-library-row]');
+    if (!row) throw new Error("expected Custom Library row");
+    act(() => row.click());
+
+    const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
+    if (!details) throw new Error("expected Custom Library details");
+    expect(details.textContent).toContain("Reusable warning");
+    expect(details.textContent).toContain("Warning description");
+    expect(details.textContent).toContain("layout.width");
+    expect(details.textContent).toContain("style.background");
+    expect(details.textContent).toContain("html");
+    expect(details.textContent).toContain("css");
+    expect(details.textContent).toContain("script");
+    expect(details.textContent).toContain("No selected properties");
+    expect(details.textContent).not.toContain("secret html");
+    expect(details.textContent).not.toContain("secret-background");
+    expect(details.textContent).not.toContain("alert('secret')");
+    expect(repository.getPresentation).not.toHaveBeenCalled();
+
+    act(() => row.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(details.textContent).toContain("Select an item to view details.");
+  });
+
+  it("confirms Custom Library deletion, removes locally, and supports retry after failure", async () => {
+    const { repository } = repositoryFor([]);
+    const item = customLibraryItem("exact-doc-id", "Delete me");
+    const custom = customLibraryRepositoryFor([item]);
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
+    await flushWorkspaceEffects();
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Custom Library",
+    );
+    if (!destination) throw new Error("expected Custom Library destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>('[data-custom-library-row]');
+    if (!row) throw new Error("expected Custom Library row");
+    act(() => row.click());
+    const deleteButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete",
+    );
+    if (!deleteButton) throw new Error("expected Custom Library Delete action");
+    act(() => deleteButton.click());
+    expect(container.textContent).toContain("Delete Custom Library item?");
+    const cancel = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Cancel",
+    );
+    if (!cancel) throw new Error("expected Cancel");
+    act(() => cancel.click());
+    expect(custom.deleteItem).not.toHaveBeenCalled();
+
+    act(() => deleteButton.click());
+    const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find(
+      (button) => button.textContent === "Delete",
+    );
+    if (!confirm) throw new Error("expected delete confirmation");
+    act(() => { confirm.click(); confirm.click(); });
+    await flushWorkspaceEffects();
+    expect(custom.deleteItem).toHaveBeenCalledTimes(1);
+    expect(custom.deleteItem).toHaveBeenCalledWith("exact-doc-id");
+    expect(container.textContent).not.toContain("Delete me");
+    expect(container.textContent).toContain("Select an item to view details.");
+    expect(repository.deleteArchivedPresentation).not.toHaveBeenCalled();
   });
 });

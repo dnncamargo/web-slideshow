@@ -7,6 +7,7 @@ export type LibraryStatus = "loading" | "ready" | "error";
 export type StaticLibraryDestination =
   | "all"
   | "archived"
+  | "customLibrary"
   | "styles"
   | "palettes"
   | "fonts";
@@ -25,7 +26,11 @@ export type PresentationLibraryDestination =
   | "archived"
   | FolderLibraryDestination;
 
-export type ResourceLibraryDestination = "styles" | "palettes" | "fonts";
+export type ResourceLibraryDestination =
+  | "customLibrary"
+  | "styles"
+  | "palettes"
+  | "fonts";
 
 export type PresentationToolbarAction =
   | "present"
@@ -57,6 +62,7 @@ export function isResourceDestination(
   destination: LibraryDestination,
 ): destination is ResourceLibraryDestination {
   return (
+    destination === "customLibrary" ||
     destination === "styles" ||
     destination === "palettes" ||
     destination === "fonts"

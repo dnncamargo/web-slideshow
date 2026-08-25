@@ -29,10 +29,15 @@ import {
   getDefaultPresentationRepository,
 } from "../persistence/presentation-repository-instance";
 import { getDefaultPresentationFolderRepository } from "../persistence/presentation-folder-repository-instance";
+import { getDefaultCustomLibraryRepository } from "../persistence/custom-library-repository-instance";
 import type { PresentationRepository } from "../persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
 import type { PresentationFolder } from "../persistence/presentation-folder";
 import type { PresentationSummary } from "../persistence/presentation-persistence";
+import type {
+  CustomLibraryItemRecord,
+  CustomLibraryRepository,
+} from "../custom-library/custom-library-repository";
 import {
   subscribeLiveCurrent,
   activateLivePresentation,
@@ -54,6 +59,9 @@ import { PresentationDetails } from "./presentation-details";
 import { PresentationToolbar } from "./presentation-toolbar";
 import { StudioSidebar } from "./studio-sidebar";
 import { DeletePresentationDialog } from "./delete-presentation-dialog";
+import { CustomLibraryBrowser } from "../custom-library/custom-library-browser";
+import { CustomLibraryDetails } from "../custom-library/custom-library-details";
+import { CustomLibraryDeleteDialog } from "../custom-library/custom-library-delete-dialog";
 import styles from "./presentation-library.module.css";
 import {
   buildPresentationExportFilename,
@@ -66,13 +74,14 @@ import { PresentationImportError } from "./presentation-transfer";
 interface PresentationLibraryProps {
   repository?: PresentationRepository;
   folderRepository?: PresentationFolderRepository;
+  customLibraryRepository?: CustomLibraryRepository;
 }
 
 type LibraryStatus = "loading" | "ready" | "error";
 type FolderStatus = "loading" | "ready" | "error";
 
 const SELECTION_INTERACTIVE_SELECTOR =
-  "button, a, input, select, textarea, [role='button'], [data-presentation-row]";
+  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row]";
 
 function destinationTitle(
   destination: LibraryDestination,
@@ -88,6 +97,8 @@ function destinationTitle(
       return t("library.all");
     case "archived":
       return t("library.archived");
+    case "customLibrary":
+      return t("library.customLibrary");
     case "styles":
       return t("library.styles");
     case "palettes":
@@ -100,6 +111,7 @@ function destinationTitle(
 export function PresentationLibrary({
   repository = getDefaultPresentationRepository(),
   folderRepository = getDefaultPresentationFolderRepository(),
+  customLibraryRepository = getDefaultCustomLibraryRepository(),
 }: PresentationLibraryProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
@@ -109,6 +121,8 @@ export function PresentationLibrary({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<LibraryStatus>("loading");
   const [summaries, setSummaries] = useState<PresentationSummary[]>([]);
+  const [customLibraryStatus, setCustomLibraryStatus] = useState<"idle" | LibraryStatus>("idle");
+  const [customLibraryItems, setCustomLibraryItems] = useState<CustomLibraryItemRecord[]>([]);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -123,6 +137,10 @@ export function PresentationLibrary({
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [selectedCustomLibraryItemId, setSelectedCustomLibraryItemId] = useState<string | null>(null);
+  const [customLibraryDeleteTargetId, setCustomLibraryDeleteTargetId] = useState<string | null>(null);
+  const [deletingCustomLibraryItemId, setDeletingCustomLibraryItemId] = useState<string | null>(null);
+  const [customLibraryError, setCustomLibraryError] = useState<string | null>(null);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -133,6 +151,8 @@ export function PresentationLibrary({
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
 
   const mountedRef = useRef(true);
+  const customLibraryLoadRef = useRef(0);
+  const customLibraryDeleteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -189,6 +209,30 @@ export function PresentationLibrary({
     queueMicrotask(() => void loadFolders());
   }, [loadFolders]);
 
+  const loadCustomLibraryItems = useCallback(async () => {
+    const request = customLibraryLoadRef.current + 1;
+    customLibraryLoadRef.current = request;
+    setCustomLibraryStatus("loading");
+    setCustomLibraryError(null);
+
+    try {
+      const items = await customLibraryRepository.listItems();
+      if (!mountedRef.current || customLibraryLoadRef.current !== request) return;
+      setCustomLibraryItems(items);
+      setCustomLibraryStatus("ready");
+    } catch (error) {
+      console.error("Library: could not load Custom Library", error);
+      if (!mountedRef.current || customLibraryLoadRef.current !== request) return;
+      setCustomLibraryStatus("error");
+      setCustomLibraryError(t("customLibrary.browser.loadFailed"));
+    }
+  }, [customLibraryRepository, t]);
+
+  useEffect(() => {
+    if (destination !== "customLibrary") return;
+    void loadCustomLibraryItems();
+  }, [destination, loadCustomLibraryItems]);
+
   useEffect(() => {
     const unsubscribe = subscribeLiveCurrent(setLiveState);
     return () => unsubscribe?.();
@@ -208,16 +252,23 @@ export function PresentationLibrary({
   const handleDestinationChange = useCallback((next: LibraryDestination) => {
     setDestination(next);
     setSelectedId(null);
+    setSelectedCustomLibraryItemId(null);
+    setCustomLibraryDeleteTargetId(null);
   }, []);
 
   const handleToggleSelection = useCallback((id: string) => {
     setSelectedId((current) => (current === id ? null : id));
   }, []);
 
+  const handleToggleCustomLibrarySelection = useCallback((id: string) => {
+    setSelectedCustomLibraryItemId((current) => (current === id ? null : id));
+  }, []);
+
   const handleWorkspaceKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>) => {
       if (event.key === "Escape") {
         setSelectedId(null);
+        setSelectedCustomLibraryItemId(null);
       }
     },
     [],
@@ -240,6 +291,7 @@ export function PresentationLibrary({
       }
 
       setSelectedId(null);
+      setSelectedCustomLibraryItemId(null);
     },
     [],
   );
@@ -280,6 +332,44 @@ export function PresentationLibrary({
   );
 
   const selected = summaries.find((summary) => summary.id === selectedId) ?? null;
+  const selectedCustomLibraryItem =
+    customLibraryItems.find((record) => record.id === selectedCustomLibraryItemId) ?? null;
+
+  const handleRequestCustomLibraryDelete = useCallback(() => {
+    if (!selectedCustomLibraryItem) return;
+    setCustomLibraryError(null);
+    setCustomLibraryDeleteTargetId(selectedCustomLibraryItem.id);
+  }, [selectedCustomLibraryItem]);
+
+  const handleConfirmCustomLibraryDelete = useCallback(async () => {
+    if (customLibraryDeleteRef.current || customLibraryDeleteTargetId === null) return;
+    const target = customLibraryItems.find((record) => record.id === customLibraryDeleteTargetId);
+    if (!target) return;
+
+    customLibraryDeleteRef.current = true;
+    setDeletingCustomLibraryItemId(target.id);
+    setCustomLibraryError(null);
+
+    try {
+      await customLibraryRepository.deleteItem(target.id);
+      if (!mountedRef.current) return;
+      setCustomLibraryItems((items) => items.filter((record) => record.id !== target.id));
+      setSelectedCustomLibraryItemId((current) => current === target.id ? null : current);
+      setCustomLibraryDeleteTargetId(null);
+    } catch (error) {
+      console.error("Library: could not delete Custom Library item", error);
+      if (mountedRef.current) setCustomLibraryError(t("customLibrary.deleteFailed"));
+    } finally {
+      customLibraryDeleteRef.current = false;
+      if (mountedRef.current) setDeletingCustomLibraryItemId(null);
+    }
+  }, [customLibraryDeleteTargetId, customLibraryItems, customLibraryRepository, t]);
+
+  const handleCancelCustomLibraryDelete = useCallback(() => {
+    if (customLibraryDeleteRef.current) return;
+    setCustomLibraryDeleteTargetId(null);
+    setCustomLibraryError(null);
+  }, []);
 
   const handleExport = useCallback(async () => {
     if (!selected || transferBusy) return;
@@ -584,6 +674,7 @@ export function PresentationLibrary({
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
+  const customLibraryDestination = destination === "customLibrary";
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -718,6 +809,33 @@ export function PresentationLibrary({
                     />
                   ) : null}
                 </>
+              ) : customLibraryDestination ? (
+                <>
+                  {customLibraryStatus === "loading" ? (
+                    <p className={styles.stateBlock}>{t("customLibrary.browser.loading")}</p>
+                  ) : null}
+                  {customLibraryStatus === "error" ? (
+                    <div className={styles.stateBlock}>
+                      <p>{customLibraryError ?? t("customLibrary.browser.loadFailed")}</p>
+                      <Button size="compact" onClick={() => void loadCustomLibraryItems()}>
+                        {t("customLibrary.browser.retry")}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {customLibraryStatus === "ready" && customLibraryItems.length === 0 ? (
+                    <div className={styles.stateBlock}>
+                      <p>{t("customLibrary.browser.empty")}</p>
+                      <p>{t("customLibrary.browser.emptyHint")}</p>
+                    </div>
+                  ) : null}
+                  {customLibraryStatus === "ready" && customLibraryItems.length > 0 ? (
+                    <CustomLibraryBrowser
+                      items={customLibraryItems}
+                      selectedId={selectedCustomLibraryItemId}
+                      onSelect={handleToggleCustomLibrarySelection}
+                    />
+                  ) : null}
+                </>
               ) : (
                 <div className={styles.placeholder}>
                   <p className={styles.placeholderTitle}>
@@ -730,15 +848,22 @@ export function PresentationLibrary({
               )}
             </section>
 
-            <PresentationDetails
-              summary={presentationDestination ? selected : null}
-              liveState={liveState}
-              folders={folders}
-              movingId={movingId}
-              onMoveFolder={(folderId) => {
-                if (selected) void handleMoveFolder(selected.id, folderId);
-              }}
-            />
+            {customLibraryDestination ? (
+              <CustomLibraryDetails
+                record={selectedCustomLibraryItem}
+                onDelete={handleRequestCustomLibraryDelete}
+              />
+            ) : (
+              <PresentationDetails
+                summary={presentationDestination ? selected : null}
+                liveState={liveState}
+                folders={folders}
+                movingId={movingId}
+                onMoveFolder={(folderId) => {
+                  if (selected) void handleMoveFolder(selected.id, folderId);
+                }}
+              />
+            )}
           </div>
         </main>
       </div>
@@ -751,6 +876,16 @@ export function PresentationLibrary({
           error={deleteError}
           onCancel={handleCancelDelete}
           onConfirm={() => void handleConfirmDelete()}
+        />
+      ) : null}
+
+      {customLibraryDeleteTargetId !== null ? (
+        <CustomLibraryDeleteDialog
+          record={customLibraryItems.find((record) => record.id === customLibraryDeleteTargetId) ?? null}
+          deleting={deletingCustomLibraryItemId !== null}
+          error={customLibraryError}
+          onCancel={handleCancelCustomLibraryDelete}
+          onConfirm={() => void handleConfirmCustomLibraryDelete()}
         />
       ) : null}
     </div>
