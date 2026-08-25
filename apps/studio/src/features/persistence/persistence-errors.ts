@@ -45,6 +45,10 @@ export class PresentationRecoveryFailedError extends PersistenceError {
 
 export class InvalidPresentationForPersistenceError extends PersistenceError {}
 
+export class InvalidCustomLibraryItemForPersistenceError extends PersistenceError {}
+
+export class InvalidPersistedCustomLibraryItemError extends PersistenceError {}
+
 export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);

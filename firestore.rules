@@ -130,6 +130,15 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // PRIVATE CUSTOM LIBRARY
+    // users/{userId}/customLibraryItems/{itemId}
+    // ------------------------------------------------------------
+    match /users/{userId}/customLibraryItems/{itemId} {
+      allow read, write: if isPrivatePresentationOwner(userId)
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // ------------------------------------------------------------
     // PRIVATE PRESENTATION NOTES
     // users/{userId}/presentations/{presentationId}/private/notes
     //

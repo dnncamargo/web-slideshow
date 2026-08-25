@@ -11,6 +11,12 @@ export { FirestorePresentationNotesRepository } from "./firestore-presentation-n
 export type { PresentationNotesRepository } from "./presentation-notes-repository";
 export { FirestorePresentationFolderRepository } from "./firestore-presentation-folder-repository";
 export type { PresentationFolderRepository } from "./presentation-folder-repository";
+export { FirestoreCustomLibraryRepository } from "./firestore-custom-library-repository";
+export { getDefaultCustomLibraryRepository } from "./custom-library-repository-instance";
+export type {
+  CustomLibraryItemRecord,
+  CustomLibraryRepository,
+} from "../custom-library/custom-library-repository";
 export {
   MAX_FOLDER_NAME_LENGTH,
   isValidFolderName,
@@ -59,6 +65,8 @@ export {
   FirebaseAuthenticationError,
   FirestoreOperationError,
   InvalidFolderNameError,
+  InvalidCustomLibraryItemForPersistenceError,
+  InvalidPersistedCustomLibraryItemError,
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
   PresentationRecoveryFailedError,
