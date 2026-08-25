@@ -42,7 +42,9 @@ describe("library destination model", () => {
     expect(isPresentationDestination("archived")).toBe(true);
     expect(isPresentationDestination({ kind: "folder", folderId: "f1" })).toBe(true);
     expect(isPresentationDestination("styles")).toBe(false);
+    expect(isPresentationDestination("customLibrary")).toBe(false);
 
+    expect(isResourceDestination("customLibrary")).toBe(true);
     expect(isResourceDestination("styles")).toBe(true);
     expect(isResourceDestination("palettes")).toBe(true);
     expect(isResourceDestination("fonts")).toBe(true);
