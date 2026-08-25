@@ -42,10 +42,45 @@ function getValueAtPath(element: PowerShowElement, path: string): unknown {
   return value;
 }
 
-function formatAtomicValue(value: unknown): string {
-  return value !== null && typeof value === "object"
-    ? JSON.stringify(value)
-    : String(value);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function formatAtomicValue(path: string, value: unknown): string {
+  if (!isRecord(value)) {
+    return value === null ? "null" : String(value);
+  }
+
+  if (path === "link" && typeof value.href === "string") {
+    return value.target ? `${value.href} · ${value.target}` : value.href;
+  }
+
+  if ((path === "crop" || path === "focalPoint") &&
+      typeof value.x === "number" && typeof value.y === "number") {
+    if (path === "crop" && typeof value.width === "number" && typeof value.height === "number") {
+      return `x ${value.x}%, y ${value.y}%, ${value.width}% × ${value.height}%`;
+    }
+    return `x ${value.x}%, y ${value.y}%`;
+  }
+
+  if (path === "effect.shadow" &&
+      (typeof value.x === "string" || typeof value.x === "number") &&
+      (typeof value.y === "string" || typeof value.y === "number") &&
+      (typeof value.blur === "string" || typeof value.blur === "number")) {
+    return `${value.x} ${value.y} ${value.blur}${typeof value.color === "string" ? ` · ${value.color}` : ""}`;
+  }
+
+  if (path.endsWith(".gradient") && typeof value.type === "string" &&
+      Array.isArray(value.stops)) {
+    return `${value.type} · ${value.stops.length} stops`;
+  }
+
+  if (path.endsWith(".pattern")) {
+    const repeat = typeof value.repeat === "string" ? value.repeat : "repeat";
+    return `pattern · ${repeat}`;
+  }
+
+  return `${Object.keys(value).length} fields`;
 }
 
 function getPropertyRoot(path: string): string {
@@ -61,7 +96,7 @@ function toSelectableProperty(
     ...entry,
     displayValue:
       kind === "atomic-object"
-        ? formatAtomicValue(getValueAtPath(element, entry.path))
+        ? formatAtomicValue(entry.path, getValueAtPath(element, entry.path))
         : entry.displayValue,
     kind,
     defaultSelected: !normallyUnselectedRoots.has(getPropertyRoot(entry.path)),
@@ -90,7 +125,7 @@ export function getSelectableElementProperties(
     if (value !== undefined) {
       selectable.push(toSelectableProperty(element, {
         path,
-        displayValue: formatAtomicValue(value),
+        displayValue: formatAtomicValue(path, value),
       }, "atomic-object"));
     }
   }
