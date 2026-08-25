@@ -9,7 +9,11 @@ import {
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "./editor-workspace.module.css";
-import { getElementPropertyEntries } from "./element-properties";
+import {
+  getSelectableElementProperties,
+  type SelectableElementProperty,
+} from "./element-property-selection";
+import { useEffect, useMemo, useState } from "react";
 
 interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
@@ -28,9 +32,30 @@ export function ElementPropertiesPanel({
   isStructuralTopicSelection,
 }: ElementPropertiesPanelProps) {
   const { t } = useStudioI18n();
-  const entries = selectedElement
-    ? getElementPropertyEntries(selectedElement)
-    : [];
+  const selectableProperties = useMemo(
+    () => (selectedElement ? getSelectableElementProperties(selectedElement) : []),
+    [selectedElement],
+  );
+  const [selectedPathsByElement, setSelectedPathsByElement] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
+
+  useEffect(() => {
+    if (!selectedElement) return;
+    setSelectedPathsByElement((current) => ({
+      ...current,
+      [selectedElement.id]: Object.fromEntries(
+        selectableProperties.map((property) => [
+          property.path,
+          current[selectedElement.id]?.[property.path] ?? property.defaultSelected,
+        ]),
+      ),
+    }));
+  }, [selectedElement, selectableProperties]);
+
+  const selectedPaths = selectedElement
+    ? selectedPathsByElement[selectedElement.id] ?? {}
+    : {};
 
   return (
     <section className={styles.elementProperties} aria-label={t("properties.title")}>
@@ -46,8 +71,22 @@ export function ElementPropertiesPanel({
             {getElementIdentity(selectedElement, t)}
           </div>
           <div className={styles.elementPropertiesList}>
-            {entries.map((entry) => (
-              <div className={styles.elementPropertyRow} key={entry.path}>
+            {selectableProperties.map((entry: SelectableElementProperty) => (
+              <label className={styles.elementPropertyRow} key={entry.path}>
+                <input
+                  type="checkbox"
+                  checked={selectedPaths[entry.path] ?? entry.defaultSelected}
+                  onChange={(event) => {
+                    if (!selectedElement) return;
+                    setSelectedPathsByElement((current) => ({
+                      ...current,
+                      [selectedElement.id]: {
+                        ...(current[selectedElement.id] ?? {}),
+                        [entry.path]: event.target.checked,
+                      },
+                    }));
+                  }}
+                />
                 <span className={styles.elementPropertyPath}>{entry.path}</span>
                 <span
                   className={styles.elementPropertyValue}
@@ -55,7 +94,7 @@ export function ElementPropertiesPanel({
                 >
                   {entry.displayValue}
                 </span>
-              </div>
+              </label>
             ))}
           </div>
         </>

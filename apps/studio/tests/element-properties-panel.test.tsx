@@ -95,4 +95,49 @@ describe("ElementPropertiesPanel", () => {
     expect(container.textContent).not.toContain("Topics · topics-1");
     expect(container.textContent).not.toContain("items0 items");
   });
+
+  it("keeps checkbox choices in UI state and initializes a new element separately", () => {
+    const textElement: PowerShowElement = {
+      type: "text",
+      id: "text-1",
+      hidden: false,
+      variant: "title",
+      content: "Hello",
+    };
+    const before = JSON.stringify(textElement);
+
+    renderPanel(root, textElement);
+    const contentCheckbox = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=checkbox]"),
+    ).find((checkbox) => checkbox.parentElement?.textContent?.includes("content"));
+
+    expect(contentCheckbox?.checked).toBe(false);
+    expect(contentCheckbox).toBeDefined();
+
+    act(() => {
+      contentCheckbox?.click();
+    });
+
+    expect(contentCheckbox?.checked).toBe(true);
+    expect(JSON.stringify(textElement)).toBe(before);
+
+    renderPanel(root, {
+      type: "image",
+      id: "image-1",
+      hidden: false,
+      src: "logo.svg",
+      alt: "Logo",
+      fit: "contain",
+    });
+
+    const srcCheckbox = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=checkbox]"),
+    ).find((checkbox) => checkbox.parentElement?.textContent?.includes("src"));
+    const fitCheckbox = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=checkbox]"),
+    ).find((checkbox) => checkbox.parentElement?.textContent?.includes("fit"));
+
+    expect(srcCheckbox?.checked).toBe(false);
+    expect(fitCheckbox?.checked).toBe(true);
+  });
 });

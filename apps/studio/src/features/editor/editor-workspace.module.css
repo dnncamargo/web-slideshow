@@ -823,8 +823,9 @@
 .elementPropertyRow {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: auto minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 8px;
+  align-items: center;
   font-size: 10px;
   line-height: 1.35;
 }
