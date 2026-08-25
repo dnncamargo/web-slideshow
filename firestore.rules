@@ -130,6 +130,14 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // PRIVATE CUSTOM LIBRARY
+    // users/{userId}/customLibraryItems/{itemId}
+    // ------------------------------------------------------------
+    match /users/{userId}/customLibraryItems/{itemId} {
+      allow read, write: if isPrivatePresentationOwner(userId);
+    }
+
+    // ------------------------------------------------------------
     // PRIVATE PRESENTATION NOTES
     // users/{userId}/presentations/{presentationId}/private/notes
     //
