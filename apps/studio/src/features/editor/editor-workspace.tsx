@@ -106,7 +106,6 @@ import {
   updateCanonicalImageForCanvasDrag,
   updateCanonicalSurfaceForCanvasDrag,
   updateCanonicalElementForCanvasDrag,
-  updateTextboxForCanvasResize,
   updateImageForCanvasResize,
   updateSurfaceForCanvasResize,
   type CanonicalTextCanvasGeometry,
@@ -686,7 +685,7 @@ export function EditorWorkspace({
         const draggable =
           documentElement.type === "container"
             ? isContainerCanvasDraggable(documentElement)
-            : documentElement.type === "text" || documentElement.type === "textbox"
+            : documentElement.type === "text"
               ? documentElement.layout?.position === "absolute"
               : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks"
                 ? documentElement.layout?.position === "absolute"
@@ -1139,7 +1138,7 @@ export function EditorWorkspace({
     const draggable =
       selection.documentElement.type === "container"
         ? isContainerCanvasDraggable(selection.documentElement)
-        : selection.documentElement.type === "text" || selection.documentElement.type === "textbox"
+        : selection.documentElement.type === "text"
           ? selection.documentElement.layout?.position === "absolute"
         : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks"
             ? selection.documentElement.layout?.position === "absolute"
@@ -1195,7 +1194,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "textbox" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -1306,7 +1305,7 @@ export function EditorWorkspace({
                     );
                   }
 
-                  if (element.type === "text" || element.type === "textbox") {
+                  if (element.type === "text") {
                     return drag.canonicalTextGeometry
                       ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
                       : element;
@@ -1536,7 +1535,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "textbox" || selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks") {
+    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -1721,11 +1720,6 @@ export function EditorWorkspace({
                   }
                   if (element.type === "text") {
                     return element;
-                  }
-                  if (element.type === "textbox") {
-                    return resize.canonicalTextResizeGeometry
-                      ? updateTextboxForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
-                      : element;
                   }
                   if (element.type === "image") {
                     const locked = preserveImageProportion;

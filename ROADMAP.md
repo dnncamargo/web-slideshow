@@ -131,7 +131,7 @@ Squash merge baseline on `main`:
 Delivered:
 
 - responsibility-specific canonical contracts for all current elements;
-- canonical Container / Text / Textbox / Image / surface / data contracts;
+- canonical Container / Text / Image / surface / data contracts;
 - canonical Image Crop;
 - Divider and Topics contracts;
 - Chart / Interactive semantic position-only contracts;

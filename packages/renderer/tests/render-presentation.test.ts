@@ -164,15 +164,16 @@ describe("renderPresentation", () => {
       ],
     };
     presentation.slides[0]?.elements.push({
-      type: "textbox",
-      id: "textbox-1",
+      type: "text",
+      id: "text-extra",
       hidden: false,
+      variant: "body",
       content: "Also Inter",
       typography: { fontFamily: "Inter" },
     });
     const firstElement = presentation.slides[0]?.elements[0];
     if (firstElement) {
-      if (firstElement.type === "text" || firstElement.type === "textbox") {
+      if (firstElement.type === "text") {
         firstElement.typography = { fontFamily: "Inter" };
       }
     }

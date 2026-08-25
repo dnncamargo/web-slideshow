@@ -68,7 +68,6 @@ Presentation
 └── Slides
     └── Elements
         ├── Text
-        ├── Textbox
         ├── Image
         ├── Code
         ├── Terminal
@@ -243,7 +242,7 @@ Slide
 │   ├── Container
 │   │   └── Image
 │   └── Container
-│       ├── Textbox
+│       ├── Text
 │       ├── Terminal
 │       └── Chart
 └── Footer

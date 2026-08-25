@@ -100,17 +100,29 @@ export const validPresentation: Presentation = {
                 {
                   id: "definition",
 
-                  type: "textbox",
+                  type: "container",
 
-                  preset: "definition",
+                  role: "content",
 
-                  content:
-                    "PWM controla o valor médio entregue à carga alterando a largura dos pulsos.",
+                  layout: { width: "100%", height: 120, children: { verticalAlign: "center" } },
+                  style: { borderRadius: 12 },
 
                   hidden: false,
 
-                  layout: { width: "100%", height: 120 },
-                  style: { borderRadius: 12 },
+                  children: [
+                    {
+                      id: "definition-text",
+
+                      type: "text",
+
+                      variant: "body",
+
+                      content:
+                        "PWM controla o valor médio entregue à carga alterando a largura dos pulsos.",
+
+                      hidden: false,
+                    },
+                  ],
                 },
 
                 {

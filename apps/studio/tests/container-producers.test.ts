@@ -104,7 +104,7 @@ describe("Studio canonical Container producers", () => {
       type: "container",
       children: [
         { type: "text" },
-        { type: "textbox", layout: { width: "100%", height: "100%" } },
+        { type: "container" },
       ],
     });
   });

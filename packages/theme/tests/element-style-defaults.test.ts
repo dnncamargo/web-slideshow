@@ -93,17 +93,6 @@ describe("element style authoring defaults", () => {
     });
   });
 
-  it("resolves the Textbox typography defaults", () => {
-    expect(resolveEffectiveElementStyleDefaults({ type: "textbox" })).toEqual({
-      typography: {
-        fontSize: 16.8,
-        lineHeight: 1.65,
-        letterSpacing: 0,
-      },
-      borderRadius: 0,
-    });
-  });
-
   it("resolves canonical rounded-corner defaults by element type", () => {
     expect(
       resolveEffectiveElementStyleDefaults({ type: "container" }).borderRadius,

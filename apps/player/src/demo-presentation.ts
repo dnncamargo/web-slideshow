@@ -145,7 +145,7 @@ export const demoPresentation =
       // - rounded corners;
       // - shadow;
       // - gradient border;
-      // - title/subtitle/textbox.
+      // - title/subtitle/text.
       // ======================================================
 
       {
@@ -330,12 +330,14 @@ export const demoPresentation =
                   },
 
                   {
-                    type: "textbox",
+                    type: "text",
 
                     id:
                       "slide-1-message",
 
                     hidden: false,
+
+                    variant: "body",
 
                     content:
                       "Background, content and Player navigation are independent visual layers.",
@@ -490,10 +492,10 @@ export const demoPresentation =
 
       // ======================================================
       // SLIDE 3
-      // TEXTBOX + CONTAINERS
+      // TEXT + CONTAINERS
       //
       // Valida:
-      // - textbox sem aparência pesada obrigatória;
+      // - text em blocos dentro de containers;
       // - containers como infraestrutura de layout;
       // - overrides estruturados de background/border.
       // ======================================================
@@ -502,7 +504,7 @@ export const demoPresentation =
         id: "slide-3",
 
         title:
-          "Textbox",
+          "Text and content",
 
         background: {
           color: "#0b1020",
@@ -558,14 +560,14 @@ export const demoPresentation =
                 variant: "title",
 
                 content:
-                  "Textbox and content panels",
+                  "Text and content panels",
               },
 
               {
                 type: "container",
 
                 id:
-                  "textbox-panel",
+                  "content-panel",
 
                 role: "main",
 
@@ -606,24 +608,28 @@ export const demoPresentation =
 
                 children: [
                   {
-                    type: "textbox",
+                    type: "text",
 
                     id:
-                      "textbox-example-1",
+                      "text-example-1",
 
                     hidden: false,
 
+                    variant: "body",
+
                     content:
-                      "Textbox is designed for normal blocks of textual content. Its baseline typography comes from the shared theme.",
+                      "Text blocks are designed for normal blocks of textual content. Their baseline typography comes from the shared theme.",
                   },
 
                   {
-                    type: "textbox",
+                    type: "text",
 
                     id:
-                      "textbox-example-2",
+                      "text-example-2",
 
                     hidden: false,
+
+                    variant: "body",
 
                     content:
                       "The author should not need to understand font-family, line-height, CSS selectors or browser layout rules to create a readable slide.",

@@ -327,10 +327,10 @@ describe("renderElement", () => {
         },
 
         {
-          type: "textbox",
-          id: "textbox",
+          type: "divider",
+          id: "divider",
           hidden: false,
-          content: "Mixed content",
+          orientation: "horizontal",
         },
 
         {
@@ -347,7 +347,7 @@ describe("renderElement", () => {
 
     expect(html).toContain('data-powershow-type="image"');
 
-    expect(html).toContain('data-powershow-type="textbox"');
+    expect(html).toContain('data-powershow-type="divider"');
 
     expect(html).toContain('data-powershow-type="text"');
   });

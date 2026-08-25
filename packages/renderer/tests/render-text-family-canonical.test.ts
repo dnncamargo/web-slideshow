@@ -29,19 +29,28 @@ describe("canonical Text family renderer", () => {
     expect(html).toContain('target="_blank"');
   });
 
-  it("renders Textbox width and height from layout", () => {
+  it("renders the canonical Container + Text composition width and height", () => {
     const html = renderElement({
-      id: "textbox",
-      type: "textbox",
+      id: "box",
+      type: "container",
+      role: "content",
       hidden: false,
-      content: "Hello",
-      layout: { width: "50%", height: 120 },
-      typography: { fontFamily: "Inter" },
+      layout: { width: "50%", height: 120, children: { verticalAlign: "center" } },
+      style: { borderRadius: 12 },
+      children: [
+        {
+          id: "box-text",
+          type: "text",
+          variant: "body",
+          hidden: false,
+          content: "Hello",
+        },
+      ],
     });
 
     expect(html).toContain("width:50%");
     expect(html).toContain("height:120px");
-    expect(html).toContain('font-family:&quot;Inter&quot;');
-    expect(html).not.toContain("renderStyle");
+    expect(html).toContain("border-radius:12px");
+    expect(html).toContain(">Hello</p>");
   });
 });

@@ -2,7 +2,6 @@ export type ThemeTextVariant = "title" | "subtitle" | "body" | "caption";
 
 export type ThemeElementType =
   | "text"
-  | "textbox"
   | "container"
   | "image"
   | "code"
@@ -73,19 +72,12 @@ export const TEXT_VARIANT_TYPOGRAPHY_DEFAULTS: Readonly<
   },
 };
 
-export const TEXTBOX_TYPOGRAPHY_DEFAULTS: Readonly<ThemeTypographyDefaults> = {
-  fontSize: 16.8,
-  lineHeight: 1.65,
-  letterSpacing: 0,
-};
-
 export const TOPICS_ITEM_GAP_DEFAULT_PX = 6;
 
 export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   Record<ThemeElementType, number>
 > = {
   text: 0,
-  textbox: 0,
   container: 0,
   image: 0,
   code: 14,
@@ -221,13 +213,6 @@ export function resolveEffectiveElementStyleDefaults(
   if (element.type === "text") {
     return {
       typography: TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[element.variant ?? "body"],
-      borderRadius,
-    };
-  }
-
-  if (element.type === "textbox") {
-    return {
-      typography: TEXTBOX_TYPOGRAPHY_DEFAULTS,
       borderRadius,
     };
   }

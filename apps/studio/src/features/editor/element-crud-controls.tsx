@@ -121,10 +121,6 @@ const insertionDescription =
             {t("element.text")}
           </option>
 
-          <option value="textbox">
-            {t("element.textbox")}
-          </option>
-
           <option value="container">
             {t("element.container")}
           </option>

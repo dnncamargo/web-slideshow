@@ -9,7 +9,6 @@ import type {
   ElementLink,
   ImageElement,
   PowerShowElement,
-  TextboxElement,
   TextElement,
 } from "@powershow/document-schema";
 
@@ -18,7 +17,6 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { ImageInspector } from "../src/features/editor/inspector/image-inspector";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
-import { TextboxInspector } from "../src/features/editor/inspector/textbox-inspector";
 import { ElementInteractionSection } from "../src/features/editor/inspector/sections/element-interaction-section";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -32,7 +30,7 @@ const FONT_RESOURCES: FontResourceControls = {
 
 type LinkableElement = Extract<
   PowerShowElement,
-  { type: "text" | "textbox" | "image" | "container" }
+  { type: "text" | "image" | "container" }
 >;
 
 function textElement(
@@ -44,18 +42,6 @@ function textElement(
     hidden: false,
     variant: "body",
     content: "PowerShow Example",
-    ...overrides,
-  };
-}
-
-function textboxElement(
-  overrides: Partial<Omit<TextboxElement, "type" | "hidden">> = {},
-): TextboxElement {
-  return {
-    type: "textbox",
-    id: "textbox-1",
-    hidden: false,
-    content: "A highlighted explanation",
     ...overrides,
   };
 }
@@ -150,11 +136,9 @@ describe("ElementInteractionSection", () => {
           controlPrefix={
             elementState.type === "text"
               ? "text"
-              : elementState.type === "textbox"
-                ? "textbox"
-                : elementState.type === "image"
-                  ? "image"
-                  : "container"
+              : elementState.type === "image"
+                ? "image"
+                : "container"
           }
           onUpdate={(update) => {
             const next = update(elementState);
@@ -183,7 +167,6 @@ describe("ElementInteractionSection", () => {
   ): element is LinkableElement {
     return (
       element.type === "text" ||
-      element.type === "textbox" ||
       element.type === "image" ||
       element.type === "container"
     );
@@ -273,21 +256,21 @@ describe("ElementInteractionSection", () => {
     expect(message?.textContent).toContain("HTTP or HTTPS");
   });
 
-  it("commits a valid http URL for a Textbox element", async () => {
+  it("commits a valid http URL for an Image element", async () => {
     await act(async () => {
-      mount(textboxElement());
+      mount(imageElement());
     });
 
     await act(async () => {
-      changeInput(urlInput(container, "textbox"), "http://example.com");
+      changeInput(urlInput(container, "image"), "http://example.com");
     });
 
     await act(async () => {
-      blurInput(urlInput(container, "textbox"));
+      blurInput(urlInput(container, "image"));
     });
 
     expect(elementState).toMatchObject({
-      type: "textbox",
+      type: "image",
       link: {
         kind: "url",
         href: "http://example.com",
@@ -1121,23 +1104,6 @@ describe("shared Interaction control in inspectors", () => {
 
     expect(urlInput(container, "text")).toBeDefined();
     expect(targetSelect(container, "text")).toBeDefined();
-  });
-
-  it("TextboxInspector renders the same Interaction section", async () => {
-    await act(async () => {
-      root.render(
-        <StudioI18nProvider>
-          <TextboxInspector
-            element={textboxElement()}
-            onUpdate={() => {}}
-            fontResourceControls={FONT_RESOURCES}
-          />
-        </StudioI18nProvider>,
-      );
-    });
-
-    expect(urlInput(container, "textbox")).toBeDefined();
-    expect(targetSelect(container, "textbox")).toBeDefined();
   });
 
   it("ImageInspector renders the same Interaction section", async () => {

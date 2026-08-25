@@ -17,16 +17,6 @@ function textElement(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function textboxElement(overrides: Record<string, unknown> = {}) {
-  return {
-    type: "textbox",
-    id: "textbox-1",
-    hidden: false,
-    content: "PowerShow",
-    ...overrides,
-  };
-}
-
 function imageElement(overrides: Record<string, unknown> = {}) {
   return {
     type: "image",
@@ -160,7 +150,7 @@ describe("ElementLinkSchema", () => {
   });
 });
 
-describe("Text and Textbox element links", () => {
+describe("Text and Container element links", () => {
   it("accepts a Text element with a valid https link", () => {
     const result = PowerShowElementSchema.safeParse(
       textElement({
@@ -186,29 +176,6 @@ describe("Text and Textbox element links", () => {
     }
   });
 
-  it("accepts a Textbox element with a valid http link", () => {
-    const result = PowerShowElementSchema.safeParse(
-      textboxElement({
-        link: {
-          kind: "url",
-          href: "http://example.com",
-        },
-      }),
-    );
-
-    expect(result.success).toBe(true);
-
-    if (result.success) {
-      expect(result.data).toMatchObject({
-        type: "textbox",
-        link: {
-          kind: "url",
-          href: "http://example.com",
-        },
-      });
-    }
-  });
-
   it("rejects a Text element with an unsafe link", () => {
     const result = PowerShowElementSchema.safeParse(
       textElement({
@@ -222,25 +189,40 @@ describe("Text and Textbox element links", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects a Textbox element with a malformed link", () => {
-    const result = PowerShowElementSchema.safeParse(
-      textboxElement({
-        link: {
-          kind: "url",
-          href: "example.com",
-        },
-      }),
-    );
+  it("accepts a Text element without a link", () => {
+    expect(PowerShowElementSchema.safeParse(textElement()).success).toBe(true);
+  });
+
+  it("rejects a legacy Textbox element", () => {
+    const result = PowerShowElementSchema.safeParse({
+      type: "textbox",
+      id: "textbox-1",
+      content: "legacy",
+    });
 
     expect(result.success).toBe(false);
   });
 
-  it("still accepts Text and Textbox without a link (backward compatibility)", () => {
-    expect(PowerShowElementSchema.safeParse(textElement()).success).toBe(true);
-
-    expect(PowerShowElementSchema.safeParse(textboxElement()).success).toBe(
-      true,
+  it("validates the canonical Container + Text composition", () => {
+    const result = PowerShowElementSchema.safeParse(
+      containerElement({
+        children: [
+          textElement({
+            id: "child-text",
+            content: "A highlighted explanation",
+          }),
+        ],
+      }),
     );
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        type: "container",
+        children: [{ type: "text", id: "child-text" }],
+      });
+    }
   });
 });
 
@@ -595,7 +577,7 @@ describe("Container element links", () => {
     }
   });
 
-  it("keeps child Text, Textbox and Image links canonical inside a linked Container", () => {
+  it("keeps child Text and Image links canonical inside a linked Container", () => {
     const result = PowerShowElementSchema.safeParse(
       containerElement({
         link: {
@@ -608,13 +590,6 @@ describe("Container element links", () => {
             link: {
               kind: "url",
               href: "https://example.com/text",
-            },
-          }),
-          textboxElement({
-            id: "child-textbox",
-            link: {
-              kind: "url",
-              href: "http://example.com/textbox",
             },
           }),
           imageElement({
@@ -641,10 +616,6 @@ describe("Container element links", () => {
       expect(container.children.find((c) => c.id === "child-text")?.link.href).toBe(
         "https://example.com/text",
       );
-
-      expect(
-        container.children.find((c) => c.id === "child-textbox")?.link.href,
-      ).toBe("http://example.com/textbox");
 
       expect(
         container.children.find((c) => c.id === "child-image")?.link.href,
@@ -688,12 +659,6 @@ describe("no-link backward compatibility", () => {
     expect(legacy).not.toHaveProperty("link");
   });
 
-  it("parses legacy Textbox elements without a link property", () => {
-    const legacy = PowerShowElementSchema.parse(textboxElement());
-
-    expect(legacy).not.toHaveProperty("link");
-  });
-
   it("parses legacy Container elements without a link property", () => {
     const legacy = PowerShowElementSchema.parse(containerElement());
 
@@ -720,25 +685,7 @@ describe("link parse/roundtrip", () => {
     expect(restored).toEqual(source);
   });
 
-  it("round-trips a linked Textbox element through JSON serialization", () => {
-    const source = PowerShowElementSchema.parse(
-      textboxElement({
-        link: {
-          kind: "url",
-          href: "http://example.com",
-          target: "_self",
-        },
-      }),
-    );
-
-    const restored = PowerShowElementSchema.parse(
-      JSON.parse(JSON.stringify(source)),
-    );
-
-    expect(restored).toEqual(source);
-  });
-
-  it("roundtrips a linked Image element through JSON serialization", () => {
+  it("round-trips a linked Image element through JSON serialization", () => {
     const source = PowerShowElementSchema.parse(
       imageElement({
         link: {

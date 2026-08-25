@@ -18,7 +18,7 @@ const visualStyle = {
 };
 
 describe("Text family canonical contract", () => {
-  it("accepts canonical Text and Textbox namespaces", () => {
+  it("accepts the canonical Text namespace", () => {
     expect(PowerShowElementSchema.safeParse({
       id: "text",
       type: "text",
@@ -30,16 +30,32 @@ describe("Text family canonical contract", () => {
       effect: { opacity: 0.8, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } },
       link: { kind: "url", href: "https://example.com" },
     }).success).toBe(true);
+  });
 
+  it("rejects the legacy Textbox namespace", () => {
     expect(PowerShowElementSchema.safeParse({
       id: "textbox",
       type: "textbox",
       hidden: false,
       content: "Hello",
-      layout: { width: "50%", height: 120 },
-      style: visualStyle,
-      typography,
-      effect: { opacity: 1 },
+    }).success).toBe(false);
+  });
+
+  it("validates the canonical Container + Text composition", () => {
+    expect(PowerShowElementSchema.safeParse({
+      id: "box",
+      type: "container",
+      role: "content",
+      hidden: false,
+      children: [
+        {
+          id: "box-text",
+          type: "text",
+          variant: "body",
+          content: "Hello",
+          hidden: false,
+        },
+      ],
     }).success).toBe(true);
   });
 
@@ -54,12 +70,5 @@ describe("Text family canonical contract", () => {
     ]) {
       expect(PowerShowElementSchema.safeParse(input).success).toBe(false);
     }
-  });
-
-  it("rejects legacy Textbox addresses while retaining canonical size", () => {
-    const base = { id: "textbox", type: "textbox", hidden: false, content: "Hello" };
-    expect(PowerShowElementSchema.safeParse({ ...base, layout: { width: 100, height: 40 } }).success).toBe(true);
-    expect(PowerShowElementSchema.safeParse({ ...base, style: { width: 100 } }).success).toBe(false);
-    expect(PowerShowElementSchema.safeParse({ ...base, style: { fontWeight: 700 } }).success).toBe(false);
   });
 });

@@ -65,7 +65,7 @@ export function getElementLabel(
   element: PowerShowElement,
   typeLabel: string,
 ): string {
-  if (element.type === "text" || element.type === "textbox") {
+  if (element.type === "text") {
     const preview = getContentPreview(element.content);
 
     return preview ? `${typeLabel} — ${preview}` : typeLabel;

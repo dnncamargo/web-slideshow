@@ -57,7 +57,7 @@ export function presentationUsesFontFamily(
   return presentation.slides.some((slide) =>
     someElement(slide.elements, (element) => {
       let fontFamily: string | undefined;
-      if (element.type === "container" || element.type === "text" || element.type === "textbox" || element.type === "topics") {
+      if (element.type === "container" || element.type === "text" || element.type === "topics") {
         fontFamily = element.typography?.fontFamily;
       }
 

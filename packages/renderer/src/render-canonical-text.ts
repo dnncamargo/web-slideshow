@@ -2,7 +2,6 @@ import type {
   ElementEffect,
   ElementTypography,
   TextElement,
-  TextboxElement,
   TextVisualStyle,
 } from "@powershow/document-schema";
 
@@ -30,17 +29,12 @@ function addLength(
   }
 }
 
-function renderLayout(element: TextElement | TextboxElement): string[] {
+function renderLayout(element: TextElement): string[] {
   const layout = element.layout;
   const output: string[] = [];
 
   if (!layout) {
     return output;
-  }
-
-  if (element.type === "textbox") {
-    addLength(output, "width", element.layout?.width);
-    addLength(output, "height", element.layout?.height);
   }
 
   addStyle(output, "position", layout.position);
@@ -127,7 +121,7 @@ function renderEffect(effect: ElementEffect | undefined): string[] {
 }
 
 export function renderCanonicalTextStyle(
-  element: TextElement | TextboxElement,
+  element: TextElement,
 ): string {
   return [
     ...renderLayout(element),

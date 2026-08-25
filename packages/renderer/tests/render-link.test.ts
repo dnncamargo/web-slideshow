@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type {
   ElementLink,
   TextElement,
-  TextboxElement,
 } from "@powershow/document-schema";
 
 import { renderElement } from "../src/render-element";
@@ -21,18 +20,6 @@ function textElement(
     id: "link-text",
     hidden: false,
     variant: "body",
-    content: "PowerShow Link",
-    ...overrides,
-  };
-}
-
-function textboxElement(
-  overrides: Partial<Omit<TextboxElement, "type" | "id" | "hidden">> = {},
-): TextboxElement {
-  return {
-    type: "textbox",
-    id: "link-textbox",
-    hidden: false,
     content: "PowerShow Link",
     ...overrides,
   };
@@ -83,22 +70,6 @@ describe("renderElement link support", () => {
     },
   );
 
-  it("keeps the Textbox root as a div with the anchor nested inside", () => {
-    const html = renderElement(
-      textboxElement({
-        content: "Box link",
-        link: HTTPS_LINK,
-      }),
-    );
-
-    const rootIndex = html.indexOf("<div ");
-    const anchorIndex = html.indexOf("<a ");
-
-    expect(rootIndex).toBeGreaterThanOrEqual(0);
-    expect(anchorIndex).toBeGreaterThan(rootIndex);
-    expect(html).toContain("</div>");
-  });
-
   it("escapes the anchor href", () => {
     const html = renderElement(
       textElement({
@@ -133,7 +104,7 @@ describe("renderElement link support", () => {
 
   it("does not emit the _blank rel for a _self link", () => {
     const html = renderElement(
-      textboxElement({
+      textElement({
         link: {
           kind: "url",
           href: "https://example.com",
@@ -165,10 +136,6 @@ describe("renderElement link support", () => {
     [
       "text",
       textElement(),
-    ],
-    [
-      "textbox",
-      textboxElement(),
     ],
   ] as const)(
     "renders %s without a link exactly as before (no anchor, no marker)",
@@ -225,7 +192,7 @@ describe("renderElement link support", () => {
 
   it("marks authored links with data-powershow-link=true", () => {
     const html = renderElement(
-      textboxElement({
+      textElement({
         link: HTTPS_LINK,
       }),
     );
