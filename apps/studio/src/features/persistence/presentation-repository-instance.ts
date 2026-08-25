@@ -41,7 +41,7 @@ export function createBlankPresentation(
   });
 }
 
-function createDefaultPresentationId(): string {
+export function createDefaultPresentationId(): string {
   return `presentation-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;

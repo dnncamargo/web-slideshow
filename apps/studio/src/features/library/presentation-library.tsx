@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import type {
+  ChangeEvent as ReactChangeEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -21,6 +25,7 @@ import { ProductSurfaceBrand } from "../app/product-surface-brand";
 import { useStudioAuth } from "../auth/studio-auth-provider";
 import {
   createBlankPresentation,
+  createDefaultPresentationId,
   getDefaultPresentationRepository,
 } from "../persistence/presentation-repository-instance";
 import { getDefaultPresentationFolderRepository } from "../persistence/presentation-folder-repository-instance";
@@ -50,6 +55,13 @@ import { PresentationToolbar } from "./presentation-toolbar";
 import { StudioSidebar } from "./studio-sidebar";
 import { DeletePresentationDialog } from "./delete-presentation-dialog";
 import styles from "./presentation-library.module.css";
+import {
+  buildPresentationExportFilename,
+  parsePresentationImport,
+  prepareImportedPresentation,
+  serializePresentationForExport,
+} from "./presentation-transfer";
+import { PresentationImportError } from "./presentation-transfer";
 
 interface PresentationLibraryProps {
   repository?: PresentationRepository;
@@ -106,6 +118,7 @@ export function PresentationLibrary({
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [transferBusy, setTransferBusy] = useState(false);
   const [movingId, setMovingId] = useState<string | null>(null);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -120,6 +133,7 @@ export function PresentationLibrary({
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
 
   const mountedRef = useRef(true);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -263,6 +277,92 @@ export function PresentationLibrary({
       router.push(buildStudioEditorHref(id));
     },
     [openingId, router],
+  );
+
+  const selected = summaries.find((summary) => summary.id === selectedId) ?? null;
+
+  const handleExport = useCallback(async () => {
+    if (!selected || transferBusy) return;
+
+    setTransferBusy(true);
+    setActionError(null);
+    try {
+      const presentation = await repository.getPresentation(selected.id);
+      if (!presentation) {
+        throw new Error("Presentation not found.");
+      }
+
+      const blob = new Blob([serializePresentationForExport(presentation)], {
+        type: "application/json;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = buildPresentationExportFilename(presentation.title);
+        anchor.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Library: could not export presentation", error);
+      if (mountedRef.current) setActionError(t("library.couldNotExport"));
+    } finally {
+      if (mountedRef.current) setTransferBusy(false);
+    }
+  }, [repository, selected, t, transferBusy]);
+
+  const handleImport = useCallback(() => {
+    if (transferBusy) return;
+    importInputRef.current?.click();
+  }, [transferBusy]);
+
+  const handleImportFile = useCallback(
+    async (event: ReactChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || transferBusy) return;
+
+      setTransferBusy(true);
+      setActionError(null);
+      try {
+        const source = parsePresentationImport(await file.text());
+        let newId: string | undefined;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const candidate = createDefaultPresentationId();
+          if ((await repository.getPresentation(candidate)) === null) {
+            newId = candidate;
+            break;
+          }
+        }
+        if (!newId) throw new Error("Could not allocate a presentation id.");
+
+        const imported = prepareImportedPresentation(source, newId);
+        if (isFolderDestination(destination)) {
+          await repository.createPresentation(imported, {
+            folderId: destination.folderId,
+          });
+        } else {
+          await repository.createPresentation(imported);
+        }
+
+        if (mountedRef.current) router.push(buildStudioEditorHref(imported.id));
+      } catch (error) {
+        console.error("Library: could not import presentation", error);
+        if (mountedRef.current) {
+          const message =
+            error instanceof PresentationImportError
+              ? error.kind === "malformed-json"
+                ? t("library.importMalformed")
+                : t("library.importInvalidPresentation")
+              : t("library.couldNotImport");
+          setActionError(message);
+        }
+      } finally {
+        if (mountedRef.current) setTransferBusy(false);
+      }
+    },
+    [destination, repository, router, t, transferBusy],
   );
 
   const handleArchive = useCallback(
@@ -481,7 +581,6 @@ export function PresentationLibrary({
     [creatingFolder, folderRepository, t],
   );
 
-  const selected = summaries.find((summary) => summary.id === selectedId) ?? null;
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
@@ -531,6 +630,14 @@ export function PresentationLibrary({
       ) : null}
 
       <div className={styles.workspace} onKeyDown={handleWorkspaceKeyDown}>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json,.powershow.json,application/json"
+          hidden
+          onChange={(event) => void handleImportFile(event)}
+          aria-label={t("library.import")}
+        />
         <StudioSidebar
           destination={destination}
           onDestinationChange={handleDestinationChange}
@@ -559,6 +666,7 @@ export function PresentationLibrary({
                 archivingId={archivingId}
                 restoringId={restoringId}
                 deletingId={deletingId}
+                transferBusy={transferBusy}
                 newFolderDisabled={newFolderOpen || creatingFolder}
                 onNew={() => void handleNew()}
                 onNewFolder={handleOpenNewFolder}
@@ -569,6 +677,8 @@ export function PresentationLibrary({
                 onArchive={(id) => void handleArchive(id)}
                 onRestore={(id) => void handleRestore(id)}
                 onDelete={handleRequestDelete}
+                onImport={handleImport}
+                onExport={() => void handleExport()}
               />
             ) : null}
           </div>
