@@ -54,6 +54,23 @@ const textElement: PowerShowElement = {
   content: "Hello",
 };
 
+const containerElement: PowerShowElement = {
+  type: "container",
+  id: "container-a",
+  hidden: false,
+  children: [
+    textElement,
+    {
+      type: "image",
+      id: "image-c",
+      hidden: false,
+      src: "image.png",
+      alt: "Image",
+      fit: "contain",
+    },
+  ],
+};
+
 function checkboxFor(container: HTMLDivElement, path: string): HTMLInputElement {
   const checkbox = Array.from(
     container.querySelectorAll<HTMLInputElement>("input[type=checkbox]"),
@@ -260,6 +277,123 @@ describe("ElementPropertiesPanel", () => {
     expect(container.querySelector("form")).not.toBeNull();
     expect(container.textContent).toContain("Could not save to Custom Library.");
     expect(name?.value).toBe("Keep me");
+  });
+
+  it("does not show stale feedback when a pending save root changes", async () => {
+    let resolveSave: ((id: string) => void) | undefined;
+    let saveCount = 0;
+    const repository = fakeRepository(
+      () => {
+        saveCount += 1;
+        return new Promise<string>((resolve) => {
+          resolveSave = resolve;
+        });
+      },
+    );
+    renderPanel(root, textElement, false, repository);
+    act(() => container.querySelector<HTMLButtonElement>("button")?.click());
+    const form = container.querySelector<HTMLFormElement>("form");
+    const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");
+    act(() => {
+      if (name) setFieldValue(name, "Text A");
+    });
+    await act(async () => {
+      form?.requestSubmit();
+    });
+    expect(saveCount).toBe(1);
+    expect(container.textContent).toContain("Saving…");
+
+    renderPanel(root, {
+      type: "image",
+      id: "image-b",
+      hidden: false,
+      src: "image.png",
+      alt: "Image",
+      fit: "contain",
+    }, false, repository);
+    expect(container.querySelector("form")).toBeNull();
+
+    await act(async () => {
+      resolveSave?.("item-1");
+    });
+
+    expect(container.textContent).not.toContain("Saved to Custom Library.");
+    expect(container.textContent).not.toContain("Could not save to Custom Library.");
+  });
+
+  it("does not submit twice before the saving state commits", async () => {
+    let resolveSave: ((id: string) => void) | undefined;
+    let saveCount = 0;
+    const repository = fakeRepository(() => {
+      saveCount += 1;
+      return new Promise<string>((resolve) => {
+        resolveSave = resolve;
+      });
+    });
+    renderPanel(root, textElement, false, repository);
+    act(() => container.querySelector<HTMLButtonElement>("button")?.click());
+    const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");
+    const form = container.querySelector<HTMLFormElement>("form");
+    act(() => {
+      if (name) setFieldValue(name, "Once");
+      form?.requestSubmit();
+      form?.requestSubmit();
+    });
+
+    expect(saveCount).toBe(1);
+    await act(async () => {
+      resolveSave?.("item-1");
+    });
+  });
+
+  it("preserves an explicit empty selection in the saved draft", async () => {
+    let saved: CustomLibraryItemDraft | undefined;
+    const repository = fakeRepository(async (item) => {
+      saved = item;
+      return "item-1";
+    });
+    renderPanel(root, textElement, false, repository);
+    const checkboxes = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type=checkbox]"),
+    );
+    act(() => {
+      checkboxes.filter((checkbox) => checkbox.checked).forEach((checkbox) => checkbox.click());
+    });
+    act(() => container.querySelector<HTMLButtonElement>("button")?.click());
+    const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");
+    const form = container.querySelector<HTMLFormElement>("form");
+    act(() => {
+      if (name) setFieldValue(name, "Empty text");
+    });
+    await act(async () => form?.requestSubmit());
+
+    expect(saved?.root.properties).toEqual([]);
+  });
+
+  it("uses visited child selections and defaults for an unvisited child", async () => {
+    let saved: CustomLibraryItemDraft | undefined;
+    const repository = fakeRepository(async (item) => {
+      saved = item;
+      return "item-1";
+    });
+    renderPanel(root, textElement, false, repository);
+    act(() => checkboxFor(container, "variant").click());
+
+    renderPanel(root, containerElement, false, repository);
+    act(() => container.querySelector<HTMLButtonElement>("button")?.click());
+    const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");
+    const form = container.querySelector<HTMLFormElement>("form");
+    act(() => {
+      if (name) setFieldValue(name, "Composition");
+    });
+    await act(async () => form?.requestSubmit());
+
+    expect(saved?.root.children?.map((child) => child.type)).toEqual(["text", "image"]);
+    expect(saved?.root.children?.[0]?.properties).toEqual([]);
+    expect(saved?.root.children?.[1]?.properties).toContainEqual({
+      path: "fit",
+      value: "contain",
+    });
   });
 
   it("resets an open form when the selected root changes", () => {

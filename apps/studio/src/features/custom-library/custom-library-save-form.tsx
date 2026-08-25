@@ -1,7 +1,7 @@
 "use client";
 
 import type { PowerShowElement } from "@powershow/document-schema";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -32,11 +32,18 @@ export function CustomLibrarySaveForm({
   const [description, setDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
+  const isActiveRef = useRef(true);
+  const isSavingRef = useRef(false);
+
+  useEffect(() => () => {
+    isActiveRef.current = false;
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSaving || name.trim().length === 0) return;
+    if (isSavingRef.current || name.trim().length === 0) return;
 
+    isSavingRef.current = true;
     setIsSaving(true);
     setHasFailed(false);
 
@@ -48,11 +55,18 @@ export function CustomLibrarySaveForm({
         selections,
       });
       await repository.saveItem(draft);
-      onSaved();
+      if (isActiveRef.current) {
+        onSaved();
+      }
     } catch {
-      setHasFailed(true);
+      if (isActiveRef.current) {
+        setHasFailed(true);
+      }
     } finally {
-      setIsSaving(false);
+      isSavingRef.current = false;
+      if (isActiveRef.current) {
+        setIsSaving(false);
+      }
     }
   }
 
