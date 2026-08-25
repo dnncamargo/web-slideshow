@@ -46,6 +46,38 @@ describe("getSelectableElementProperties", () => {
     expect(result.fit.defaultSelected).toBe(true);
   });
 
+  it("keeps canonical Text Stroke atomic for the real smoke-test typography", () => {
+    const result = properties({
+      type: "text",
+      id: "smoke-test-title",
+      hidden: false,
+      content: "Hello Title",
+      variant: "body",
+      typography: {
+        fontFamily: "Montserrat",
+        fontSize: "48px",
+        fontWeight: 900,
+        textAlign: "center",
+        textTransform: "uppercase",
+        textStroke: { width: 2, color: "#000000" },
+      },
+    });
+
+    expect(result["typography.textStroke"]?.kind).toBe("atomic-object");
+    expect(result["typography.textStroke"]?.defaultSelected).toBe(true);
+    expect(result["typography.textStroke.width"]).toBeUndefined();
+    expect(result["typography.textStroke.color"]).toBeUndefined();
+    for (const path of [
+      "typography.fontFamily",
+      "typography.fontSize",
+      "typography.fontWeight",
+      "typography.textAlign",
+      "typography.textTransform",
+    ]) {
+      expect(result[path]).toBeDefined();
+    }
+  });
+
   it("collapses atomic objects without exposing their descendants", () => {
     const element: PowerShowElement = {
       type: "image",

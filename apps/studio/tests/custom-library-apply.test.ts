@@ -58,6 +58,26 @@ describe("Custom Library apply core", () => {
     expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
   });
 
+  it("materializes a complete atomic Text Stroke smoke-test recipe", () => {
+    const result = materializeCustomLibraryElementRecipe(
+      recipe("text", [
+        { path: "typography.fontFamily", value: "Montserrat" },
+        { path: "typography.fontWeight", value: 900 },
+        { path: "typography.textStroke", value: { width: 2, color: "#000000" } },
+      ]),
+      slides,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.element.type !== "text") return;
+    expect(result.element.typography).toEqual({
+      fontFamily: "Montserrat",
+      fontWeight: 900,
+      textStroke: { width: 2, color: "#000000" },
+    });
+    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+  });
+
   it("materializes an empty recipe with ordinary create defaults", () => {
     const result = materializeCustomLibraryElementRecipe(recipe("text"), slides);
 
@@ -201,6 +221,35 @@ describe("Custom Library apply core", () => {
     expect(result.element.id).toBe("title-1");
     expect(result.element.content).toBe("Existing");
     expect(result.element.typography).toEqual({ fontFamily: "Roboto", fontSize: "40px" });
+  });
+
+  it("merges a complete atomic Text Stroke while preserving the target id", () => {
+    const target: PowerShowElement = {
+      id: "title-1",
+      type: "text",
+      hidden: false,
+      content: "Existing",
+      variant: "body",
+    };
+    const result = mergeCustomLibraryElementRecipe(
+      recipe("text", [
+        { path: "typography.fontFamily", value: "Montserrat" },
+        { path: "typography.fontWeight", value: 900 },
+        { path: "typography.textStroke", value: { width: 2, color: "#000000" } },
+      ]),
+      target,
+      [slide([target])],
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.element.type !== "text") return;
+    expect(result.element.id).toBe("title-1");
+    expect(result.element.typography).toEqual({
+      fontFamily: "Montserrat",
+      fontWeight: 900,
+      textStroke: { width: 2, color: "#000000" },
+    });
+    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("appends recipe children without changing existing child ids", () => {
