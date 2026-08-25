@@ -1,7 +1,10 @@
 "use client";
 
 import type { PowerShowElement } from "@powershow/document-schema";
+import { useEffect, useMemo, useState } from "react";
 
+import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
+import { CustomLibrarySaveForm } from "@/features/custom-library/custom-library-save-form";
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
   type StudioTranslate,
@@ -13,11 +16,12 @@ import {
   getSelectableElementProperties,
   type SelectableElementProperty,
 } from "./element-property-selection";
-import { useEffect, useMemo, useState } from "react";
+import { toElementPropertySelectionMap } from "./element-property-selection-state";
 
 interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
   isStructuralTopicSelection: boolean;
+  customLibraryRepository?: CustomLibraryRepository;
 }
 
 function getElementIdentity(
@@ -30,6 +34,7 @@ function getElementIdentity(
 export function ElementPropertiesPanel({
   selectedElement,
   isStructuralTopicSelection,
+  customLibraryRepository,
 }: ElementPropertiesPanelProps) {
   const { t } = useStudioI18n();
   const selectableProperties = useMemo(
@@ -39,6 +44,8 @@ export function ElementPropertiesPanel({
   const [selectedPathsByElement, setSelectedPathsByElement] = useState<
     Record<string, Record<string, boolean>>
   >({});
+  const [saveFormElementId, setSaveFormElementId] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<"saved" | null>(null);
 
   useEffect(() => {
     if (!selectedElement) return;
@@ -53,9 +60,18 @@ export function ElementPropertiesPanel({
     }));
   }, [selectedElement, selectableProperties]);
 
+  useEffect(() => {
+    setSaveFormElementId(null);
+    setSaveFeedback(null);
+  }, [selectedElement?.id]);
+
   const selectedPaths = selectedElement
     ? selectedPathsByElement[selectedElement.id] ?? {}
     : {};
+  const selections = useMemo(
+    () => toElementPropertySelectionMap(selectedPathsByElement),
+    [selectedPathsByElement],
+  );
 
   return (
     <section className={styles.elementProperties} aria-label={t("properties.title")}>
@@ -70,6 +86,36 @@ export function ElementPropertiesPanel({
           <div className={styles.elementPropertiesIdentity}>
             {getElementIdentity(selectedElement, t)}
           </div>
+          {saveFormElementId !== selectedElement.id && (
+            <button
+              className={styles.customLibrarySaveButton}
+              type="button"
+              onClick={() => {
+                setSaveFeedback(null);
+                setSaveFormElementId(selectedElement.id);
+              }}
+            >
+              {t("customLibrary.save")}
+            </button>
+          )}
+          {saveFormElementId === selectedElement.id && (
+            <CustomLibrarySaveForm
+              key={selectedElement.id}
+              root={selectedElement}
+              selections={selections}
+              repository={customLibraryRepository}
+              onSaved={() => {
+                setSaveFormElementId(null);
+                setSaveFeedback("saved");
+              }}
+              onCancel={() => setSaveFormElementId(null)}
+            />
+          )}
+          {saveFeedback === "saved" && (
+            <p className={styles.customLibrarySaveStatus} role="status">
+              {t("customLibrary.saved")}
+            </p>
+          )}
           <div className={styles.elementPropertiesList}>
             {selectableProperties.map((entry: SelectableElementProperty) => (
               <label className={styles.elementPropertyRow} key={entry.path}>
