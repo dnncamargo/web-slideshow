@@ -20,6 +20,7 @@ const atomicPaths = new Set([
   "crop",
   "focalPoint",
   "effect.shadow",
+  "typography.textStroke",
   "style.background.gradient",
   "style.background.pattern",
   "style.border.gradient",

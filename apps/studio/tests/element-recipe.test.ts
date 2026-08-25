@@ -28,6 +28,45 @@ describe("extractElementRecipeDraft", () => {
     });
   });
 
+  it("extracts Text Stroke as a complete cloned atomic object", () => {
+    const element: PowerShowElement = {
+      type: "text",
+      id: "smoke-test-title",
+      hidden: false,
+      content: "Hello Title",
+      variant: "body",
+      typography: {
+        fontFamily: "Montserrat",
+        fontWeight: 900,
+        textStroke: { width: 2, color: "#000000" },
+      },
+    };
+
+    const draft = extractElementRecipeDraft(
+      element,
+      new Set([
+        "typography.fontFamily",
+        "typography.fontWeight",
+        "typography.textStroke",
+        "typography.textStroke.width",
+        "typography.textStroke.color",
+      ]),
+    );
+
+    expect(draft.properties).toEqual([
+      { path: "typography.fontFamily", value: "Montserrat" },
+      { path: "typography.fontWeight", value: 900 },
+      { path: "typography.textStroke", value: { width: 2, color: "#000000" } },
+    ]);
+
+    const stroke = draft.properties.find(({ path }) => path === "typography.textStroke")?.value as {
+      width: number;
+      color: string;
+    };
+    stroke.width = 4;
+    expect(element.typography?.textStroke).toEqual({ width: 2, color: "#000000" });
+  });
+
   it("omits unselected content and includes it when selected", () => {
     const element: PowerShowElement = {
       type: "text",
