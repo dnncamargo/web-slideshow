@@ -334,4 +334,60 @@ describe("Custom Library apply core", () => {
     expect(result.element.children[1]?.id).not.toBe("existing-child");
     expect(result.element.children[0]?.type === "text" && result.element.children[0].content).toBe("Existing");
   });
+
+  it("rejects reserved and structurally invalid recipe properties before applying them", () => {
+    const target = text("target", "Target");
+    const targetBefore = structuredClone(target);
+    const slidesBefore = structuredClone(slides);
+    const invalidRecipes = [
+      recipe("text", [{ path: "id", value: "replacement" }]),
+      recipe("text", [{ path: "type", value: "image" }]),
+      recipe("text", [{ path: "variant", value: undefined }]),
+      recipe("text", [{ path: "typography", value: { fontFamily: undefined } }]),
+      recipe("text", [
+        { path: "variant", value: "body" },
+        { path: "variant", value: "title" },
+      ]),
+    ];
+
+    for (const invalid of invalidRecipes) {
+      const result = mergeCustomLibraryElementRecipe(invalid, target, slides);
+      expect(result).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    }
+
+    const containerTarget: PowerShowElement = {
+      id: "container-target",
+      type: "container",
+      hidden: false,
+      children: [text("existing-child", "Existing")],
+    };
+    expect(mergeCustomLibraryElementRecipe(
+      recipe("container", [{ path: "children", value: [] }]),
+      containerTarget,
+      [slide([containerTarget])],
+    )).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    expect(containerTarget.children[0]?.id).toBe("existing-child");
+
+    expect(target).toEqual(targetBefore);
+    expect(slides).toEqual(slidesBefore);
+  });
+
+  it("rejects children on non-Container recipes", () => {
+    const invalid = recipe("text", [], [recipe("text")]);
+    expect(materializeCustomLibraryElementRecipe(invalid, slides)).toEqual({
+      ok: false,
+      reason: "invalid-recipe-application",
+    });
+  });
+
+  it("keeps valid recipe children and unsupported-create ordering intact", () => {
+    const container = materializeCustomLibraryElementRecipe(
+      recipe("container", [], [recipe("text", [{ path: "content", value: "Child" }])]),
+      slides,
+    );
+    expect(container.ok).toBe(true);
+
+    const chart = materializeCustomLibraryElementRecipe(recipe("chart", []), slides);
+    expect(chart).toEqual({ ok: false, reason: "unsupported-create-type" });
+  });
 });

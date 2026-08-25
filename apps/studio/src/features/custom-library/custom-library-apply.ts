@@ -10,6 +10,7 @@ import {
   type ElementCreateType,
 } from "../editor/element-operations";
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
+import { CustomLibraryElementRecipeSchema } from "./custom-library-schema";
 
 export type CustomLibraryApplyFailureReason =
   | "unsupported-create-type"
@@ -126,6 +127,10 @@ function validateElement(element: PowerShowElement): PowerShowElement | null {
   return parsed.success ? parsed.data : null;
 }
 
+function isValidRecipe(recipe: CustomLibraryElementRecipe): boolean {
+  return CustomLibraryElementRecipeSchema.safeParse(recipe).success;
+}
+
 function buildRawCreateCandidate(
   recipe: CustomLibraryElementRecipe,
   slides: readonly Slide[],
@@ -170,6 +175,14 @@ export function materializeCustomLibraryElementRecipe(
   recipe: CustomLibraryElementRecipe,
   slides: readonly Slide[],
 ): CustomLibraryElementApplyResult {
+  if (!isElementCreateType(recipe.type)) {
+    return { ok: false, reason: "unsupported-create-type" };
+  }
+
+  if (!isValidRecipe(recipe)) {
+    return { ok: false, reason: "invalid-recipe-application" };
+  }
+
   const raw = buildRawCreateCandidate(recipe, slides);
   if (!raw.ok) {
     return raw;
@@ -188,6 +201,10 @@ export function mergeCustomLibraryElementRecipe(
 ): CustomLibraryElementApplyResult {
   if (recipe.type !== target.type) {
     return { ok: false, reason: "type-mismatch" };
+  }
+
+  if (!isValidRecipe(recipe)) {
+    return { ok: false, reason: "invalid-recipe-application" };
   }
 
   const candidate = structuredClone(target);
