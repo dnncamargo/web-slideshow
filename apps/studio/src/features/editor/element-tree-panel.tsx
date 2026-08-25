@@ -12,6 +12,7 @@ import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "./editor-workspace.module.css";
+import { ElementPropertiesPanel } from "./element-properties-panel";
 import {
   findElementSiblingPosition,
   type MoveElementOptions,
@@ -682,6 +683,10 @@ export function ElementTreePanel({
           ))}
         </select>
       </div>
+      <ElementPropertiesPanel
+        selectedElement={selectedElement}
+        isStructuralTopicSelection={isStructuralTopicRow}
+      />
     </div>
   );
 }

@@ -445,6 +445,10 @@ const englishMessages = {
   "tree.moveOut": "Move out",
   "tree.expand": "Expand",
   "tree.collapse": "Collapse",
+  "properties.title": "Properties",
+  "properties.noSelection": "No element selected.",
+  "properties.contentSlot": "Content slot",
+  "properties.structuralContext": "Structural authoring context",
   "inspector.distributionHelp":
     "Controls spacing between children along the container's main axis.",
   "inspector.distribution.packed": "Packed",
@@ -1165,6 +1169,10 @@ const portugueseMessages = {
   "tree.moveOut": "Mover para fora",
   "tree.expand": "Expandir",
   "tree.collapse": "Recolher",
+  "properties.title": "Propriedades",
+  "properties.noSelection": "Nenhum elemento selecionado.",
+  "properties.contentSlot": "Slot de conteúdo",
+  "properties.structuralContext": "Contexto estrutural de autoria",
   "inspector.distributionHelp":
     "Controla a distribuição dos elementos filhos ao longo do eixo principal do container.",
   "inspector.distribution.packed": "Agrupado",
