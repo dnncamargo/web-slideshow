@@ -30,6 +30,7 @@ import {
 } from "../persistence/presentation-repository-instance";
 import { getDefaultPresentationFolderRepository } from "../persistence/presentation-folder-repository-instance";
 import { getDefaultCustomLibraryRepository } from "../persistence/custom-library-repository-instance";
+import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";
 import type { PresentationRepository } from "../persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
 import type { PresentationFolder } from "../persistence/presentation-folder";
@@ -38,6 +39,10 @@ import type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
 } from "../custom-library/custom-library-repository";
+import type {
+  CustomLibraryPaletteRecord,
+  CustomLibraryPaletteRepository,
+} from "../custom-library/custom-library-palette-repository";
 import {
   subscribeLiveCurrent,
   activateLivePresentation,
@@ -62,6 +67,9 @@ import { DeletePresentationDialog } from "./delete-presentation-dialog";
 import { CustomLibraryBrowser } from "../custom-library/custom-library-browser";
 import { CustomLibraryDetails } from "../custom-library/custom-library-details";
 import { CustomLibraryDeleteDialog } from "../custom-library/custom-library-delete-dialog";
+import { CustomLibraryPaletteBrowser } from "../custom-library/custom-library-palette-browser";
+import { CustomLibraryPaletteDetails } from "../custom-library/custom-library-palette-details";
+import { CustomLibraryPaletteDeleteDialog } from "../custom-library/custom-library-palette-delete-dialog";
 import styles from "./presentation-library.module.css";
 import {
   buildPresentationExportFilename,
@@ -75,13 +83,14 @@ interface PresentationLibraryProps {
   repository?: PresentationRepository;
   folderRepository?: PresentationFolderRepository;
   customLibraryRepository?: CustomLibraryRepository;
+  customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
 }
 
 type LibraryStatus = "loading" | "ready" | "error";
 type FolderStatus = "loading" | "ready" | "error";
 
 const SELECTION_INTERACTIVE_SELECTOR =
-  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row]";
+  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row]";
 
 function destinationTitle(
   destination: LibraryDestination,
@@ -125,6 +134,7 @@ export function PresentationLibrary({
   repository = getDefaultPresentationRepository(),
   folderRepository = getDefaultPresentationFolderRepository(),
   customLibraryRepository = getDefaultCustomLibraryRepository(),
+  customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
 }: PresentationLibraryProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
@@ -136,6 +146,8 @@ export function PresentationLibrary({
   const [summaries, setSummaries] = useState<PresentationSummary[]>([]);
   const [customLibraryStatus, setCustomLibraryStatus] = useState<"idle" | LibraryStatus>("idle");
   const [customLibraryItems, setCustomLibraryItems] = useState<CustomLibraryItemRecord[]>([]);
+  const [customLibraryPaletteStatus, setCustomLibraryPaletteStatus] = useState<"idle" | LibraryStatus>("idle");
+  const [customLibraryPalettes, setCustomLibraryPalettes] = useState<CustomLibraryPaletteRecord[]>([]);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -154,6 +166,10 @@ export function PresentationLibrary({
   const [customLibraryDeleteTargetId, setCustomLibraryDeleteTargetId] = useState<string | null>(null);
   const [deletingCustomLibraryItemId, setDeletingCustomLibraryItemId] = useState<string | null>(null);
   const [customLibraryError, setCustomLibraryError] = useState<string | null>(null);
+  const [selectedCustomLibraryPaletteId, setSelectedCustomLibraryPaletteId] = useState<string | null>(null);
+  const [customLibraryPaletteDeleteTargetId, setCustomLibraryPaletteDeleteTargetId] = useState<string | null>(null);
+  const [deletingCustomLibraryPaletteId, setDeletingCustomLibraryPaletteId] = useState<string | null>(null);
+  const [customLibraryPaletteError, setCustomLibraryPaletteError] = useState<string | null>(null);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -165,7 +181,9 @@ export function PresentationLibrary({
 
   const mountedRef = useRef(true);
   const customLibraryLoadRef = useRef(0);
+  const customLibraryPaletteLoadRef = useRef(0);
   const customLibraryDeleteRef = useRef(false);
+  const customLibraryPaletteDeleteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -246,6 +264,30 @@ export function PresentationLibrary({
     void loadCustomLibraryItems();
   }, [destination, loadCustomLibraryItems]);
 
+  const loadCustomLibraryPalettes = useCallback(async () => {
+    const request = customLibraryPaletteLoadRef.current + 1;
+    customLibraryPaletteLoadRef.current = request;
+    setCustomLibraryPaletteStatus("loading");
+    setCustomLibraryPaletteError(null);
+
+    try {
+      const palettes = await customLibraryPaletteRepository.listPalettes();
+      if (!mountedRef.current || customLibraryPaletteLoadRef.current !== request) return;
+      setCustomLibraryPalettes(palettes);
+      setCustomLibraryPaletteStatus("ready");
+    } catch (error) {
+      console.error("Library: could not load Custom Library palettes", error);
+      if (!mountedRef.current || customLibraryPaletteLoadRef.current !== request) return;
+      setCustomLibraryPaletteStatus("error");
+      setCustomLibraryPaletteError(t("customLibrary.paletteBrowser.loadFailed"));
+    }
+  }, [customLibraryPaletteRepository, t]);
+
+  useEffect(() => {
+    if (destination !== "palettes") return;
+    void loadCustomLibraryPalettes();
+  }, [destination, loadCustomLibraryPalettes]);
+
   useEffect(() => {
     const unsubscribe = subscribeLiveCurrent(setLiveState);
     return () => unsubscribe?.();
@@ -267,6 +309,8 @@ export function PresentationLibrary({
     setSelectedId(null);
     setSelectedCustomLibraryItemId(null);
     setCustomLibraryDeleteTargetId(null);
+    setSelectedCustomLibraryPaletteId(null);
+    setCustomLibraryPaletteDeleteTargetId(null);
   }, []);
 
   const handleToggleSelection = useCallback((id: string) => {
@@ -275,6 +319,10 @@ export function PresentationLibrary({
 
   const handleToggleCustomLibrarySelection = useCallback((id: string) => {
     setSelectedCustomLibraryItemId((current) => (current === id ? null : id));
+  }, []);
+
+  const handleToggleCustomLibraryPaletteSelection = useCallback((id: string) => {
+    setSelectedCustomLibraryPaletteId((current) => (current === id ? null : id));
   }, []);
 
   const handleWorkspaceKeyDown = useCallback(
@@ -305,6 +353,7 @@ export function PresentationLibrary({
 
       setSelectedId(null);
       setSelectedCustomLibraryItemId(null);
+      setSelectedCustomLibraryPaletteId(null);
     },
     [],
   );
@@ -347,6 +396,8 @@ export function PresentationLibrary({
   const selected = summaries.find((summary) => summary.id === selectedId) ?? null;
   const selectedCustomLibraryItem =
     customLibraryItems.find((record) => record.id === selectedCustomLibraryItemId) ?? null;
+  const selectedCustomLibraryPalette =
+    customLibraryPalettes.find((record) => record.id === selectedCustomLibraryPaletteId) ?? null;
 
   const handleRequestCustomLibraryDelete = useCallback(() => {
     if (!selectedCustomLibraryItem) return;
@@ -382,6 +433,42 @@ export function PresentationLibrary({
     if (customLibraryDeleteRef.current) return;
     setCustomLibraryDeleteTargetId(null);
     setCustomLibraryError(null);
+  }, []);
+
+  const handleRequestCustomLibraryPaletteDelete = useCallback(() => {
+    if (!selectedCustomLibraryPalette) return;
+    setCustomLibraryPaletteError(null);
+    setCustomLibraryPaletteDeleteTargetId(selectedCustomLibraryPalette.id);
+  }, [selectedCustomLibraryPalette]);
+
+  const handleConfirmCustomLibraryPaletteDelete = useCallback(async () => {
+    if (customLibraryPaletteDeleteRef.current || customLibraryPaletteDeleteTargetId === null) return;
+    const target = customLibraryPalettes.find((record) => record.id === customLibraryPaletteDeleteTargetId);
+    if (!target) return;
+
+    customLibraryPaletteDeleteRef.current = true;
+    setDeletingCustomLibraryPaletteId(target.id);
+    setCustomLibraryPaletteError(null);
+
+    try {
+      await customLibraryPaletteRepository.deletePalette(target.id);
+      if (!mountedRef.current) return;
+      setCustomLibraryPalettes((palettes) => palettes.filter((record) => record.id !== target.id));
+      setSelectedCustomLibraryPaletteId((current) => current === target.id ? null : current);
+      setCustomLibraryPaletteDeleteTargetId(null);
+    } catch (error) {
+      console.error("Library: could not delete Custom Library palette", error);
+      if (mountedRef.current) setCustomLibraryPaletteError(t("customLibrary.paletteDelete.failed"));
+    } finally {
+      customLibraryPaletteDeleteRef.current = false;
+      if (mountedRef.current) setDeletingCustomLibraryPaletteId(null);
+    }
+  }, [customLibraryPaletteDeleteTargetId, customLibraryPalettes, customLibraryPaletteRepository, t]);
+
+  const handleCancelCustomLibraryPaletteDelete = useCallback(() => {
+    if (customLibraryPaletteDeleteRef.current) return;
+    setCustomLibraryPaletteDeleteTargetId(null);
+    setCustomLibraryPaletteError(null);
   }, []);
 
   const handleExport = useCallback(async () => {
@@ -688,6 +775,7 @@ export function PresentationLibrary({
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
   const stylesDestination = destination === "styles";
+  const palettesDestination = destination === "palettes";
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -851,6 +939,33 @@ export function PresentationLibrary({
                     />
                   ) : null}
                 </>
+              ) : palettesDestination ? (
+                <>
+                  {customLibraryPaletteStatus === "loading" ? (
+                    <p className={styles.stateBlock}>{t("customLibrary.paletteBrowser.loading")}</p>
+                  ) : null}
+                  {customLibraryPaletteStatus === "error" ? (
+                    <div className={styles.stateBlock}>
+                      <p>{customLibraryPaletteError ?? t("customLibrary.paletteBrowser.loadFailed")}</p>
+                      <Button size="compact" onClick={() => void loadCustomLibraryPalettes()}>
+                        {t("customLibrary.paletteBrowser.retry")}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {customLibraryPaletteStatus === "ready" && customLibraryPalettes.length === 0 ? (
+                    <div className={styles.stateBlock}>
+                      <p>{t("customLibrary.paletteBrowser.empty")}</p>
+                      <p>{t("customLibrary.paletteBrowser.emptyHint")}</p>
+                    </div>
+                  ) : null}
+                  {customLibraryPaletteStatus === "ready" && customLibraryPalettes.length > 0 ? (
+                    <CustomLibraryPaletteBrowser
+                      records={customLibraryPalettes}
+                      selectedId={selectedCustomLibraryPaletteId}
+                      onSelect={handleToggleCustomLibraryPaletteSelection}
+                    />
+                  ) : null}
+                </>
               ) : (
                 <div className={styles.placeholder}>
                   <p className={styles.placeholderTitle}>
@@ -867,6 +982,11 @@ export function PresentationLibrary({
               <CustomLibraryDetails
                 record={selectedCustomLibraryItem}
                 onDelete={handleRequestCustomLibraryDelete}
+              />
+            ) : palettesDestination ? (
+              <CustomLibraryPaletteDetails
+                record={selectedCustomLibraryPalette}
+                onDelete={handleRequestCustomLibraryPaletteDelete}
               />
             ) : (
               <PresentationDetails
@@ -901,6 +1021,16 @@ export function PresentationLibrary({
           error={customLibraryError}
           onCancel={handleCancelCustomLibraryDelete}
           onConfirm={() => void handleConfirmCustomLibraryDelete()}
+        />
+      ) : null}
+
+      {customLibraryPaletteDeleteTargetId !== null ? (
+        <CustomLibraryPaletteDeleteDialog
+          record={customLibraryPalettes.find((record) => record.id === customLibraryPaletteDeleteTargetId) ?? null}
+          deleting={deletingCustomLibraryPaletteId !== null}
+          error={customLibraryPaletteError}
+          onCancel={handleCancelCustomLibraryPaletteDelete}
+          onConfirm={() => void handleConfirmCustomLibraryPaletteDelete()}
         />
       ) : null}
     </div>

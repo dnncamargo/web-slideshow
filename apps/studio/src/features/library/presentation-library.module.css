@@ -588,6 +588,66 @@
 .customLibraryPreviewContainer { background: #203047; }
 .customLibraryPreviewInterior { width: 42px; height: 24px; border: 1px dashed currentcolor; opacity: .55; }
 
+.customLibraryPalettePreview {
+  display: flex;
+  width: 96px;
+  height: 32px;
+  flex: none;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+}
+
+.customLibraryPaletteSwatch {
+  width: 24px;
+  min-width: 0;
+  flex: 1 1 0;
+  border: 0;
+}
+
+.customLibraryPaletteMore {
+  display: flex;
+  min-width: 28px;
+  align-items: center;
+  justify-content: center;
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+}
+
+.customLibraryPaletteColorList {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.customLibraryPaletteColorRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--ps-ui-text-primary);
+  font-size: 13px;
+}
+
+.customLibraryPaletteColorRow > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customLibraryPaletteColorValue {
+  color: var(--ps-ui-text-muted);
+  font-family: monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .recipeTree,
 .recipeProperties,
 .recipeChildren {
