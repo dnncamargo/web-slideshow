@@ -49,6 +49,10 @@ export class InvalidCustomLibraryItemForPersistenceError extends PersistenceErro
 
 export class InvalidPersistedCustomLibraryItemError extends PersistenceError {}
 
+export class InvalidCustomLibraryPaletteForPersistenceError extends PersistenceError {}
+
+export class InvalidPersistedCustomLibraryPaletteError extends PersistenceError {}
+
 export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);

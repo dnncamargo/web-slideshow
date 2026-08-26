@@ -139,6 +139,15 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // PRIVATE CUSTOM LIBRARY PALETTES
+    // users/{userId}/customLibraryPalettes/{paletteId}
+    // ------------------------------------------------------------
+    match /users/{userId}/customLibraryPalettes/{paletteId} {
+      allow read, write: if isPrivatePresentationOwner(userId)
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // ------------------------------------------------------------
     // PRIVATE PRESENTATION NOTES
     // users/{userId}/presentations/{presentationId}/private/notes
     //
