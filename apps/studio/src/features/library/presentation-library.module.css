@@ -383,6 +383,10 @@
   margin: 16px 0 0;
 }
 
+.customLibraryDeleteAction {
+  margin-top: 16px;
+}
+
 .folderSelect {
   box-sizing: border-box;
   width: 100%;
