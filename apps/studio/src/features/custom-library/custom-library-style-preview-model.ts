@@ -71,14 +71,24 @@ function safeTextDecorationLine(value: unknown): CSSProperties["textDecorationLi
   return value === "underline" || value === "overline" || value === "line-through" || value === "none" ? value : undefined;
 }
 
+function safeFontWeight(value: unknown): CSSProperties["fontWeight"] {
+  return typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 900 && value % 100 === 0
+    ? value
+    : undefined;
+}
+
 function safeBorder(properties: ReadonlyMap<string, unknown>): CSSProperties["border"] {
   const width = safeLength(properties.get("style.border.width"), 0, 4);
   const color = safeColor(properties.get("style.border.color"));
   const style = properties.get("style.border.style");
-  const borderStyle = style === "dashed" || style === "dotted" || style === "solid"
-    ? style
-    : "solid";
-  return width !== undefined && color !== undefined ? `${width}px ${borderStyle} ${color}` : undefined;
+  const borderStyle = style === undefined
+    ? "solid"
+    : style === "dashed" || style === "dotted" || style === "solid"
+      ? style
+      : undefined;
+  return width !== undefined && borderStyle !== undefined && color !== undefined
+    ? `${width}px ${borderStyle} ${color}`
+    : undefined;
 }
 
 function safeShadow(value: unknown): string | undefined {
@@ -100,9 +110,7 @@ function textModel(recipe: CustomLibraryElementRecipe): CustomLibraryStylePrevie
   const textStyle: CSSProperties = {
     color: safeColor(properties.get("style.color")),
     fontFamily: safeFontFamily(typography("fontFamily")),
-    fontWeight: typeof typography("fontWeight") === "number" && Number.isInteger(typography("fontWeight"))
-      ? Math.min(900, Math.max(100, typography("fontWeight") as number))
-      : undefined,
+    fontWeight: safeFontWeight(typography("fontWeight")),
     fontStyle: typography("fontStyle") === "italic" ? "italic" : typography("fontStyle") === "normal" ? "normal" : undefined,
     fontSize: safeLength(typography("fontSize"), 16, 32),
     textAlign: safeTextAlign(typography("textAlign")) ?? "left",

@@ -39,6 +39,11 @@ describe("CustomLibraryStylePreview", () => {
     expect(html).toContain("-webkit-text-stroke:2px #000000");
   });
 
+  it.each([150, 950, 0, 50, 1000, "900"] as const)("ignores malformed font weight %s", (fontWeight) => {
+    const html = markup(recipe("text", [{ path: "typography.fontWeight", value: fontWeight }]));
+    expect(html).not.toContain("font-weight:");
+  });
+
   it("clamps font size and stroke width", () => {
     const html = markup(recipe("text", [
       { path: "typography.fontSize", value: 100 },
@@ -85,6 +90,30 @@ describe("CustomLibraryStylePreview", () => {
       { path: "style.border", value: { width: 2, style: "dashed", color: "#ffffff" } },
     ]));
     expect(html).not.toContain("border:");
+  });
+
+  it("defaults an absent border style to solid", () => {
+    const html = markup(recipe("container", [
+      { path: "style.border.width", value: 2 },
+      { path: "style.border.color", value: "#ffffff" },
+    ]));
+    expect(html).toContain("border:2px solid #ffffff");
+  });
+
+  it("rejects invalid border styles while preserving valid dashed borders", () => {
+    const invalid = markup(recipe("container", [
+      { path: "style.border.width", value: 2 },
+      { path: "style.border.style", value: "double" },
+      { path: "style.border.color", value: "#ffffff" },
+    ]));
+    expect(invalid).not.toContain("border:");
+
+    const dashed = markup(recipe("container", [
+      { path: "style.border.width", value: 2 },
+      { path: "style.border.style", value: "dashed" },
+      { path: "style.border.color", value: "#ffffff" },
+    ]));
+    expect(dashed).toContain("border:2px dashed #ffffff");
   });
 
   it("never injects hostile image, embed, or scripted payloads", () => {
