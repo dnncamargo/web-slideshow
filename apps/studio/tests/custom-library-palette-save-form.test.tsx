@@ -27,9 +27,11 @@ describe("CustomLibraryPaletteSaveForm", () => {
     act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={onSaved} onCancel={vi.fn()} /></StudioI18nProvider>));
     const inputs = container.querySelectorAll<HTMLInputElement>("input");
     act(() => { setInputValue(inputs[0], "  Shared Brand  "); inputs[0].dispatchEvent(new Event("input", { bubbles: true })); });
+    const description = container.querySelector<HTMLTextAreaElement>("textarea");
+    act(() => { if (description) { setInputValue(description, "  reusable  "); description.dispatchEvent(new Event("input", { bubbles: true })); } });
     act(() => { container.querySelector<HTMLButtonElement>("button[type=submit]")?.click(); });
     await act(async () => undefined);
-    expect(savePalette).toHaveBeenCalledWith({ name: "Shared Brand", colors: [{ name: "Accent", value: "#112233" }] });
+    expect(savePalette).toHaveBeenCalledWith({ name: "Shared Brand", description: "reusable", colors: [{ name: "Accent", value: "#112233" }] });
     expect(onSaved).toHaveBeenCalledOnce();
   });
 
@@ -45,8 +47,20 @@ describe("CustomLibraryPaletteSaveForm", () => {
     expect(savePalette).toHaveBeenCalledTimes(2);
     expect(onSaved).toHaveBeenCalledOnce();
   });
+
+  it("prevents duplicate submissions while the repository is pending", async () => {
+    let resolveSave: ((id: string) => void) | undefined;
+    const savePalette = vi.fn(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={vi.fn()} onCancel={vi.fn()} /></StudioI18nProvider>));
+    const name = container.querySelector<HTMLInputElement>("input");
+    act(() => { if (name) { setInputValue(name, "Shared"); name.dispatchEvent(new Event("input", { bubbles: true })); } });
+    act(() => { const submit = container.querySelector<HTMLButtonElement>("button[type=submit]"); submit?.click(); submit?.click(); });
+    expect(savePalette).toHaveBeenCalledOnce();
+    await act(async () => { resolveSave?.("id"); await Promise.resolve(); });
+  });
 });
 
-function setInputValue(input: HTMLInputElement, value: string): void {
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+  const prototype = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(input, value);
 }

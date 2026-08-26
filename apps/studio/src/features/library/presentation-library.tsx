@@ -330,6 +330,7 @@ export function PresentationLibrary({
       if (event.key === "Escape") {
         setSelectedId(null);
         setSelectedCustomLibraryItemId(null);
+        setSelectedCustomLibraryPaletteId(null);
       }
     },
     [],

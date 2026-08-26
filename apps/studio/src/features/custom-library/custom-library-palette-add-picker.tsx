@@ -14,12 +14,14 @@ interface CustomLibraryPaletteAddPickerProps {
   isOpen: boolean;
   repository?: CustomLibraryPaletteRepository;
   onAdd: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
+  onCancel: () => void;
 }
 
 export function CustomLibraryPaletteAddPicker({
   isOpen,
   repository = getDefaultCustomLibraryPaletteRepository(),
   onAdd,
+  onCancel,
 }: CustomLibraryPaletteAddPickerProps) {
   const { t } = useStudioI18n();
   const [records, setRecords] = useState<CustomLibraryPaletteRecord[] | null>(null);
@@ -101,9 +103,12 @@ export function CustomLibraryPaletteAddPicker({
               </li>
             ))}
           </ul>
-          <button type="button" disabled={!selected || isAdding || feedback === "added"} onClick={handleAdd}>{t("customLibrary.palette.addToPresentation")}</button>
+          <div className={styles.customLibraryPalettePickerActions}>
+            <button type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</button>
+            <button type="button" disabled={!selected || isAdding || feedback === "added"} onClick={handleAdd}>{t("customLibrary.palette.addToPresentation")}</button>
+          </div>
         </>
-      ) : null}
+      ) : !isLoading && !loadFailed ? <button type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</button> : null}
       {feedback === "added" ? <p className={styles.customLibraryApplyStatus} role="status">{t("customLibrary.palette.added")}</p> : null}
       {feedback === "failed" ? <p className={`${styles.customLibraryApplyStatus} ${styles.customLibrarySaveError}`} role="alert">{t("customLibrary.palette.addFailed")}</p> : null}
     </div>

@@ -86,6 +86,22 @@ describe("PresentationPaletteManager", () => {
     });
     expect(onRemove).toHaveBeenCalledWith("accent");
   });
+
+  it("opens Save to Library only for a non-empty palette and writes a draft", async () => {
+    const savePalette = vi.fn(async () => "palette-id");
+    const repository = { savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined };
+    const common = { onAdd: vi.fn(), onRename: vi.fn(), onUpdate: vi.fn(), onRemove: vi.fn() };
+    act(() => root.render(<StudioI18nProvider><PresentationPaletteManager colors={[]} {...common} /></StudioI18nProvider>));
+    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Save to Library")?.disabled).toBe(true);
+
+    act(() => root.render(<StudioI18nProvider><PresentationPaletteManager palette={{ colors: [{ id: "accent", name: "Accent", value: "#112233" }] }} colors={[{ id: "accent", name: "Accent", value: "#112233" }]} customLibraryPaletteRepository={repository} {...common} /></StudioI18nProvider>));
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Save to Library")?.click());
+    const name = container.querySelector<HTMLInputElement>("form input");
+    expect(name).toBeTruthy();
+    act(() => { if (name) { setInputValue(name, "Shared"); name.dispatchEvent(new Event("input", { bubbles: true })); } });
+    await act(async () => container.querySelector<HTMLButtonElement>("button[type=submit]")?.click());
+    expect(savePalette).toHaveBeenCalledWith({ name: "Shared", colors: [{ name: "Accent", value: "#112233" }] });
+  });
 });
 
 function setInputValue(input: HTMLInputElement, value: string): void {

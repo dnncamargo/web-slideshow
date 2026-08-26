@@ -983,6 +983,12 @@
   min-width: 0;
 }
 
+.customLibraryPalettePickerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
 .customLibrarySaveStatus {
   margin: 0 0 6px;
   color: #86efac;

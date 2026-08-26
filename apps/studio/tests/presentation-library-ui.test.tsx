@@ -1013,6 +1013,30 @@ describe("presentation library workspace controls", () => {
     expect(repository.createPresentation).not.toHaveBeenCalled();
   });
 
+  it("clears the selected Custom Library Palette on workspace Escape", async () => {
+    const { repository } = repositoryFor([]);
+    const palettes = customLibraryPaletteRepositoryFor([
+      customLibraryPalette("palette-escape", "Escape palette", [
+        { name: "Accent", value: "#facc15" },
+      ]),
+    ]);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, palettes.repository)));
+    await flushWorkspaceEffects();
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Palettes")?.click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>('[data-custom-library-palette-row]');
+    expect(row).toBeTruthy();
+    act(() => row?.click());
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Escape palette");
+
+    const workspace = container.querySelector<HTMLElement>('[class*="workspace"]');
+    expect(workspace).toBeTruthy();
+    act(() => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Select a palette to view details.");
+    expect(row?.getAttribute("aria-pressed")).toBe("false");
+  });
+
   it("shows a palette-specific load error and retries only palette loading", async () => {
     const { repository } = repositoryFor([]);
     const palettes = customLibraryPaletteRepositoryFor([

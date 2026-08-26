@@ -13,6 +13,10 @@ import type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
 } from "../src/features/custom-library/custom-library-repository";
+import type {
+  CustomLibraryPaletteRecord,
+  CustomLibraryPaletteRepository,
+} from "../src/features/custom-library/custom-library-palette-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -98,6 +102,17 @@ function fakeRepository(listItems: () => Promise<CustomLibraryItemRecord[]>): Cu
     listItems,
     getItem: async () => null,
     deleteItem: async () => undefined,
+  };
+}
+
+function fakePaletteRepository(
+  listPalettes: () => Promise<CustomLibraryPaletteRecord[]>,
+): CustomLibraryPaletteRepository {
+  return {
+    savePalette: async () => "saved-palette",
+    listPalettes,
+    getPalette: async () => null,
+    deletePalette: async () => undefined,
   };
 }
 
@@ -202,6 +217,67 @@ describe("Custom Library Editor integration", () => {
     expect(slide?.elements[1]?.id).not.toBe("existing");
     expect(containerElement.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
     expect(containerElement.textContent).toContain(`Text · ${slide?.elements[1]?.id}`);
+  });
+
+  it("wires Add from Library through Editor state and autosave", async () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-editor-integration",
+      title: "Palette editor integration",
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#ff0000" }] },
+      slides: [{
+        id: "slide-1",
+        title: "First",
+        elements: [{
+          id: "linked-text",
+          type: "text",
+          content: "Existing",
+          style: { color: { kind: "palette", colorId: "accent" } },
+        }],
+      }],
+    });
+    const saved: Presentation[] = [];
+    const listPalettes = vi.fn(async () => [{
+      id: "firestore-palette-id",
+      palette: {
+        name: "Brand",
+        description: "Not presentation metadata",
+        colors: [{ name: "Accent", value: "#facc15" }, { name: "Border", value: "#ffffff" }],
+      },
+    }]);
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace
+          initialPresentation={source}
+          customLibraryPaletteRepository={fakePaletteRepository(listPalettes)}
+          onSave={vi.fn(async (next: Presentation) => { saved.push(structuredClone(next)); })}
+        />
+      </StudioI18nProvider>,
+    ));
+
+    expect(listPalettes).not.toHaveBeenCalled();
+    const openButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Add from Library");
+    expect(openButton).toBeDefined();
+    await act(async () => openButton?.click());
+    await act(async () => undefined);
+    expect(listPalettes).toHaveBeenCalledOnce();
+    const brandButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Brand"));
+    await act(async () => brandButton?.click());
+    await act(async () => Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Add to Presentation")?.click());
+    await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
+
+    const next = saved.at(-1);
+    expect(next?.palette?.colors).toEqual([
+      { id: "accent", name: "Accent", value: "#ff0000" },
+      { id: "accent-2", name: "Accent", value: "#facc15" },
+      { id: "border", name: "Border", value: "#ffffff" },
+    ]);
+    expect(next?.slides[0]?.elements[0]).toMatchObject({ style: { color: { kind: "palette", colorId: "accent" } } });
+    expect(JSON.stringify(next)).not.toContain("firestore-palette-id");
+    expect(JSON.stringify(next)).not.toContain("Not presentation metadata");
   });
 
   it("merges Text into the selected Text without creating a sibling", async () => {

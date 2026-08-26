@@ -73,7 +73,7 @@ export function PresentationPaletteManager({
         >
           {t("customLibrary.palette.saveToLibrary")}
         </button>
-        <button type="button" onClick={() => setActiveLibraryPanel("add")}>
+        <button type="button" onClick={() => setActiveLibraryPanel((current) => current === "add" ? null : "add")}>
           {t("customLibrary.palette.addFromLibrary")}
         </button>
       </div>
@@ -91,6 +91,7 @@ export function PresentationPaletteManager({
           isOpen
           repository={customLibraryPaletteRepository}
           onAdd={onAddLibraryPalette ?? (() => ({ ok: false, reason: "unavailable" }))}
+          onCancel={() => setActiveLibraryPanel(null)}
         />
       ) : null}
     </section>
