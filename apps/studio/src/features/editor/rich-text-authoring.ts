@@ -277,7 +277,7 @@ export function getTextContentSelectionColor(
   }
 
   return characters.every((character) => character.marks?.color === color)
-    ? color
+    ? (typeof color === "string" ? color : undefined)
     : undefined;
 }
 

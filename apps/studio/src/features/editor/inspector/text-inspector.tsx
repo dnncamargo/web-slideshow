@@ -421,7 +421,7 @@ export function TextInspector({
       <CanonicalTextEffectsSection
         effect={element.effect}
         typography={element.typography}
-        textColor={element.style?.color}
+        textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}
         controlPrefix="text"

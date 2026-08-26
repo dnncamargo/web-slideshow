@@ -3,8 +3,8 @@ import { z } from "zod";
 import {
   ElementIdSchema,
   LengthSchema,
-  ColorSchema,
 } from "./primitives";
+import { ColorValueSchema } from "./palette";
 
 import {
   ElementLinkSchema,
@@ -50,7 +50,7 @@ export const TextRunMarksSchema = z.object({
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
   code: z.boolean().optional(),
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
 });
 
 export type TextRunMarks =
@@ -345,7 +345,7 @@ export type BlockShape = "statement" | "value" | "scope";
 export type BlockCategory = {
   id: string;
   name: string;
-  color: z.infer<typeof ColorSchema>;
+  color: z.infer<typeof ColorValueSchema>;
 };
 
 export type BlockTextPart = {
@@ -380,7 +380,7 @@ export const BlockShapeSchema = z.enum(["statement", "value", "scope"]);
 export const BlockCategorySchema = z.object({
   id: z.string(),
   name: z.string(),
-  color: ColorSchema,
+  color: ColorValueSchema,
 });
 
 const BlockTextPartSchema = z.object({
@@ -510,11 +510,11 @@ export const ContentSlotLayoutSchema = z.object({
 }).strict();
 
 const ContentSlotBackgroundSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
 }).strict();
 
 export const ContentSlotVisualStyleSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
   background: ContentSlotBackgroundSchema.optional(),
   border: BorderSchema.optional(),
   borderRadius: LengthSchema.optional(),
@@ -675,7 +675,7 @@ export type TopicsElement = {
     | undefined;
 
   markerColor?:
-    | z.infer<typeof ColorSchema>
+    | z.infer<typeof ColorValueSchema>
     | undefined;
 
   itemGap?:
@@ -714,7 +714,7 @@ export const TopicsElementSchema:
 
     rootMarkerStyle: TopicMarkerStyleSchema.optional(),
 
-    markerColor: ColorSchema.optional(),
+    markerColor: ColorValueSchema.optional(),
 
     itemGap: z.number().min(0).optional(),
   }).strict();

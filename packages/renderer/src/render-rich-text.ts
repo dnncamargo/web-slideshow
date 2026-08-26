@@ -5,6 +5,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { renderColorValue } from "./render-palette";
 
 function renderSpanStyle(marks: TextRunMarks): string | undefined {
   const styles: string[] = [];
@@ -14,7 +15,7 @@ function renderSpanStyle(marks: TextRunMarks): string | undefined {
   }
 
   if (marks.color !== undefined) {
-    styles.push(`color:${marks.color}`);
+    styles.push(`color:${renderColorValue(marks.color)}`);
   }
 
   return styles.length > 0 ? styles.join(";") : undefined;

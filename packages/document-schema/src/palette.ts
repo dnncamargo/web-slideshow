@@ -70,7 +70,7 @@ export function isPaletteColorReference(
 }
 
 export function findPaletteColor(
-  palette: PresentationPalette | undefined,
+  palette: { colors: readonly PresentationPaletteColor[] } | undefined,
   colorId: string,
 ): PresentationPaletteColor | undefined {
   return palette?.colors.find((color) => color.id === colorId);
@@ -78,7 +78,7 @@ export function findPaletteColor(
 
 export function resolveColorValue(
   value: ColorValue,
-  palette: PresentationPalette | undefined,
+  palette: { colors: readonly PresentationPaletteColor[] } | undefined,
 ): string | undefined {
   if (!isPaletteColorReference(value)) {
     return value;

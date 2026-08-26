@@ -6,6 +6,8 @@ import {
   parseColor,
   replaceColorRgb,
   type Color,
+  type ColorValue,
+  resolveColorValue,
   type ColorFormat,
 } from "@powershow/document-schema";
 import { useEffect, useState } from "react";
@@ -31,7 +33,7 @@ const DEFAULT_PICKER_COLOR = "#f8fafc";
 interface ColorControlProps {
   id: string;
   name: string;
-  value: Color | undefined;
+  value: ColorValue | undefined;
   onChange: (color: Color) => void;
   disabled?: boolean;
 }
@@ -60,7 +62,9 @@ export function ColorControl({
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
   const recent = useRecentColors();
-  const sourceValue = value ?? DEFAULT_PICKER_COLOR;
+  const sourceValue = value === undefined
+    ? DEFAULT_PICKER_COLOR
+    : resolveColorValue(value, palette ? { colors: palette.colors } : undefined) ?? DEFAULT_PICKER_COLOR;
   const [draft, setDraft] = useState(sourceValue);
   const [format, setFormat] = useState<ColorFormat>(() =>
     getColorFormat(sourceValue),

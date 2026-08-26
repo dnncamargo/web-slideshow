@@ -98,3 +98,49 @@ describe("palette color resolution", () => {
     expect(resolveColorValue({ kind: "palette", colorId: "accent" }, undefined)).toBeUndefined();
   });
 });
+
+describe("presentation palette reference integrity", () => {
+  const reference = { kind: "palette" as const, colorId: "accent" };
+  const baseSlide = { id: "linked-slide", title: "", summary: "", speakerNotes: "" };
+  const presentation = {
+    ...defaultsInput,
+    palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    slides: [{
+      ...baseSlide,
+      elements: [{
+        id: "linked-text",
+        type: "text" as const,
+        content: { type: "rich-text" as const, runs: [{ text: "linked", marks: { color: reference } }] },
+        style: {
+          color: reference,
+          background: { gradient: { type: "linear" as const, stops: [
+            { color: reference, position: 0 },
+            { color: "#000000", position: 100 },
+          ] } },
+          border: { width: 1, color: reference },
+        },
+        typography: { textDecorationColor: reference, textStroke: { width: 1, color: reference } },
+        effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+      }],
+      background: { color: reference },
+    }],
+  };
+
+  it("accepts local references across structured paint positions", () => {
+    expect(PresentationSchema.safeParse(presentation).success).toBe(true);
+  });
+
+  it("rejects missing palettes, missing ids, and name-only matches", () => {
+    expect(PresentationSchema.safeParse({ ...presentation, palette: undefined }).success).toBe(false);
+    expect(PresentationSchema.safeParse({ ...presentation, palette: { colors: [{ id: "other", name: "accent", value: "#facc15" }] } }).success).toBe(false);
+    expect(PresentationSchema.safeParse({ ...presentation, slides: [{ ...baseSlide, background: { color: { kind: "palette", colorId: "missing" } } }] }).success).toBe(false);
+  });
+
+  it("does not inspect unconstrained interactive or scripted payloads", () => {
+    const payload = { kind: "palette", colorId: "missing" };
+    expect(PresentationSchema.safeParse({ ...defaultsInput, slides: [{ ...baseSlide, elements: [
+      { id: "interactive", type: "interactive" as const, widget: "function-plot" as const, config: { payload } },
+      { id: "scripted", type: "scripted" as const, title: "Script", html: JSON.stringify(payload) },
+    ] }] }).success).toBe(true);
+  });
+});

@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import {
-  ColorSchema,
   DirectionSchema,
   DistributionSchema,
   HorizontalAlignmentSchema,
@@ -10,6 +9,7 @@ import {
   OverflowSchema,
   VerticalAlignmentSchema,
 } from "./primitives";
+import { ColorValueSchema } from "./palette";
 import {
   FontFamilySchema,
   FontStyleSchema,
@@ -146,7 +146,7 @@ export const ResizablePositionedLayoutSchema = z.object({
 export type ResizablePositionedLayout = z.infer<typeof ResizablePositionedLayoutSchema>;
 
 const SurfaceBackgroundSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
 }).strict();
 
 export const SurfaceVisualStyleSchema = z.object({
@@ -159,7 +159,7 @@ export const SurfaceVisualStyleSchema = z.object({
 export type SurfaceVisualStyle = z.infer<typeof SurfaceVisualStyleSchema>;
 
 export const GradientSurfaceBackgroundSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
   gradient: GradientSchema.optional(),
 }).strict();
 
@@ -179,7 +179,7 @@ export type GradientSurfaceVisualStyle = z.infer<
 >;
 
 export const BlocksVisualStyleSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
   background: GradientSurfaceBackgroundSchema.optional(),
   border: BorderSchema.optional(),
   borderRadius: LengthSchema.optional(),
@@ -190,7 +190,7 @@ export type BlocksVisualStyle = z.infer<typeof BlocksVisualStyleSchema>;
 
 export const ElementBackgroundSchema = z
   .object({
-    color: ColorSchema.optional(),
+    color: ColorValueSchema.optional(),
     gradient: GradientSchema.optional(),
     pattern: BackgroundPatternSchema.optional(),
   })
@@ -200,7 +200,7 @@ export type ElementBackground = z.infer<typeof ElementBackgroundSchema>;
 
 export const ElementVisualStyleSchema = z
   .object({
-    color: ColorSchema.optional(),
+    color: ColorValueSchema.optional(),
     background: ElementBackgroundSchema.optional(),
     border: BorderSchema.optional(),
     borderRadius: LengthSchema.optional(),
@@ -211,14 +211,14 @@ export const ElementVisualStyleSchema = z
 export type ElementVisualStyle = z.infer<typeof ElementVisualStyleSchema>;
 
 export const TextVisualBackgroundSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
   gradient: GradientSchema.optional(),
 }).strict();
 
 export type TextVisualBackground = z.infer<typeof TextVisualBackgroundSchema>;
 
 export const TextVisualStyleSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
   background: TextVisualBackgroundSchema.optional(),
   border: BorderSchema.optional(),
   borderRadius: LengthSchema.optional(),
@@ -241,7 +241,7 @@ export const ElementTypographySchema = z
     textWrapStyle: TextWrapStyleSchema.optional(),
     overflowWrap: OverflowWrapSchema.optional(),
     textDecorationLine: TextDecorationLineSchema.optional(),
-    textDecorationColor: ColorSchema.optional(),
+    textDecorationColor: ColorValueSchema.optional(),
     textStroke: TextStrokeSchema.optional(),
   })
   .strict();
@@ -283,7 +283,7 @@ export const DividerLayoutSchema = z.object({
 }).strict().superRefine(requireAbsoluteEdges);
 
 export const DividerVisualStyleSchema = z.object({
-  background: z.object({ color: ColorSchema.optional() }).strict().optional(),
+  background: z.object({ color: ColorValueSchema.optional() }).strict().optional(),
   borderRadius: LengthSchema.optional(),
   className: z.string().optional(),
 }).strict();
@@ -297,7 +297,7 @@ export const TopicsLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
 );
 
 export const TopicsVisualStyleSchema = z.object({
-  color: ColorSchema.optional(),
+  color: ColorValueSchema.optional(),
   className: z.string().optional(),
 }).strict();
 

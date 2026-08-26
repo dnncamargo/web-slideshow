@@ -2,6 +2,7 @@ import type { BlockItem, BlockPart, BlocksElement } from "@powershow/document-sc
 
 import { escapeHtml } from "./escape-html";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
+import { renderColorValue } from "./render-palette";
 
 export const BLOCK_CONNECTOR_WIDTH = 14;
 export const BLOCK_CONNECTOR_HEIGHT = 5;
@@ -140,6 +141,6 @@ export function renderBlocks(element: BlocksElement): string {
   if (customClass) classes.push(customClass);
   const rootStyle = renderCanonicalDataStyle(element);
   const styleAttribute = rootStyle ? ` style="${escapeHtml(rootStyle)}"` : "";
-  const categories = new Map(element.categories.map((category) => [category.id, category.color]));
+  const categories = new Map(element.categories.map((category) => [category.id, renderColorValue(category.color)]));
   return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="blocks"${styleAttribute}><div class="powershow-blocks-stack" style="${stackStyle}">${element.items.map((item) => renderBlock(item, categories)).join("")}</div></div>`;
 }

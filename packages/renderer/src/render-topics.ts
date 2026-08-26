@@ -9,6 +9,7 @@ import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";
 import { renderLength } from "./render-length";
 import { renderContentSlotStyle } from "./render-content-slot";
+import { renderColorValue } from "./render-palette";
 
 type RenderChild = (element: PowerShowElement) => string;
 
@@ -104,7 +105,7 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
       if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
     }
   }
-  if (element.style?.color !== undefined) styles.push(`--powershow-topic-color:${element.style.color}`);
+  if (element.style?.color !== undefined) styles.push(`--powershow-topic-color:${renderColorValue(element.style.color)}`);
   const typography = element.typography;
   if (typography?.fontFamily !== undefined) styles.push(`--powershow-topic-font-family:${quoteCssString(typography.fontFamily)}`);
   if (typography?.fontSize !== undefined) styles.push(`--powershow-topic-font-size:${renderLength(typography.fontSize)}`);
@@ -128,7 +129,7 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
   );
 
   if (element.markerColor !== undefined) {
-    styles.push(`--powershow-topic-marker-color:${element.markerColor}`);
+    styles.push(`--powershow-topic-marker-color:${renderColorValue(element.markerColor)}`);
   }
 
   if (element.itemGap !== undefined) {

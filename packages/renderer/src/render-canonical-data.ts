@@ -9,6 +9,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 
 type CanonicalDataElement =
@@ -59,11 +60,11 @@ export function renderCanonicalDataStyle(
   }
 
   if (style && "color" in style && style.color !== undefined) {
-    output.push(`color:${style.color}`);
+    output.push(`color:${renderColorValue(style.color)}`);
   }
 
   if (style?.background?.color !== undefined) {
-    output.push(`background:${style.background.color}`);
+    output.push(`background:${renderColorValue(style.background.color)}`);
   }
 
   if (style?.background?.gradient !== undefined) {

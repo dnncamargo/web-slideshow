@@ -59,7 +59,9 @@ export function ContainerBackgroundPatternControl({
 }: ContainerBackgroundPatternControlProps) {
   const { t } = useStudioI18n();
   const pattern = element.style?.background?.pattern;
-  const color = element.style?.background?.color;
+  const color = typeof element.style?.background?.color === "string"
+    ? element.style.background.color
+    : undefined;
   const presetId = pattern === undefined ? undefined : findBackgroundPatternPreset(pattern);
   const derivedMode: PatternControlMode = pattern === undefined ? "none" : presetId ?? "custom";
   const patternKey = patternSignature(pattern);
@@ -78,7 +80,10 @@ export function ContainerBackgroundPatternControl({
       if (!active) return;
       const currentBackground = styleRef.current?.background;
       setMode(derivedMode);
-      setCustomCss(renderPatternCss(currentBackground?.pattern, currentBackground?.color));
+      setCustomCss(renderPatternCss(
+        currentBackground?.pattern,
+        typeof currentBackground?.color === "string" ? currentBackground.color : undefined,
+      ));
       setError(undefined);
     });
     return () => {

@@ -7,6 +7,7 @@ import { PresentationResourcesSchema } from "./resources";
 import {
   PresentationPaletteSchema,
 } from "./palette";
+import { validatePresentationPaletteReferences } from "./palette-validation";
 
 export {
   PresentationPaletteSchema,
@@ -37,7 +38,9 @@ export const PresentationSchema =
     slides: z.array(
       SlideSchema,
     ),
-  });
+  })
+  .strict()
+  .superRefine(validatePresentationPaletteReferences);
 
 export type Presentation =
   z.infer<typeof PresentationSchema>;
