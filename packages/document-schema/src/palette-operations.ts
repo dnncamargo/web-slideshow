@@ -9,7 +9,7 @@ import {
 } from "./palette";
 import { mapPresentationColorValues } from "./palette-validation";
 
-export { mapPresentationColorValues } from "./palette-validation";
+export { mapPresentationColorValues, mapPowerShowElementColorValues } from "./palette-validation";
 
 export type PaletteOperationFailure = {
   ok: false;

@@ -179,6 +179,17 @@ export function mapPresentationColorValues(
   return mapped;
 }
 
+export function mapPowerShowElementColorValues(
+  element: PowerShowElement,
+  visitor: PresentationColorValueVisitor,
+): PowerShowElement {
+  const mapped = structuredClone(element);
+  visitPresentationColorValues({
+    slides: [{ id: "palette-map", elements: [mapped] } as Slide],
+  }, visitor);
+  return mapped;
+}
+
 export function validatePresentationPaletteReferences(
   presentation: {
     palette?: PresentationPalette | undefined;

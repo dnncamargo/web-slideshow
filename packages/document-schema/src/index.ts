@@ -17,6 +17,7 @@ export {
   detachColorValue,
   linkColorToPalette,
   mapPresentationColorValues,
+  mapPowerShowElementColorValues,
   removePresentationPaletteColor,
   renamePresentationPaletteColor,
   updatePresentationPaletteColorValue,
@@ -25,7 +26,6 @@ export type {
   PaletteOperationFailure,
   PaletteOperationSuccess,
 } from "./palette-operations";
-export { visitPresentationColorValues } from "./palette-validation";
 export * from "./resources";
 export * from "./style";
 export * from "./links";
