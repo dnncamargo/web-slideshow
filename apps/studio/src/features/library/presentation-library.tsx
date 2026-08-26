@@ -106,6 +106,21 @@ function destinationTitle(
   }
 }
 
+function destinationSectionTitle(
+  destination: LibraryDestination,
+  t: StudioTranslate,
+): string {
+  if (isFolderDestination(destination)) {
+    return t("library.folders");
+  }
+
+  if (isCustomLibraryDestination(destination)) {
+    return t("library.customLibrary");
+  }
+
+  return t("library.presentations");
+}
+
 export function PresentationLibrary({
   repository = getDefaultPresentationRepository(),
   folderRepository = getDefaultPresentationFolderRepository(),
@@ -743,7 +758,9 @@ export function PresentationLibrary({
         <main className={styles.main}>
           <div className={styles.workspaceHeading}>
             <div>
-              <p className={styles.eyebrow}>{t("library.title")}</p>
+              <p className={styles.eyebrow}>
+                {destinationSectionTitle(destination, t)}
+              </p>
               <h1>{destinationTitle(destination, t, folders)}</h1>
             </div>
             {presentationDestination ? (

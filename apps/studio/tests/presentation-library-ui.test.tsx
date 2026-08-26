@@ -918,6 +918,29 @@ describe("presentation library workspace controls", () => {
     expect(repository.getPresentation).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["Styles", "Styles"],
+    ["Palettes", "Palettes"],
+    ["Fonts", "Fonts"],
+  ])("uses Custom Library as the section for %s", async (destination, title) => {
+    const { repository } = repositoryFor([]);
+    const custom = customLibraryRepositoryFor([]);
+
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
+    await flushWorkspaceEffects();
+
+    const destinationButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === destination,
+    );
+    if (!destinationButton) throw new Error(`expected ${destination} destination`);
+    act(() => destinationButton.click());
+    await flushWorkspaceEffects();
+
+    const heading = container.querySelector("h1");
+    expect(heading?.previousElementSibling?.textContent).toBe("Custom Library");
+    expect(heading?.textContent).toBe(title);
+  });
+
   it("places the Studio user identity in the Topbar actions before Sign out", async () => {
     const { repository } = repositoryFor([]);
 

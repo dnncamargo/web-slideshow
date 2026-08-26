@@ -214,6 +214,30 @@ describe("presentation library folders workspace", () => {
     await flushWorkspaceEffects();
   }
 
+  it("shows the section and specific destination in the workspace heading", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Aulas")],
+    });
+
+    await renderLibrary(harness);
+    expect(container.querySelector("h1")?.previousElementSibling?.textContent).toBe(
+      "Presentations",
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("All");
+
+    clickButton("Archived");
+    expect(container.querySelector("h1")?.previousElementSibling?.textContent).toBe(
+      "Presentations",
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("Archived");
+
+    clickButton("Aulas");
+    expect(container.querySelector("h1")?.previousElementSibling?.textContent).toBe(
+      "Folders",
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("Aulas");
+  });
+
   function buttonsWithText(text: string): HTMLButtonElement[] {
     return Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(
       (button) => button.textContent === text,
