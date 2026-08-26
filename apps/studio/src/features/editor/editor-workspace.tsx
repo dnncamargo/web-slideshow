@@ -130,9 +130,6 @@ import {
   normalizeFontFamily,
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
-import {
-  movePaletteColor,
-} from "./inspector/sections/color-palette-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PresentationPaletteManager } from "./inspector/sections/presentation-palette-manager";
 import { RecentColorsProvider } from "./inspector/sections/recent-colors-provider";
@@ -2202,27 +2199,6 @@ export function EditorWorkspace({
     });
   }
 
-  function movePresentationPaletteColor(index: number, direction: -1 | 1) {
-    setPresentation((current) => {
-      const currentColors = current.palette?.colors;
-
-      if (!currentColors || index < 0 || index >= currentColors.length) {
-        return current;
-      }
-
-      const colors = movePaletteColor(currentColors, index, direction);
-
-      if (colors === currentColors) {
-        return current;
-      }
-
-      return {
-        ...current,
-        palette: { colors: [...colors] },
-      };
-    });
-  }
-
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -3615,7 +3591,7 @@ export function EditorWorkspace({
                  ================================================= */}
                   {selectedDocumentElement ? (
                     <RecentColorsProvider
-                      colors={[]}
+                      colors={recentColors}
                       onAddColor={(color) => {
                         setRecentColors((current) => addRecentColor(current, color));
                       }}
@@ -3628,9 +3604,6 @@ export function EditorWorkspace({
                     >
                       <PresentationColorPaletteProvider
                         colors={presentation.palette?.colors ?? []}
-                        onAddColor={addNamedPresentationPaletteColor}
-                        onRemoveColor={removePresentationPaletteColor}
-                        onMoveColor={movePresentationPaletteColor}
                       >
                         <ElementInspector
                           element={selectedDocumentElement}

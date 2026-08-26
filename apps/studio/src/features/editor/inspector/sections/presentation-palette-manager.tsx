@@ -1,11 +1,12 @@
 "use client";
 
 import {
+  colorToPickerHex,
   normalizeColor,
   type Color,
   type PresentationPaletteColor,
 } from "@powershow/document-schema";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
@@ -40,12 +41,40 @@ export function PresentationPaletteManager({ colors, onAdd, onRename, onUpdate, 
         <button type="button" disabled={!name.trim()} onClick={add}>{t("inspector.addPaletteColor")}</button>
       </div>
       {colors.map((color) => (
-        <div className={styles.colorPaletteManagerRow} key={color.id}>
-          <input aria-label={`${color.name} name`} value={color.name} onChange={(event) => onRename(color.id, event.target.value)} />
-          <input aria-label={`${color.name} value`} type="color" value={color.value.length === 7 ? color.value : "#ffffff"} onChange={(event) => onUpdate(color.id, event.target.value)} />
-          <button type="button" onClick={() => onRemove(color.id)}>{t("inspector.removeColor")}</button>
-        </div>
+        <PaletteManagerRow key={color.id} color={color} onRename={onRename} onUpdate={onUpdate} onRemove={onRemove} removeLabel={t("inspector.removeColor")} />
       ))}
     </section>
+  );
+}
+
+function PaletteManagerRow({
+  color,
+  onRename,
+  onUpdate,
+  onRemove,
+  removeLabel,
+}: {
+  color: PresentationPaletteColor;
+  onRename: (id: string, name: string) => void;
+  onUpdate: (id: string, color: Color) => void;
+  onRemove: (id: string) => void;
+  removeLabel: string;
+}) {
+  const [name, setName] = useState(color.name);
+
+  useEffect(() => setName(color.name), [color.name]);
+
+  function commitName() {
+    const nextName = name.trim();
+    if (nextName.length > 0 && nextName !== color.name) onRename(color.id, nextName);
+    if (nextName.length === 0) setName(color.name);
+  }
+
+  return (
+    <div className={styles.colorPaletteManagerRow}>
+      <input aria-label={`${color.name} name`} value={name} onChange={(event) => setName(event.target.value)} onBlur={commitName} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitName(); } }} />
+      <input aria-label={`${color.name} value`} type="color" value={colorToPickerHex(color.value) ?? "#ffffff"} onChange={(event) => onUpdate(color.id, event.target.value)} />
+      <button type="button" onClick={() => onRemove(color.id)}>{removeLabel}</button>
+    </div>
   );
 }

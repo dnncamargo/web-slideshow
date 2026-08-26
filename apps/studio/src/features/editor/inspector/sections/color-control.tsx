@@ -1,5 +1,6 @@
 import {
   colorToPickerHex,
+  detachColorValue,
   formatColorAsHex,
   formatColorAsRgba,
   normalizeColor,
@@ -69,10 +70,14 @@ export function ColorControl({
 
   const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(sourceValue);
   const currentColor = normalizeColor(draft) ?? normalizeColor(sourceValue);
-  const paletteColor = parseColor(draft) ? draft : sourceValue;
   const paletteColors = palette?.colors ?? [];
   const isLinked = value !== undefined && isPaletteColorReference(value);
-  const canAddCurrentColor = currentColor !== undefined;
+  const linkedPaletteColor = isLinked
+    ? paletteColors.find((color) => color.id === value.colorId)
+    : undefined;
+  const detachedValue = value === undefined
+    ? undefined
+    : detachColorValue(value, { colors: [...paletteColors] });
   const emitLiteralColor = (color: Color) => {
     recent?.onAddColor(color);
     onChange(color);
@@ -155,11 +160,13 @@ export function ColorControl({
 
       {isLinked && (
         <div className={styles.colorLinkedStatus} role="status">
-          <span>{t("inspector.linkedColor")}</span>
+          <span>{t("inspector.linkedColor")} · {linkedPaletteColor?.name ?? value?.colorId}</span>
           <button
             type="button"
-            disabled={disabled}
-            onClick={() => emitLiteralColor(sourceValue)}
+            disabled={disabled || detachedValue === undefined}
+            onClick={() => {
+              if (detachedValue !== undefined) emitLiteralColor(detachedValue);
+            }}
           >
             {t("inspector.detachColor")}
           </button>
@@ -180,6 +187,7 @@ export function ColorControl({
                   aria-label={t("inspector.applyPaletteColor", { color: color.name })}
                   title={t("inspector.applyPaletteColor", { color: color.name })}
                   style={{ backgroundColor: color.value }}
+                  aria-pressed={isLinked && value.colorId === color.id}
                   onClick={() => {
                     setDraft(color.value);
                     setFormat(getColorFormat(color.value));
@@ -187,35 +195,9 @@ export function ColorControl({
                   }}
                 />
 
-                <button
-                  className={styles.colorPaletteRemove}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.removeColorFromPalette", { color: color.name })}
-                  title={t("inspector.removeColorFromPalette", { color: color.name })}
-                  onClick={() => {
-                    palette.onRemoveColor(color.id);
-                  }}
-                >
-                  ×
-                </button>
               </div>
             ))}
 
-            <button
-              className={styles.colorPaletteAdd}
-              type="button"
-              disabled={disabled || !canAddCurrentColor}
-              aria-label={t("inspector.addCurrentColor")}
-              title={t("inspector.addCurrentColor")}
-              onClick={() => {
-                if (currentColor) {
-                  palette.onAddColor("Custom", paletteColor);
-                }
-              }}
-            >
-              +
-            </button>
           </div>
         </div>
       )}
