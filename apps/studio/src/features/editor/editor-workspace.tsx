@@ -37,6 +37,10 @@ import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
 import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
 import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
+import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
+import type { CustomLibraryPaletteRepository } from "@/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
+import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library/custom-library-palette-apply";
 import { placeCustomLibraryElementRecipe } from "@/features/custom-library/custom-library-placement";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -371,12 +375,14 @@ export function EditorWorkspace({
   onPublish,
   notesRepository,
   customLibraryRepository,
+  customLibraryPaletteRepository,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
   onPublish?: () => Promise<void>;
   notesRepository?: PresentationNotesRepository;
   customLibraryRepository?: CustomLibraryRepository;
+  customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
 } = {}) {
   const { locale, t } = useStudioI18n();
 
@@ -2199,6 +2205,13 @@ export function EditorWorkspace({
     });
   }
 
+  function addCustomLibraryPalette(palette: CustomLibraryPaletteDraft): CustomLibraryPaletteAddOutcome {
+    const result = addCustomLibraryPaletteToPresentation(presentation, palette);
+    if (!result.ok) return { ok: false, reason: result.reason };
+    setPresentation(result.presentation);
+    return { ok: true };
+  }
+
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -3706,6 +3719,9 @@ export function EditorWorkspace({
 
                       <PresentationPaletteManager
                         colors={presentation.palette?.colors ?? []}
+                        palette={presentation.palette}
+                        customLibraryPaletteRepository={customLibraryPaletteRepository}
+                        onAddLibraryPalette={addCustomLibraryPalette}
                         onAdd={addNamedPresentationPaletteColor}
                         onRename={renamePresentationPaletteColor}
                         onUpdate={updatePresentationPaletteColor}

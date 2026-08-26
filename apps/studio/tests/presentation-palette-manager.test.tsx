@@ -82,7 +82,7 @@ describe("PresentationPaletteManager", () => {
 
     act(() => {
       const buttons = container.querySelectorAll<HTMLButtonElement>("button");
-      buttons[buttons.length - 1]?.click();
+      Array.from(buttons).find((button) => button.textContent === "Remove")?.click();
     });
     expect(onRemove).toHaveBeenCalledWith("accent");
   });

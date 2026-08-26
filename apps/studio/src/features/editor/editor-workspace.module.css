@@ -949,6 +949,40 @@
   opacity: 0.55;
 }
 
+.customLibraryPaletteActionRow {
+  display: flex;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.customLibraryPaletteActionRow button {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 5px;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  background: #172033;
+  color: #cbd5e1;
+  font-size: 10px;
+}
+
+.customLibraryPaletteActionRow button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.customLibraryPalettePickerSwatches {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  gap: 1px;
+}
+
+.customLibraryPalettePickerSwatches span {
+  flex: 1;
+  min-width: 0;
+}
+
 .customLibrarySaveStatus {
   margin: 0 0 6px;
   color: #86efac;
