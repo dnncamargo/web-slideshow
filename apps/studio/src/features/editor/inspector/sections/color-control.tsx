@@ -62,6 +62,7 @@ export function ColorControl({
   const [format, setFormat] = useState<ColorFormat>(() =>
     getColorFormat(sourceValue),
   );
+  const [isPaletteChooserOpen, setIsPaletteChooserOpen] = useState(false);
 
   useEffect(() => {
     setDraft(sourceValue);
@@ -102,6 +103,7 @@ export function ColorControl({
 
             if (next) {
               setDraft(next);
+              setIsPaletteChooserOpen(false);
               emitLiteralColor(next);
             }
           }}
@@ -122,6 +124,7 @@ export function ColorControl({
 
             if (normalized) {
               setFormat(getColorFormat(nextDraft));
+              setIsPaletteChooserOpen(false);
               emitLiteralColor(normalized);
             }
           }}
@@ -147,6 +150,7 @@ export function ColorControl({
 
             setFormat(nextFormat);
             setDraft(next);
+            setIsPaletteChooserOpen(false);
 
             if (value !== undefined) {
               emitLiteralColor(next);
@@ -161,11 +165,25 @@ export function ColorControl({
       {isLinked && (
         <div className={styles.colorLinkedStatus} role="status">
           <span>{t("inspector.linkedColor")} · {linkedPaletteColor?.name ?? value?.colorId}</span>
+          {paletteColors.length > 0 ? (
+            <button
+              type="button"
+              aria-expanded={isPaletteChooserOpen}
+              aria-controls={`${id}-palette-chooser`}
+              disabled={disabled}
+              onClick={() => setIsPaletteChooserOpen((open) => !open)}
+            >
+              {t("inspector.changePalette")}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={disabled || detachedValue === undefined}
             onClick={() => {
-              if (detachedValue !== undefined) emitLiteralColor(detachedValue);
+              if (detachedValue !== undefined) {
+                setIsPaletteChooserOpen(false);
+                emitLiteralColor(detachedValue);
+              }
             }}
           >
             {t("inspector.detachColor")}
@@ -173,10 +191,22 @@ export function ColorControl({
         </div>
       )}
 
-      {palette && (
-        <div className={styles.colorPalette}>
-          <span className={styles.colorPaletteLabel}>{t("inspector.palette")}</span>
+      {!isLinked && paletteColors.length > 0 ? (
+        <button
+          className={styles.colorPaletteDisclosure}
+          type="button"
+          aria-expanded={isPaletteChooserOpen}
+          aria-controls={`${id}-palette-chooser`}
+          disabled={disabled}
+          onClick={() => setIsPaletteChooserOpen((open) => !open)}
+        >
+          {t("inspector.usePalette")}
+        </button>
+      ) : null}
 
+      {isPaletteChooserOpen && paletteColors.length > 0 ? (
+        <div className={styles.colorPalette} id={`${id}-palette-chooser`}>
+          <span className={styles.colorPaletteLabel}>{t("inspector.palette")}</span>
           <div className={styles.colorPaletteActions}>
             {paletteColors.map((color, index) => (
               <div className={styles.colorPaletteEntry} key={`${color.id}-${index}`}>
@@ -191,6 +221,7 @@ export function ColorControl({
                   onClick={() => {
                     setDraft(color.value);
                     setFormat(getColorFormat(color.value));
+                    setIsPaletteChooserOpen(false);
                     onChange({ kind: "palette", colorId: color.id });
                   }}
                 />
@@ -200,7 +231,7 @@ export function ColorControl({
 
           </div>
         </div>
-      )}
+      ) : null}
 
       {recent && recent.colors.length > 0 && (
         <div className={styles.colorRecent}>
@@ -219,6 +250,7 @@ export function ColorControl({
                   onClick={() => {
                     setDraft(color);
                     setFormat(getColorFormat(color));
+                    setIsPaletteChooserOpen(false);
                     emitLiteralColor(color);
                   }}
                 />
