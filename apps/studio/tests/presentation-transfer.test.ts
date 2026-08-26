@@ -23,7 +23,7 @@ function presentation(): Presentation {
         source: { type: "url", url: "https://example.test/font.woff2", format: "woff2" },
       }],
     },
-    palette: { colors: ["#123456"] },
+    palette: { colors: [{ id: "#123456", name: "#123456", value: "#123456" }] },
     slides: [{
       id: "slide-1",
       elements: [{

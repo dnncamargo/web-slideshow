@@ -47,7 +47,18 @@ describe("PresentationSchema", () => {
         PresentationSchema.safeParse({
           ...defaultsInput,
           palette: {
-            colors: ["#7c3aed", "rgba(124, 58, 237, 0.5)"],
+            colors: [
+              {
+                id: "accent",
+                name: "Accent",
+                value: "#7c3aed",
+              },
+              {
+                id: "accent-transparent",
+                name: "Accent Transparent",
+                value: "rgba(124, 58, 237, 0.5)",
+              },
+            ],
           },
         }).success,
       ).toBe(true);
@@ -57,7 +68,15 @@ describe("PresentationSchema", () => {
       expect(
         PresentationSchema.safeParse({
           ...defaultsInput,
-          palette: { colors: ["hsl(260, 83%, 58%)"] },
+          palette: {
+            colors: [
+              {
+                id: "accent",
+                name: "Accent",
+                value: "hsl(260, 83%, 58%)",
+              },
+            ],
+          },
         }).success,
       ).toBe(false);
     });

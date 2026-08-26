@@ -2,6 +2,7 @@ import {
   formatColorAsHex,
   parseColor,
   type Color,
+  type PresentationPaletteColor,
 } from "@powershow/document-schema";
 
 function colorIdentity(color: Color): string {
@@ -14,14 +15,17 @@ export function areColorsEquivalent(left: Color, right: Color): boolean {
   return colorIdentity(left) === colorIdentity(right);
 }
 
-export function arePaletteColorsEquivalent(left: Color, right: Color): boolean {
-  return areColorsEquivalent(left, right);
+export function arePaletteColorsEquivalent(
+  left: PresentationPaletteColor,
+  right: Color,
+): boolean {
+  return areColorsEquivalent(left.value, right);
 }
 
 export function addPaletteColor(
-  colors: readonly Color[],
+  colors: readonly PresentationPaletteColor[],
   color: Color,
-): readonly Color[] {
+): readonly PresentationPaletteColor[] {
   const normalized = parseColor(color) ? (color as Color) : color;
 
   const existingIndex = colors.findIndex((c) =>
@@ -29,24 +33,29 @@ export function addPaletteColor(
   );
 
   if (existingIndex === -1) {
-    return [...colors, normalized];
+    const id = colorIdentity(normalized);
+
+    return [
+      ...colors,
+      { id, name: id, value: normalized },
+    ];
   }
 
   return colors;
 }
 
 export function removePaletteColor(
-  colors: readonly Color[],
+  colors: readonly PresentationPaletteColor[],
   index: number,
-): readonly Color[] {
+): readonly PresentationPaletteColor[] {
   return colors.filter((_, colorIndex) => colorIndex !== index);
 }
 
 export function movePaletteColor(
-  colors: readonly Color[],
+  colors: readonly PresentationPaletteColor[],
   index: number,
   direction: -1 | 1,
-): readonly Color[] {
+): readonly PresentationPaletteColor[] {
   const targetIndex = index + direction;
 
   if (

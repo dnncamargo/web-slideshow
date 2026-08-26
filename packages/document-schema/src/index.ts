@@ -1,4 +1,17 @@
 export * from "./primitives";
+export {
+  PaletteColorReferenceSchema,
+  ColorValueSchema,
+  PresentationPaletteColorSchema,
+  isPaletteColorReference,
+  findPaletteColor,
+  resolveColorValue,
+} from "./palette";
+export type {
+  PaletteColorReference,
+  ColorValue,
+  PresentationPaletteColor,
+} from "./palette";
 export * from "./resources";
 export * from "./style";
 export * from "./links";

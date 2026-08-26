@@ -162,18 +162,18 @@ export function ColorControl({
 
           <div className={styles.colorPaletteActions}>
             {paletteColors.map((color, index) => (
-              <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
+              <div className={styles.colorPaletteEntry} key={`${color.id}-${index}`}>
                 <button
                   className={styles.colorPaletteSwatch}
                   type="button"
                   disabled={disabled}
-                  aria-label={t("inspector.applyPaletteColor", { color })}
-                  title={t("inspector.applyPaletteColor", { color })}
-                  style={{ backgroundColor: color }}
+                  aria-label={t("inspector.applyPaletteColor", { color: color.name })}
+                  title={t("inspector.applyPaletteColor", { color: color.name })}
+                  style={{ backgroundColor: color.value }}
                   onClick={() => {
-                    setDraft(color);
-                    setFormat(getColorFormat(color));
-                    onChange(color);
+                    setDraft(color.value);
+                    setFormat(getColorFormat(color.value));
+                    onChange(color.value);
                   }}
                 />
 
@@ -181,8 +181,8 @@ export function ColorControl({
                   className={styles.colorPaletteRemove}
                   type="button"
                   disabled={disabled}
-                  aria-label={t("inspector.removeColorFromPalette", { color })}
-                  title={t("inspector.removeColorFromPalette", { color })}
+                  aria-label={t("inspector.removeColorFromPalette", { color: color.name })}
+                  title={t("inspector.removeColorFromPalette", { color: color.name })}
                   onClick={() => {
                     palette.onRemoveColor(index);
                   }}
