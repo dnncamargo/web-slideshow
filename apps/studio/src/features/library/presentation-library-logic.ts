@@ -7,7 +7,6 @@ export type LibraryStatus = "loading" | "ready" | "error";
 export type StaticLibraryDestination =
   | "all"
   | "archived"
-  | "customLibrary"
   | "styles"
   | "palettes"
   | "fonts";
@@ -26,8 +25,7 @@ export type PresentationLibraryDestination =
   | "archived"
   | FolderLibraryDestination;
 
-export type ResourceLibraryDestination =
-  | "customLibrary"
+export type CustomLibraryDestination =
   | "styles"
   | "palettes"
   | "fonts";
@@ -58,11 +56,10 @@ export function isFolderDestination(
   return typeof destination === "object" && destination.kind === "folder";
 }
 
-export function isResourceDestination(
+export function isCustomLibraryDestination(
   destination: LibraryDestination,
-): destination is ResourceLibraryDestination {
+): destination is CustomLibraryDestination {
   return (
-    destination === "customLibrary" ||
     destination === "styles" ||
     destination === "palettes" ||
     destination === "fonts"
