@@ -148,6 +148,7 @@ export function validatePresentationPaletteReferences(
         break;
       case "table":
         visitStyle(element.style, [...path, "style"]);
+        visitEffect(element.effect, [...path, "effect"]);
         if (element.mode === "structured") {
           element.columns.forEach((column, index) => visitContentSlot(column.header, [...path, "columns", index, "header"]));
           element.rows.forEach((row, rowIndex) => row.cells.forEach((cell, cellIndex) =>
@@ -157,6 +158,7 @@ export function validatePresentationPaletteReferences(
         break;
       case "blocks":
         visitStyle(element.style, [...path, "style"]);
+        visitEffect(element.effect, [...path, "effect"]);
         element.categories.forEach((category, index) => visitColor(category.color, [...path, "categories", index, "color"]));
         break;
       case "image":

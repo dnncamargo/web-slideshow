@@ -28,6 +28,8 @@ const atomicPaths = new Set([
   // out of Custom Library property selection.
   "style.color",
   "style.background.color",
+  "style.border.color",
+  "typography.textDecorationColor",
   "markerColor",
 ]);
 

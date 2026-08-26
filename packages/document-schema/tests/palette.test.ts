@@ -70,6 +70,14 @@ describe("ColorValue", () => {
     ).toBe(true);
   });
 
+  it("does not allow palette references as palette entry values", () => {
+    expect(
+      PresentationPaletteSchema.safeParse({
+        colors: [{ id: "accent", name: "Accent", value: { kind: "palette", colorId: "other" } }],
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([
     { kind: "palette", colorId: "" },
     { kind: "palette", colorId: "accent", extra: true },
@@ -96,6 +104,84 @@ describe("palette color resolution", () => {
     expect(resolveColorValue({ kind: "palette", colorId: "missing" }, palette)).toBeUndefined();
     expect(resolveColorValue({ kind: "palette", colorId: "Accent" }, palette)).toBeUndefined();
     expect(resolveColorValue({ kind: "palette", colorId: "accent" }, undefined)).toBeUndefined();
+  });
+
+  it.each([
+    {
+      name: "simple table effect",
+      element: {
+        id: "simple-table",
+        type: "table" as const,
+        hidden: false,
+        mode: "simple" as const,
+        columns: [{ key: "name", label: "Name" }],
+        rows: [{ name: "PowerShow" }],
+        effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
+      },
+      path: ["slides", 0, "elements", 0, "effect", "shadow", "color", "colorId"],
+    },
+    {
+      name: "structured table effect",
+      element: {
+        id: "structured-table",
+        type: "table" as const,
+        hidden: false,
+        mode: "structured" as const,
+        columns: [{ id: "column", header: { id: "header", children: [] } }],
+        rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+        effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
+      },
+      path: ["slides", 0, "elements", 0, "effect", "shadow", "color", "colorId"],
+    },
+    {
+      name: "blocks effect",
+      element: {
+        id: "blocks",
+        type: "blocks" as const,
+        hidden: false,
+        categories: [{ id: "statement", name: "Statement", color: "#facc15" }],
+        items: [],
+        effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
+      },
+      path: ["slides", 0, "elements", 0, "effect", "shadow", "color", "colorId"],
+    },
+  ])("rejects unresolved references in $name at the exact colorId path", ({ element, path }) => {
+    const result = PresentationSchema.safeParse({
+      ...defaultsInput,
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+      slides: [{ id: "slide", elements: [element] }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => JSON.stringify(issue.path) === JSON.stringify(path))).toBe(true);
+    }
+  });
+
+  it.each(["table", "blocks"] as const)("accepts a local $type effect reference", (type) => {
+    const reference = { kind: "palette" as const, colorId: "accent" };
+    const element = type === "table"
+      ? {
+          id: "table",
+          type: "table" as const,
+          mode: "simple" as const,
+          columns: [{ key: "name", label: "Name" }],
+          rows: [{ name: "PowerShow" }],
+          effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+        }
+      : {
+          id: "blocks",
+          type: "blocks" as const,
+          categories: [{ id: "statement", name: "Statement", color: "#facc15" }],
+          items: [],
+          effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+        };
+
+    expect(PresentationSchema.safeParse({
+      ...defaultsInput,
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+      slides: [{ id: "slide", elements: [element] }],
+    }).success).toBe(true);
   });
 });
 
