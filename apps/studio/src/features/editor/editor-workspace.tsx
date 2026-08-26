@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties } from "react";
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import {
   hydrateImageCrops,
+  paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
 } from "@powershow/renderer";
@@ -631,6 +633,16 @@ export function EditorWorkspace({
 
     return renderSlide(selectedSlide);
   }, [selectedSlide]);
+
+  const renderedPaletteStyle = useMemo(() => {
+    const style: CSSProperties & Record<`--${string}`, string> = {};
+
+    for (const color of presentation.palette?.colors ?? []) {
+      style[paletteColorCssVariableName(color.id) as `--${string}`] = color.value;
+    }
+
+    return style;
+  }, [presentation.palette?.colors]);
 
   const renderedFontResources = useMemo(
     () => renderFontResources(presentation.resources?.fonts),
@@ -3323,6 +3335,7 @@ export function EditorWorkspace({
             <div
               ref={slideCanvasRef}
               className={styles.slideCanvas}
+              style={renderedPaletteStyle}
               onPointerDown={handleCanvasPointerDown}
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}

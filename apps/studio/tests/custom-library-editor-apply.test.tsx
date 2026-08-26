@@ -8,6 +8,7 @@ import {
   type PowerShowElement,
   type Presentation,
 } from "@powershow/document-schema";
+import { paletteColorCssVariableName } from "@powershow/renderer";
 
 import type {
   CustomLibraryItemRecord,
@@ -278,6 +279,56 @@ describe("Custom Library Editor integration", () => {
     expect(next?.slides[0]?.elements[0]).toMatchObject({ style: { color: { kind: "palette", colorId: "accent" } } });
     expect(JSON.stringify(next)).not.toContain("firestore-palette-id");
     expect(JSON.stringify(next)).not.toContain("Not presentation metadata");
+  });
+
+  it("provides live Presentation palette variables to the standalone slide canvas", async () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-canvas-resolution",
+      title: "Palette canvas resolution",
+      palette: {
+        colors: [
+          { id: "accent", name: "Accent", value: "#facc15" },
+          { id: "secondary", name: "Secondary", value: "#2563eb" },
+        ],
+      },
+      slides: [{
+        id: "slide-1",
+        title: "First",
+        elements: [
+          { id: "linked-text", type: "text", content: "Palette color", style: { color: { kind: "palette", colorId: "accent" } } },
+          { id: "literal-text", type: "text", content: "Literal color", style: { color: "#22c55e" } },
+        ],
+      }],
+    });
+    const saved: Presentation[] = [];
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={source} onSave={async (next) => { saved.push(next); }} />
+      </StudioI18nProvider>,
+    ));
+
+    const canvas = containerElement.querySelector<HTMLElement>("[class*='slideCanvas']");
+    expect(canvas).toBeTruthy();
+    const accentVariable = paletteColorCssVariableName("accent");
+    const secondaryVariable = paletteColorCssVariableName("secondary");
+    expect(canvas?.innerHTML).toContain(`var(${accentVariable})`);
+    expect(canvas?.style.getPropertyValue(accentVariable)).toBe("#facc15");
+    expect(canvas?.style.getPropertyValue(secondaryVariable)).toBe("#2563eb");
+    expect(canvas?.innerHTML).toContain("#22c55e");
+
+    const accentInput = containerElement.querySelector<HTMLInputElement>("input[aria-label='Accent value']");
+    expect(accentInput).toBeTruthy();
+    await act(async () => {
+      if (accentInput) {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(accentInput, "#2563eb");
+        accentInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(canvas?.style.getPropertyValue(accentVariable)).toBe("#2563eb");
+    await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
+    expect(saved.at(-1)?.palette?.colors[0]?.value).toBe("#2563eb");
+    expect(saved.at(-1)?.slides[0]?.elements[0]).toMatchObject({ style: { color: { kind: "palette", colorId: "accent" } } });
   });
 
   it("merges Text into the selected Text without creating a sibling", async () => {
