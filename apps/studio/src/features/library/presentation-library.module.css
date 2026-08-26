@@ -540,18 +540,47 @@
   gap: 12px;
 }
 
-.customLibraryTypeMark {
+.customLibraryPreview {
+  position: relative;
   display: flex;
-  min-height: 48px;
+  width: 96px;
+  height: 54px;
+  flex: none;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border: 1px solid var(--ps-ui-border-default);
   border-radius: var(--ps-ui-radius-4);
   background: #172131;
   color: var(--ps-ui-text-muted);
-  font-size: 12px;
-  text-align: center;
+  pointer-events: none;
+  user-select: none;
 }
+
+.customLibraryPreviewText { font-size: 24px; line-height: 1; }
+.customLibraryPreviewImage,
+.customLibraryPreviewEmbed { background: linear-gradient(145deg, #20364a 0 60%, #31586a 60%); }
+.customLibraryPreviewFrame { width: 58px; height: 32px; border: 2px solid currentcolor; border-radius: 3px; }
+.customLibraryPreviewGallery { gap: 3px; }
+.customLibraryPreviewTile { width: 22px; height: 28px; border: 1px solid currentcolor; border-radius: 2px; }
+.customLibraryPreviewCode,
+.customLibraryPreviewScripted,
+.customLibraryPreviewTerminal { align-items: flex-start; justify-content: center; gap: 5px; padding: 10px 14px; }
+.customLibraryPreviewCodeLine { width: 62px; height: 3px; border-radius: 2px; background: currentcolor; opacity: .7; }
+.customLibraryPreviewCodeLine:nth-child(2) { width: 44px; opacity: .45; }
+.customLibraryPreviewCodeLine:nth-child(3) { width: 54px; opacity: .55; }
+.customLibraryPreviewPrompt { color: var(--ps-ui-semantic-accent); font: 700 20px/1 monospace; }
+.customLibraryPreviewGrid { width: 58px; height: 32px; border: 1px solid currentcolor; background: repeating-linear-gradient(90deg, transparent 0 18px, currentcolor 19px 20px), repeating-linear-gradient(0deg, transparent 0 9px, currentcolor 10px 11px); opacity: .75; }
+.customLibraryPreviewBar { align-self: flex-end; width: 10px; height: 18px; margin: 0 2px; background: var(--ps-ui-semantic-accent); }
+.customLibraryPreviewBar:nth-child(2) { height: 30px; opacity: .75; }
+.customLibraryPreviewBar:nth-child(3) { height: 24px; opacity: .55; }
+.customLibraryPreviewNode { width: 10px; height: 10px; border: 2px solid var(--ps-ui-semantic-accent); border-radius: 50%; }
+.customLibraryPreviewDivider::before { width: 72px; height: 2px; background: currentcolor; content: ""; }
+.customLibraryPreviewBlock { width: 52px; height: 14px; border: 1px solid currentcolor; border-radius: 2px; }
+.customLibraryPreviewBlock:nth-child(2) { width: 38px; opacity: .55; }
+.customLibraryPreviewBullet { width: 6px; height: 6px; margin: 0 3px; border-radius: 50%; background: currentcolor; box-shadow: 12px 0 0 currentcolor, 24px 0 0 currentcolor; }
+.customLibraryPreviewContainer { background: #203047; }
+.customLibraryPreviewInterior { width: 42px; height: 24px; border: 1px dashed currentcolor; opacity: .55; }
 
 .recipeTree,
 .recipeProperties,
