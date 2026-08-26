@@ -65,7 +65,9 @@ describe("CustomLibraryStylePreview", () => {
   it("uses container color, border, radius, shadow, and opacity without children", () => {
     const html = markup(recipe("container", [
       { path: "style.background.color", value: "#112233" },
-      { path: "style.border", value: { width: 2, style: "dashed", color: "#ffffff" } },
+      { path: "style.border.width", value: 2 },
+      { path: "style.border.style", value: "dashed" },
+      { path: "style.border.color", value: "#ffffff" },
       { path: "style.borderRadius", value: "2rem" },
       { path: "effect.shadow", value: { x: 2, y: 3, blur: 4, color: "#000000" } },
       { path: "effect.opacity", value: 0.5 },
@@ -76,6 +78,13 @@ describe("CustomLibraryStylePreview", () => {
     expect(html).toContain("box-shadow:2px 3px 4px 0px #000000");
     expect(html).toContain("opacity:0.5");
     expect(html).not.toContain("not rendered");
+  });
+
+  it("ignores stale aggregate border objects", () => {
+    const html = markup(recipe("container", [
+      { path: "style.border", value: { width: 2, style: "dashed", color: "#ffffff" } },
+    ]));
+    expect(html).not.toContain("border:");
   });
 
   it("never injects hostile image, embed, or scripted payloads", () => {

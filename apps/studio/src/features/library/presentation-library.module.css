@@ -564,7 +564,13 @@
 .customLibraryPreviewGallery { gap: 3px; }
 .customLibraryPreviewTile { width: 22px; height: 28px; border: 1px solid currentcolor; border-radius: 2px; }
 .customLibraryPreviewCode,
-.customLibraryPreviewScripted,
+.customLibraryPreviewScripted {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 14px;
+}
 .customLibraryPreviewTerminal { align-items: flex-start; justify-content: center; gap: 5px; padding: 10px 14px; }
 .customLibraryPreviewCodeLine { width: 62px; height: 3px; border-radius: 2px; background: currentcolor; opacity: .7; }
 .customLibraryPreviewCodeLine:nth-child(2) { width: 44px; opacity: .45; }

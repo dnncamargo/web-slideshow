@@ -71,12 +71,12 @@ function safeTextDecorationLine(value: unknown): CSSProperties["textDecorationLi
   return value === "underline" || value === "overline" || value === "line-through" || value === "none" ? value : undefined;
 }
 
-function safeBorder(value: unknown): CSSProperties["border"] {
-  if (!isRecord(value)) return undefined;
-  const width = safeLength(value.width, 0, 4);
-  const color = safeColor(value.color);
-  const borderStyle = value.style === "dashed" || value.style === "dotted" || value.style === "solid"
-    ? value.style
+function safeBorder(properties: ReadonlyMap<string, unknown>): CSSProperties["border"] {
+  const width = safeLength(properties.get("style.border.width"), 0, 4);
+  const color = safeColor(properties.get("style.border.color"));
+  const style = properties.get("style.border.style");
+  const borderStyle = style === "dashed" || style === "dotted" || style === "solid"
+    ? style
     : "solid";
   return width !== undefined && color !== undefined ? `${width}px ${borderStyle} ${color}` : undefined;
 }
@@ -124,7 +124,7 @@ function containerModel(recipe: CustomLibraryElementRecipe): CustomLibraryStyleP
   const background = properties.get("style.background.color");
   const style: CSSProperties = {
     backgroundColor: safeColor(background),
-    border: safeBorder(properties.get("style.border")),
+    border: safeBorder(properties),
     borderRadius: safeLength(properties.get("style.borderRadius"), 0, 18),
     boxShadow: safeShadow(properties.get("effect.shadow")),
     opacity: safeOpacity(properties.get("effect.opacity")),
