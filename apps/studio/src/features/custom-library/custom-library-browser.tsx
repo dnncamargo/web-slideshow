@@ -4,6 +4,7 @@ import type { CustomLibraryItemRecord } from "./custom-library-repository";
 import styles from "../library/presentation-library.module.css";
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "../i18n/studio-i18n";
+import { CustomLibraryStylePreview } from "./custom-library-style-preview";
 
 interface CustomLibraryBrowserProps {
   items: readonly CustomLibraryItemRecord[];
@@ -34,9 +35,7 @@ export function CustomLibraryBrowser({
               aria-label={item.name}
               onClick={() => onSelect(id)}
             >
-              <span aria-hidden="true" className={styles.customLibraryTypeMark}>
-                {t(ELEMENT_TYPE_MESSAGE_KEYS[item.root.type])}
-              </span>
+              <CustomLibraryStylePreview recipe={item.root} />
               <span className={styles.rowDetails}>
                 <strong className={styles.rowTitle}>{item.name}</strong>
                 <span className={styles.rowMetadata}>

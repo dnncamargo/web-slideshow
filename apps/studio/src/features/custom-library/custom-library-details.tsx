@@ -75,9 +75,11 @@ export function CustomLibraryDetails({ record, onDelete }: CustomLibraryDetailsP
           </dd>
         </div>
       </dl>
-      <Button variant="danger" size="compact" onClick={onDelete}>
-        {t("customLibrary.delete")}
-      </Button>
+      <div className={styles.customLibraryDeleteAction}>
+        <Button variant="danger" size="compact" onClick={onDelete}>
+          {t("customLibrary.delete")}
+        </Button>
+      </div>
     </aside>
   );
 }
