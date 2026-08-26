@@ -2609,6 +2609,42 @@
   font-size: 11px;
 }
 
+.colorLinkedStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a5b4fc;
+  font-size: 11px;
+}
+
+.colorLinkedStatus button {
+  padding: 2px 6px;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.colorPaletteManagerAdd,
+.colorPaletteManagerRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.colorPaletteManagerAdd input:first-child,
+.colorPaletteManagerRow input:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.colorPaletteManagerAdd button,
+.colorPaletteManagerRow button {
+  white-space: nowrap;
+}
+
 
 .colorPaletteEntry {
   position: relative;

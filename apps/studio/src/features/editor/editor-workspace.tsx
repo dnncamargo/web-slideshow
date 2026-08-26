@@ -26,6 +26,11 @@ import {
   FontFaceResourceSchema,
   FontResourceSchema,
   getFontResourceFaces,
+  addPresentationPaletteColor as addPaletteEntry,
+  removePresentationPaletteColor as removePaletteEntry,
+  renamePresentationPaletteColor as renamePaletteEntry,
+  updatePresentationPaletteColorValue,
+  type Color,
 } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
@@ -126,11 +131,10 @@ import {
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
 import {
-  addPaletteColor,
   movePaletteColor,
-  removePaletteColor,
 } from "./inspector/sections/color-palette-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
+import { PresentationPaletteManager } from "./inspector/sections/presentation-palette-manager";
 import { RecentColorsProvider } from "./inspector/sections/recent-colors-provider";
 import {
   addRecentColor,
@@ -209,7 +213,6 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
-  Color,
   FontFaceResource,
   PowerShowElement,
   Presentation,
@@ -418,6 +421,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
+  const [recentColors, setRecentColors] = useState<readonly Color[]>([]);
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
@@ -2170,41 +2174,31 @@ export function EditorWorkspace({
     });
   }
 
-  function addPresentationPaletteColor(color: Color) {
+  function addNamedPresentationPaletteColor(name: string, color: Color) {
     setPresentation((current) => {
-      const colors = addPaletteColor(current.palette?.colors ?? [], color);
-
-      if (colors === current.palette?.colors) {
-        return current;
-      }
-
-      return {
-        ...current,
-        palette: { colors: [...colors] },
-      };
+      const result = addPaletteEntry(current, name, color);
+      return result.ok ? result.presentation : current;
     });
   }
 
-  function removePresentationPaletteColor(index: number) {
+  function removePresentationPaletteColor(colorId: string) {
     setPresentation((current) => {
-      const currentColors = current.palette?.colors;
+      const result = removePaletteEntry(current, colorId);
+      return result.ok ? result.presentation : current;
+    });
+  }
 
-      if (!currentColors || index < 0 || index >= currentColors.length) {
-        return current;
-      }
+  function renamePresentationPaletteColor(colorId: string, name: string) {
+    setPresentation((current) => {
+      const result = renamePaletteEntry(current, colorId, name);
+      return result.ok ? result.presentation : current;
+    });
+  }
 
-      const colors = removePaletteColor(currentColors, index);
-
-      if (colors.length === 0) {
-        const { palette: _palette, ...presentationWithoutPalette } = current;
-
-        return presentationWithoutPalette;
-      }
-
-      return {
-        ...current,
-        palette: { colors: [...colors] },
-      };
+  function updatePresentationPaletteColor(colorId: string, color: Color) {
+    setPresentation((current) => {
+      const result = updatePresentationPaletteColorValue(current, colorId, color);
+      return result.ok ? result.presentation : current;
     });
   }
 
@@ -3623,18 +3617,18 @@ export function EditorWorkspace({
                     <RecentColorsProvider
                       colors={[]}
                       onAddColor={(color) => {
-                        // Recent colors are managed locally in ColorControl
+                        setRecentColors((current) => addRecentColor(current, color));
                       }}
                       onClearColors={() => {
-                        // Clear handled in ColorControl
+                        setRecentColors(clearRecentColors());
                       }}
                       onMoveColor={(index, direction) => {
-                        // Move handled in ColorControl
+                        setRecentColors((current) => moveRecentColor(current, index, direction));
                       }}
                     >
                       <PresentationColorPaletteProvider
                         colors={presentation.palette?.colors ?? []}
-                        onAddColor={addPresentationPaletteColor}
+                        onAddColor={addNamedPresentationPaletteColor}
                         onRemoveColor={removePresentationPaletteColor}
                         onMoveColor={movePresentationPaletteColor}
                       >
@@ -3736,6 +3730,14 @@ export function EditorWorkspace({
                       <div className={styles.nextStep}>
                         <span>{t("inspector.selectElementHint")}</span>
                       </div>
+
+                      <PresentationPaletteManager
+                        colors={presentation.palette?.colors ?? []}
+                        onAdd={addNamedPresentationPaletteColor}
+                        onRename={renamePresentationPaletteColor}
+                        onUpdate={updatePresentationPaletteColor}
+                        onRemove={removePresentationPaletteColor}
+                      />
 
                       {/* =============================================
                     END: SLIDE INSPECTOR

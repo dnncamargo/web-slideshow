@@ -7,6 +7,7 @@ import {
   replaceColorRgb,
   type Color,
   type ColorValue,
+  isPaletteColorReference,
   resolveColorValue,
   type ColorFormat,
 } from "@powershow/document-schema";
@@ -16,17 +17,8 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
-import {
-  addPaletteColor,
-  arePaletteColorsEquivalent,
-  movePaletteColor,
-} from "./color-palette-helpers";
 import { usePresentationColorPalette } from "./presentation-color-palette";
 import { useRecentColors } from "./recent-colors-provider";
-import {
-  THEME_COLORS,
-  type ThemeColorKey,
-} from "@powershow/theme/element-style-defaults";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -34,7 +26,7 @@ interface ColorControlProps {
   id: string;
   name: string;
   value: ColorValue | undefined;
-  onChange: (color: Color) => void;
+  onChange: (color: ColorValue) => void;
   disabled?: boolean;
 }
 
@@ -77,13 +69,14 @@ export function ColorControl({
 
   const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(sourceValue);
   const currentColor = normalizeColor(draft) ?? normalizeColor(sourceValue);
-  const paletteColor = parseColor(draft) ? (draft as Color) : sourceValue;
+  const paletteColor = parseColor(draft) ? draft : sourceValue;
   const paletteColors = palette?.colors ?? [];
-  const canAddCurrentColor =
-    currentColor !== undefined &&
-    !paletteColors.some((color) =>
-      arePaletteColorsEquivalent(color, currentColor),
-    );
+  const isLinked = value !== undefined && isPaletteColorReference(value);
+  const canAddCurrentColor = currentColor !== undefined;
+  const emitLiteralColor = (color: Color) => {
+    recent?.onAddColor(color);
+    onChange(color);
+  };
 
   return (
     <div className={styles.colorControlGroup}>
@@ -104,7 +97,7 @@ export function ColorControl({
 
             if (next) {
               setDraft(next);
-              onChange(next);
+              emitLiteralColor(next);
             }
           }}
         />
@@ -124,7 +117,7 @@ export function ColorControl({
 
             if (normalized) {
               setFormat(getColorFormat(nextDraft));
-              onChange(normalized);
+              emitLiteralColor(normalized);
             }
           }}
         />
@@ -151,7 +144,7 @@ export function ColorControl({
             setDraft(next);
 
             if (value !== undefined) {
-              onChange(next);
+              emitLiteralColor(next);
             }
           }}
         >
@@ -159,6 +152,19 @@ export function ColorControl({
           <option value="rgba">RGBA</option>
         </select>
       </div>
+
+      {isLinked && (
+        <div className={styles.colorLinkedStatus} role="status">
+          <span>{t("inspector.linkedColor")}</span>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => emitLiteralColor(sourceValue)}
+          >
+            {t("inspector.detachColor")}
+          </button>
+        </div>
+      )}
 
       {palette && (
         <div className={styles.colorPalette}>
@@ -177,7 +183,7 @@ export function ColorControl({
                   onClick={() => {
                     setDraft(color.value);
                     setFormat(getColorFormat(color.value));
-                    onChange(color.value);
+                    onChange({ kind: "palette", colorId: color.id });
                   }}
                 />
 
@@ -188,7 +194,7 @@ export function ColorControl({
                   aria-label={t("inspector.removeColorFromPalette", { color: color.name })}
                   title={t("inspector.removeColorFromPalette", { color: color.name })}
                   onClick={() => {
-                    palette.onRemoveColor(index);
+                    palette.onRemoveColor(color.id);
                   }}
                 >
                   ×
@@ -204,7 +210,7 @@ export function ColorControl({
               title={t("inspector.addCurrentColor")}
               onClick={() => {
                 if (currentColor) {
-                  palette.onAddColor(paletteColor);
+                  palette.onAddColor("Custom", paletteColor);
                 }
               }}
             >
@@ -231,7 +237,7 @@ export function ColorControl({
                   onClick={() => {
                     setDraft(color);
                     setFormat(getColorFormat(color));
-                    onChange(color);
+                    emitLiteralColor(color);
                   }}
                 />
 
@@ -281,32 +287,6 @@ export function ColorControl({
          </div>
        )}
 
-       <div className={styles.colorTheme}>
-         <span className={styles.colorPaletteLabel}>{t("inspector.theme")}</span>
-
-         <div className={styles.colorPaletteActions}>
-           {(Object.keys(THEME_COLORS) as ThemeColorKey[]).map((key) => {
-             const color = THEME_COLORS[key];
-
-             return (
-               <button
-                 key={key}
-                 className={styles.colorPaletteSwatch}
-                 type="button"
-                 disabled={disabled}
-                 aria-label={t("inspector.applyPaletteColor", { color })}
-                 title={t("inspector.applyPaletteColor", { color })}
-                 style={{ backgroundColor: color }}
-                 onClick={() => {
-                   setDraft(color);
-                   setFormat(getColorFormat(color));
-                   onChange(color);
-                 }}
-               />
-             );
-           })}
-         </div>
-       </div>
      </div>
    );
  }

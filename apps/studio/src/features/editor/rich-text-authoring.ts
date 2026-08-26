@@ -1,5 +1,5 @@
 import type {
-  Color,
+  ColorValue,
   RichTextContent,
   TextContent,
   TextRun,
@@ -211,7 +211,7 @@ function updateBooleanMark(
 
 function updateColorMark(
   character: TextCharacter,
-  color: Color | undefined,
+  color: ColorValue | undefined,
 ): TextCharacter {
   const marks = sanitizeMarks(character.marks) ?? {};
 
@@ -251,7 +251,7 @@ export function getTextContentSelectionBooleanMarkState(
 export function getTextContentSelectionColor(
   content: TextContent,
   selection: TextSelectionRange | null | undefined,
-): Color | undefined {
+): ColorValue | undefined {
   const normalizedSelection = normalizeTextSelectionRange(
     selection,
     getTextContentPlainText(content).length,
@@ -277,7 +277,7 @@ export function getTextContentSelectionColor(
   }
 
   return characters.every((character) => character.marks?.color === color)
-    ? (typeof color === "string" ? color : undefined)
+    ? color
     : undefined;
 }
 
@@ -309,7 +309,7 @@ export function toggleTextContentBooleanMark(
 export function applyTextContentColor(
   content: TextContent,
   selection: TextSelectionRange | null | undefined,
-  color: Color,
+  color: ColorValue,
 ): TextContent {
   return updateTextContentRange(content, selection, (character) =>
     updateColorMark(character, color),

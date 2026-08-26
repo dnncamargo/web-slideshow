@@ -1,5 +1,6 @@
 import type {
   Color,
+  ColorValue,
   PowerShowElement,
   TextElement,
   ElementEffect,
@@ -112,7 +113,7 @@ export function TextInspector({
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
-  const [inlineColor, setInlineColor] = useState<Color | undefined>(undefined);
+  const [inlineColor, setInlineColor] = useState<ColorValue | undefined>(undefined);
 
   const plainText = getTextContentPlainText(element.content);
   const normalizedSelection = normalizeTextSelectionRange(

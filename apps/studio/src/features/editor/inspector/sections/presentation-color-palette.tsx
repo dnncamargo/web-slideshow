@@ -7,8 +7,8 @@ import {
 
 interface PresentationColorPaletteControls {
   colors: readonly PresentationPaletteColor[];
-  onAddColor: (color: Color) => void;
-  onRemoveColor: (index: number) => void;
+  onAddColor: (name: string, color: Color) => void;
+  onRemoveColor: (colorId: string) => void;
   onMoveColor: (index: number, direction: -1 | 1) => void;
 }
 
