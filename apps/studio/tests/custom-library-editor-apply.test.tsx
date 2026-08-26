@@ -137,6 +137,7 @@ describe("Custom Library Editor integration", () => {
   async function mount(
     value: Presentation,
     saved: Presentation[],
+    customLibraryPaletteRepository?: CustomLibraryPaletteRepository,
   ): Promise<{ onSave: ReturnType<typeof vi.fn>; listItems: ReturnType<typeof vi.fn> }> {
     const listItems = vi.fn(async () => items);
     const onSave = vi.fn(async (next: Presentation) => {
@@ -149,6 +150,7 @@ describe("Custom Library Editor integration", () => {
           <EditorWorkspace
             initialPresentation={value}
             customLibraryRepository={fakeRepository(listItems)}
+            customLibraryPaletteRepository={customLibraryPaletteRepository}
             onSave={onSave}
           />
         </StudioI18nProvider>,
@@ -162,6 +164,13 @@ describe("Custom Library Editor integration", () => {
     const button = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.trim() === "Elements");
     if (!button) throw new Error("Elements tab not found");
+    await act(async () => button.click());
+  }
+
+  async function clickToolbarMode(label: string): Promise<void> {
+    const button = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim().includes(label));
+    if (!button) throw new Error(`Toolbar button not found: ${label}`);
     await act(async () => button.click());
   }
 
@@ -329,6 +338,134 @@ describe("Custom Library Editor integration", () => {
     await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
     expect(saved.at(-1)?.palette?.colors[0]?.value).toBe("#2563eb");
     expect(saved.at(-1)?.slides[0]?.elements[0]).toMatchObject({ style: { color: { kind: "palette", colorId: "accent" } } });
+  });
+
+  it("keeps resource, notes, and editor modes mutually exclusive while preserving the editor sub-view", async () => {
+    const saved: Presentation[] = [];
+    const listPalettes = vi.fn(async () => [{
+      id: "brand",
+      palette: {
+        name: "Brand",
+        colors: [{ name: "Accent", value: "#facc15" }, { name: "Secondary", value: "#2563eb" }],
+      },
+    }]);
+    await mount(makePresentation([text("selected-text", "Selected")]), saved, fakePaletteRepository(listPalettes));
+
+    const toolbarButtons = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .filter((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? ""));
+    expect(toolbarButtons.map((button) => button.textContent?.trim())).toEqual(["Custom Resources", "Notes"]);
+    expect(toolbarButtons[0]?.getAttribute("aria-pressed")).toBe("false");
+    expect(toolbarButtons[1]?.getAttribute("aria-pressed")).toBe("false");
+
+    await openElements();
+    await selectElement("Text — Selected");
+    expect(containerElement.querySelector('[aria-pressed="true"]')?.textContent?.trim()).toBe("Elements");
+
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("Custom Resources");
+    expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim().includes("Custom Resources") && button.getAttribute("aria-pressed") === "true")
+      ?.textContent?.trim()).toBe("Custom Resources");
+    expect(listPalettes).toHaveBeenCalledOnce();
+    expect(containerElement.textContent).not.toContain("Inspector");
+    expect(containerElement.textContent).toContain("Brand");
+
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("Elements");
+    expect(containerElement.querySelector<HTMLButtonElement>("button[aria-pressed='true']")?.textContent?.trim()).toBe("Elements");
+    expect(containerElement.textContent).toContain("Text · selected-text");
+
+    await clickToolbarMode("Notes");
+    expect(containerElement.textContent).toContain("Notes");
+    expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? "") && button.getAttribute("aria-pressed") === "true")
+      ?.textContent?.trim()).toBe("Notes");
+
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("Brand");
+    expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? "") && button.getAttribute("aria-pressed") === "true")
+      ?.textContent?.trim()).toBe("Custom Resources");
+    expect(containerElement.textContent).not.toContain("Write private notes");
+  });
+
+  it("loads Custom Library palettes lazily and handles pending, empty, failure, and retry states without writes", async () => {
+    let resolvePalettes: ((records: CustomLibraryPaletteRecord[]) => void) | undefined;
+    let rejectPalettes: ((reason?: unknown) => void) | undefined;
+    const listPalettes = vi.fn(() => new Promise<CustomLibraryPaletteRecord[]>((resolve, reject) => {
+      resolvePalettes = resolve;
+      rejectPalettes = reject;
+    }));
+    const savePalette = vi.fn(async () => "saved");
+    const getPalette = vi.fn(async () => null);
+    const deletePalette = vi.fn(async () => undefined);
+    const repository: CustomLibraryPaletteRepository = { listPalettes, savePalette, getPalette, deletePalette };
+    const saved: Presentation[] = [];
+
+    await mount(makePresentation([]), saved, repository);
+    expect(listPalettes).not.toHaveBeenCalled();
+    await clickToolbarMode("Custom Resources");
+    expect(listPalettes).toHaveBeenCalledOnce();
+    expect(containerElement.textContent).toContain("Loading palettes…");
+
+    resolvePalettes?.([{
+      id: "brand",
+      palette: { name: "Brand", colors: [{ name: "Accent", value: "#facc15" }, { name: "Secondary", value: "#2563eb" }] },
+    }]);
+    await act(async () => { await Promise.resolve(); });
+    expect(containerElement.textContent).toContain("Brand");
+    expect(containerElement.textContent).toContain("2 colors");
+    expect(containerElement.querySelectorAll("[data-custom-resource-palette='brand'] [data-palette-swatch]")).toHaveLength(2);
+    expect(savePalette).not.toHaveBeenCalled();
+    expect(getPalette).not.toHaveBeenCalled();
+    expect(deletePalette).not.toHaveBeenCalled();
+
+    await clickToolbarMode("Custom Resources");
+    await clickToolbarMode("Custom Resources");
+    expect(listPalettes).toHaveBeenCalledTimes(2);
+    rejectPalettes?.(new Error("offline"));
+    await act(async () => { await Promise.resolve(); });
+    expect(containerElement.textContent).toContain("Could not load Custom Library palettes.");
+    const retryButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Retry");
+    expect(retryButton).toBeDefined();
+    await act(async () => retryButton?.click());
+    expect(listPalettes).toHaveBeenCalledTimes(3);
+    resolvePalettes?.([]);
+    await act(async () => { await Promise.resolve(); });
+    expect(containerElement.textContent).toContain("No Custom Library palettes yet.");
+  });
+
+  it("renders Presentation-local palette colors separately, including the empty state", async () => {
+    const repository = fakePaletteRepository(vi.fn(async () => []));
+    const source = PresentationSchema.parse({
+      ...makePresentation([]),
+      palette: { colors: [
+        { id: "accent", name: "Accent", value: "#facc15" },
+        { id: "surface", name: "Surface", value: "#0f172a" },
+      ] },
+    });
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={source} customLibraryPaletteRepository={repository} />
+      </StudioI18nProvider>,
+    ));
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.querySelector("[data-presentation-palette]")).toBeTruthy();
+    expect(containerElement.textContent).toContain("Accent");
+    expect(containerElement.textContent).toContain("#facc15");
+    expect(containerElement.textContent).toContain("Surface");
+    expect(containerElement.textContent).toContain("#0f172a");
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={makePresentation([])} customLibraryPaletteRepository={repository} />
+      </StudioI18nProvider>,
+    ));
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("This Presentation has no palette colors.");
   });
 
   it("merges Text into the selected Text without creating a sibling", async () => {

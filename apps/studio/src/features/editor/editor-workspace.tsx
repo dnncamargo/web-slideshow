@@ -69,6 +69,7 @@ import {
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
+import { CustomResourcesWorkspace } from "./resources/custom-resources-workspace";
 import {
   resolveCanvasEmbedPointerTarget,
   resolveCanvasPointerHit,
@@ -431,11 +432,13 @@ export function EditorWorkspace({
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
 
-  const [rightPanelView, setRightPanelView] = useState<
+  const [rightPanelMode, setRightPanelMode] = useState<
+    "editor" | "resources" | "notes"
+  >("editor");
+
+  const [editorPanelView, setEditorPanelView] = useState<
     "inspector" | "elements"
   >("inspector");
-
-  const [isNotesOpen, setIsNotesOpen] = useState(false);
 
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
@@ -549,7 +552,7 @@ export function EditorWorkspace({
     presentationId: presentation.id,
     notesRepository,
     selectedSlideId: selectedSlide?.id ?? "",
-    enabled: isNotesOpen,
+    enabled: rightPanelMode === "notes",
   });
 
   // ==========================================================
@@ -3309,13 +3312,32 @@ export function EditorWorkspace({
               <button
                 type="button"
                 className={
-                  isNotesOpen
+                  rightPanelMode === "resources"
                     ? `${styles.notesToggle} ${styles.notesToggleActive}`
                     : styles.notesToggle
                 }
-                aria-pressed={isNotesOpen}
+                aria-pressed={rightPanelMode === "resources"}
                 onClick={() => {
-                  setIsNotesOpen((current) => !current);
+                  setRightPanelMode((current) =>
+                    current === "resources" ? "editor" : "resources",
+                  );
+                }}
+              >
+                {t("editor.customResources")}
+              </button>
+
+              <button
+                type="button"
+                className={
+                  rightPanelMode === "notes"
+                    ? `${styles.notesToggle} ${styles.notesToggleActive}`
+                    : styles.notesToggle
+                }
+                aria-pressed={rightPanelMode === "notes"}
+                onClick={() => {
+                  setRightPanelMode((current) =>
+                    current === "notes" ? "editor" : "notes",
+                  );
                 }}
               >
                 {t("notes.toggle")}
@@ -3537,44 +3559,49 @@ export function EditorWorkspace({
             BEGIN: INSPECTOR
             =================================================== */}
 
-        {isNotesOpen ? (
+        {rightPanelMode === "notes" ? (
           <SlideNotesWorkspace
             note={editorNotes.note}
             status={editorNotes.status}
             hasCurrentSaveError={editorNotes.hasCurrentSaveError}
             onChange={editorNotes.onChange}
           />
+        ) : rightPanelMode === "resources" ? (
+          <CustomResourcesWorkspace
+            customLibraryPaletteRepository={customLibraryPaletteRepository}
+            presentationColors={presentation.palette?.colors ?? []}
+          />
         ) : (
           <aside className={styles.inspector}>
             <div className={styles.panelHeader}>
               <button
                 className={
-                  rightPanelView === "inspector"
+                  editorPanelView === "inspector"
                     ? styles.rightPanelTabActive
                     : styles.rightPanelTab
                 }
                 type="button"
-                aria-pressed={rightPanelView === "inspector"}
-                onClick={() => setRightPanelView("inspector")}
+                aria-pressed={editorPanelView === "inspector"}
+                onClick={() => setEditorPanelView("inspector")}
               >
                 {t("inspector.title")}
               </button>
               <button
                 className={
-                  rightPanelView === "elements"
+                  editorPanelView === "elements"
                     ? styles.rightPanelTabActive
                     : styles.rightPanelTab
                 }
                 type="button"
-                aria-pressed={rightPanelView === "elements"}
-                onClick={() => setRightPanelView("elements")}
+                aria-pressed={editorPanelView === "elements"}
+                onClick={() => setEditorPanelView("elements")}
               >
                 {t("tree.elements")}
               </button>
             </div>
 
             <div className={styles.inspectorContent}>
-              {rightPanelView === "elements" ? (
+              {editorPanelView === "elements" ? (
                 <ElementTreePanel
                   key={selectedSlide.id}
                   slide={selectedSlide}
