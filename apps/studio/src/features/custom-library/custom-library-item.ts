@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PowerShowElement, PresentationPalette } from "@powershow/document-schema";
 
 import {
   composeCustomLibraryElementRecipe,
@@ -17,6 +17,7 @@ export interface CreateCustomLibraryItemDraftInput {
   description?: string;
   root: PowerShowElement;
   selections: ElementPropertySelectionMap;
+  palette?: PresentationPalette;
 }
 
 export function createCustomLibraryItemDraft(
@@ -30,7 +31,7 @@ export function createCustomLibraryItemDraft(
   const description = input.description?.trim();
   const draft: CustomLibraryItemDraft = {
     name,
-    root: composeCustomLibraryElementRecipe(input.root, input.selections),
+    root: composeCustomLibraryElementRecipe(input.root, input.selections, input.palette),
   };
 
   if (description) {

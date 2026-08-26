@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationPalette } from "@powershow/document-schema";
 
 import {
   composeCustomLibraryElementRecipe,
@@ -10,9 +11,62 @@ import {
 const compose = (
   root: PowerShowElement,
   selections: ElementPropertySelectionMap = new Map(),
-) => composeCustomLibraryElementRecipe(root, selections);
+  palette?: PresentationPalette,
+) => composeCustomLibraryElementRecipe(root, selections, palette);
 
 describe("composeCustomLibraryElementRecipe", () => {
+  it("resolves presentation-local palette references for portable recipes", () => {
+    const accent = { kind: "palette" as const, colorId: "accent" };
+    const text: PowerShowElement = {
+      type: "text",
+      id: "text-palette",
+      hidden: false,
+      content: "Palette",
+      variant: "body",
+      style: {
+        color: accent,
+        border: { width: 1, color: accent },
+        background: { gradient: { type: "linear", stops: [
+          { color: accent, position: 0 },
+          { color: "#000000", position: 100 },
+        ] } },
+      },
+      effect: { shadow: { x: 0, y: 4, blur: 12, color: accent } },
+      typography: { textStroke: { width: 1, color: accent }, textDecorationColor: accent },
+    };
+
+    const recipe = compose(text, new Map([[text.id, new Set([
+      "style.color",
+      "style.border.color",
+      "style.background.gradient",
+      "effect.shadow",
+      "typography.textStroke",
+      "typography.textDecorationColor",
+    ])]]), { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] });
+
+    expect(recipe.properties).toEqual(expect.arrayContaining([
+      { path: "style.color", value: "#facc15" },
+      { path: "style.border.color", value: "#facc15" },
+      { path: "style.background.gradient", value: expect.objectContaining({ stops: [
+        { color: "#facc15", position: 0 },
+        { color: "#000000", position: 100 },
+      ] }) },
+      { path: "effect.shadow", value: expect.objectContaining({ color: "#facc15" }) },
+      { path: "typography.textStroke", value: { width: 1, color: "#facc15" } },
+      { path: "typography.textDecorationColor", value: "#facc15" },
+    ]));
+    expect(JSON.stringify(recipe)).not.toContain('"kind":"palette"');
+  });
+
+  it("fails extraction when a selected source reference cannot resolve", () => {
+    const text: PowerShowElement = {
+      type: "text", id: "unresolved", hidden: false, content: "Palette",
+      variant: "body",
+      style: { color: { kind: "palette", colorId: "missing" } },
+    };
+    expect(() => compose(text, new Map([[text.id, new Set(["style.color"])] ]), { colors: [] }))
+      .toThrow("unresolved palette reference");
+  });
   it("composes a leaf with explicit properties and omits children", () => {
     const text: PowerShowElement = {
       type: "text",

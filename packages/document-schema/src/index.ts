@@ -12,6 +12,20 @@ export type {
   ColorValue,
   PresentationPaletteColor,
 } from "./palette";
+export {
+  addPresentationPaletteColor,
+  detachColorValue,
+  linkColorToPalette,
+  mapPresentationColorValues,
+  removePresentationPaletteColor,
+  renamePresentationPaletteColor,
+  updatePresentationPaletteColorValue,
+} from "./palette-operations";
+export type {
+  PaletteOperationFailure,
+  PaletteOperationSuccess,
+} from "./palette-operations";
+export { visitPresentationColorValues } from "./palette-validation";
 export * from "./resources";
 export * from "./style";
 export * from "./links";

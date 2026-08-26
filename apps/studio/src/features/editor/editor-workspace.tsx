@@ -3590,6 +3590,7 @@ export function EditorWorkspace({
                   onMoveElement={moveElementInTree}
                   customLibraryRepository={customLibraryRepository}
                   onApplyCustomLibraryRecipe={applyCustomLibraryRecipe}
+                  palette={presentation.palette}
                 />
               ) : (
                 <>

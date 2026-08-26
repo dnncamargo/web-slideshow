@@ -4,6 +4,7 @@ import type {
   PowerShowElement,
   Slide,
   TopicItem,
+  PresentationPalette,
 } from "@powershow/document-schema";
 import { useState } from "react";
 import type { DragEvent } from "react";
@@ -39,6 +40,7 @@ interface ElementTreePanelProps {
   onMoveElement: (options: MoveElementOptions) => void;
   customLibraryRepository?: CustomLibraryRepository;
   onApplyCustomLibraryRecipe?: (recipe: CustomLibraryElementRecipe) => CustomLibraryApplyOutcome;
+  palette?: PresentationPalette;
 }
 
 interface ElementTreeSelection {
@@ -470,6 +472,7 @@ export function ElementTreePanel({
   onMoveElement,
   customLibraryRepository,
   onApplyCustomLibraryRecipe = () => ({ ok: true }),
+  palette,
 }: ElementTreePanelProps) {
   const { t } = useStudioI18n();
   const [expandedIds, setExpandedIds] = useState(() => {
@@ -695,6 +698,7 @@ export function ElementTreePanel({
         isStructuralTopicSelection={isStructuralTopicRow}
         customLibraryRepository={customLibraryRepository}
         onApplyCustomLibraryRecipe={onApplyCustomLibraryRecipe}
+        palette={palette}
       />
     </div>
   );
