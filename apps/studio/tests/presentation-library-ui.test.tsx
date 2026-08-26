@@ -868,10 +868,11 @@ describe("presentation library workspace controls", () => {
     expect(repository.getPresentation).not.toHaveBeenCalled();
   });
 
-  it("clears selection and performs no persistence work for placeholder destinations", async () => {
+  it("clears selection and keeps Styles loading separate from placeholders", async () => {
     const { repository, listPresentations } = repositoryFor([summary("one")]);
+    const custom = customLibraryRepositoryFor([customLibraryItem("style-1", "Saved style")]);
 
-    act(() => root.render(renderLibrary(repository)));
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
     await flushWorkspaceEffects();
 
     const firstRow = container.querySelector<HTMLButtonElement>(
@@ -886,9 +887,20 @@ describe("presentation library workspace controls", () => {
     );
     if (!stylesDestination) throw new Error("expected Styles destination");
     act(() => stylesDestination.click());
+    await flushWorkspaceEffects();
 
-    expect(container.textContent).toContain("Reusable styles are planned");
     expect(container.querySelector('[data-selected="true"]')).toBeNull();
+    expect(container.textContent).toContain("Saved style");
+    expect(custom.listItems).toHaveBeenCalledTimes(1);
+
+    const palettesDestination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Palettes",
+    );
+    if (!palettesDestination) throw new Error("expected Palettes destination");
+    act(() => palettesDestination.click());
+    expect(container.textContent).toContain("Reusable palettes are planned");
+    expect(container.textContent).not.toContain("Saved style");
+    expect(custom.listItems).toHaveBeenCalledTimes(1);
 
     const fontsDestination = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Fonts",
@@ -897,6 +909,8 @@ describe("presentation library workspace controls", () => {
     act(() => fontsDestination.click());
 
     expect(container.textContent).toContain("Fonts are planned");
+    expect(container.textContent).not.toContain("Saved style");
+    expect(custom.listItems).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-selected="true"]')).toBeNull();
     expect(repository.listPresentations).toHaveBeenCalledTimes(listCalls);
     expect(repository.createPresentation).not.toHaveBeenCalled();
@@ -922,13 +936,24 @@ describe("presentation library workspace controls", () => {
     expect(signOutIndex).toBeGreaterThan(userIndex);
   });
 
-  it("lists Fonts under Resources without a clickable generic Folders destination", async () => {
+  it("lists Custom Library destinations without a clickable generic Folders destination", async () => {
     const { repository } = repositoryFor([]);
 
     act(() => root.render(renderLibrary(repository)));
     await flushWorkspaceEffects();
 
-    // Fonts exists as a Resources destination.
+    expect(
+      Array.from(container.querySelectorAll("h2")).some(
+        (heading) => heading.textContent === "Custom Library",
+      ),
+    ).toBe(true);
+    expect(
+      Array.from(container.querySelectorAll("button")).some(
+        (button) => button.textContent?.trim() === "Custom Library",
+      ),
+    ).toBe(false);
+
+    // Fonts exists as a Custom Library destination.
     const fontsButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Fonts",
     );
@@ -1071,9 +1096,9 @@ describe("presentation library workspace controls", () => {
     expect(custom.listItems).not.toHaveBeenCalled();
 
     const destination = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Custom Library",
+      (button) => button.textContent === "Styles",
     );
-    if (!destination) throw new Error("expected Custom Library destination");
+    if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
     await flushWorkspaceEffects();
 
@@ -1101,9 +1126,9 @@ describe("presentation library workspace controls", () => {
     act(() => root.render(renderLibrary(repository, undefined, custom)));
     await flushWorkspaceEffects();
     const destination = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Custom Library",
+      (button) => button.textContent === "Styles",
     );
-    if (!destination) throw new Error("expected Custom Library destination");
+    if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
     expect(container.textContent).toContain("Loading Custom Library…");
     resolve?.([]);
@@ -1115,9 +1140,9 @@ describe("presentation library workspace controls", () => {
     act(() => root.render(renderLibrary(repository, undefined, failingCustom)));
     await flushWorkspaceEffects();
     const failingDestination = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Custom Library",
+      (button) => button.textContent === "Styles",
     );
-    if (!failingDestination) throw new Error("expected Custom Library destination");
+    if (!failingDestination) throw new Error("expected Styles destination");
     act(() => failingDestination.click());
     await flushWorkspaceEffects();
     expect(container.textContent).toContain("Could not load Custom Library.");
@@ -1137,9 +1162,9 @@ describe("presentation library workspace controls", () => {
     act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
     await flushWorkspaceEffects();
     const destination = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Custom Library",
+      (button) => button.textContent === "Styles",
     );
-    if (!destination) throw new Error("expected Custom Library destination");
+    if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
     await flushWorkspaceEffects();
     const row = container.querySelector<HTMLButtonElement>('[data-custom-library-row]');
@@ -1172,9 +1197,9 @@ describe("presentation library workspace controls", () => {
     act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
     await flushWorkspaceEffects();
     const destination = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Custom Library",
+      (button) => button.textContent === "Styles",
     );
-    if (!destination) throw new Error("expected Custom Library destination");
+    if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
     await flushWorkspaceEffects();
     const row = container.querySelector<HTMLButtonElement>('[data-custom-library-row]');
@@ -1217,9 +1242,9 @@ describe("presentation library workspace controls", () => {
     act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
     await flushWorkspaceEffects();
     const destination = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Custom Library",
+      (button) => button.textContent === "Styles",
     );
-    if (!destination) throw new Error("expected Custom Library destination");
+    if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
     await flushWorkspaceEffects();
 

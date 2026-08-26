@@ -49,7 +49,7 @@ import {
   filterPresentationsByDestination,
   isFolderDestination,
   isPresentationDestination,
-  isResourceDestination,
+  isCustomLibraryDestination,
   isSummaryVisibleInDestination,
   resolveFolderName,
   type LibraryDestination,
@@ -97,8 +97,6 @@ function destinationTitle(
       return t("library.all");
     case "archived":
       return t("library.archived");
-    case "customLibrary":
-      return t("library.customLibrary");
     case "styles":
       return t("library.styles");
     case "palettes":
@@ -229,7 +227,7 @@ export function PresentationLibrary({
   }, [customLibraryRepository, t]);
 
   useEffect(() => {
-    if (destination !== "customLibrary") return;
+    if (destination !== "styles") return;
     void loadCustomLibraryItems();
   }, [destination, loadCustomLibraryItems]);
 
@@ -674,7 +672,7 @@ export function PresentationLibrary({
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
-  const customLibraryDestination = destination === "customLibrary";
+  const stylesDestination = destination === "styles";
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -809,7 +807,7 @@ export function PresentationLibrary({
                     />
                   ) : null}
                 </>
-              ) : customLibraryDestination ? (
+              ) : stylesDestination ? (
                 <>
                   {customLibraryStatus === "loading" ? (
                     <p className={styles.stateBlock}>{t("customLibrary.browser.loading")}</p>
@@ -841,14 +839,14 @@ export function PresentationLibrary({
                   <p className={styles.placeholderTitle}>
                     {destinationTitle(destination, t, folders)}
                   </p>
-                  {isResourceDestination(destination) ? (
+                  {isCustomLibraryDestination(destination) ? (
                     <p>{t(`library.destination.${destination}`)}</p>
                   ) : null}
                 </div>
               )}
             </section>
 
-            {customLibraryDestination ? (
+            {stylesDestination ? (
               <CustomLibraryDetails
                 record={selectedCustomLibraryItem}
                 onDelete={handleRequestCustomLibraryDelete}

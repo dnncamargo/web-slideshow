@@ -6,7 +6,7 @@ import {
   filterPresentationsByDestination,
   isFolderDestination,
   isPresentationDestination,
-  isResourceDestination,
+  isCustomLibraryDestination,
   isSameLibraryDestination,
   isSummaryVisibleInDestination,
   resolveFolderName,
@@ -34,7 +34,7 @@ function folder(id: string, name: string): PresentationFolder {
 }
 
 describe("library destination model", () => {
-  it("distinguishes folder, presentation, and resource destinations", () => {
+  it("distinguishes folder, presentation, and Custom Library destinations", () => {
     expect(isFolderDestination({ kind: "folder", folderId: "f1" })).toBe(true);
     expect(isFolderDestination("all")).toBe(false);
 
@@ -42,13 +42,11 @@ describe("library destination model", () => {
     expect(isPresentationDestination("archived")).toBe(true);
     expect(isPresentationDestination({ kind: "folder", folderId: "f1" })).toBe(true);
     expect(isPresentationDestination("styles")).toBe(false);
-    expect(isPresentationDestination("customLibrary")).toBe(false);
 
-    expect(isResourceDestination("customLibrary")).toBe(true);
-    expect(isResourceDestination("styles")).toBe(true);
-    expect(isResourceDestination("palettes")).toBe(true);
-    expect(isResourceDestination("fonts")).toBe(true);
-    expect(isResourceDestination("all")).toBe(false);
+    expect(isCustomLibraryDestination("styles")).toBe(true);
+    expect(isCustomLibraryDestination("palettes")).toBe(true);
+    expect(isCustomLibraryDestination("fonts")).toBe(true);
+    expect(isCustomLibraryDestination("all")).toBe(false);
   });
 
   it("compares destinations by identity, not by name or reference", () => {
