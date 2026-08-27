@@ -175,6 +175,13 @@ describe("Custom Library Editor integration", () => {
     await act(async () => button.click());
   }
 
+  async function clickResourcePaletteToggle(): Promise<void> {
+    const button = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => ["+ Add palette", "Close"].includes(candidate.textContent?.trim() ?? ""));
+    if (!button) throw new Error("Resource palette toggle not found");
+    await act(async () => button.click());
+  }
+
   async function openPicker(): Promise<void> {
     const button = containerElement.querySelector<HTMLButtonElement>("[data-custom-library-apply]");
     if (!button) throw new Error("Custom Library Apply opener not found");
@@ -369,6 +376,7 @@ describe("Custom Library Editor integration", () => {
       ?.textContent?.trim()).toBe("Custom Resources");
     expect(listPalettes).toHaveBeenCalledOnce();
     expect(containerElement.textContent).not.toContain("Inspector");
+    await clickResourcePaletteToggle();
     expect(containerElement.textContent).toContain("Brand");
 
     await clickToolbarMode("Custom Resources");
@@ -383,6 +391,7 @@ describe("Custom Library Editor integration", () => {
       ?.textContent?.trim()).toBe("Notes");
 
     await clickToolbarMode("Custom Resources");
+    await clickResourcePaletteToggle();
     expect(containerElement.textContent).toContain("Brand");
     expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? "") && button.getAttribute("aria-pressed") === "true")
@@ -407,6 +416,8 @@ describe("Custom Library Editor integration", () => {
     expect(listPalettes).not.toHaveBeenCalled();
     await clickToolbarMode("Custom Resources");
     expect(listPalettes).toHaveBeenCalledOnce();
+    expect(containerElement.textContent).not.toContain("Loading palettes…");
+    await clickResourcePaletteToggle();
     expect(containerElement.textContent).toContain("Loading palettes…");
 
     resolvePalettes?.([{
@@ -423,6 +434,7 @@ describe("Custom Library Editor integration", () => {
 
     await clickToolbarMode("Custom Resources");
     await clickToolbarMode("Custom Resources");
+    await clickResourcePaletteToggle();
     expect(listPalettes).toHaveBeenCalledTimes(2);
     rejectPalettes?.(new Error("offline"));
     await act(async () => { await Promise.resolve(); });

@@ -1,15 +1,16 @@
 "use client";
 
-import type { PresentationPaletteColor } from "@powershow/document-schema";
+import type { Color, PresentationPaletteColor } from "@powershow/document-schema";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
-import { CustomLibraryPaletteEditor } from "@/features/custom-library/custom-library-palette-editor";
 import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
 import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "@/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 
 import styles from "./custom-resources-workspace.module.css";
@@ -17,6 +18,9 @@ import styles from "./custom-resources-workspace.module.css";
 interface CustomResourcesWorkspaceProps {
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   presentationColors: readonly PresentationPaletteColor[];
+  onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
+  onAddPresentationColor: (name: string, value: Color) => void;
+  onRemovePresentationColor: (id: string) => void;
 }
 
 type PaletteLoadState =
@@ -24,30 +28,21 @@ type PaletteLoadState =
   | { kind: "ready"; records: CustomLibraryPaletteRecord[] }
   | { kind: "error" };
 
-type PaletteAuthoringState =
-  | { kind: "create" }
-  | { kind: "edit"; recordId: string; initialPalette: CustomLibraryPaletteDraft }
-  | { kind: "copy"; initialPalette: CustomLibraryPaletteDraft }
-  | null;
-
-type PendingWrite = "saving" | "deleting" | null;
-
 const PREVIEW_COLOR_LIMIT = 6;
 
 export function CustomResourcesWorkspace({
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   presentationColors,
+  onAddLibraryPalette,
+  onAddPresentationColor,
+  onRemovePresentationColor,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
-  const [authoring, setAuthoring] = useState<PaletteAuthoringState>(null);
-  const [authoringError, setAuthoringError] = useState<string | null>(null);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [pendingWrite, setPendingWrite] = useState<PendingWrite>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [colorName, setColorName] = useState("");
+  const [colorValue, setColorValue] = useState<Color>("#ffffff");
   const requestRevisionRef = useRef(0);
-  const mountedRef = useRef(true);
-  const writeRevisionRef = useRef(0);
 
   const loadPalettes = useCallback(() => {
     const requestRevision = requestRevisionRef.current + 1;
@@ -56,16 +51,10 @@ export function CustomResourcesWorkspace({
     void Promise.resolve()
       .then(() => customLibraryPaletteRepository.listPalettes())
       .then((records) => {
-        if (requestRevision !== requestRevisionRef.current) {
-          return;
-        }
-        setLoadState({ kind: "ready", records });
+        if (requestRevision === requestRevisionRef.current) setLoadState({ kind: "ready", records });
       })
       .catch(() => {
-        if (requestRevision !== requestRevisionRef.current) {
-          return;
-        }
-        setLoadState({ kind: "error" });
+        if (requestRevision === requestRevisionRef.current) setLoadState({ kind: "error" });
       });
   }, [customLibraryPaletteRepository]);
 
@@ -76,174 +65,51 @@ export function CustomResourcesWorkspace({
     };
   }, [loadPalettes]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-
-    return () => {
-      mountedRef.current = false;
-      writeRevisionRef.current += 1;
-    };
-  }, []);
-
-  const beginAuthoring = useCallback((next: PaletteAuthoringState) => {
-    setAuthoringError(null);
-    setDeleteTargetId(null);
-    setDeleteError(null);
-    setAuthoring(next);
-  }, []);
-
-  function handlePaletteSubmit(draft: CustomLibraryPaletteDraft): void {
-    if (!authoring || pendingWrite) return;
-
-    const currentAuthoring = authoring;
-    const writeRevision = writeRevisionRef.current + 1;
-    writeRevisionRef.current = writeRevision;
-    setAuthoringError(null);
-    setPendingWrite("saving");
-
-    void (async () => {
-      try {
-        if (currentAuthoring.kind === "edit") {
-          await customLibraryPaletteRepository.updatePalette(currentAuthoring.recordId, draft);
-          if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
-          setLoadState((current) => current.kind === "ready"
-            ? { kind: "ready", records: current.records.map((record) => record.id === currentAuthoring.recordId ? { ...record, palette: draft } : record) }
-            : current);
-        } else {
-          const id = await customLibraryPaletteRepository.savePalette(draft);
-          if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
-          setLoadState((current) => current.kind === "ready"
-            ? { kind: "ready", records: [...current.records, { id, palette: draft }] }
-            : current);
-        }
-        setAuthoring(null);
-      } catch {
-        if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
-        setAuthoringError(currentAuthoring.kind === "edit"
-          ? t("customResources.updateFailed")
-          : t("customResources.saveFailed"));
-      } finally {
-        if (mountedRef.current && writeRevision === writeRevisionRef.current) {
-          setPendingWrite(null);
-        }
-      }
-    })();
+  function addIndividualColor(): void {
+    const name = colorName.trim();
+    if (!name) return;
+    onAddPresentationColor(name, colorValue);
+    setColorName("");
   }
-
-  function handleDelete(id: string): void {
-    if (pendingWrite) return;
-    setDeleteError(null);
-    setDeleteTargetId(id);
-  }
-
-  function confirmDelete(): void {
-    if (!deleteTargetId || pendingWrite) return;
-    const targetId = deleteTargetId;
-    const writeRevision = writeRevisionRef.current + 1;
-    writeRevisionRef.current = writeRevision;
-    setDeleteError(null);
-    setPendingWrite("deleting");
-
-    void customLibraryPaletteRepository.deletePalette(targetId)
-      .then(() => {
-        if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
-        setLoadState((current) => current.kind === "ready"
-          ? { kind: "ready", records: current.records.filter((record) => record.id !== targetId) }
-          : current);
-        setDeleteTargetId(null);
-      })
-      .catch(() => {
-        if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
-        setDeleteError(t("customResources.deleteFailed"));
-      })
-      .finally(() => {
-        if (mountedRef.current && writeRevision === writeRevisionRef.current) {
-          setPendingWrite(null);
-        }
-      });
-  }
-
-  const activePalette = authoring?.kind === "edit" || authoring?.kind === "copy"
-    ? authoring.initialPalette
-    : undefined;
 
   return (
     <aside className={styles.workspace} aria-label={t("editor.customResources")}>
-      <div className={styles.header}>
-        <span>{t("customResources.title")}</span>
-      </div>
+      <div className={styles.header}><span>{t("customResources.title")}</span></div>
 
       <div className={styles.content}>
         <section className={styles.section} aria-labelledby="custom-resources-palettes">
-          <h2 id="custom-resources-palettes" className={styles.sectionTitle}>
-            {t("customResources.palettes")}
-          </h2>
+          <h2 id="custom-resources-palettes" className={styles.sectionTitle}>{t("customResources.palettes")}</h2>
 
           <div className={styles.group}>
             <div className={styles.groupHeader}>
               <h3 className={styles.groupTitle}>{t("customResources.customLibrary")}</h3>
-              {loadState.kind === "ready" && !authoring ? (
-                <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} onClick={() => beginAuthoring({ kind: "create" })}>
-                  {t("customResources.newPalette")}
-                </button>
-              ) : null}
+              <button type="button" className={styles.resourceAction} onClick={() => setChooserOpen((open) => !open)}>
+                {chooserOpen ? t("customResources.closePaletteChooser") : t("customResources.addPalette")}
+              </button>
             </div>
-            {authoring ? (
-              <>
-                {pendingWrite === "saving" ? <p className={styles.status}>{t("customResources.savingPalette")}</p> : null}
-                <CustomLibraryPaletteEditor
-                  mode={authoring.kind}
-                  initialPalette={activePalette}
-                  submitting={pendingWrite === "saving"}
-                  error={authoringError}
-                  onSubmit={handlePaletteSubmit}
-                  onCancel={() => {
-                    if (pendingWrite) return;
-                    setAuthoringError(null);
-                    setAuthoring(null);
-                  }}
+            {chooserOpen ? <MasterPaletteChooser loadState={loadState} onRetry={loadPalettes} onAdd={onAddLibraryPalette} /> : null}
+          </div>
+
+          {chooserOpen ? (
+            <div className={styles.group}>
+              <h3 className={styles.groupTitle}>{t("customResources.addToPresentation")}</h3>
+              <div className={styles.localColorAdd}>
+                <label className={styles.localColorName}>
+                  <span>{t("customResources.colorName")}</span>
+                  <input data-presentation-color-name-input value={colorName} onChange={(event) => setColorName(event.target.value)} />
+                </label>
+                <LiteralColorInput
+                  id="custom-resources-literal-color"
+                  name={t("customResources.color")}
+                  value={colorValue}
+                  onChange={setColorValue}
                 />
-              </>
-            ) : loadState.kind === "loading" ? (
-              <p className={styles.status}>{t("customResources.loadingPalettes")}</p>
-            ) : loadState.kind === "error" ? (
-              <div className={styles.statusGroup}>
-                <p className={styles.status} role="alert">{t("customResources.loadFailed")}</p>
-                <button type="button" className={styles.retryButton} onClick={loadPalettes}>
-                  {t("customResources.retry")}
+                <button type="button" className={styles.resourceAction} disabled={!colorName.trim()} onClick={addIndividualColor}>
+                  {t("customResources.addColor")}
                 </button>
               </div>
-            ) : loadState.records.length === 0 ? (
-              <p className={styles.status}>{t("customResources.noLibraryPalettes")}</p>
-            ) : (
-              <div className={styles.paletteList}>
-                {loadState.records.map(({ id, palette }) => (
-                  <div key={id} className={styles.paletteCard} data-custom-resource-palette={id}>
-                    <div className={styles.paletteCardHeader}>
-                      <strong>{palette.name}</strong>
-                      <span>{t("customResources.colorCount", { count: palette.colors.length })}</span>
-                    </div>
-                    <ColorSwatches colors={palette.colors} />
-                    {palette.description ? <p className={styles.description}>{palette.description}</p> : null}
-                    <div className={styles.cardActions}>
-                      <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} aria-label={t("customResources.editPalette", { name: palette.name })} onClick={() => beginAuthoring({ kind: "edit", recordId: id, initialPalette: palette })}>{t("customResources.edit")}</button>
-                      <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} aria-label={t("customResources.copyPalette", { name: palette.name })} onClick={() => beginAuthoring({ kind: "copy", initialPalette: palette })}>{t("customResources.copy")}</button>
-                      {deleteTargetId === id ? (
-                        <div className={styles.confirmation}>
-                          <span>{t("customResources.deleteConfirm", { name: palette.name })}</span>
-                          <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} onClick={() => { setDeleteTargetId(null); setDeleteError(null); }}>{t("customResources.cancel")}</button>
-                          <button type="button" className={styles.dangerAction} disabled={Boolean(pendingWrite)} onClick={confirmDelete}>{pendingWrite === "deleting" ? t("customResources.deletingPalette") : t("customResources.confirmDelete")}</button>
-                        </div>
-                      ) : (
-                        <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} aria-label={t("customResources.deletePalette", { name: palette.name })} onClick={() => handleDelete(id)}>{t("customResources.delete")}</button>
-                      )}
-                    </div>
-                    {deleteTargetId === id && deleteError ? <p className={styles.error} role="alert">{deleteError}</p> : null}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
           <div className={styles.group}>
             <h3 className={styles.groupTitle}>{t("customResources.thisPresentation")}</h3>
@@ -256,12 +122,12 @@ export function CustomResourcesWorkspace({
                     <strong>{t("customResources.thisPresentation")}</strong>
                     <span>{t("customResources.colorCount", { count: presentationColors.length })}</span>
                   </div>
-                  <ColorSwatches colors={presentationColors} />
                   <div className={styles.localColorList}>
                     {presentationColors.map((color) => (
-                      <div key={color.id} className={styles.localColorRow}>
+                      <div key={color.id} className={styles.localColorRow} data-presentation-color-row>
                         <span>{color.name}</span>
                         <code>{color.value}</code>
+                        <button type="button" className={styles.removeColor} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemovePresentationColor(color.id)}>×</button>
                       </div>
                     ))}
                   </div>
@@ -275,19 +141,42 @@ export function CustomResourcesWorkspace({
   );
 }
 
-function ColorSwatches({
-  colors,
+function MasterPaletteChooser({
+  loadState,
+  onRetry,
+  onAdd,
 }: {
-  colors: readonly { name: string; value: string }[];
+  loadState: PaletteLoadState;
+  onRetry: () => void;
+  onAdd: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
 }) {
+  const { t } = useStudioI18n();
+
+  if (loadState.kind === "loading") return <p className={styles.status}>{t("customResources.loadingPalettes")}</p>;
+  if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.loadFailed")}</p><button type="button" className={styles.retryButton} onClick={onRetry}>{t("customResources.retry")}</button></div>;
+  if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryPalettes")}</p>;
+
+  return (
+    <div className={styles.masterPaletteList}>
+      {loadState.records.map(({ id, palette }) => (
+        <div key={id} className={styles.masterPaletteRow} data-custom-resource-palette={id}>
+          <strong>{palette.name}</strong>
+          <ColorSwatches colors={palette.colors} />
+          <span className={styles.masterPaletteCount}>{t("customResources.colorCount", { count: palette.colors.length })}</span>
+          <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterPalette", { name: palette.name })} onClick={() => onAdd(palette)}>+</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ColorSwatches({ colors }: { colors: readonly { name: string; value: string }[] }) {
   const visibleColors = colors.slice(0, PREVIEW_COLOR_LIMIT);
   const remainingCount = colors.length - visibleColors.length;
 
   return (
     <div className={styles.swatches} aria-hidden="true">
-      {visibleColors.map((color) => (
-        <span key={`${color.name}-${color.value}`} className={styles.swatch} data-palette-swatch style={{ backgroundColor: color.value }} />
-      ))}
+      {visibleColors.map((color, index) => <span key={`${color.name}-${index}`} className={styles.swatch} data-palette-swatch style={{ backgroundColor: color.value }} />)}
       {remainingCount > 0 ? <span className={styles.moreSwatches}>+{remainingCount}</span> : null}
     </div>
   );

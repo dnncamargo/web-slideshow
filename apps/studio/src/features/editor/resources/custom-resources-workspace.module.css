@@ -110,16 +110,7 @@
   margin: 0;
 }
 
-.cardActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 5px;
-}
-
-.resourceAction,
-.dangerAction {
+.resourceAction {
   padding: 4px 7px;
   border: 1px solid #303847;
   border-radius: 5px;
@@ -133,35 +124,78 @@
   border-color: #22d3ee;
 }
 
-.dangerAction {
-  border-color: #7f1d1d;
-  color: #fecaca;
-}
-
-.dangerAction:hover {
-  border-color: #ef4444;
-}
-
 .resourceAction:disabled,
-.dangerAction:disabled,
 .retryButton:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.confirmation {
+.masterPaletteList,
+.localColorAdd {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
-  color: #fca5a5;
+  gap: 8px;
+}
+
+.masterPaletteRow {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.masterPaletteRow strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.masterPaletteCount {
+  color: #94a3b8;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.localColorAdd {
+  align-items: flex-end;
+}
+
+.localColorName {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 110px;
+  flex-direction: column;
+  gap: 3px;
+  color: #94a3b8;
   font-size: 10px;
 }
 
-.error {
-  margin: 0;
+.localColorName input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #0f141d;
+  color: #e2e8f0;
+  font: inherit;
+}
+
+.removeColor {
+  flex: none;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
   color: #fca5a5;
-  font-size: 11px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .swatches {

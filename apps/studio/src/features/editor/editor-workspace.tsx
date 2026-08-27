@@ -3570,6 +3570,9 @@ export function EditorWorkspace({
           <CustomResourcesWorkspace
             customLibraryPaletteRepository={customLibraryPaletteRepository}
             presentationColors={presentation.palette?.colors ?? []}
+            onAddLibraryPalette={addCustomLibraryPalette}
+            onAddPresentationColor={addNamedPresentationPaletteColor}
+            onRemovePresentationColor={removePresentationPaletteColor}
           />
         ) : (
           <aside className={styles.inspector}>

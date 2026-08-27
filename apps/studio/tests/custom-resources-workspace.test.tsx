@@ -79,6 +79,9 @@ describe("Custom Resources default repository integration", () => {
     await clickResources();
     expect(defaultPaletteRepository.listPalettes).toHaveBeenCalledOnce();
     await act(async () => { await Promise.resolve(); });
+    const addPalette = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ Add palette");
+    if (!addPalette) throw new Error("Add palette button not found");
+    await act(async () => addPalette.click());
     expect(container.textContent).toContain("Brand");
     expect(container.textContent).not.toContain("Could not load Custom Library palettes.");
   });
@@ -110,6 +113,9 @@ describe("Custom Resources default repository integration", () => {
       palette: { name: "Fresh", colors: [{ name: "Secondary", value: "#2563eb" }] },
     }]);
     await act(async () => { await Promise.resolve(); });
+    const addPalette = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ Add palette");
+    if (!addPalette) throw new Error("Add palette button not found");
+    await act(async () => addPalette.click());
     expect(container.textContent).toContain("Fresh");
     expect(container.textContent).not.toContain("Stale");
   });
