@@ -90,6 +90,52 @@ describe("LiteralColorInput", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("uses the valid value as the picker fallback after an invalid HEX draft", () => {
+    const onChange = render("#facc15");
+    const input = container.querySelector<HTMLInputElement>("#color-value");
+    const picker = container.querySelector<HTMLInputElement>("input[type=color]");
+    act(() => {
+      if (input) {
+        setInputValue(input, "#");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    expect(input?.value).toBe("#");
+    expect(onChange).not.toHaveBeenCalled();
+
+    act(() => {
+      if (picker) {
+        setInputValue(picker, "#2563eb");
+        picker.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(onChange).toHaveBeenCalledWith("#2563eb", "picker");
+    expect(input?.value).toBe("#2563eb");
+  });
+
+  it("preserves RGBA alpha through the picker fallback after an invalid draft", () => {
+    const onChange = render("rgba(10, 20, 30, 0.4)");
+    const input = container.querySelector<HTMLInputElement>("#color-value");
+    const picker = container.querySelector<HTMLInputElement>("input[type=color]");
+    act(() => {
+      if (input) {
+        setInputValue(input, "rgba(");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    expect(input?.value).toBe("rgba(");
+    expect(onChange).not.toHaveBeenCalled();
+
+    act(() => {
+      if (picker) {
+        setInputValue(picker, "#facc15");
+        picker.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(onChange).toHaveBeenCalledWith("rgba(250, 204, 21, 0.4)", "picker");
+    expect(input?.value).toBe("rgba(250, 204, 21, 0.4)");
+  });
+
   it("converts HEX to RGBA and reports source format", () => {
     const onChange = render("#facc15");
     const select = container.querySelector<HTMLSelectElement>("#color-format");

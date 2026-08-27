@@ -65,7 +65,8 @@ export function LiteralColorInput({
         value={pickerColor ?? "#f8fafc"}
         disabled={disabled}
         onChange={(event) => {
-          const next = replaceColorRgb(draft, event.target.value, format);
+          const pickerBase = parseColor(draft) ? draft : value;
+          const next = replaceColorRgb(pickerBase, event.target.value, format);
 
           if (next) {
             setDraft(next);
