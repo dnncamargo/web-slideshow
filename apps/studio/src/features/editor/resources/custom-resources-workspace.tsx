@@ -1,13 +1,14 @@
 "use client";
 
 import type { PresentationPaletteColor } from "@powershow/document-schema";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "@/features/custom-library/custom-library-palette-repository";
+import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -24,29 +25,38 @@ type PaletteLoadState =
 const PREVIEW_COLOR_LIMIT = 6;
 
 export function CustomResourcesWorkspace({
-  customLibraryPaletteRepository,
+  customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   presentationColors,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
+  const requestRevisionRef = useRef(0);
 
   const loadPalettes = useCallback(() => {
+    const requestRevision = requestRevisionRef.current + 1;
+    requestRevisionRef.current = requestRevision;
     setLoadState({ kind: "loading" });
     void Promise.resolve()
-      .then(() => customLibraryPaletteRepository?.listPalettes())
+      .then(() => customLibraryPaletteRepository.listPalettes())
       .then((records) => {
-        if (!records) {
-          throw new Error("Custom Library palette repository is unavailable");
+        if (requestRevision !== requestRevisionRef.current) {
+          return;
         }
         setLoadState({ kind: "ready", records });
       })
       .catch(() => {
+        if (requestRevision !== requestRevisionRef.current) {
+          return;
+        }
         setLoadState({ kind: "error" });
       });
   }, [customLibraryPaletteRepository]);
 
   useEffect(() => {
     void Promise.resolve().then(loadPalettes);
+    return () => {
+      requestRevisionRef.current += 1;
+    };
   }, [loadPalettes]);
 
   return (
