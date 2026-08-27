@@ -226,18 +226,9 @@ export function DividerInspector({
                 ...current,
                 background: { color },
               }))}
+              secondaryAction={{ label: t("inspector.remove"), onClick: () => updateStyle((current) => ({ ...current, background: undefined })) }}
             />
           </label>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => updateStyle((current) => ({
-              ...current,
-              background: undefined,
-            }))}
-          >
-            <span>{t("inspector.clearBackground")}</span>
-          </button>
         </div>
         <div className={styles.fieldGrid}>
           <div className={styles.field}>

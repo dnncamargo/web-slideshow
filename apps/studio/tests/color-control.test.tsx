@@ -30,17 +30,17 @@ describe("ColorControl linked palette UX", () => {
     document.body.innerHTML = "";
   });
 
-  function renderControl(value: ColorValue | undefined, onChange = vi.fn(), recentColors: readonly string[] = [], disabled = false, paletteColors = [
+  function renderControl(value: ColorValue | undefined, onChange = vi.fn(), pickedColors: readonly string[] = [], disabled = false, paletteColors = [
     { id: "accent", name: "Accent", value: "#ffffff" },
     { id: "border", name: "Border", value: "#ffffff" },
-  ]) {
+  ], secondaryAction?: { label: string; onClick: () => void; disabled?: boolean }) {
     pickedSpy = vi.fn();
     removePickedSpy = vi.fn();
     act(() => root.render(
       <StudioI18nProvider>
-        <PickedColorsProvider colors={recentColors} onPickColor={pickedSpy} onRemoveColor={removePickedSpy}>
+        <PickedColorsProvider colors={pickedColors} onPickColor={pickedSpy} onRemoveColor={removePickedSpy}>
           <PresentationColorPaletteProvider colors={paletteColors}>
-            <ColorControl id="color" name="Color" value={value} onChange={onChange} disabled={disabled} />
+            <ColorControl id="color" name="Color" value={value} onChange={onChange} disabled={disabled} secondaryAction={secondaryAction} />
           </PresentationColorPaletteProvider>
         </PickedColorsProvider>
       </StudioI18nProvider>,
@@ -55,6 +55,26 @@ describe("ColorControl linked palette UX", () => {
     expect(container.querySelector("[aria-label='Add current color']")).toBeNull();
     expect(container.querySelector("button[aria-expanded]")?.textContent).toBe("Use palette");
     expect(container.querySelectorAll("button[aria-pressed]")).toHaveLength(0);
+  });
+
+  it("renders and invokes an explicit secondary action without authoring a color", () => {
+    const secondary = vi.fn();
+    const onChange = renderControl("#ffffff", vi.fn(), [], false, undefined, { label: "Remove", onClick: secondary });
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent === "Remove");
+    expect(button).toBeDefined();
+    act(() => button?.click());
+    expect(secondary).toHaveBeenCalledOnce();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(pickedSpy).not.toHaveBeenCalled();
+  });
+
+  it("disables both compact actions when ColorControl is disabled", () => {
+    const secondary = vi.fn();
+    renderControl("#ffffff", vi.fn(), [], true, undefined, { label: "Remove", onClick: secondary });
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .filter((button) => ["Use palette", "Remove"].includes(button.textContent ?? ""))
+      .every((button) => button.disabled)).toBe(true);
   });
 
   it("opens the chooser on demand and selects a palette reference", () => {
@@ -77,7 +97,7 @@ describe("ColorControl linked palette UX", () => {
     expect(container.textContent).toContain("Linked to presentation palette · Border");
     expect(container.querySelector("#color-palette-chooser")).toBeNull();
     const change = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "Change palette");
+      .find((button) => button.textContent === "Use palette");
     expect(change?.getAttribute("aria-expanded")).toBe("false");
     expect(onChange).not.toHaveBeenCalled();
 
@@ -90,7 +110,7 @@ describe("ColorControl linked palette UX", () => {
   it("uses strict color ids when duplicate visual values are present", () => {
     const onChange = renderControl({ kind: "palette", colorId: "border" });
     const change = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "Change palette");
+      .find((button) => button.textContent === "Use palette");
     act(() => change?.click());
     const selected = container.querySelectorAll<HTMLButtonElement>("button[aria-pressed='true']");
     expect(selected).toHaveLength(1);
@@ -115,18 +135,25 @@ describe("ColorControl linked palette UX", () => {
   });
 
   it("renders and emits Picked Colors as literals without duplicating them", () => {
-    const onChange = renderControl("#000000", vi.fn(), ["#facc15"]);
-    const recent = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.style.backgroundColor === "rgb(250, 204, 21)");
-    expect(recent).toBeDefined();
-    act(() => recent?.click());
-    expect(onChange).toHaveBeenCalledWith("#facc15");
+    renderControl("#000000", vi.fn(), ["#facc15"]);
+    act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    const pickedButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.getAttribute("aria-label") === "Apply palette color #facc15");
+    expect(pickedButton).toBeDefined();
+    const remove = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.getAttribute("aria-label")?.includes("Remove picked color"));
+    act(() => remove?.click());
     expect(pickedSpy).not.toHaveBeenCalled();
     expect(container.textContent).not.toContain("Clear");
     expect(container.querySelectorAll(".colorPaletteMove")).toHaveLength(0);
-    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.getAttribute("aria-label")?.includes("Remove picked color"))?.click());
     expect(removePickedSpy).toHaveBeenCalledWith("#facc15");
+
+    const secondChange = vi.fn();
+    renderControl("#000000", secondChange, ["#facc15"]);
+    const picked = container.querySelector<HTMLButtonElement>("button[aria-label='Apply palette color #facc15']");
+    expect(picked).toBeDefined();
+    act(() => picked?.click());
+    expect(secondChange).toHaveBeenCalledWith("#facc15");
   });
 
   it("closes the chooser when literal text or picker edits are authored", () => {

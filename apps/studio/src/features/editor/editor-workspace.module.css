@@ -2621,6 +2621,12 @@
   font-size: 11px;
 }
 
+.colorControlActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .colorLinkedStatus {
   display: flex;
   align-items: center;
@@ -2667,23 +2673,6 @@
   cursor: pointer;
 }
 
-
-.colorPicked {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 6px;
-}
-
-
-.colorPicked .colorPaletteActions {
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 5px;
-}
 
 .colorPaletteRemove {
   position: absolute;

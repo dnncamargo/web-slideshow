@@ -42,11 +42,9 @@ export function ContainerAppearanceSection({ element, onUpdate }: ContainerAppea
             name={getControlName("container", "Color")}
             value={style?.color}
             onChange={(color) => updateStyle((current) => ({ ...current, color }))}
+            secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateStyle((current) => ({ ...current, color: undefined })) }}
           />
         </label>
-        <button className={styles.secondaryButton} type="button" onClick={() => updateStyle((current) => ({ ...current, color: undefined }))}>
-          <span>{t("inspector.useThemeDefault")}</span>
-        </button>
       </div>
 
       <div className={styles.backgroundControls}>
@@ -61,14 +59,12 @@ export function ContainerAppearanceSection({ element, onUpdate }: ContainerAppea
                 ...current,
                 background: { ...current.background, color },
               }))}
+              secondaryAction={{ label: t("inspector.remove"), onClick: () => updateStyle((current) => {
+                const nextBackground = current.background === undefined ? undefined : { ...current.background, color: undefined };
+                return { ...current, background: nextBackground };
+              }) }}
             />
           </label>
-          <button className={styles.secondaryButton} type="button" onClick={() => updateStyle((current) => {
-            const nextBackground = current.background === undefined ? undefined : { ...current.background, color: undefined };
-            return { ...current, background: nextBackground };
-          })}>
-            <span>{t("inspector.clearBackground")}</span>
-          </button>
         </div>
 
         <ElementGradientControl

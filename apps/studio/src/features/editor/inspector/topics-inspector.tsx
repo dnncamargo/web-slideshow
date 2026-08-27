@@ -517,21 +517,9 @@ function addChildTopic(topicItemId: string) {
                     style: { ...current.style, color },
                   }));
                 }}
+                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, style: { ...current.style, color: undefined } })) }}
               />
             </label>
-
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={() => {
-                updateCurrentTopics((current) => ({
-                  ...current,
-                  style: { ...current.style, color: undefined },
-                }));
-              }}
-            >
-              <span>{t("inspector.useThemeDefault")}</span>
-            </button>
           </div>
 
         </div>
@@ -591,26 +579,14 @@ function addChildTopic(topicItemId: string) {
                   name="topicsMarkerColor"
                   value={element.markerColor}
                   onChange={(markerColor) => {
-                    updateCurrentTopics((current) => ({
+                  updateCurrentTopics((current) => ({
                       ...current,
                       markerColor,
                     }));
                   }}
+                  secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) }}
                 />
               </label>
-
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onClick={() => {
-                  updateCurrentTopics((current) => ({
-                    ...current,
-                    markerColor: undefined,
-                  }));
-                }}
-              >
-                <span>{t("inspector.useThemeDefault")}</span>
-              </button>
             </div>
           </div>
         </div>

@@ -78,7 +78,7 @@ describe("canonical data Appearance controls", () => {
     state = codeElement({ style: { background: { color: "#111111", gradient } } });
     await act(async () => renderInspector());
 
-    const clear = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remover" || button.textContent?.trim() === "Clear");
+    const clear = host.querySelector<HTMLInputElement>("#code-background")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
     expect(clear).toBeDefined();
     await act(async () => clear?.click());
 
@@ -98,7 +98,7 @@ describe("canonical data Appearance controls", () => {
     expect(state.style?.background?.gradient).toBeUndefined();
     expect(state.style?.background?.color).toBe("#222222");
 
-    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remover" || button.textContent?.trim() === "Clear")?.click());
+    await act(async () => host.querySelector<HTMLInputElement>("#code-background")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button")?.click());
     expect(state.style?.background).toBeUndefined();
   });
 

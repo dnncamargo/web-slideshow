@@ -22,6 +22,11 @@ interface ColorControlProps {
   name: string;
   value: ColorValue | undefined;
   onChange: (color: ColorValue) => void;
+  secondaryAction?: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  };
   disabled?: boolean;
 }
 
@@ -30,6 +35,7 @@ export function ColorControl({
   name,
   value,
   onChange,
+  secondaryAction,
   disabled = false,
 }: ColorControlProps) {
   const { t } = useStudioI18n();
@@ -56,6 +62,7 @@ export function ColorControl({
   const emitLiteralColor = (color: Color) => {
     onChange(color);
   };
+  const hasReusableChoices = paletteColors.length > 0 || (picked?.colors.length ?? 0) > 0;
 
   return (
     <div className={styles.colorControlGroup}>
@@ -77,20 +84,39 @@ export function ColorControl({
         }}
       />
 
-      {isLinked && (
-        <div className={styles.colorLinkedStatus} role="status">
-          <span>{t("inspector.linkedColor")} · {linkedPaletteColor?.name ?? value?.colorId}</span>
-          {paletteColors.length > 0 ? (
+      {(hasReusableChoices || secondaryAction) && (
+        <div className={styles.colorControlActionRow}>
+          {hasReusableChoices ? (
             <button
+              className={styles.colorPaletteDisclosure}
               type="button"
               aria-expanded={isPaletteChooserOpen}
               aria-controls={`${id}-palette-chooser`}
               disabled={disabled}
               onClick={() => setIsPaletteChooserOpen((open) => !open)}
             >
-              {t("inspector.changePalette")}
+              {t("inspector.usePalette")}
             </button>
           ) : null}
+          {secondaryAction ? (
+            <button
+              className={styles.colorPaletteDisclosure}
+              type="button"
+              disabled={disabled || secondaryAction.disabled}
+              onClick={() => {
+                setIsPaletteChooserOpen(false);
+                secondaryAction.onClick();
+              }}
+            >
+              {secondaryAction.label}
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {isLinked && (
+        <div className={styles.colorLinkedStatus} role="status">
+          <span>{t("inspector.linkedColor")} · {linkedPaletteColor?.name ?? value?.colorId}</span>
           <button
             type="button"
             disabled={disabled || detachedValue === undefined}
@@ -106,80 +132,65 @@ export function ColorControl({
         </div>
       )}
 
-      {!isLinked && paletteColors.length > 0 ? (
-        <button
-          className={styles.colorPaletteDisclosure}
-          type="button"
-          aria-expanded={isPaletteChooserOpen}
-          aria-controls={`${id}-palette-chooser`}
-          disabled={disabled}
-          onClick={() => setIsPaletteChooserOpen((open) => !open)}
-        >
-          {t("inspector.usePalette")}
-        </button>
-      ) : null}
-
-      {isPaletteChooserOpen && paletteColors.length > 0 ? (
+      {isPaletteChooserOpen && hasReusableChoices ? (
         <div className={styles.colorPalette} id={`${id}-palette-chooser`}>
           <span className={styles.colorPaletteLabel}>{t("inspector.palette")}</span>
-          <div className={styles.colorPaletteActions}>
-            {paletteColors.map((color, index) => (
-              <div className={styles.colorPaletteEntry} key={`${color.id}-${index}`}>
-                <button
-                  className={styles.colorPaletteSwatch}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.applyPaletteColor", { color: color.name })}
-                  title={t("inspector.applyPaletteColor", { color: color.name })}
-                  style={{ backgroundColor: color.value }}
-                  aria-pressed={isLinked && value.colorId === color.id}
-                  onClick={() => {
-                    setLiteralValue(color.value);
-                    setIsPaletteChooserOpen(false);
-                    onChange({ kind: "palette", colorId: color.id });
-                  }}
-                />
-
+          {paletteColors.length > 0 ? (
+            <div className={styles.colorPaletteActions}>
+              {paletteColors.map((color, index) => (
+                <div className={styles.colorPaletteEntry} key={`${color.id}-${index}`}>
+                  <button
+                    className={styles.colorPaletteSwatch}
+                    type="button"
+                    disabled={disabled}
+                    aria-label={t("inspector.applyPaletteColor", { color: color.name })}
+                    title={t("inspector.applyPaletteColor", { color: color.name })}
+                    style={{ backgroundColor: color.value }}
+                    aria-pressed={isLinked && value.colorId === color.id}
+                    onClick={() => {
+                      setLiteralValue(color.value);
+                      setIsPaletteChooserOpen(false);
+                      onChange({ kind: "palette", colorId: color.id });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {picked && picked.colors.length > 0 ? (
+            <>
+              <span className={styles.colorPaletteLabel}>{t("inspector.picked")}</span>
+              <div className={styles.colorPaletteActions}>
+                {picked.colors.map((color, index) => (
+                  <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
+                    <button
+                      className={styles.colorPaletteSwatch}
+                      type="button"
+                      disabled={disabled}
+                      aria-label={t("inspector.applyPaletteColor", { color })}
+                      title={t("inspector.applyPaletteColor", { color })}
+                      style={{ backgroundColor: color }}
+                      onClick={() => {
+                        setLiteralValue(color);
+                        setIsPaletteChooserOpen(false);
+                        onChange(color);
+                      }}
+                    />
+                    <button
+                      className={styles.colorPaletteRemove}
+                      type="button"
+                      disabled={disabled}
+                      aria-label={t("inspector.removePickedColor", { color })}
+                      title={t("inspector.removePickedColor", { color })}
+                      onClick={() => picked.onRemoveColor(color)}
+                    >×</button>
+                  </div>
+                ))}
               </div>
-            ))}
-
-          </div>
+            </>
+          ) : null}
         </div>
       ) : null}
-
-      {picked && picked.colors.length > 0 && (
-        <div className={styles.colorPicked}>
-          <span className={styles.colorPaletteLabel}>{t("inspector.picked")}</span>
-
-          <div className={styles.colorPaletteActions}>
-            {picked.colors.map((color, index) => (
-              <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
-                <button
-                  className={styles.colorPaletteSwatch}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.applyPaletteColor", { color })}
-                  title={t("inspector.applyPaletteColor", { color })}
-                  style={{ backgroundColor: color }}
-                  onClick={() => {
-                    setLiteralValue(color);
-                    setIsPaletteChooserOpen(false);
-                    onChange(color);
-                  }}
-                />
-                <button
-                  className={styles.colorPaletteRemove}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.removePickedColor", { color })}
-                  title={t("inspector.removePickedColor", { color })}
-                  onClick={() => picked.onRemoveColor(color)}
-                >×</button>
-              </div>
-            ))}
-           </div>
-         </div>
-       )}
 
      </div>
    );
