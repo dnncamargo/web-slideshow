@@ -23,19 +23,21 @@ interface CustomResourcesWorkspaceProps {
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
   presentationColors: readonly PresentationPaletteColor[];
-  presentationFonts?: readonly FontResource[];
+  presentationFonts: readonly FontResource[];
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
-  onAddLibraryFont?: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
+  onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
   onAddPresentationColor: (name: string, value: Color) => void;
   onUpdatePresentationColor: (id: string, patch: { name: string; value: Color }) => void;
   onRemovePresentationColor: (id: string) => void;
-  onRemovePresentationFont?: (id: string) => CustomLibraryFontRemoveOutcome;
-  isPresentationFontInUse?: (family: string) => boolean;
+  onRemovePresentationFont: (id: string) => CustomLibraryFontRemoveOutcome;
+  isPresentationFontInUse: (family: string) => boolean;
 }
 
-export type CustomLibraryFontAddOutcome =
-  | "added" | "merged" | "unchanged" | "conflict"
-  | { kind: "added" | "merged" | "unchanged" | "conflict"; addedFaces: number };
+export type CustomLibraryFontAddKind = "added" | "merged" | "unchanged" | "conflict";
+export interface CustomLibraryFontAddOutcome {
+  kind: CustomLibraryFontAddKind;
+  addedFaces: number;
+}
 export type CustomLibraryFontRemoveOutcome = "removed" | "in-use" | "not-found";
 
 type PaletteLoadState =
@@ -54,14 +56,14 @@ export function CustomResourcesWorkspace({
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   customLibraryFontRepository = getDefaultCustomLibraryFontRepository(),
   presentationColors,
-  presentationFonts = [],
+  presentationFonts,
   onAddLibraryPalette,
-  onAddLibraryFont = () => "unchanged",
+  onAddLibraryFont,
   onAddPresentationColor,
   onUpdatePresentationColor,
   onRemovePresentationColor,
-  onRemovePresentationFont = () => "not-found",
-  isPresentationFontInUse = () => false,
+  onRemovePresentationFont,
+  isPresentationFontInUse,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
@@ -73,7 +75,7 @@ export function CustomResourcesWorkspace({
   const requestRevisionRef = useRef(0);
   const fontRequestRevisionRef = useRef(0);
   const [fontChooserOpen, setFontChooserOpen] = useState(false);
-  const [fontFeedback, setFontFeedback] = useState<{ kind: CustomLibraryFontAddOutcome; family: string; count?: number } | null>(null);
+  const [fontFeedback, setFontFeedback] = useState<{ kind: CustomLibraryFontAddKind; family: string; count: number } | null>(null);
 
   const loadPalettes = useCallback(() => {
     const requestRevision = requestRevisionRef.current + 1;
@@ -114,9 +116,7 @@ export function CustomResourcesWorkspace({
 
   function addLibraryFont(font: CustomLibraryFontDraft): void {
     const result = onAddLibraryFont(font);
-    const kind = typeof result === "string" ? result : result.kind;
-    const count = typeof result === "string" ? undefined : result.addedFaces;
-    setFontFeedback({ kind, family: font.family, ...(count === undefined ? {} : { count }) });
+    setFontFeedback({ kind: result.kind, family: font.family, count: result.addedFaces });
   }
 
   function addIndividualColor(): void {

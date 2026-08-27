@@ -57,6 +57,10 @@ function Harness({ repository }: { repository: CustomLibraryPaletteRepository })
   return (
     <CustomResourcesWorkspace
       customLibraryPaletteRepository={repository}
+      presentationFonts={[]}
+      onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
+      onRemovePresentationFont={() => "not-found"}
+      isPresentationFontInUse={() => false}
       presentationColors={presentation.palette?.colors ?? []}
       onAddLibraryPalette={(palette: CustomLibraryPaletteDraft) => {
         const result = addCustomLibraryPaletteToPresentation(presentation, palette);

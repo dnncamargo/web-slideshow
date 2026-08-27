@@ -81,4 +81,57 @@ describe("addCustomLibraryFontToPresentation", () => {
     expect(resource && "source" in resource).toBe(false);
     expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
   });
+
+  it("rejects a local-versus-incoming same-slot URL conflict", () => {
+    const original = presentation([{ id: "local", family: "Inter", faces: [face("https://example.com/a.woff2")] }]);
+    const result = addCustomLibraryFontToPresentation(original, { family: "Inter", faces: [face("https://example.com/b.woff2")] });
+    expect(result.kind).toBe("conflict");
+    expect(result.presentation).toBe(original);
+  });
+
+  it("keeps a conflict atomic after an earlier merge candidate", () => {
+    const original = presentation([{ id: "local", family: "Inter", faces: [face("https://example.com/regular.woff2")] }]);
+    const result = addCustomLibraryFontToPresentation(original, {
+      family: "Inter",
+      faces: [face("https://example.com/bold.woff2", { weight: 700 }), face("https://example.com/conflict.woff2")],
+    });
+    expect(result.kind).toBe("conflict");
+    expect(result.presentation).toBe(original);
+    expect(original.resources?.fonts?.[0]?.faces).toHaveLength(1);
+  });
+
+  it("copies all unique faces for a new family and returns a valid presentation", () => {
+    const result = addCustomLibraryFontToPresentation(presentation(), {
+      family: "Audiowide",
+      faces: [face("https://example.com/regular.woff2"), face("https://example.com/italic.woff2", { style: "italic" }), face("https://example.com/bold.woff2", { weight: 700 })],
+    });
+    expect(result.kind).toBe("added");
+    if (result.kind !== "added") return;
+    expect(result.presentation.resources?.fonts?.[0]?.faces).toHaveLength(3);
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+  });
+
+  it("preserves unrelated data and font resource ordering during a merge", () => {
+    const original = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "presentation",
+      title: "Test",
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#fff" }] },
+      slides: [{ id: "slide", title: "Slide", elements: [] }],
+      resources: {
+        fonts: [
+          { id: "first", family: "First", faces: [face("https://example.com/first.woff2")] },
+          { id: "inter", family: "Inter", faces: [face("https://example.com/inter.woff2")] },
+          { id: "last", family: "Last", faces: [face("https://example.com/last.woff2")] },
+        ],
+      },
+    });
+    const result = addCustomLibraryFontToPresentation(original, { family: "Inter", faces: [face("https://example.com/inter-bold.woff2", { weight: 700 })] });
+    expect(result.kind).toBe("merged");
+    if (result.kind !== "merged") return;
+    expect(result.presentation.slides).toEqual(original.slides);
+    expect(result.presentation.palette).toEqual(original.palette);
+    expect(result.presentation.resources?.fonts?.map((fontResource) => fontResource.id)).toEqual(["first", "inter", "last"]);
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+  });
 });
