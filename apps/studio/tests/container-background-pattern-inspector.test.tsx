@@ -8,17 +8,11 @@ import type { ContainerElement, PowerShowElement, TextElement } from "@powershow
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
-import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const FONT_RESOURCE_CONTROLS: FontResourceControls = {
-  fontResources: [],
-  onAddFontFace: () => undefined,
-  onRemoveFontFace: () => undefined,
-  isFontFamilyInUse: () => false,
-};
+const FONT_RESOURCES: readonly { id: string; family: string }[] = [];
 
 const gradient = {
   type: "linear" as const,
@@ -74,7 +68,7 @@ describe("Container canonical background pattern inspector", () => {
         ) : (
           <TextInspector
             element={state as TextElement}
-            fontResourceControls={FONT_RESOURCE_CONTROLS}
+            fontResources={FONT_RESOURCES}
             onUpdate={(update) => {
               if (state.type !== "text") return;
               state = update(state);

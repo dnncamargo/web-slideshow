@@ -4,7 +4,6 @@ import type {
   ElementVisualStyle,
   ResizablePositionedLayout,
   SurfaceVisualStyle,
-  FontFaceResource,
   FontResource,
   PowerShowElement,
 } from "@powershow/document-schema";
@@ -37,16 +36,6 @@ export type UpdateElementLayout = (
   update: (layout: ResizablePositionedLayout | undefined) => ResizablePositionedLayout | undefined,
 ) => void;
 
-export interface FontResourceControls {
-  fontResources: readonly FontResource[];
-
-  onAddFontFace: (family: string, face: FontFaceResource) => void;
-
-  onRemoveFontFace: (fontResourceId: string, faceIndex: number) => void;
-
-  isFontFamilyInUse: (family: string) => boolean;
-}
-
 export interface TypedInspectorProps<
   TElement extends PowerShowElement,
 > {
@@ -58,7 +47,7 @@ export interface TypedInspectorProps<
 export interface TypographyInspectorProps<
   TElement extends PowerShowElement,
 > extends TypedInspectorProps<TElement> {
-  fontResourceControls: FontResourceControls;
+  fontResources: readonly FontResource[];
 }
 
 export interface TopicsAuthoringControls {

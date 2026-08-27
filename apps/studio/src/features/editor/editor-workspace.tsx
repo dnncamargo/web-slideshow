@@ -25,9 +25,6 @@ import {
 } from "@powershow/ui";
 
 import {
-  FontFaceResourceSchema,
-  FontResourceSchema,
-  getFontResourceFaces,
   addPresentationPaletteColor as addPaletteEntry,
   removePresentationPaletteColor as removePaletteEntry,
   renamePresentationPaletteColor as renamePaletteEntry,
@@ -134,12 +131,7 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
 
-import {
-  areFontFacesEquivalent,
-  createFontResourceId,
-  normalizeFontFamily,
-  presentationUsesFontFamily,
-} from "./font-resource-helpers";
+import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -215,7 +207,6 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
-  FontFaceResource,
   PowerShowElement,
   Presentation,
   Slide,
@@ -2057,141 +2048,6 @@ export function EditorWorkspace({
   // END: EXPLICIT PUBLISH
   // ==========================================================
 
-  function addFontFace(family: string, face: FontFaceResource) {
-    setPresentation((current) => {
-      const parsedFace = FontFaceResourceSchema.safeParse(face);
-      const trimmedFamily = family.trim();
-
-      if (!parsedFace.success || !trimmedFamily) {
-        return current;
-      }
-
-      const currentFonts = current.resources?.fonts ?? [];
-      const normalizedFamily = normalizeFontFamily(trimmedFamily);
-      const existingIndex = currentFonts.findIndex(
-        (registeredFont) =>
-          normalizeFontFamily(registeredFont.family) === normalizedFamily,
-      );
-
-      if (existingIndex === -1) {
-        const newResource = FontResourceSchema.safeParse({
-          id: createFontResourceId(
-            trimmedFamily,
-            currentFonts.map((fontResource) => fontResource.id),
-          ),
-          family: trimmedFamily,
-          faces: [parsedFace.data],
-        });
-
-        if (!newResource.success) {
-          return current;
-        }
-
-        return {
-          ...current,
-          resources: {
-            ...current.resources,
-            fonts: [...currentFonts, newResource.data],
-          },
-        };
-      }
-
-      const existingResource = currentFonts[existingIndex];
-
-      if (!existingResource) {
-        return current;
-      }
-
-      const existingFaces = getFontResourceFaces(existingResource);
-      const duplicate = existingFaces.some((existingFace) =>
-        areFontFacesEquivalent(existingFace, parsedFace.data),
-      );
-
-      if (duplicate) {
-        return current;
-      }
-
-      const updatedResource = FontResourceSchema.safeParse({
-        id: existingResource.id,
-        family: existingResource.family,
-        faces: [...existingFaces, parsedFace.data],
-      });
-
-      if (!updatedResource.success) {
-        return current;
-      }
-
-      return {
-        ...current,
-        resources: {
-          ...current.resources,
-          fonts: currentFonts.map((fontResource, index) =>
-            index === existingIndex ? updatedResource.data : fontResource,
-          ),
-        },
-      };
-    });
-  }
-
-  function removeFontFace(fontResourceId: string, faceIndex: number) {
-    setPresentation((current) => {
-      const currentFonts = current.resources?.fonts;
-      const fontResourceIndex = currentFonts?.findIndex(
-        (registeredFont) => registeredFont.id === fontResourceId,
-      );
-      const fontResource =
-        fontResourceIndex === undefined || fontResourceIndex < 0
-          ? undefined
-          : currentFonts?.[fontResourceIndex];
-
-      if (!currentFonts || !fontResource || fontResourceIndex === undefined) {
-        return current;
-      }
-
-      const faces = getFontResourceFaces(fontResource);
-
-      if (faceIndex < 0 || faceIndex >= faces.length) {
-        return current;
-      }
-
-      if (faces.length === 1) {
-        if (presentationUsesFontFamily(current, fontResource.family)) {
-          return current;
-        }
-
-        return {
-          ...current,
-          resources: {
-            ...current.resources,
-            fonts: currentFonts.filter(
-              (_registeredFont, index) => index !== fontResourceIndex,
-            ),
-          },
-        };
-      }
-
-      const updatedResource = FontResourceSchema.safeParse({
-        id: fontResource.id,
-        family: fontResource.family,
-        faces: faces.filter((_face, index) => index !== faceIndex),
-      });
-
-      if (!updatedResource.success) {
-        return current;
-      }
-
-      return {
-        ...current,
-        resources: {
-          ...current.resources,
-          fonts: currentFonts.map((registeredFont, index) =>
-            index === fontResourceIndex ? updatedResource.data : registeredFont,
-          ),
-        },
-      };
-    });
-  }
-
   function addNamedPresentationPaletteColor(name: string, color: Color) {
     setPresentation((current) => {
       const result = addPaletteEntry(current, name, color);
@@ -3705,13 +3561,7 @@ export function EditorWorkspace({
                             setCropEditingMode(id);
                             if (id) setFocalEditingImageId(null);
                           }}
-                          fontResourceControls={{
-                            fontResources: presentation.resources?.fonts ?? [],
-                            onAddFontFace: addFontFace,
-                            onRemoveFontFace: removeFontFace,
-                            isFontFamilyInUse: (family) =>
-                              presentationUsesFontFamily(presentation, family),
-                          }}
+                          fontResources={presentation.resources?.fonts ?? []}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition

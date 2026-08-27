@@ -2171,32 +2171,7 @@
 }
 
 
-.fontManager {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 10px;
-
-  padding: 12px;
-
-  border: 1px solid #303847;
-
-  border-radius: 8px;
-
-  background: #0c111a;
-}
-
-
-.fontManagerTitle {
-  color: #e2e8f0;
-
-  font-size: 13px;
-}
-
-
 .fontSourcePanel,
-.registeredFonts,
 .webFontResults,
 .webFontSelection {
   display: flex;
@@ -2204,13 +2179,6 @@
   flex-direction: column;
 
   gap: 8px;
-}
-
-
-.registeredFonts {
-  padding-top: 10px;
-
-  border-top: 1px solid #252d3a;
 }
 
 
@@ -2304,48 +2272,6 @@
   justify-content: flex-end;
 
   gap: 8px;
-}
-
-
-.registeredFontsToggle {
-  display: flex;
-
-  align-items: center;
-
-  gap: 6px;
-
-  width: 100%;
-
-  padding: 6px 4px;
-
-  border: none;
-
-  border-radius: 6px;
-
-  background: transparent;
-
-  color: #94a3b8;
-
-  font: inherit;
-
-  font-size: 11px;
-
-  font-weight: 600;
-
-  letter-spacing: 0.04em;
-
-  text-align: left;
-
-  text-transform: uppercase;
-
-  cursor: pointer;
-}
-
-
-.registeredFontsToggle:hover {
-  background: #141a24;
-
-  color: #cbd5e1;
 }
 
 

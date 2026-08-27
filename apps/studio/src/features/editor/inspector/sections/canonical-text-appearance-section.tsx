@@ -1,5 +1,6 @@
 import type {
   ElementTypography,
+  FontResource,
   TextElement,
   TextVisualStyle,
 } from "@powershow/document-schema";
@@ -11,7 +12,6 @@ import styles from "../../editor-workspace.module.css";
 
 import { getControlName, parseOptionalNumber } from "../inspector-helpers";
 import type {
-  FontResourceControls,
   UpdateElementEffect,
   UpdateElementTypography,
   UpdateElementVisualStyle,
@@ -34,7 +34,7 @@ interface CanonicalTextAppearanceSectionProps {
   onUpdateTypography: UpdateElementTypography;
   onUpdateEffect: UpdateElementEffect;
   controlPrefix: string;
-  fontResourceControls: FontResourceControls;
+  fontResources: readonly FontResource[];
 }
 
 function readOpacityPercentage(value: number | undefined): number {
@@ -50,7 +50,7 @@ export function CanonicalTextAppearanceSection({
   onUpdateTypography,
   onUpdateEffect,
   controlPrefix,
-  fontResourceControls,
+  fontResources,
 }: CanonicalTextAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const defaults = resolveEffectiveElementStyleDefaults(element);
@@ -59,12 +59,11 @@ export function CanonicalTextAppearanceSection({
     <InspectorSection title={t("inspector.appearance")}>
       {defaults.typography && (
         <ElementTypographyControl
-          selectedElementId={element.id}
           typography={typography}
           effectiveDefaults={defaults.typography}
           onUpdateTypography={onUpdateTypography}
           controlPrefix={controlPrefix}
-          fontResourceControls={fontResourceControls}
+          fontResources={fontResources}
         />
       )}
 

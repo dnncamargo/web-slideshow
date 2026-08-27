@@ -1,11 +1,9 @@
-import type { ElementTypography } from "@powershow/document-schema";
+import type { ElementTypography, FontResource } from "@powershow/document-schema";
 import {
   convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
   type ThemeTypographyDefaults,
 } from "@powershow/theme/element-style-defaults";
-import { useState } from "react";
-
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
@@ -15,19 +13,12 @@ import {
   parseOptionalNumber,
 } from "../inspector-helpers";
 
-import type {
-  FontResourceControls,
-  UpdateElementTypography,
-} from "../inspector-types";
-
-import { PresentationFontManager } from "./presentation-font-manager";
+import type { UpdateElementTypography } from "../inspector-types";
 
 import { EffectiveNumberInput } from "./effective-number-input";
 import { EffectiveLengthInput } from "./effective-length-input";
 
 interface ElementTypographyControlProps {
-  selectedElementId: string;
-
   typography?: ElementTypography | undefined;
 
   effectiveDefaults: ThemeTypographyDefaults;
@@ -36,7 +27,7 @@ interface ElementTypographyControlProps {
 
   controlPrefix: string;
 
-  fontResourceControls: FontResourceControls;
+  fontResources: readonly FontResource[];
 }
 
 function readFontWeightSelection(
@@ -174,15 +165,13 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
 // ============================================================
 
 export function ElementTypographyControl({
-  selectedElementId,
   typography,
   effectiveDefaults,
   onUpdateTypography,
   controlPrefix,
-  fontResourceControls,
+  fontResources,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
-  const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
 
   const currentTypography = typography;
 
@@ -200,10 +189,9 @@ export function ElementTypographyControl({
   const currentFontFamily = currentTypography?.fontFamily ?? "";
   const showUnregisteredFontFamily =
     currentFontFamily !== "" &&
-    !fontResourceControls.fontResources.some(
+    !fontResources.some(
       (fontResource) => fontResource.family === currentFontFamily,
     );
-  const fontManagerId = `${controlPrefix}-presentation-font-manager`;
   const effectiveFontSizePx =
     currentTypography?.fontSize === undefined
       ? effectiveDefaults.fontSize
@@ -243,7 +231,7 @@ export function ElementTypographyControl({
               <option value={currentFontFamily}>{currentFontFamily}</option>
             )}
 
-            {fontResourceControls.fontResources.map((fontResource) => (
+            {fontResources.map((fontResource) => (
               <option key={fontResource.id} value={fontResource.family}>
                 {fontResource.family}
               </option>
@@ -251,34 +239,7 @@ export function ElementTypographyControl({
           </select>
         </label>
 
-        <button
-          className={styles.secondaryButton}
-          type="button"
-          aria-expanded={isFontManagerOpen}
-          aria-controls={fontManagerId}
-          onClick={() => {
-            setIsFontManagerOpen((isOpen) => !isOpen);
-          }}
-        >
-          {t("inspector.manageFonts")}
-        </button>
       </div>
-
-      {isFontManagerOpen && (
-        <PresentationFontManager
-          id={fontManagerId}
-          selectedElementId={selectedElementId}
-          selectedFontFamily={currentFontFamily}
-          onApplyFontFamily={(family) => {
-            onUpdateStyle((currentTypography) => ({
-              ...currentTypography,
-
-              fontFamily: family,
-            }));
-          }}
-          {...fontResourceControls}
-        />
-      )}
 
       <div className={styles.fieldGrid}>
         <div className={styles.field}>

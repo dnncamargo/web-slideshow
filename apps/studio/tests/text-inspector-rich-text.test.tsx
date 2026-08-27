@@ -56,12 +56,7 @@ describe("TextInspector rich text authoring", () => {
             updates.push(elementState);
             renderInspector();
           }}
-          fontResourceControls={{
-            fontResources: [],
-            onAddFontFace: () => {},
-            onRemoveFontFace: () => {},
-            isFontFamilyInUse: () => false,
-          }}
+          fontResources={[]}
         />
       </StudioI18nProvider>,
     );

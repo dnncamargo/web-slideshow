@@ -4,21 +4,34 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ElementTypography } from "@powershow/document-schema";
+import type { ElementTypography, FontResource } from "@powershow/document-schema";
 
-import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
 import { ElementTypographyControl } from "../src/features/editor/inspector/sections/element-typography-control";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const FONT_RESOURCES: FontResourceControls = {
-  fontResources: [],
-  onAddFontFace: vi.fn(),
-  onRemoveFontFace: vi.fn(),
-  isFontFamilyInUse: () => false,
-};
+const FONT_RESOURCES: readonly FontResource[] = [
+  {
+    id: "font-inter",
+    family: "Inter",
+    source: {
+      type: "url",
+      url: "https://example.com/inter.woff2",
+      format: "woff2",
+    },
+  },
+  {
+    id: "font-audiowide",
+    family: "Audiowide",
+    source: {
+      type: "url",
+      url: "https://example.com/audiowide.woff2",
+      format: "woff2",
+    },
+  },
+];
 
 const EFFECTIVE_DEFAULTS = {
   fontSize: 18,
@@ -53,7 +66,6 @@ describe("ElementTypographyControl text capabilities", () => {
     root.render(
       <StudioI18nProvider>
         <ElementTypographyControl
-          selectedElementId="text-1"
           typography={styleState}
           effectiveDefaults={EFFECTIVE_DEFAULTS}
           onUpdateTypography={(update) => {
@@ -62,7 +74,7 @@ describe("ElementTypographyControl text capabilities", () => {
             renderControl();
           }}
           controlPrefix="text"
-          fontResourceControls={FONT_RESOURCES}
+          fontResources={FONT_RESOURCES}
         />
       </StudioI18nProvider>,
     );
@@ -98,6 +110,29 @@ describe("ElementTypographyControl text capabilities", () => {
     expect(selectValue(container, "text-text-wrap-style")).toBe("auto");
     expect(selectValue(container, "text-overflow-wrap")).toBe("normal");
     expect(selectValue(container, "text-text-decoration-line")).toBe("none");
+  });
+
+  it("shows local fonts, clears Default, preserves legacy families, and has no font manager", async () => {
+    await act(async () => {
+      mount({ fontFamily: "Legacy Custom" });
+    });
+
+    const fontFamily = container.querySelector<HTMLSelectElement>("#text-font-family");
+    expect(fontFamily?.value).toBe("Legacy Custom");
+    expect(fontFamily?.querySelector("option[value='Inter']")).not.toBeNull();
+    expect(fontFamily?.querySelector("option[value='Audiowide']")).not.toBeNull();
+    expect(container.textContent).not.toContain("Manage fonts");
+    expect(container.querySelector("[data-presentation-font-manager]")).toBeNull();
+
+    await act(async () => {
+      changeSelect(container, "text-font-family", "Inter");
+    });
+    expect(updates.at(-1)).toEqual({ fontFamily: "Inter" });
+
+    await act(async () => {
+      changeSelect(container, "text-font-family", "");
+    });
+    expect(updates.at(-1)).toEqual({ fontFamily: undefined });
   });
 
   it("mounting does not write any text-capability override", async () => {
@@ -198,7 +233,7 @@ describe("shared text capability controls", () => {
             content: "PowerShow Example",
           }}
           onUpdate={() => {}}
-          fontResourceControls={FONT_RESOURCES}
+          fontResources={FONT_RESOURCES}
         />
       </StudioI18nProvider>,
     );

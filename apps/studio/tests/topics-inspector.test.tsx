@@ -86,12 +86,7 @@ describe("TopicsInspector", () => {
   let updates: TopicsElement[];
   let addTopLevelTopic: ReturnType<typeof vi.fn>;
   let addChildTopic: ReturnType<typeof vi.fn>;
-  let fontResourceControls: {
-    fontResources: [];
-    onAddFontFace: ReturnType<typeof vi.fn>;
-    onRemoveFontFace: ReturnType<typeof vi.fn>;
-    isFontFamilyInUse: ReturnType<typeof vi.fn>;
-  };
+  let fontResources: [];
 
   function renderInspector() {
     root.render(
@@ -111,7 +106,7 @@ describe("TopicsInspector", () => {
             onAddTopLevelTopic: addTopLevelTopic,
             onAddChildTopic: addChildTopic,
           }}
-          fontResourceControls={fontResourceControls}
+          fontResources={fontResources}
         />
       </StudioI18nProvider>,
     );
@@ -122,12 +117,7 @@ describe("TopicsInspector", () => {
     updates = [];
     addTopLevelTopic = vi.fn(() => "topic-created");
     addChildTopic = vi.fn(() => "child-topic-created");
-    fontResourceControls = {
-      fontResources: [],
-      onAddFontFace: vi.fn(),
-      onRemoveFontFace: vi.fn(),
-      isFontFamilyInUse: vi.fn(() => false),
-    };
+    fontResources = [];
     renderInspector();
   }
 

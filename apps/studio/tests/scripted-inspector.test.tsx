@@ -10,7 +10,6 @@ import { ElementInspector } from "../src/features/editor/element-inspector";
 import { ScriptedInspector } from "../src/features/editor/inspector/scripted-inspector";
 import type {
   BlocksAuthoringControls,
-  FontResourceControls,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "../src/features/editor/inspector/inspector-types";
@@ -24,12 +23,7 @@ import { findElementById } from "../src/features/editor/element-tree";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const FONT_RESOURCE_CONTROLS: FontResourceControls = {
-  fontResources: [],
-  onAddFontFace: vi.fn(),
-  onRemoveFontFace: vi.fn(),
-  isFontFamilyInUse: () => false,
-};
+const FONT_RESOURCES: readonly { id: string; family: string }[] = [];
 
 const TOPICS_AUTHORING_CONTROLS: TopicsAuthoringControls = {
   onAddTopLevelTopic: () => null,
@@ -806,7 +800,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
-            fontResourceControls={FONT_RESOURCE_CONTROLS}
+            fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}
             focalEditingImageId={null}
@@ -842,7 +836,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
-            fontResourceControls={FONT_RESOURCE_CONTROLS}
+            fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}
             focalEditingImageId={null}
@@ -869,7 +863,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
-            fontResourceControls={FONT_RESOURCE_CONTROLS}
+            fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}
             focalEditingImageId={null}
