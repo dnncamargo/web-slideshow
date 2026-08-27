@@ -43,6 +43,9 @@ import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom
 import type { CustomLibraryPaletteRepository } from "@/features/custom-library/custom-library-palette-repository";
 import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
 import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library/custom-library-palette-apply";
+import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
+import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
+import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
 import { placeCustomLibraryElementRecipe } from "@/features/custom-library/custom-library-placement";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -374,6 +377,7 @@ export function EditorWorkspace({
   notesRepository,
   customLibraryRepository,
   customLibraryPaletteRepository,
+  customLibraryFontRepository,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
@@ -381,6 +385,7 @@ export function EditorWorkspace({
   notesRepository?: PresentationNotesRepository;
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
+  customLibraryFontRepository?: CustomLibraryFontRepository;
 } = {}) {
   const { locale, t } = useStudioI18n();
 
@@ -2220,6 +2225,35 @@ export function EditorWorkspace({
     return { ok: true };
   }
 
+  function addCustomLibraryFont(font: CustomLibraryFontDraft) {
+    const result = addCustomLibraryFontToPresentation(presentation, font);
+    if (result.kind === "conflict") return { kind: "conflict" as const, addedFaces: 0 };
+    setPresentation(result.presentation);
+    return { kind: result.kind, addedFaces: result.addedFaces };
+  }
+
+  function removePresentationFont(fontResourceId: string): "removed" | "in-use" | "not-found" {
+    const fontResource = presentation.resources?.fonts?.find((font) => font.id === fontResourceId);
+    if (!fontResource) return "not-found";
+    if (presentationUsesFontFamily(presentation, fontResource.family)) return "in-use";
+
+    setPresentation((current) => {
+      const fonts = current.resources?.fonts;
+      if (!fonts?.some((font) => font.id === fontResourceId)) return current;
+      const remainingFonts = fonts.filter((font) => font.id !== fontResourceId);
+      if (remainingFonts.length > 0) {
+        return { ...current, resources: { ...current.resources, fonts: remainingFonts } };
+      }
+      if (current.resources && Object.keys(current.resources).some((key) => key !== "fonts")) {
+        const { fonts: _fonts, ...remainingResources } = current.resources;
+        return { ...current, resources: remainingResources };
+      }
+      const { resources: _resources, ...presentationWithoutResources } = current;
+      return presentationWithoutResources;
+    });
+    return "removed";
+  }
+
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -3562,11 +3596,16 @@ export function EditorWorkspace({
         ) : rightPanelMode === "resources" ? (
           <CustomResourcesWorkspace
             customLibraryPaletteRepository={customLibraryPaletteRepository}
+            customLibraryFontRepository={customLibraryFontRepository}
             presentationColors={presentation.palette?.colors ?? []}
+            presentationFonts={presentation.resources?.fonts ?? []}
             onAddLibraryPalette={addCustomLibraryPalette}
+            onAddLibraryFont={addCustomLibraryFont}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
+            onRemovePresentationFont={removePresentationFont}
+            isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
           />
         ) : (
           <aside className={styles.inspector}>
