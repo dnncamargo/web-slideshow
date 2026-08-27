@@ -128,6 +128,31 @@ describe("ColorControl linked palette UX", () => {
     expect(container.querySelector("#color-palette-chooser")).toBeNull();
   });
 
+  it("emits a literal Color for native picker edits", () => {
+    const onChange = renderControl("#facc15");
+    const picker = container.querySelector<HTMLInputElement>("input[type=color]");
+    act(() => {
+      if (picker) {
+        setInputValue(picker, "#2563eb");
+        picker.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(onChange).toHaveBeenCalledWith("#2563eb");
+  });
+
+  it("does not author a format-only change when the value is undefined", () => {
+    const onChange = renderControl(undefined);
+    const format = container.querySelector<HTMLSelectElement>("#color-format");
+    act(() => {
+      if (format) {
+        format.value = "rgba";
+        format.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("rgba(248, 250, 252, 1)");
+  });
+
   it("does not offer a chooser for an empty palette and disables authored actions", () => {
     const onChange = renderControl({ kind: "palette", colorId: "missing" }, vi.fn(), [], true, []);
     expect(container.querySelector("button[aria-expanded]")).toBeNull();

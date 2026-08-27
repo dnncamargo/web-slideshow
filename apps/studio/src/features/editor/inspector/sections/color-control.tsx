@@ -1,20 +1,14 @@
 import {
-  colorToPickerHex,
   detachColorValue,
-  formatColorAsHex,
-  formatColorAsRgba,
-  normalizeColor,
-  parseColor,
-  replaceColorRgb,
   type Color,
   type ColorValue,
   isPaletteColorReference,
   resolveColorValue,
-  type ColorFormat,
 } from "@powershow/document-schema";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -31,20 +25,6 @@ interface ColorControlProps {
   disabled?: boolean;
 }
 
-function getColorFormat(value: string): ColorFormat {
-  return value.trim().startsWith("#") ? "hex" : "rgba";
-}
-
-function formatColor(value: string, format: ColorFormat): Color | undefined {
-  const color = parseColor(value);
-
-  if (!color) {
-    return undefined;
-  }
-
-  return format === "hex" ? formatColorAsHex(color) : formatColorAsRgba(color);
-}
-
 export function ColorControl({
   id,
   name,
@@ -58,19 +38,13 @@ export function ColorControl({
   const sourceValue = value === undefined
     ? DEFAULT_PICKER_COLOR
     : resolveColorValue(value, palette ? { colors: palette.colors } : undefined) ?? DEFAULT_PICKER_COLOR;
-  const [draft, setDraft] = useState(sourceValue);
-  const [format, setFormat] = useState<ColorFormat>(() =>
-    getColorFormat(sourceValue),
-  );
+  const [literalValue, setLiteralValue] = useState(sourceValue);
   const [isPaletteChooserOpen, setIsPaletteChooserOpen] = useState(false);
-
-  useEffect(() => {
-    setDraft(sourceValue);
-    setFormat(getColorFormat(sourceValue));
-  }, [sourceValue]);
-
-  const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(sourceValue);
-  const currentColor = normalizeColor(draft) ?? normalizeColor(sourceValue);
+  const [lastSourceValue, setLastSourceValue] = useState(sourceValue);
+  if (sourceValue !== lastSourceValue) {
+    setLastSourceValue(sourceValue);
+    setLiteralValue(sourceValue);
+  }
   const paletteColors = palette?.colors ?? [];
   const isLinked = value !== undefined && isPaletteColorReference(value);
   const linkedPaletteColor = isLinked
@@ -86,81 +60,22 @@ export function ColorControl({
 
   return (
     <div className={styles.colorControlGroup}>
-      <div className={styles.colorValueControl}>
-        <input
-          id={id}
-          name={name}
-          className={styles.colorInput}
-          type="color"
-          value={pickerColor ?? DEFAULT_PICKER_COLOR}
-          disabled={disabled}
-          onChange={(event) => {
-            const next = replaceColorRgb(
-              parseColor(draft) ? draft : sourceValue,
-              event.target.value,
-              format,
-            );
+      <LiteralColorInput
+        id={id}
+        name={name}
+        value={literalValue}
+        disabled={disabled}
+        onChange={(color, source) => {
+          setLiteralValue(color);
+          setIsPaletteChooserOpen(false);
 
-            if (next) {
-              setDraft(next);
-              setIsPaletteChooserOpen(false);
-              emitLiteralColor(next);
-            }
-          }}
-        />
+          if (source === "format" && value === undefined) {
+            return;
+          }
 
-        <input
-          id={`${id}-value`}
-          name={`${name}Value`}
-          type="text"
-          autoComplete="off"
-          value={draft}
-          disabled={disabled}
-          onChange={(event) => {
-            const nextDraft = event.target.value;
-            const normalized = normalizeColor(nextDraft);
-
-            setDraft(nextDraft);
-
-            if (normalized) {
-              setFormat(getColorFormat(nextDraft));
-              setIsPaletteChooserOpen(false);
-              emitLiteralColor(normalized);
-            }
-          }}
-        />
-
-        <select
-          id={`${id}-format`}
-          name={`${name}Format`}
-          value={format}
-          disabled={disabled}
-          onChange={(event) => {
-            const nextFormat = event.target.value as ColorFormat;
-
-            if (nextFormat !== "hex" && nextFormat !== "rgba") {
-              return;
-            }
-
-            const next = formatColor(draft, nextFormat);
-
-            if (!next) {
-              return;
-            }
-
-            setFormat(nextFormat);
-            setDraft(next);
-            setIsPaletteChooserOpen(false);
-
-            if (value !== undefined) {
-              emitLiteralColor(next);
-            }
-          }}
-        >
-          <option value="hex">HEX</option>
-          <option value="rgba">RGBA</option>
-        </select>
-      </div>
+          emitLiteralColor(color);
+        }}
+      />
 
       {isLinked && (
         <div className={styles.colorLinkedStatus} role="status">
@@ -219,8 +134,7 @@ export function ColorControl({
                   style={{ backgroundColor: color.value }}
                   aria-pressed={isLinked && value.colorId === color.id}
                   onClick={() => {
-                    setDraft(color.value);
-                    setFormat(getColorFormat(color.value));
+                    setLiteralValue(color.value);
                     setIsPaletteChooserOpen(false);
                     onChange({ kind: "palette", colorId: color.id });
                   }}
@@ -248,8 +162,7 @@ export function ColorControl({
                   title={t("inspector.applyPaletteColor", { color })}
                   style={{ backgroundColor: color }}
                   onClick={() => {
-                    setDraft(color);
-                    setFormat(getColorFormat(color));
+                    setLiteralValue(color);
                     setIsPaletteChooserOpen(false);
                     emitLiteralColor(color);
                   }}
