@@ -27,16 +27,14 @@
   padding: 14px;
 }
 
-.section,
+.scope,
 .group,
-.paletteList,
 .localColorList {
   display: flex;
   flex-direction: column;
 }
 
-.section,
-.paletteList {
+.scope {
   gap: 14px;
 }
 
@@ -68,37 +66,7 @@
   color: #cbd5e1;
   font-size: 12px;
 }
-
-.paletteCard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid #303847;
-  border-radius: 7px;
-  background: #0f141d;
-}
-
-.paletteCardHeader,
-.localColorRow {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.paletteCardHeader strong,
-.localColorRow span {
-  min-width: 0;
-  overflow: hidden;
-  color: #e2e8f0;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.paletteCardHeader span,
+.colorCount,
 .description,
 .status {
   color: #94a3b8;
@@ -136,6 +104,44 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.localColorItem {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.localColorInlineName {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.localColorInlineName:hover,
+.localColorInlineName:focus {
+  border-color: #303847;
+  background: #0f141d;
+  outline: none;
+}
+
+.localColorValueRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.localColorValueRow > :first-child {
+  min-width: 0;
+  flex: 1;
 }
 
 .masterPaletteRow {
@@ -215,23 +221,6 @@
 .moreSwatches {
   color: #94a3b8;
   font-size: 11px;
-}
-
-.localColorRow code {
-  color: #cbd5e1;
-  font-size: 10px;
-}
-
-.localColorEditor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.localColorEditorActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 .statusGroup {

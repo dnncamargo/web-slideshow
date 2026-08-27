@@ -120,7 +120,13 @@ describe("Custom Resources palette composition", () => {
   it("uses Add palette as a chooser and exposes no master CRUD actions", async () => {
     await mount();
     expect(container.textContent).not.toContain("New");
-    expect(container.textContent).toContain("Edit");
+    expect(container.textContent).toContain("From Library");
+    expect(container.textContent).toContain("This Presentation");
+    expect(container.textContent).not.toContain("Custom Library");
+    expect(container.textContent).not.toContain("Fonts");
+    expect(container.textContent).not.toContain("Styles");
+    expect(container.querySelector("details[open]")).not.toBeNull();
+    expect(container.querySelector("[data-presentation-color-name-input]")).toBeNull();
     expect(container.textContent).not.toContain("Copy");
     expect(container.textContent).not.toContain("Delete");
     await act(async () => button("+ Add palette").click());
@@ -135,15 +141,17 @@ describe("Custom Resources palette composition", () => {
     await act(async () => button("+ Add palette").click());
     await act(async () => container.querySelector<HTMLButtonElement>("[aria-label='Add Supernova']")?.click());
     await act(async () => container.querySelector<HTMLButtonElement>("[aria-label='Add Supernova']")?.click());
-    expect(container.textContent).toContain("Accent");
-    expect(container.textContent).toContain("Background");
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>("[aria-label^='Name for']")).map((input) => input.value)).toEqual(["Accent", "Accent", "Background", "Accent", "Background"]);
     expect(container.querySelectorAll("[data-presentation-palette] [data-presentation-color-row]")).toHaveLength(5);
     expect(container.textContent).not.toContain("master");
   });
 
   it("adds individual literal colors without master writes and removes local colors", async () => {
     const repository = await mount();
-    await act(async () => button("+ Add palette").click());
+    const addLocal = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ Add to Presentation");
+    if (!addLocal) throw new Error("Add to Presentation button not found");
+    await act(async () => addLocal.click());
+    expect(container.textContent).not.toContain("Supernova");
     const nameInput = container.querySelector<HTMLInputElement>("[data-presentation-color-name-input]");
     if (!nameInput) throw new Error("color name input not found");
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(nameInput, "RGBA color");
@@ -156,36 +164,52 @@ describe("Custom Resources palette composition", () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(valueInput, "rgba(10, 20, 30, 0.4)");
     act(() => valueInput.dispatchEvent(new Event("input", { bubbles: true })));
     await act(async () => button("Add").click());
-    expect(container.textContent).toContain("RGBA color");
-    expect(container.textContent).toContain("rgba(10, 20, 30, 0.4)");
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>("[aria-label^='Name for']")).map((input) => input.value)).toContain("RGBA color");
+    expect(container.querySelector("#custom-resources-literal-color-rgba-color-value")).not.toBeNull();
     expect(repository.savePalette).not.toHaveBeenCalled();
     expect(repository.updatePalette).not.toHaveBeenCalled();
     expect(repository.deletePalette).not.toHaveBeenCalled();
     const remove = container.querySelector<HTMLButtonElement>("button[aria-label='Remove RGBA color']");
     if (!remove) throw new Error("local color remove button not found");
     await act(async () => remove.click());
-    expect(container.textContent).not.toContain("RGBA color");
-    expect(container.textContent).toContain("Accent");
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>("[aria-label^='Name for']")).map((input) => input.value)).not.toContain("RGBA color");
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>("[aria-label^='Name for']")).map((input) => input.value)).toContain("Accent");
   });
 
-  it("edits one local color at a time, blocks blank names, and cancels drafts", async () => {
+  it("keeps local color editing inline and commits trimmed names", async () => {
     await mount();
-    await act(async () => container.querySelector<HTMLButtonElement>("button[aria-label='Edit Accent']")?.click());
-    expect(container.querySelector<HTMLInputElement>("[data-presentation-color-edit-name]")?.value).toBe("Accent");
-    expect(container.querySelectorAll("[data-presentation-color-editor]")).toHaveLength(1);
-
-    const nameInput = container.querySelector<HTMLInputElement>("[data-presentation-color-edit-name]");
+    const nameInput = container.querySelector<HTMLInputElement>("[aria-label='Name for Accent']");
     if (!nameInput) throw new Error("local color edit name input not found");
+    await act(async () => {
+      setInputValue(nameInput, "  Very dark pink  ");
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => {
+      nameInput.focus();
+      nameInput.blur();
+    });
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>("[aria-label^='Name for']")).map((input) => input.value)).toContain("Very dark pink");
+    expect(container.querySelector("button[aria-label='Edit Accent']")).toBeNull();
+    expect(container.querySelector("[data-presentation-color-editor]")).toBeNull();
+    expect(container.querySelector("#custom-resources-literal-color-accent-value")).not.toBeNull();
+    expect(container.textContent).toContain("1 colors");
+  });
+
+  it("reverts blank local names without changing the canonical color", async () => {
+    await mount();
+    const nameInput = container.querySelector<HTMLInputElement>("[aria-label='Name for Accent']");
+    if (!nameInput) throw new Error("local color name input not found");
     await act(async () => {
       setInputValue(nameInput, "   ");
       nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    const save = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-presentation-color-editor] button"))
-      .find((button) => button.textContent?.trim() === "Save");
-    expect(save?.disabled).toBe(true);
-    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-color-editor] button")?.click());
-    expect(container.querySelector("[data-presentation-color-editor]")).toBeNull();
-    expect(container.textContent).toContain("Accent");
-    expect(container.textContent).toContain("#facc15");
+    await act(async () => {
+      nameInput.focus();
+      nameInput.blur();
+    });
+    expect(container.querySelector<HTMLInputElement>("[aria-label='Name for Accent']")?.value).toBe("Accent");
+    expect(container.querySelector("#custom-resources-literal-color-accent-value")).not.toBeNull();
   });
 });

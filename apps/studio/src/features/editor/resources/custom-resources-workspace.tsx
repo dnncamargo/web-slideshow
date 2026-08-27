@@ -4,6 +4,7 @@ import type { Color, PresentationPaletteColor } from "@powershow/document-schema
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
+import { InspectorSection } from "@/features/editor/inspector/inspector-section";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
 import type {
@@ -24,12 +25,6 @@ interface CustomResourcesWorkspaceProps {
   onRemovePresentationColor: (id: string) => void;
 }
 
-type LocalColorEditingState = {
-  id: string;
-  name: string;
-  value: Color;
-} | null;
-
 type PaletteLoadState =
   | { kind: "loading" }
   | { kind: "ready"; records: CustomLibraryPaletteRecord[] }
@@ -48,18 +43,10 @@ export function CustomResourcesWorkspace({
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [localColorAddOpen, setLocalColorAddOpen] = useState(false);
   const [colorName, setColorName] = useState("");
   const [colorValue, setColorValue] = useState<Color>("#ffffff");
-  const [editingColor, setEditingColor] = useState<LocalColorEditingState>(null);
   const requestRevisionRef = useRef(0);
-
-  useEffect(() => {
-    if (editingColor && !presentationColors.some((color) => color.id === editingColor.id)) {
-      // The editor is keyed by the stable id; an external delete closes it safely.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEditingColor(null);
-    }
-  }, [editingColor, presentationColors]);
 
   const loadPalettes = useCallback(() => {
     const requestRevision = requestRevisionRef.current + 1;
@@ -89,103 +76,109 @@ export function CustomResourcesWorkspace({
     setColorName("");
   }
 
-  function saveEditedColor(): void {
-    if (!editingColor || !editingColor.name.trim()) return;
-    onUpdatePresentationColor(editingColor.id, {
-      name: editingColor.name.trim(),
-      value: editingColor.value,
-    });
-    setEditingColor(null);
-  }
-
   return (
     <aside className={styles.workspace} aria-label={t("editor.customResources")}>
       <div className={styles.header}><span>{t("customResources.title")}</span></div>
 
       <div className={styles.content}>
-        <section className={styles.section} aria-labelledby="custom-resources-palettes">
-          <h2 id="custom-resources-palettes" className={styles.sectionTitle}>{t("customResources.palettes")}</h2>
-
-          <div className={styles.group}>
-            <div className={styles.groupHeader}>
-              <h3 className={styles.groupTitle}>{t("customResources.customLibrary")}</h3>
-              <button type="button" className={styles.resourceAction} onClick={() => setChooserOpen((open) => !open)}>
-                {chooserOpen ? t("customResources.closePaletteChooser") : t("customResources.addPalette")}
-              </button>
-            </div>
-            {chooserOpen ? <MasterPaletteChooser loadState={loadState} onRetry={loadPalettes} onAdd={onAddLibraryPalette} /> : null}
-          </div>
-
-          {chooserOpen ? (
+        <section className={styles.scope} aria-labelledby="custom-resources-from-library">
+          <h2 id="custom-resources-from-library" className={styles.sectionTitle}>{t("customResources.fromLibrary")}</h2>
+          <InspectorSection title={t("customResources.palettes")} defaultOpen>
             <div className={styles.group}>
-              <h3 className={styles.groupTitle}>{t("customResources.addToPresentation")}</h3>
+              <div className={styles.groupHeader}>
+                <button type="button" className={styles.resourceAction} onClick={() => setChooserOpen((open) => !open)}>
+                  {chooserOpen ? t("customResources.closePaletteChooser") : t("customResources.addPalette")}
+                </button>
+              </div>
+              {chooserOpen ? <MasterPaletteChooser loadState={loadState} onRetry={loadPalettes} onAdd={onAddLibraryPalette} /> : null}
+            </div>
+          </InspectorSection>
+        </section>
+
+        <section className={styles.scope} aria-labelledby="custom-resources-this-presentation">
+          <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
+          <div className={styles.group}>
+            <h3 className={styles.groupTitle}>{t("customResources.palettes")}</h3>
+            {presentationColors.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationColors")}</p> : null}
+            <div className={styles.localColorList} data-presentation-palette>
+              {presentationColors.map((color) => (
+                <LocalPresentationColorRow
+                  key={color.id}
+                  color={color}
+                  onUpdate={onUpdatePresentationColor}
+                  onRemove={onRemovePresentationColor}
+                />
+              ))}
+            </div>
+            <span className={styles.colorCount}>{t("customResources.colorCount", { count: presentationColors.length })}</span>
+            <button type="button" className={styles.resourceAction} onClick={() => setLocalColorAddOpen((open) => !open)}>
+              {localColorAddOpen ? t("customResources.closePaletteChooser") : t("customResources.addToPresentation")}
+            </button>
+            {localColorAddOpen ? (
               <div className={styles.localColorAdd}>
                 <label className={styles.localColorName}>
                   <span>{t("customResources.colorName")}</span>
                   <input data-presentation-color-name-input value={colorName} onChange={(event) => setColorName(event.target.value)} />
                 </label>
-                <LiteralColorInput
-                  id="custom-resources-literal-color"
-                  name={t("customResources.color")}
-                  value={colorValue}
-                  onChange={setColorValue}
-                />
-                <button type="button" className={styles.resourceAction} disabled={!colorName.trim()} onClick={addIndividualColor}>
-                  {t("customResources.addColor")}
-                </button>
+                <LiteralColorInput id="custom-resources-literal-color" name={t("customResources.color")} value={colorValue} onChange={setColorValue} />
+                <button type="button" className={styles.resourceAction} disabled={!colorName.trim()} onClick={addIndividualColor}>{t("customResources.addColor")}</button>
               </div>
-            </div>
-          ) : null}
-
-          <div className={styles.group}>
-            <h3 className={styles.groupTitle}>{t("customResources.thisPresentation")}</h3>
-            {presentationColors.length === 0 ? (
-              <p className={styles.status}>{t("customResources.noPresentationColors")}</p>
-            ) : (
-              <div className={styles.paletteList}>
-                <div className={styles.paletteCard} data-presentation-palette>
-                  <div className={styles.paletteCardHeader}>
-                    <strong>{t("customResources.thisPresentation")}</strong>
-                    <span>{t("customResources.colorCount", { count: presentationColors.length })}</span>
-                  </div>
-                  <div className={styles.localColorList}>
-                    {presentationColors.map((color) => editingColor?.id === color.id ? (
-                      <div key={color.id} className={styles.localColorEditor} data-presentation-color-editor>
-                        <label className={styles.localColorName}>
-                          <span>{t("customResources.colorName")}</span>
-                          <input
-                            data-presentation-color-edit-name
-                            value={editingColor.name}
-                            onChange={(event) => setEditingColor({ ...editingColor, name: event.target.value })}
-                          />
-                        </label>
-                        <LiteralColorInput
-                          id="custom-resources-edit-literal-color"
-                          name={t("customResources.color")}
-                          value={editingColor.value}
-                          onChange={(value) => setEditingColor({ ...editingColor, value })}
-                        />
-                        <div className={styles.localColorEditorActions}>
-                          <button type="button" className={styles.resourceAction} onClick={() => setEditingColor(null)}>{t("customResources.cancel")}</button>
-                          <button type="button" className={styles.resourceAction} disabled={!editingColor.name.trim()} onClick={saveEditedColor}>{t("customLibrary.palette.save")}</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div key={color.id} className={styles.localColorRow} data-presentation-color-row>
-                        <span>{color.name}</span>
-                        <code>{color.value}</code>
-                        <button type="button" className={styles.resourceAction} aria-label={t("customResources.editPresentationColor", { name: color.name })} onClick={() => setEditingColor({ id: color.id, name: color.name, value: color.value })}>{t("customResources.edit")}</button>
-                        <button type="button" className={styles.removeColor} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemovePresentationColor(color.id)}>×</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
         </section>
       </div>
     </aside>
+  );
+}
+
+function LocalPresentationColorRow({
+  color,
+  onUpdate,
+  onRemove,
+}: {
+  color: PresentationPaletteColor;
+  onUpdate: (id: string, patch: { name: string; value: Color }) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useStudioI18n();
+  const [nameDraft, setNameDraft] = useState(color.name);
+  const [lastCanonicalName, setLastCanonicalName] = useState(color.name);
+
+  if (color.name !== lastCanonicalName) {
+    setLastCanonicalName(color.name);
+    setNameDraft(color.name);
+  }
+
+  const commitName = () => {
+    const nextName = nameDraft.trim();
+    if (!nextName || nextName === color.name) {
+      setNameDraft(color.name);
+      return;
+    }
+    onUpdate(color.id, { name: nextName, value: color.value });
+  };
+
+  return (
+    <div className={styles.localColorItem} data-presentation-color-row>
+      <input
+        className={styles.localColorInlineName}
+        aria-label={t("customResources.colorNameFor", { name: color.name })}
+        value={nameDraft}
+        onChange={(event) => setNameDraft(event.target.value)}
+        onBlur={commitName}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commitName();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <div className={styles.localColorValueRow}>
+        <LiteralColorInput id={`custom-resources-literal-color-${color.id}`} name={t("customResources.color")} value={color.value} onChange={(value) => onUpdate(color.id, { name: color.name, value })} />
+        <button type="button" className={styles.removeColor} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemove(color.id)}>×</button>
+      </div>
+    </div>
   );
 }
 

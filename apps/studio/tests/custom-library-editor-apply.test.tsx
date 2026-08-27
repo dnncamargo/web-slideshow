@@ -336,18 +336,15 @@ describe("Custom Library Editor integration", () => {
     expect(canvas?.style.getPropertyValue(secondaryVariable)).toBe("#2563eb");
     expect(canvas?.innerHTML).toContain("#22c55e");
 
-    const editButton = containerElement.querySelector<HTMLButtonElement>("button[aria-label='Edit Accent']");
-    expect(editButton).toBeTruthy();
-    await act(async () => editButton?.click());
-    const accentInput = containerElement.querySelector<HTMLInputElement>("#custom-resources-edit-literal-color-value");
+    const accentInput = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-row] input[type='text']");
     expect(accentInput).toBeTruthy();
     await act(async () => {
       if (accentInput) {
         setInputValue(accentInput, "#2563eb");
         accentInput.dispatchEvent(new Event("input", { bubbles: true }));
+        accentInput.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
-    await act(async () => containerElement.querySelector<HTMLButtonElement>("[data-presentation-color-editor] button:last-child")?.click());
     expect(canvas?.style.getPropertyValue(accentVariable)).toBe("#2563eb");
     await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
     expect(saved.at(-1)?.palette?.colors[0]?.value).toBe("#2563eb");
@@ -471,10 +468,10 @@ describe("Custom Library Editor integration", () => {
     ));
     await clickToolbarMode("Custom Resources");
     expect(containerElement.querySelector("[data-presentation-palette]")).toBeTruthy();
-    expect(containerElement.textContent).toContain("Accent");
-    expect(containerElement.textContent).toContain("#facc15");
-    expect(containerElement.textContent).toContain("Surface");
-    expect(containerElement.textContent).toContain("#0f172a");
+    expect(containerElement.querySelector<HTMLInputElement>("[aria-label='Name for Accent']")?.value).toBe("Accent");
+    expect(containerElement.querySelector<HTMLInputElement>("[data-presentation-color-row] input[type='text']")?.value).toBe("#facc15");
+    expect(containerElement.querySelector<HTMLInputElement>("[aria-label='Name for Surface']")?.value).toBe("Surface");
+    expect(Array.from(containerElement.querySelectorAll<HTMLInputElement>("[data-presentation-color-row] input[type='text']")).map((input) => input.value)).toEqual(["#facc15", "#0f172a"]);
 
     await act(async () => root.unmount());
     root = createRoot(containerElement);
@@ -583,18 +580,23 @@ describe("Custom Library Editor integration", () => {
     });
     await mount(source, saved, repository);
     await clickToolbarMode("Custom Resources");
-    await act(async () => containerElement.querySelector<HTMLButtonElement>("button[aria-label='Edit Accent']")?.click());
-    const nameInput = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-edit-name]");
-    const valueInput = containerElement.querySelector<HTMLInputElement>("#custom-resources-edit-literal-color-value");
+    const nameInput = containerElement.querySelector<HTMLInputElement>("[aria-label='Name for Accent']");
+    const valueInput = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-row] input[type='text']");
     if (!nameInput || !valueInput) throw new Error("local color editor inputs not found");
     await act(async () => {
       setInputValue(nameInput, "Primary");
       nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => {
+      nameInput.focus();
+      nameInput.blur();
+    });
+    await act(async () => {
       setInputValue(valueInput, "#2563eb");
       valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+      valueInput.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    await act(async () => Array.from(containerElement.querySelectorAll<HTMLButtonElement>("[data-presentation-color-editor] button"))
-      .find((button) => button.textContent?.trim() === "Save")?.click());
     const next = await saveAfterApply(saved);
     expect(next.palette?.colors).toEqual([{ id: "accent", name: "Primary", value: "#2563eb" }]);
     const linked = next.slides[0]?.elements[0];
