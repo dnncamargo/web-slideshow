@@ -33,10 +33,10 @@ export function CustomLibraryFontAcquisition({
   const [lastAddedFamily, setLastAddedFamily] = useState<string | null>(null);
 
   return (
-    <div>
+    <div className={styles.fontAcquisition}>
       <h2 className={styles.detailsHeading}>{t("customLibrary.fontManagement.title")}</h2>
 
-      <label>
+      <label className={styles.fontAcquisitionSource}>
         <span>{t("customLibrary.fontManagement.source")}</span>
         <select
           id="custom-library-font-source"
@@ -96,9 +96,11 @@ export function CustomLibraryFontAcquisition({
         />
       ) : null}
 
-      <Button size="compact" variant="secondary" disabled={saving} onClick={onClose}>
+      <div className={styles.fontAcquisitionFooter}>
+        <Button size="compact" variant="secondary" disabled={saving} onClick={onClose}>
         {t("customLibrary.fontManagement.close")}
-      </Button>
+        </Button>
+      </div>
     </div>
   );
 }

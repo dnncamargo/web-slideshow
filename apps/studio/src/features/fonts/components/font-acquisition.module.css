@@ -16,6 +16,13 @@
 .webFontResultActions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
 .webFontAddVariantRow, .webFontVariantActions { display: flex; align-items: center; gap: 8px; }
 .webFontVariantActions { justify-content: flex-end; }
+.webFontWeightChips { display: flex; flex-wrap: wrap; gap: 5px; }
+.webFontWeightChip { min-width: 38px; min-height: 28px; padding: 0 7px; border: 1px solid #303847; border-radius: 999px; background: #141a24; color: #cbd5e1; font-size: 11px; cursor: pointer; }
+.webFontWeightChip:hover { border-color: #6366f1; color: #fff; }
+.webFontWeightChipSelected { border-color: #818cf8; background: #3730a3; color: #fff; }
+.webFontWeightChipAdded { border-color: #365b46; background: #17251d; color: #86efac; }
+.webFontPreview { display: flex; gap: 10px; align-items: baseline; padding: 10px 0 3px; color: #e2e8f0; font-size: 19px; }
+.webFontSelectionSummary { color: #94a3b8; font-size: 11px; }
 .webFontSelection { padding: 9px; border: 1px solid #303847; border-radius: 7px; background: rgba(99, 102, 241, 0.06); }
 .googleFontResolved { padding: 9px; border: 1px solid #293140; border-radius: 7px; background: #0d121b; }
 .googleFontResolvedHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #94a3b8; font-size: 10px; }

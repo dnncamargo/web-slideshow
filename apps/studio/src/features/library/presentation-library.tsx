@@ -216,6 +216,7 @@ export function PresentationLibrary({
   const customLibraryFontLoadRef = useRef(0);
   const customLibraryFontsRef = useRef<CustomLibraryFontRecord[]>([]);
   const customLibraryFontWriteQueueRef = useRef(Promise.resolve());
+  const customLibraryFontPendingWritesRef = useRef(0);
   const customLibraryDeleteRef = useRef(false);
   const customLibraryPaletteDeleteRef = useRef(false);
   const customLibraryFontDeleteRef = useRef(false);
@@ -482,6 +483,9 @@ export function PresentationLibrary({
 
   const handleAddCustomLibraryFontFace = useCallback(
     (family: string, face: FontFaceResource): Promise<boolean> => {
+      customLibraryFontPendingWritesRef.current += 1;
+      setCustomLibraryFontWriteState("saving");
+
       const operation = customLibraryFontWriteQueueRef.current.then(async () => {
         const currentFonts = customLibraryFontsRef.current;
         const normalizedFamily = normalizeFontFamily(family);
@@ -493,7 +497,6 @@ export function PresentationLibrary({
           return false;
         }
 
-        setCustomLibraryFontWriteState("saving");
         setCustomLibraryFontError(null);
 
         try {
@@ -524,16 +527,27 @@ export function PresentationLibrary({
             setCustomLibraryFontError(t("customLibrary.fontManagement.saveFailed"));
           }
           return false;
-        } finally {
-          if (mountedRef.current) setCustomLibraryFontWriteState(null);
         }
       });
 
-      customLibraryFontWriteQueueRef.current = operation.then(
+      const settledOperation = operation.finally(() => {
+        customLibraryFontPendingWritesRef.current = Math.max(
+          0,
+          customLibraryFontPendingWritesRef.current - 1,
+        );
+        if (
+          mountedRef.current &&
+          customLibraryFontPendingWritesRef.current === 0
+        ) {
+          setCustomLibraryFontWriteState(null);
+        }
+      });
+
+      customLibraryFontWriteQueueRef.current = settledOperation.then(
         () => undefined,
         () => undefined,
       );
-      return operation;
+      return settledOperation;
     },
     [customLibraryFontRepository, t],
   );
