@@ -72,6 +72,9 @@ describe("FirestoreCustomLibraryPaletteRepository", () => {
     mockedGetCurrentUser.mockReturnValue({ uid: "anonymous", isAnonymous: true } as never);
     await expect(repository.savePalette(palette)).rejects.toBeInstanceOf(FirebaseAuthenticationError);
     expect(mockedSetDoc).not.toHaveBeenCalled();
+
+    await expect(repository.updatePalette("palette-1", palette)).rejects.toBeInstanceOf(FirebaseAuthenticationError);
+    expect(mockedGetDoc).not.toHaveBeenCalled();
   });
 
   it("creates an auto-ID document in the user's palette collection and writes only the validated body", async () => {
@@ -102,6 +105,61 @@ describe("FirestoreCustomLibraryPaletteRepository", () => {
     await expect(repository.savePalette(invalid)).rejects.toBeInstanceOf(
       InvalidCustomLibraryPaletteForPersistenceError,
     );
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+  });
+
+  it("updates the exact existing ID with a complete validated replacement", async () => {
+    const updated = {
+      name: "Brand 2026",
+      colors: [
+        { name: "Accent", value: "#facc15" },
+        { name: "Accent", value: "#2563eb" },
+        { name: "Success", value: "#2563eb" },
+      ],
+    };
+    mockedGetDoc.mockResolvedValue({ exists: () => true } as never);
+
+    await expect(repository.updatePalette("palette-1", updated)).resolves.toBeUndefined();
+
+    expect(mockedDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      "users",
+      "user-1",
+      "customLibraryPalettes",
+      "palette-1",
+    );
+    expect(mockedGetDoc).toHaveBeenCalledWith({ id: "palette-1" });
+    expect(mockedSetDoc).toHaveBeenCalledWith({ id: "palette-1" }, updated);
+    expect(mockedSetDoc.mock.calls[0]?.[1]).toEqual({
+      name: "Brand 2026",
+      colors: [
+        { name: "Accent", value: "#facc15" },
+        { name: "Accent", value: "#2563eb" },
+        { name: "Success", value: "#2563eb" },
+      ],
+    });
+    expect(mockedSetDoc.mock.calls[0]?.[1]).not.toHaveProperty("description");
+  });
+
+  it.each([
+    ["name", { ...palette, name: " Brand " }],
+    ["color name", { ...palette, colors: [{ name: " Text ", value: "#facc15" }] }],
+    ["color literal", { ...palette, colors: [{ name: "Accent", value: "not-a-color" }] }],
+    ["zero colors", { ...palette, colors: [] }],
+  ])("rejects invalid %s before update reads or writes", async (_kind, invalid) => {
+    await expect(repository.updatePalette("palette-1", invalid)).rejects.toBeInstanceOf(
+      InvalidCustomLibraryPaletteForPersistenceError,
+    );
+    expect(mockedGetDoc).not.toHaveBeenCalled();
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+  });
+
+  it("rejects an update for a missing target without creating a document", async () => {
+    mockedGetDoc.mockResolvedValue({ exists: () => false } as never);
+
+    const error = await repository.updatePalette("missing", palette).catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(FirestoreOperationError);
+    expect(error).toHaveProperty("message", 'Failed to update Custom Library palette "missing": palette does not exist.');
     expect(mockedSetDoc).not.toHaveBeenCalled();
   });
 
@@ -171,6 +229,7 @@ describe("FirestoreCustomLibraryPaletteRepository", () => {
 
   it.each([
     ["save", () => repository.savePalette(palette), mockedSetDoc],
+    ["update lookup", () => repository.updatePalette("palette-1", palette), mockedGetDoc],
     ["get", () => repository.getPalette("palette-1"), mockedGetDoc],
     ["list", () => repository.listPalettes(), mockedGetDocs],
     ["delete", () => repository.deletePalette("palette-1"), mockedDeleteDoc],
@@ -181,5 +240,16 @@ describe("FirestoreCustomLibraryPaletteRepository", () => {
     const error = await action().catch((value: unknown) => value);
     expect(error).toBeInstanceOf(FirestoreOperationError);
     expect((error as FirestoreOperationError).cause).toBe(cause);
+  });
+
+  it("translates update writes and preserves the raw Firestore cause", async () => {
+    mockedGetDoc.mockResolvedValue({ exists: () => true } as never);
+    const cause = new Error("Firestore unavailable");
+    mockedSetDoc.mockRejectedValue(cause);
+
+    const error = await repository.updatePalette("palette-1", palette).catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(FirestoreOperationError);
+    expect((error as FirestoreOperationError).cause).toBe(cause);
+    expect(error).toHaveProperty("message", 'Failed to update Custom Library palette "palette-1".');
   });
 });

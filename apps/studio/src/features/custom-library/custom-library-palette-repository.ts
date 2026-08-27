@@ -7,6 +7,7 @@ export interface CustomLibraryPaletteRecord {
 
 export interface CustomLibraryPaletteRepository {
   savePalette(palette: CustomLibraryPaletteDraft): Promise<string>;
+  updatePalette(id: string, palette: CustomLibraryPaletteDraft): Promise<void>;
   listPalettes(): Promise<CustomLibraryPaletteRecord[]>;
   getPalette(id: string): Promise<CustomLibraryPaletteRecord | null>;
   deletePalette(id: string): Promise<void>;

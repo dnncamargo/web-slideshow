@@ -9,6 +9,7 @@ import type { CustomLibraryPaletteRecord } from "../src/features/custom-library/
 
 const defaultPaletteRepository = vi.hoisted(() => ({
   savePalette: vi.fn(async () => "saved"),
+  updatePalette: vi.fn(async () => undefined),
   listPalettes: vi.fn(async () => [] as CustomLibraryPaletteRecord[]),
   getPalette: vi.fn(async () => null),
   deletePalette: vi.fn(async () => undefined),

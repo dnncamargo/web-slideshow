@@ -111,6 +111,7 @@ function fakePaletteRepository(
 ): CustomLibraryPaletteRepository {
   return {
     savePalette: async () => "saved-palette",
+    updatePalette: async () => undefined,
     listPalettes,
     getPalette: async () => null,
     deletePalette: async () => undefined,
@@ -399,7 +400,7 @@ describe("Custom Library Editor integration", () => {
     const savePalette = vi.fn(async () => "saved");
     const getPalette = vi.fn(async () => null);
     const deletePalette = vi.fn(async () => undefined);
-    const repository: CustomLibraryPaletteRepository = { listPalettes, savePalette, getPalette, deletePalette };
+    const repository: CustomLibraryPaletteRepository = { listPalettes, savePalette, updatePalette: vi.fn(async () => undefined), getPalette, deletePalette };
     const saved: Presentation[] = [];
 
     await mount(makePresentation([]), saved, repository);

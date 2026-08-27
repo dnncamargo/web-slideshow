@@ -20,10 +20,10 @@ describe("CustomLibraryPaletteAddPicker", () => {
   it("loads only when opened, selects a record, and delegates its palette", async () => {
     const listPalettes = vi.fn(async () => [record]);
     const onAdd = vi.fn(() => ({ ok: true as const }));
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen={false} repository={{ savePalette: async () => "id", listPalettes, getPalette: async () => null, deletePalette: async () => undefined }} onAdd={onAdd} onCancel={vi.fn()} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen={false} repository={{ savePalette: async () => "id", updatePalette: async () => undefined, listPalettes, getPalette: async () => null, deletePalette: async () => undefined }} onAdd={onAdd} onCancel={vi.fn()} /></StudioI18nProvider>));
     expect(listPalettes).not.toHaveBeenCalled();
     const onCancel = vi.fn();
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen repository={{ savePalette: async () => "id", listPalettes, getPalette: async () => null, deletePalette: async () => undefined }} onAdd={onAdd} onCancel={onCancel} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen repository={{ savePalette: async () => "id", updatePalette: async () => undefined, listPalettes, getPalette: async () => null, deletePalette: async () => undefined }} onAdd={onAdd} onCancel={onCancel} /></StudioI18nProvider>));
     await act(async () => undefined);
     expect(listPalettes).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("Brand");
@@ -36,7 +36,7 @@ describe("CustomLibraryPaletteAddPicker", () => {
 
   it("shows a retry action after listing fails", async () => {
     const listPalettes = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce([record]);
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen repository={{ savePalette: async () => "id", listPalettes, getPalette: async () => null, deletePalette: async () => undefined }} onAdd={vi.fn(() => ({ ok: true as const }))} onCancel={vi.fn()} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen repository={{ savePalette: async () => "id", updatePalette: async () => undefined, listPalettes, getPalette: async () => null, deletePalette: async () => undefined }} onAdd={vi.fn(() => ({ ok: true as const }))} onCancel={vi.fn()} /></StudioI18nProvider>));
     await act(async () => undefined);
     expect(container.textContent).toContain("Could not load Custom Library palettes");
     act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Retry")?.click());
@@ -50,7 +50,7 @@ describe("CustomLibraryPaletteAddPicker", () => {
     const second = { ...record, id: "second", palette: { ...record.palette, colors: [{ name: "Second", value: "#222222" }] } };
     const listPalettes = vi.fn(async () => [first, second]);
     const onAdd = vi.fn(() => ({ ok: true as const }));
-    const props = { repository: { savePalette: async () => "id", listPalettes, getPalette: async () => null, deletePalette: async () => undefined }, onAdd, onCancel: vi.fn() };
+    const props = { repository: { savePalette: async () => "id", updatePalette: async () => undefined, listPalettes, getPalette: async () => null, deletePalette: async () => undefined }, onAdd, onCancel: vi.fn() };
     act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen {...props} /></StudioI18nProvider>));
     await act(async () => undefined);
     const items = container.querySelectorAll<HTMLButtonElement>("[aria-pressed]");
@@ -67,7 +67,7 @@ describe("CustomLibraryPaletteAddPicker", () => {
   it("shows failure feedback without hiding the picker", async () => {
     const onAdd = vi.fn(() => ({ ok: false as const, reason: "invalid-name" }));
     const onCancel = vi.fn();
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen repository={{ savePalette: async () => "id", listPalettes: async () => [record], getPalette: async () => null, deletePalette: async () => undefined }} onAdd={onAdd} onCancel={onCancel} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteAddPicker isOpen repository={{ savePalette: async () => "id", updatePalette: async () => undefined, listPalettes: async () => [record], getPalette: async () => null, deletePalette: async () => undefined }} onAdd={onAdd} onCancel={onCancel} /></StudioI18nProvider>));
     await act(async () => undefined);
     act(() => container.querySelector<HTMLButtonElement>("[aria-pressed]")?.click());
     act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Add to Presentation"))?.click());

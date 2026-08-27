@@ -69,6 +69,52 @@ export class FirestoreCustomLibraryPaletteRepository implements CustomLibraryPal
     return documentRef.id;
   }
 
+  async updatePalette(
+    id: string,
+    palette: CustomLibraryPaletteDraft,
+  ): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    let validatedPalette: CustomLibraryPaletteDraft;
+
+    try {
+      validatedPalette = parseCustomLibraryPaletteDraft(palette);
+    } catch (error) {
+      throw new InvalidCustomLibraryPaletteForPersistenceError(
+        "Custom Library palette is invalid for persistence.",
+        error,
+      );
+    }
+
+    const documentRef = customLibraryPaletteDocumentRef(user.uid, id);
+    let snapshot: Awaited<ReturnType<typeof getDoc>>;
+
+    try {
+      snapshot = await getDoc(documentRef);
+    } catch (error) {
+      console.error(`Failed to update Custom Library palette "${id}".`, error);
+      throw new FirestoreOperationError(
+        `Failed to update Custom Library palette "${id}".`,
+        error,
+      );
+    }
+
+    if (!snapshot.exists()) {
+      throw new FirestoreOperationError(
+        `Failed to update Custom Library palette "${id}": palette does not exist.`,
+      );
+    }
+
+    try {
+      await setDoc(documentRef, validatedPalette);
+    } catch (error) {
+      console.error(`Failed to update Custom Library palette "${id}".`, error);
+      throw new FirestoreOperationError(
+        `Failed to update Custom Library palette "${id}".`,
+        error,
+      );
+    }
+  }
+
   async listPalettes(): Promise<CustomLibraryPaletteRecord[]> {
     const user = this.requireAuthenticatedUser();
     let snapshot: Awaited<ReturnType<typeof getDocs>>;

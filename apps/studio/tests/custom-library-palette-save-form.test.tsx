@@ -24,7 +24,7 @@ describe("CustomLibraryPaletteSaveForm", () => {
   it("saves the domain draft and reports success", async () => {
     const savePalette = vi.fn(async () => "record-id");
     const onSaved = vi.fn();
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={onSaved} onCancel={vi.fn()} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, updatePalette: async () => undefined, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={onSaved} onCancel={vi.fn()} /></StudioI18nProvider>));
     const inputs = container.querySelectorAll<HTMLInputElement>("input");
     act(() => { setInputValue(inputs[0], "  Shared Brand  "); inputs[0].dispatchEvent(new Event("input", { bubbles: true })); });
     const description = container.querySelector<HTMLTextAreaElement>("textarea");
@@ -38,7 +38,7 @@ describe("CustomLibraryPaletteSaveForm", () => {
   it("allows retry after a repository failure", async () => {
     const savePalette = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce("record-id");
     const onSaved = vi.fn();
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={onSaved} onCancel={vi.fn()} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, updatePalette: async () => undefined, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={onSaved} onCancel={vi.fn()} /></StudioI18nProvider>));
     const name = container.querySelector<HTMLInputElement>("input");
     act(() => { if (name) { setInputValue(name, "Shared"); name.dispatchEvent(new Event("input", { bubbles: true })); } });
     await act(async () => { container.querySelector<HTMLButtonElement>("button[type=submit]")?.click(); });
@@ -51,7 +51,7 @@ describe("CustomLibraryPaletteSaveForm", () => {
   it("prevents duplicate submissions while the repository is pending", async () => {
     let resolveSave: ((id: string) => void) | undefined;
     const savePalette = vi.fn(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
-    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={vi.fn()} onCancel={vi.fn()} /></StudioI18nProvider>));
+    act(() => root.render(<StudioI18nProvider><CustomLibraryPaletteSaveForm palette={palette} repository={{ savePalette, updatePalette: async () => undefined, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined }} onSaved={vi.fn()} onCancel={vi.fn()} /></StudioI18nProvider>));
     const name = container.querySelector<HTMLInputElement>("input");
     act(() => { if (name) { setInputValue(name, "Shared"); name.dispatchEvent(new Event("input", { bubbles: true })); } });
     act(() => { const submit = container.querySelector<HTMLButtonElement>("button[type=submit]"); submit?.click(); submit?.click(); });

@@ -226,6 +226,7 @@ function customLibraryPaletteRepositoryFor(initialPalettes: CustomLibraryPalette
   });
   const repository: CustomLibraryPaletteRepository = {
     savePalette: vi.fn(async () => "unused"),
+    updatePalette: vi.fn(async () => undefined),
     listPalettes,
     getPalette: vi.fn(async () => null),
     deletePalette,

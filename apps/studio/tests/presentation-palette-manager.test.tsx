@@ -89,7 +89,7 @@ describe("PresentationPaletteManager", () => {
 
   it("opens Save to Library only for a non-empty palette and writes a draft", async () => {
     const savePalette = vi.fn(async () => "palette-id");
-    const repository = { savePalette, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined };
+    const repository = { savePalette, updatePalette: async () => undefined, listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined };
     const common = { onAdd: vi.fn(), onRename: vi.fn(), onUpdate: vi.fn(), onRemove: vi.fn() };
     act(() => root.render(<StudioI18nProvider><PresentationPaletteManager colors={[]} {...common} /></StudioI18nProvider>));
     expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Save to Library")?.disabled).toBe(true);
