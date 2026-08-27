@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { FontManagerSource } from "@/features/fonts/web-font-types";
+import { getFontResourceFaces } from "@powershow/document-schema";
 
 import { normalizeFontFamily } from "../../font-resource-helpers";
 import styles from "../../editor-workspace.module.css";
@@ -9,10 +10,11 @@ import styles from "../../editor-workspace.module.css";
 import { getControlName } from "../inspector-helpers";
 import type { FontResourceControls } from "../inspector-types";
 
-import { GoogleFontImportControl } from "./google-font-import-control";
-import { ManualFontControl } from "./manual-font-control";
+import { GoogleFontImportControl } from "@/features/fonts/components/google-font-import-control";
+import { ManualFontControl } from "@/features/fonts/components/manual-font-control";
 import { RegisteredFontsControl } from "./registered-fonts-control";
-import { WebFontSearchControl } from "./web-font-search-control";
+import { WebFontSearchControl } from "@/features/fonts/components/web-font-search-control";
+import type { FontFamilyFaces } from "@/features/fonts/font-acquisition-types";
 
 interface PresentationFontManagerProps extends FontResourceControls {
   id: string;
@@ -45,6 +47,12 @@ export function PresentationFontManager({
   const { t } = useStudioI18n();
   const [source, setSource] = useState<FontManagerSource>("fontsource");
   const [addedFont, setAddedFont] = useState<AddedFontState>();
+  const fontFamilies: readonly FontFamilyFaces[] = fontResources.map(
+    (fontResource) => ({
+      family: fontResource.family,
+      faces: getFontResourceFaces(fontResource),
+    }),
+  );
 
   // The added state is scoped to the element it was created for. A different
   // selection must never inherit the "added"/"applied" feedback of a
@@ -96,8 +104,9 @@ export function PresentationFontManager({
         <WebFontSearchControl
           key="fontsource"
           provider="fontsource"
-          fontResources={fontResources}
+          fontFamilies={fontFamilies}
           onAddFontFace={onAddFontFace}
+          controlPrefix="presentation-font"
           onFontAdded={(family) => {
             setAddedFont({ elementId: selectedElementId, family });
           }}
@@ -109,16 +118,18 @@ export function PresentationFontManager({
           <WebFontSearchControl
             key="google-fonts"
             provider="google-fonts"
-            fontResources={fontResources}
+            fontFamilies={fontFamilies}
             onAddFontFace={onAddFontFace}
+            controlPrefix="presentation-font"
             onFontAdded={(family) => {
               setAddedFont({ elementId: selectedElementId, family });
             }}
           />
 
           <GoogleFontImportControl
-            fontResources={fontResources}
+            fontFamilies={fontFamilies}
             onAddFontFace={onAddFontFace}
+            controlPrefix="presentation-font"
             onFontAdded={(family) => {
               setAddedFont({ elementId: selectedElementId, family });
             }}
@@ -128,8 +139,9 @@ export function PresentationFontManager({
 
       {source === "manual" && (
         <ManualFontControl
-          fontResources={fontResources}
+          fontFamilies={fontFamilies}
           onAddFontFace={onAddFontFace}
+          controlPrefix="presentation-font"
           onFontAdded={(family) => {
             setAddedFont({ elementId: selectedElementId, family });
           }}

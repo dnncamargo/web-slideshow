@@ -4,11 +4,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FontResource } from "@powershow/document-schema";
+import { getFontResourceFaces, type FontResource } from "@powershow/document-schema";
 import type { ResolvedWebFontFamily } from "../src/features/fonts/web-font-types";
 import type { WebFontSummary } from "../src/features/fonts/web-font-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-import { WebFontSearchControl } from "../src/features/editor/inspector/sections/web-font-search-control";
+import { WebFontSearchControl } from "../src/features/fonts/components/web-font-search-control";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -61,6 +61,13 @@ const SEARCH_RESULTS: WebFontSummary[] = [
     subsets: ["latin", "latin-ext"],
   },
 ];
+
+function inventory(resources: readonly FontResource[]) {
+  return resources.map((resource) => ({
+    family: resource.family,
+    faces: getFontResourceFaces(resource),
+  }));
+}
 
 function searchResponseStub(): ReturnType<typeof vi.fn> {
   return vi.fn(async (input: RequestInfo | URL) => {
@@ -165,9 +172,10 @@ describe("WebFontSearchControl provider behavior", () => {
         <StudioI18nProvider>
           <WebFontSearchControl
             provider="google-fonts"
-            fontResources={[]}
+            fontFamilies={[]}
             onAddFontFace={vi.fn()}
             onFontAdded={vi.fn()}
+            controlPrefix="presentation-font"
           />
         </StudioI18nProvider>,
       );
@@ -220,9 +228,10 @@ describe("WebFontSearchControl provider behavior", () => {
         <StudioI18nProvider>
           <WebFontSearchControl
             provider="fontsource"
-            fontResources={[]}
+            fontFamilies={[]}
             onAddFontFace={vi.fn()}
             onFontAdded={vi.fn()}
+            controlPrefix="presentation-font"
           />
         </StudioI18nProvider>,
       );
@@ -253,9 +262,10 @@ describe("WebFontSearchControl add-to-apply flow", () => {
       <StudioI18nProvider>
         <WebFontSearchControl
           provider="fontsource"
-          fontResources={[]}
+          fontFamilies={[]}
           onAddFontFace={onAddFontFace}
           onFontAdded={onFontAdded}
+          controlPrefix="presentation-font"
         />
       </StudioI18nProvider>,
     );
@@ -470,9 +480,10 @@ describe("WebFontSearchControl add-to-apply flow", () => {
         <StudioI18nProvider>
           <WebFontSearchControl
             provider="fontsource"
-            fontResources={existingResources}
+            fontFamilies={inventory(existingResources)}
             onAddFontFace={onAddFontFace}
             onFontAdded={onFontAdded}
+            controlPrefix="presentation-font"
           />
         </StudioI18nProvider>,
       );
