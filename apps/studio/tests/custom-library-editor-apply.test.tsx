@@ -481,6 +481,69 @@ describe("Custom Library Editor integration", () => {
     expect(containerElement.textContent).toContain("This Presentation has no palette colors.");
   });
 
+  it("removes a local palette color through Resources and materializes linked element colors", async () => {
+    const saved: Presentation[] = [];
+    const listPalettes = vi.fn(async () => [] as CustomLibraryPaletteRecord[]);
+    const savePalette = vi.fn(async () => "unused");
+    const updatePalette = vi.fn(async () => undefined);
+    const deletePalette = vi.fn(async () => undefined);
+    const repository: CustomLibraryPaletteRepository = {
+      listPalettes,
+      savePalette,
+      updatePalette,
+      getPalette: vi.fn(async () => null),
+      deletePalette,
+    };
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-removal-integration",
+      title: "Palette removal integration",
+      description: "",
+      aspectRatio: "16:9",
+      slides: [
+        {
+          id: "slide-1",
+          title: "First",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "linked-text",
+              type: "text",
+              hidden: false,
+              variant: "body",
+              content: "Linked text",
+              style: { color: { kind: "palette", colorId: "accent" } },
+            },
+          ],
+        },
+      ],
+      palette: {
+        colors: [
+          { id: "accent", name: "Accent", value: "#facc15" },
+          { id: "other", name: "Other", value: "#2563eb" },
+        ],
+      },
+    });
+    await mount(source, saved, repository);
+    await clickToolbarMode("Custom Resources");
+    const removeButton = containerElement.querySelector<HTMLButtonElement>(
+      "button[aria-label='Remove Accent']",
+    );
+    if (!removeButton) throw new Error("Accent remove button not found");
+    await act(async () => removeButton.click());
+    const next = await saveAfterApply(saved);
+    expect(next.palette?.colors).toEqual([
+      { id: "other", name: "Other", value: "#2563eb" },
+    ]);
+    const linked = next.slides[0]?.elements[0];
+    expect(linked?.type === "text" && linked.style?.color).toBe("#facc15");
+    expect(JSON.stringify(next)).not.toContain('"colorId":"accent"');
+    expect(savePalette).not.toHaveBeenCalled();
+    expect(updatePalette).not.toHaveBeenCalled();
+    expect(deletePalette).not.toHaveBeenCalled();
+  });
+
   it("merges Text into the selected Text without creating a sibling", async () => {
     const saved: Presentation[] = [];
     await mount(makePresentation([text("target-text", "Before")]), saved);

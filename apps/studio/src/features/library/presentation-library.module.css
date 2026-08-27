@@ -646,6 +646,7 @@
   flex-direction: column;
   gap: 10px;
   list-style: none;
+  text-align: left;
 }
 
 .customLibraryPaletteColorRow {
