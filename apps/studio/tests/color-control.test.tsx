@@ -8,7 +8,7 @@ import type { ColorValue } from "@powershow/document-schema";
 
 import { ColorControl } from "../src/features/editor/inspector/sections/color-control";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
-import { RecentColorsProvider } from "../src/features/editor/inspector/sections/recent-colors-provider";
+import { PickedColorsProvider } from "../src/features/editor/inspector/sections/picked-colors-provider";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -16,6 +16,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 describe("ColorControl linked palette UX", () => {
   let container: HTMLDivElement;
   let root: Root;
+  let pickedSpy: ReturnType<typeof vi.fn>;
+  let removePickedSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     container = document.createElement("div");
@@ -32,13 +34,15 @@ describe("ColorControl linked palette UX", () => {
     { id: "accent", name: "Accent", value: "#ffffff" },
     { id: "border", name: "Border", value: "#ffffff" },
   ]) {
+    pickedSpy = vi.fn();
+    removePickedSpy = vi.fn();
     act(() => root.render(
       <StudioI18nProvider>
-        <RecentColorsProvider colors={recentColors} onAddColor={vi.fn()} onClearColors={vi.fn()} onMoveColor={vi.fn()}>
+        <PickedColorsProvider colors={recentColors} onPickColor={pickedSpy} onRemoveColor={removePickedSpy}>
           <PresentationColorPaletteProvider colors={paletteColors}>
             <ColorControl id="color" name="Color" value={value} onChange={onChange} disabled={disabled} />
           </PresentationColorPaletteProvider>
-        </RecentColorsProvider>
+        </PickedColorsProvider>
       </StudioI18nProvider>,
     ));
     return onChange;
@@ -110,13 +114,19 @@ describe("ColorControl linked palette UX", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("renders and emits Recent Colors as literals", () => {
+  it("renders and emits Picked Colors as literals without duplicating them", () => {
     const onChange = renderControl("#000000", vi.fn(), ["#facc15"]);
     const recent = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.style.backgroundColor === "rgb(250, 204, 21)");
     expect(recent).toBeDefined();
     act(() => recent?.click());
     expect(onChange).toHaveBeenCalledWith("#facc15");
+    expect(pickedSpy).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Clear");
+    expect(container.querySelectorAll(".colorPaletteMove")).toHaveLength(0);
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.getAttribute("aria-label")?.includes("Remove picked color"))?.click());
+    expect(removePickedSpy).toHaveBeenCalledWith("#facc15");
   });
 
   it("closes the chooser when literal text or picker edits are authored", () => {
@@ -138,6 +148,37 @@ describe("ColorControl linked palette UX", () => {
       }
     });
     expect(onChange).toHaveBeenCalledWith("#2563eb");
+    expect(pickedSpy).toHaveBeenCalledWith("#2563eb");
+  });
+
+  it("applies typed literals without adding picked shortcuts", () => {
+    const onChange = renderControl("#000000");
+    const input = container.querySelector<HTMLInputElement>("#color-value");
+    act(() => {
+      if (input) {
+        setInputValue(input, "#123456");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    expect(onChange).toHaveBeenCalledWith("#123456");
+    expect(pickedSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not add palette selection or detach results to picked shortcuts", () => {
+    const onChange = renderControl({ kind: "palette", colorId: "border" });
+    act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    const accent = Array.from(container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.getAttribute("aria-label")?.includes("Accent"));
+    act(() => accent?.click());
+    expect(onChange).toHaveBeenCalledWith({ kind: "palette", colorId: "accent" });
+    expect(pickedSpy).not.toHaveBeenCalled();
+
+    const linkedChange = vi.fn();
+    renderControl({ kind: "palette", colorId: "border" }, linkedChange);
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "Detach")?.click());
+    expect(linkedChange).toHaveBeenCalledWith("#ffffff");
+    expect(pickedSpy).not.toHaveBeenCalled();
   });
 
   it("does not author a format-only change when the value is undefined", () => {
@@ -150,6 +191,7 @@ describe("ColorControl linked palette UX", () => {
       }
     });
     expect(onChange).not.toHaveBeenCalled();
+    expect(pickedSpy).not.toHaveBeenCalled();
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("rgba(248, 250, 252, 1)");
   });
 

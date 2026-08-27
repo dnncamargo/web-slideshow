@@ -13,7 +13,7 @@ import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 import styles from "../../editor-workspace.module.css";
 
 import { usePresentationColorPalette } from "./presentation-color-palette";
-import { useRecentColors } from "./recent-colors-provider";
+import { usePickedColors } from "./picked-colors-provider";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -34,7 +34,7 @@ export function ColorControl({
 }: ColorControlProps) {
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
-  const recent = useRecentColors();
+  const picked = usePickedColors();
   const sourceValue = value === undefined
     ? DEFAULT_PICKER_COLOR
     : resolveColorValue(value, palette ? { colors: palette.colors } : undefined) ?? DEFAULT_PICKER_COLOR;
@@ -54,7 +54,6 @@ export function ColorControl({
     ? undefined
     : detachColorValue(value, { colors: [...paletteColors] });
   const emitLiteralColor = (color: Color) => {
-    recent?.onAddColor(color);
     onChange(color);
   };
 
@@ -74,6 +73,7 @@ export function ColorControl({
           }
 
           emitLiteralColor(color);
+          if (source === "picker") picked?.onPickColor(color);
         }}
       />
 
@@ -147,12 +147,12 @@ export function ColorControl({
         </div>
       ) : null}
 
-      {recent && recent.colors.length > 0 && (
-        <div className={styles.colorRecent}>
-          <span className={styles.colorPaletteLabel}>{t("inspector.recent")}</span>
+      {picked && picked.colors.length > 0 && (
+        <div className={styles.colorPicked}>
+          <span className={styles.colorPaletteLabel}>{t("inspector.picked")}</span>
 
           <div className={styles.colorPaletteActions}>
-            {recent.colors.map((color, index) => (
+            {picked.colors.map((color, index) => (
               <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
                 <button
                   className={styles.colorPaletteSwatch}
@@ -164,52 +164,19 @@ export function ColorControl({
                   onClick={() => {
                     setLiteralValue(color);
                     setIsPaletteChooserOpen(false);
-                    emitLiteralColor(color);
+                    onChange(color);
                   }}
                 />
-
-                <div className={styles.colorPaletteMoveButtons}>
-                  <button
-                    className={styles.colorPaletteMove}
-                    type="button"
-                    disabled={disabled || index === 0}
-                    aria-label={t("inspector.moveColorLeft", { color })}
-                    title={t("inspector.moveColorLeft", { color })}
-                    onClick={() => {
-                      recent.onMoveColor(index, -1);
-                    }}
-                  >
-                    ←
-                  </button>
-
-                  <button
-                    className={styles.colorPaletteMove}
-                    type="button"
-                    disabled={disabled || index === recent.colors.length - 1}
-                    aria-label={t("inspector.moveColorRight", { color })}
-                    title={t("inspector.moveColorRight", { color })}
-                    onClick={() => {
-                      recent.onMoveColor(index, 1);
-                    }}
-                  >
-                    →
-                  </button>
-                </div>
+                <button
+                  className={styles.colorPaletteRemove}
+                  type="button"
+                  disabled={disabled}
+                  aria-label={t("inspector.removePickedColor", { color })}
+                  title={t("inspector.removePickedColor", { color })}
+                  onClick={() => picked.onRemoveColor(color)}
+                >×</button>
               </div>
             ))}
-
-             <button
-               className={styles.colorPaletteClear}
-               type="button"
-               disabled={disabled}
-               aria-label={t("inspector.clearRecentColors")}
-               title={t("inspector.clearRecentColors")}
-               onClick={() => {
-                 recent.onClearColors();
-               }}
-             >
-               {t("inspector.clear")}
-             </button>
            </div>
          </div>
        )}

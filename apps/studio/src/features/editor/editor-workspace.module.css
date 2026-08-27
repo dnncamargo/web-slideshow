@@ -2648,26 +2648,6 @@
   font-size: 10px;
 }
 
-.colorPaletteManagerAdd,
-.colorPaletteManagerRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.colorPaletteManagerAdd input:first-child,
-.colorPaletteManagerRow input:first-child {
-  min-width: 0;
-  flex: 1;
-}
-
-.colorPaletteManagerAdd button,
-.colorPaletteManagerRow button {
-  white-space: nowrap;
-}
-
-
 .colorPaletteEntry {
   position: relative;
 }
@@ -2688,51 +2668,7 @@
 }
 
 
-.colorPaletteMoveButtons {
-  display: flex;
-
-  gap: 2px;
-
-  position: absolute;
-
-  bottom: -18px;
-
-  left: 50%;
-
-  transform: translateX(-50%);
-}
-
-
-.colorPaletteMove {
-  width: 16px;
-
-  height: 16px;
-
-  padding: 0;
-
-  border: 1px solid #475569;
-
-  border-radius: 50%;
-
-  background: #0f172a;
-
-  color: #cbd5e1;
-
-  font-size: 10px;
-
-  cursor: pointer;
-}
-
-
-.colorPaletteMove:disabled {
-  opacity: 0.4;
-
-  cursor: not-allowed;
-}
-
-
-.colorRecent,
-.colorTheme {
+.colorPicked {
   display: flex;
 
   flex-direction: column;
@@ -2741,13 +2677,28 @@
 }
 
 
-.colorRecent .colorPaletteClear,
-.colorTheme .colorPaletteActions {
+.colorPicked .colorPaletteActions {
   display: flex;
 
   flex-wrap: wrap;
 
   gap: 5px;
+}
+
+.colorPaletteRemove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #475569;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #cbd5e1;
+  font-size: 11px;
+  line-height: 14px;
+  cursor: pointer;
 }
 
 

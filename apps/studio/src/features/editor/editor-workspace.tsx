@@ -138,12 +138,8 @@ import {
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
-import { RecentColorsProvider } from "./inspector/sections/recent-colors-provider";
-import {
-  addRecentColor,
-  clearRecentColors,
-  moveRecentColor,
-} from "./inspector/sections/recent-colors-helpers";
+import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
+import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -426,7 +422,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
-  const [recentColors, setRecentColors] = useState<readonly Color[]>([]);
+  const [pickedColors, setPickedColors] = useState<readonly Color[]>([]);
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
@@ -3644,16 +3640,13 @@ export function EditorWorkspace({
                  END: ELEMENT CRUD CONTROLS
                  ================================================= */}
                   {selectedDocumentElement ? (
-                    <RecentColorsProvider
-                      colors={recentColors}
-                      onAddColor={(color) => {
-                        setRecentColors((current) => addRecentColor(current, color));
+                    <PickedColorsProvider
+                      colors={pickedColors}
+                      onPickColor={(color) => {
+                        setPickedColors((current) => addPickedColor(current, color));
                       }}
-                      onClearColors={() => {
-                        setRecentColors(clearRecentColors());
-                      }}
-                      onMoveColor={(index, direction) => {
-                        setRecentColors((current) => moveRecentColor(current, index, direction));
+                      onRemoveColor={(color) => {
+                        setPickedColors((current) => removePickedColor(current, color));
                       }}
                     >
                       <PresentationColorPaletteProvider
@@ -3704,7 +3697,7 @@ export function EditorWorkspace({
                           tableAuthoringControls={tableAuthoringControls}
                         />
                       </PresentationColorPaletteProvider>
-                    </RecentColorsProvider>
+                    </PickedColorsProvider>
                   ) : (
                     <>
                       {/* =============================================
