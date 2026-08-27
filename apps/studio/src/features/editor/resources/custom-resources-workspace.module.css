@@ -45,6 +45,13 @@
   gap: 8px;
 }
 
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .sectionTitle,
 .groupTitle {
   margin: 0;
@@ -101,6 +108,60 @@
 .description,
 .status {
   margin: 0;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+.resourceAction,
+.dangerAction {
+  padding: 4px 7px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #111720;
+  color: #cbd5e1;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.resourceAction:hover {
+  border-color: #22d3ee;
+}
+
+.dangerAction {
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+
+.dangerAction:hover {
+  border-color: #ef4444;
+}
+
+.resourceAction:disabled,
+.dangerAction:disabled,
+.retryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  color: #fca5a5;
+  font-size: 10px;
+}
+
+.error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 11px;
 }
 
 .swatches {

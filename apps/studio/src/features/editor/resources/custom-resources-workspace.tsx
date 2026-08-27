@@ -4,6 +4,8 @@ import type { PresentationPaletteColor } from "@powershow/document-schema";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { CustomLibraryPaletteEditor } from "@/features/custom-library/custom-library-palette-editor";
+import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
 import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
@@ -22,6 +24,14 @@ type PaletteLoadState =
   | { kind: "ready"; records: CustomLibraryPaletteRecord[] }
   | { kind: "error" };
 
+type PaletteAuthoringState =
+  | { kind: "create" }
+  | { kind: "edit"; recordId: string; initialPalette: CustomLibraryPaletteDraft }
+  | { kind: "copy"; initialPalette: CustomLibraryPaletteDraft }
+  | null;
+
+type PendingWrite = "saving" | "deleting" | null;
+
 const PREVIEW_COLOR_LIMIT = 6;
 
 export function CustomResourcesWorkspace({
@@ -30,7 +40,14 @@ export function CustomResourcesWorkspace({
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
+  const [authoring, setAuthoring] = useState<PaletteAuthoringState>(null);
+  const [authoringError, setAuthoringError] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingWrite, setPendingWrite] = useState<PendingWrite>(null);
   const requestRevisionRef = useRef(0);
+  const mountedRef = useRef(true);
+  const writeRevisionRef = useRef(0);
 
   const loadPalettes = useCallback(() => {
     const requestRevision = requestRevisionRef.current + 1;
@@ -59,6 +76,93 @@ export function CustomResourcesWorkspace({
     };
   }, [loadPalettes]);
 
+  useEffect(() => () => {
+    mountedRef.current = false;
+    writeRevisionRef.current += 1;
+  }, []);
+
+  const beginAuthoring = useCallback((next: PaletteAuthoringState) => {
+    setAuthoringError(null);
+    setDeleteTargetId(null);
+    setDeleteError(null);
+    setAuthoring(next);
+  }, []);
+
+  function handlePaletteSubmit(draft: CustomLibraryPaletteDraft): void {
+    if (!authoring || pendingWrite) return;
+
+    const currentAuthoring = authoring;
+    const writeRevision = writeRevisionRef.current + 1;
+    writeRevisionRef.current = writeRevision;
+    setAuthoringError(null);
+    setPendingWrite("saving");
+
+    void (async () => {
+      try {
+        if (currentAuthoring.kind === "edit") {
+          await customLibraryPaletteRepository.updatePalette(currentAuthoring.recordId, draft);
+          if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
+          setLoadState((current) => current.kind === "ready"
+            ? { kind: "ready", records: current.records.map((record) => record.id === currentAuthoring.recordId ? { ...record, palette: draft } : record) }
+            : current);
+        } else {
+          const id = await customLibraryPaletteRepository.savePalette(draft);
+          if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
+          setLoadState((current) => current.kind === "ready"
+            ? { kind: "ready", records: [...current.records, { id, palette: draft }] }
+            : current);
+        }
+        setAuthoring(null);
+      } catch {
+        if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
+        setAuthoringError(currentAuthoring.kind === "edit"
+          ? t("customResources.updateFailed")
+          : t("customResources.saveFailed"));
+      } finally {
+        if (mountedRef.current && writeRevision === writeRevisionRef.current) {
+          setPendingWrite(null);
+        }
+      }
+    })();
+  }
+
+  function handleDelete(id: string): void {
+    if (pendingWrite) return;
+    setDeleteError(null);
+    setDeleteTargetId(id);
+  }
+
+  function confirmDelete(): void {
+    if (!deleteTargetId || pendingWrite) return;
+    const targetId = deleteTargetId;
+    const writeRevision = writeRevisionRef.current + 1;
+    writeRevisionRef.current = writeRevision;
+    setDeleteError(null);
+    setPendingWrite("deleting");
+
+    void customLibraryPaletteRepository.deletePalette(targetId)
+      .then(() => {
+        if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
+        setLoadState((current) => current.kind === "ready"
+          ? { kind: "ready", records: current.records.filter((record) => record.id !== targetId) }
+          : current);
+        setDeleteTargetId(null);
+      })
+      .catch(() => {
+        if (!mountedRef.current || writeRevision !== writeRevisionRef.current) return;
+        setDeleteError(t("customResources.deleteFailed"));
+      })
+      .finally(() => {
+        if (mountedRef.current && writeRevision === writeRevisionRef.current) {
+          setPendingWrite(null);
+        }
+      });
+  }
+
+  const activePalette = authoring?.kind === "edit" || authoring?.kind === "copy"
+    ? authoring.initialPalette
+    : undefined;
+
   return (
     <aside className={styles.workspace} aria-label={t("editor.customResources")}>
       <div className={styles.header}>
@@ -72,8 +176,31 @@ export function CustomResourcesWorkspace({
           </h2>
 
           <div className={styles.group}>
-            <h3 className={styles.groupTitle}>{t("customResources.customLibrary")}</h3>
-            {loadState.kind === "loading" ? (
+            <div className={styles.groupHeader}>
+              <h3 className={styles.groupTitle}>{t("customResources.customLibrary")}</h3>
+              {loadState.kind === "ready" && !authoring ? (
+                <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} onClick={() => beginAuthoring({ kind: "create" })}>
+                  {t("customResources.newPalette")}
+                </button>
+              ) : null}
+            </div>
+            {authoring ? (
+              <>
+                {pendingWrite === "saving" ? <p className={styles.status}>{t("customResources.savingPalette")}</p> : null}
+                <CustomLibraryPaletteEditor
+                  mode={authoring.kind}
+                  initialPalette={activePalette}
+                  submitting={pendingWrite === "saving"}
+                  error={authoringError}
+                  onSubmit={handlePaletteSubmit}
+                  onCancel={() => {
+                    if (pendingWrite) return;
+                    setAuthoringError(null);
+                    setAuthoring(null);
+                  }}
+                />
+              </>
+            ) : loadState.kind === "loading" ? (
               <p className={styles.status}>{t("customResources.loadingPalettes")}</p>
             ) : loadState.kind === "error" ? (
               <div className={styles.statusGroup}>
@@ -94,6 +221,20 @@ export function CustomResourcesWorkspace({
                     </div>
                     <ColorSwatches colors={palette.colors} />
                     {palette.description ? <p className={styles.description}>{palette.description}</p> : null}
+                    <div className={styles.cardActions}>
+                      <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} aria-label={t("customResources.editPalette", { name: palette.name })} onClick={() => beginAuthoring({ kind: "edit", recordId: id, initialPalette: palette })}>{t("customResources.edit")}</button>
+                      <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} aria-label={t("customResources.copyPalette", { name: palette.name })} onClick={() => beginAuthoring({ kind: "copy", initialPalette: palette })}>{t("customResources.copy")}</button>
+                      {deleteTargetId === id ? (
+                        <div className={styles.confirmation}>
+                          <span>{t("customResources.deleteConfirm", { name: palette.name })}</span>
+                          <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} onClick={() => { setDeleteTargetId(null); setDeleteError(null); }}>{t("customResources.cancel")}</button>
+                          <button type="button" className={styles.dangerAction} disabled={Boolean(pendingWrite)} onClick={confirmDelete}>{pendingWrite === "deleting" ? t("customResources.deletingPalette") : t("customResources.confirmDelete")}</button>
+                        </div>
+                      ) : (
+                        <button type="button" className={styles.resourceAction} disabled={Boolean(pendingWrite)} aria-label={t("customResources.deletePalette", { name: palette.name })} onClick={() => handleDelete(id)}>{t("customResources.delete")}</button>
+                      )}
+                    </div>
+                    {deleteTargetId === id && deleteError ? <p className={styles.error} role="alert">{deleteError}</p> : null}
                   </div>
                 ))}
               </div>
