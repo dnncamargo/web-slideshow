@@ -207,7 +207,7 @@ export function ElementTypographyControl({
         {t("inspector.typography")}
       </span>
 
-      <div className={styles.fontFamilyRow}>
+      <div>
         <label className={styles.field}>
           <span>{t("inspector.fontFamily")}</span>
 
