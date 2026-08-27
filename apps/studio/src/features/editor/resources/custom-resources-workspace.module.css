@@ -109,6 +109,44 @@
   gap: 8px;
 }
 
+.masterFontList {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.localFontList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.masterFontRow,
+.localFontRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.masterFontRow strong,
+.localFontDetails {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.localFontDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .localColorItem {
   --local-color-remove-width: 20px;
   --local-color-row-gap: 6px;

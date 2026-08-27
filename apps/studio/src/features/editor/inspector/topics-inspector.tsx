@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import type {
-  FontResourceControls,
   ElementInspectorUpdate,
   TopicsAuthoringControls,
 } from "./inspector-types";
@@ -11,6 +10,7 @@ import type {
   TopicItem,
   TopicsElement,
   TopicMarkerStyle,
+  FontResource,
 } from "@powershow/document-schema";
 
 import {
@@ -60,7 +60,7 @@ interface TopicsInspectorProps {
 
   topicsAuthoringControls: TopicsAuthoringControls;
 
-  fontResourceControls: FontResourceControls;
+  fontResources: readonly FontResource[];
 }
 
 interface TopicRowProps {
@@ -269,7 +269,7 @@ export function TopicsInspector({
   element,
   onUpdate,
   topicsAuthoringControls,
-  fontResourceControls,
+  fontResources,
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
   const [pendingFocusTopicItemId, setPendingFocusTopicItemId] = useState<
@@ -492,14 +492,13 @@ function addChildTopic(topicItemId: string) {
 
           {topicStyleDefaults && (
             <ElementTypographyControl
-              selectedElementId={element.id}
               typography={element.typography}
               effectiveDefaults={topicStyleDefaults}
               onUpdateTypography={(update) => {
                 updateTopicsTypography((currentTypography) => update(currentTypography));
               }}
               controlPrefix="topics"
-              fontResourceControls={fontResourceControls}
+              fontResources={fontResources}
             />
           )}
 

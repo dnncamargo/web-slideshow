@@ -108,7 +108,7 @@ function InlineFormatButton({
 export function TextInspector({
   element,
   onUpdate,
-  fontResourceControls,
+  fontResources,
 }: TypographyInspectorProps<TextInspectorElement>) {
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
@@ -416,7 +416,7 @@ export function TextInspector({
         onUpdateTypography={updateTypography}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
-        fontResourceControls={fontResourceControls}
+        fontResources={fontResources}
       />
 
       <CanonicalTextEffectsSection

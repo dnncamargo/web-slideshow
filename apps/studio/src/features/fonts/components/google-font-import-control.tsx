@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  getFontResourceFaces,
   type FontFaceResource,
 } from "@powershow/document-schema";
 
@@ -13,17 +12,15 @@ import type {
   GoogleFontImportResult,
 } from "@/features/fonts/google-font-import-types";
 
-import {
-  areFontFacesEquivalent,
-  normalizeFontFamily,
-} from "../../font-resource-helpers";
-import styles from "../../editor-workspace.module.css";
+import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
+import styles from "./font-acquisition.module.css";
+import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
 
-import type { FontResourceControls } from "../inspector-types";
-
-interface GoogleFontImportControlProps
-  extends Pick<FontResourceControls, "fontResources" | "onAddFontFace"> {
+interface GoogleFontImportControlProps {
+  fontFamilies: readonly FontFamilyFaces[];
+  onAddFontFace: OnAddFontFace;
   onFontAdded: (family: string) => void;
+  controlPrefix: string;
 }
 
 type ImportState = "idle" | "resolving" | "resolved";
@@ -84,9 +81,10 @@ function countSupportedVariants(result: GoogleFontImportResult): number {
 }
 
 export function GoogleFontImportControl({
-  fontResources,
+  fontFamilies,
   onAddFontFace,
   onFontAdded,
+  controlPrefix,
 }: GoogleFontImportControlProps) {
   const { t } = useStudioI18n();
   const requestController = useRef<AbortController | null>(null);
@@ -164,39 +162,39 @@ export function GoogleFontImportControl({
     }
   }
 
-  function addSelectedFaces() {
+  async function addSelectedFaces() {
     if (!result) {
       return;
     }
 
     const knownFaces = new Map<string, FontFaceResource[]>();
 
-    for (const fontResource of fontResources) {
+    for (const fontFamily of fontFamilies) {
       knownFaces.set(
-        normalizeFontFamily(fontResource.family),
-        [...getFontResourceFaces(fontResource)],
+        normalizeFontFamily(fontFamily.family),
+        [...fontFamily.faces],
       );
     }
 
     const addedFamilies: string[] = [];
+    let sawRejectedFace = false;
 
-    result.families.forEach((family, familyIndex) => {
+    for (const [familyIndex, family] of result.families.entries()) {
       const normalizedFamily = normalizeFontFamily(family.family);
-      const registeredResource = fontResources.find(
-        (fontResource) =>
-          normalizeFontFamily(fontResource.family) === normalizedFamily,
+      const registeredResource = fontFamilies.find(
+        (fontFamily) => normalizeFontFamily(fontFamily.family) === normalizedFamily,
       );
       const canonicalFamily = registeredResource?.family ?? family.family;
       const familyFaces = knownFaces.get(normalizedFamily) ?? [];
       let addedToFamily = false;
 
-      family.variants.forEach((variant, variantIndex) => {
+      for (const [variantIndex, variant] of family.variants.entries()) {
         if (
           !selectedVariants.has(
             variantSelectionId(familyIndex, variantIndex),
           )
         ) {
-          return;
+          continue;
         }
 
         for (const face of variant.faces) {
@@ -208,23 +206,29 @@ export function GoogleFontImportControl({
             continue;
           }
 
-          onAddFontFace(canonicalFamily, face);
+          const added = await onAddFontFace(canonicalFamily, face);
+
+          if (!added) {
+            sawRejectedFace = true;
+            continue;
+          }
+
           familyFaces.push(face);
           addedToFamily = true;
         }
-      });
+      }
 
       knownFaces.set(normalizedFamily, familyFaces);
 
       if (addedToFamily) {
         addedFamilies.push(canonicalFamily);
       }
-    });
+    }
 
     const firstAddedFamily = addedFamilies[0];
 
     if (!firstAddedFamily) {
-      setError("inspector.fontFaceExists");
+      setError(sawRejectedFace ? null : "inspector.fontFaceExists");
       return;
     }
 
@@ -242,8 +246,8 @@ export function GoogleFontImportControl({
         <span>{t("inspector.googleFontImport.pasteLink")}</span>
 
         <input
-          id="google-font-import-url"
-          name="googleFontImportUrl"
+           id={`${controlPrefix}-google-import-url`}
+           name={`${controlPrefix}-google-import-url`}
           type="url"
           inputMode="url"
           autoComplete="off"
@@ -315,7 +319,7 @@ export function GoogleFontImportControl({
               >
                 <label className={styles.checkboxRow}>
                   <input
-                    id={`google-font-import-family-${familyIndex}`}
+                id={`${controlPrefix}-google-import-family-${familyIndex}`}
                     name={`googleFontImportFamily${familyIndex}`}
                     type="checkbox"
                     checked={familySelected}
@@ -356,7 +360,7 @@ export function GoogleFontImportControl({
                       >
                         <label className={styles.checkboxRow}>
                           <input
-                            id={`google-font-import-variant-${familyIndex}-${variantIndex}`}
+                      id={`${controlPrefix}-google-import-variant-${familyIndex}-${variantIndex}`}
                             name={`googleFontImportVariant${familyIndex}_${variantIndex}`}
                             type="checkbox"
                             checked={selected}

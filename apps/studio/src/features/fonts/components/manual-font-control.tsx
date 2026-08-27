@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import {
   FontFaceResourceSchema,
-  getFontResourceFaces,
   type FontFaceResource,
   type FontFormat,
 } from "@powershow/document-schema";
@@ -10,18 +9,15 @@ import {
 import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
-import {
-  areFontFacesEquivalent,
-  normalizeFontFamily,
-} from "../../font-resource-helpers";
-import styles from "../../editor-workspace.module.css";
+import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
+import styles from "./font-acquisition.module.css";
+import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
 
-import { getControlName } from "../inspector-helpers";
-import type { FontResourceControls } from "../inspector-types";
-
-interface ManualFontControlProps
-  extends Pick<FontResourceControls, "fontResources" | "onAddFontFace"> {
+interface ManualFontControlProps {
+  fontFamilies: readonly FontFamilyFaces[];
+  onAddFontFace: OnAddFontFace;
   onFontAdded: (family: string) => void;
+  controlPrefix: string;
 }
 
 const FONT_FORMATS: readonly FontFormat[] = [
@@ -35,9 +31,10 @@ const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
 type FontFaceStyle = NonNullable<FontFaceResource["style"]>;
 
 export function ManualFontControl({
-  fontResources,
+  fontFamilies,
   onAddFontFace,
   onFontAdded,
+  controlPrefix,
 }: ManualFontControlProps) {
   const { t } = useStudioI18n();
   const [family, setFamily] = useState("");
@@ -48,7 +45,7 @@ export function ManualFontControl({
   const [format, setFormat] = useState<FontFormat>("woff2");
   const [error, setError] = useState<StudioMessageKey | null>(null);
 
-  function addFontFace() {
+  async function addFontFace() {
     const trimmedFamily = family.trim();
 
     if (!trimmedFamily) {
@@ -70,12 +67,11 @@ export function ManualFontControl({
     }
 
     const normalizedFamily = normalizeFontFamily(trimmedFamily);
-    const existingResource = fontResources.find(
-      (fontResource) =>
-        normalizeFontFamily(fontResource.family) === normalizedFamily,
+    const existingResource = fontFamilies.find(
+      (fontFamily) => normalizeFontFamily(fontFamily.family) === normalizedFamily,
     );
     const duplicate = existingResource
-      ? getFontResourceFaces(existingResource).some((face) =>
+      ? existingResource.faces.some((face) =>
           areFontFacesEquivalent(face, result.data),
         )
       : false;
@@ -87,7 +83,12 @@ export function ManualFontControl({
 
     const resourceFamily = existingResource?.family ?? trimmedFamily;
 
-    onAddFontFace(resourceFamily, result.data);
+    const added = await onAddFontFace(resourceFamily, result.data);
+
+    if (!added) {
+      return;
+    }
+
     onFontAdded(resourceFamily);
     setFamily("");
     setWeight(400);
@@ -105,8 +106,8 @@ export function ManualFontControl({
           <span>{t("inspector.family")}</span>
 
           <input
-            id="presentation-font-family"
-            name={getControlName("presentation", "FontFamily")}
+            id={`${controlPrefix}-family`}
+            name={`${controlPrefix}-family`}
             type="text"
             value={family}
             onChange={(event) => {
@@ -120,8 +121,8 @@ export function ManualFontControl({
           <span>{t("inspector.fontWeight")}</span>
 
           <select
-            id="presentation-font-weight"
-            name={getControlName("presentation", "FontWeight")}
+            id={`${controlPrefix}-weight`}
+            name={`${controlPrefix}-weight`}
             value={weight}
             onChange={(event) => {
               const selectedWeight = Number(event.target.value);
@@ -145,8 +146,8 @@ export function ManualFontControl({
           <span>{t("inspector.fontStyle")}</span>
 
           <select
-            id="presentation-font-style"
-            name={getControlName("presentation", "FontStyle")}
+            id={`${controlPrefix}-style`}
+            name={`${controlPrefix}-style`}
             value={fontStyle}
             onChange={(event) => {
               const selectedStyle = event.target.value;
@@ -165,8 +166,8 @@ export function ManualFontControl({
           <span>{t("inspector.format")}</span>
 
           <select
-            id="presentation-font-format"
-            name={getControlName("presentation", "FontFormat")}
+            id={`${controlPrefix}-format`}
+            name={`${controlPrefix}-format`}
             value={format}
             onChange={(event) => {
               const selectedFormat = event.target.value;
@@ -189,8 +190,8 @@ export function ManualFontControl({
         <span>{t("inspector.subset")}</span>
 
         <input
-          id="presentation-font-subset"
-          name={getControlName("presentation", "FontSubset")}
+          id={`${controlPrefix}-subset`}
+          name={`${controlPrefix}-subset`}
           type="text"
           value={subset}
           onChange={(event) => {
@@ -204,8 +205,8 @@ export function ManualFontControl({
         <span>{t("inspector.fontUrl")}</span>
 
         <input
-          id="presentation-font-url"
-          name={getControlName("presentation", "FontUrl")}
+          id={`${controlPrefix}-url`}
+          name={`${controlPrefix}-url`}
           type="url"
           inputMode="url"
           value={url}
@@ -219,7 +220,9 @@ export function ManualFontControl({
       <button
         className={styles.secondaryButton}
         type="button"
-        onClick={addFontFace}
+        onClick={() => {
+          void addFontFace();
+        }}
       >
         {t("inspector.addFontFace")}
       </button>

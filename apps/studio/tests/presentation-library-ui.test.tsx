@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type FontFaceResource, type Presentation } from "@powershow/document-schema";
 
 type TestLiveState =
   | { kind: "none" }
@@ -59,6 +59,8 @@ import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "../src/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
+import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -158,6 +160,7 @@ function renderLibrary(
   folderRepository?: PresentationFolderRepository,
   customLibraryRepository?: CustomLibraryRepository,
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository,
+  customLibraryFontRepository?: CustomLibraryFontRepository,
 ) {
   return (
     <StudioI18nProvider>
@@ -166,6 +169,7 @@ function renderLibrary(
         folderRepository={folderRepository ?? emptyFolderRepository()}
         customLibraryRepository={customLibraryRepository}
         customLibraryPaletteRepository={customLibraryPaletteRepository ?? customLibraryPaletteRepositoryFor([]).repository}
+        customLibraryFontRepository={customLibraryFontRepository ?? customLibraryFontRepositoryFor([]).repository}
       />
     </StudioI18nProvider>
   );
@@ -232,6 +236,56 @@ function customLibraryPaletteRepositoryFor(initialPalettes: CustomLibraryPalette
     deletePalette,
   };
   return { repository, listPalettes, deletePalette, getCurrent: () => current };
+}
+
+function customLibraryFontRepositoryFor(initialFonts: CustomLibraryFontRecord[]) {
+  let current = initialFonts;
+  const listFonts = vi.fn(async () => current);
+  const saveFont = vi.fn(async (font: CustomLibraryFontRecord["font"]) => {
+    const id = `font-${current.length + 1}`;
+    current = [...current, { id, font }];
+    return id;
+  });
+  const updateFont = vi.fn(async (id: string, font: CustomLibraryFontRecord["font"]) => {
+    current = current.map((record) => record.id === id ? { id, font } : record);
+  });
+  const repository: CustomLibraryFontRepository = {
+    saveFont,
+    updateFont,
+    listFonts,
+    getFont: vi.fn(async () => null),
+    deleteFont: vi.fn(async () => {}),
+  };
+  return { repository, listFonts, saveFont, updateFont, getCurrent: () => current };
+}
+
+function fontFace(weight: number): FontFaceResource {
+  return {
+    weight,
+    style: "normal",
+    source: { type: "url", url: `https://cdn.example.test/${weight}.woff2`, format: "woff2" },
+  };
+}
+
+function findButton(container: HTMLDivElement, text: string): HTMLButtonElement {
+  const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+    .find((candidate) => candidate.textContent?.trim() === text);
+  if (!button) throw new Error(`expected button ${text}`);
+  return button;
+}
+
+async function openManualFontAuthoring(container: HTMLDivElement) {
+  await act(async () => { findButton(container, "Fonts").click(); await Promise.resolve(); });
+  await flushWorkspaceEffects();
+  await act(async () => { findButton(container, "+ Add font").click(); await Promise.resolve(); });
+  await flushWorkspaceEffects();
+  const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+  if (!source) throw new Error("expected font source selector");
+  act(() => {
+    source.value = "manual";
+    source.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await flushWorkspaceEffects();
 }
 
 function customLibraryPalette(
@@ -954,8 +1008,9 @@ describe("presentation library workspace controls", () => {
     );
     if (!fontsDestination) throw new Error("expected Fonts destination");
     act(() => fontsDestination.click());
+    await flushWorkspaceEffects();
 
-    expect(container.textContent).toContain("Fonts are planned");
+    expect(container.textContent).toContain("No fonts saved yet.");
     expect(container.textContent).not.toContain("Saved style");
     expect(custom.listItems).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-selected="true"]')).toBeNull();
@@ -963,6 +1018,286 @@ describe("presentation library workspace controls", () => {
     expect(repository.createPresentation).not.toHaveBeenCalled();
     expect(repository.archivePresentation).not.toHaveBeenCalled();
     expect(repository.getPresentation).not.toHaveBeenCalled();
+  });
+
+  it("loads Fonts lazily, opens Library authoring, and appends faces to one master", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).not.toHaveBeenCalled();
+
+    const destination = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Fonts");
+    if (!destination) throw new Error("expected Fonts destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("No fonts saved yet.");
+
+    const add = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font");
+    if (!add) throw new Error("expected Add font");
+    act(() => add.click());
+    expect(container.textContent).toContain("Add font");
+    const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!source) throw new Error("expected font source selector");
+    act(() => {
+      source.value = "manual";
+      source.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), " Inter ");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(400).source.url);
+    const addFace = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Add face");
+    if (!addFace) throw new Error("expected manual Add font face");
+    await act(async () => { addFace.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "inter");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(700).source.url);
+    const addSecond = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Add face");
+    if (!addSecond) throw new Error("expected second Add font face");
+    const weight = container.querySelector<HTMLSelectElement>("#custom-library-font-weight");
+    if (!weight) throw new Error("expected weight selector");
+    act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
+    await act(async () => { addSecond.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+    expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(container.textContent).toContain("Inter");
+    expect(container.textContent).toContain("2 faces");
+    expect(container.textContent).toContain("Fontsource");
+    expect(container.querySelectorAll("[id^='presentation-']")).toHaveLength(0);
+  });
+
+  it("retries a failed Fonts load and does not load fonts from other destinations", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    const custom = customLibraryRepositoryFor([]);
+    fonts.listFonts.mockRejectedValueOnce(new Error("offline"));
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    expect(container.textContent).not.toContain("+ Add font");
+
+    await act(async () => { findButton(container, "Fonts").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Could not load Custom Library fonts.");
+    expect(container.textContent).not.toContain("+ Add font");
+    await act(async () => { findButton(container, "Retry").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("No fonts saved yet.");
+    expect(container.textContent).toContain("+ Add font");
+
+    act(() => findButton(container, "Styles").click());
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Palettes").click());
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a font row selected through bubbling, then clears it on real browser background clicks", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([
+      { id: "inter-master", font: { family: "Inter", faces: [fontFace(400)] } },
+      { id: "audiowide-master", font: { family: "Audiowide", faces: [fontFace(700)] } },
+    ]);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+
+    const rows = container.querySelectorAll<HTMLButtonElement>("[data-custom-library-font-row]");
+    expect(rows).toHaveLength(2);
+    act(() => rows[0]?.click());
+    expect(rows[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Inter");
+
+    const browserPane = container.querySelector<HTMLElement>("[class*='browserPane']");
+    if (!browserPane) throw new Error("expected browser pane");
+    act(() => browserPane.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(rows[0]?.getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Select a font to view details.");
+
+    act(() => rows[1]?.click());
+    expect(rows[1]?.getAttribute("aria-pressed")).toBe("true");
+    const workspace = container.querySelector<HTMLElement>("[class*='workspace']");
+    if (!workspace) throw new Error("expected workspace");
+    act(() => workspace.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(rows[1]?.getAttribute("aria-pressed")).toBe("false");
+
+    act(() => findButton(container, "Styles").click());
+    await flushWorkspaceEffects();
+    expect(container.querySelector("[data-custom-library-font-row]")).toBeNull();
+  });
+
+  it("waits for saveFont before showing success or updating the master inventory", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    let resolveSave: ((id: string) => void) | undefined;
+    fonts.saveFont.mockImplementationOnce(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await openManualFontAuthoring(container);
+    expect(container.querySelector("#custom-library-font-source")).toBeTruthy();
+    await act(async () => { findButton(container, "Close").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    expect(container.querySelector("#custom-library-font-source")).toBeNull();
+    expect(container.textContent).toContain("Select a font to view details.");
+    await act(async () => { findButton(container, "+ Add font").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    const reopenedSource = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!reopenedSource) throw new Error("expected reopened font source selector");
+    act(() => {
+      reopenedSource.value = "manual";
+      reopenedSource.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flushWorkspaceEffects();
+
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "Inter");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(400).source.url);
+    await act(async () => {
+      findButton(container, "Add face").click();
+      await Promise.resolve();
+    });
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+    expect(container.textContent).not.toContain("Added Inter.");
+    expect(container.textContent).not.toContain("1 fonts in Custom Library.");
+
+    await act(async () => {
+      resolveSave?.("inter-master");
+      await Promise.resolve();
+    });
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("Added Inter.");
+    expect(container.textContent).toContain("Inter");
+    expect(container.textContent).toContain("1 face");
+  });
+
+  it("does not persist an equivalent face twice", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([{ id: "inter-master", font: { family: "Inter", faces: [fontFace(400)] } }]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await openManualFontAuthoring(container);
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), " inter ");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(400).source.url);
+    await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
+    expect(fonts.saveFont).not.toHaveBeenCalled();
+    expect(fonts.updateFont).not.toHaveBeenCalled();
+  });
+
+  it("shows a safe save error, preserves local state, and retries successfully", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    fonts.saveFont.mockRejectedValueOnce(new Error("raw firestore failure"));
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await openManualFontAuthoring(container);
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "Inter");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(400).source.url);
+    await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
+    expect(container.textContent).toContain("Could not save the font to Custom Library.");
+    expect(container.textContent).not.toContain("Added Inter.");
+    expect(container.textContent).not.toContain("raw firestore failure");
+    expect(fonts.getCurrent()).toEqual([]);
+
+    await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not optimistically retain a failed append and retries the original master", async () => {
+    const { repository } = repositoryFor([]);
+    const existing = { id: "inter-master", font: { family: "Inter", faces: [fontFace(400)] } };
+    const fonts = customLibraryFontRepositoryFor([existing]);
+    fonts.updateFont.mockRejectedValueOnce(new Error("raw update failure"));
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await openManualFontAuthoring(container);
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "INTER");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(700).source.url);
+    const weight = container.querySelector<HTMLSelectElement>("#custom-library-font-weight");
+    if (!weight) throw new Error("expected weight selector");
+    act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
+    await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
+    expect(fonts.updateFont).toHaveBeenCalledWith("inter-master", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(fonts.getCurrent()).toEqual([existing]);
+    expect(container.textContent).toContain("Could not save the font to Custom Library.");
+
+    await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
+    expect(fonts.updateFont).toHaveBeenCalledTimes(2);
+    expect(fonts.getCurrent()).toEqual([{ id: "inter-master", font: { family: "Inter", faces: [fontFace(400), fontFace(700)] } }]);
+  });
+
+  it("serializes Google multi-face imports against the current master ref", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    let resolveSave: ((id: string) => void) | undefined;
+    fonts.saveFont.mockImplementationOnce(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
+    const result = {
+      families: [{
+        family: "Inter",
+        variants: [400, 500, 700].map((weight) => ({ weight, style: "normal" as const, faces: [fontFace(weight)] })),
+      }],
+      unsupported: [],
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      json: async () => String(input).includes("/status") ? { ok: true, available: true } : { ok: true, result },
+    })));
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await openManualFontAuthoring(container);
+    const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!source) throw new Error("expected font source selector");
+    act(() => { source.value = "google-fonts"; source.dispatchEvent(new Event("change", { bubbles: true })); });
+    await flushWorkspaceEffects();
+    expect(container.querySelector("#custom-library-font-search")).toBeTruthy();
+    expect(container.querySelector("#custom-library-font-google-import-url")).toBeTruthy();
+    const url = container.querySelector<HTMLInputElement>("#custom-library-font-google-import-url");
+    if (!url) throw new Error("expected Google import URL");
+    setLibraryInputValue(url, "https://fonts.googleapis.com/css2?family=Inter");
+    await act(async () => { findButton(container, "Resolve").click(); await Promise.resolve(); });
+    await act(async () => { findButton(container, "Add selected").click(); await Promise.resolve(); });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+    resolveSave?.("inter-master");
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "inter-master", { family: "Inter", faces: [fontFace(400), fontFace(500)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "inter-master", { family: "Inter", faces: [fontFace(400), fontFace(500), fontFace(700)] });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the Library write queue usable after a failed Google face", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    fonts.updateFont.mockRejectedValueOnce(new Error("middle face failed"));
+    const result = {
+      families: [{ family: "Inter", variants: [400, 500, 700].map((weight) => ({ weight, style: "normal" as const, faces: [fontFace(weight)] })) }],
+      unsupported: [],
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => ({
+      json: async () => String(input).includes("/status") ? { ok: true, available: true } : { ok: true, result },
+    })));
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await openManualFontAuthoring(container);
+    const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!source) throw new Error("expected font source selector");
+    act(() => { source.value = "google-fonts"; source.dispatchEvent(new Event("change", { bubbles: true })); });
+    await flushWorkspaceEffects();
+    const url = container.querySelector<HTMLInputElement>("#custom-library-font-google-import-url");
+    if (!url) throw new Error("expected Google import URL");
+    setLibraryInputValue(url, "https://fonts.googleapis.com/css2?family=Inter");
+    await act(async () => { findButton(container, "Resolve").click(); await Promise.resolve(); });
+    await act(async () => { findButton(container, "Add selected").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+    expect(fonts.updateFont).toHaveBeenCalledTimes(2);
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "font-1", { family: "Inter", faces: [fontFace(400), fontFace(500)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(fonts.getCurrent()[0]?.font.faces).toEqual([fontFace(400), fontFace(700)]);
   });
 
   it("loads, selects, inspects, and deletes a Custom Library Palette independently", async () => {

@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChartElement, InteractiveElement, PowerShowElement } from "@powershow/document-schema";
 import { ElementInspector } from "../src/features/editor/element-inspector";
-import type { BlocksAuthoringControls, FontResourceControls, TableAuthoringControls, TopicsAuthoringControls } from "../src/features/editor/inspector/inspector-types";
+import type { BlocksAuthoringControls, TableAuthoringControls, TopicsAuthoringControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const fonts: FontResourceControls = { fontResources: [], onAddFontFace: vi.fn(), onRemoveFontFace: vi.fn(), isFontFamilyInUse: () => false };
+const fonts: readonly { id: string; family: string }[] = [];
 const topics: TopicsAuthoringControls = { onAddTopLevelTopic: () => null, onAddChildTopic: () => null };
 const blocks: BlocksAuthoringControls = { onAddRootBlock: () => null, onAddScopeChild: () => null, onAddTextPart: () => null, onAddSocketPart: () => null, onCreateSocketValue: () => null };
 const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
@@ -35,7 +35,7 @@ describe("canonical semantic element inspector", () => {
         <ElementInspector
           element={element}
           onUpdate={(update) => { element = update(element); renderInspector(); }}
-          fontResourceControls={fonts}
+          fontResources={fonts}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}
           focalEditingImageId={null}

@@ -1,4 +1,4 @@
-import type { ContainerElement, PowerShowElement } from "@powershow/document-schema";
+import type { ContainerElement, FontResource, PowerShowElement } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
@@ -24,7 +24,6 @@ import {
 import type {
   BlocksAuthoringControls,
   ElementInspectorUpdate,
-  FontResourceControls,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
@@ -36,7 +35,7 @@ interface ElementInspectorProps {
 
   onUpdate: ElementInspectorUpdate;
 
-  fontResourceControls: FontResourceControls;
+  fontResources: readonly FontResource[];
 
   preserveImageProportion: boolean;
 
@@ -76,7 +75,7 @@ interface ElementTypeInspectorProps extends ElementInspectorProps {
 function ElementTypeInspector({
   element,
   onUpdate,
-  fontResourceControls,
+  fontResources,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -106,7 +105,7 @@ function ElementTypeInspector({
         <TextInspector
           element={element}
           onUpdate={onUpdate}
-          fontResourceControls={fontResourceControls}
+          fontResources={fontResources}
         />
       );
 
@@ -170,7 +169,7 @@ function ElementTypeInspector({
         <TopicsInspector
           element={element}
           onUpdate={onUpdate}
-          fontResourceControls={fontResourceControls}
+          fontResources={fontResources}
           topicsAuthoringControls={topicsAuthoringControls}
         />
       );
@@ -207,7 +206,7 @@ function ElementTypeInspector({
 export function ElementInspector({
   element,
   onUpdate,
-  fontResourceControls,
+  fontResources,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -249,7 +248,7 @@ export function ElementInspector({
       <ElementTypeInspector
         element={element}
         onUpdate={onUpdate}
-        fontResourceControls={fontResourceControls}
+        fontResources={fontResources}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditingImageId={focalEditingImageId}

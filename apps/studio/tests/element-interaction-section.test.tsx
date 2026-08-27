@@ -12,7 +12,6 @@ import type {
   TextElement,
 } from "@powershow/document-schema";
 
-import type { FontResourceControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { ImageInspector } from "../src/features/editor/inspector/image-inspector";
@@ -21,12 +20,7 @@ import { ElementInteractionSection } from "../src/features/editor/inspector/sect
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const FONT_RESOURCES: FontResourceControls = {
-  fontResources: [],
-  onAddFontFace: vi.fn(),
-  onRemoveFontFace: vi.fn(),
-  isFontFamilyInUse: () => false,
-};
+const FONT_RESOURCES: readonly { id: string; family: string }[] = [];
 
 type LinkableElement = Extract<
   PowerShowElement,
@@ -1096,7 +1090,7 @@ describe("shared Interaction control in inspectors", () => {
           <TextInspector
             element={textElement()}
             onUpdate={() => {}}
-            fontResourceControls={FONT_RESOURCES}
+            fontResources={FONT_RESOURCES}
           />
         </StudioI18nProvider>,
       );

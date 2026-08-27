@@ -4,11 +4,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FontResource } from "@powershow/document-schema";
 import type { ResolvedWebFontFamily } from "../src/features/fonts/web-font-types";
 import type { WebFontSummary } from "../src/features/fonts/web-font-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-import { WebFontSearchControl } from "../src/features/editor/inspector/sections/web-font-search-control";
+import { WebFontSearchControl } from "../src/features/fonts/components/web-font-search-control";
+import type { FontFamilyFaces } from "../src/features/fonts/font-acquisition-types";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -114,12 +114,6 @@ function assertHasButton(container: HTMLElement, label: string) {
   ).toBe(true);
 }
 
-function hasButton(container: HTMLElement, label: string): boolean {
-  return [...container.querySelectorAll("button")].some(
-    (button) => button.textContent?.trim() === label,
-  );
-}
-
 describe("WebFontSearchControl provider behavior", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -140,7 +134,7 @@ describe("WebFontSearchControl provider behavior", () => {
     vi.unstubAllGlobals();
   });
 
-  it("serves the Google Fonts provider with the same add-font flow when available", async () => {
+  it("serves the Google Fonts provider and keeps search actions write-free", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
 
@@ -159,15 +153,17 @@ describe("WebFontSearchControl provider behavior", () => {
       return Response.json({ ok: true, results: [] });
     });
     vi.stubGlobal("fetch", fetchMock);
+    const onAddFontFace = vi.fn(() => true);
 
     await act(async () => {
       root.render(
         <StudioI18nProvider>
           <WebFontSearchControl
             provider="google-fonts"
-            fontResources={[]}
-            onAddFontFace={vi.fn()}
+            fontFamilies={[]}
+            onAddFontFace={onAddFontFace}
             onFontAdded={vi.fn()}
+            controlPrefix="presentation-font"
           />
         </StudioI18nProvider>,
       );
@@ -181,14 +177,10 @@ describe("WebFontSearchControl provider behavior", () => {
     });
     await act(async () => {});
 
-    assertHasButton(container, "Add font");
-
-    await act(async () => {
-      clickButton(container, "Add font");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
+    assertHasButton(container, "Choose variants");
+    await act(async () => clickButton(container, "Choose variants"));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(onAddFontFace).not.toHaveBeenCalled();
 
     expect(
       fetchMock.mock.calls.some(([input]) =>
@@ -220,9 +212,10 @@ describe("WebFontSearchControl provider behavior", () => {
         <StudioI18nProvider>
           <WebFontSearchControl
             provider="fontsource"
-            fontResources={[]}
-            onAddFontFace={vi.fn()}
+            fontFamilies={[]}
+            onAddFontFace={vi.fn(() => true)}
             onFontAdded={vi.fn()}
+            controlPrefix="presentation-font"
           />
         </StudioI18nProvider>,
       );
@@ -241,323 +234,108 @@ describe("WebFontSearchControl provider behavior", () => {
     ).toBe(false);
   });
 });
-
-describe("WebFontSearchControl add-to-apply flow", () => {
+describe("WebFontSearchControl multi-weight customizer", () => {
   let container: HTMLDivElement;
   let root: Root;
   let onAddFontFace: ReturnType<typeof vi.fn>;
-  let onFontAdded: ReturnType<typeof vi.fn>;
-
-  function renderControl() {
-    root.render(
-      <StudioI18nProvider>
-        <WebFontSearchControl
-          provider="fontsource"
-          fontResources={[]}
-          onAddFontFace={onAddFontFace}
-          onFontAdded={onFontAdded}
-        />
-      </StudioI18nProvider>,
-    );
-  }
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    onAddFontFace = vi.fn();
-    onFontAdded = vi.fn();
+    onAddFontFace = vi.fn(() => true);
     vi.useFakeTimers();
+    vi.stubGlobal("fetch", searchResponseStub());
   });
 
   afterEach(async () => {
-    await act(async () => {
-      root.unmount();
-    });
+    await act(async () => root.unmount());
     document.body.innerHTML = "";
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  async function search(query: string, fetchMock?: ReturnType<typeof vi.fn>) {
-    if (fetchMock) {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      vi.stubGlobal("fetch", searchResponseStub());
-    }
-
-    await act(async () => {
-      renderControl();
-    });
-
-    await act(async () => {
-      typeQuery(container, query);
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 100);
-    });
-
-    await act(async () => {});
-  }
-
-  it("exposes 'Add font' directly on search results", async () => {
-    await search("Inter");
-
-    assertHasButton(container, "Add font");
-    expect(
-      container.querySelector("#presentation-font-search-weight"),
-    ).toBeNull();
-  });
-
-  it("does not show Weight / Style / Subset controls before Customize is chosen", async () => {
-    await search("Inter");
-
-    expect(
-      container.querySelector("#presentation-font-search-weight"),
-    ).toBeNull();
-    expect(
-      container.querySelector("#presentation-font-search-style"),
-    ).toBeNull();
-    expect(
-      container.querySelector("#presentation-font-search-subset"),
-    ).toBeNull();
-  });
-
-  it("Add font resolves the family and adds the recommended face in one action", async () => {
-    const fetchMock = searchResponseStub();
-    await search("Inter", fetchMock);
-
-    await act(async () => {
-      clickButton(container, "Add font");
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    expect(
-      fetchMock.mock.calls.some(([input]) =>
-        String(input).includes("/api/fonts/family"),
-      ),
-    ).toBe(true);
-    expect(onAddFontFace).toHaveBeenCalledTimes(1);
-    expect(onFontAdded).toHaveBeenCalledWith("Inter");
-    expect(onAddFontFace.mock.calls[0]?.[0]).toBe("Inter");
-    expect(onAddFontFace.mock.calls[0]?.[1]).toMatchObject({
-      weight: 400,
-      style: "normal",
-      subset: "latin",
-    });
-  });
-
-  it("keeps normal as the initial style even though italic appears first", async () => {
-    await search("Inter");
-
-    await act(async () => {
-      clickButton(container, "Customize");
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    const styleSelect = container.querySelector<HTMLSelectElement>(
-      "#presentation-font-search-style",
-    );
-    expect(styleSelect?.value).toBe("normal");
-  });
-
-  it("Customize exposes the Weight / Style / Subset editor initialized to the recommended face", async () => {
-    await search("Inter");
-
-    await act(async () => {
-      clickButton(container, "Customize");
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    expect(
-      container.querySelector<HTMLSelectElement>("#presentation-font-search-weight")
-        ?.value,
-    ).toBe("400");
-    expect(
-      container.querySelector<HTMLSelectElement>("#presentation-font-search-style")
-        ?.value,
-    ).toBe("normal");
-    expect(
-      container.querySelector<HTMLSelectElement>("#presentation-font-search-subset")
-        ?.value,
-    ).toBe("latin");
-  });
-
-  it("Back collapses the Customize editor without adding anything", async () => {
-    await search("Inter");
-
-    await act(async () => {
-      clickButton(container, "Customize");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    await act(async () => {
-      clickButton(container, "Back");
-    });
-
-    expect(
-      container.querySelector("#presentation-font-search-weight"),
-    ).toBeNull();
-    expect(onAddFontFace).not.toHaveBeenCalled();
-  });
-
-  it("Add variant adds the selected customized face", async () => {
-    await search("Inter");
-
-    await act(async () => {
-      clickButton(container, "Customize");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    const weightSelect = container.querySelector<HTMLSelectElement>(
-      "#presentation-font-search-weight",
-    );
-    if (!weightSelect) {
-      throw new Error("weight select not found");
-    }
-
-    await act(async () => {
-      weightSelect.value = "700";
-      weightSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    await act(async () => {
-      clickButton(container, "Add variant");
-    });
-
-    expect(onAddFontFace).toHaveBeenCalledTimes(1);
-    expect(onAddFontFace.mock.calls[0]?.[1]).toMatchObject({
-      weight: 700,
-      style: "normal",
-      subset: "latin",
-    });
-    expect(onFontAdded).toHaveBeenCalledWith("Inter");
-  });
-
-  it("keeps duplicate protection when the face already exists", async () => {
-    onAddFontFace = vi.fn();
-    const duplicateFace = INTER_FAMILY.faces.find(
-      (candidate) =>
-        candidate.weight === 400 &&
-        candidate.style === "normal" &&
-        candidate.subset === "latin",
-    );
-    if (!duplicateFace) {
-      throw new Error("expected fixture face not found");
-    }
-    const existingResources: FontResource[] = [
-      { id: "inter", family: "Inter", faces: [duplicateFace] },
-    ];
-
-    vi.stubGlobal("fetch", searchResponseStub());
-
+  async function openCustomizer(fontFamilies: FontFamilyFaces[] = []) {
     await act(async () => {
       root.render(
         <StudioI18nProvider>
           <WebFontSearchControl
             provider="fontsource"
-            fontResources={existingResources}
+            fontFamilies={fontFamilies}
             onAddFontFace={onAddFontFace}
-            onFontAdded={onFontAdded}
+            onFontAdded={vi.fn()}
+            controlPrefix="presentation-font"
           />
         </StudioI18nProvider>,
       );
     });
+    await act(async () => typeQuery(container, "Inter"));
+    await act(async () => vi.advanceTimersByTimeAsync(400));
+    await act(async () => clickButton(container, "Choose variants"));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+  }
 
-    await act(async () => {
-      typeQuery(container, "Inter");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 100);
-    });
-
-    await act(async () => {
-      clickButton(container, "Add font");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
+  it("renders scoped chips, keeps the recommendation unselected, and orders the customizer before results", async () => {
+    await openCustomizer();
+    const chips = [...container.querySelectorAll<HTMLButtonElement>("[data-weight]")];
+    expect(chips.map((chip) => chip.dataset.weight)).toEqual(["400", "700"]);
+    expect(chips.every((chip) => chip.getAttribute("aria-pressed") === "false")).toBe(true);
+    const customizer = container.querySelector("[data-web-font-customizer]");
+    const results = container.querySelector("[data-web-font-results]");
+    expect(customizer?.compareDocumentPosition(results as Node) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     expect(onAddFontFace).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("This font face already exists.");
   });
 
-  it("a stale family request never adds the wrong family", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-
-      if (url.includes("/api/fonts/family")) {
-        return new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener("abort", () => {
-            reject(new DOMException("Aborted", "AbortError"));
-          });
-        });
-      }
-
-      if (url.includes("/api/fonts/search")) {
-        return Promise.resolve(
-          Response.json({ ok: true, results: SEARCH_RESULTS }),
-        );
-      }
-
-      return Promise.resolve(Response.json({ ok: true, results: [] }));
-    });
-
-    await search("Inter", fetchMock);
-
-    await act(async () => {
-      clickButton(container, "Add font");
-    });
-
-    // Changing the query while the family is still loading cancels the add.
-    await act(async () => {
-      typeQuery(container, "Roboto");
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    expect(onAddFontFace).not.toHaveBeenCalled();
-    expect(onFontAdded).not.toHaveBeenCalled();
+  it("renders the resolved family name in the real-font preview", async () => {
+    await openCustomizer();
+    expect(container.querySelector("[data-web-font-preview]")?.textContent).toBe("AgInter");
+    expect(container.textContent).not.toContain("AgMontserrat");
   });
 
-  it("clears the Add another variant context when the query changes", async () => {
-    await search("Inter");
+  it("selects, previews, deselects, and persists multiple weights in ascending order", async () => {
+    await openCustomizer();
+    const chip400 = container.querySelector<HTMLButtonElement>("[data-weight='400']");
+    const chip700 = container.querySelector<HTMLButtonElement>("[data-weight='700']");
+    if (!chip400 || !chip700) throw new Error("expected weight chips");
+    await act(async () => chip700.click());
+    await act(async () => chip400.click());
+    expect(chip700.getAttribute("aria-pressed")).toBe("true");
+    expect(chip400.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => chip400.click());
+    expect(chip400.getAttribute("aria-pressed")).toBe("false");
+    await act(async () => chip400.click());
+    await act(async () => clickButton(container, "Add selected variants"));
+    expect(onAddFontFace.mock.calls.map((call) => call[1].weight)).toEqual([400, 700]);
+    expect(container.querySelector("[data-web-font-customizer]")).not.toBeNull();
+    expect(container.textContent).not.toContain("Add font");
+    expect(container.textContent).not.toContain("Add variant");
+    expect(container.textContent).not.toContain("Add another variant");
+  });
 
-    await act(async () => {
-      clickButton(container, "Add font");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
+  it("scopes chips and resets pending selection when Style or Subset changes", async () => {
+    await openCustomizer();
+    const chip700 = container.querySelector<HTMLButtonElement>("[data-weight='700']");
+    if (!chip700) throw new Error("expected weight chip");
+    await act(async () => chip700.click());
+    const style = container.querySelector<HTMLSelectElement>("#presentation-font-search-style");
+    if (!style) throw new Error("expected style selector");
+    style.value = "italic";
+    await act(async () => style.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(container.querySelector("[data-weight='700']")).toBeNull();
+    expect(container.querySelector("[data-weight='400']")?.getAttribute("aria-pressed")).toBe("false");
+    expect(onAddFontFace).not.toHaveBeenCalled();
+  });
 
-    expect(hasButton(container, "Add another variant")).toBe(true);
-
-    // The results now refer to a different family: the stale "Add another
-    // variant" action must disappear together with the other search state.
-    await act(async () => {
-      typeQuery(container, "Roboto");
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 100);
-    });
-    await act(async () => {});
-
-    expect(hasButton(container, "Add another variant")).toBe(false);
+  it("marks equivalent existing faces and skips them defensively", async () => {
+    const existing = INTER_FAMILY.faces.find((candidate) => candidate.weight === 400 && candidate.style === "normal" && candidate.subset === "latin");
+    if (!existing) throw new Error("expected existing face");
+    await openCustomizer([{ family: "Inter", faces: [existing] }]);
+    const chip = container.querySelector<HTMLButtonElement>("[data-weight='400']");
+    expect(chip?.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => chip?.click());
+    expect(chip?.getAttribute("aria-pressed")).toBe("false");
+    expect(onAddFontFace).not.toHaveBeenCalled();
   });
 });

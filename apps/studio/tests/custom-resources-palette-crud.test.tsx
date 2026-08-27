@@ -57,6 +57,10 @@ function Harness({ repository }: { repository: CustomLibraryPaletteRepository })
   return (
     <CustomResourcesWorkspace
       customLibraryPaletteRepository={repository}
+      presentationFonts={[]}
+      onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
+      onRemovePresentationFont={() => "not-found"}
+      isPresentationFontInUse={() => false}
       presentationColors={presentation.palette?.colors ?? []}
       onAddLibraryPalette={(palette: CustomLibraryPaletteDraft) => {
         const result = addCustomLibraryPaletteToPresentation(presentation, palette);
@@ -123,7 +127,6 @@ describe("Custom Resources palette composition", () => {
     expect(container.textContent).toContain("From Library");
     expect(container.textContent).toContain("This Presentation");
     expect(container.textContent).not.toContain("Custom Library");
-    expect(container.textContent).not.toContain("Fonts");
     expect(container.textContent).not.toContain("Styles");
     expect(container.querySelector("details[open]")).not.toBeNull();
     expect(container.querySelector("[data-presentation-color-name-input]")).toBeNull();
