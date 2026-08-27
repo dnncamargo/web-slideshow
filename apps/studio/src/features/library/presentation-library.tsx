@@ -31,6 +31,7 @@ import {
 import { getDefaultPresentationFolderRepository } from "../persistence/presentation-folder-repository-instance";
 import { getDefaultCustomLibraryRepository } from "../persistence/custom-library-repository-instance";
 import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";
+import { getDefaultCustomLibraryFontRepository } from "../persistence/custom-library-font-repository-instance";
 import type { PresentationRepository } from "../persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
 import type { PresentationFolder } from "../persistence/presentation-folder";
@@ -45,6 +46,12 @@ import type {
 } from "../custom-library/custom-library-palette-repository";
 import type { CustomLibraryPaletteDraft } from "../custom-library/custom-library-palette";
 import { CustomLibraryPaletteEditor } from "../custom-library/custom-library-palette-editor";
+import type { CustomLibraryFontRepository } from "../custom-library/custom-library-font-repository";
+import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
+import { CustomLibraryFontAcquisition } from "../custom-library/custom-library-font-acquisition";
+import { areFontFacesEquivalent, normalizeFontFamily } from "../fonts/font-face-helpers";
+import type { FontFamilyFaces } from "../fonts/font-acquisition-types";
+import type { FontFaceResource } from "@powershow/document-schema";
 import {
   subscribeLiveCurrent,
   activateLivePresentation,
@@ -86,6 +93,7 @@ interface PresentationLibraryProps {
   folderRepository?: PresentationFolderRepository;
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
+  customLibraryFontRepository?: CustomLibraryFontRepository;
 }
 
 type LibraryStatus = "loading" | "ready" | "error";
@@ -143,6 +151,7 @@ export function PresentationLibrary({
   folderRepository = getDefaultPresentationFolderRepository(),
   customLibraryRepository = getDefaultCustomLibraryRepository(),
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
+  customLibraryFontRepository = getDefaultCustomLibraryFontRepository(),
 }: PresentationLibraryProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
@@ -156,6 +165,11 @@ export function PresentationLibrary({
   const [customLibraryItems, setCustomLibraryItems] = useState<CustomLibraryItemRecord[]>([]);
   const [customLibraryPaletteStatus, setCustomLibraryPaletteStatus] = useState<"idle" | LibraryStatus>("idle");
   const [customLibraryPalettes, setCustomLibraryPalettes] = useState<CustomLibraryPaletteRecord[]>([]);
+  const [customLibraryFontStatus, setCustomLibraryFontStatus] = useState<"idle" | LibraryStatus>("idle");
+  const [customLibraryFonts, setCustomLibraryFonts] = useState<CustomLibraryFontRecord[]>([]);
+  const [customLibraryFontAuthoring, setCustomLibraryFontAuthoring] = useState(false);
+  const [customLibraryFontError, setCustomLibraryFontError] = useState<string | null>(null);
+  const [customLibraryFontWriteState, setCustomLibraryFontWriteState] = useState<"saving" | null>(null);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -192,6 +206,9 @@ export function PresentationLibrary({
   const mountedRef = useRef(true);
   const customLibraryLoadRef = useRef(0);
   const customLibraryPaletteLoadRef = useRef(0);
+  const customLibraryFontLoadRef = useRef(0);
+  const customLibraryFontsRef = useRef<CustomLibraryFontRecord[]>([]);
+  const customLibraryFontWriteQueueRef = useRef(Promise.resolve());
   const customLibraryDeleteRef = useRef(false);
   const customLibraryPaletteDeleteRef = useRef(false);
   const paletteWriteRef = useRef(false);
@@ -299,6 +316,31 @@ export function PresentationLibrary({
     void loadCustomLibraryPalettes();
   }, [destination, loadCustomLibraryPalettes]);
 
+  const loadCustomLibraryFonts = useCallback(async () => {
+    const request = customLibraryFontLoadRef.current + 1;
+    customLibraryFontLoadRef.current = request;
+    setCustomLibraryFontStatus("loading");
+    setCustomLibraryFontError(null);
+
+    try {
+      const fonts = await customLibraryFontRepository.listFonts();
+      if (!mountedRef.current || customLibraryFontLoadRef.current !== request) return;
+      customLibraryFontsRef.current = fonts;
+      setCustomLibraryFonts(fonts);
+      setCustomLibraryFontStatus("ready");
+    } catch (error) {
+      console.error("Library: could not load Custom Library fonts", error);
+      if (!mountedRef.current || customLibraryFontLoadRef.current !== request) return;
+      setCustomLibraryFontStatus("error");
+      setCustomLibraryFontError(t("customLibrary.fontBrowser.loadFailed"));
+    }
+  }, [customLibraryFontRepository, t]);
+
+  useEffect(() => {
+    if (destination !== "fonts") return;
+    queueMicrotask(() => void loadCustomLibraryFonts());
+  }, [destination, loadCustomLibraryFonts]);
+
   useEffect(() => {
     const unsubscribe = subscribeLiveCurrent(setLiveState);
     return () => unsubscribe?.();
@@ -326,7 +368,11 @@ export function PresentationLibrary({
       setPaletteAuthoring(null);
       setCustomLibraryPaletteError(null);
     }
-  }, []);
+    if (next !== "fonts" && customLibraryFontWriteState === null) {
+      setCustomLibraryFontAuthoring(false);
+      setCustomLibraryFontError(null);
+    }
+  }, [customLibraryFontWriteState]);
 
   const handleToggleSelection = useCallback((id: string) => {
     setSelectedId((current) => (current === id ? null : id));
@@ -414,6 +460,69 @@ export function PresentationLibrary({
     customLibraryItems.find((record) => record.id === selectedCustomLibraryItemId) ?? null;
   const selectedCustomLibraryPalette =
     customLibraryPalettes.find((record) => record.id === selectedCustomLibraryPaletteId) ?? null;
+
+  const customLibraryFontFamilies = useMemo<FontFamilyFaces[]>(
+    () => customLibraryFonts.map((record) => ({ family: record.font.family, faces: record.font.faces })),
+    [customLibraryFonts],
+  );
+
+  const handleAddCustomLibraryFontFace = useCallback(
+    (family: string, face: FontFaceResource): Promise<boolean> => {
+      const operation = customLibraryFontWriteQueueRef.current.then(async () => {
+        const currentFonts = customLibraryFontsRef.current;
+        const normalizedFamily = normalizeFontFamily(family);
+        const existing = currentFonts.find(
+          (record) => normalizeFontFamily(record.font.family) === normalizedFamily,
+        );
+
+        if (existing && existing.font.faces.some((storedFace) => areFontFacesEquivalent(storedFace, face))) {
+          return false;
+        }
+
+        setCustomLibraryFontWriteState("saving");
+        setCustomLibraryFontError(null);
+
+        try {
+          if (existing) {
+            const nextFont = {
+              family: existing.font.family,
+              faces: [...existing.font.faces, face],
+            };
+            await customLibraryFontRepository.updateFont(existing.id, nextFont);
+            const nextRecord = { id: existing.id, font: nextFont };
+            const nextFonts = currentFonts.map((record) =>
+              record.id === existing.id ? nextRecord : record,
+            );
+            customLibraryFontsRef.current = nextFonts;
+            if (mountedRef.current) setCustomLibraryFonts(nextFonts);
+          } else {
+            const nextFont = { family, faces: [face] };
+            const id = await customLibraryFontRepository.saveFont(nextFont);
+            const nextFonts = [...currentFonts, { id, font: nextFont }];
+            customLibraryFontsRef.current = nextFonts;
+            if (mountedRef.current) setCustomLibraryFonts(nextFonts);
+          }
+
+          return true;
+        } catch (error) {
+          console.error("Library: could not save Custom Library font", error);
+          if (mountedRef.current) {
+            setCustomLibraryFontError(t("customLibrary.fontManagement.saveFailed"));
+          }
+          return false;
+        } finally {
+          if (mountedRef.current) setCustomLibraryFontWriteState(null);
+        }
+      });
+
+      customLibraryFontWriteQueueRef.current = operation.then(
+        () => undefined,
+        () => undefined,
+      );
+      return operation;
+    },
+    [customLibraryFontRepository, t],
+  );
 
   const handleRequestCustomLibraryDelete = useCallback(() => {
     if (!selectedCustomLibraryItem) return;
@@ -840,6 +949,7 @@ export function PresentationLibrary({
   const presentationDestination = isPresentationDestination(destination);
   const stylesDestination = destination === "styles";
   const palettesDestination = destination === "palettes";
+  const fontsDestination = destination === "fonts";
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
@@ -949,6 +1059,18 @@ export function PresentationLibrary({
                 {t("customLibrary.paletteManagement.new")}
               </Button>
             ) : null}
+            {fontsDestination && customLibraryFontStatus === "ready" ? (
+              <Button
+                size="compact"
+                disabled={customLibraryFontWriteState !== null || customLibraryFontAuthoring}
+                onClick={() => {
+                  setCustomLibraryFontError(null);
+                  setCustomLibraryFontAuthoring(true);
+                }}
+              >
+                {t("customLibrary.fontManagement.add")}
+              </Button>
+            ) : null}
           </div>
 
           <div className={styles.workspaceBody}>
@@ -1040,6 +1162,28 @@ export function PresentationLibrary({
                     />
                   ) : null}
                 </>
+              ) : fontsDestination ? (
+                <>
+                  {customLibraryFontStatus === "loading" ? (
+                    <p className={styles.stateBlock}>{t("customLibrary.fontBrowser.loading")}</p>
+                  ) : null}
+                  {customLibraryFontStatus === "error" ? (
+                    <div className={styles.stateBlock}>
+                      <p>{customLibraryFontError ?? t("customLibrary.fontBrowser.loadFailed")}</p>
+                      <Button size="compact" onClick={() => void loadCustomLibraryFonts()}>
+                        {t("customLibrary.fontBrowser.retry")}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {customLibraryFontStatus === "ready" && customLibraryFonts.length === 0 ? (
+                    <p className={styles.stateBlock}>{t("customLibrary.fontBrowser.empty")}</p>
+                  ) : null}
+                  {customLibraryFontStatus === "ready" && customLibraryFonts.length > 0 ? (
+                    <p className={styles.stateBlock}>
+                      {t("customLibrary.fontBrowser.count", { count: customLibraryFonts.length })}
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <div className={styles.placeholder}>
                   <p className={styles.placeholderTitle}>
@@ -1078,6 +1222,27 @@ export function PresentationLibrary({
                   onCopy={selectedCustomLibraryPalette ? () => beginPaletteAuthoring({ kind: "copy", initialPalette: selectedCustomLibraryPalette.palette }) : undefined}
                   onDelete={handleRequestCustomLibraryPaletteDelete}
                 />
+              )
+            ) : fontsDestination ? (
+              customLibraryFontAuthoring ? (
+                <aside className={styles.detailsPane} aria-label={t("library.details")}>
+                  <CustomLibraryFontAcquisition
+                    fontFamilies={customLibraryFontFamilies}
+                    onAddFontFace={handleAddCustomLibraryFontFace}
+                    saving={customLibraryFontWriteState === "saving"}
+                    error={customLibraryFontError}
+                    onClose={() => {
+                      if (customLibraryFontWriteState === null) {
+                        setCustomLibraryFontAuthoring(false);
+                        setCustomLibraryFontError(null);
+                      }
+                    }}
+                  />
+                </aside>
+              ) : (
+                <aside className={styles.detailsPane} aria-label={t("library.details")}>
+                  <p className={styles.detailsEmpty}>{t("customLibrary.fontBrowser.detailsEmpty")}</p>
+                </aside>
               )
             ) : (
               <PresentationDetails

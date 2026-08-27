@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type FontFaceResource, type Presentation } from "@powershow/document-schema";
 
 type TestLiveState =
   | { kind: "none" }
@@ -59,6 +59,8 @@ import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "../src/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
+import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -158,6 +160,7 @@ function renderLibrary(
   folderRepository?: PresentationFolderRepository,
   customLibraryRepository?: CustomLibraryRepository,
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository,
+  customLibraryFontRepository?: CustomLibraryFontRepository,
 ) {
   return (
     <StudioI18nProvider>
@@ -166,6 +169,7 @@ function renderLibrary(
         folderRepository={folderRepository ?? emptyFolderRepository()}
         customLibraryRepository={customLibraryRepository}
         customLibraryPaletteRepository={customLibraryPaletteRepository ?? customLibraryPaletteRepositoryFor([]).repository}
+        customLibraryFontRepository={customLibraryFontRepository ?? customLibraryFontRepositoryFor([]).repository}
       />
     </StudioI18nProvider>
   );
@@ -232,6 +236,35 @@ function customLibraryPaletteRepositoryFor(initialPalettes: CustomLibraryPalette
     deletePalette,
   };
   return { repository, listPalettes, deletePalette, getCurrent: () => current };
+}
+
+function customLibraryFontRepositoryFor(initialFonts: CustomLibraryFontRecord[]) {
+  let current = initialFonts;
+  const listFonts = vi.fn(async () => current);
+  const saveFont = vi.fn(async (font: CustomLibraryFontRecord["font"]) => {
+    const id = `font-${current.length + 1}`;
+    current = [...current, { id, font }];
+    return id;
+  });
+  const updateFont = vi.fn(async (id: string, font: CustomLibraryFontRecord["font"]) => {
+    current = current.map((record) => record.id === id ? { id, font } : record);
+  });
+  const repository: CustomLibraryFontRepository = {
+    saveFont,
+    updateFont,
+    listFonts,
+    getFont: vi.fn(async () => null),
+    deleteFont: vi.fn(async () => {}),
+  };
+  return { repository, listFonts, saveFont, updateFont, getCurrent: () => current };
+}
+
+function fontFace(weight: number): FontFaceResource {
+  return {
+    weight,
+    style: "normal",
+    source: { type: "url", url: `https://cdn.example.test/${weight}.woff2`, format: "woff2" },
+  };
 }
 
 function customLibraryPalette(
@@ -954,8 +987,9 @@ describe("presentation library workspace controls", () => {
     );
     if (!fontsDestination) throw new Error("expected Fonts destination");
     act(() => fontsDestination.click());
+    await flushWorkspaceEffects();
 
-    expect(container.textContent).toContain("Fonts are planned");
+    expect(container.textContent).toContain("No fonts saved yet.");
     expect(container.textContent).not.toContain("Saved style");
     expect(custom.listItems).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-selected="true"]')).toBeNull();
@@ -963,6 +997,52 @@ describe("presentation library workspace controls", () => {
     expect(repository.createPresentation).not.toHaveBeenCalled();
     expect(repository.archivePresentation).not.toHaveBeenCalled();
     expect(repository.getPresentation).not.toHaveBeenCalled();
+  });
+
+  it("loads Fonts lazily, opens Library authoring, and appends faces to one master", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).not.toHaveBeenCalled();
+
+    const destination = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Fonts");
+    if (!destination) throw new Error("expected Fonts destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+    expect(fonts.listFonts).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("No fonts saved yet.");
+
+    const add = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font");
+    if (!add) throw new Error("expected Add font");
+    act(() => add.click());
+    expect(container.textContent).toContain("Add font");
+    const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!source) throw new Error("expected font source selector");
+    act(() => {
+      source.value = "manual";
+      source.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), " Inter ");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(400).source.url);
+    const addFace = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Add face");
+    if (!addFace) throw new Error("expected manual Add font face");
+    await act(async () => { addFace.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "inter");
+    setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(700).source.url);
+    const addSecond = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Add face");
+    if (!addSecond) throw new Error("expected second Add font face");
+    const weight = container.querySelector<HTMLSelectElement>("#custom-library-font-weight");
+    if (!weight) throw new Error("expected weight selector");
+    act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
+    await act(async () => { addSecond.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
+    expect(fonts.saveFont).toHaveBeenCalledTimes(1);
+    expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(container.textContent).toContain("1 fonts in Custom Library.");
   });
 
   it("loads, selects, inspects, and deletes a Custom Library Palette independently", async () => {
