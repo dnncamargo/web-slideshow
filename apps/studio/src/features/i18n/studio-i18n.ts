@@ -240,8 +240,6 @@ const englishMessages = {
   "inspector.body": "Body",
   "inspector.caption": "Caption",
   "inspector.interaction": "Interaction",
-  "inspector.inlineFormattingHint":
-    "Select text to apply inline formatting.",
   "inspector.inlineFormat.bold": "Bold",
   "inspector.inlineFormat.italic": "Italic",
   "inspector.inlineFormat.underline": "Underline",
@@ -1119,8 +1117,6 @@ const portugueseMessages = {
   "inspector.body": "Corpo",
   "inspector.caption": "Legenda",
   "inspector.interaction": "Interação",
-  "inspector.inlineFormattingHint":
-    "Selecione o texto para aplicar formatação inline.",
   "inspector.inlineFormat.bold": "Negrito",
   "inspector.inlineFormat.italic": "Itálico",
   "inspector.inlineFormat.underline": "Sublinhado",

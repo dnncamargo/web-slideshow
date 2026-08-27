@@ -1,13 +1,12 @@
 import {
   resolveColorValue,
-  type ColorValue,
   type PowerShowElement,
   type TextElement,
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
 } from "@powershow/document-schema";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
@@ -65,16 +64,6 @@ function readTextareaSelection(
   );
 }
 
-function selectionEquals(
-  left: TextSelectionRange | null,
-  right: TextSelectionRange | null,
-): boolean {
-  return (
-    left?.start === right?.start &&
-    left?.end === right?.end
-  );
-}
-
 function InlineFormatButton({
   format,
   accessibleLabel,
@@ -121,7 +110,6 @@ export function TextInspector({
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
-  const [inlineColor, setInlineColor] = useState<ColorValue | undefined>(undefined);
   const [isInlineColorOpen, setIsInlineColorOpen] = useState(false);
   const presentationPalette = usePresentationColorPalette();
 
@@ -145,22 +133,6 @@ export function TextInspector({
         presentationPalette ? { colors: presentationPalette.colors } : undefined,
       );
   const isColorPanelOpen = isInlineColorOpen && hasSelection;
-
-  useEffect(() => {
-    setInlineColor(selectionColor);
-  }, [selectionColor]);
-
-  useEffect(() => {
-    const nextSelection = normalizeTextSelectionRange(selection, plainText.length);
-
-    if (!selectionEquals(selection, nextSelection)) {
-      setSelection(nextSelection);
-
-      if (nextSelection) {
-        selectionRef.current = nextSelection;
-      }
-    }
-  }, [plainText.length, selection]);
 
   const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
@@ -376,11 +348,9 @@ export function TextInspector({
               <ColorControl
                 id="text-inline-color"
                 name="textInlineColor"
-                value={inlineColor}
+                value={selectionColor}
                 disabled={!hasSelection}
                 onChange={(color) => {
-                  setInlineColor(color);
-
                   applySelectionTransform((content, range) =>
                     applyTextContentColor(content, range, color),
                   );

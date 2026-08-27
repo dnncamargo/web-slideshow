@@ -68,6 +68,11 @@ describe("TextInspector rich text authoring", () => {
     renderInspector();
   }
 
+  function rerenderWithElement(nextElement: TextElement) {
+    elementState = nextElement;
+    renderInspector();
+  }
+
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -563,6 +568,159 @@ describe("TextInspector rich text authoring", () => {
       { text: " world" },
     ]));
     expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("uniform");
+  });
+
+  it("derives the color control from the current uniform selection", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([
+          { text: "red", marks: { color: "#ef4444" } },
+          { text: "blue", marks: { color: "#3b82f6" } },
+        ]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 3);
+    });
+
+    await act(async () => {
+      inlineColorButton().click();
+    });
+
+    expect(colorInput().value).toBe("#ef4444");
+
+    await act(async () => {
+      selectRange(3, 7);
+    });
+
+    expect(colorInput().value).toBe("#3b82f6");
+  });
+
+  it("does not retain a uniform color as the canonical value for a mixed selection", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([
+          { text: "red", marks: { color: "#ef4444" } },
+          { text: "blue", marks: { color: "#3b82f6" } },
+        ]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 3);
+    });
+
+    await act(async () => {
+      inlineColorButton().click();
+    });
+
+    expect(colorInput().value).toBe("#ef4444");
+
+    await act(async () => {
+      selectRange(0, 7);
+    });
+
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("mixed");
+    expect(colorInput().value).toBe("#f8fafc");
+  });
+
+  it("clears color immediately without retaining a selection color", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([{ text: "Hello", marks: { color: "#ef4444" } }]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    await act(async () => {
+      inlineColorButton().click();
+    });
+
+    const clearColor = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Clear color",
+    );
+
+    await act(async () => {
+      clearColor?.click();
+    });
+
+    expect(elementState.content).toBe("Hello");
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("none");
+  });
+
+  it("normalizes a remembered selection when content becomes shorter", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    await act(async () => {
+      selectRange(0, 11);
+    });
+
+    await act(async () => {
+      rerenderWithElement(richTextElement({ content: "Hello" }));
+    });
+
+    expect(inlineButton("bold").disabled).toBe(false);
+    expect(inlineButton("bold").getAttribute("aria-pressed")).toBe("false");
+
+    await act(async () => {
+      inlineButton("bold").click();
+    });
+
+    expect(elementState.content).toEqual({
+      type: "rich-text",
+      runs: [{ text: "Hello", marks: { bold: true } }],
+    });
+  });
+
+  it("clamps stale formatting transforms to the current content length", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    await act(async () => {
+      selectRange(3, 11);
+    });
+
+    await act(async () => {
+      rerenderWithElement(richTextElement({ content: "Hello" }));
+    });
+
+    await act(async () => {
+      inlineButton("italic").click();
+    });
+
+    expect(elementState.content).toEqual({
+      type: "rich-text",
+      runs: [
+        { text: "Hel" },
+        { text: "lo", marks: { italic: true } },
+      ],
+    });
+  });
+
+  it("disables selection formatting when a content shrink makes the range empty", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    await act(async () => {
+      selectRange(6, 11);
+    });
+
+    await act(async () => {
+      rerenderWithElement(richTextElement({ content: "Hi" }));
+    });
+
+    expect(inlineButton("bold").disabled).toBe(true);
+    expect(inlineColorButton().disabled).toBe(true);
+    expect(clearFormattingButton().disabled).toBe(true);
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("none");
   });
 
   it("clears all inline formatting without changing element typography", async () => {
