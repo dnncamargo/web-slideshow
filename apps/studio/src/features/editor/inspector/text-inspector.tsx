@@ -1,5 +1,4 @@
 import type {
-  Color,
   ColorValue,
   PowerShowElement,
   TextElement,
@@ -10,6 +9,7 @@ import type {
 import { useEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import styles from "../editor-workspace.module.css";
 
@@ -39,6 +39,7 @@ import { ElementInteractionSection } from "./sections/element-interaction-sectio
 import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
 import { ColorControl } from "./sections/color-control";
+import { ElementTypographyFields } from "./sections/element-typography-control";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
 
@@ -163,6 +164,8 @@ export function TextInspector({
   const updateEffect = (update: (value: ElementEffect | undefined) => ElementEffect) => {
     onUpdate((current) => current.type === "text" ? { ...current, effect: update(current.effect) } : current);
   };
+
+  const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
 
   function updateTextElementContent(
     update: (content: TextElement["content"]) => TextElement["content"],
@@ -367,6 +370,9 @@ export function TextInspector({
           />
         </label>
 
+      </InspectorSection>
+
+      <InspectorSection title={t("inspector.typography")}>
         <label className={styles.field}>
           <span>{t("inspector.style")}</span>
 
@@ -382,41 +388,35 @@ export function TextInspector({
                   return current;
                 }
 
-                return {
-                  ...current,
-
-                  variant,
-                };
+                return { ...current, variant };
               });
             }}
           >
             <option value="title">{t("inspector.titleField")}</option>
-
             <option value="subtitle">{t("inspector.subtitle")}</option>
-
             <option value="body">{t("inspector.body")}</option>
-
             <option value="caption">{t("inspector.caption")}</option>
           </select>
         </label>
-      </InspectorSection>
 
-      <ElementInteractionSection
-        element={element}
-        onUpdate={onUpdate}
-        controlPrefix="text"
-      />
+        {typographyDefaults && (
+          <ElementTypographyFields
+            typography={element.typography}
+            effectiveDefaults={typographyDefaults}
+            onUpdateTypography={updateTypography}
+            controlPrefix="text"
+            fontResources={fontResources}
+          />
+        )}
+      </InspectorSection>
 
       <CanonicalTextAppearanceSection
         element={element}
         style={element.style}
-        typography={element.typography}
         effect={element.effect}
         onUpdateStyle={updateStyle}
-        onUpdateTypography={updateTypography}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
-        fontResources={fontResources}
       />
 
       <CanonicalTextEffectsSection
@@ -425,6 +425,12 @@ export function TextInspector({
         textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}
+        controlPrefix="text"
+      />
+
+      <ElementInteractionSection
+        element={element}
+        onUpdate={onUpdate}
         controlPrefix="text"
       />
     </>

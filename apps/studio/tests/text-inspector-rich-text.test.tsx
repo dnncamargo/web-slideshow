@@ -408,4 +408,110 @@ describe("TextInspector rich text authoring", () => {
     expect(linkUrlInput().value).toBe("");
     expect(linkTargetSelect().value).toBe("same");
   });
+
+  it("renders the Text Inspector sections in the canonical order", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    const sectionTitles = Array.from(
+      container.querySelectorAll("details > summary > span:first-child"),
+    ).map((title) => title.textContent);
+
+    expect(sectionTitles).toEqual([
+      "Content",
+      "Typography",
+      "Appearance",
+      "Effects",
+      "Interaction",
+    ]);
+
+    const variantSection = variantSelect().closest("details");
+    expect(variantSection?.querySelector("summary")?.textContent).toContain(
+      "Typography",
+    );
+
+    const appearanceSection = Array.from(
+      container.querySelectorAll("details"),
+    ).find((section) =>
+      section.querySelector("summary")?.textContent?.includes("Appearance"),
+    );
+    expect(
+      appearanceSection?.querySelector('[class*="appearanceSubheading"]'),
+    ).toBeNull();
+  });
+
+  it("changes the canonical text variant from Typography", async () => {
+    let updated: TextElement | undefined;
+
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <TextInspector
+            element={richTextElement()}
+            onUpdate={(update) => {
+              const next = update(richTextElement());
+              if (next.type === "text") {
+                updated = next;
+              }
+            }}
+            fontResources={[]}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    await act(async () => {
+      const select = variantSelect();
+      select.value = "title";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(updated?.variant).toBe("title");
+  });
+
+  it("keeps presentation fonts and unregistered family fallback in Typography", async () => {
+    let updated: TextElement | undefined;
+
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <TextInspector
+            element={richTextElement({
+              typography: { fontFamily: "Legacy Family" },
+            })}
+            onUpdate={(update) => {
+              const next = update(richTextElement({
+                typography: { fontFamily: "Legacy Family" },
+              }));
+              if (next.type === "text") {
+                updated = next;
+              }
+            }}
+            fontResources={[
+              { id: "font-1", family: "Presentation Font" },
+            ]}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const fontFamily = container.querySelector<HTMLSelectElement>(
+      "#text-font-family",
+    );
+    expect(fontFamily?.value).toBe("Legacy Family");
+    expect(fontFamily?.querySelector("option[value='Presentation Font']"))
+      .not.toBeNull();
+
+    await act(async () => {
+      if (!fontFamily) {
+        throw new Error("text-font-family select not found");
+      }
+
+      fontFamily.value = "Presentation Font";
+      fontFamily.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(updated?.typography?.fontFamily).toBe("Presentation Font");
+  });
 });
