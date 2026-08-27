@@ -53,6 +53,10 @@ export class InvalidCustomLibraryPaletteForPersistenceError extends PersistenceE
 
 export class InvalidPersistedCustomLibraryPaletteError extends PersistenceError {}
 
+export class InvalidCustomLibraryFontForPersistenceError extends PersistenceError {}
+
+export class InvalidPersistedCustomLibraryFontError extends PersistenceError {}
+
 export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);
