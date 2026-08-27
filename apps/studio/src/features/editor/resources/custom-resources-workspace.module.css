@@ -1,0 +1,256 @@
+.workspace {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
+  overflow: hidden;
+  border-left: 1px solid #232a36;
+  background: #111620;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-bottom: 1px solid #232a36;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.content {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* ajuste manualmente aqui */
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.scope,
+.group,
+.localColorList {
+  display: flex;
+  flex-direction: column;
+}
+
+.scope {
+  gap: 14px;
+}
+
+.group,
+.localColorList {
+  gap: 8px;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionTitle,
+.groupTitle {
+  margin: 0;
+}
+
+.sectionTitle {
+  color: #94a3b8;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.groupTitle {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+.colorCount,
+.description,
+.status {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.description,
+.status {
+  margin: 0;
+}
+
+.resourceAction {
+  padding: 4px 7px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #111720;
+  color: #cbd5e1;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.resourceAction:hover {
+  border-color: #22d3ee;
+}
+
+.resourceAction:disabled,
+.retryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.masterPaletteList,
+.localColorAdd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.localColorItem {
+  --local-color-remove-width: 20px;
+  --local-color-row-gap: 6px;
+
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.localColorInlineName {
+  box-sizing: border-box;
+
+  width: calc(
+    100% - var(--local-color-remove-width) - var(--local-color-row-gap)
+  );
+
+  min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.localColorInlineName:hover,
+.localColorInlineName:focus {
+  border-color: #303847;
+  background: #0f141d;
+  outline: none;
+}
+
+.localColorValueRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--local-color-row-gap);
+}
+
+.localColorValueRow > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.masterPaletteRow {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.masterPaletteRow strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.masterPaletteCount {
+  color: #94a3b8;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.localColorAdd {
+  align-items: flex-end;
+}
+
+.localColorName {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 110px;
+  flex-direction: column;
+  gap: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.localColorName input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #0f141d;
+  color: #e2e8f0;
+  font: inherit;
+}
+
+.removeColor {
+  width: var(--local-color-remove-width);
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fca5a5;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.swatches {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 4px;
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 4px;
+}
+
+.moreSwatches {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.statusGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.retryButton {
+  padding: 5px 8px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #111720;
+  color: #cbd5e1;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  border-color: #22d3ee;
+}

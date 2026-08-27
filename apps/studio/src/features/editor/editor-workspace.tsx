@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties } from "react";
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import {
   hydrateImageCrops,
+  paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
 } from "@powershow/renderer";
@@ -26,12 +28,21 @@ import {
   FontFaceResourceSchema,
   FontResourceSchema,
   getFontResourceFaces,
+  addPresentationPaletteColor as addPaletteEntry,
+  removePresentationPaletteColor as removePaletteEntry,
+  renamePresentationPaletteColor as renamePaletteEntry,
+  updatePresentationPaletteColorValue,
+  type Color,
 } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
 import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
 import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
+import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
+import type { CustomLibraryPaletteRepository } from "@/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
+import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library/custom-library-palette-apply";
 import { placeCustomLibraryElementRecipe } from "@/features/custom-library/custom-library-placement";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -58,6 +69,7 @@ import {
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
+import { CustomResourcesWorkspace } from "./resources/custom-resources-workspace";
 import {
   resolveCanvasEmbedPointerTarget,
   resolveCanvasPointerHit,
@@ -125,18 +137,9 @@ import {
   normalizeFontFamily,
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
-import {
-  addPaletteColor,
-  movePaletteColor,
-  removePaletteColor,
-} from "./inspector/sections/color-palette-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
-import { RecentColorsProvider } from "./inspector/sections/recent-colors-provider";
-import {
-  addRecentColor,
-  clearRecentColors,
-  moveRecentColor,
-} from "./inspector/sections/recent-colors-helpers";
+import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
+import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -209,7 +212,6 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
-  Color,
   FontFaceResource,
   PowerShowElement,
   Presentation,
@@ -371,12 +373,14 @@ export function EditorWorkspace({
   onPublish,
   notesRepository,
   customLibraryRepository,
+  customLibraryPaletteRepository,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
   onPublish?: () => Promise<void>;
   notesRepository?: PresentationNotesRepository;
   customLibraryRepository?: CustomLibraryRepository;
+  customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
 } = {}) {
   const { locale, t } = useStudioI18n();
 
@@ -418,15 +422,18 @@ export function EditorWorkspace({
   // ==========================================================
 
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
+  const [pickedColors, setPickedColors] = useState<readonly Color[]>([]);
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
 
-  const [rightPanelView, setRightPanelView] = useState<
+  const [rightPanelMode, setRightPanelMode] = useState<
+    "editor" | "resources" | "notes"
+  >("editor");
+
+  const [editorPanelView, setEditorPanelView] = useState<
     "inspector" | "elements"
   >("inspector");
-
-  const [isNotesOpen, setIsNotesOpen] = useState(false);
 
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
@@ -540,7 +547,7 @@ export function EditorWorkspace({
     presentationId: presentation.id,
     notesRepository,
     selectedSlideId: selectedSlide?.id ?? "",
-    enabled: isNotesOpen,
+    enabled: rightPanelMode === "notes",
   });
 
   // ==========================================================
@@ -624,6 +631,16 @@ export function EditorWorkspace({
 
     return renderSlide(selectedSlide);
   }, [selectedSlide]);
+
+  const renderedPaletteStyle = useMemo(() => {
+    const style: CSSProperties & Record<`--${string}`, string> = {};
+
+    for (const color of presentation.palette?.colors ?? []) {
+      style[paletteColorCssVariableName(color.id) as `--${string}`] = color.value;
+    }
+
+    return style;
+  }, [presentation.palette?.colors]);
 
   const renderedFontResources = useMemo(
     () => renderFontResources(presentation.resources?.fonts),
@@ -2170,63 +2187,37 @@ export function EditorWorkspace({
     });
   }
 
-  function addPresentationPaletteColor(color: Color) {
+  function addNamedPresentationPaletteColor(name: string, color: Color) {
     setPresentation((current) => {
-      const colors = addPaletteColor(current.palette?.colors ?? [], color);
-
-      if (colors === current.palette?.colors) {
-        return current;
-      }
-
-      return {
-        ...current,
-        palette: { colors: [...colors] },
-      };
+      const result = addPaletteEntry(current, name, color);
+      return result.ok ? result.presentation : current;
     });
   }
 
-  function removePresentationPaletteColor(index: number) {
+  function removePresentationPaletteColor(colorId: string) {
     setPresentation((current) => {
-      const currentColors = current.palette?.colors;
-
-      if (!currentColors || index < 0 || index >= currentColors.length) {
-        return current;
-      }
-
-      const colors = removePaletteColor(currentColors, index);
-
-      if (colors.length === 0) {
-        const { palette: _palette, ...presentationWithoutPalette } = current;
-
-        return presentationWithoutPalette;
-      }
-
-      return {
-        ...current,
-        palette: { colors: [...colors] },
-      };
+      const result = removePaletteEntry(current, colorId);
+      return result.ok ? result.presentation : current;
     });
   }
 
-  function movePresentationPaletteColor(index: number, direction: -1 | 1) {
+  function updateNamedPresentationPaletteColor(
+    colorId: string,
+    patch: { name: string; value: Color },
+  ) {
     setPresentation((current) => {
-      const currentColors = current.palette?.colors;
-
-      if (!currentColors || index < 0 || index >= currentColors.length) {
-        return current;
-      }
-
-      const colors = movePaletteColor(currentColors, index, direction);
-
-      if (colors === currentColors) {
-        return current;
-      }
-
-      return {
-        ...current,
-        palette: { colors: [...colors] },
-      };
+      const renamed = renamePaletteEntry(current, colorId, patch.name);
+      if (!renamed.ok) return current;
+      const updated = updatePresentationPaletteColorValue(renamed.presentation, colorId, patch.value);
+      return updated.ok ? updated.presentation : current;
     });
+  }
+
+  function addCustomLibraryPalette(palette: CustomLibraryPaletteDraft): CustomLibraryPaletteAddOutcome {
+    const result = addCustomLibraryPaletteToPresentation(presentation, palette);
+    if (!result.ok) return { ok: false, reason: result.reason };
+    setPresentation(result.presentation);
+    return { ok: true };
   }
 
   // ==========================================================
@@ -3314,13 +3305,32 @@ export function EditorWorkspace({
               <button
                 type="button"
                 className={
-                  isNotesOpen
+                  rightPanelMode === "resources"
                     ? `${styles.notesToggle} ${styles.notesToggleActive}`
                     : styles.notesToggle
                 }
-                aria-pressed={isNotesOpen}
+                aria-pressed={rightPanelMode === "resources"}
                 onClick={() => {
-                  setIsNotesOpen((current) => !current);
+                  setRightPanelMode((current) =>
+                    current === "resources" ? "editor" : "resources",
+                  );
+                }}
+              >
+                {t("editor.customResources")}
+              </button>
+
+              <button
+                type="button"
+                className={
+                  rightPanelMode === "notes"
+                    ? `${styles.notesToggle} ${styles.notesToggleActive}`
+                    : styles.notesToggle
+                }
+                aria-pressed={rightPanelMode === "notes"}
+                onClick={() => {
+                  setRightPanelMode((current) =>
+                    current === "notes" ? "editor" : "notes",
+                  );
                 }}
               >
                 {t("notes.toggle")}
@@ -3340,6 +3350,7 @@ export function EditorWorkspace({
             <div
               ref={slideCanvasRef}
               className={styles.slideCanvas}
+              style={renderedPaletteStyle}
               onPointerDown={handleCanvasPointerDown}
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
@@ -3541,44 +3552,53 @@ export function EditorWorkspace({
             BEGIN: INSPECTOR
             =================================================== */}
 
-        {isNotesOpen ? (
+        {rightPanelMode === "notes" ? (
           <SlideNotesWorkspace
             note={editorNotes.note}
             status={editorNotes.status}
             hasCurrentSaveError={editorNotes.hasCurrentSaveError}
             onChange={editorNotes.onChange}
           />
+        ) : rightPanelMode === "resources" ? (
+          <CustomResourcesWorkspace
+            customLibraryPaletteRepository={customLibraryPaletteRepository}
+            presentationColors={presentation.palette?.colors ?? []}
+            onAddLibraryPalette={addCustomLibraryPalette}
+            onAddPresentationColor={addNamedPresentationPaletteColor}
+            onUpdatePresentationColor={updateNamedPresentationPaletteColor}
+            onRemovePresentationColor={removePresentationPaletteColor}
+          />
         ) : (
           <aside className={styles.inspector}>
             <div className={styles.panelHeader}>
               <button
                 className={
-                  rightPanelView === "inspector"
+                  editorPanelView === "inspector"
                     ? styles.rightPanelTabActive
                     : styles.rightPanelTab
                 }
                 type="button"
-                aria-pressed={rightPanelView === "inspector"}
-                onClick={() => setRightPanelView("inspector")}
+                aria-pressed={editorPanelView === "inspector"}
+                onClick={() => setEditorPanelView("inspector")}
               >
                 {t("inspector.title")}
               </button>
               <button
                 className={
-                  rightPanelView === "elements"
+                  editorPanelView === "elements"
                     ? styles.rightPanelTabActive
                     : styles.rightPanelTab
                 }
                 type="button"
-                aria-pressed={rightPanelView === "elements"}
-                onClick={() => setRightPanelView("elements")}
+                aria-pressed={editorPanelView === "elements"}
+                onClick={() => setEditorPanelView("elements")}
               >
                 {t("tree.elements")}
               </button>
             </div>
 
             <div className={styles.inspectorContent}>
-              {rightPanelView === "elements" ? (
+              {editorPanelView === "elements" ? (
                 <ElementTreePanel
                   key={selectedSlide.id}
                   slide={selectedSlide}
@@ -3590,6 +3610,7 @@ export function EditorWorkspace({
                   onMoveElement={moveElementInTree}
                   customLibraryRepository={customLibraryRepository}
                   onApplyCustomLibraryRecipe={applyCustomLibraryRecipe}
+                  palette={presentation.palette}
                 />
               ) : (
                 <>
@@ -3619,23 +3640,17 @@ export function EditorWorkspace({
                  END: ELEMENT CRUD CONTROLS
                  ================================================= */}
                   {selectedDocumentElement ? (
-                    <RecentColorsProvider
-                      colors={[]}
-                      onAddColor={(color) => {
-                        // Recent colors are managed locally in ColorControl
+                    <PickedColorsProvider
+                      colors={pickedColors}
+                      onPickColor={(color) => {
+                        setPickedColors((current) => addPickedColor(current, color));
                       }}
-                      onClearColors={() => {
-                        // Clear handled in ColorControl
-                      }}
-                      onMoveColor={(index, direction) => {
-                        // Move handled in ColorControl
+                      onRemoveColor={(color) => {
+                        setPickedColors((current) => removePickedColor(current, color));
                       }}
                     >
                       <PresentationColorPaletteProvider
                         colors={presentation.palette?.colors ?? []}
-                        onAddColor={addPresentationPaletteColor}
-                        onRemoveColor={removePresentationPaletteColor}
-                        onMoveColor={movePresentationPaletteColor}
                       >
                         <ElementInspector
                           element={selectedDocumentElement}
@@ -3682,7 +3697,7 @@ export function EditorWorkspace({
                           tableAuthoringControls={tableAuthoringControls}
                         />
                       </PresentationColorPaletteProvider>
-                    </RecentColorsProvider>
+                    </PickedColorsProvider>
                   ) : (
                     <>
                       {/* =============================================

@@ -321,9 +321,7 @@ describe("DividerInspector", () => {
     });
 
     expect(container.querySelector<HTMLInputElement>("#divider-background-value")?.value).toBe("#123456");
-    const clear = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Clear"),
-    );
+    const clear = container.querySelector<HTMLInputElement>("#divider-background")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
     expect(clear).toBeDefined();
 
     await act(async () => clear?.click());

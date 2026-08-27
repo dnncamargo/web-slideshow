@@ -9,11 +9,12 @@ import {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 
 function renderPattern(pattern: SlideBackgroundPattern): string {
   const size = pattern.size !== undefined ? renderLength(pattern.size) : "24px";
 
-  const color = pattern.color ?? "rgba(255,255,255,0.12)";
+  const color = pattern.color !== undefined ? renderColorValue(pattern.color) : "rgba(255,255,255,0.12)";
 
   switch (pattern.type) {
     case "dots":
@@ -58,7 +59,7 @@ export function renderSlideBackground(
   ];
 
   if (background?.color) {
-    styles.push(`background-color:${background.color}`);
+    styles.push(`background-color:${renderColorValue(background.color)}`);
   }
 
   if (background?.gradient) {
@@ -92,7 +93,7 @@ export function renderSlideBackground(
 
     if (background.pattern.backgroundColor) {
       patternStyles.push(
-        `background-color:${background.pattern.backgroundColor}`,
+        `background-color:${renderColorValue(background.pattern.backgroundColor)}`,
       );
     }
 

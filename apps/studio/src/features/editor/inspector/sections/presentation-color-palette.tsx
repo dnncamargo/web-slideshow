@@ -1,4 +1,4 @@
-import type { Color } from "@powershow/document-schema";
+import type { PresentationPaletteColor } from "@powershow/document-schema";
 import {
   createContext,
   useContext,
@@ -6,10 +6,7 @@ import {
 } from "react";
 
 interface PresentationColorPaletteControls {
-  colors: readonly Color[];
-  onAddColor: (color: Color) => void;
-  onRemoveColor: (index: number) => void;
-  onMoveColor: (index: number, direction: -1 | 1) => void;
+  colors: readonly PresentationPaletteColor[];
 }
 
 const PresentationColorPaletteContext =
@@ -22,14 +19,11 @@ interface PresentationColorPaletteProviderProps
 
 export function PresentationColorPaletteProvider({
   colors,
-  onAddColor,
-  onRemoveColor,
-  onMoveColor,
   children,
 }: PresentationColorPaletteProviderProps) {
   return (
     <PresentationColorPaletteContext.Provider
-      value={{ colors, onAddColor, onRemoveColor, onMoveColor }}
+      value={{ colors }}
     >
       {children}
     </PresentationColorPaletteContext.Provider>

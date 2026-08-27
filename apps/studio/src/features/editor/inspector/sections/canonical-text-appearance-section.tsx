@@ -78,15 +78,12 @@ export function CanonicalTextAppearanceSection({
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))
             }
+            secondaryAction={{
+              label: t("inspector.useThemeDefault"),
+              onClick: () => onUpdateStyle((current) => ({ ...current, color: undefined })),
+            }}
           />
         </label>
-        <button
-          className={styles.secondaryButton}
-          type="button"
-          onClick={() => onUpdateStyle((current) => ({ ...current, color: undefined }))}
-        >
-          <span>{t("inspector.useThemeDefault")}</span>
-        </button>
       </div>
 
       <div className={styles.backgroundControls}>
@@ -103,22 +100,17 @@ export function CanonicalTextAppearanceSection({
                   background: { ...current?.background, color },
                 }))
               }
+              secondaryAction={{
+                label: t("inspector.remove"),
+                onClick: () => onUpdateStyle((current) => ({
+                  ...current,
+                  background: current?.background?.gradient
+                    ? { gradient: current.background.gradient }
+                    : undefined,
+                })),
+              }}
             />
           </label>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() =>
-              onUpdateStyle((current) => ({
-                ...current,
-                background: current?.background?.gradient
-                  ? { gradient: current.background.gradient }
-                  : undefined,
-              }))
-            }
-          >
-            <span>{t("inspector.clearBackground")}</span>
-          </button>
         </div>
         <ElementGradientControl
           gradient={style?.background?.gradient}

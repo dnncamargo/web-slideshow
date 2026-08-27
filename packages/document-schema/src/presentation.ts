@@ -4,12 +4,17 @@ import {
   SlideSchema,
 } from "./slide";
 import { PresentationResourcesSchema } from "./resources";
-import { ColorSchema } from "./primitives";
+import {
+  PresentationPaletteSchema,
+} from "./palette";
+import { validatePresentationPaletteReferences } from "./palette-validation";
 
-export const PresentationPaletteSchema =
-  z.object({
-    colors: z.array(ColorSchema),
-  });
+export {
+  PresentationPaletteSchema,
+} from "./palette";
+export type {
+  PresentationPalette,
+} from "./palette";
 
 export const PresentationSchema =
   z.object({
@@ -33,10 +38,9 @@ export const PresentationSchema =
     slides: z.array(
       SlideSchema,
     ),
-  });
+  })
+  .strict()
+  .superRefine(validatePresentationPaletteReferences);
 
 export type Presentation =
   z.infer<typeof PresentationSchema>;
-
-export type PresentationPalette =
-  z.infer<typeof PresentationPaletteSchema>;

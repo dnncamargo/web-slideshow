@@ -8,11 +8,16 @@ import {
   type PowerShowElement,
   type Presentation,
 } from "@powershow/document-schema";
+import { paletteColorCssVariableName } from "@powershow/renderer";
 
 import type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
 } from "../src/features/custom-library/custom-library-repository";
+import type {
+  CustomLibraryPaletteRecord,
+  CustomLibraryPaletteRepository,
+} from "../src/features/custom-library/custom-library-palette-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -31,6 +36,10 @@ function image(id: string): PowerShowElement {
     alt: id,
     fit: "contain",
   };
+}
+
+function setInputValue(input: HTMLInputElement, value: string): void {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
 }
 
 function container(id: string, children: PowerShowElement[]): PowerShowElement {
@@ -101,6 +110,18 @@ function fakeRepository(listItems: () => Promise<CustomLibraryItemRecord[]>): Cu
   };
 }
 
+function fakePaletteRepository(
+  listPalettes: () => Promise<CustomLibraryPaletteRecord[]>,
+): CustomLibraryPaletteRepository {
+  return {
+    savePalette: async () => "saved-palette",
+    updatePalette: async () => undefined,
+    listPalettes,
+    getPalette: async () => null,
+    deletePalette: async () => undefined,
+  };
+}
+
 describe("Custom Library Editor integration", () => {
   let containerElement: HTMLDivElement;
   let root: Root;
@@ -121,6 +142,7 @@ describe("Custom Library Editor integration", () => {
   async function mount(
     value: Presentation,
     saved: Presentation[],
+    customLibraryPaletteRepository?: CustomLibraryPaletteRepository,
   ): Promise<{ onSave: ReturnType<typeof vi.fn>; listItems: ReturnType<typeof vi.fn> }> {
     const listItems = vi.fn(async () => items);
     const onSave = vi.fn(async (next: Presentation) => {
@@ -133,6 +155,7 @@ describe("Custom Library Editor integration", () => {
           <EditorWorkspace
             initialPresentation={value}
             customLibraryRepository={fakeRepository(listItems)}
+            customLibraryPaletteRepository={customLibraryPaletteRepository}
             onSave={onSave}
           />
         </StudioI18nProvider>,
@@ -146,6 +169,20 @@ describe("Custom Library Editor integration", () => {
     const button = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.trim() === "Elements");
     if (!button) throw new Error("Elements tab not found");
+    await act(async () => button.click());
+  }
+
+  async function clickToolbarMode(label: string): Promise<void> {
+    const button = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim().includes(label));
+    if (!button) throw new Error(`Toolbar button not found: ${label}`);
+    await act(async () => button.click());
+  }
+
+  async function clickResourcePaletteToggle(): Promise<void> {
+    const button = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => ["+ Add palette", "Close"].includes(candidate.textContent?.trim() ?? ""));
+    if (!button) throw new Error("Resource palette toggle not found");
     await act(async () => button.click());
   }
 
@@ -202,6 +239,373 @@ describe("Custom Library Editor integration", () => {
     expect(slide?.elements[1]?.id).not.toBe("existing");
     expect(containerElement.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
     expect(containerElement.textContent).toContain(`Text · ${slide?.elements[1]?.id}`);
+  });
+
+  it("wires Add from Library through Editor state and autosave", async () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-editor-integration",
+      title: "Palette editor integration",
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#ff0000" }] },
+      slides: [{
+        id: "slide-1",
+        title: "First",
+        elements: [{
+          id: "linked-text",
+          type: "text",
+          content: "Existing",
+          style: { color: { kind: "palette", colorId: "accent" } },
+        }],
+      }],
+    });
+    const saved: Presentation[] = [];
+    const listPalettes = vi.fn(async () => [{
+      id: "firestore-palette-id",
+      palette: {
+        name: "Brand",
+        description: "Not presentation metadata",
+        colors: [{ name: "Accent", value: "#facc15" }, { name: "Border", value: "#ffffff" }],
+      },
+    }]);
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace
+          initialPresentation={source}
+          customLibraryPaletteRepository={fakePaletteRepository(listPalettes)}
+          onSave={vi.fn(async (next: Presentation) => { saved.push(structuredClone(next)); })}
+        />
+      </StudioI18nProvider>,
+    ));
+
+    expect(listPalettes).not.toHaveBeenCalled();
+    await clickToolbarMode("Custom Resources");
+    const openButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add palette");
+    expect(openButton).toBeDefined();
+    await act(async () => openButton?.click());
+    await act(async () => undefined);
+    expect(listPalettes).toHaveBeenCalledOnce();
+    await act(async () => containerElement.querySelector<HTMLButtonElement>("button[aria-label='Add Brand']")?.click());
+    await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
+
+    const next = saved.at(-1);
+    expect(next?.palette?.colors).toEqual([
+      { id: "accent", name: "Accent", value: "#ff0000" },
+      { id: "accent-2", name: "Accent", value: "#facc15" },
+      { id: "border", name: "Border", value: "#ffffff" },
+    ]);
+    expect(next?.slides[0]?.elements[0]).toMatchObject({ style: { color: { kind: "palette", colorId: "accent" } } });
+    expect(JSON.stringify(next)).not.toContain("firestore-palette-id");
+    expect(JSON.stringify(next)).not.toContain("Not presentation metadata");
+  });
+
+  it("provides live Presentation palette variables to the standalone slide canvas", async () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-canvas-resolution",
+      title: "Palette canvas resolution",
+      palette: {
+        colors: [
+          { id: "accent", name: "Accent", value: "#facc15" },
+          { id: "secondary", name: "Secondary", value: "#2563eb" },
+        ],
+      },
+      slides: [{
+        id: "slide-1",
+        title: "First",
+        elements: [
+          { id: "linked-text", type: "text", content: "Palette color", style: { color: { kind: "palette", colorId: "accent" } } },
+          { id: "literal-text", type: "text", content: "Literal color", style: { color: "#22c55e" } },
+        ],
+      }],
+    });
+    const saved: Presentation[] = [];
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={source} onSave={async (next) => { saved.push(next); }} />
+      </StudioI18nProvider>,
+    ));
+    await clickToolbarMode("Custom Resources");
+
+    const canvas = containerElement.querySelector<HTMLElement>("[class*='slideCanvas']");
+    expect(canvas).toBeTruthy();
+    const accentVariable = paletteColorCssVariableName("accent");
+    const secondaryVariable = paletteColorCssVariableName("secondary");
+    expect(canvas?.innerHTML).toContain(`var(${accentVariable})`);
+    expect(canvas?.style.getPropertyValue(accentVariable)).toBe("#facc15");
+    expect(canvas?.style.getPropertyValue(secondaryVariable)).toBe("#2563eb");
+    expect(canvas?.innerHTML).toContain("#22c55e");
+
+    const accentInput = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-row] input[type='text']");
+    expect(accentInput).toBeTruthy();
+    await act(async () => {
+      if (accentInput) {
+        setInputValue(accentInput, "#2563eb");
+        accentInput.dispatchEvent(new Event("input", { bubbles: true }));
+        accentInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(canvas?.style.getPropertyValue(accentVariable)).toBe("#2563eb");
+    await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
+    expect(saved.at(-1)?.palette?.colors[0]?.value).toBe("#2563eb");
+    expect(saved.at(-1)?.slides[0]?.elements[0]).toMatchObject({ style: { color: { kind: "palette", colorId: "accent" } } });
+  });
+
+  it("keeps resource, notes, and editor modes mutually exclusive while preserving the editor sub-view", async () => {
+    const saved: Presentation[] = [];
+    const listPalettes = vi.fn(async () => [{
+      id: "brand",
+      palette: {
+        name: "Brand",
+        colors: [{ name: "Accent", value: "#facc15" }, { name: "Secondary", value: "#2563eb" }],
+      },
+    }]);
+    await mount(makePresentation([text("selected-text", "Selected")]), saved, fakePaletteRepository(listPalettes));
+
+    const toolbarButtons = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .filter((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? ""));
+    expect(toolbarButtons.map((button) => button.textContent?.trim())).toEqual(["Custom Resources", "Notes"]);
+    expect(toolbarButtons[0]?.getAttribute("aria-pressed")).toBe("false");
+    expect(toolbarButtons[1]?.getAttribute("aria-pressed")).toBe("false");
+
+    await openElements();
+    await selectElement("Text — Selected");
+    expect(containerElement.querySelector('[aria-pressed="true"]')?.textContent?.trim()).toBe("Elements");
+
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("Custom Resources");
+    expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim().includes("Custom Resources") && button.getAttribute("aria-pressed") === "true")
+      ?.textContent?.trim()).toBe("Custom Resources");
+    expect(listPalettes).toHaveBeenCalledOnce();
+    expect(containerElement.textContent).not.toContain("Inspector");
+    await clickResourcePaletteToggle();
+    expect(containerElement.textContent).toContain("Brand");
+
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("Elements");
+    expect(containerElement.querySelector<HTMLButtonElement>("button[aria-pressed='true']")?.textContent?.trim()).toBe("Elements");
+    expect(containerElement.textContent).toContain("Text · selected-text");
+
+    await clickToolbarMode("Notes");
+    expect(containerElement.textContent).toContain("Notes");
+    expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? "") && button.getAttribute("aria-pressed") === "true")
+      ?.textContent?.trim()).toBe("Notes");
+
+    await clickToolbarMode("Custom Resources");
+    await clickResourcePaletteToggle();
+    expect(containerElement.textContent).toContain("Brand");
+    expect(Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => ["Custom Resources", "Notes"].includes(button.textContent?.trim() ?? "") && button.getAttribute("aria-pressed") === "true")
+      ?.textContent?.trim()).toBe("Custom Resources");
+    expect(containerElement.textContent).not.toContain("Write private notes");
+  });
+
+  it("loads Custom Library palettes lazily and handles pending, empty, failure, and retry states without writes", async () => {
+    let resolvePalettes: ((records: CustomLibraryPaletteRecord[]) => void) | undefined;
+    let rejectPalettes: ((reason?: unknown) => void) | undefined;
+    const listPalettes = vi.fn(() => new Promise<CustomLibraryPaletteRecord[]>((resolve, reject) => {
+      resolvePalettes = resolve;
+      rejectPalettes = reject;
+    }));
+    const savePalette = vi.fn(async () => "saved");
+    const getPalette = vi.fn(async () => null);
+    const deletePalette = vi.fn(async () => undefined);
+    const repository: CustomLibraryPaletteRepository = { listPalettes, savePalette, updatePalette: vi.fn(async () => undefined), getPalette, deletePalette };
+    const saved: Presentation[] = [];
+
+    await mount(makePresentation([]), saved, repository);
+    expect(listPalettes).not.toHaveBeenCalled();
+    await clickToolbarMode("Custom Resources");
+    expect(listPalettes).toHaveBeenCalledOnce();
+    expect(containerElement.textContent).not.toContain("Loading palettes…");
+    await clickResourcePaletteToggle();
+    expect(containerElement.textContent).toContain("Loading palettes…");
+
+    resolvePalettes?.([{
+      id: "brand",
+      palette: { name: "Brand", colors: [{ name: "Accent", value: "#facc15" }, { name: "Secondary", value: "#2563eb" }] },
+    }]);
+    await act(async () => { await Promise.resolve(); });
+    expect(containerElement.textContent).toContain("Brand");
+    expect(containerElement.textContent).toContain("2 colors");
+    expect(containerElement.querySelectorAll("[data-custom-resource-palette='brand'] [data-palette-swatch]")).toHaveLength(2);
+    expect(savePalette).not.toHaveBeenCalled();
+    expect(getPalette).not.toHaveBeenCalled();
+    expect(deletePalette).not.toHaveBeenCalled();
+
+    await clickToolbarMode("Custom Resources");
+    await clickToolbarMode("Custom Resources");
+    await clickResourcePaletteToggle();
+    expect(listPalettes).toHaveBeenCalledTimes(2);
+    rejectPalettes?.(new Error("offline"));
+    await act(async () => { await Promise.resolve(); });
+    expect(containerElement.textContent).toContain("Could not load Custom Library palettes.");
+    const retryButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Retry");
+    expect(retryButton).toBeDefined();
+    await act(async () => retryButton?.click());
+    expect(listPalettes).toHaveBeenCalledTimes(3);
+    resolvePalettes?.([]);
+    await act(async () => { await Promise.resolve(); });
+    expect(containerElement.textContent).toContain("No Custom Library palettes yet.");
+  });
+
+  it("renders Presentation-local palette colors separately, including the empty state", async () => {
+    const repository = fakePaletteRepository(vi.fn(async () => []));
+    const source = PresentationSchema.parse({
+      ...makePresentation([]),
+      palette: { colors: [
+        { id: "accent", name: "Accent", value: "#facc15" },
+        { id: "surface", name: "Surface", value: "#0f172a" },
+      ] },
+    });
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={source} customLibraryPaletteRepository={repository} />
+      </StudioI18nProvider>,
+    ));
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.querySelector("[data-presentation-palette]")).toBeTruthy();
+    expect(containerElement.querySelector<HTMLInputElement>("[aria-label='Name for Accent']")?.value).toBe("Accent");
+    expect(containerElement.querySelector<HTMLInputElement>("[data-presentation-color-row] input[type='text']")?.value).toBe("#facc15");
+    expect(containerElement.querySelector<HTMLInputElement>("[aria-label='Name for Surface']")?.value).toBe("Surface");
+    expect(Array.from(containerElement.querySelectorAll<HTMLInputElement>("[data-presentation-color-row] input[type='text']")).map((input) => input.value)).toEqual(["#facc15", "#0f172a"]);
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={makePresentation([])} customLibraryPaletteRepository={repository} />
+      </StudioI18nProvider>,
+    ));
+    await clickToolbarMode("Custom Resources");
+    expect(containerElement.textContent).toContain("This Presentation has no palette colors.");
+  });
+
+  it("removes a local palette color through Resources and materializes linked element colors", async () => {
+    const saved: Presentation[] = [];
+    const listPalettes = vi.fn(async () => [] as CustomLibraryPaletteRecord[]);
+    const savePalette = vi.fn(async () => "unused");
+    const updatePalette = vi.fn(async () => undefined);
+    const deletePalette = vi.fn(async () => undefined);
+    const repository: CustomLibraryPaletteRepository = {
+      listPalettes,
+      savePalette,
+      updatePalette,
+      getPalette: vi.fn(async () => null),
+      deletePalette,
+    };
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-removal-integration",
+      title: "Palette removal integration",
+      description: "",
+      aspectRatio: "16:9",
+      slides: [
+        {
+          id: "slide-1",
+          title: "First",
+          summary: "",
+          speakerNotes: "",
+          elements: [
+            {
+              id: "linked-text",
+              type: "text",
+              hidden: false,
+              variant: "body",
+              content: "Linked text",
+              style: { color: { kind: "palette", colorId: "accent" } },
+            },
+          ],
+        },
+      ],
+      palette: {
+        colors: [
+          { id: "accent", name: "Accent", value: "#facc15" },
+          { id: "other", name: "Other", value: "#2563eb" },
+        ],
+      },
+    });
+    await mount(source, saved, repository);
+    await clickToolbarMode("Custom Resources");
+    const removeButton = containerElement.querySelector<HTMLButtonElement>(
+      "button[aria-label='Remove Accent']",
+    );
+    if (!removeButton) throw new Error("Accent remove button not found");
+    await act(async () => removeButton.click());
+    const next = await saveAfterApply(saved);
+    expect(next.palette?.colors).toEqual([
+      { id: "other", name: "Other", value: "#2563eb" },
+    ]);
+    const linked = next.slides[0]?.elements[0];
+    expect(linked?.type === "text" && linked.style?.color).toBe("#facc15");
+    expect(JSON.stringify(next)).not.toContain('"colorId":"accent"');
+    expect(savePalette).not.toHaveBeenCalled();
+    expect(updatePalette).not.toHaveBeenCalled();
+    expect(deletePalette).not.toHaveBeenCalled();
+  });
+
+  it("edits a linked local palette color through Resources and preserves its binding", async () => {
+    const saved: Presentation[] = [];
+    const repository: CustomLibraryPaletteRepository = {
+      savePalette: vi.fn(async () => "unused"),
+      updatePalette: vi.fn(async () => undefined),
+      listPalettes: vi.fn(async () => []),
+      getPalette: vi.fn(async () => null),
+      deletePalette: vi.fn(async () => undefined),
+    };
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-edit-integration",
+      title: "Palette edit integration",
+      description: "",
+      aspectRatio: "16:9",
+      slides: [{
+        id: "slide-1",
+        title: "First",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "linked-text",
+          type: "text",
+          hidden: false,
+          variant: "body",
+          content: "Linked text",
+          style: { color: { kind: "palette", colorId: "accent" } },
+        }],
+      }],
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    });
+    await mount(source, saved, repository);
+    await clickToolbarMode("Custom Resources");
+    const nameInput = containerElement.querySelector<HTMLInputElement>("[aria-label='Name for Accent']");
+    const valueInput = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-row] input[type='text']");
+    if (!nameInput || !valueInput) throw new Error("local color editor inputs not found");
+    await act(async () => {
+      setInputValue(nameInput, "Primary");
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => {
+      nameInput.focus();
+      nameInput.blur();
+    });
+    await act(async () => {
+      setInputValue(valueInput, "#2563eb");
+      valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+      valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const next = await saveAfterApply(saved);
+    expect(next.palette?.colors).toEqual([{ id: "accent", name: "Primary", value: "#2563eb" }]);
+    const linked = next.slides[0]?.elements[0];
+    expect(linked?.type === "text" && linked.style?.color).toEqual({ kind: "palette", colorId: "accent" });
+    const canvas = containerElement.querySelector<HTMLElement>("[class*='slideCanvas']");
+    expect(canvas?.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe("#2563eb");
+    expect(repository.savePalette).not.toHaveBeenCalled();
+    expect(repository.updatePalette).not.toHaveBeenCalled();
+    expect(repository.deletePalette).not.toHaveBeenCalled();
   });
 
   it("merges Text into the selected Text without creating a sibling", async () => {

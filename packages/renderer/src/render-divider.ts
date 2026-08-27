@@ -4,6 +4,7 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 
 // ============================================================
 // BEGIN: DIVIDER EFFECTIVE GEOMETRY DEFAULTS
@@ -67,7 +68,7 @@ export function renderDivider(
   }
 
   if (element.style?.background?.color !== undefined) {
-    styles.push(`background:${element.style.background.color}`);
+    styles.push(`background:${renderColorValue(element.style.background.color)}`);
   } else {
     styles.push("background:currentColor");
   }

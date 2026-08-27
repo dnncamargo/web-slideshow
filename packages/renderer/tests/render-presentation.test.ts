@@ -99,6 +99,42 @@ describe("renderPresentation", () => {
     );
   });
 
+  it("scopes palette variables to each presentation root", () => {
+    const first = renderPresentation({
+      ...createPresentation(),
+      palette: {
+        colors: [{ id: "accent", name: "Accent", value: "#facc15" }],
+      },
+    });
+    const second = renderPresentation({
+      ...createPresentation(),
+      id: "presentation-2",
+      palette: {
+        colors: [{ id: "accent", name: "Accent", value: "#ef4444" }],
+      },
+    });
+
+    expect(first).toContain('style="--ps-palette-0061006300630065006e0074:#facc15"');
+    expect(second).toContain('style="--ps-palette-0061006300630065006e0074:#ef4444"');
+    expect(first).not.toContain("#ef4444");
+    expect(second).not.toContain("#facc15");
+  });
+
+  it("does not add palette output when palette is absent or empty", () => {
+    expect(renderPresentation(createPresentation()).startsWith(
+      '<div class="powershow-presentation"',
+    )).toBe(true);
+    expect(renderPresentation(createPresentation()).slice(0, 100)).not.toContain(
+      "--ps-palette-",
+    );
+    expect(
+      renderPresentation({
+        ...createPresentation(),
+        palette: { colors: [] },
+      }),
+    ).not.toContain("--ps-palette-");
+  });
+
   it("renders every slide", () => {
     const html = renderPresentation(
       createPresentation(),

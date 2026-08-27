@@ -6,6 +6,7 @@ import type {
 import { quoteCssString } from "./escape-css-string";
 import { renderLength } from "./render-length";
 import { renderBorder } from "./render-visual";
+import { renderColorValue } from "./render-palette";
 
 function addLength(output: string[], property: string, value: Length | undefined): void {
   if (value !== undefined) output.push(`${property}:${renderLength(value)}`);
@@ -22,8 +23,8 @@ export function renderContentSlotStyle(slot: ContentSlot): string {
   addLength(output, "padding-bottom", layout?.paddingBottom);
   addLength(output, "padding-left", layout?.paddingLeft);
 
-  if (style?.color !== undefined) output.push(`color:${style.color}`);
-  if (style?.background?.color !== undefined) output.push(`background:${style.background.color}`);
+  if (style?.color !== undefined) output.push(`color:${renderColorValue(style.color)}`);
+  if (style?.background?.color !== undefined) output.push(`background:${renderColorValue(style.background.color)}`);
   if (style?.border !== undefined) output.push(...renderBorder(style.border));
   addLength(output, "border-radius", style?.borderRadius);
 
@@ -39,9 +40,9 @@ export function renderContentSlotStyle(slot: ContentSlot): string {
   if (typography?.textWrapStyle !== undefined) output.push(`text-wrap-style:${typography.textWrapStyle}`);
   if (typography?.overflowWrap !== undefined) output.push(`overflow-wrap:${typography.overflowWrap}`);
   if (typography?.textDecorationLine !== undefined) output.push(`text-decoration-line:${typography.textDecorationLine}`);
-  if (typography?.textDecorationColor !== undefined) output.push(`text-decoration-color:${typography.textDecorationColor}`);
+  if (typography?.textDecorationColor !== undefined) output.push(`text-decoration-color:${renderColorValue(typography.textDecorationColor)}`);
   if (typography?.textStroke !== undefined) {
-    output.push(`-webkit-text-stroke:${renderLength(typography.textStroke.width)} ${typography.textStroke.color}`);
+    output.push(`-webkit-text-stroke:${renderLength(typography.textStroke.width)} ${renderColorValue(typography.textStroke.color)}`);
   }
 
   return output.join(";");

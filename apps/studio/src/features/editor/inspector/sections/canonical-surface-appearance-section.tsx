@@ -25,9 +25,8 @@ export function CanonicalSurfaceAppearanceSection({ style, effect, element, onUp
     <div className={styles.colorControl}>
       <label className={styles.field}>
         <span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span>
-        <ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => ({ ...current, background: { ...current?.background, color } }))} />
+        <ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => ({ ...current, background: { ...current?.background, color } }))} secondaryAction={{ label: t("inspector.remove"), onClick: () => onUpdateStyle((current) => ({ ...current, background: undefined })) }} />
       </label>
-      <button className={styles.secondaryButton} type="button" onClick={() => onUpdateStyle((current) => ({ ...current, background: undefined }))}><span>{t("inspector.clearBackground")}</span></button>
     </div>
     <div className={styles.fieldGrid}>
       <div className={styles.field}>

@@ -52,12 +52,10 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
   const radius = resolveEffectiveElementStyleDefaults(element).borderRadius;
   return <InspectorSection title={t("inspector.appearance")}>
     {showColor && <div className={styles.colorControl}>
-      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={style && "color" in style ? style.color : undefined} onChange={(color) => onUpdateStyle((current) => ({ ...current, color } as CanonicalDataStyle))} /></label>
-      <button className={styles.secondaryButton} type="button" onClick={() => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.color; return next as CanonicalDataStyle; })}>{t("inspector.useThemeDefault")}</button>
+      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={style && "color" in style ? style.color : undefined} onChange={(color) => onUpdateStyle((current) => ({ ...current, color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.color; return next as CanonicalDataStyle; }) }} /></label>
     </div>}
     <div className={styles.colorControl}>
-      <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => updateCanonicalBackground(current, "color", color))} /></label>
-      <button className={styles.secondaryButton} type="button" onClick={() => onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined))}>{t("inspector.clearBackground")}</button>
+      <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => updateCanonicalBackground(current, "color", color))} secondaryAction={{ label: t("inspector.remove"), onClick: () => onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined)) }} /></label>
     </div>
     <ElementGradientControl gradient={style?.background?.gradient} controlPrefix={`${controlPrefix}-background`} onChange={(gradient) => onUpdateStyle((current) => updateCanonicalBackground(current, "gradient", gradient))} />
     <div className={styles.fieldGrid}>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationPalette } from "@powershow/document-schema";
 
 import {
   composeCustomLibraryElementRecipe,
@@ -10,9 +11,150 @@ import {
 const compose = (
   root: PowerShowElement,
   selections: ElementPropertySelectionMap = new Map(),
-) => composeCustomLibraryElementRecipe(root, selections);
+  palette?: PresentationPalette,
+) => composeCustomLibraryElementRecipe(root, selections, palette);
 
 describe("composeCustomLibraryElementRecipe", () => {
+  it("resolves presentation-local palette references for portable recipes", () => {
+    const accent = { kind: "palette" as const, colorId: "accent" };
+    const text: PowerShowElement = {
+      type: "text",
+      id: "text-palette",
+      hidden: false,
+      content: "Palette",
+      variant: "body",
+      style: {
+        color: accent,
+        border: { width: 1, color: accent },
+        background: { gradient: { type: "linear", stops: [
+          { color: accent, position: 0 },
+          { color: "#000000", position: 100 },
+        ] } },
+      },
+      effect: { shadow: { x: 0, y: 4, blur: 12, color: accent } },
+      typography: { textStroke: { width: 1, color: accent }, textDecorationColor: accent },
+    };
+
+    const recipe = compose(text, new Map([[text.id, new Set([
+      "style.color",
+      "style.border.color",
+      "style.background.gradient",
+      "effect.shadow",
+      "typography.textStroke",
+      "typography.textDecorationColor",
+    ])]]), { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] });
+
+    expect(recipe.properties).toEqual(expect.arrayContaining([
+      { path: "style.color", value: "#facc15" },
+      { path: "style.border.color", value: "#facc15" },
+      { path: "style.background.gradient", value: expect.objectContaining({ stops: [
+        { color: "#facc15", position: 0 },
+        { color: "#000000", position: 100 },
+      ] }) },
+      { path: "effect.shadow", value: expect.objectContaining({ color: "#facc15" }) },
+      { path: "typography.textStroke", value: { width: 1, color: "#facc15" } },
+      { path: "typography.textDecorationColor", value: "#facc15" },
+    ]));
+    expect(JSON.stringify(recipe)).not.toContain('"kind":"palette"');
+  });
+
+  it("fails extraction when a selected source reference cannot resolve", () => {
+    const text: PowerShowElement = {
+      type: "text", id: "unresolved", hidden: false, content: "Palette",
+      variant: "body",
+      style: { color: { kind: "palette", colorId: "missing" } },
+    };
+    expect(() => compose(text, new Map([[text.id, new Set(["style.color"])] ]), { colors: [] }))
+      .toThrow("unresolved palette reference");
+  });
+
+  it("resolves palette references inside selected intrinsic payloads and recipe children", () => {
+    const accent = { kind: "palette" as const, colorId: "accent" };
+    const nestedText: PowerShowElement = {
+      type: "text", id: "nested-text", hidden: false, content: "Nested", variant: "body",
+      style: { color: accent },
+    };
+    const root: PowerShowElement = {
+      type: "container", id: "root-payloads", hidden: false, children: [
+        {
+          type: "text", id: "rich", hidden: false, content: {
+            type: "rich-text", runs: [{ text: "Rich", marks: { color: accent } }],
+          }, variant: "body",
+        },
+        {
+          type: "blocks", id: "blocks", hidden: false,
+          categories: [{ id: "statement", name: "Statement", color: accent }], items: [],
+        },
+        {
+          type: "topics", id: "topics", hidden: false, kind: "unordered", items: [{
+            id: "topic", content: {
+              id: "topic-content", children: [],
+              style: { color: accent, background: { color: accent } },
+            }, children: [{
+              id: "nested-topic", content: {
+                id: "nested-topic-content", children: [nestedText],
+                style: { color: accent },
+              }, children: [],
+            }],
+          }],
+        },
+        {
+          type: "table", id: "table", hidden: false, mode: "structured",
+          columns: [{ id: "column", header: {
+            id: "header", children: [], style: { color: accent, border: { width: 1, color: accent } },
+            typography: { textDecorationColor: accent },
+          } }],
+          showHeader: true,
+          rows: [{ id: "row", cells: [{
+            id: "cell", children: [nestedText], style: { color: accent },
+          }] }],
+        },
+      ],
+    };
+    const selections = new Map<string, Set<string>>([
+      [root.id, new Set()],
+      ["rich", new Set(["content.runs"])],
+      ["blocks", new Set(["categories"])],
+      ["topics", new Set(["items"])],
+      ["table", new Set(["columns", "rows"])],
+      ["nested-text", new Set(["style.color"])],
+    ]);
+
+    const recipe = compose(root, selections, { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] });
+    const serialized = JSON.stringify(recipe);
+    expect(serialized).not.toContain('"kind":"palette"');
+    expect(serialized).toContain("#facc15");
+    expect(recipe.children?.[0]?.properties[0]?.value).toEqual([
+      { text: "Rich", marks: { color: "#facc15" } },
+    ]);
+    expect(recipe.children?.[1]?.properties[0]?.value).toEqual([
+      { id: "statement", name: "Statement", color: "#facc15" },
+    ]);
+  });
+
+  it("leaves selected opaque interactive and scripted payloads unchanged", () => {
+    const payload = { kind: "palette", colorId: "accent" };
+    const root: PowerShowElement = {
+      type: "container", id: "opaque-root", hidden: false, children: [
+        { type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: { payload } },
+        { type: "scripted", id: "scripted", hidden: false, title: "Script", html: JSON.stringify(payload), css: JSON.stringify(payload), script: JSON.stringify(payload) },
+      ],
+    };
+    const recipe = compose(root, new Map([
+      [root.id, new Set()],
+      ["interactive", new Set(["config.payload.kind", "config.payload.colorId"])],
+      ["scripted", new Set(["html", "css", "script"])],
+    ]), { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] });
+    expect(recipe.children?.[0]?.properties).toEqual([
+      { path: "config.payload.kind", value: "palette" },
+      { path: "config.payload.colorId", value: "accent" },
+    ]);
+    expect(recipe.children?.[1]?.properties).toEqual([
+      { path: "html", value: JSON.stringify(payload) },
+      { path: "css", value: JSON.stringify(payload) },
+      { path: "script", value: JSON.stringify(payload) },
+    ]);
+  });
   it("composes a leaf with explicit properties and omits children", () => {
     const text: PowerShowElement = {
       type: "text",

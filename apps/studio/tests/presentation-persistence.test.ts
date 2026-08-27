@@ -163,7 +163,10 @@ describe("presentation persistence helpers", () => {
           },
         ],
       },
-      palette: { colors: ["#ffffff", "#000000"] },
+      palette: { colors: [
+        { id: "#ffffff", name: "#ffffff", value: "#ffffff" },
+        { id: "#000000", name: "#000000", value: "#000000" },
+      ] },
       slides: [
         {
           id: "slide-1",

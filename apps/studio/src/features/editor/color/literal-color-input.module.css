@@ -1,0 +1,36 @@
+.input {
+  width: 38px !important;
+  height: 38px !important;
+  padding: 4px !important;
+  cursor: pointer;
+}
+
+.control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #303847;
+  border-radius: 7px;
+  background: #0c111a;
+}
+
+.control:focus-within {
+  border-color: #6366f1;
+}
+
+.control input[type="text"],
+.control select {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.control select {
+  padding: 0 7px;
+  border-left: 1px solid #303847;
+  color: #94a3b8;
+  font: inherit;
+  font-size: 11px;
+}

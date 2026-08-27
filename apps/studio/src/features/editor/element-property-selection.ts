@@ -24,6 +24,13 @@ const atomicPaths = new Set([
   "style.background.gradient",
   "style.background.pattern",
   "style.border.gradient",
+  // ColorValue is a single authored value. Keep palette reference internals
+  // out of Custom Library property selection.
+  "style.color",
+  "style.background.color",
+  "style.border.color",
+  "typography.textDecorationColor",
+  "markerColor",
 ]);
 
 const normallyUnselectedRoots = new Set([

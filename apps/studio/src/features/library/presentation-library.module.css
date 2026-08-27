@@ -333,6 +333,20 @@
   border-left: 1px solid var(--ps-ui-border-subtle);
 }
 
+.paletteDetailsPane {
+  text-align: left;
+}
+
+.paletteDetailsPane .detailsHeading,
+.paletteDetailsPane .detailsList,
+.paletteDetailsPane .detailsRow,
+.paletteDetailsPane .detailsRow dt,
+.paletteDetailsPane .detailsRow dd,
+.paletteDetailsPane .customLibraryPaletteColorList,
+.paletteDetailsPane .customLibraryPaletteColorRow {
+  text-align: left;
+}
+
 .detailsHeading {
   margin: 0 0 14px;
   color: var(--ps-ui-text-muted);
@@ -384,6 +398,14 @@
 }
 
 .customLibraryDeleteAction {
+  margin-top: 16px;
+}
+
+.paletteDetailsActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
   margin-top: 16px;
 }
 
@@ -587,6 +609,74 @@
 .customLibraryPreviewBullet { width: 6px; height: 6px; margin: 0 3px; border-radius: 50%; background: currentcolor; box-shadow: 12px 0 0 currentcolor, 24px 0 0 currentcolor; }
 .customLibraryPreviewContainer { background: #203047; }
 .customLibraryPreviewInterior { width: 42px; height: 24px; border: 1px dashed currentcolor; opacity: .55; }
+
+.customLibraryPalettePreview {
+  display: flex;
+  width: 96px;
+  height: 32px;
+  flex: none;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+}
+
+.customLibraryPaletteSwatch {
+  width: 24px;
+  min-width: 0;
+  flex: 1 1 0;
+  border: 0;
+}
+
+.paletteDetailsPane .customLibraryPaletteColorRow .customLibraryPaletteSwatch {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  flex: none;
+}
+
+.customLibraryPaletteMore {
+  display: flex;
+  min-width: 28px;
+  align-items: center;
+  justify-content: center;
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+}
+
+.customLibraryPaletteColorList {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  text-align: left;
+}
+
+.customLibraryPaletteColorRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--ps-ui-text-primary);
+  font-size: 13px;
+}
+
+.customLibraryPaletteColorRow > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customLibraryPaletteColorValue {
+  color: var(--ps-ui-text-muted);
+  font-family: monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 
 .recipeTree,
 .recipeProperties,

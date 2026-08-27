@@ -55,6 +55,10 @@ import type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
 } from "../src/features/custom-library/custom-library-repository";
+import type {
+  CustomLibraryPaletteRecord,
+  CustomLibraryPaletteRepository,
+} from "../src/features/custom-library/custom-library-palette-repository";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -153,6 +157,7 @@ function renderLibrary(
   repository: PresentationRepository,
   folderRepository?: PresentationFolderRepository,
   customLibraryRepository?: CustomLibraryRepository,
+  customLibraryPaletteRepository?: CustomLibraryPaletteRepository,
 ) {
   return (
     <StudioI18nProvider>
@@ -160,6 +165,7 @@ function renderLibrary(
         repository={repository}
         folderRepository={folderRepository ?? emptyFolderRepository()}
         customLibraryRepository={customLibraryRepository}
+        customLibraryPaletteRepository={customLibraryPaletteRepository ?? customLibraryPaletteRepositoryFor([]).repository}
       />
     </StudioI18nProvider>
   );
@@ -212,6 +218,38 @@ function customLibraryRepositoryFor(initialItems: CustomLibraryItemRecord[]) {
   return { repository, listItems, deleteItem, getCurrent: () => current };
 }
 
+function customLibraryPaletteRepositoryFor(initialPalettes: CustomLibraryPaletteRecord[]) {
+  let current = initialPalettes;
+  const listPalettes = vi.fn(async () => current);
+  const deletePalette = vi.fn(async (id: string) => {
+    current = current.filter((palette) => palette.id !== id);
+  });
+  const repository: CustomLibraryPaletteRepository = {
+    savePalette: vi.fn(async () => "unused"),
+    updatePalette: vi.fn(async () => undefined),
+    listPalettes,
+    getPalette: vi.fn(async () => null),
+    deletePalette,
+  };
+  return { repository, listPalettes, deletePalette, getCurrent: () => current };
+}
+
+function customLibraryPalette(
+  id: string,
+  name: string,
+  colors: Array<{ name: string; value: string }>,
+  description?: string,
+): CustomLibraryPaletteRecord {
+  return {
+    id,
+    palette: {
+      name,
+      ...(description ? { description } : {}),
+      colors,
+    },
+  };
+}
+
 function emptyFolderRepository(): PresentationFolderRepository {
   return {
     listFolders: vi.fn(async () => []),
@@ -224,6 +262,12 @@ async function flushWorkspaceEffects() {
   await act(async () => {
     await new Promise<void>((resolve) => queueMicrotask(resolve));
   });
+}
+
+function setLibraryInputValue(input: HTMLInputElement | null, value: string): void {
+  if (!input) throw new Error("expected library input");
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+  act(() => input.dispatchEvent(new Event("input", { bubbles: true })));
 }
 
 async function selectImportFile(container: HTMLDivElement, file: File) {
@@ -871,8 +915,9 @@ describe("presentation library workspace controls", () => {
   it("clears selection and keeps Styles loading separate from placeholders", async () => {
     const { repository, listPresentations } = repositoryFor([summary("one")]);
     const custom = customLibraryRepositoryFor([customLibraryItem("style-1", "Saved style")]);
+    const palettes = customLibraryPaletteRepositoryFor([]);
 
-    act(() => root.render(renderLibrary(repository, undefined, custom.repository)));
+    act(() => root.render(renderLibrary(repository, undefined, custom.repository, palettes.repository)));
     await flushWorkspaceEffects();
 
     const firstRow = container.querySelector<HTMLButtonElement>(
@@ -898,9 +943,11 @@ describe("presentation library workspace controls", () => {
     );
     if (!palettesDestination) throw new Error("expected Palettes destination");
     act(() => palettesDestination.click());
-    expect(container.textContent).toContain("Reusable palettes are planned");
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("No palettes saved yet.");
     expect(container.textContent).not.toContain("Saved style");
     expect(custom.listItems).toHaveBeenCalledTimes(1);
+    expect(palettes.listPalettes).toHaveBeenCalledTimes(1);
 
     const fontsDestination = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Fonts",
@@ -916,6 +963,204 @@ describe("presentation library workspace controls", () => {
     expect(repository.createPresentation).not.toHaveBeenCalled();
     expect(repository.archivePresentation).not.toHaveBeenCalled();
     expect(repository.getPresentation).not.toHaveBeenCalled();
+  });
+
+  it("loads, selects, inspects, and deletes a Custom Library Palette independently", async () => {
+    const { repository } = repositoryFor([]);
+    const palettes = customLibraryPaletteRepositoryFor([
+      customLibraryPalette("palette-1", "Brand Warm", [
+        { name: "Accent", value: "#facc15" },
+        { name: "Overlay", value: "rgba(10, 20, 30, 0.5)" },
+      ], "Warm presentation palette"),
+    ]);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, palettes.repository)));
+    await flushWorkspaceEffects();
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Palettes",
+    );
+    if (!destination) throw new Error("expected Palettes destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+
+    const row = container.querySelector<HTMLButtonElement>('[data-custom-library-palette-row]');
+    if (!row) throw new Error("expected palette row");
+    expect(row.getAttribute("aria-label")).toBe("Brand Warm");
+    expect(row.getAttribute("aria-pressed")).toBe("false");
+    expect(row.textContent).toContain("2 colors");
+    act(() => row.click());
+
+    const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
+    if (!details) throw new Error("expected palette details");
+    expect(row.getAttribute("aria-pressed")).toBe("true");
+    expect(details.textContent).toContain("Brand Warm");
+    expect(details.textContent).toContain("Warm presentation palette");
+    expect(details.textContent).toContain("Accent");
+    expect(details.textContent).toContain("#facc15");
+    expect(details.textContent).toContain("rgba(10, 20, 30, 0.5)");
+    expect(details.textContent).not.toContain("palette-1");
+
+    const deleteButton = Array.from(details.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete palette",
+    );
+    if (!deleteButton) throw new Error("expected palette delete action");
+    act(() => deleteButton.click());
+    expect(container.textContent).toContain("Delete Custom Library palette?");
+    const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent === "Delete");
+    if (!confirm) throw new Error("expected palette delete confirmation");
+    await act(async () => {
+      confirm.click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+    expect(palettes.deletePalette).toHaveBeenCalledWith("palette-1");
+    expect(container.textContent).not.toContain("Brand Warm");
+    expect(container.textContent).toContain("Select a palette to view details.");
+    expect(repository.savePresentation).not.toHaveBeenCalled();
+    expect(repository.createPresentation).not.toHaveBeenCalled();
+  });
+
+  it("creates a Custom Library Palette from the details pane and selects it locally", async () => {
+    let resolveSave: ((id: string) => void) | undefined;
+    const savePalette = vi.fn(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
+    const palettes = customLibraryPaletteRepositoryFor([]);
+    const repository: CustomLibraryPaletteRepository = { ...palettes.repository, savePalette };
+    const presentationRepository = repositoryFor([]).repository;
+
+    act(() => root.render(renderLibrary(presentationRepository, undefined, undefined, repository)));
+    await flushWorkspaceEffects();
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Palettes")?.click());
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("+ New palette");
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "+ New palette")?.click());
+    expect(savePalette).not.toHaveBeenCalled();
+
+    setLibraryInputValue(container.querySelector<HTMLInputElement>("form > label:first-of-type input"), "New master");
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "+ Add color")?.click());
+    setLibraryInputValue(container.querySelector<HTMLInputElement>("input[aria-label='Color name']"), "Accent");
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Create")?.click());
+    expect(container.textContent).toContain("Saving…");
+    await act(async () => resolveSave?.("new-id"));
+    expect(container.textContent).toContain("New master");
+    expect(container.querySelector('[data-custom-library-palette-row][data-selected="true"]')?.getAttribute("aria-label")).toBe("New master");
+    expect(container.textContent).not.toContain("Saving…");
+    expect(container.querySelector("form")).toBeNull();
+    expect(repository.listPalettes).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the Library palette editor open after a save failure and retries", async () => {
+    const savePalette = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce("retry-id");
+    const palettes = customLibraryPaletteRepositoryFor([]);
+    const repository: CustomLibraryPaletteRepository = { ...palettes.repository, savePalette };
+    const presentationRepository = repositoryFor([]).repository;
+
+    act(() => root.render(renderLibrary(presentationRepository, undefined, undefined, repository)));
+    await flushWorkspaceEffects();
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Palettes")?.click());
+    await flushWorkspaceEffects();
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "+ New palette")?.click());
+    setLibraryInputValue(container.querySelector<HTMLInputElement>("form > label:first-of-type input"), "Retry master");
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "+ Add color")?.click());
+    setLibraryInputValue(container.querySelector<HTMLInputElement>("input[aria-label='Color name']"), "Accent");
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Create")?.click());
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("Could not save palette.");
+    expect(container.querySelector("form")).not.toBeNull();
+    expect(container.textContent).not.toContain("Saving…");
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Create")?.click());
+    await flushWorkspaceEffects();
+    expect(savePalette).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-custom-library-palette-row][aria-label="Retry master"]')).not.toBeNull();
+  });
+
+  it("edits the selected palette in place and copies it as a new selected record", async () => {
+    const savePalette = vi.fn(async () => "copy-id");
+    const updatePalette = vi.fn(async () => undefined);
+    const palettes = customLibraryPaletteRepositoryFor([customLibraryPalette("brand", "Brand", [{ name: "Accent", value: "#facc15" }])]);
+    const repository: CustomLibraryPaletteRepository = { ...palettes.repository, savePalette, updatePalette };
+    const presentationRepository = repositoryFor([]).repository;
+
+    act(() => root.render(renderLibrary(presentationRepository, undefined, undefined, repository)));
+    await flushWorkspaceEffects();
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Palettes")?.click());
+    await flushWorkspaceEffects();
+    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-palette-row]")?.click());
+    const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
+    expect(details?.textContent).toContain("Brand");
+    expect(details?.textContent).toContain("Edit");
+    expect(details?.textContent).toContain("Copy");
+    act(() => Array.from(details?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) => button.textContent === "Edit")?.click());
+    setLibraryInputValue(container.querySelector<HTMLInputElement>("form > label:first-of-type input"), "Edited");
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Save changes")?.click());
+    await flushWorkspaceEffects();
+    expect(updatePalette).toHaveBeenCalledWith("brand", expect.objectContaining({ name: "Edited" }));
+    expect(savePalette).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Edited");
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Copy")?.click());
+    setLibraryInputValue(container.querySelector<HTMLInputElement>("form > label:first-of-type input"), "Copied");
+    act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Create copy")?.click());
+    await flushWorkspaceEffects();
+    expect(savePalette).toHaveBeenCalledWith(expect.objectContaining({ name: "Copied" }));
+    expect(container.querySelector('[data-custom-library-palette-row][aria-label="Copied"]')).not.toBeNull();
+    expect(container.querySelector('[data-custom-library-palette-row][aria-label="Edited"]')?.getAttribute("data-selected")).toBe("false");
+    expect(container.querySelector('[data-custom-library-palette-row][aria-label="Copied"]')?.getAttribute("data-selected")).toBe("true");
+  });
+
+  it("clears the selected Custom Library Palette on workspace Escape", async () => {
+    const { repository } = repositoryFor([]);
+    const palettes = customLibraryPaletteRepositoryFor([
+      customLibraryPalette("palette-escape", "Escape palette", [
+        { name: "Accent", value: "#facc15" },
+      ]),
+    ]);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, palettes.repository)));
+    await flushWorkspaceEffects();
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Palettes")?.click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>('[data-custom-library-palette-row]');
+    expect(row).toBeTruthy();
+    act(() => row?.click());
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Escape palette");
+
+    const workspace = container.querySelector<HTMLElement>('[class*="workspace"]');
+    expect(workspace).toBeTruthy();
+    act(() => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Select a palette to view details.");
+    expect(row?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("shows a palette-specific load error and retries only palette loading", async () => {
+    const { repository } = repositoryFor([]);
+    const palettes = customLibraryPaletteRepositoryFor([
+      customLibraryPalette("palette-1", "Retry palette", [
+        { name: "Accent", value: "#facc15" },
+      ]),
+    ]);
+    palettes.listPalettes
+      .mockRejectedValueOnce(new Error("palette load failed"))
+      .mockResolvedValueOnce(palettes.getCurrent());
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, palettes.repository)));
+    await flushWorkspaceEffects();
+    const destination = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Palettes",
+    );
+    if (!destination) throw new Error("expected Palettes destination");
+    act(() => destination.click());
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("Could not load Custom Library palettes.");
+    expect(container.textContent).not.toContain("Retry palette");
+
+    const retry = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Retry",
+    );
+    if (!retry) throw new Error("expected palette retry");
+    act(() => retry.click());
+    await flushWorkspaceEffects();
+    expect(palettes.listPalettes).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("Retry palette");
+    expect(repository.savePresentation).not.toHaveBeenCalled();
   });
 
   it.each([

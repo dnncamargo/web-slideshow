@@ -10,6 +10,47 @@ const properties = (element: PowerShowElement) =>
   );
 
 describe("getSelectableElementProperties", () => {
+  it("keeps every authored ColorValue atomic", () => {
+    const reference = { kind: "palette" as const, colorId: "accent" };
+    const textResult = properties({
+      type: "text",
+      id: "text",
+      hidden: false,
+      variant: "body",
+      content: "Text",
+      style: {
+        color: reference,
+        background: { color: reference },
+        border: { width: 1, color: reference },
+      },
+      typography: { textDecorationColor: reference },
+    });
+    const topicsResult = properties({
+      type: "topics",
+      id: "topics",
+      hidden: false,
+      kind: "unordered",
+      items: [],
+      markerColor: reference,
+    });
+
+    expect(textResult["style.color"]?.kind).toBe("atomic-object");
+    expect(textResult["style.background.color"]?.kind).toBe("atomic-object");
+    expect(textResult["style.border.color"]?.kind).toBe("atomic-object");
+    expect(textResult["typography.textDecorationColor"]?.kind).toBe("atomic-object");
+    expect(textResult["style.color.kind"]).toBeUndefined();
+    expect(textResult["style.color.colorId"]).toBeUndefined();
+    expect(textResult["style.background.color.kind"]).toBeUndefined();
+    expect(textResult["style.background.color.colorId"]).toBeUndefined();
+    expect(textResult["style.border.color.kind"]).toBeUndefined();
+    expect(textResult["style.border.color.colorId"]).toBeUndefined();
+    expect(textResult["typography.textDecorationColor.kind"]).toBeUndefined();
+    expect(textResult["typography.textDecorationColor.colorId"]).toBeUndefined();
+    expect(topicsResult.markerColor?.kind).toBe("atomic-object");
+    expect(topicsResult["markerColor.kind"]).toBeUndefined();
+    expect(topicsResult["markerColor.colorId"]).toBeUndefined();
+  });
+
   it("selects authored visual and layout leaves, but not identity or absent values", () => {
     const element: PowerShowElement = {
       type: "text",

@@ -6,6 +6,7 @@ import type {
 
 import { renderBorder, renderShadow } from "./render-visual";
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 
 type SurfaceElement = GalleryElement | EmbedElement | ScriptedElement;
 
@@ -32,7 +33,7 @@ export function renderCanonicalSurfaceStyle(element: SurfaceElement): string {
   }
 
   if (style?.background?.color !== undefined) {
-    output.push(`background:${style.background.color}`);
+    output.push(`background:${renderColorValue(style.background.color)}`);
   }
   if (style?.border) output.push(...renderBorder(style.border));
   if (style?.borderRadius !== undefined) {

@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import {
-  ColorSchema,
   ElementIdSchema,
   LengthSchema,
 } from "./primitives";
+import { ColorValueSchema } from "./palette";
 
 import {
   PowerShowElementSchema,
@@ -32,10 +32,10 @@ export const SlideBackgroundPatternSchema =
   z.object({
     type: SlideBackgroundPatternTypeSchema,
 
-    color: ColorSchema.optional(),
+    color: ColorValueSchema.optional(),
 
     backgroundColor:
-      ColorSchema.optional(),
+      ColorValueSchema.optional(),
 
     size: LengthSchema.optional(),
 
@@ -54,7 +54,7 @@ export type SlideBackgroundPattern =
 export const SlideBackgroundSchema =
   z
     .object({
-      color: ColorSchema.optional(),
+      color: ColorValueSchema.optional(),
 
       gradient:
           GradientSchema.optional(),

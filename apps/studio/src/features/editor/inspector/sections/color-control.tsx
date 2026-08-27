@@ -1,53 +1,33 @@
 import {
-  colorToPickerHex,
-  formatColorAsHex,
-  formatColorAsRgba,
-  normalizeColor,
-  parseColor,
-  replaceColorRgb,
+  detachColorValue,
   type Color,
-  type ColorFormat,
+  type ColorValue,
+  isPaletteColorReference,
+  resolveColorValue,
 } from "@powershow/document-schema";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 
 import styles from "../../editor-workspace.module.css";
 
-import {
-  addPaletteColor,
-  arePaletteColorsEquivalent,
-  movePaletteColor,
-} from "./color-palette-helpers";
 import { usePresentationColorPalette } from "./presentation-color-palette";
-import { useRecentColors } from "./recent-colors-provider";
-import {
-  THEME_COLORS,
-  type ThemeColorKey,
-} from "@powershow/theme/element-style-defaults";
+import { usePickedColors } from "./picked-colors-provider";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
 interface ColorControlProps {
   id: string;
   name: string;
-  value: Color | undefined;
-  onChange: (color: Color) => void;
+  value: ColorValue | undefined;
+  onChange: (color: ColorValue) => void;
+  secondaryAction?: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  };
   disabled?: boolean;
-}
-
-function getColorFormat(value: string): ColorFormat {
-  return value.trim().startsWith("#") ? "hex" : "rgba";
-}
-
-function formatColor(value: string, format: ColorFormat): Color | undefined {
-  const color = parseColor(value);
-
-  if (!color) {
-    return undefined;
-  }
-
-  return format === "hex" ? formatColorAsHex(color) : formatColorAsRgba(color);
 }
 
 export function ColorControl({
@@ -55,254 +35,163 @@ export function ColorControl({
   name,
   value,
   onChange,
+  secondaryAction,
   disabled = false,
 }: ColorControlProps) {
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
-  const recent = useRecentColors();
-  const sourceValue = value ?? DEFAULT_PICKER_COLOR;
-  const [draft, setDraft] = useState(sourceValue);
-  const [format, setFormat] = useState<ColorFormat>(() =>
-    getColorFormat(sourceValue),
-  );
-
-  useEffect(() => {
-    setDraft(sourceValue);
-    setFormat(getColorFormat(sourceValue));
-  }, [sourceValue]);
-
-  const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(sourceValue);
-  const currentColor = normalizeColor(draft) ?? normalizeColor(sourceValue);
-  const paletteColor = parseColor(draft) ? (draft as Color) : sourceValue;
+  const picked = usePickedColors();
+  const sourceValue = value === undefined
+    ? DEFAULT_PICKER_COLOR
+    : resolveColorValue(value, palette ? { colors: palette.colors } : undefined) ?? DEFAULT_PICKER_COLOR;
+  const [literalValue, setLiteralValue] = useState(sourceValue);
+  const [isPaletteChooserOpen, setIsPaletteChooserOpen] = useState(false);
+  const [lastSourceValue, setLastSourceValue] = useState(sourceValue);
+  if (sourceValue !== lastSourceValue) {
+    setLastSourceValue(sourceValue);
+    setLiteralValue(sourceValue);
+  }
   const paletteColors = palette?.colors ?? [];
-  const canAddCurrentColor =
-    currentColor !== undefined &&
-    !paletteColors.some((color) =>
-      arePaletteColorsEquivalent(color, currentColor),
-    );
+  const isLinked = value !== undefined && isPaletteColorReference(value);
+  const linkedPaletteColor = isLinked
+    ? paletteColors.find((color) => color.id === value.colorId)
+    : undefined;
+  const detachedValue = value === undefined
+    ? undefined
+    : detachColorValue(value, { colors: [...paletteColors] });
+  const emitLiteralColor = (color: Color) => {
+    onChange(color);
+  };
+  const hasReusableChoices = paletteColors.length > 0 || (picked?.colors.length ?? 0) > 0;
 
   return (
     <div className={styles.colorControlGroup}>
-      <div className={styles.colorValueControl}>
-        <input
-          id={id}
-          name={name}
-          className={styles.colorInput}
-          type="color"
-          value={pickerColor ?? DEFAULT_PICKER_COLOR}
-          disabled={disabled}
-          onChange={(event) => {
-            const next = replaceColorRgb(
-              parseColor(draft) ? draft : sourceValue,
-              event.target.value,
-              format,
-            );
+      <LiteralColorInput
+        id={id}
+        name={name}
+        value={literalValue}
+        disabled={disabled}
+        onChange={(color, source) => {
+          setLiteralValue(color);
+          setIsPaletteChooserOpen(false);
 
-            if (next) {
-              setDraft(next);
-              onChange(next);
-            }
-          }}
-        />
+          if (source === "format" && value === undefined) {
+            return;
+          }
 
-        <input
-          id={`${id}-value`}
-          name={`${name}Value`}
-          type="text"
-          autoComplete="off"
-          value={draft}
-          disabled={disabled}
-          onChange={(event) => {
-            const nextDraft = event.target.value;
-            const normalized = normalizeColor(nextDraft);
+          emitLiteralColor(color);
+          if (source === "picker") picked?.onPickColor(color);
+        }}
+      />
 
-            setDraft(nextDraft);
-
-            if (normalized) {
-              setFormat(getColorFormat(nextDraft));
-              onChange(normalized);
-            }
-          }}
-        />
-
-        <select
-          id={`${id}-format`}
-          name={`${name}Format`}
-          value={format}
-          disabled={disabled}
-          onChange={(event) => {
-            const nextFormat = event.target.value as ColorFormat;
-
-            if (nextFormat !== "hex" && nextFormat !== "rgba") {
-              return;
-            }
-
-            const next = formatColor(draft, nextFormat);
-
-            if (!next) {
-              return;
-            }
-
-            setFormat(nextFormat);
-            setDraft(next);
-
-            if (value !== undefined) {
-              onChange(next);
-            }
-          }}
-        >
-          <option value="hex">HEX</option>
-          <option value="rgba">RGBA</option>
-        </select>
-      </div>
-
-      {palette && (
-        <div className={styles.colorPalette}>
-          <span className={styles.colorPaletteLabel}>{t("inspector.palette")}</span>
-
-          <div className={styles.colorPaletteActions}>
-            {paletteColors.map((color, index) => (
-              <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
-                <button
-                  className={styles.colorPaletteSwatch}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.applyPaletteColor", { color })}
-                  title={t("inspector.applyPaletteColor", { color })}
-                  style={{ backgroundColor: color }}
-                  onClick={() => {
-                    setDraft(color);
-                    setFormat(getColorFormat(color));
-                    onChange(color);
-                  }}
-                />
-
-                <button
-                  className={styles.colorPaletteRemove}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.removeColorFromPalette", { color })}
-                  title={t("inspector.removeColorFromPalette", { color })}
-                  onClick={() => {
-                    palette.onRemoveColor(index);
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-
+      {(hasReusableChoices || secondaryAction) && (
+        <div className={styles.colorControlActionRow}>
+          {hasReusableChoices ? (
             <button
-              className={styles.colorPaletteAdd}
+              className={styles.colorPaletteDisclosure}
               type="button"
-              disabled={disabled || !canAddCurrentColor}
-              aria-label={t("inspector.addCurrentColor")}
-              title={t("inspector.addCurrentColor")}
+              aria-expanded={isPaletteChooserOpen}
+              aria-controls={`${id}-palette-chooser`}
+              disabled={disabled}
+              onClick={() => setIsPaletteChooserOpen((open) => !open)}
+            >
+              {t("inspector.usePalette")}
+            </button>
+          ) : null}
+          {secondaryAction ? (
+            <button
+              className={styles.colorPaletteDisclosure}
+              type="button"
+              disabled={disabled || secondaryAction.disabled}
               onClick={() => {
-                if (currentColor) {
-                  palette.onAddColor(paletteColor);
-                }
+                setIsPaletteChooserOpen(false);
+                secondaryAction.onClick();
               }}
             >
-              +
+              {secondaryAction.label}
             </button>
-          </div>
+          ) : null}
         </div>
       )}
 
-      {recent && recent.colors.length > 0 && (
-        <div className={styles.colorRecent}>
-          <span className={styles.colorPaletteLabel}>{t("inspector.recent")}</span>
+      {isLinked && (
+        <div className={styles.colorLinkedStatus} role="status">
+          <span>{t("inspector.linkedColor")} · {linkedPaletteColor?.name ?? value?.colorId}</span>
+          <button
+            type="button"
+            disabled={disabled || detachedValue === undefined}
+            onClick={() => {
+              if (detachedValue !== undefined) {
+                setIsPaletteChooserOpen(false);
+                emitLiteralColor(detachedValue);
+              }
+            }}
+          >
+            {t("inspector.detachColor")}
+          </button>
+        </div>
+      )}
 
-          <div className={styles.colorPaletteActions}>
-            {recent.colors.map((color, index) => (
-              <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
-                <button
-                  className={styles.colorPaletteSwatch}
-                  type="button"
-                  disabled={disabled}
-                  aria-label={t("inspector.applyPaletteColor", { color })}
-                  title={t("inspector.applyPaletteColor", { color })}
-                  style={{ backgroundColor: color }}
-                  onClick={() => {
-                    setDraft(color);
-                    setFormat(getColorFormat(color));
-                    onChange(color);
-                  }}
-                />
-
-                <div className={styles.colorPaletteMoveButtons}>
+      {isPaletteChooserOpen && hasReusableChoices ? (
+        <div className={styles.colorPalette} id={`${id}-palette-chooser`}>
+          <span className={styles.colorPaletteLabel}>{t("inspector.palette")}</span>
+          {paletteColors.length > 0 ? (
+            <div className={styles.colorPaletteActions}>
+              {paletteColors.map((color, index) => (
+                <div className={styles.colorPaletteEntry} key={`${color.id}-${index}`}>
                   <button
-                    className={styles.colorPaletteMove}
+                    className={styles.colorPaletteSwatch}
                     type="button"
-                    disabled={disabled || index === 0}
-                    aria-label={t("inspector.moveColorLeft", { color })}
-                    title={t("inspector.moveColorLeft", { color })}
+                    disabled={disabled}
+                    aria-label={t("inspector.applyPaletteColor", { color: color.name })}
+                    title={t("inspector.applyPaletteColor", { color: color.name })}
+                    style={{ backgroundColor: color.value }}
+                    aria-pressed={isLinked && value.colorId === color.id}
                     onClick={() => {
-                      recent.onMoveColor(index, -1);
+                      setLiteralValue(color.value);
+                      setIsPaletteChooserOpen(false);
+                      onChange({ kind: "palette", colorId: color.id });
                     }}
-                  >
-                    ←
-                  </button>
-
-                  <button
-                    className={styles.colorPaletteMove}
-                    type="button"
-                    disabled={disabled || index === recent.colors.length - 1}
-                    aria-label={t("inspector.moveColorRight", { color })}
-                    title={t("inspector.moveColorRight", { color })}
-                    onClick={() => {
-                      recent.onMoveColor(index, 1);
-                    }}
-                  >
-                    →
-                  </button>
+                  />
                 </div>
+              ))}
+            </div>
+          ) : null}
+          {picked && picked.colors.length > 0 ? (
+            <>
+              <span className={styles.colorPaletteLabel}>{t("inspector.picked")}</span>
+              <div className={styles.colorPaletteActions}>
+                {picked.colors.map((color, index) => (
+                  <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
+                    <button
+                      className={styles.colorPaletteSwatch}
+                      type="button"
+                      disabled={disabled}
+                      aria-label={t("inspector.applyPaletteColor", { color })}
+                      title={t("inspector.applyPaletteColor", { color })}
+                      style={{ backgroundColor: color }}
+                      onClick={() => {
+                        setLiteralValue(color);
+                        setIsPaletteChooserOpen(false);
+                        onChange(color);
+                      }}
+                    />
+                    <button
+                      className={styles.colorPaletteRemove}
+                      type="button"
+                      disabled={disabled}
+                      aria-label={t("inspector.removePickedColor", { color })}
+                      title={t("inspector.removePickedColor", { color })}
+                      onClick={() => picked.onRemoveColor(color)}
+                    >×</button>
+                  </div>
+                ))}
               </div>
-            ))}
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
-             <button
-               className={styles.colorPaletteClear}
-               type="button"
-               disabled={disabled}
-               aria-label={t("inspector.clearRecentColors")}
-               title={t("inspector.clearRecentColors")}
-               onClick={() => {
-                 recent.onClearColors();
-               }}
-             >
-               {t("inspector.clear")}
-             </button>
-           </div>
-         </div>
-       )}
-
-       <div className={styles.colorTheme}>
-         <span className={styles.colorPaletteLabel}>{t("inspector.theme")}</span>
-
-         <div className={styles.colorPaletteActions}>
-           {(Object.keys(THEME_COLORS) as ThemeColorKey[]).map((key) => {
-             const color = THEME_COLORS[key];
-
-             return (
-               <button
-                 key={key}
-                 className={styles.colorPaletteSwatch}
-                 type="button"
-                 disabled={disabled}
-                 aria-label={t("inspector.applyPaletteColor", { color })}
-                 title={t("inspector.applyPaletteColor", { color })}
-                 style={{ backgroundColor: color }}
-                 onClick={() => {
-                   setDraft(color);
-                   setFormat(getColorFormat(color));
-                   onChange(color);
-                 }}
-               />
-             );
-           })}
-         </div>
-       </div>
      </div>
    );
  }

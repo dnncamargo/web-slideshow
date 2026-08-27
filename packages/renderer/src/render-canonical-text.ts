@@ -8,6 +8,7 @@ import type {
 import { quoteCssString } from "./escape-css-string";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 
 function addStyle(
   output: string[],
@@ -53,10 +54,10 @@ function renderVisualStyle(style: TextVisualStyle | undefined): string[] {
     return output;
   }
 
-  addStyle(output, "color", style.color);
+  if (style.color !== undefined) addStyle(output, "color", renderColorValue(style.color));
 
   if (style.background?.color) {
-    addStyle(output, "background", style.background.color);
+    addStyle(output, "background", renderColorValue(style.background.color));
   }
 
   if (style.background?.gradient) {
@@ -93,11 +94,11 @@ function renderTypography(typography: ElementTypography | undefined): string[] {
   addStyle(output, "text-wrap-style", typography.textWrapStyle);
   addStyle(output, "overflow-wrap", typography.overflowWrap);
   addStyle(output, "text-decoration-line", typography.textDecorationLine);
-  addStyle(output, "text-decoration-color", typography.textDecorationColor);
+  if (typography.textDecorationColor !== undefined) addStyle(output, "text-decoration-color", renderColorValue(typography.textDecorationColor));
 
   if (typography.textStroke) {
     output.push(
-      `-webkit-text-stroke:${renderLength(typography.textStroke.width)} ${typography.textStroke.color}`,
+      `-webkit-text-stroke:${renderLength(typography.textStroke.width)} ${renderColorValue(typography.textStroke.color)}`,
     );
   }
 

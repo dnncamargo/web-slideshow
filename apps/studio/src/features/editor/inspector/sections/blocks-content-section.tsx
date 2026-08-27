@@ -144,7 +144,7 @@ export function BlocksContentSection({
                 className={styles.blocksColorInput}
                 data-powershow-block-category-color="true"
                 type="color"
-                value={colorToPickerHex(category.color) ?? "#6366f1"}
+                value={colorToPickerHex(typeof category.color === "string" ? category.color : undefined) ?? "#6366f1"}
                 aria-label={t("inspector.blocks.categoryColor")}
                 title={t("inspector.blocks.categoryColor")}
                 onChange={(event) => {

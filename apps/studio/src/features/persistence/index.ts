@@ -13,10 +13,16 @@ export { FirestorePresentationFolderRepository } from "./firestore-presentation-
 export type { PresentationFolderRepository } from "./presentation-folder-repository";
 export { FirestoreCustomLibraryRepository } from "./firestore-custom-library-repository";
 export { getDefaultCustomLibraryRepository } from "./custom-library-repository-instance";
+export { FirestoreCustomLibraryPaletteRepository } from "./firestore-custom-library-palette-repository";
+export { getDefaultCustomLibraryPaletteRepository } from "./custom-library-palette-repository-instance";
 export type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
 } from "../custom-library/custom-library-repository";
+export type {
+  CustomLibraryPaletteRecord,
+  CustomLibraryPaletteRepository,
+} from "../custom-library/custom-library-palette-repository";
 export {
   MAX_FOLDER_NAME_LENGTH,
   isValidFolderName,
@@ -67,6 +73,8 @@ export {
   InvalidFolderNameError,
   InvalidCustomLibraryItemForPersistenceError,
   InvalidPersistedCustomLibraryItemError,
+  InvalidCustomLibraryPaletteForPersistenceError,
+  InvalidPersistedCustomLibraryPaletteError,
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
   PresentationRecoveryFailedError,

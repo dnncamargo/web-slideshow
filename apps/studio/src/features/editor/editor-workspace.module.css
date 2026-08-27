@@ -949,6 +949,46 @@
   opacity: 0.55;
 }
 
+.customLibraryPaletteActionRow {
+  display: flex;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.customLibraryPaletteActionRow button {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 5px;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  background: #172033;
+  color: #cbd5e1;
+  font-size: 10px;
+}
+
+.customLibraryPaletteActionRow button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.customLibraryPalettePickerSwatches {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  gap: 1px;
+}
+
+.customLibraryPalettePickerSwatches span {
+  flex: 1;
+  min-width: 0;
+}
+
+.customLibraryPalettePickerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
 .customLibrarySaveStatus {
   margin: 0 0 6px;
   color: #86efac;
@@ -2556,34 +2596,6 @@
 }
 
 
-.colorInput {
-  width: 38px !important;
-
-  height: 38px !important;
-
-  padding: 4px !important;
-
-  cursor: pointer;
-}
-
-
-.colorValueControl {
-  display: grid;
-
-  grid-template-columns: auto minmax(0, 1fr) auto;
-
-  align-items: center;
-
-  overflow: hidden;
-
-  border: 1px solid #303847;
-
-  border-radius: 7px;
-
-  background: #0c111a;
-}
-
-
 .colorControlGroup,
 .colorPalette {
   display: flex;
@@ -2609,14 +2621,45 @@
   font-size: 11px;
 }
 
+.colorControlActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.colorLinkedStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a5b4fc;
+  font-size: 11px;
+}
+
+.colorLinkedStatus button {
+  padding: 2px 6px;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.colorPaletteDisclosure {
+  align-self: flex-start;
+  padding: 3px 6px;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  background: #172033;
+  color: #cbd5e1;
+  font-size: 10px;
+}
 
 .colorPaletteEntry {
   position: relative;
 }
 
 
-.colorPaletteSwatch,
-.colorPaletteAdd {
+.colorPaletteSwatch {
   width: 24px;
 
   height: 24px;
@@ -2631,108 +2674,22 @@
 }
 
 
-.colorPaletteAdd {
-  background: #141a24;
-
-  color: #cbd5e1;
-}
-
-
 .colorPaletteRemove {
   position: absolute;
-
-  top: -5px;
-
-  right: -5px;
-
-  width: 14px;
-
-  height: 14px;
-
-  padding: 0;
-
-  border: 1px solid #475569;
-
-  border-radius: 50%;
-
-  background: #0f172a;
-
-  color: #e2e8f0;
-
-  font-size: 11px;
-
-  line-height: 1;
-
-  cursor: pointer;
-}
-
-
-.colorPaletteMoveButtons {
-  display: flex;
-
-  gap: 2px;
-
-  position: absolute;
-
-  bottom: -18px;
-
-  left: 50%;
-
-  transform: translateX(-50%);
-}
-
-
-.colorPaletteMove {
+  top: -7px;
+  right: -7px;
   width: 16px;
-
   height: 16px;
-
   padding: 0;
-
   border: 1px solid #475569;
-
   border-radius: 50%;
-
   background: #0f172a;
-
   color: #cbd5e1;
-
-  font-size: 10px;
-
+  font-size: 11px;
+  line-height: 14px;
   cursor: pointer;
 }
 
-
-.colorPaletteMove:disabled {
-  opacity: 0.4;
-
-  cursor: not-allowed;
-}
-
-
-.colorRecent,
-.colorTheme {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 6px;
-}
-
-
-.colorRecent .colorPaletteClear,
-.colorTheme .colorPaletteActions {
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 5px;
-}
-
-
-.colorValueControl:focus-within {
-  border-color: #6366f1;
-}
 
 .positionAnchorGrid {
   display: grid;
@@ -2759,31 +2716,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
-}
-
-
-.colorValueControl input[type="text"],
-.colorValueControl select {
-  min-width: 0;
-
-  border: 0;
-
-  border-radius: 0;
-
-  background: transparent;
-}
-
-
-.colorValueControl select {
-  padding: 0 7px;
-
-  border-left: 1px solid #303847;
-
-  color: #94a3b8;
-
-  font: inherit;
-
-  font-size: 11px;
 }
 
 

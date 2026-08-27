@@ -12,5 +12,6 @@ export * from "./render-blocks";
 export * from "./render-scripted";
 export * from "./render-slide";
 export * from "./render-presentation";
+export * from "./render-palette";
 export * from "./image-crop";
 export * from "./image-crop-runtime";

@@ -7,6 +7,7 @@ import type {
 import {
   renderLength,
 } from "./render-length";
+import { renderColorValue } from "./render-palette";
 
 export function renderGradient(
   gradient: Gradient,
@@ -14,7 +15,7 @@ export function renderGradient(
   const stops = gradient.stops
     .map(
       (stop) =>
-        `${stop.color} ${stop.position}%`,
+        `${renderColorValue(stop.color)} ${stop.position}%`,
     )
     .join(",");
 
@@ -66,7 +67,7 @@ export function renderShadow(
     );
   }
 
-  values.push(shadow.color);
+  values.push(renderColorValue(shadow.color));
 
   return values.join(" ");
 }
@@ -92,7 +93,7 @@ export function renderBorder(
 
   if (border.color) {
     styles.push(
-      `border-color:${border.color}`,
+      `border-color:${renderColorValue(border.color)}`,
     );
 
     return styles;

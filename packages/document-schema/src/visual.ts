@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import {
-  ColorSchema,
   LengthSchema,
 } from "./primitives";
+import { ColorValueSchema } from "./palette";
 
 export const GradientStopSchema =
   z.object({
-    color: ColorSchema,
+    color: ColorValueSchema,
 
     position: z
       .number()
@@ -230,7 +230,7 @@ export const BorderSchema =
         BorderStyleSchema.optional(),
 
       color:
-        ColorSchema.optional(),
+        ColorValueSchema.optional(),
 
       gradient:
         GradientSchema.optional(),
@@ -277,7 +277,7 @@ export const ShadowSchema =
     spread:
       LengthSchema.optional(),
 
-    color: ColorSchema,
+    color: ColorValueSchema,
 
     inset:
       z.boolean().optional(),
@@ -290,7 +290,7 @@ export const TextStrokeSchema =
   z.object({
     width: LengthSchema,
 
-    color: ColorSchema,
+    color: ColorValueSchema,
   });
 
 export type TextStroke =

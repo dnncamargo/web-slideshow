@@ -1,6 +1,6 @@
 "use client";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PowerShowElement, PresentationPalette } from "@powershow/document-schema";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
@@ -30,6 +30,7 @@ interface ElementPropertiesPanelProps {
   onApplyCustomLibraryRecipe?: (
     recipe: CustomLibraryElementRecipe,
   ) => CustomLibraryApplyOutcome;
+  palette?: PresentationPalette;
 }
 
 function getElementIdentity(
@@ -44,6 +45,7 @@ export function ElementPropertiesPanel({
   isStructuralTopicSelection,
   customLibraryRepository,
   onApplyCustomLibraryRecipe = () => ({ ok: true }),
+  palette,
 }: ElementPropertiesPanelProps) {
   const { t } = useStudioI18n();
   const selectableProperties = useMemo(
@@ -113,6 +115,7 @@ export function ElementPropertiesPanel({
               key={selectedElement.id}
               root={selectedElement}
               selections={selections}
+              palette={palette}
               repository={customLibraryRepository}
               onSaved={() => {
                 setSaveFormElementId(null);
