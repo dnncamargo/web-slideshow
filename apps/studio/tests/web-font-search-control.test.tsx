@@ -177,8 +177,8 @@ describe("WebFontSearchControl provider behavior", () => {
     });
     await act(async () => {});
 
-    assertHasButton(container, "Customize");
-    await act(async () => clickButton(container, "Customize"));
+    assertHasButton(container, "Choose variants");
+    await act(async () => clickButton(container, "Choose variants"));
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(onAddFontFace).not.toHaveBeenCalled();
 
@@ -271,7 +271,7 @@ describe("WebFontSearchControl multi-weight customizer", () => {
     });
     await act(async () => typeQuery(container, "Inter"));
     await act(async () => vi.advanceTimersByTimeAsync(400));
-    await act(async () => clickButton(container, "Customize"));
+    await act(async () => clickButton(container, "Choose variants"));
     await act(async () => vi.advanceTimersByTimeAsync(0));
   }
 
@@ -286,6 +286,12 @@ describe("WebFontSearchControl multi-weight customizer", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(onAddFontFace).not.toHaveBeenCalled();
+  });
+
+  it("renders the resolved family name in the real-font preview", async () => {
+    await openCustomizer();
+    expect(container.querySelector("[data-web-font-preview]")?.textContent).toBe("AgInter");
+    expect(container.textContent).not.toContain("AgMontserrat");
   });
 
   it("selects, previews, deselects, and persists multiple weights in ascending order", async () => {

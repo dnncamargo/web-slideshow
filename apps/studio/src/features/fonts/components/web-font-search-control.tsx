@@ -526,7 +526,7 @@ export function WebFontSearchControl({
               >
                 {pendingForResult && pendingAction.kind === "customizing"
                   ? t("inspector.webFonts.loadingFamily")
-                  : t("inspector.webFonts.customize")}
+                  : t("inspector.webFonts.chooseVariants")}
               </button>
             </div>
           </div>
@@ -693,9 +693,9 @@ export function WebFontSearchControl({
           </label>
 
           {previewFace && (
-            <div className={styles.webFontPreview} style={{ fontFamily: `"${previewFamilyName}"` }}>
+            <div className={styles.webFontPreview} data-web-font-preview style={{ fontFamily: `"${previewFamilyName}"` }}>
               <span>Ag</span>
-              <span>Montserrat</span>
+              <span>{customize.family.family}</span>
             </div>
           )}
 
