@@ -337,6 +337,10 @@
   text-align: left;
 }
 
+.fontDetailsPane {
+  text-align: left;
+}
+
 .paletteDetailsPane .detailsHeading,
 .paletteDetailsPane .detailsList,
 .paletteDetailsPane .detailsRow,
@@ -620,6 +624,35 @@
   border: 1px solid var(--ps-ui-border-default);
   border-radius: var(--ps-ui-radius-4);
   background: var(--ps-ui-background-control);
+}
+
+.customLibraryFontPreview {
+  display: flex;
+  width: 96px;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.customLibraryFontFaceList {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.customLibraryFontFaceRow {
+  color: var(--ps-ui-text-secondary);
+  font-size: 12px;
 }
 
 .customLibraryPaletteSwatch {

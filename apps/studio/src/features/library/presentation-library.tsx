@@ -79,6 +79,9 @@ import { CustomLibraryDeleteDialog } from "../custom-library/custom-library-dele
 import { CustomLibraryPaletteBrowser } from "../custom-library/custom-library-palette-browser";
 import { CustomLibraryPaletteDetails } from "../custom-library/custom-library-palette-details";
 import { CustomLibraryPaletteDeleteDialog } from "../custom-library/custom-library-palette-delete-dialog";
+import { CustomLibraryFontBrowser } from "../custom-library/custom-library-font-browser";
+import { CustomLibraryFontDetails } from "../custom-library/custom-library-font-details";
+import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-font-delete-dialog";
 import styles from "./presentation-library.module.css";
 import {
   buildPresentationExportFilename,
@@ -106,7 +109,7 @@ type LibraryPaletteAuthoringState =
   | null;
 
 const SELECTION_INTERACTIVE_SELECTOR =
-  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row]";
+  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row], [data-custom-library-font-row]";
 
 function destinationTitle(
   destination: LibraryDestination,
@@ -192,6 +195,10 @@ export function PresentationLibrary({
   const [customLibraryPaletteDeleteTargetId, setCustomLibraryPaletteDeleteTargetId] = useState<string | null>(null);
   const [deletingCustomLibraryPaletteId, setDeletingCustomLibraryPaletteId] = useState<string | null>(null);
   const [customLibraryPaletteError, setCustomLibraryPaletteError] = useState<string | null>(null);
+  const [selectedCustomLibraryFontId, setSelectedCustomLibraryFontId] = useState<string | null>(null);
+  const [customLibraryFontDeleteTargetId, setCustomLibraryFontDeleteTargetId] = useState<string | null>(null);
+  const [deletingCustomLibraryFontId, setDeletingCustomLibraryFontId] = useState<string | null>(null);
+  const [customLibraryFontDeleteError, setCustomLibraryFontDeleteError] = useState<string | null>(null);
   const [paletteAuthoring, setPaletteAuthoring] = useState<LibraryPaletteAuthoringState>(null);
   const [paletteWriteState, setPaletteWriteState] = useState<"saving" | null>(null);
 
@@ -211,6 +218,7 @@ export function PresentationLibrary({
   const customLibraryFontWriteQueueRef = useRef(Promise.resolve());
   const customLibraryDeleteRef = useRef(false);
   const customLibraryPaletteDeleteRef = useRef(false);
+  const customLibraryFontDeleteRef = useRef(false);
   const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -364,6 +372,8 @@ export function PresentationLibrary({
     setCustomLibraryDeleteTargetId(null);
     setSelectedCustomLibraryPaletteId(null);
     setCustomLibraryPaletteDeleteTargetId(null);
+    setSelectedCustomLibraryFontId(null);
+    setCustomLibraryFontDeleteTargetId(null);
     if (next !== "palettes" && !paletteWriteRef.current) {
       setPaletteAuthoring(null);
       setCustomLibraryPaletteError(null);
@@ -392,6 +402,7 @@ export function PresentationLibrary({
         setSelectedId(null);
         setSelectedCustomLibraryItemId(null);
         setSelectedCustomLibraryPaletteId(null);
+        setSelectedCustomLibraryFontId(null);
       }
     },
     [],
@@ -460,6 +471,8 @@ export function PresentationLibrary({
     customLibraryItems.find((record) => record.id === selectedCustomLibraryItemId) ?? null;
   const selectedCustomLibraryPalette =
     customLibraryPalettes.find((record) => record.id === selectedCustomLibraryPaletteId) ?? null;
+  const selectedCustomLibraryFont =
+    customLibraryFonts.find((record) => record.id === selectedCustomLibraryFontId) ?? null;
 
   const customLibraryFontFamilies = useMemo<FontFamilyFaces[]>(
     () => customLibraryFonts.map((record) => ({ family: record.font.family, faces: record.font.faces })),
@@ -594,6 +607,47 @@ export function PresentationLibrary({
     if (customLibraryPaletteDeleteRef.current) return;
     setCustomLibraryPaletteDeleteTargetId(null);
     setCustomLibraryPaletteError(null);
+  }, []);
+
+  const handleToggleCustomLibraryFontSelection = useCallback((id: string) => {
+    setSelectedCustomLibraryFontId((current) => (current === id ? null : id));
+  }, []);
+
+  const handleRequestCustomLibraryFontDelete = useCallback(() => {
+    if (!selectedCustomLibraryFont || customLibraryFontDeleteRef.current) return;
+    setCustomLibraryFontDeleteError(null);
+    setCustomLibraryFontDeleteTargetId(selectedCustomLibraryFont.id);
+  }, [selectedCustomLibraryFont]);
+
+  const handleConfirmCustomLibraryFontDelete = useCallback(async () => {
+    if (customLibraryFontDeleteRef.current || customLibraryFontDeleteTargetId === null) return;
+    const target = customLibraryFontsRef.current.find((record) => record.id === customLibraryFontDeleteTargetId);
+    if (!target) return;
+
+    customLibraryFontDeleteRef.current = true;
+    setDeletingCustomLibraryFontId(target.id);
+    setCustomLibraryFontDeleteError(null);
+    try {
+      await customLibraryFontRepository.deleteFont(target.id);
+      if (!mountedRef.current) return;
+      const nextFonts = customLibraryFontsRef.current.filter((record) => record.id !== target.id);
+      customLibraryFontsRef.current = nextFonts;
+      setCustomLibraryFonts(nextFonts);
+      setSelectedCustomLibraryFontId((current) => current === target.id ? null : current);
+      setCustomLibraryFontDeleteTargetId(null);
+    } catch (error) {
+      console.error("Library: could not delete Custom Library font", error);
+      if (mountedRef.current) setCustomLibraryFontDeleteError(t("customLibrary.fontDelete.failed"));
+    } finally {
+      customLibraryFontDeleteRef.current = false;
+      if (mountedRef.current) setDeletingCustomLibraryFontId(null);
+    }
+  }, [customLibraryFontDeleteTargetId, customLibraryFontRepository, t]);
+
+  const handleCancelCustomLibraryFontDelete = useCallback(() => {
+    if (customLibraryFontDeleteRef.current) return;
+    setCustomLibraryFontDeleteTargetId(null);
+    setCustomLibraryFontDeleteError(null);
   }, []);
 
   const beginPaletteAuthoring = useCallback((next: LibraryPaletteAuthoringState) => {
@@ -951,6 +1005,7 @@ export function PresentationLibrary({
   const palettesDestination = destination === "palettes";
   const fontsDestination = destination === "fonts";
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
+  const fontMutationPending = customLibraryFontWriteState !== null || deletingCustomLibraryFontId !== null;
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -1062,7 +1117,7 @@ export function PresentationLibrary({
             {fontsDestination && customLibraryFontStatus === "ready" ? (
               <Button
                 size="compact"
-                disabled={customLibraryFontWriteState !== null || customLibraryFontAuthoring}
+                disabled={fontMutationPending || customLibraryFontAuthoring}
                 onClick={() => {
                   setCustomLibraryFontError(null);
                   setCustomLibraryFontAuthoring(true);
@@ -1179,9 +1234,11 @@ export function PresentationLibrary({
                     <p className={styles.stateBlock}>{t("customLibrary.fontBrowser.empty")}</p>
                   ) : null}
                   {customLibraryFontStatus === "ready" && customLibraryFonts.length > 0 ? (
-                    <p className={styles.stateBlock}>
-                      {t("customLibrary.fontBrowser.count", { count: customLibraryFonts.length })}
-                    </p>
+                    <CustomLibraryFontBrowser
+                      records={customLibraryFonts}
+                      selectedId={selectedCustomLibraryFontId}
+                      onSelect={handleToggleCustomLibraryFontSelection}
+                    />
                   ) : null}
                 </>
               ) : (
@@ -1240,9 +1297,11 @@ export function PresentationLibrary({
                   />
                 </aside>
               ) : (
-                <aside className={styles.detailsPane} aria-label={t("library.details")}>
-                  <p className={styles.detailsEmpty}>{t("customLibrary.fontBrowser.detailsEmpty")}</p>
-                </aside>
+                <CustomLibraryFontDetails
+                  record={selectedCustomLibraryFont}
+                  pending={fontMutationPending}
+                  onDelete={handleRequestCustomLibraryFontDelete}
+                />
               )
             ) : (
               <PresentationDetails
@@ -1287,6 +1346,16 @@ export function PresentationLibrary({
           error={customLibraryPaletteError}
           onCancel={handleCancelCustomLibraryPaletteDelete}
           onConfirm={() => void handleConfirmCustomLibraryPaletteDelete()}
+        />
+      ) : null}
+
+      {customLibraryFontDeleteTargetId !== null ? (
+        <CustomLibraryFontDeleteDialog
+          record={customLibraryFonts.find((record) => record.id === customLibraryFontDeleteTargetId) ?? null}
+          deleting={deletingCustomLibraryFontId !== null}
+          error={customLibraryFontDeleteError}
+          onCancel={handleCancelCustomLibraryFontDelete}
+          onConfirm={() => void handleConfirmCustomLibraryFontDelete()}
         />
       ) : null}
     </div>

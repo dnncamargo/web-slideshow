@@ -1063,7 +1063,8 @@ describe("presentation library workspace controls", () => {
     await act(async () => { addSecond.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
     expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
-    expect(container.textContent).toContain("1 fonts in Custom Library.");
+    expect(container.textContent).toContain("Inter");
+    expect(container.textContent).toContain("2 faces");
     expect(container.textContent).toContain("Fontsource");
     expect(container.querySelectorAll("[id^='presentation-']")).toHaveLength(0);
   });
@@ -1107,7 +1108,7 @@ describe("presentation library workspace controls", () => {
     await act(async () => { findButton(container, "Close").click(); await Promise.resolve(); });
     await flushWorkspaceEffects();
     expect(container.querySelector("#custom-library-font-source")).toBeNull();
-    expect(container.textContent).toContain("Open Add font to author a reusable font.");
+    expect(container.textContent).toContain("Select a font to view details.");
     await act(async () => { findButton(container, "+ Add font").click(); await Promise.resolve(); });
     await flushWorkspaceEffects();
     const reopenedSource = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
@@ -1134,7 +1135,8 @@ describe("presentation library workspace controls", () => {
     });
     await flushWorkspaceEffects();
     expect(container.textContent).toContain("Added Inter.");
-    expect(container.textContent).toContain("1 fonts in Custom Library.");
+    expect(container.textContent).toContain("Inter");
+    expect(container.textContent).toContain("1 face");
   });
 
   it("does not persist an equivalent face twice", async () => {
