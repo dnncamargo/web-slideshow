@@ -1,0 +1,113 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.field,
+.colors {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+
+.field span,
+.colors > span,
+.colorName span {
+  color: #cbd5e1;
+  font-size: 11px;
+  text-align: left;
+}
+
+.field input,
+.field textarea,
+.colorName input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+}
+
+.field input,
+.colorName input {
+  min-height: 28px;
+  padding: 4px 6px;
+}
+
+.field textarea {
+  padding: 5px 6px;
+  resize: vertical;
+}
+
+.colorList {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.colorRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px;
+  border: 1px solid #263244;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.colorName {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.remove,
+.add,
+.actions button {
+  align-self: flex-start;
+  padding: 4px 7px;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: #172033;
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.remove {
+  align-self: flex-start;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.actions button[type="submit"] {
+  border-color: #6366f1;
+  background: #3730a3;
+  color: #eef2ff;
+}
+
+.editor button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 11px;
+  text-align: left;
+}
