@@ -20,7 +20,7 @@ import type {
   WebFontSummary,
 } from "@/features/fonts/web-font-types";
 
-import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/editor/font-resource-helpers";
+import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import styles from "./font-acquisition.module.css";
 import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
 
@@ -293,10 +293,10 @@ export function WebFontSearchControl({
     }
   }
 
-  function commitFaceSelection(
+  async function commitFaceSelection(
     family: ResolvedWebFontFamily,
     selection: WebFontFaceSelection,
-  ): boolean {
+  ): Promise<boolean> {
     const face = findFamilyFace(family, selection);
 
     if (!face) {
@@ -327,7 +327,12 @@ export function WebFontSearchControl({
 
     const canonicalFamily = existingFamily?.family ?? family.family;
 
-    onAddFontFace(canonicalFamily, parsedFace.data);
+    const added = await onAddFontFace(canonicalFamily, parsedFace.data);
+
+    if (!added) {
+      return false;
+    }
+
     onFontAdded(canonicalFamily);
     setError(null);
 
@@ -353,7 +358,7 @@ export function WebFontSearchControl({
         return;
       }
 
-      if (commitFaceSelection(family, recommendation)) {
+      if (await commitFaceSelection(family, recommendation)) {
         setLastAdded({ id: summary.id, family });
       }
     } finally {
@@ -679,8 +684,8 @@ export function WebFontSearchControl({
               className={styles.secondaryButton}
               type="button"
               disabled={!selectedFace}
-              onClick={() => {
-                const added = commitFaceSelection(
+              onClick={async () => {
+                const added = await commitFaceSelection(
                   customize.family,
                   customize.selection,
                 );

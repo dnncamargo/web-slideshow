@@ -8,4 +8,4 @@ export interface FontFamilyFaces {
 export type OnAddFontFace = (
   family: string,
   face: FontFaceResource,
-) => void | Promise<void>;
+) => boolean | Promise<boolean>;

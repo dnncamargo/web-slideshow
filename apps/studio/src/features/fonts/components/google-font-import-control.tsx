@@ -12,7 +12,7 @@ import type {
   GoogleFontImportResult,
 } from "@/features/fonts/google-font-import-types";
 
-import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/editor/font-resource-helpers";
+import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import styles from "./font-acquisition.module.css";
 import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
 
@@ -162,7 +162,7 @@ export function GoogleFontImportControl({
     }
   }
 
-  function addSelectedFaces() {
+  async function addSelectedFaces() {
     if (!result) {
       return;
     }
@@ -177,8 +177,9 @@ export function GoogleFontImportControl({
     }
 
     const addedFamilies: string[] = [];
+    let sawRejectedFace = false;
 
-    result.families.forEach((family, familyIndex) => {
+    for (const [familyIndex, family] of result.families.entries()) {
       const normalizedFamily = normalizeFontFamily(family.family);
       const registeredResource = fontFamilies.find(
         (fontFamily) => normalizeFontFamily(fontFamily.family) === normalizedFamily,
@@ -187,7 +188,7 @@ export function GoogleFontImportControl({
       const familyFaces = knownFaces.get(normalizedFamily) ?? [];
       let addedToFamily = false;
 
-      family.variants.forEach((variant, variantIndex) => {
+      for (const [variantIndex, variant] of family.variants.entries()) {
         if (
           !selectedVariants.has(
             variantSelectionId(familyIndex, variantIndex),
@@ -205,23 +206,29 @@ export function GoogleFontImportControl({
             continue;
           }
 
-          onAddFontFace(canonicalFamily, face);
+          const added = await onAddFontFace(canonicalFamily, face);
+
+          if (!added) {
+            sawRejectedFace = true;
+            continue;
+          }
+
           familyFaces.push(face);
           addedToFamily = true;
         }
-      });
+      }
 
       knownFaces.set(normalizedFamily, familyFaces);
 
       if (addedToFamily) {
         addedFamilies.push(canonicalFamily);
       }
-    });
+    }
 
     const firstAddedFamily = addedFamilies[0];
 
     if (!firstAddedFamily) {
-      setError("inspector.fontFaceExists");
+      setError(sawRejectedFace ? null : "inspector.fontFaceExists");
       return;
     }
 

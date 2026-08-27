@@ -173,7 +173,7 @@ describe("WebFontSearchControl provider behavior", () => {
           <WebFontSearchControl
             provider="google-fonts"
             fontFamilies={[]}
-            onAddFontFace={vi.fn()}
+            onAddFontFace={vi.fn(() => true)}
             onFontAdded={vi.fn()}
             controlPrefix="presentation-font"
           />
@@ -229,7 +229,7 @@ describe("WebFontSearchControl provider behavior", () => {
           <WebFontSearchControl
             provider="fontsource"
             fontFamilies={[]}
-            onAddFontFace={vi.fn()}
+            onAddFontFace={vi.fn(() => true)}
             onFontAdded={vi.fn()}
             controlPrefix="presentation-font"
           />
@@ -275,7 +275,7 @@ describe("WebFontSearchControl add-to-apply flow", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    onAddFontFace = vi.fn();
+    onAddFontFace = vi.fn(() => true);
     onFontAdded = vi.fn();
     vi.useFakeTimers();
   });
@@ -359,6 +359,42 @@ describe("WebFontSearchControl add-to-apply flow", () => {
       style: "normal",
       subset: "latin",
     });
+  });
+
+  it("waits for an async add result before reporting the recommended face", async () => {
+    let resolveAdd: ((added: boolean) => void) | undefined;
+    onAddFontFace = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveAdd = resolve;
+        }),
+    );
+    await search("Inter");
+
+    await act(async () => {
+      clickButton(container, "Add font");
+      await Promise.resolve();
+    });
+
+    expect(onFontAdded).not.toHaveBeenCalled();
+    resolveAdd?.(true);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(onFontAdded).toHaveBeenCalledWith("Inter");
+  });
+
+  it("does not report or remember a recommended face when the add is rejected", async () => {
+    onAddFontFace = vi.fn(async () => false);
+    await search("Inter");
+
+    await act(async () => {
+      clickButton(container, "Add font");
+      await Promise.resolve();
+    });
+
+    expect(onFontAdded).not.toHaveBeenCalled();
+    expect(hasButton(container, "Add another variant")).toBe(false);
   });
 
   it("keeps normal as the initial style even though italic appears first", async () => {
@@ -459,7 +495,7 @@ describe("WebFontSearchControl add-to-apply flow", () => {
   });
 
   it("keeps duplicate protection when the face already exists", async () => {
-    onAddFontFace = vi.fn();
+    onAddFontFace = vi.fn(() => true);
     const duplicateFace = INTER_FAMILY.faces.find(
       (candidate) =>
         candidate.weight === 400 &&

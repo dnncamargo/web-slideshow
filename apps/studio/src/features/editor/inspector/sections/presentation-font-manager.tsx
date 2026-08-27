@@ -105,7 +105,10 @@ export function PresentationFontManager({
           key="fontsource"
           provider="fontsource"
           fontFamilies={fontFamilies}
-          onAddFontFace={onAddFontFace}
+          onAddFontFace={async (family, face) => {
+            onAddFontFace(family, face);
+            return true;
+          }}
           controlPrefix="presentation-font"
           onFontAdded={(family) => {
             setAddedFont({ elementId: selectedElementId, family });
@@ -119,7 +122,10 @@ export function PresentationFontManager({
             key="google-fonts"
             provider="google-fonts"
             fontFamilies={fontFamilies}
-            onAddFontFace={onAddFontFace}
+            onAddFontFace={async (family, face) => {
+              onAddFontFace(family, face);
+              return true;
+            }}
             controlPrefix="presentation-font"
             onFontAdded={(family) => {
               setAddedFont({ elementId: selectedElementId, family });
@@ -128,7 +134,10 @@ export function PresentationFontManager({
 
           <GoogleFontImportControl
             fontFamilies={fontFamilies}
-            onAddFontFace={onAddFontFace}
+            onAddFontFace={async (family, face) => {
+              onAddFontFace(family, face);
+              return true;
+            }}
             controlPrefix="presentation-font"
             onFontAdded={(family) => {
               setAddedFont({ elementId: selectedElementId, family });
@@ -140,7 +149,10 @@ export function PresentationFontManager({
       {source === "manual" && (
         <ManualFontControl
           fontFamilies={fontFamilies}
-          onAddFontFace={onAddFontFace}
+          onAddFontFace={async (family, face) => {
+            onAddFontFace(family, face);
+            return true;
+          }}
           controlPrefix="presentation-font"
           onFontAdded={(family) => {
             setAddedFont({ elementId: selectedElementId, family });

@@ -1,13 +1,11 @@
-import type {
-  FontFaceResource,
-  Presentation,
-} from "@powershow/document-schema";
+import type { Presentation } from "@powershow/document-schema";
 
+export {
+  areFontFacesEquivalent,
+  normalizeFontFamily,
+} from "@/features/fonts/font-face-helpers";
+import { normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import { someElement } from "./element-tree";
-
-export function normalizeFontFamily(family: string): string {
-  return family.trim().toLowerCase();
-}
 
 export function createFontResourceId(
   family: string,
@@ -33,19 +31,6 @@ export function createFontResourceId(
   }
 
   return `${baseId}-${suffix}`;
-}
-
-export function areFontFacesEquivalent(
-  first: FontFaceResource,
-  second: FontFaceResource,
-): boolean {
-  return (
-    first.weight === second.weight &&
-    first.style === second.style &&
-    first.subset === second.subset &&
-    first.unicodeRange === second.unicodeRange &&
-    first.source.url === second.source.url
-  );
 }
 
 export function presentationUsesFontFamily(

@@ -9,7 +9,7 @@ import {
 import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
-import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/editor/font-resource-helpers";
+import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import styles from "./font-acquisition.module.css";
 import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
 
@@ -45,7 +45,7 @@ export function ManualFontControl({
   const [format, setFormat] = useState<FontFormat>("woff2");
   const [error, setError] = useState<StudioMessageKey | null>(null);
 
-  function addFontFace() {
+  async function addFontFace() {
     const trimmedFamily = family.trim();
 
     if (!trimmedFamily) {
@@ -83,7 +83,12 @@ export function ManualFontControl({
 
     const resourceFamily = existingResource?.family ?? trimmedFamily;
 
-    onAddFontFace(resourceFamily, result.data);
+    const added = await onAddFontFace(resourceFamily, result.data);
+
+    if (!added) {
+      return;
+    }
+
     onFontAdded(resourceFamily);
     setFamily("");
     setWeight(400);
@@ -215,7 +220,9 @@ export function ManualFontControl({
       <button
         className={styles.secondaryButton}
         type="button"
-        onClick={addFontFace}
+        onClick={() => {
+          void addFontFace();
+        }}
       >
         {t("inspector.addFontFace")}
       </button>
