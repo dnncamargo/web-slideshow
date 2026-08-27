@@ -629,6 +629,13 @@
   border: 0;
 }
 
+.paletteDetailsPane .customLibraryPaletteColorRow .customLibraryPaletteSwatch {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  flex: none;
+}
+
 .customLibraryPaletteMore {
   display: flex;
   min-width: 28px;
