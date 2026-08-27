@@ -194,7 +194,7 @@ export function GoogleFontImportControl({
             variantSelectionId(familyIndex, variantIndex),
           )
         ) {
-          return;
+          continue;
         }
 
         for (const face of variant.faces) {
