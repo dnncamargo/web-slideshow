@@ -76,9 +76,13 @@ export function CustomResourcesWorkspace({
     };
   }, [loadPalettes]);
 
-  useEffect(() => () => {
-    mountedRef.current = false;
-    writeRevisionRef.current += 1;
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      writeRevisionRef.current += 1;
+    };
   }, []);
 
   const beginAuthoring = useCallback((next: PaletteAuthoringState) => {

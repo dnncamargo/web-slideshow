@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -148,6 +148,30 @@ describe("Custom Resources palette CRUD", () => {
     await click("Delete");
     expect(deletePalette).toHaveBeenCalledTimes(2);
     expect(container.textContent).not.toContain("Brand");
+  });
+
+  it("accepts a pending create completion after the StrictMode lifecycle", async () => {
+    let resolveSave: ((id: string) => void) | undefined;
+    const savePalette = vi.fn(() => new Promise<string>((resolve) => { resolveSave = resolve; }));
+    const repository = makeRepository({ savePalette });
+    await act(async () => root.render(
+      <StrictMode>
+        <StudioI18nProvider>
+          <CustomResourcesWorkspace customLibraryPaletteRepository={repository} presentationColors={[]} />
+        </StudioI18nProvider>
+      </StrictMode>,
+    ));
+    await act(async () => { await Promise.resolve(); });
+    await click("+ New");
+    await setValue(container.querySelector<HTMLInputElement>("form > label:first-of-type input")!, "Strict palette");
+    await click("+ Add color");
+    await setValue(container.querySelectorAll<HTMLInputElement>("input[aria-label='Color name']")[0]!, "Accent");
+    await act(async () => button("Create").click());
+    expect(container.textContent).toContain("Saving…");
+    await act(async () => resolveSave?.("strict-id"));
+    expect(container.textContent).toContain("Strict palette");
+    expect(container.textContent).not.toContain("Saving…");
+    expect(container.querySelector("form")).toBeNull();
   });
 
   it("does not update visible state after an unmount during a pending save", async () => {
