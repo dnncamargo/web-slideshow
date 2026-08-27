@@ -8,11 +8,17 @@ import styles from "../library/presentation-library.module.css";
 
 interface CustomLibraryPaletteDetailsProps {
   record: CustomLibraryPaletteRecord | null;
+  pending?: boolean;
+  onEdit?: () => void;
+  onCopy?: () => void;
   onDelete: () => void;
 }
 
 export function CustomLibraryPaletteDetails({
   record,
+  pending = false,
+  onEdit,
+  onCopy,
   onDelete,
 }: CustomLibraryPaletteDetailsProps) {
   const { t } = useStudioI18n();
@@ -27,7 +33,7 @@ export function CustomLibraryPaletteDetails({
   }
 
   return (
-    <aside className={styles.detailsPane} aria-label={t("library.details")}>
+    <aside className={`${styles.detailsPane} ${styles.paletteDetailsPane}`} aria-label={t("library.details")}>
       <h2 className={styles.detailsHeading}>{t("library.details")}</h2>
       <dl className={styles.detailsList}>
         <div className={styles.detailsRow}>
@@ -63,8 +69,10 @@ export function CustomLibraryPaletteDetails({
           </dd>
         </div>
       </dl>
-      <div className={styles.customLibraryDeleteAction}>
-        <Button variant="danger" size="compact" onClick={onDelete}>
+      <div className={styles.paletteDetailsActions}>
+        {onEdit ? <Button size="compact" disabled={pending} onClick={onEdit}>{t("customLibrary.paletteDetails.edit")}</Button> : null}
+        {onCopy ? <Button size="compact" disabled={pending} onClick={onCopy}>{t("customLibrary.paletteDetails.copy")}</Button> : null}
+        <Button variant="danger" size="compact" disabled={pending} onClick={onDelete}>
           {t("customLibrary.paletteDetails.delete")}
         </Button>
       </div>

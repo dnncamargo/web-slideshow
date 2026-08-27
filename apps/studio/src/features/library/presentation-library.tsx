@@ -43,6 +43,8 @@ import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "../custom-library/custom-library-palette-repository";
+import type { CustomLibraryPaletteDraft } from "../custom-library/custom-library-palette";
+import { CustomLibraryPaletteEditor } from "../custom-library/custom-library-palette-editor";
 import {
   subscribeLiveCurrent,
   activateLivePresentation,
@@ -88,6 +90,12 @@ interface PresentationLibraryProps {
 
 type LibraryStatus = "loading" | "ready" | "error";
 type FolderStatus = "loading" | "ready" | "error";
+
+type LibraryPaletteAuthoringState =
+  | { kind: "create" }
+  | { kind: "edit"; recordId: string; initialPalette: CustomLibraryPaletteDraft }
+  | { kind: "copy"; initialPalette: CustomLibraryPaletteDraft }
+  | null;
 
 const SELECTION_INTERACTIVE_SELECTOR =
   "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row]";
@@ -170,6 +178,8 @@ export function PresentationLibrary({
   const [customLibraryPaletteDeleteTargetId, setCustomLibraryPaletteDeleteTargetId] = useState<string | null>(null);
   const [deletingCustomLibraryPaletteId, setDeletingCustomLibraryPaletteId] = useState<string | null>(null);
   const [customLibraryPaletteError, setCustomLibraryPaletteError] = useState<string | null>(null);
+  const [paletteAuthoring, setPaletteAuthoring] = useState<LibraryPaletteAuthoringState>(null);
+  const [paletteWriteState, setPaletteWriteState] = useState<"saving" | null>(null);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -184,6 +194,7 @@ export function PresentationLibrary({
   const customLibraryPaletteLoadRef = useRef(0);
   const customLibraryDeleteRef = useRef(false);
   const customLibraryPaletteDeleteRef = useRef(false);
+  const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -311,6 +322,10 @@ export function PresentationLibrary({
     setCustomLibraryDeleteTargetId(null);
     setSelectedCustomLibraryPaletteId(null);
     setCustomLibraryPaletteDeleteTargetId(null);
+    if (next !== "palettes" && !paletteWriteRef.current) {
+      setPaletteAuthoring(null);
+      setCustomLibraryPaletteError(null);
+    }
   }, []);
 
   const handleToggleSelection = useCallback((id: string) => {
@@ -469,6 +484,54 @@ export function PresentationLibrary({
   const handleCancelCustomLibraryPaletteDelete = useCallback(() => {
     if (customLibraryPaletteDeleteRef.current) return;
     setCustomLibraryPaletteDeleteTargetId(null);
+    setCustomLibraryPaletteError(null);
+  }, []);
+
+  const beginPaletteAuthoring = useCallback((next: LibraryPaletteAuthoringState) => {
+    if (paletteWriteRef.current || customLibraryPaletteDeleteRef.current) return;
+    setCustomLibraryPaletteError(null);
+    setPaletteAuthoring(next);
+  }, []);
+
+  const handlePaletteSubmit = useCallback((draft: CustomLibraryPaletteDraft) => {
+    if (!paletteAuthoring || paletteWriteRef.current) return;
+
+    const currentAuthoring = paletteAuthoring;
+    paletteWriteRef.current = true;
+    setPaletteWriteState("saving");
+    setCustomLibraryPaletteError(null);
+
+    void (async () => {
+      try {
+        if (currentAuthoring.kind === "edit") {
+          await customLibraryPaletteRepository.updatePalette(currentAuthoring.recordId, draft);
+          if (!mountedRef.current) return;
+          setCustomLibraryPalettes((palettes) => palettes.map((record) => record.id === currentAuthoring.recordId ? { ...record, palette: draft } : record));
+          setSelectedCustomLibraryPaletteId(currentAuthoring.recordId);
+        } else {
+          const id = await customLibraryPaletteRepository.savePalette(draft);
+          if (!mountedRef.current) return;
+          setCustomLibraryPalettes((palettes) => [...palettes, { id, palette: draft }]);
+          setSelectedCustomLibraryPaletteId(id);
+        }
+        setPaletteAuthoring(null);
+      } catch (error) {
+        console.error("Library: could not save Custom Library palette", error);
+        if (mountedRef.current) {
+          setCustomLibraryPaletteError(currentAuthoring.kind === "edit"
+            ? t("customLibrary.paletteManagement.updateFailed")
+            : t("customLibrary.paletteManagement.saveFailed"));
+        }
+      } finally {
+        paletteWriteRef.current = false;
+        if (mountedRef.current) setPaletteWriteState(null);
+      }
+    })();
+  }, [customLibraryPaletteRepository, paletteAuthoring, t]);
+
+  const handleCancelPaletteAuthoring = useCallback(() => {
+    if (paletteWriteRef.current) return;
+    setPaletteAuthoring(null);
     setCustomLibraryPaletteError(null);
   }, []);
 
@@ -777,6 +840,7 @@ export function PresentationLibrary({
   const presentationDestination = isPresentationDestination(destination);
   const stylesDestination = destination === "styles";
   const palettesDestination = destination === "palettes";
+  const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -875,6 +939,15 @@ export function PresentationLibrary({
                 onImport={handleImport}
                 onExport={() => void handleExport()}
               />
+            ) : null}
+            {palettesDestination && customLibraryPaletteStatus === "ready" ? (
+              <Button
+                size="compact"
+                disabled={paletteMutationPending || paletteAuthoring !== null}
+                onClick={() => beginPaletteAuthoring({ kind: "create" })}
+              >
+                {t("customLibrary.paletteManagement.new")}
+              </Button>
             ) : null}
           </div>
 
@@ -985,10 +1058,27 @@ export function PresentationLibrary({
                 onDelete={handleRequestCustomLibraryDelete}
               />
             ) : palettesDestination ? (
-              <CustomLibraryPaletteDetails
-                record={selectedCustomLibraryPalette}
-                onDelete={handleRequestCustomLibraryPaletteDelete}
-              />
+              paletteAuthoring ? (
+                <aside className={`${styles.detailsPane} ${styles.paletteDetailsPane}`} aria-label={t("library.details")}>
+                  {paletteWriteState === "saving" ? <p className={styles.stateBlock}>{t("customLibrary.paletteManagement.saving")}</p> : null}
+                  <CustomLibraryPaletteEditor
+                    mode={paletteAuthoring.kind}
+                    initialPalette={paletteAuthoring.kind === "edit" || paletteAuthoring.kind === "copy" ? paletteAuthoring.initialPalette : undefined}
+                    submitting={paletteWriteState === "saving"}
+                    error={customLibraryPaletteError}
+                    onSubmit={handlePaletteSubmit}
+                    onCancel={handleCancelPaletteAuthoring}
+                  />
+                </aside>
+              ) : (
+                <CustomLibraryPaletteDetails
+                  record={selectedCustomLibraryPalette}
+                  pending={paletteMutationPending}
+                  onEdit={selectedCustomLibraryPalette ? () => beginPaletteAuthoring({ kind: "edit", recordId: selectedCustomLibraryPalette.id, initialPalette: selectedCustomLibraryPalette.palette }) : undefined}
+                  onCopy={selectedCustomLibraryPalette ? () => beginPaletteAuthoring({ kind: "copy", initialPalette: selectedCustomLibraryPalette.palette }) : undefined}
+                  onDelete={handleRequestCustomLibraryPaletteDelete}
+                />
+              )
             ) : (
               <PresentationDetails
                 summary={presentationDestination ? selected : null}
