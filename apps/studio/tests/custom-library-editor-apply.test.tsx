@@ -38,6 +38,10 @@ function image(id: string): PowerShowElement {
   };
 }
 
+function setInputValue(input: HTMLInputElement, value: string): void {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+}
+
 function container(id: string, children: PowerShowElement[]): PowerShowElement {
   return { type: "container", id, hidden: false, children };
 }
@@ -274,17 +278,14 @@ describe("Custom Library Editor integration", () => {
     ));
 
     expect(listPalettes).not.toHaveBeenCalled();
+    await clickToolbarMode("Custom Resources");
     const openButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.trim() === "Add from Library");
+      .find((button) => button.textContent?.trim() === "+ Add palette");
     expect(openButton).toBeDefined();
     await act(async () => openButton?.click());
     await act(async () => undefined);
     expect(listPalettes).toHaveBeenCalledOnce();
-    const brandButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("Brand"));
-    await act(async () => brandButton?.click());
-    await act(async () => Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.trim() === "Add to Presentation")?.click());
+    await act(async () => containerElement.querySelector<HTMLButtonElement>("button[aria-label='Add Brand']")?.click());
     await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
 
     const next = saved.at(-1);
@@ -324,6 +325,7 @@ describe("Custom Library Editor integration", () => {
         <EditorWorkspace initialPresentation={source} onSave={async (next) => { saved.push(next); }} />
       </StudioI18nProvider>,
     ));
+    await clickToolbarMode("Custom Resources");
 
     const canvas = containerElement.querySelector<HTMLElement>("[class*='slideCanvas']");
     expect(canvas).toBeTruthy();
@@ -334,14 +336,18 @@ describe("Custom Library Editor integration", () => {
     expect(canvas?.style.getPropertyValue(secondaryVariable)).toBe("#2563eb");
     expect(canvas?.innerHTML).toContain("#22c55e");
 
-    const accentInput = containerElement.querySelector<HTMLInputElement>("input[aria-label='Accent value']");
+    const editButton = containerElement.querySelector<HTMLButtonElement>("button[aria-label='Edit Accent']");
+    expect(editButton).toBeTruthy();
+    await act(async () => editButton?.click());
+    const accentInput = containerElement.querySelector<HTMLInputElement>("#custom-resources-edit-literal-color-value");
     expect(accentInput).toBeTruthy();
     await act(async () => {
       if (accentInput) {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(accentInput, "#2563eb");
-        accentInput.dispatchEvent(new Event("change", { bubbles: true }));
+        setInputValue(accentInput, "#2563eb");
+        accentInput.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
+    await act(async () => containerElement.querySelector<HTMLButtonElement>("[data-presentation-color-editor] button:last-child")?.click());
     expect(canvas?.style.getPropertyValue(accentVariable)).toBe("#2563eb");
     await act(async () => { vi.advanceTimersByTime(1600); await Promise.resolve(); });
     expect(saved.at(-1)?.palette?.colors[0]?.value).toBe("#2563eb");
@@ -542,6 +548,62 @@ describe("Custom Library Editor integration", () => {
     expect(savePalette).not.toHaveBeenCalled();
     expect(updatePalette).not.toHaveBeenCalled();
     expect(deletePalette).not.toHaveBeenCalled();
+  });
+
+  it("edits a linked local palette color through Resources and preserves its binding", async () => {
+    const saved: Presentation[] = [];
+    const repository: CustomLibraryPaletteRepository = {
+      savePalette: vi.fn(async () => "unused"),
+      updatePalette: vi.fn(async () => undefined),
+      listPalettes: vi.fn(async () => []),
+      getPalette: vi.fn(async () => null),
+      deletePalette: vi.fn(async () => undefined),
+    };
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "palette-edit-integration",
+      title: "Palette edit integration",
+      description: "",
+      aspectRatio: "16:9",
+      slides: [{
+        id: "slide-1",
+        title: "First",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "linked-text",
+          type: "text",
+          hidden: false,
+          variant: "body",
+          content: "Linked text",
+          style: { color: { kind: "palette", colorId: "accent" } },
+        }],
+      }],
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    });
+    await mount(source, saved, repository);
+    await clickToolbarMode("Custom Resources");
+    await act(async () => containerElement.querySelector<HTMLButtonElement>("button[aria-label='Edit Accent']")?.click());
+    const nameInput = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-edit-name]");
+    const valueInput = containerElement.querySelector<HTMLInputElement>("#custom-resources-edit-literal-color-value");
+    if (!nameInput || !valueInput) throw new Error("local color editor inputs not found");
+    await act(async () => {
+      setInputValue(nameInput, "Primary");
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      setInputValue(valueInput, "#2563eb");
+      valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => Array.from(containerElement.querySelectorAll<HTMLButtonElement>("[data-presentation-color-editor] button"))
+      .find((button) => button.textContent?.trim() === "Save")?.click());
+    const next = await saveAfterApply(saved);
+    expect(next.palette?.colors).toEqual([{ id: "accent", name: "Primary", value: "#2563eb" }]);
+    const linked = next.slides[0]?.elements[0];
+    expect(linked?.type === "text" && linked.style?.color).toEqual({ kind: "palette", colorId: "accent" });
+    const canvas = containerElement.querySelector<HTMLElement>("[class*='slideCanvas']");
+    expect(canvas?.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe("#2563eb");
+    expect(repository.savePalette).not.toHaveBeenCalled();
+    expect(repository.updatePalette).not.toHaveBeenCalled();
+    expect(repository.deletePalette).not.toHaveBeenCalled();
   });
 
   it("merges Text into the selected Text without creating a sibling", async () => {

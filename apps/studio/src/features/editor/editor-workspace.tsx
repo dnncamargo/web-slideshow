@@ -138,7 +138,6 @@ import {
   presentationUsesFontFamily,
 } from "./font-resource-helpers";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
-import { PresentationPaletteManager } from "./inspector/sections/presentation-palette-manager";
 import { RecentColorsProvider } from "./inspector/sections/recent-colors-provider";
 import {
   addRecentColor,
@@ -2206,17 +2205,15 @@ export function EditorWorkspace({
     });
   }
 
-  function renamePresentationPaletteColor(colorId: string, name: string) {
+  function updateNamedPresentationPaletteColor(
+    colorId: string,
+    patch: { name: string; value: Color },
+  ) {
     setPresentation((current) => {
-      const result = renamePaletteEntry(current, colorId, name);
-      return result.ok ? result.presentation : current;
-    });
-  }
-
-  function updatePresentationPaletteColor(colorId: string, color: Color) {
-    setPresentation((current) => {
-      const result = updatePresentationPaletteColorValue(current, colorId, color);
-      return result.ok ? result.presentation : current;
+      const renamed = renamePaletteEntry(current, colorId, patch.name);
+      if (!renamed.ok) return current;
+      const updated = updatePresentationPaletteColorValue(renamed.presentation, colorId, patch.value);
+      return updated.ok ? updated.presentation : current;
     });
   }
 
@@ -3572,6 +3569,7 @@ export function EditorWorkspace({
             presentationColors={presentation.palette?.colors ?? []}
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddPresentationColor={addNamedPresentationPaletteColor}
+            onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
           />
         ) : (
@@ -3759,17 +3757,6 @@ export function EditorWorkspace({
                       <div className={styles.nextStep}>
                         <span>{t("inspector.selectElementHint")}</span>
                       </div>
-
-                      <PresentationPaletteManager
-                        colors={presentation.palette?.colors ?? []}
-                        palette={presentation.palette}
-                        customLibraryPaletteRepository={customLibraryPaletteRepository}
-                        onAddLibraryPalette={addCustomLibraryPalette}
-                        onAdd={addNamedPresentationPaletteColor}
-                        onRename={renamePresentationPaletteColor}
-                        onUpdate={updatePresentationPaletteColor}
-                        onRemove={removePresentationPaletteColor}
-                      />
 
                       {/* =============================================
                     END: SLIDE INSPECTOR

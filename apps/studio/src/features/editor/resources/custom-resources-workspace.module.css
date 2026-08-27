@@ -222,6 +222,18 @@
   font-size: 10px;
 }
 
+.localColorEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.localColorEditorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .statusGroup {
   display: flex;
   flex-direction: column;

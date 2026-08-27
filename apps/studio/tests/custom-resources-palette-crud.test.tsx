@@ -19,6 +19,10 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+function setInputValue(input: HTMLInputElement, value: string): void {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+}
+
 const master: CustomLibraryPaletteRecord = {
   id: "master",
   palette: {
@@ -66,6 +70,16 @@ function Harness({ repository }: { repository: CustomLibraryPaletteRepository })
           return result.ok ? result.presentation : current;
         });
       }}
+      onUpdatePresentationColor={(id: string, patch: { name: string; value: Color }) => {
+        setPresentation((current) => ({
+          ...current,
+          palette: {
+            colors: current.palette?.colors.map((color) =>
+              color.id === id ? { ...color, ...patch } : color,
+            ) ?? [],
+          },
+        }));
+      }}
       onRemovePresentationColor={(id: string) => {
         setPresentation((current) => {
           const result = removePresentationPaletteColor(current, id);
@@ -106,7 +120,7 @@ describe("Custom Resources palette composition", () => {
   it("uses Add palette as a chooser and exposes no master CRUD actions", async () => {
     await mount();
     expect(container.textContent).not.toContain("New");
-    expect(container.textContent).not.toContain("Edit");
+    expect(container.textContent).toContain("Edit");
     expect(container.textContent).not.toContain("Copy");
     expect(container.textContent).not.toContain("Delete");
     await act(async () => button("+ Add palette").click());
@@ -152,5 +166,26 @@ describe("Custom Resources palette composition", () => {
     await act(async () => remove.click());
     expect(container.textContent).not.toContain("RGBA color");
     expect(container.textContent).toContain("Accent");
+  });
+
+  it("edits one local color at a time, blocks blank names, and cancels drafts", async () => {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("button[aria-label='Edit Accent']")?.click());
+    expect(container.querySelector<HTMLInputElement>("[data-presentation-color-edit-name]")?.value).toBe("Accent");
+    expect(container.querySelectorAll("[data-presentation-color-editor]")).toHaveLength(1);
+
+    const nameInput = container.querySelector<HTMLInputElement>("[data-presentation-color-edit-name]");
+    if (!nameInput) throw new Error("local color edit name input not found");
+    await act(async () => {
+      setInputValue(nameInput, "   ");
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const save = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-presentation-color-editor] button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    expect(save?.disabled).toBe(true);
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-color-editor] button")?.click());
+    expect(container.querySelector("[data-presentation-color-editor]")).toBeNull();
+    expect(container.textContent).toContain("Accent");
+    expect(container.textContent).toContain("#facc15");
   });
 });

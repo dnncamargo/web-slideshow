@@ -20,8 +20,15 @@ interface CustomResourcesWorkspaceProps {
   presentationColors: readonly PresentationPaletteColor[];
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddPresentationColor: (name: string, value: Color) => void;
+  onUpdatePresentationColor: (id: string, patch: { name: string; value: Color }) => void;
   onRemovePresentationColor: (id: string) => void;
 }
+
+type LocalColorEditingState = {
+  id: string;
+  name: string;
+  value: Color;
+} | null;
 
 type PaletteLoadState =
   | { kind: "loading" }
@@ -35,6 +42,7 @@ export function CustomResourcesWorkspace({
   presentationColors,
   onAddLibraryPalette,
   onAddPresentationColor,
+  onUpdatePresentationColor,
   onRemovePresentationColor,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
@@ -42,7 +50,16 @@ export function CustomResourcesWorkspace({
   const [chooserOpen, setChooserOpen] = useState(false);
   const [colorName, setColorName] = useState("");
   const [colorValue, setColorValue] = useState<Color>("#ffffff");
+  const [editingColor, setEditingColor] = useState<LocalColorEditingState>(null);
   const requestRevisionRef = useRef(0);
+
+  useEffect(() => {
+    if (editingColor && !presentationColors.some((color) => color.id === editingColor.id)) {
+      // The editor is keyed by the stable id; an external delete closes it safely.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEditingColor(null);
+    }
+  }, [editingColor, presentationColors]);
 
   const loadPalettes = useCallback(() => {
     const requestRevision = requestRevisionRef.current + 1;
@@ -70,6 +87,15 @@ export function CustomResourcesWorkspace({
     if (!name) return;
     onAddPresentationColor(name, colorValue);
     setColorName("");
+  }
+
+  function saveEditedColor(): void {
+    if (!editingColor || !editingColor.name.trim()) return;
+    onUpdatePresentationColor(editingColor.id, {
+      name: editingColor.name.trim(),
+      value: editingColor.value,
+    });
+    setEditingColor(null);
   }
 
   return (
@@ -123,10 +149,32 @@ export function CustomResourcesWorkspace({
                     <span>{t("customResources.colorCount", { count: presentationColors.length })}</span>
                   </div>
                   <div className={styles.localColorList}>
-                    {presentationColors.map((color) => (
+                    {presentationColors.map((color) => editingColor?.id === color.id ? (
+                      <div key={color.id} className={styles.localColorEditor} data-presentation-color-editor>
+                        <label className={styles.localColorName}>
+                          <span>{t("customResources.colorName")}</span>
+                          <input
+                            data-presentation-color-edit-name
+                            value={editingColor.name}
+                            onChange={(event) => setEditingColor({ ...editingColor, name: event.target.value })}
+                          />
+                        </label>
+                        <LiteralColorInput
+                          id="custom-resources-edit-literal-color"
+                          name={t("customResources.color")}
+                          value={editingColor.value}
+                          onChange={(value) => setEditingColor({ ...editingColor, value })}
+                        />
+                        <div className={styles.localColorEditorActions}>
+                          <button type="button" className={styles.resourceAction} onClick={() => setEditingColor(null)}>{t("customResources.cancel")}</button>
+                          <button type="button" className={styles.resourceAction} disabled={!editingColor.name.trim()} onClick={saveEditedColor}>{t("customLibrary.palette.save")}</button>
+                        </div>
+                      </div>
+                    ) : (
                       <div key={color.id} className={styles.localColorRow} data-presentation-color-row>
                         <span>{color.name}</span>
                         <code>{color.value}</code>
+                        <button type="button" className={styles.resourceAction} aria-label={t("customResources.editPresentationColor", { name: color.name })} onClick={() => setEditingColor({ id: color.id, name: color.name, value: color.value })}>{t("customResources.edit")}</button>
                         <button type="button" className={styles.removeColor} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemovePresentationColor(color.id)}>×</button>
                       </div>
                     ))}
