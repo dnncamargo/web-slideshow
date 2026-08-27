@@ -17,9 +17,10 @@ import styles from "../editor-workspace.module.css";
 import {
   applyTextContentColor,
   clearTextContentColor,
+  clearTextContentFormatting,
   getTextContentPlainText,
   getTextContentSelectionBooleanMarkState,
-  getTextContentSelectionColor,
+  getTextContentSelectionColorState,
   normalizeTextContent,
   normalizeTextSelectionRange,
   reconcileTextContentEdit,
@@ -78,14 +79,14 @@ function InlineFormatButton({
   format,
   accessibleLabel,
   visualLabel,
-  active,
+  state,
   disabled,
   onClick,
 }: {
   format: "bold" | "italic" | "underline" | "code";
   accessibleLabel: string;
   visualLabel: string;
-  active: boolean;
+  state: "off" | "on" | "mixed" | null;
   disabled: boolean;
   onClick: () => void;
 }) {
@@ -94,7 +95,7 @@ function InlineFormatButton({
       className={styles.textEditorToolbarButton}
       type="button"
       aria-label={accessibleLabel}
-      aria-pressed={active}
+      aria-pressed={state === "mixed" ? "mixed" : state === "on"}
       disabled={disabled}
       data-powershow-inline-format={format}
       title={accessibleLabel}
@@ -130,10 +131,13 @@ export function TextInspector({
     plainText.length,
   );
   const hasSelection = normalizedSelection !== null;
-  const selectionColor = getTextContentSelectionColor(
+  const selectionColorState = getTextContentSelectionColorState(
     element.content,
     normalizedSelection,
   );
+  const selectionColor = selectionColorState?.kind === "uniform"
+    ? selectionColorState.color
+    : undefined;
   const resolvedSelectionColor = selectionColor === undefined
     ? undefined
     : resolveColorValue(
@@ -253,7 +257,7 @@ export function TextInspector({
               format="bold"
               accessibleLabel={t("inspector.inlineFormat.bold")}
               visualLabel="B"
-              active={getTextContentSelectionBooleanMarkState(
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "bold",
@@ -270,7 +274,7 @@ export function TextInspector({
               format="italic"
               accessibleLabel={t("inspector.inlineFormat.italic")}
               visualLabel="I"
-              active={getTextContentSelectionBooleanMarkState(
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "italic",
@@ -287,7 +291,7 @@ export function TextInspector({
               format="underline"
               accessibleLabel={t("inspector.inlineFormat.underline")}
               visualLabel="U"
-              active={getTextContentSelectionBooleanMarkState(
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "underline",
@@ -304,7 +308,7 @@ export function TextInspector({
               format="code"
               accessibleLabel={t("inspector.inlineFormat.code")}
               visualLabel="</>"
-              active={getTextContentSelectionBooleanMarkState(
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "code",
@@ -325,6 +329,7 @@ export function TextInspector({
               aria-controls="text-inline-color-panel"
               disabled={!hasSelection}
               data-powershow-inline-color="true"
+              data-powershow-inline-color-state={selectionColorState?.kind ?? "none"}
               title={t("inspector.inlineFormat.color")}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -342,19 +347,19 @@ export function TextInspector({
             <button
               className={styles.textEditorToolbarButton}
               type="button"
-              aria-label={t("inspector.inlineFormat.clearColor")}
+              aria-label={t("inspector.inlineFormat.clearFormatting")}
               disabled={!hasSelection}
-              data-powershow-inline-format-clear="true"
-              title={t("inspector.inlineFormat.clearColor")}
+              data-powershow-inline-format-clear-formatting="true"
+              title={t("inspector.inlineFormat.clearFormatting")}
               onMouseDown={(event) => {
                 event.preventDefault();
               }}
               onClick={() => {
                 applySelectionTransform((content, range) =>
-                  clearTextContentColor(content, range),
+                  clearTextContentFormatting(content, range),
                 );
               }}
-            >A×</button>
+            >T×</button>
           </div>
 
           {isColorPanelOpen && (
@@ -363,6 +368,11 @@ export function TextInspector({
               id="text-inline-color-panel"
               data-powershow-inline-color-panel="true"
             >
+              {selectionColorState?.kind === "mixed" ? (
+                <p className={styles.textEditorColorMixedStatus} role="status">
+                  {t("inspector.inlineFormat.mixed")}
+                </p>
+              ) : null}
               <ColorControl
                 id="text-inline-color"
                 name="textInlineColor"
@@ -374,6 +384,14 @@ export function TextInspector({
                   applySelectionTransform((content, range) =>
                     applyTextContentColor(content, range, color),
                   );
+                }}
+                secondaryAction={{
+                  label: t("inspector.inlineFormat.clearColor"),
+                  onClick: () => {
+                    applySelectionTransform((content, range) =>
+                      clearTextContentColor(content, range),
+                    );
+                  },
                 }}
               />
             </div>

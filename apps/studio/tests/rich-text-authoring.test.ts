@@ -5,7 +5,10 @@ import type { TextContent, TextRun } from "@powershow/document-schema";
 import {
   applyTextContentColor,
   clearTextContentColor,
+  clearTextContentFormatting,
   getTextContentPlainText,
+  getTextContentSelectionBooleanMarkState,
+  getTextContentSelectionColorState,
   normalizeTextContent,
   reconcileTextContentEdit,
   toggleTextContentBooleanMark,
@@ -148,6 +151,67 @@ describe("rich-text authoring utilities", () => {
       type: "rich-text",
       runs: [{ text: "abc", marks: { bold: true } }],
     });
+  });
+
+  it("reports boolean selection marks as off, on, or mixed at character precision", () => {
+    const content = richText([
+      { text: "a", marks: { bold: true } },
+      { text: "b" },
+      { text: "c", marks: { bold: true } },
+    ]);
+
+    expect(getTextContentSelectionBooleanMarkState(content, { start: 1, end: 2 }, "bold")).toBe("off");
+    expect(getTextContentSelectionBooleanMarkState(content, { start: 0, end: 1 }, "bold")).toBe("on");
+    expect(getTextContentSelectionBooleanMarkState(content, { start: 0, end: 3 }, "bold")).toBe("mixed");
+    expect(getTextContentSelectionBooleanMarkState(content, { start: 1, end: 1 }, "bold")).toBeNull();
+  });
+
+  it("applies mixed boolean selections uniformly, then removes them uniformly", () => {
+    const mixed = richText([
+      { text: "he", marks: { bold: true } },
+      { text: "llo" },
+    ]);
+    const enabled = toggleTextContentBooleanMark(mixed, { start: 0, end: 5 }, "bold");
+
+    expect(enabled).toEqual(richText([{ text: "hello", marks: { bold: true } }]));
+    expect(toggleTextContentBooleanMark(enabled, { start: 0, end: 5 }, "bold")).toBe("hello");
+  });
+
+  it("reports none, uniform, and mixed color selections using semantic palette equality", () => {
+    expect(getTextContentSelectionColorState("abc", { start: 0, end: 3 })).toEqual({ kind: "none" });
+    expect(getTextContentSelectionColorState(richText([{ text: "ab", marks: { color: "#f00" } }]), { start: 0, end: 2 })).toEqual({ kind: "uniform", color: "#f00" });
+    expect(getTextContentSelectionColorState(richText([{ text: "a", marks: { color: "#f00" } }, { text: "b", marks: { color: "#00f" } }]), { start: 0, end: 2 })).toEqual({ kind: "mixed" });
+    expect(getTextContentSelectionColorState(richText([{ text: "a", marks: { color: "#f00" } }, { text: "b" }]), { start: 0, end: 2 })).toEqual({ kind: "mixed" });
+    expect(getTextContentSelectionColorState(richText([{ text: "a", marks: { color: { kind: "palette", colorId: "brand" } } }, { text: "b", marks: { color: { kind: "palette", colorId: "brand" } } }]), { start: 0, end: 2 })).toEqual({ kind: "uniform", color: { kind: "palette", colorId: "brand" } });
+    expect(getTextContentSelectionColorState(richText([{ text: "a", marks: { color: { kind: "palette", colorId: "brand" } } }, { text: "b", marks: { color: { kind: "palette", colorId: "accent" } } }]), { start: 0, end: 2 })).toEqual({ kind: "mixed" });
+    expect(getTextContentSelectionColorState(richText([{ text: "a", marks: { color: "#f00" } }, { text: "b", marks: { color: { kind: "palette", colorId: "red" } } }]), { start: 0, end: 2 })).toEqual({ kind: "mixed" });
+  });
+
+  it("normalizes equivalent palette references but keeps unrelated marks separate", () => {
+    expect(normalizeTextContent(richText([
+      { text: "a", marks: { color: { kind: "palette", colorId: "brand" } } },
+      { text: "b", marks: { color: { kind: "palette", colorId: "brand" } } },
+      { text: "c", marks: { bold: true, color: { kind: "palette", colorId: "brand" } } },
+    ]))).toEqual(richText([
+      { text: "ab", marks: { color: { kind: "palette", colorId: "brand" } } },
+      { text: "c", marks: { bold: true, color: { kind: "palette", colorId: "brand" } } },
+    ]));
+  });
+
+  it("clears every inline mark only within the selected range", () => {
+    const content = richText([
+      { text: "a", marks: { bold: true } },
+      { text: "bc", marks: { bold: true, italic: true, underline: true, code: true, color: "#7c3aed" } },
+      { text: "d", marks: { color: "#7c3aed" } },
+    ]);
+
+    expect(clearTextContentFormatting(content, { start: 1, end: 3 })).toEqual(richText([
+      { text: "a", marks: { bold: true } },
+      { text: "bc" },
+      { text: "d", marks: { color: "#7c3aed" } },
+    ]));
+    expect(clearTextContentFormatting(content, { start: 0, end: 4 })).toBe("abcd");
+    expect(clearTextContentFormatting(content, { start: 2, end: 2 })).toBe(content);
   });
 
   it("merges adjacent runs with equal effective marks", () => {

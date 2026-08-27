@@ -104,13 +104,13 @@ describe("TextInspector rich text authoring", () => {
     return button;
   }
 
-  function clearColorButton(): HTMLButtonElement {
+  function clearFormattingButton(): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-inline-format-clear="true"]',
+      '[data-powershow-inline-format-clear-formatting="true"]',
     );
 
     if (!button) {
-      throw new Error("clear color button not found");
+      throw new Error("clear formatting button not found");
     }
 
     return button;
@@ -279,7 +279,7 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("code").textContent).toBe("</>");
     expect(inlineButton("code").getAttribute("aria-label")).toBe("Code");
     expect(inlineColorButton().getAttribute("aria-label")).toBe("Text color");
-    expect(clearColorButton().getAttribute("aria-label")).toBe("Clear color");
+    expect(clearFormattingButton().getAttribute("aria-label")).toBe("Clear formatting");
   });
 
   it("applies bold to the selected range", async () => {
@@ -331,6 +331,39 @@ describe("TextInspector rich text authoring", () => {
 
     expect(updates).toHaveLength(1);
     expect(updates[0]?.content).toBe("Hello world");
+  });
+
+  it("exposes mixed marks and applies them uniformly on click", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([
+          { text: "He", marks: { bold: true } },
+          { text: "llo" },
+          { text: " world" },
+        ]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    expect(inlineButton("bold").getAttribute("aria-pressed")).toBe("mixed");
+
+    await act(async () => {
+      inlineButton("bold").click();
+    });
+
+    expect(elementState.content).toEqual(richText([
+      { text: "Hello", marks: { bold: true } },
+      { text: " world" },
+    ]));
+
+    await act(async () => {
+      inlineButton("bold").click();
+    });
+
+    expect(elementState.content).toBe("Hello world");
   });
 
   it.each([
@@ -393,7 +426,7 @@ describe("TextInspector rich text authoring", () => {
     });
   });
 
-  it("clears color while preserving other marks", async () => {
+  it("clears color from its disclosure while preserving other marks", async () => {
     await act(async () => {
       mount(
         richTextElement({
@@ -410,7 +443,16 @@ describe("TextInspector rich text authoring", () => {
     });
 
     await act(async () => {
-      clearColorButton().click();
+      inlineColorButton().click();
+    });
+
+    const clearColor = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Clear color",
+    );
+    expect(clearColor).toBeDefined();
+
+    await act(async () => {
+      clearColor?.click();
     });
 
     expect(updates).toHaveLength(1);
@@ -433,7 +475,7 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("underline").disabled).toBe(true);
     expect(inlineButton("code").disabled).toBe(true);
     expect(inlineColorButton().disabled).toBe(true);
-    expect(clearColorButton().disabled).toBe(true);
+    expect(clearFormattingButton().disabled).toBe(true);
     expect(container.querySelector("#text-inline-color")).toBeNull();
   });
 
@@ -451,7 +493,7 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("underline").disabled).toBe(false);
     expect(inlineButton("code").disabled).toBe(false);
     expect(inlineColorButton().disabled).toBe(false);
-    expect(clearColorButton().disabled).toBe(false);
+    expect(clearFormattingButton().disabled).toBe(false);
   });
 
   it("opens the existing ColorControl without losing the stored selection", async () => {
@@ -486,6 +528,66 @@ describe("TextInspector rich text authoring", () => {
       type: "rich-text",
       runs: [{ text: "Hello", marks: { color: "#f97316" } }, { text: " world" }],
     });
+  });
+
+  it("shows mixed color explicitly and makes the range uniform after choosing a color", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([
+          { text: "He", marks: { color: "#ef4444" } },
+          { text: "llo", marks: { color: "#3b82f6" } },
+          { text: " world" },
+        ]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("mixed");
+
+    await act(async () => {
+      inlineColorButton().click();
+    });
+
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Mixed");
+
+    await act(async () => {
+      setInputValue(colorInput(), "#7c3aed");
+      colorInput().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(elementState.content).toEqual(richText([
+      { text: "Hello", marks: { color: "#7c3aed" } },
+      { text: " world" },
+    ]));
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("uniform");
+  });
+
+  it("clears all inline formatting without changing element typography", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        typography: { fontSize: 32 },
+        content: richText([
+          { text: "Hello", marks: { bold: true, italic: true, underline: true, code: true, color: "#7c3aed" } },
+          { text: " world" },
+        ]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    await act(async () => {
+      clearFormattingButton().click();
+    });
+
+    expect(elementState.content).toBe("Hello world");
+    expect(elementState.typography).toEqual({ fontSize: 32 });
+    expect(inlineButton("bold").getAttribute("aria-pressed")).toBe("false");
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("none");
   });
 
   it("preserves marks when typing inside rich content", async () => {

@@ -1,6 +1,5 @@
 import type {
   ColorValue,
-  RichTextContent,
   TextContent,
   TextRun,
   TextRunMarks,
@@ -12,6 +11,13 @@ export interface TextSelectionRange {
 }
 
 type BooleanMarkName = "bold" | "italic" | "underline" | "code";
+
+export type TextSelectionBooleanMarkState = "off" | "on" | "mixed";
+
+export type TextSelectionColorState =
+  | { kind: "none" }
+  | { kind: "uniform"; color: ColorValue }
+  | { kind: "mixed" };
 
 interface TextCharacter {
   text: string;
@@ -72,8 +78,27 @@ function areMarksEqual(
     normalizedLeft?.italic === normalizedRight?.italic &&
     normalizedLeft?.underline === normalizedRight?.underline &&
     normalizedLeft?.code === normalizedRight?.code &&
-    normalizedLeft?.color === normalizedRight?.color
+    areColorValuesEqual(normalizedLeft?.color, normalizedRight?.color)
   );
+}
+
+function areColorValuesEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (left === undefined || right === undefined) {
+    return false;
+  }
+
+  return typeof left !== "string" &&
+    typeof right !== "string" &&
+    left.kind === "palette" &&
+    right.kind === "palette" &&
+    left.colorId === right.colorId;
 }
 
 function expandTextContent(content: TextContent): TextCharacter[] {
@@ -231,34 +256,44 @@ export function getTextContentSelectionBooleanMarkState(
   content: TextContent,
   selection: TextSelectionRange | null | undefined,
   mark: BooleanMarkName,
-): boolean {
+): TextSelectionBooleanMarkState | null {
   const normalizedSelection = normalizeTextSelectionRange(
     selection,
     getTextContentPlainText(content).length,
   );
 
   if (!normalizedSelection) {
-    return false;
+    return null;
   }
 
   const characters = expandTextContent(content);
 
-  return characters
-    .slice(normalizedSelection.start, normalizedSelection.end)
-    .every((character) => character.marks?.[mark] === true);
+  const selectedCharacters = characters.slice(
+    normalizedSelection.start,
+    normalizedSelection.end,
+  );
+  const markedCharacterCount = selectedCharacters.filter(
+    (character) => character.marks?.[mark] === true,
+  ).length;
+
+  if (markedCharacterCount === 0) {
+    return "off";
+  }
+
+  return markedCharacterCount === selectedCharacters.length ? "on" : "mixed";
 }
 
-export function getTextContentSelectionColor(
+export function getTextContentSelectionColorState(
   content: TextContent,
   selection: TextSelectionRange | null | undefined,
-): ColorValue | undefined {
+): TextSelectionColorState | null {
   const normalizedSelection = normalizeTextSelectionRange(
     selection,
     getTextContentPlainText(content).length,
   );
 
   if (!normalizedSelection) {
-    return undefined;
+    return null;
   }
 
   const characters = expandTextContent(content).slice(
@@ -267,18 +302,18 @@ export function getTextContentSelectionColor(
   );
 
   if (characters.length === 0) {
-    return undefined;
+    return null;
   }
 
   const color = characters[0]?.marks?.color;
 
-  if (color === undefined) {
-    return undefined;
-  }
-
-  return characters.every((character) => character.marks?.color === color)
-    ? color
-    : undefined;
+  return characters.every((character) =>
+    areColorValuesEqual(character.marks?.color, color),
+  )
+    ? color === undefined
+      ? { kind: "none" }
+      : { kind: "uniform", color }
+    : { kind: "mixed" };
 }
 
 export function toggleTextContentBooleanMark(
@@ -295,11 +330,11 @@ export function toggleTextContentBooleanMark(
     return content;
   }
 
-  const shouldEnable = !getTextContentSelectionBooleanMarkState(
+  const shouldEnable = getTextContentSelectionBooleanMarkState(
     content,
     normalizedSelection,
     mark,
-  );
+  ) !== "on";
 
   return updateTextContentRange(content, normalizedSelection, (character) =>
     updateBooleanMark(character, mark, shouldEnable),
@@ -323,6 +358,16 @@ export function clearTextContentColor(
   return updateTextContentRange(content, selection, (character) =>
     updateColorMark(character, undefined),
   );
+}
+
+export function clearTextContentFormatting(
+  content: TextContent,
+  selection: TextSelectionRange | null | undefined,
+): TextContent {
+  return updateTextContentRange(content, selection, (character) => ({
+    ...character,
+    marks: undefined,
+  }));
 }
 
 export function reconcileTextContentEdit(

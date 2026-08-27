@@ -2135,6 +2135,19 @@
   color: #eef2ff;
 }
 
+.textEditorToolbarButton[aria-pressed="mixed"],
+.textEditorToolbarButton[data-powershow-inline-color-state="mixed"] {
+  border-style: dashed;
+  border-color: #a78bfa;
+  background: repeating-linear-gradient(
+    135deg,
+    #1d2433,
+    #1d2433 3px,
+    #252e41 3px,
+    #252e41 6px
+  );
+}
+
 .textEditorToolbarButton[data-powershow-inline-format="bold"] {
   font-weight: 700;
 }
@@ -2150,7 +2163,7 @@
 
 .textEditorToolbarButton[data-powershow-inline-format="code"],
 .textEditorToolbarButton[data-powershow-inline-color="true"],
-.textEditorToolbarButton[data-powershow-inline-format-clear="true"] {
+.textEditorToolbarButton[data-powershow-inline-format-clear-formatting="true"] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -2171,6 +2184,12 @@
   padding: 8px;
   border-bottom: 1px solid #303847;
   background: #0f1622;
+}
+
+.textEditorColorMixedStatus {
+  margin: 0 0 6px;
+  color: #c4b5fd;
+  font-size: 11px;
 }
 
 .textEditor > .textArea {
