@@ -1096,6 +1096,42 @@ describe("presentation library workspace controls", () => {
     expect(fonts.listFonts).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a font row selected through bubbling, then clears it on real browser background clicks", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([
+      { id: "inter-master", font: { family: "Inter", faces: [fontFace(400)] } },
+      { id: "audiowide-master", font: { family: "Audiowide", faces: [fontFace(700)] } },
+    ]);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+
+    const rows = container.querySelectorAll<HTMLButtonElement>("[data-custom-library-font-row]");
+    expect(rows).toHaveLength(2);
+    act(() => rows[0]?.click());
+    expect(rows[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Inter");
+
+    const browserPane = container.querySelector<HTMLElement>("[class*='browserPane']");
+    if (!browserPane) throw new Error("expected browser pane");
+    act(() => browserPane.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(rows[0]?.getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("Select a font to view details.");
+
+    act(() => rows[1]?.click());
+    expect(rows[1]?.getAttribute("aria-pressed")).toBe("true");
+    const workspace = container.querySelector<HTMLElement>("[class*='workspace']");
+    if (!workspace) throw new Error("expected workspace");
+    act(() => workspace.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(rows[1]?.getAttribute("aria-pressed")).toBe("false");
+
+    act(() => findButton(container, "Styles").click());
+    await flushWorkspaceEffects();
+    expect(container.querySelector("[data-custom-library-font-row]")).toBeNull();
+  });
+
   it("waits for saveFont before showing success or updating the master inventory", async () => {
     const { repository } = repositoryFor([]);
     const fonts = customLibraryFontRepositoryFor([]);

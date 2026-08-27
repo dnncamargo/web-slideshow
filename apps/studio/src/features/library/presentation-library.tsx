@@ -427,6 +427,7 @@ export function PresentationLibrary({
       setSelectedId(null);
       setSelectedCustomLibraryItemId(null);
       setSelectedCustomLibraryPaletteId(null);
+      setSelectedCustomLibraryFontId(null);
     },
     [],
   );
