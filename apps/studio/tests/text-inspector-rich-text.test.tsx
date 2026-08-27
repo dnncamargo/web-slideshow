@@ -116,6 +116,18 @@ describe("TextInspector rich text authoring", () => {
     return button;
   }
 
+  function inlineColorButton(): HTMLButtonElement {
+    const button = container.querySelector<HTMLButtonElement>(
+      '[data-powershow-inline-color="true"]',
+    );
+
+    if (!button) {
+      throw new Error("inline color button not found");
+    }
+
+    return button;
+  }
+
   function colorInput(): HTMLInputElement {
     const input = container.querySelector<HTMLInputElement>("#text-inline-color");
 
@@ -232,6 +244,44 @@ describe("TextInspector rich text authoring", () => {
     expect(updates).toHaveLength(0);
   });
 
+  it("composes the toolbar and textarea inside one editor shell", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    const shell = container.querySelector('[data-powershow-text-editor="true"]');
+    const toolbar = container.querySelector(
+      '[data-powershow-text-editor-toolbar="true"]',
+    );
+
+    expect(shell).not.toBeNull();
+    expect(toolbar?.parentElement).toBe(shell);
+    expect(textarea().parentElement).toBe(shell);
+    expect(
+      (toolbar?.compareDocumentPosition(textarea()) ?? 0) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(container.querySelector('[data-powershow-inline-color-panel="true"]'))
+      .toBeNull();
+  });
+
+  it("uses compact but descriptive inline toolbar controls", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    expect(inlineButton("bold").textContent).toBe("B");
+    expect(inlineButton("bold").getAttribute("aria-label")).toBe("Bold");
+    expect(inlineButton("italic").textContent).toBe("I");
+    expect(inlineButton("italic").getAttribute("aria-label")).toBe("Italic");
+    expect(inlineButton("underline").textContent).toBe("U");
+    expect(inlineButton("underline").getAttribute("aria-label")).toBe("Underline");
+    expect(inlineButton("code").textContent).toBe("</>");
+    expect(inlineButton("code").getAttribute("aria-label")).toBe("Code");
+    expect(inlineColorButton().getAttribute("aria-label")).toBe("Text color");
+    expect(clearColorButton().getAttribute("aria-label")).toBe("Clear color");
+  });
+
   it("applies bold to the selected range", async () => {
     await act(async () => {
       mount(richTextElement());
@@ -241,8 +291,13 @@ describe("TextInspector rich text authoring", () => {
       selectRange(0, 5);
     });
 
+    expect(inlineButton("bold").getAttribute("aria-pressed")).toBe("false");
+
     await act(async () => {
-      inlineButton("bold").click();
+      const button = inlineButton("bold");
+      button.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      expect(document.activeElement).toBe(textarea());
+      button.click();
     });
 
     expect(updates).toHaveLength(1);
@@ -267,6 +322,8 @@ describe("TextInspector rich text authoring", () => {
     await act(async () => {
       selectRange(0, 5);
     });
+
+    expect(inlineButton("bold").getAttribute("aria-pressed")).toBe("true");
 
     await act(async () => {
       inlineButton("bold").click();
@@ -311,6 +368,14 @@ describe("TextInspector rich text authoring", () => {
     await act(async () => {
       selectRange(6, 11);
     });
+
+    await act(async () => {
+      const colorButton = inlineColorButton();
+      colorButton.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      colorButton.click();
+    });
+
+    expect(inlineColorButton().getAttribute("aria-expanded")).toBe("true");
 
     await act(async () => {
       colorInput().focus();
@@ -367,8 +432,60 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("italic").disabled).toBe(true);
     expect(inlineButton("underline").disabled).toBe(true);
     expect(inlineButton("code").disabled).toBe(true);
+    expect(inlineColorButton().disabled).toBe(true);
     expect(clearColorButton().disabled).toBe(true);
-    expect(colorInput().disabled).toBe(true);
+    expect(container.querySelector("#text-inline-color")).toBeNull();
+  });
+
+  it("enables all selection actions only after a non-empty range is selected", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    expect(inlineButton("bold").disabled).toBe(false);
+    expect(inlineButton("italic").disabled).toBe(false);
+    expect(inlineButton("underline").disabled).toBe(false);
+    expect(inlineButton("code").disabled).toBe(false);
+    expect(inlineColorButton().disabled).toBe(false);
+    expect(clearColorButton().disabled).toBe(false);
+  });
+
+  it("opens the existing ColorControl without losing the stored selection", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    await act(async () => {
+      inlineColorButton().click();
+    });
+
+    expect(container.querySelector("#text-inline-color")).not.toBeNull();
+    expect(container.querySelector("#text-inline-color-value")).not.toBeNull();
+    expect(textarea().value).toBe("Hello world");
+
+    await act(async () => {
+      const valueInput = container.querySelector<HTMLInputElement>("#text-inline-color-value");
+      if (!valueInput) {
+        throw new Error("text-inline-color value input not found");
+      }
+
+      valueInput.focus();
+      setInputValue(valueInput, "#f97316");
+      valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(updates[0]?.content).toEqual({
+      type: "rich-text",
+      runs: [{ text: "Hello", marks: { color: "#f97316" } }, { text: " world" }],
+    });
   });
 
   it("preserves marks when typing inside rich content", async () => {
