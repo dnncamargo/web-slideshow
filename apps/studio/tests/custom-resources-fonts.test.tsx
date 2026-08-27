@@ -24,6 +24,16 @@ const font: CustomLibraryFontRecord = {
   },
 };
 
+const secondFont: CustomLibraryFontRecord = {
+  id: "library-font-id-2",
+  font: {
+    family: "Roboto",
+    faces: [
+      { weight: 400, style: "normal", subset: "latin", source: { type: "url", url: "https://example.com/roboto-400.woff2" } },
+    ],
+  },
+};
+
 const paletteRepository: CustomLibraryPaletteRepository = {
   savePalette: vi.fn(async () => "palette"), updatePalette: vi.fn(async () => undefined),
   listPalettes: vi.fn(async () => []), getPalette: vi.fn(async () => null), deletePalette: vi.fn(async () => undefined),
@@ -134,6 +144,19 @@ describe("Custom Resources Fonts", () => {
     expect(removeButton?.disabled).toBe(false);
     await act(async () => removeButton?.click());
     expect(remove).toHaveBeenCalledWith("exact-id");
+  });
+
+  it("renders multiple library fonts as separate master rows", async () => {
+    const repository = { listFonts: vi.fn(async () => [font, secondFont]) } as unknown as CustomLibraryFontRepository;
+    const rendered = renderWorkspace({ repository }); root = rendered.root;
+    await flush();
+    await act(async () => Array.from(rendered.container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font")?.click());
+
+    const rows = rendered.container.querySelectorAll("[data-custom-resource-font]");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toContain("Inter");
+    expect(rows[1]?.textContent).toContain("Roboto");
+    expect(rows[0]?.parentElement).toBe(rows[1]?.parentElement);
   });
 
   it("protects in-use fonts and supports legacy one-face display", async () => {
