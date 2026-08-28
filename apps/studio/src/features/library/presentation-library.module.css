@@ -280,37 +280,42 @@
   display: grid;
   min-width: 0;
   flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
 }
 
-/* LEFT: intentionally empty breathing space. */
-.toolbarLeft {
-  min-width: 0;
-}
-
-/* CENTER: selected presentation context, geometrically centered by the
-   symmetric outer grid tracks. */
+/* CONTEXT: selected presentation title and fixed local actions. */
 .toolbarCenter {
   display: flex;
   min-width: 0;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: hidden;
 }
 
 .toolbarContext {
   display: flex;
-  max-width: 100%;
+  width: 100%;
   min-width: 0;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  flex-wrap: wrap;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.toolbarLocalActions {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: max-content;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .toolbarSelection {
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 240px;
   overflow: hidden;
@@ -324,11 +329,13 @@
 /* RIGHT: global management actions, right-aligned in the final track. */
 .toolbarRight {
   display: flex;
+  flex: 0 0 auto;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .workspaceBody {
@@ -980,7 +987,6 @@
     align-items: stretch;
     gap: 8px;
   }
-  .toolbarLeft { display: none; }
   .toolbarCenter { justify-content: flex-start; }
   .toolbarContext { justify-content: flex-start; flex-wrap: wrap; }
   .toolbarRight { justify-content: flex-start; }

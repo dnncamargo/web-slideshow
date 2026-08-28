@@ -33,17 +33,12 @@ interface PresentationToolbarProps {
 }
 
 /**
- * Management toolbar with a three-zone grid:
+ * Management toolbar with two zones:
  *
- * - LEFT:   intentionally empty / breathing space.
- * - CENTER: selected presentation context (title immediately before a subtle
- *           Separator, then the contextual action buttons). Empty when
- *           nothing is selected.
- * - RIGHT:  global management actions (New, Import/Export transfer slot,
- *           New folder), right-aligned.
- *
- * The outer tracks are symmetric so the selected context is geometrically
- * centered rather than merely appended after the global actions.
+ * - CONTEXT: selected presentation title and fixed contextual actions. Empty
+ *            when nothing is selected; the title is the only elastic item.
+ * - RIGHT:   fixed global management actions (New, Import/Export transfer
+ *            slot, New folder).
  */
 export function PresentationToolbar({
   selected,
@@ -72,10 +67,8 @@ export function PresentationToolbar({
 
   return (
     <div className={styles.toolbar} role="toolbar" aria-label={t("library.actions")}>
-      <span className={styles.toolbarLeft} aria-hidden="true" />
-
       {/* ====================================================
-          CENTER: selected presentation context
+          CONTEXT: selected presentation title and local actions
           ==================================================== */}
       <div className={styles.toolbarCenter}>
         {state.mode !== "none" && selected ? (
@@ -84,80 +77,82 @@ export function PresentationToolbar({
               {selected.title || t("library.untitled")}
             </span>
 
-            <Separator />
+            <span className={styles.toolbarLocalActions}>
+              <Separator />
 
-            {state.actions.includes("present") ? (
-              <Button
-                variant="primary"
-                size="compact"
-                disabled={!state.canPresent}
-                title={!state.canPresent ? t("library.publishBefore") : undefined}
-                onClick={() => {
-                  if (selected && state.canPresent) onPresent(selected);
-                }}
-              >
-                {t("library.present")}
-              </Button>
-            ) : null}
+              {state.actions.includes("present") ? (
+                <Button
+                  variant="primary"
+                  size="compact"
+                  disabled={!state.canPresent}
+                  title={!state.canPresent ? t("library.publishBefore") : undefined}
+                  onClick={() => {
+                    if (selected && state.canPresent) onPresent(selected);
+                  }}
+                >
+                  {t("library.present")}
+                </Button>
+              ) : null}
 
-            {state.actions.includes("control") ? (
-              <Button variant="primary" size="compact" onClick={onControl}>
-                {t("library.control")}
-              </Button>
-            ) : null}
+              {state.actions.includes("control") ? (
+                <Button variant="primary" size="compact" onClick={onControl}>
+                  {t("library.control")}
+                </Button>
+              ) : null}
 
-            {state.actions.includes("end") ? (
-              <Button variant="danger" size="compact" onClick={onEnd}>
-                {t("library.end")}
-              </Button>
-            ) : null}
+              {state.actions.includes("end") ? (
+                <Button variant="danger" size="compact" onClick={onEnd}>
+                  {t("library.end")}
+                </Button>
+              ) : null}
 
-            {state.actions.includes("edit") && selected ? (
-              <Button
-                size="compact"
-                disabled={openingId !== null}
-                onClick={() => onEdit(selected.id)}
-              >
-                {openingId === selected.id ? t("library.opening") : t("library.edit")}
-              </Button>
-            ) : null}
+              {state.actions.includes("edit") && selected ? (
+                <Button
+                  size="compact"
+                  disabled={openingId !== null}
+                  onClick={() => onEdit(selected.id)}
+                >
+                  {openingId === selected.id ? t("library.opening") : t("library.edit")}
+                </Button>
+              ) : null}
 
-            {state.actions.includes("archive") && selected ? (
-              <Button
-                variant="danger"
-                size="compact"
-                disabled={archivingId !== null}
-                onClick={() => onArchive(selected.id)}
-              >
-                {archivingId === selected.id ? t("library.archiving") : t("library.archive")}
-              </Button>
-            ) : null}
+              {state.actions.includes("archive") && selected ? (
+                <Button
+                  variant="danger"
+                  size="compact"
+                  disabled={archivingId !== null}
+                  onClick={() => onArchive(selected.id)}
+                >
+                  {archivingId === selected.id ? t("library.archiving") : t("library.archive")}
+                </Button>
+              ) : null}
 
-            {state.actions.includes("restore") && selected ? (
-              <Button
-                size="compact"
-                disabled={restoringId !== null}
-                onClick={() => onRestore(selected.id)}
-              >
-                {restoringId === selected.id ? t("library.restoring") : t("library.restore")}
-              </Button>
-            ) : null}
+              {state.actions.includes("restore") && selected ? (
+                <Button
+                  size="compact"
+                  disabled={restoringId !== null}
+                  onClick={() => onRestore(selected.id)}
+                >
+                  {restoringId === selected.id ? t("library.restoring") : t("library.restore")}
+                </Button>
+              ) : null}
 
-            {state.actions.includes("delete") && selected ? (
-              <Button
-                variant="danger"
-                size="compact"
-                disabled={deletingId !== null || selected.publication !== undefined}
-                title={
-                  selected.publication !== undefined
-                    ? t("library.deletePublishedUnavailable")
-                    : undefined
-                }
-                onClick={() => onDelete(selected)}
-              >
-                {deletingId === selected.id ? t("library.deleting") : t("library.delete")}
-              </Button>
-            ) : null}
+              {state.actions.includes("delete") && selected ? (
+                <Button
+                  variant="danger"
+                  size="compact"
+                  disabled={deletingId !== null || selected.publication !== undefined}
+                  title={
+                    selected.publication !== undefined
+                      ? t("library.deletePublishedUnavailable")
+                      : undefined
+                  }
+                  onClick={() => onDelete(selected)}
+                >
+                  {deletingId === selected.id ? t("library.deleting") : t("library.delete")}
+                </Button>
+              ) : null}
+            </span>
           </span>
         ) : null}
       </div>
