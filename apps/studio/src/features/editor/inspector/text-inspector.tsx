@@ -54,7 +54,10 @@ import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-s
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { usePresentationColorPalette } from "./sections/presentation-color-palette";
-import { resolveEffectiveTextTypographyForAuthoring } from "../text-typography-authoring";
+import {
+  detachTextTypographyStyle,
+  resolveEffectiveTextTypographyForAuthoring,
+} from "../text-typography-authoring";
 import { listPresentationTypographyStyles } from "../typography-style-helpers";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
@@ -517,6 +520,16 @@ export function TextInspector({
           {element.typographyDetached && (
             <button type="button" onClick={() => attachTypographyStyle(element.variant)}>
               {t("inspector.attachTypography")}
+            </button>
+          )}
+          {!element.typographyDetached && presentation && (
+            <button
+              type="button"
+              onClick={() => onUpdate((current) => current.type === "text"
+                ? detachTextTypographyStyle(presentation, current)
+                : current)}
+            >
+              {t("inspector.detachTypography")}
             </button>
           )}
         </div>

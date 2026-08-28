@@ -4,7 +4,11 @@ import type {
   TextElement,
   TypographyStyleRole,
 } from "@powershow/document-schema";
-import { resolveTextTypography } from "@powershow/document-schema";
+import {
+  resolveTextTypography,
+  stripLocalTypographyStyleProperties,
+  TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES,
+} from "@powershow/document-schema";
 import { resolveThemeTextTypographyBaseline } from "@powershow/theme/element-style-defaults";
 
 export interface EffectiveTextTypographyForAuthoring {
@@ -24,6 +28,34 @@ export function resolveEffectiveTextTypographyForAuthoring(
     typography: {
       ...baseline,
       ...resolved.typography,
+    },
+  };
+}
+
+export function detachTextTypographyStyle(
+  presentation: Presentation,
+  text: TextElement,
+): TextElement {
+  if (text.typographyDetached === true) {
+    return text;
+  }
+
+  const resolved = resolveEffectiveTextTypographyForAuthoring(presentation, text);
+  const materializedTypography = Object.fromEntries(
+    TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES.flatMap((property) => {
+      const value = resolved.typography[property];
+      return value === undefined ? [] : [[property, value]];
+    }),
+  ) as ElementTypography;
+  const elementOnlyTypography = stripLocalTypographyStyleProperties(text.typography);
+
+  return {
+    ...text,
+    variant: resolved.role,
+    typographyDetached: true,
+    typography: {
+      ...materializedTypography,
+      ...elementOnlyTypography,
     },
   };
 }

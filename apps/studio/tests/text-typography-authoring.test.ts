@@ -5,7 +5,10 @@ import {
   TextElementSchema,
 } from "@powershow/document-schema";
 
-import { resolveEffectiveTextTypographyForAuthoring } from "../src/features/editor/text-typography-authoring";
+import {
+  detachTextTypographyStyle,
+  resolveEffectiveTextTypographyForAuthoring,
+} from "../src/features/editor/text-typography-authoring";
 
 function presentation(typographyStyles?: unknown[]) {
   return PresentationSchema.parse({
@@ -195,5 +198,75 @@ describe("effective text typography for authoring", () => {
         textDecorationColor: "#22d3ee",
       },
     });
+  });
+});
+
+describe("detach text typography style", () => {
+  it("materializes fundamental effective typography and keeps the variant", () => {
+    const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
+    const original = text({ variant: "body", typography: { fontSize: 22 } });
+    const detached = detachTextTypographyStyle(source, original);
+
+    expect(detached).toMatchObject({
+      variant: "body",
+      typographyDetached: true,
+      typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500, lineHeight: 1.6 },
+    });
+  });
+
+  it("materializes the Theme baseline without inventing a font family", () => {
+    const detached = detachTextTypographyStyle(presentation(), text({ variant: "body" }));
+
+    expect(detached.typography).toMatchObject({ fontSize: 18, fontWeight: 400, lineHeight: 1.6 });
+    expect(detached.typography).not.toHaveProperty("fontFamily");
+  });
+
+  it("preserves element-only typography and is idempotent", () => {
+    const source = presentation([{ id: "body", typography: { fontFamily: "Inter" } }]);
+    const original = text({
+      variant: "body",
+      typography: {
+        fontSize: 22,
+        textStroke: { width: 1, color: "#fff" },
+        textDecorationColor: "#f00",
+      },
+    });
+    const detached = detachTextTypographyStyle(source, original);
+
+    expect(detached.typography).toMatchObject({
+      textStroke: { width: 1, color: "#ffffff" },
+      textDecorationColor: "#ff0000",
+    });
+    expect(detachTextTypographyStyle(presentation([{ id: "body", typography: { fontFamily: "Other" } }]), detached)).toBe(detached);
+  });
+
+  it("converts a custom style to its role and materializes custom typography", () => {
+    const source = presentation([
+      { id: "body", typography: { fontFamily: "Inter", fontWeight: 700 } },
+      { id: "quote", name: "Quote", role: "body", typography: { fontFamily: "Fira Code", fontStyle: "italic" } },
+    ]);
+    const original = text({ variant: "quote", typography: { fontSize: 24 } });
+    const detached = detachTextTypographyStyle(source, original);
+
+    expect(detached).toMatchObject({
+      variant: "body",
+      typographyDetached: true,
+      typography: { fontFamily: "Fira Code", fontStyle: "italic", fontSize: 24, fontWeight: 400 },
+    });
+    expect(detached.typography).not.toHaveProperty("fontWeight", 700);
+    expect(PresentationSchema.parse({ ...source, slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
+    expect(PresentationSchema.parse({ ...source, typographyStyles: source.typographyStyles?.filter((style) => style.id !== "quote"), slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
+  });
+
+  it("does not mutate the source Text, Presentation, or Style definition", () => {
+    const source = presentation([{ id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } }]);
+    const original = text({ variant: "quote", typography: { fontSize: 24 } });
+    const sourceSnapshot = structuredClone(source);
+    const originalSnapshot = structuredClone(original);
+
+    detachTextTypographyStyle(source, original);
+
+    expect(source).toEqual(sourceSnapshot);
+    expect(original).toEqual(originalSnapshot);
   });
 });

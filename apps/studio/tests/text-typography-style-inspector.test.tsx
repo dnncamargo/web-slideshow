@@ -142,6 +142,62 @@ describe("Text Inspector typography style attachment", () => {
     expect(source.typographyStyles?.[0]).toMatchObject({ typography: { fontWeight: 500 } });
   });
 
+  it("offers explicit Detach and materializes the current effective typography", async () => {
+    await mount(
+      text({ typography: { fontSize: 22 } }),
+      presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]),
+    );
+
+    expect(host.textContent).toContain("Linked style · Body");
+    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach");
+    expect(detach).not.toBeUndefined();
+
+    await act(async () => detach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+
+    expect(current).toMatchObject({
+      variant: "body",
+      typographyDetached: true,
+      typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500 },
+    });
+    expect(host.textContent).toContain("Local typography · Body");
+    expect(host.textContent).toContain("Attach");
+  });
+
+  it("detaches a custom style to its fundamental role without inheriting that role's override", async () => {
+    await mount(text({ variant: "quote", typography: { fontSize: 24 } }), presentation([
+      { id: "body", typography: { fontFamily: "Inter", fontWeight: 700 } },
+      { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic", fontFamily: "Fira Code" } },
+    ]));
+
+    expect(host.textContent).toContain("Linked style · Quote");
+    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach");
+    await act(async () => detach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+
+    expect(current).toMatchObject({
+      variant: "body",
+      typographyDetached: true,
+      typography: { fontFamily: "Fira Code", fontStyle: "italic", fontSize: 24, fontWeight: 400 },
+    });
+    expect(current.typography).not.toHaveProperty("fontWeight", 700);
+    expect(host.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("body");
+  });
+
+  it("keeps detached typography stable when the Presentation Style changes", async () => {
+    await mount(text({ typography: { fontSize: 22 } }), presentation([
+      { id: "body", typography: { fontFamily: "Inter", fontWeight: 400 } },
+    ]));
+    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach");
+    await act(async () => detach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+
+    await mount(current, presentation([
+      { id: "body", typography: { fontFamily: "Another Family", fontSize: 30, fontWeight: 700 } },
+    ]));
+
+    expect(current).toMatchObject({ typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 400 } });
+    expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Inter");
+    expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("400");
+  });
+
   it("switches styles with fresh Attach semantics and preserves effects", async () => {
     await mount(text({
       typography: {
