@@ -441,4 +441,41 @@ describe("Custom Resources Text Styles", () => {
     await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Decoration color']")?.click());
     expect(presentationRef.current?.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 20, textStroke: { width: 2, color: "#333333" } } });
   });
+
+  it("authors and removes Decoration color without changing core typography", async () => {
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { fontSize: 20 } }] });
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef);
+    await act(async () => disclosure("quote").click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Decoration color")?.click());
+    expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
+    const color = requiredElement<HTMLInputElement>("#text-style-quote-decoration-color-value");
+    await act(async () => { setInputValue(color, "#abcdef"); });
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ typography: { fontSize: 20, textDecorationColor: "#abcdef" } });
+    await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Decoration color']")?.click());
+    expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
+  });
+
+  it("cleans up a final fundamental appearance override while preserving a remaining core override", async () => {
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(undefined, presentationRef);
+    await act(async () => disclosure("body").click());
+    await act(async () => rowButton("body", "+ Add property").click());
+    await act(async () => Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Text color")?.click());
+    const color = requiredElement<HTMLInputElement>("#text-style-body-color-value");
+    await act(async () => { setInputValue(color, "#123456"); });
+    expect(row("body").textContent).toContain("Customized");
+    await act(async () => row("body").querySelector<HTMLButtonElement>("[aria-label='Remove Text color']")?.click());
+    expect(presentationRef.current).not.toHaveProperty("textStyles");
+    expect(row("body").textContent).toContain("Built-in");
+    await act(async () => rowButton("body", "+ Add property").click());
+    await act(async () => Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font size")?.click());
+    await act(async () => rowButton("body", "+ Add property").click());
+    await act(async () => Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Text color")?.click());
+    await act(async () => { setInputValue(requiredElement<HTMLInputElement>("#text-style-body-color-value"), "#654321"); });
+    await act(async () => row("body").querySelector<HTMLButtonElement>("[aria-label='Remove Text color']")?.click());
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "body", typography: { fontSize: 18 } }]);
+    expect(row("body").textContent).toContain("Customized");
+  });
 });
