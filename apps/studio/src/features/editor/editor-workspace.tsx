@@ -132,8 +132,8 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 import { findElementById, updateElementById } from "./element-tree";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTypographyStyle, isTypographyStyleUsed, removeUnusedCustomTypographyStyle, resetFundamentalTypographyOverride, updateCustomTypographyStyle, upsertFundamentalTypographyOverride } from "./typography-style-helpers";
-import type { TypographyStyleProperties, TypographyStyleRole } from "@powershow/document-schema";
+import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "./text-style-helpers";
+import type { TypographyStyleProperties, TextStyleRole } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -2112,11 +2112,11 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  function updateFundamentalTypographyStyle(id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTypographyOverride(current, id, typography)); }
-  function resetFundamentalTypographyStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTypographyOverride(current, id)); }
-  function addTypographyStyle(name: string, role: TypographyStyleRole) { setPresentation((current) => addCustomTypographyStyle(current, name, role)); }
-  function updateTypographyStyle(id: string, patch: { name?: string; role?: TypographyStyleRole; typography?: TypographyStyleProperties }) { setPresentation((current) => updateCustomTypographyStyle(current, id, patch)); }
-  function removeTypographyStyle(id: string): void { setPresentation((current) => removeUnusedCustomTypographyStyle(current, id) ?? current); }
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, typography)); }
+  function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
+  function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
+  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
+  function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
 
   // ==========================================================
   // BEGIN: ADD ELEMENT
@@ -3465,13 +3465,13 @@ export function EditorWorkspace({
             onRemovePresentationColor={removePresentationPaletteColor}
             onRemovePresentationFont={removePresentationFont}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
-            presentationTypographyStyles={presentation.typographyStyles ?? []}
-            onUpdateFundamentalTypographyStyle={updateFundamentalTypographyStyle}
-            onResetFundamentalTypographyStyle={resetFundamentalTypographyStyle}
-            onAddTypographyStyle={addTypographyStyle}
-            onUpdateTypographyStyle={updateTypographyStyle}
-            onRemoveTypographyStyle={removeTypographyStyle}
-            isTypographyStyleInUse={(id) => isTypographyStyleUsed(presentation, id)}
+            presentationTextStyles={presentation.textStyles ?? []}
+            onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
+            onResetFundamentalTextStyle={resetFundamentalTextStyle}
+            onAddTextStyle={addTextStyle}
+            onUpdateTextStyle={updateTextStyle}
+            onRemoveTextStyle={removeTextStyle}
+            isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
           />
         ) : (
           <aside className={styles.inspector}>

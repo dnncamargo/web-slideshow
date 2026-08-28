@@ -69,7 +69,7 @@ describe("font resource traversal", () => {
 
 describe("typography style font dependencies", () => {
   it("detects fundamental and custom style font families", () => {
-    const presentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", typographyStyles: [
+    const presentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", textStyles: [
       { id: "body", typography: { fontFamily: " Inter " } },
       { id: "quote", name: "Quote", role: "body", typography: { fontFamily: "Fira Code" } },
     ], slides: [{ id: "s", title: "", elements: [] }] });

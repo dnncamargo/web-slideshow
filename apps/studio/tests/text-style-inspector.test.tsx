@@ -24,13 +24,13 @@ const topics: TopicsAuthoringControls = { onAddTopLevelTopic: () => null, onAddC
 const blocks: BlocksAuthoringControls = { onAddRootBlock: () => null, onAddScopeChild: () => null, onAddTextPart: () => null, onAddSocketPart: () => null, onCreateSocketValue: () => null };
 const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
 
-function presentation(typographyStyles: unknown[] = []): Presentation {
+function presentation(textStyles: unknown[] = []): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "presentation",
     title: "Presentation",
     slides: [{ id: "slide", elements: [] }],
-    ...(typographyStyles.length > 0 ? { typographyStyles } : {}),
+    ...(textStyles.length > 0 ? { textStyles } : {}),
   });
 }
 
@@ -89,8 +89,8 @@ describe("Text Inspector typography style attachment", () => {
 
   it("shows exactly the four fundamental identities plus authored custom names", async () => {
     await mount(text(), presentation([
-      { id: "quote", name: "Quote", role: "body", typography: {} },
-      { id: "title-2", name: "Title 2", role: "title", typography: {} },
+      { id: "quote", name: "Quote", role: "body" },
+      { id: "title-2", name: "Title 2", role: "title" },
     ]));
 
     const options = [...host.querySelectorAll<HTMLSelectElement>("#text-variant option")];
@@ -109,7 +109,7 @@ describe("Text Inspector typography style attachment", () => {
     expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
     expect(updates).toHaveLength(0);
-    expect(source.typographyStyles?.[0]).toMatchObject({ id: "body", typography: { fontSize: 20 } });
+    expect(source.textStyles?.[0]).toMatchObject({ id: "body", typography: { fontSize: 20 } });
   });
 
   it("keeps an attached local override local while inherited values change", async () => {
@@ -124,7 +124,7 @@ describe("Text Inspector typography style attachment", () => {
     expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Roboto");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("700");
     expect(current).toMatchObject({ variant: "body", typography: { fontSize: 22 } });
-    expect(current).not.toHaveProperty("typographyDetached");
+    expect(current).not.toHaveProperty("styleDetached");
   });
 
   it("edits one attached field without materializing effective typography", async () => {
@@ -137,9 +137,9 @@ describe("Text Inspector typography style attachment", () => {
     });
 
     expect(current).toMatchObject({ variant: "body", typography: { fontWeight: 700 } });
-    expect(current).not.toHaveProperty("typographyDetached");
+    expect(current).not.toHaveProperty("styleDetached");
     expect(current.typography).not.toHaveProperty("fontFamily");
-    expect(source.typographyStyles?.[0]).toMatchObject({ typography: { fontWeight: 500 } });
+    expect(source.textStyles?.[0]).toMatchObject({ typography: { fontWeight: 500 } });
   });
 
   it("offers explicit Detach and materializes the current effective typography", async () => {
@@ -156,7 +156,7 @@ describe("Text Inspector typography style attachment", () => {
 
     expect(current).toMatchObject({
       variant: "body",
-      typographyDetached: true,
+      styleDetached: true,
       typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500 },
     });
     expect(host.textContent).toContain("Local typography · Body");
@@ -175,7 +175,7 @@ describe("Text Inspector typography style attachment", () => {
 
     expect(current).toMatchObject({
       variant: "body",
-      typographyDetached: true,
+      styleDetached: true,
       typography: { fontFamily: "Fira Code", fontStyle: "italic", fontSize: 24, fontWeight: 400 },
     });
     expect(current.typography).not.toHaveProperty("fontWeight", 700);
@@ -216,7 +216,7 @@ describe("Text Inspector typography style attachment", () => {
     expect(current).toMatchObject({ variant: "quote", typography: { textDecorationColor: "#ff0000", textStroke: { width: 1, color: "#ffffff" } } });
     expect(current.typography).not.toHaveProperty("fontSize");
     expect(current.typography).not.toHaveProperty("fontWeight");
-    expect(current).not.toHaveProperty("typographyDetached");
+    expect(current).not.toHaveProperty("styleDetached");
 
     await act(async () => {
       const select = host.querySelector<HTMLSelectElement>("#text-variant")!;
@@ -224,11 +224,11 @@ describe("Text Inspector typography style attachment", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(current).toMatchObject({ variant: "title", typography: { textDecorationColor: "#ff0000", textStroke: { width: 1, color: "#ffffff" } } });
-    expect(current).not.toHaveProperty("typographyDetached");
+    expect(current).not.toHaveProperty("styleDetached");
   });
 
   it("keeps Style identity separate from detached status and supports explicit Attach", async () => {
-    await mount(text({ typographyDetached: true, typography: { fontSize: 22 } }));
+    await mount(text({ styleDetached: true, typography: { fontSize: 22 } }));
     expect(host.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("body");
     expect(host.textContent).toContain("Local typography");
     const attach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach");
@@ -236,14 +236,14 @@ describe("Text Inspector typography style attachment", () => {
 
     await act(async () => attach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current).toMatchObject({ variant: "body" });
-    expect(current).not.toHaveProperty("typographyDetached");
+    expect(current).not.toHaveProperty("styleDetached");
     expect(current).not.toHaveProperty("typography");
     expect(host.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("body");
   });
 
   it("Attach strips detached overrides while preserving element-only typography", async () => {
     await mount(text({
-      typographyDetached: true,
+      styleDetached: true,
       typography: {
         fontSize: 22,
         textStroke: { width: 1, color: "#ffffff" },
@@ -262,7 +262,7 @@ describe("Text Inspector typography style attachment", () => {
       },
     });
     expect(current.typography).not.toHaveProperty("fontSize");
-    expect(current).not.toHaveProperty("typographyDetached");
+    expect(current).not.toHaveProperty("styleDetached");
   });
 
   it("preserves Effects controls and custom role baseline semantics", async () => {
@@ -278,7 +278,7 @@ describe("Text Inspector typography style attachment", () => {
   });
 
   it("threads the active Presentation through ElementInspector to TextInspector", async () => {
-    const customPresentation = presentation([{ id: "quote", name: "Quote", role: "body", typography: {} }]);
+    const customPresentation = presentation([{ id: "quote", name: "Quote", role: "body" }]);
     current = text();
     activePresentation = customPresentation;
     await act(async () => root.render(

@@ -47,13 +47,13 @@ describe("PowerShow Player", () => {
     expect(root.innerHTML).toContain("Slide One");
   });
 
-  it("renders attached Presentation Typography Styles and preserves local overrides", () => {
+  it("renders attached Presentation Text Styles and preserves local overrides", () => {
     player.destroy();
 
     const presentation = PresentationSchema.parse({
       ...playerTestPresentation,
-      id: "player-typography-styles",
-      typographyStyles: [{ id: "body", typography: { fontFamily: "Fira Code", fontSize: 32 } }],
+      id: "player-text-styles",
+      textStyles: [{ id: "body", typography: { fontFamily: "Fira Code", fontSize: 32 } }],
       slides: [{
         id: "typography-slide",
         elements: [{ type: "text", id: "styled-text", variant: "body", content: "Styled text" }],
@@ -85,7 +85,7 @@ describe("PowerShow Player", () => {
       id: "player-typography-detached",
       slides: [{
         id: "typography-slide",
-        elements: [{ type: "text", id: "styled-text", variant: "body", typographyDetached: true, content: "Styled text" }],
+        elements: [{ type: "text", id: "styled-text", variant: "body", styleDetached: true, content: "Styled text" }],
       }],
     });
     player = mountPlayer(root, detached, { transition: "none" });

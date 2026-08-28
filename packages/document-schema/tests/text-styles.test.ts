@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CustomTypographyStyleSchema,
-  FundamentalTypographyStyleOverrideSchema,
+  CustomTextStyleSchema,
+  FundamentalTextStyleOverrideSchema,
   hasLocalTypographyStyleProperties,
   stripLocalTypographyStyleProperties,
   PresentationSchema,
   TypographyStylePropertiesSchema,
-  TypographyStylesSchema,
+  TextStylesSchema,
   resolveTextTypography,
   TextElementSchema,
 } from "../src";
@@ -29,13 +29,13 @@ const allTypographyProperties = {
   textDecorationLine: "underline",
 } as const;
 
-describe("Typography Styles canonical definitions", () => {
-  const presentation = (element: unknown, typographyStyles?: unknown[]) => ({
+describe("Text Styles canonical definitions", () => {
+  const presentation = (element: unknown, textStyles?: unknown[]) => ({
     schemaVersion: 1,
     id: "presentation",
     title: "Presentation",
     slides: [{ id: "slide", elements: [element] }],
-    ...(typographyStyles ? { typographyStyles } : {}),
+    ...(textStyles ? { textStyles } : {}),
   });
 
   const text = (overrides: Record<string, unknown> = {}) => ({
@@ -47,11 +47,13 @@ describe("Typography Styles canonical definitions", () => {
 
   it("keeps presentation typography styles optional", () => {
     expect(PresentationSchema.safeParse(defaultsInput).success).toBe(true);
+    expect(PresentationSchema.safeParse({ ...defaultsInput, typographyStyles: [] }).success).toBe(false);
+    expect(PresentationSchema.safeParse({ ...defaultsInput, slides: [{ id: "slide", elements: [text({ typographyDetached: true })] }] }).success).toBe(false);
   });
 
   it("accepts a fundamental override with properties", () => {
     expect(
-      FundamentalTypographyStyleOverrideSchema.safeParse({
+      FundamentalTextStyleOverrideSchema.safeParse({
         id: "body",
         typography: { fontFamily: "Inter" },
       }).success,
@@ -60,20 +62,20 @@ describe("Typography Styles canonical definitions", () => {
 
   it("rejects empty fundamental overrides and extra fields", () => {
     expect(
-      FundamentalTypographyStyleOverrideSchema.safeParse({
+      FundamentalTextStyleOverrideSchema.safeParse({
         id: "body",
         typography: {},
       }).success,
     ).toBe(false);
     expect(
-      FundamentalTypographyStyleOverrideSchema.safeParse({
+      FundamentalTextStyleOverrideSchema.safeParse({
         id: "body",
         name: "Body",
         typography: { fontFamily: "Inter" },
       }).success,
     ).toBe(false);
     expect(
-      FundamentalTypographyStyleOverrideSchema.safeParse({
+      FundamentalTextStyleOverrideSchema.safeParse({
         id: "body",
         role: "body",
         typography: { fontFamily: "Inter" },
@@ -81,9 +83,9 @@ describe("Typography Styles canonical definitions", () => {
     ).toBe(false);
   });
 
-  it("accepts custom styles with and without properties", () => {
+  it("accepts custom styles with or without properties and rejects empty bags", () => {
     expect(
-      CustomTypographyStyleSchema.safeParse({
+      CustomTextStyleSchema.safeParse({
         id: "quote",
         name: "Quote",
         role: "body",
@@ -91,19 +93,27 @@ describe("Typography Styles canonical definitions", () => {
       }).success,
     ).toBe(true);
     expect(
-      CustomTypographyStyleSchema.safeParse({
+      CustomTextStyleSchema.safeParse({
+        id: "quote",
+        name: "Quote",
+        role: "body",
+
+      }).success,
+    ).toBe(true);
+    expect(
+      CustomTextStyleSchema.safeParse({
         id: "quote",
         name: "Quote",
         role: "body",
         typography: {},
       }).success,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("rejects invalid custom IDs and names", () => {
     for (const id of ["title", "subtitle", "body", "caption"]) {
       expect(
-        CustomTypographyStyleSchema.safeParse({
+        CustomTextStyleSchema.safeParse({
           id,
           name: "Style",
           role: "body",
@@ -113,7 +123,7 @@ describe("Typography Styles canonical definitions", () => {
     }
 
     expect(
-      CustomTypographyStyleSchema.safeParse({
+      CustomTextStyleSchema.safeParse({
         id: "quote",
         name: "   ",
         role: "body",
@@ -124,13 +134,13 @@ describe("Typography Styles canonical definitions", () => {
 
   it("enforces unique IDs across fundamental and custom styles", () => {
     expect(
-      TypographyStylesSchema.safeParse([
+      TextStylesSchema.safeParse([
         { id: "quote", name: "Quote", role: "body", typography: {} },
         { id: "quote", name: "Another Quote", role: "body", typography: {} },
       ]).success,
     ).toBe(false);
     expect(
-      TypographyStylesSchema.safeParse([
+      TextStylesSchema.safeParse([
         { id: "body", typography: { fontFamily: "Inter" } },
         { id: "body", typography: { fontSize: 20 } },
       ]).success,
@@ -185,8 +195,8 @@ describe("Typography Styles canonical definitions", () => {
     expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { fontFamily: "Arial" } }), [style])).success).toBe(true);
     expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { textStroke: { width: 1, color: "#fff" } } }), [style])).success).toBe(true);
     expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { textDecorationColor: "#fff" } }), [style])).success).toBe(true);
-    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typographyDetached: true }), [style])).success).toBe(false);
-    expect(TextElementSchema.safeParse(text({ typographyDetached: false })).success).toBe(false);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", styleDetached: true }), [style])).success).toBe(false);
+    expect(TextElementSchema.safeParse(text({ styleDetached: false })).success).toBe(false);
   });
 
   it("validates nested custom variants", () => {
@@ -202,7 +212,7 @@ describe("Typography Styles canonical definitions", () => {
     const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontSize: 22, textStroke: { width: 1, color: "#fff" }, textDecorationColor: "#000" } }), styles));
     expect(resolveTextTypography(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", fontSize: 22, fontWeight: 400, textStroke: { width: 1, color: "#ffffff" }, textDecorationColor: "#000000" });
 
-    const detached = PresentationSchema.parse(presentation(text({ variant: "body", typographyDetached: true, typography: { fontSize: 22 } }), styles));
+    const detached = PresentationSchema.parse(presentation(text({ variant: "body", styleDetached: true, typography: { fontSize: 22 } }), styles));
     expect(resolveTextTypography(detached, detached.slides[0]!.elements[0] as Extract<typeof detached.slides[0]['elements'][number], { type: 'text' }>).typography).toEqual({ fontSize: 22 });
 
     const custom = PresentationSchema.parse(presentation(text({ variant: "quote", typography: { fontSize: 24, textDecorationColor: "#fff" } }), styles));
@@ -230,6 +240,6 @@ describe("local typography style properties", () => {
 
 describe("effectively empty fundamental overrides", () => {
   it("rejects undefined-only typography", () => {
-    expect(FundamentalTypographyStyleOverrideSchema.safeParse({ id: "body", typography: { fontFamily: undefined } }).success).toBe(false);
+    expect(FundamentalTextStyleOverrideSchema.safeParse({ id: "body", typography: { fontFamily: undefined } }).success).toBe(false);
   });
 });

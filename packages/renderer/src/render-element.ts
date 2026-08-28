@@ -20,7 +20,7 @@ import type {
 } from "@powershow/document-schema";
 import type { Presentation } from "@powershow/document-schema";
 import { resolveTextTypography } from "@powershow/document-schema";
-import { FundamentalTypographyStyleIdSchema } from "@powershow/document-schema";
+import { FundamentalTextStyleIdSchema } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
@@ -135,7 +135,7 @@ function renderText(element: TextElement, context?: RenderContext): string {
   const resolved = context
     ? resolveTextTypography(context.presentation, element)
     : undefined;
-  const role = resolved?.role ?? FundamentalTypographyStyleIdSchema.parse(element.variant);
+  const role = resolved?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
 
   const attributes = buildAttributes(element, [
     "powershow-text",

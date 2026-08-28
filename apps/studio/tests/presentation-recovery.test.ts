@@ -105,14 +105,14 @@ function rawWithSlides(slides: unknown[]): unknown {
   };
 }
 
-function rawWithTypographyStyles(
+function rawWithTextStyles(
   slides: unknown[],
-  typographyStyles: unknown[],
+  textStyles: unknown[],
 ): unknown {
   const base = rawWithSlides(slides);
   return {
     ...(base as Record<string, unknown>),
-    typographyStyles,
+    textStyles,
   };
 }
 
@@ -142,7 +142,7 @@ function customText(id: string, typography?: unknown, variant = "quote"): unknow
 
 describe("presentation recovery analysis", () => {
   it("keeps valid custom typography variants and returns a canonical presentation", () => {
-    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
       [validSlide("slide-1", [customText("quote-text")])],
       [quoteStyle()],
     ));
@@ -175,7 +175,7 @@ describe("presentation recovery analysis", () => {
   });
 
   it("preserves custom Text with local V1 typography and element-only typography", () => {
-    const analysis = analyzePresentationRecovery(rawWithTypographyStyles([
+    const analysis = analyzePresentationRecovery(rawWithTextStyles([
       validSlide("slide-1", [
         customText("bad", { fontFamily: "Arial" }),
         customText("stroke", { textStroke: { width: 1, color: "#fff" } }),
@@ -205,7 +205,7 @@ describe("presentation recovery analysis", () => {
         children: [],
       }],
     };
-    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
       [validSlide("slide-1", [topics])],
       [quoteStyle()],
     ));
@@ -238,7 +238,7 @@ describe("presentation recovery analysis", () => {
         cells: [{ id: "cell-1", children: [validText("cell-kept")] }],
       }],
     };
-    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
       [validSlide("slide-1", [table])],
       [quoteStyle()],
     ));
@@ -254,7 +254,7 @@ describe("presentation recovery analysis", () => {
   });
 
   it("preserves a fundamental attached Text with a local override", () => {
-    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
       [validSlide("slide-1", [{
         type: "text",
         id: "independent",

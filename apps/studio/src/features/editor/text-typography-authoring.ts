@@ -2,7 +2,7 @@ import type {
   ElementTypography,
   Presentation,
   TextElement,
-  TypographyStyleRole,
+  TextStyleRole,
 } from "@powershow/document-schema";
 import {
   resolveTextTypography,
@@ -12,7 +12,7 @@ import {
 import { resolveThemeTextTypographyBaseline } from "@powershow/theme/element-style-defaults";
 
 export interface EffectiveTextTypographyForAuthoring {
-  role: TypographyStyleRole;
+  role: TextStyleRole;
   typography: ElementTypography;
 }
 
@@ -36,7 +36,7 @@ export function detachTextTypographyStyle(
   presentation: Presentation,
   text: TextElement,
 ): TextElement {
-  if (text.typographyDetached === true) {
+  if (text.styleDetached === true) {
     return text;
   }
 
@@ -52,7 +52,7 @@ export function detachTextTypographyStyle(
   return {
     ...text,
     variant: resolved.role,
-    typographyDetached: true,
+    styleDetached: true,
     typography: {
       ...materializedTypography,
       ...elementOnlyTypography,

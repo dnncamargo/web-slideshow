@@ -46,7 +46,7 @@ function makePresentation(): Presentation {
   });
 }
 
-describe("EditorWorkspace Typography Styles rendering", () => {
+describe("EditorWorkspace Text Styles rendering", () => {
   let root: Root | undefined;
 
   afterEach(async () => {
@@ -82,10 +82,10 @@ describe("EditorWorkspace Typography Styles rendering", () => {
 
     const resourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
     await act(async () => resourcesButton?.click());
-    const editBodyButton = container.querySelector<HTMLButtonElement>("[data-typography-style-id='body'] button");
+    const editBodyButton = container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button");
     await act(async () => editBodyButton?.click());
 
-    const fontSelect = container.querySelector<HTMLSelectElement>("#typography-style-body-font-family");
+    const fontSelect = container.querySelector<HTMLSelectElement>("#text-style-body-font-family");
     expect(fontSelect).not.toBeNull();
     await act(async () => {
       if (!fontSelect) return;
@@ -99,7 +99,7 @@ describe("EditorWorkspace Typography Styles rendering", () => {
 
     await act(async () => { await vi.advanceTimersByTimeAsync(EDITOR_AUTOSAVE_DELAY_MS); });
     expect(saved).toHaveLength(1);
-    expect(saved[0]?.typographyStyles).toEqual([{ id: "body", typography: { fontFamily: "Fira Code" } }]);
+    expect(saved[0]?.textStyles).toEqual([{ id: "body", typography: { fontFamily: "Fira Code" } }]);
     expect(saved[0]?.slides[0]?.elements[0]).not.toHaveProperty("typography.fontFamily");
   });
 });

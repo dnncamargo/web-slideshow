@@ -5,32 +5,32 @@ import {
   TypographyStylePropertiesSchema,
 } from "./element-properties";
 
-export const FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS = [
+export const FUNDAMENTAL_TEXT_STYLE_IDS = [
   "title",
   "subtitle",
   "body",
   "caption",
 ] as const;
 
-export const FundamentalTypographyStyleIdSchema = z.enum(
-  FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS,
+export const FundamentalTextStyleIdSchema = z.enum(
+  FUNDAMENTAL_TEXT_STYLE_IDS,
 );
 
-export type FundamentalTypographyStyleId = z.infer<
-  typeof FundamentalTypographyStyleIdSchema
+export type FundamentalTextStyleId = z.infer<
+  typeof FundamentalTextStyleIdSchema
 >;
 
-export const TypographyStyleRoleSchema = FundamentalTypographyStyleIdSchema;
+export const TextStyleRoleSchema = FundamentalTextStyleIdSchema;
 
-export type TypographyStyleRole = z.infer<
-  typeof TypographyStyleRoleSchema
+export type TextStyleRole = z.infer<
+  typeof TextStyleRoleSchema
 >;
 
 const NonEmptyTrimmedStringSchema = z.string().trim().min(1);
 
-export const FundamentalTypographyStyleOverrideSchema = z
+export const FundamentalTextStyleOverrideSchema = z
   .object({
-    id: FundamentalTypographyStyleIdSchema,
+    id: FundamentalTextStyleIdSchema,
     typography: TypographyStylePropertiesSchema.refine(
       (typography) => Object.values(typography).some((value) => value !== undefined),
       { message: "Fundamental typography override cannot be empty." },
@@ -38,35 +38,38 @@ export const FundamentalTypographyStyleOverrideSchema = z
   })
   .strict();
 
-export type FundamentalTypographyStyleOverride = z.infer<
-  typeof FundamentalTypographyStyleOverrideSchema
+export type FundamentalTextStyleOverride = z.infer<
+  typeof FundamentalTextStyleOverrideSchema
 >;
 
-export const CustomTypographyStyleSchema = z
+export const CustomTextStyleSchema = z
   .object({
     id: NonEmptyTrimmedStringSchema.refine(
-      (id) => !FundamentalTypographyStyleIdSchema.safeParse(id).success,
-      { message: "Custom typography style ID cannot be fundamental." },
+      (id) => !FundamentalTextStyleIdSchema.safeParse(id).success,
+      { message: "Custom text style ID cannot be fundamental." },
     ),
     name: NonEmptyTrimmedStringSchema,
-    role: TypographyStyleRoleSchema,
-    typography: TypographyStylePropertiesSchema,
+    role: TextStyleRoleSchema,
+    typography: TypographyStylePropertiesSchema.optional().refine(
+      (typography) => typography === undefined || Object.keys(typography).length > 0,
+      { message: "Custom text style typography cannot be empty." },
+    ),
   })
   .strict();
 
-export type CustomTypographyStyle = z.infer<
-  typeof CustomTypographyStyleSchema
+export type CustomTextStyle = z.infer<
+  typeof CustomTextStyleSchema
 >;
 
-export const TypographyStyleSchema = z.union([
-  FundamentalTypographyStyleOverrideSchema,
-  CustomTypographyStyleSchema,
+export const TextStyleSchema = z.union([
+  FundamentalTextStyleOverrideSchema,
+  CustomTextStyleSchema,
 ]);
 
-export type TypographyStyle = z.infer<typeof TypographyStyleSchema>;
+export type TextStyle = z.infer<typeof TextStyleSchema>;
 
-export const TypographyStylesSchema = z
-  .array(TypographyStyleSchema)
+export const TextStylesSchema = z
+  .array(TextStyleSchema)
   .superRefine((styles, context) => {
     const ids = new Set<string>();
 
@@ -75,7 +78,7 @@ export const TypographyStylesSchema = z
         context.addIssue({
           code: "custom",
           path: [index, "id"],
-          message: "Typography style IDs must be unique.",
+          message: "Text style IDs must be unique.",
         });
       }
 
@@ -83,7 +86,7 @@ export const TypographyStylesSchema = z
     });
   });
 
-export type TypographyStyles = z.infer<typeof TypographyStylesSchema>;
+export type TextStyles = z.infer<typeof TextStylesSchema>;
 
 export const TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES = [
   "fontFamily",

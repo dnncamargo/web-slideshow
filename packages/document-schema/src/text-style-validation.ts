@@ -1,8 +1,8 @@
 import type { ContentSlot, PowerShowElement, TopicItem } from "./elements";
 import type { Presentation } from "./presentation";
 import {
-  FundamentalTypographyStyleIdSchema,
-} from "./typography";
+  FundamentalTextStyleIdSchema,
+} from "./text-style";
 
 function validateText(
   presentation: Presentation,
@@ -10,20 +10,20 @@ function validateText(
   path: (string | number)[],
   addIssue: (path: (string | number)[], message: string) => void,
 ): void {
-  if (FundamentalTypographyStyleIdSchema.safeParse(element.variant).success) {
+  if (FundamentalTextStyleIdSchema.safeParse(element.variant).success) {
     return;
   }
 
-  const style = presentation.typographyStyles?.find(
+  const style = presentation.textStyles?.find(
     (candidate) => candidate.id === element.variant,
   );
-  if (!style || FundamentalTypographyStyleIdSchema.safeParse(style.id).success) {
-    addIssue([...path, "variant"], "Custom typography style variant does not resolve.");
+  if (!style || FundamentalTextStyleIdSchema.safeParse(style.id).success) {
+    addIssue([...path, "variant"], "Custom text style variant does not resolve.");
   }
-  if (element.typographyDetached === true) {
+  if (element.styleDetached === true) {
     addIssue(
-      [...path, "typographyDetached"],
-      "Custom typography style variants cannot be detached.",
+      [...path, "styleDetached"],
+      "Custom text style variants cannot be detached.",
     );
   }
 }
@@ -65,7 +65,7 @@ function validateElement(
   }
 }
 
-export function validatePresentationTypographyReferences(
+export function validatePresentationTextStyleReferences(
   presentation: Presentation,
   context: { addIssue: (issue: { code: "custom"; path: (string | number)[]; message: string }) => void },
 ): void {

@@ -88,7 +88,7 @@ export const TextElementSchema =
 
     variant: z.string().trim().min(1).default("body"),
 
-    typographyDetached: z.literal(true).optional(),
+    styleDetached: z.literal(true).optional(),
 
     layout: TextLayoutSchema.optional(),
 

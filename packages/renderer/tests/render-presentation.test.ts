@@ -67,7 +67,7 @@ function createPresentation(): Presentation {
 describe("renderPresentation", () => {
   it("resolves typography style variants through presentation context", () => {
     const presentation = createPresentationFixture({
-      typographyStyles: [
+      textStyles: [
         { id: "body", typography: { fontFamily: "Inter" } },
         { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
         { id: "hero", name: "Hero", role: "title", typography: { fontSize: 48 } },
@@ -91,7 +91,7 @@ describe("renderPresentation", () => {
 
   it("keeps a fundamental local typography override independent", () => {
     const html = renderPresentation(createPresentationFixture({
-      typographyStyles: [{ id: "body", typography: { fontFamily: "Inter" } }],
+      textStyles: [{ id: "body", typography: { fontFamily: "Inter" } }],
       slides: [createSlide({
         elements: [createTextElement({ variant: "body", typography: { fontFamily: "Fira Code" } })],
       })],

@@ -50,8 +50,8 @@ export function presentationUsesFontFamily(
         fontFamily !== undefined &&
         normalizeFontFamily(fontFamily) === normalizedFamily
       );
-    }) || (presentation.typographyStyles ?? []).some((style) =>
-      style.typography.fontFamily !== undefined &&
+    }) || (presentation.textStyles ?? []).some((style) =>
+      style.typography?.fontFamily !== undefined &&
       normalizeFontFamily(style.typography.fontFamily) === normalizedFamily,
     ),
   );

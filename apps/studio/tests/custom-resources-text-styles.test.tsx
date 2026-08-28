@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type FontResource, type Presentation } from "@powershow/document-schema";
 import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
-import { addCustomTypographyStyle, isTypographyStyleUsed, removeUnusedCustomTypographyStyle, resetFundamentalTypographyOverride, updateCustomTypographyStyle, upsertFundamentalTypographyOverride } from "../src/features/editor/typography-style-helpers";
+import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -50,17 +50,17 @@ function Harness({
     onRemovePresentationColor={() => undefined}
     onRemovePresentationFont={() => "not-found"}
     isPresentationFontInUse={() => false}
-    presentationTypographyStyles={presentation.typographyStyles ?? []}
-    onUpdateFundamentalTypographyStyle={(id, typography) => setPresentation((current) => upsertFundamentalTypographyOverride(current, id, typography))}
-    onResetFundamentalTypographyStyle={(id) => setPresentation((current) => resetFundamentalTypographyOverride(current, id))}
-    onAddTypographyStyle={(name, role) => setPresentation((current) => addCustomTypographyStyle(current, name, role))}
-    onUpdateTypographyStyle={(id, patch) => setPresentation((current) => updateCustomTypographyStyle(current, id, patch))}
-    onRemoveTypographyStyle={(id) => setPresentation((current) => removeUnusedCustomTypographyStyle(current, id) ?? current)}
-    isTypographyStyleInUse={(id) => isTypographyStyleUsed(presentation, id)}
+    presentationTextStyles={presentation.textStyles ?? []}
+    onUpdateFundamentalTextStyle={(id, typography) => setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, typography))}
+    onResetFundamentalTextStyle={(id) => setPresentation((current) => resetFundamentalTextStyleOverride(current, id))}
+    onAddTextStyle={(name, role) => setPresentation((current) => addCustomTextStyle(current, name, role))}
+    onUpdateTextStyle={(id, patch) => setPresentation((current) => updateCustomTextStyle(current, id, patch))}
+    onRemoveTextStyle={(id) => setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current)}
+    isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
   />;
 }
 
-describe("Custom Resources Typography Styles", () => {
+describe("Custom Resources Text Styles", () => {
   let root: Root | undefined;
   let container: HTMLDivElement;
 
@@ -90,7 +90,7 @@ describe("Custom Resources Typography Styles", () => {
   }
 
   function row(id: string): HTMLElement {
-    return requiredElement<HTMLElement>(`[data-typography-style-id='${id}']`);
+    return requiredElement<HTMLElement>(`[data-text-style-id='${id}']`);
   }
 
   function rowButton(id: string, label: string): HTMLButtonElement {
@@ -117,18 +117,18 @@ describe("Custom Resources Typography Styles", () => {
 
     const thisPresentation = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-this-presentation']");
     const fromLibrary = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-from-library']");
-    const typographyStyles = requiredElement<HTMLElement>("[data-presentation-typography-styles]");
-    expect(typographyStyles.tagName).toBe("SECTION");
-    expect(typographyStyles.getAttribute("aria-labelledby")).toBe("presentation-typography-styles-title");
-    expect(typographyStyles.querySelector("#presentation-typography-styles-title")?.textContent).toBe("Typography Styles");
-    expect(thisPresentation.contains(typographyStyles)).toBe(true);
-    expect(fromLibrary.querySelector("[data-presentation-typography-styles]")).toBeNull();
-    expect(fromLibrary.textContent).not.toContain("Typography Styles");
-    expect(typographyStyles.textContent).not.toContain("Edit");
+    const textStyles = requiredElement<HTMLElement>("[data-presentation-text-styles]");
+    expect(textStyles.tagName).toBe("SECTION");
+    expect(textStyles.getAttribute("aria-labelledby")).toBe("presentation-text-styles-title");
+    expect(textStyles.querySelector("#presentation-text-styles-title")?.textContent).toBe("Text Styles");
+    expect(thisPresentation.contains(textStyles)).toBe(true);
+    expect(fromLibrary.querySelector("[data-presentation-text-styles]")).toBeNull();
+    expect(fromLibrary.textContent).not.toContain("Text Styles");
+    expect(textStyles.textContent).not.toContain("Edit");
 
     for (const id of fundamentalIds) {
       expect(disclosure(id).getAttribute("aria-expanded")).toBe("false");
-      expect(row(id).querySelector("#typography-style-" + id + "-editor")).toBeNull();
+      expect(row(id).querySelector("#text-style-" + id + "-editor")).toBeNull();
     }
   });
 
@@ -137,7 +137,7 @@ describe("Custom Resources Typography Styles", () => {
     await render(undefined, presentationRef);
 
     await act(async () => disclosure("body").click());
-    const fontSelect = requiredElement<HTMLSelectElement>("#typography-style-body-font-family");
+    const fontSelect = requiredElement<HTMLSelectElement>("#text-style-body-font-family");
     expect(Array.from(fontSelect.options).map((option) => option.value)).toContain("Inter");
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
 
@@ -146,57 +146,57 @@ describe("Custom Resources Typography Styles", () => {
       fontSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    expect(presentationRef.current?.typographyStyles).toEqual([{ id: "body", typography: { fontFamily: "Inter" } }]);
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "body", typography: { fontFamily: "Inter" } }]);
     expect(row("body").textContent).toContain("Customized");
     expect(row("body").textContent).not.toContain("Edit");
 
     await act(async () => rowButton("body", "Reset").click());
     expect(row("body").textContent).toContain("Built-in");
     expect(row("body").querySelector("button")?.textContent).not.toContain("Reset");
-    expect(presentationRef.current).not.toHaveProperty("typographyStyles");
+    expect(presentationRef.current).not.toHaveProperty("textStyles");
   });
 
-  it("opens and closes one Typography Style editor at a time", async () => {
+  it("opens and closes one Text Style editor at a time", async () => {
     await render();
 
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("false");
-    expect(container.querySelector("#typography-style-body-editor")).toBeNull();
+    expect(container.querySelector("#text-style-body-editor")).toBeNull();
 
     await act(async () => disclosure("body").click());
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
-    expect(container.querySelector("#typography-style-body-editor")).not.toBeNull();
+    expect(container.querySelector("#text-style-body-editor")).not.toBeNull();
 
     await act(async () => disclosure("body").click());
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("false");
-    expect(container.querySelector("#typography-style-body-editor")).toBeNull();
+    expect(container.querySelector("#text-style-body-editor")).toBeNull();
 
     await act(async () => disclosure("title").click());
     await act(async () => disclosure("body").click());
     expect(disclosure("title").getAttribute("aria-expanded")).toBe("false");
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
-    expect(container.querySelectorAll("[data-presentation-typography-styles] [id$='-editor']")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-presentation-text-styles] [id$='-editor']")).toHaveLength(1);
   });
 
   it("renders a transient live preview from effective defaults and style values", async () => {
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
     await render(undefined, presentationRef);
 
-    expect(container.querySelector("[data-typography-style-preview='body']")).toBeNull();
+    expect(container.querySelector("[data-text-style-preview='body']")).toBeNull();
     await act(async () => disclosure("body").click());
 
-    const bodyPreview = requiredElement<HTMLElement>("[data-typography-style-preview='body']");
-    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-typography-style-preview='body'] .powershow-text");
+    const bodyPreview = requiredElement<HTMLElement>("[data-text-style-preview='body']");
+    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='body'] .powershow-text");
     expect(bodyPreview.getAttribute("aria-hidden")).toBe("true");
     expect(bodyPreview.textContent).toBe("Aa");
     expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
 
-    const fontSelect = requiredElement<HTMLSelectElement>("#typography-style-body-font-family");
+    const fontSelect = requiredElement<HTMLSelectElement>("#text-style-body-font-family");
     await act(async () => {
       fontSelect.value = "Inter";
       fontSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(bodyPreviewText().getAttribute("style")).toContain('font-family:"Inter"');
-    expect(JSON.stringify(presentationRef.current)).not.toContain("typography-style-preview-");
+    expect(JSON.stringify(presentationRef.current)).not.toContain("text-style-preview-");
     expect(JSON.stringify(presentationRef.current)).not.toContain("Aa");
 
     await act(async () => rowButton("body", "Reset").click());
@@ -204,7 +204,7 @@ describe("Custom Resources Typography Styles", () => {
     expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
 
     await act(async () => disclosure("body").click());
-    expect(container.querySelector("[data-typography-style-preview='body']")).toBeNull();
+    expect(container.querySelector("[data-text-style-preview='body']")).toBeNull();
   });
 
   it("updates a custom Style preview when its role changes", async () => {
@@ -212,16 +212,16 @@ describe("Custom Resources Typography Styles", () => {
     await render(undefined, presentationRef);
 
     await act(async () => button("+ Add Style").click());
-    const nameInput = requiredElement<HTMLInputElement>("[data-new-typography-style] input");
+    const nameInput = requiredElement<HTMLInputElement>("[data-new-text-style] input");
     await act(async () => setInputValue(nameInput, "Quote"));
     await act(async () => button("+ Add Style").click());
     await act(async () => disclosure("quote").click());
 
-    const quotePreviewText = () => requiredElement<HTMLElement>("[data-typography-style-preview='quote'] .powershow-text");
+    const quotePreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='quote'] .powershow-text");
     const bodyFontSize = quotePreviewText().getAttribute("style");
     expect(bodyFontSize).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
 
-    const roleSelect = requiredElement<HTMLSelectElement>("[data-typography-style-id='quote'] select");
+    const roleSelect = requiredElement<HTMLSelectElement>("[data-text-style-id='quote'] select");
     await act(async () => {
       roleSelect.value = "caption";
       roleSelect.dispatchEvent(new Event("change", { bubbles: true }));
@@ -229,7 +229,7 @@ describe("Custom Resources Typography Styles", () => {
 
     expect(quotePreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.caption.fontSize}px`);
     expect(quotePreviewText().getAttribute("style")).not.toBe(bodyFontSize);
-    expect(presentationRef.current?.typographyStyles).toMatchObject([{ id: "quote", role: "caption", typography: {} }]);
+    expect(presentationRef.current?.textStyles).toMatchObject([{ id: "quote", role: "caption" }]);
   });
 
   it("creates a custom style with a default role, rejects blank names, and commits a real name edit", async () => {
@@ -237,8 +237,8 @@ describe("Custom Resources Typography Styles", () => {
     await render(undefined, presentationRef);
 
     await act(async () => button("+ Add Style").click());
-    const form = requiredElement<HTMLElement>("[data-new-typography-style]");
-    const nameInput = requiredElement<HTMLInputElement>("[data-new-typography-style] input");
+    const form = requiredElement<HTMLElement>("[data-new-text-style]");
+    const nameInput = requiredElement<HTMLInputElement>("[data-new-text-style] input");
     const createButton = Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ Add Style");
     expect(createButton?.disabled).toBe(true);
     await act(async () => setInputValue(nameInput, "   "));
@@ -246,7 +246,7 @@ describe("Custom Resources Typography Styles", () => {
 
     await act(async () => setInputValue(nameInput, "Quote"));
     await act(async () => createButton?.click());
-    expect(presentationRef.current?.typographyStyles).toEqual([{ id: "quote", name: "Quote", role: "body", typography: {} }]);
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "quote", name: "Quote", role: "body" }]);
     expect(row("quote").textContent).toContain("Body");
 
     await act(async () => disclosure("quote").click());
@@ -255,7 +255,7 @@ describe("Custom Resources Typography Styles", () => {
     expect(roleSelect?.value).toBe("body");
     expect(Array.from(quoteRow.querySelectorAll("input")).some((input) => (input as HTMLInputElement).value === "quote")).toBe(false);
 
-    const styleInput = requiredElement<HTMLInputElement>("[data-typography-style-id='quote'] input");
+    const styleInput = requiredElement<HTMLInputElement>("[data-text-style-id='quote'] input");
     await act(async () => {
       styleInput.focus();
       setInputValue(styleInput, "Block ");
@@ -266,24 +266,24 @@ describe("Custom Resources Typography Styles", () => {
     await act(async () => styleInput.blur());
 
     expect(row("quote").querySelector("strong")?.textContent).toBe("Block Quote");
-    expect(presentationRef.current?.typographyStyles?.[0]).toMatchObject({ id: "quote", name: "Block Quote", role: "body", typography: {} });
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", name: "Block Quote", role: "body" });
 
     const editedQuoteRow = row("quote");
-    const editedRoleSelect = requiredElement<HTMLSelectElement>("[data-typography-style-id='quote'] select");
+    const editedRoleSelect = requiredElement<HTMLSelectElement>("[data-text-style-id='quote'] select");
     await act(async () => {
       editedRoleSelect.value = "caption";
       editedRoleSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(presentationRef.current?.typographyStyles?.[0]).toMatchObject({ id: "quote", role: "caption" });
-    expect(editedQuoteRow.getAttribute("data-typography-style-id")).toBe("quote");
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", role: "caption" });
+    expect(editedQuoteRow.getAttribute("data-text-style-id")).toBe("quote");
 
-    const quoteFontSelect = requiredElement<HTMLSelectElement>("#typography-style-quote-font-family");
+    const quoteFontSelect = requiredElement<HTMLSelectElement>("#text-style-quote-font-family");
     expect(Array.from(quoteFontSelect.options).map((option) => option.value)).toEqual(["", "Inter"]);
     await act(async () => {
       quoteFontSelect.value = "Inter";
       quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(presentationRef.current?.typographyStyles?.[0]).toMatchObject({ id: "quote", typography: { fontFamily: "Inter" } });
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", typography: { fontFamily: "Inter" } });
     expect(row("quote").textContent).not.toContain("Edit");
   });
 
@@ -292,7 +292,7 @@ describe("Custom Resources Typography Styles", () => {
     await render(undefined, presentationRef);
 
     await act(async () => button("+ Add Style").click());
-    const nameInput = requiredElement<HTMLInputElement>("[data-new-typography-style] input");
+    const nameInput = requiredElement<HTMLInputElement>("[data-new-text-style] input");
     await act(async () => setInputValue(nameInput, "Quote"));
     await act(async () => button("+ Add Style").click());
     expect(row("quote")).not.toBeNull();
@@ -301,12 +301,12 @@ describe("Custom Resources Typography Styles", () => {
     await act(async () => disclosure("quote").click());
     expect(rowButton("quote", "Remove").disabled).toBe(false);
     await act(async () => rowButton("quote", "Remove").click());
-    expect(container.querySelector("[data-typography-style-id='quote']")).toBeNull();
-    expect(presentationRef.current).not.toHaveProperty("typographyStyles");
+    expect(container.querySelector("[data-text-style-id='quote']")).toBeNull();
+    expect(presentationRef.current).not.toHaveProperty("textStyles");
   });
 
   it("protects a used custom style and leaves its Text unchanged", async () => {
-    const custom = addCustomTypographyStyle(base(), "Quote", "body");
+    const custom = addCustomTextStyle(base(), "Quote", "body");
     const usedPresentation = PresentationSchema.parse({
       ...custom,
       slides: [{ id: "s", title: "", elements: [{ id: "text", type: "text", hidden: false, variant: "quote", content: "unchanged" }] }],
@@ -320,7 +320,7 @@ describe("Custom Resources Typography Styles", () => {
     expect(row("quote").textContent).toContain("In use");
     expect(removeButton.disabled).toBe(true);
     await act(async () => removeButton.click());
-    expect(presentationRef.current?.typographyStyles).toEqual(usedPresentation.typographyStyles);
+    expect(presentationRef.current?.textStyles).toEqual(usedPresentation.textStyles);
     expect(presentationRef.current?.slides[0]?.elements[0]).toMatchObject({ type: "text", variant: "quote", content: "unchanged" });
   });
 });

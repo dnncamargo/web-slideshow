@@ -1,13 +1,13 @@
 import type { ElementTypography } from "./element-properties";
 import type { Presentation } from "./presentation";
 import type { TextElement } from "./elements";
-import type { TypographyStyleRole } from "./typography";
+import type { TextStyleRole } from "./text-style";
 import {
-  FundamentalTypographyStyleIdSchema,
-} from "./typography";
+  FundamentalTextStyleIdSchema,
+} from "./text-style";
 
 export type ResolvedTextTypography = {
-  role: TypographyStyleRole;
+  role: TextStyleRole;
   typography: ElementTypography;
 };
 
@@ -16,15 +16,15 @@ export function resolveTextTypography(
   text: TextElement,
 ): ResolvedTextTypography {
   const variant = text.variant;
-  const styles = presentation.typographyStyles ?? [];
+  const styles = presentation.textStyles ?? [];
   const style = styles.find((candidate) => candidate.id === variant);
 
-  const fundamentalVariant = FundamentalTypographyStyleIdSchema.safeParse(variant);
+  const fundamentalVariant = FundamentalTextStyleIdSchema.safeParse(variant);
   if (fundamentalVariant.success) {
     return {
       role: fundamentalVariant.data,
       typography: {
-        ...(text.typographyDetached
+        ...(text.styleDetached
           ? {}
           : styles.find((candidate) => candidate.id === variant)?.typography),
         ...text.typography,
@@ -33,13 +33,13 @@ export function resolveTextTypography(
   }
 
   if (!style || !("role" in style)) {
-    throw new Error(`Unresolved custom typography style variant: ${variant}`);
+    throw new Error(`Unresolved custom text style variant: ${variant}`);
   }
 
   return {
     role: style.role,
     typography: {
-      ...style.typography,
+      ...(style.typography ?? {}),
       ...text.typography,
     },
   };

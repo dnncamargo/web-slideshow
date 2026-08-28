@@ -58,7 +58,7 @@ import {
   detachTextTypographyStyle,
   resolveEffectiveTextTypographyForAuthoring,
 } from "../text-typography-authoring";
-import { listPresentationTypographyStyles } from "../typography-style-helpers";
+import { listPresentationTextStyles } from "../text-style-helpers";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
 
@@ -191,7 +191,7 @@ export function TextInspector({
         letterSpacing: convertAuthoringLength(effectiveTypography.letterSpacing ?? themeTypographyDefaults?.letterSpacing ?? 0, "px") ?? themeTypographyDefaults?.letterSpacing ?? 0,
       }
     : themeTypographyDefaults;
-  const styleOptions = listPresentationTypographyStyles(presentation ?? { typographyStyles: [] });
+  const styleOptions = listPresentationTextStyles(presentation ?? { textStyles: [] });
   const fundamentalLabels: Record<string, string> = {
     title: t("inspector.titleField"),
     subtitle: t("inspector.subtitle"),
@@ -203,10 +203,10 @@ export function TextInspector({
     ? selectedStyle.name
     : fundamentalLabels[element.variant] ?? element.variant;
 
-  function attachTypographyStyle(variant: TextInspectorElement["variant"]) {
+  function attachTextStyle(variant: TextInspectorElement["variant"]) {
     onUpdate((current) => {
       if (current.type !== "text") return current;
-      const { typographyDetached: _detached, typography: _previousTypography, ...attached } = current;
+      const { styleDetached: _detached, typography: _previousTypography, ...attached } = current;
       const typography = stripLocalTypographyStyleProperties(current.typography);
       return {
         ...attached,
@@ -501,7 +501,7 @@ export function TextInspector({
             id="text-variant"
             name="textVariant"
             value={element.variant}
-            onChange={(event) => attachTypographyStyle(event.target.value as TextInspectorElement["variant"])}
+            onChange={(event) => attachTextStyle(event.target.value as TextInspectorElement["variant"])}
           >
             {styleOptions.map(({ id, style }) => (
               <option key={id} value={id}>
@@ -513,16 +513,16 @@ export function TextInspector({
 
         <div className={styles.colorLinkedStatus} role="status">
           <span>
-            {element.typographyDetached
+            {element.styleDetached
               ? `${t("inspector.localTypography")} · ${selectedStyleName}`
               : `${t("inspector.linkedTypography")} · ${selectedStyleName}`}
           </span>
-          {element.typographyDetached && (
-            <button type="button" onClick={() => attachTypographyStyle(element.variant)}>
+          {element.styleDetached && (
+            <button type="button" onClick={() => attachTextStyle(element.variant)}>
               {t("inspector.attachTypography")}
             </button>
           )}
-          {!element.typographyDetached && presentation && (
+          {!element.styleDetached && presentation && (
             <button
               type="button"
               onClick={() => onUpdate((current) => current.type === "text"

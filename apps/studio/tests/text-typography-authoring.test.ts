@@ -10,13 +10,13 @@ import {
   resolveEffectiveTextTypographyForAuthoring,
 } from "../src/features/editor/text-typography-authoring";
 
-function presentation(typographyStyles?: unknown[]) {
+function presentation(textStyles?: unknown[]) {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "presentation",
     title: "Presentation",
     slides: [{ id: "slide", elements: [] }],
-    ...(typographyStyles === undefined ? {} : { typographyStyles }),
+    ...(textStyles === undefined ? {} : { textStyles }),
   });
 }
 
@@ -111,7 +111,7 @@ describe("effective text typography for authoring", () => {
       presentation([
         { id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } },
       ]),
-      text({ variant: "body", typographyDetached: true, typography: { fontSize: 22 } }),
+      text({ variant: "body", styleDetached: true, typography: { fontSize: 22 } }),
     );
 
     expect(resolved).toMatchObject({
@@ -178,7 +178,7 @@ describe("effective text typography for authoring", () => {
   it("preserves element-only typography while adding the role baseline", () => {
     const resolved = resolveEffectiveTextTypographyForAuthoring(
       presentation([
-        { id: "quote", name: "Quote", role: "body", typography: {} },
+        { id: "quote", name: "Quote", role: "body" },
       ]),
       text({
         variant: "quote",
@@ -209,7 +209,7 @@ describe("detach text typography style", () => {
 
     expect(detached).toMatchObject({
       variant: "body",
-      typographyDetached: true,
+      styleDetached: true,
       typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500, lineHeight: 1.6 },
     });
   });
@@ -250,12 +250,12 @@ describe("detach text typography style", () => {
 
     expect(detached).toMatchObject({
       variant: "body",
-      typographyDetached: true,
+      styleDetached: true,
       typography: { fontFamily: "Fira Code", fontStyle: "italic", fontSize: 24, fontWeight: 400 },
     });
     expect(detached.typography).not.toHaveProperty("fontWeight", 700);
     expect(PresentationSchema.parse({ ...source, slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
-    expect(PresentationSchema.parse({ ...source, typographyStyles: source.typographyStyles?.filter((style) => style.id !== "quote"), slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
+    expect(PresentationSchema.parse({ ...source, textStyles: source.textStyles?.filter((style) => style.id !== "quote"), slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
   });
 
   it("does not mutate the source Text, Presentation, or Style definition", () => {

@@ -23,14 +23,14 @@ function text(overrides: Record<string, unknown> = {}) {
 
 function presentation(
   element: ReturnType<typeof text>,
-  typographyStyles?: unknown[],
+  textStyles?: unknown[],
 ) {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "presentation",
     title: "Typography lifecycle",
     slides: [{ id: "slide", elements: [element] }],
-    ...(typographyStyles === undefined ? {} : { typographyStyles }),
+    ...(textStyles === undefined ? {} : { textStyles }),
   });
 }
 
@@ -46,7 +46,7 @@ function jsonRoundTrip(presentationValue: ReturnType<typeof presentation>) {
   return PresentationSchema.parse(JSON.parse(JSON.stringify(presentationValue)));
 }
 
-describe("Typography Style canonical lifecycle", () => {
+describe("Text Style canonical lifecycle", () => {
   it("propagates attached fundamental changes, preserves local overrides, and detaches canonically", () => {
     const attachedText = text({
       variant: "body",
@@ -69,7 +69,7 @@ describe("Typography Style canonical lifecycle", () => {
       fontSize: 22,
       fontWeight: 400,
     });
-    expect(attachedText).not.toHaveProperty("typographyDetached");
+    expect(attachedText).not.toHaveProperty("styleDetached");
     expect(resolveTextTypography(presentationB, attachedText).typography).toMatchObject({
       fontFamily: "Roboto",
       fontSize: 22,
@@ -90,7 +90,7 @@ describe("Typography Style canonical lifecycle", () => {
     const detachedText = detachTextTypographyStyle(presentationB, attachedText);
     expect(detachedText).toMatchObject({
       variant: "body",
-      typographyDetached: true,
+      styleDetached: true,
       typography: {
         fontFamily: "Roboto",
         fontSize: 22,
@@ -101,12 +101,12 @@ describe("Typography Style canonical lifecycle", () => {
     });
     expect(detachedText.typography).toHaveProperty("textStroke", { width: 1, color: "#000000" });
 
-    const detachedPresentation = presentation(detachedText, presentationB.typographyStyles);
+    const detachedPresentation = presentation(detachedText, presentationB.textStyles);
     const reloaded = jsonRoundTrip(detachedPresentation);
     const reloadedText = firstText(reloaded);
     expect(reloaded.schemaVersion).toBe(1);
     expect(reloadedText).toEqual(detachedText);
-    expect(reloadedText.typographyDetached).toBe(true);
+    expect(reloadedText.styleDetached).toBe(true);
 
     const detachedHtml = renderPresentation(reloaded);
     expect(detachedHtml).toContain("font-family:&quot;Roboto&quot;");
@@ -115,7 +115,7 @@ describe("Typography Style canonical lifecycle", () => {
 
     const changedAfterDetach = PresentationSchema.parse({
       ...reloaded,
-      typographyStyles: [{ id: "body", typography: { fontFamily: "Another Family", fontSize: 30, fontWeight: 700 } }],
+      textStyles: [{ id: "body", typography: { fontFamily: "Another Family", fontSize: 30, fontWeight: 700 } }],
     });
     const changedHtml = renderPresentation(changedAfterDetach);
     expect(changedHtml).toContain("font-family:&quot;Roboto&quot;");
@@ -155,7 +155,7 @@ describe("Typography Style canonical lifecycle", () => {
     const detached = detachTextTypographyStyle(source, original);
     expect(detached).toMatchObject({
       variant: "body",
-      typographyDetached: true,
+      styleDetached: true,
       typography: {
         fontFamily: "Fira Code",
         fontStyle: "italic",
@@ -167,12 +167,12 @@ describe("Typography Style canonical lifecycle", () => {
     expect(source).toEqual(sourceSnapshot);
     expect(original).toEqual(firstText(source));
 
-    const detachedPresentation = presentation(detached, source.typographyStyles);
+    const detachedPresentation = presentation(detached, source.textStyles);
     const withoutCustomStyle = PresentationSchema.parse({
       ...detachedPresentation,
-      typographyStyles: detachedPresentation.typographyStyles?.filter((style) => style.id !== "quote"),
+      textStyles: detachedPresentation.textStyles?.filter((style) => style.id !== "quote"),
     });
-    expect(withoutCustomStyle.typographyStyles).toEqual([
+    expect(withoutCustomStyle.textStyles).toEqual([
       { id: "body", typography: { fontFamily: "Inter", fontWeight: 700 } },
     ]);
     const detachedHtml = renderPresentation(withoutCustomStyle);
@@ -189,7 +189,7 @@ describe("Typography Style canonical lifecycle", () => {
       text({ variant: "body" }),
     );
 
-    expect(detached.typographyDetached).toBe(true);
+    expect(detached.styleDetached).toBe(true);
     expect(detached.typography).not.toHaveProperty("fontFamily");
 
     const reloaded = jsonRoundTrip(presentation(detached));
