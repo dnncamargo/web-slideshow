@@ -53,7 +53,21 @@ describe("PowerShow Player", () => {
     const presentation = PresentationSchema.parse({
       ...playerTestPresentation,
       id: "player-text-styles",
-      textStyles: [{ id: "body", typography: { fontFamily: "Fira Code", fontSize: 32 } }],
+      palette: {
+        colors: [
+          { id: "primary", name: "Primary", value: "#ff0000" },
+          { id: "outline", name: "Outline", value: "#0000ff" },
+        ],
+      },
+      textStyles: [{
+        id: "body",
+        style: { color: { kind: "palette", colorId: "primary" } },
+        typography: {
+          fontFamily: "Fira Code",
+          fontSize: 32,
+          textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } },
+        },
+      }],
       slides: [{
         id: "typography-slide",
         elements: [{ type: "text", id: "styled-text", variant: "body", content: "Styled text" }],
@@ -65,6 +79,8 @@ describe("PowerShow Player", () => {
     const styledText = root.querySelector<HTMLElement>("[data-powershow-id='styled-text']");
     expect(styledText?.getAttribute("style")).toContain('font-family:"Fira Code"');
     expect(styledText?.getAttribute("style")).toContain("font-size:32px");
+    expect(styledText?.getAttribute("style")).toContain("color:var(--ps-palette-007000720069006d006100720079)");
+    expect(styledText?.getAttribute("style")).toContain("-webkit-text-stroke:2px var(--ps-palette-006f00750074006c0069006e0065)");
 
     player.destroy();
     const locallyOverridden = PresentationSchema.parse({

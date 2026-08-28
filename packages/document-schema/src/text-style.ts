@@ -37,6 +37,14 @@ export const FundamentalTextStyleOverrideSchema = z
     typography: TextStyleTypographyPropertiesSchema.optional(),
   })
   .strict()
+  .superRefine((style, context) => {
+    if (style.style !== undefined && Object.values(style.style).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["style"], message: "Fundamental text style style cannot be empty." });
+    }
+    if (style.typography !== undefined && Object.values(style.typography).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["typography"], message: "Fundamental text style typography cannot be empty." });
+    }
+  })
   .refine((style) => Object.values(style.style ?? {}).some((value) => value !== undefined) || Object.values(style.typography ?? {}).some((value) => value !== undefined), {
     message: "Fundamental text style override cannot be empty.",
   });

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   TextElementSchema,
+  resolveTextStyle,
 } from "@powershow/document-schema";
 
 import {
@@ -10,13 +11,14 @@ import {
   resolveEffectiveTextStyleForAuthoring,
 } from "../src/features/editor/text-typography-authoring";
 
-function presentation(textStyles?: unknown[]) {
+function presentation(textStyles?: unknown[], palette?: unknown) {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "presentation",
     title: "Presentation",
     slides: [{ id: "slide", elements: [] }],
     ...(textStyles === undefined ? {} : { textStyles }),
+    ...(palette === undefined ? {} : { palette }),
   });
 }
 
@@ -256,6 +258,36 @@ describe("detach text typography style", () => {
     expect(detached.typography).not.toHaveProperty("fontWeight", 700);
     expect(PresentationSchema.parse({ ...source, slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
     expect(PresentationSchema.parse({ ...source, textStyles: source.textStyles?.filter((style) => style.id !== "quote"), slides: [{ id: "slide", elements: [detached] }] })).toBeDefined();
+  });
+
+  it("detaches Style-sourced appearance without resolving Palette references", () => {
+    const source = presentation([{
+        id: "quote",
+        name: "Quote",
+        role: "body",
+        style: { color: { kind: "palette", colorId: "primary" } },
+        typography: {
+          textDecorationColor: { kind: "palette", colorId: "accent" },
+          textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } },
+        },
+      }], { colors: [
+        { id: "primary", name: "Primary", value: "#ff0000" },
+        { id: "accent", name: "Accent", value: "#00ff00" },
+        { id: "outline", name: "Outline", value: "#0000ff" },
+      ] });
+    const detached = detachTextStyle(source, text({ variant: "quote" }));
+
+    expect(detached.style?.color).toEqual({ kind: "palette", colorId: "primary" });
+    expect(detached.typography?.textDecorationColor).toEqual({ kind: "palette", colorId: "accent" });
+    expect(detached.typography?.textStroke?.color).toEqual({ kind: "palette", colorId: "outline" });
+
+    const changed = PresentationSchema.parse({
+      ...source,
+      textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" } }],
+      slides: [{ id: "slide", elements: [detached] }],
+    });
+    expect(resolveTextStyle(changed, detached).style.color).toEqual({ kind: "palette", colorId: "primary" });
+    expect(resolveTextStyle(changed, detached).typography.textStroke?.color).toEqual({ kind: "palette", colorId: "outline" });
   });
 
   it("does not mutate the source Text, Presentation, or Style definition", () => {

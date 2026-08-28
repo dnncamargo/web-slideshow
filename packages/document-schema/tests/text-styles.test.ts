@@ -73,6 +73,22 @@ describe("Text Styles canonical definitions", () => {
     expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: { background: {} } }).success).toBe(false);
   });
 
+  it("rejects every persisted fundamental empty-bag combination", () => {
+    for (const value of [
+      { id: "body", style: {} },
+      { id: "body", typography: {} },
+      { id: "body", style: {}, typography: { fontFamily: "Inter" } },
+      { id: "body", style: { color: "#ff0000" }, typography: {} },
+    ]) {
+      expect(FundamentalTextStyleOverrideSchema.safeParse(value).success).toBe(false);
+    }
+    expect(FundamentalTextStyleOverrideSchema.safeParse({
+      id: "body",
+      style: { color: "#ff0000" },
+      typography: { textDecorationLine: "underline" },
+    }).success).toBe(true);
+  });
+
   it("rejects empty fundamental overrides and extra fields", () => {
     expect(
       FundamentalTextStyleOverrideSchema.safeParse({

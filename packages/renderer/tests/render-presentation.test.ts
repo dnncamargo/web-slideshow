@@ -101,6 +101,40 @@ describe("renderPresentation", () => {
     expect(html).not.toContain('font-family:&quot;Inter&quot;');
   });
 
+  it("renders attached Text Style appearance through canonical Palette variables", () => {
+    const presentation = createPresentationFixture({
+      palette: {
+        colors: [
+          { id: "primary", name: "Primary", value: "#ff0000" },
+          { id: "outline", name: "Outline", value: "#0000ff" },
+        ],
+      },
+      textStyles: [{
+        id: "body",
+        style: { color: { kind: "palette", colorId: "primary" } },
+        typography: {
+          textDecorationLine: "underline",
+          textDecorationColor: { kind: "palette", colorId: "primary" },
+          textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } },
+        },
+      }],
+      slides: [createSlide({
+        elements: [createTextElement({
+          variant: "body",
+          style: { color: "#00ff00" },
+          content: "Styled",
+        })],
+      })],
+    });
+
+    const html = renderPresentation(presentation);
+    expect(html).toContain("color:#00ff00");
+    expect(html).toContain("text-decoration-line:underline");
+    expect(html).toContain("text-decoration-color:var(--ps-palette-007000720069006d006100720079)");
+    expect(html).toContain("-webkit-text-stroke:2px var(--ps-palette-006f00750074006c0069006e0065)");
+    expect(html).not.toContain("color:#ff0000");
+  });
+
   it("renders the presentation wrapper", () => {
     const html = renderPresentation(
       createPresentation(),
