@@ -208,3 +208,9 @@ describe("Typography Styles canonical definitions", () => {
     expect(resolved.typography).not.toHaveProperty("fontFamily");
   });
 });
+
+describe("effectively empty fundamental overrides", () => {
+  it("rejects undefined-only typography", () => {
+    expect(FundamentalTypographyStyleOverrideSchema.safeParse({ id: "body", typography: { fontFamily: undefined } }).success).toBe(false);
+  });
+});

@@ -5,12 +5,16 @@ import {
   TypographyStylePropertiesSchema,
 } from "./element-properties";
 
-export const FundamentalTypographyStyleIdSchema = z.enum([
+export const FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS = [
   "title",
   "subtitle",
   "body",
   "caption",
-]);
+] as const;
+
+export const FundamentalTypographyStyleIdSchema = z.enum(
+  FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS,
+);
 
 export type FundamentalTypographyStyleId = z.infer<
   typeof FundamentalTypographyStyleIdSchema
@@ -28,7 +32,7 @@ export const FundamentalTypographyStyleOverrideSchema = z
   .object({
     id: FundamentalTypographyStyleIdSchema,
     typography: TypographyStylePropertiesSchema.refine(
-      (typography) => Object.keys(typography).length > 0,
+      (typography) => Object.values(typography).some((value) => value !== undefined),
       { message: "Fundamental typography override cannot be empty." },
     ),
   })
