@@ -125,12 +125,12 @@ function quoteStyle(): unknown {
   };
 }
 
-function customText(id: string, typography?: unknown): unknown {
+function customText(id: string, typography?: unknown, variant = "quote"): unknown {
   return {
     type: "text",
     id,
     hidden: false,
-    variant: "quote",
+    variant,
     content: id,
     ...(typography === undefined ? {} : { typography }),
   };
@@ -189,6 +189,89 @@ describe("presentation recovery analysis", () => {
     expect(analysis.issues).toContainEqual(expect.objectContaining({ id: "bad", reason: RECOVERY_REASON.invalidElement }));
     expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
   });
+
+  it("prunes unresolved custom Text from canonical Topics content", () => {
+    const topics = {
+      id: "topics-typography",
+      type: "topics",
+      hidden: false,
+      kind: "unordered",
+      items: [{
+        id: "topic-1",
+        content: {
+          id: "topic-slot-1",
+          children: [validText("topic-kept"), customText("topic-missing", undefined, "missing-topic-style")],
+        },
+        children: [],
+      }],
+    };
+    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+      [validSlide("slide-1", [topics])],
+      [quoteStyle()],
+    ));
+
+    expect(analysis.status).toBe("recoverable");
+    const recovered = analysis.presentation?.slides[0]?.elements[0];
+    expect(recovered?.type).toBe("topics");
+    if (recovered?.type === "topics") {
+      expect(recovered.items[0]?.content.children.map((element) => element.id)).toEqual(["topic-kept"]);
+    }
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("prunes unresolved custom Text from a structured Table content slot", () => {
+    const table = {
+      id: "table-typography",
+      type: "table",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      columns: [{
+        id: "column-1",
+        header: {
+          id: "header-1",
+          children: [validText("header-kept"), customText("header-missing", undefined, "missing-header-style")],
+        },
+      }],
+      rows: [{
+        id: "row-1",
+        cells: [{ id: "cell-1", children: [validText("cell-kept")] }],
+      }],
+    };
+    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+      [validSlide("slide-1", [table])],
+      [quoteStyle()],
+    ));
+
+    expect(analysis.status).toBe("recoverable");
+    const recovered = analysis.presentation?.slides[0]?.elements[0];
+    expect(recovered?.type).toBe("table");
+    if (recovered?.type === "table" && recovered.mode === "structured") {
+      expect(recovered.columns[0]?.header.children.map((element) => element.id)).toEqual(["header-kept"]);
+      expect(recovered.rows[0]?.cells[0]?.children.map((element) => element.id)).toEqual(["cell-kept"]);
+    }
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("preserves a fundamental independent Text with a Presentation override", () => {
+    const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
+      [validSlide("slide-1", [{
+        type: "text",
+        id: "independent",
+        hidden: false,
+        variant: "body",
+        content: "Independent",
+        typography: { fontFamily: "Fira Code" },
+      }])],
+      [{ id: "body", typography: { fontFamily: "Inter" } }],
+    ));
+
+    expect(analysis.status).toBe("valid");
+    const recovered = analysis.presentation?.slides[0]?.elements[0];
+    expect(recovered).toMatchObject({ variant: "body", typography: { fontFamily: "Fira Code" } });
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
   it("classifies a valid presentation as valid with no issues", () => {
     const raw = rawWithSlides([
       validSlide("slide-1", [validText("text-1")]),
