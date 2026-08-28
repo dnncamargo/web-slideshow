@@ -21,7 +21,7 @@ import { EffectiveLengthInput } from "./effective-length-input";
 interface ElementTypographyControlProps {
   typography?: ElementTypography | undefined;
 
-  effectiveDefaults: ThemeTypographyDefaults;
+  effectiveDefaults: ThemeTypographyDefaults & Partial<ElementTypography>;
 
   onUpdateTypography?: UpdateElementTypography;
 
@@ -181,12 +181,14 @@ export function ElementTypographyFields({
     onUpdateTypography?.(update);
   }
 
-  const fontWeightSelection = readFontWeightSelection(currentTypography?.fontWeight);
+  const fontWeightSelection = readFontWeightSelection(
+    currentTypography?.fontWeight ?? effectiveDefaults.fontWeight,
+  );
 
   const showUncuratedFontWeight =
-    currentTypography?.fontWeight !== undefined &&
-    !isCuratedFontWeight(currentTypography.fontWeight);
-  const currentFontFamily = currentTypography?.fontFamily ?? "";
+    (currentTypography?.fontWeight ?? effectiveDefaults.fontWeight) !== undefined &&
+    !isCuratedFontWeight(currentTypography?.fontWeight ?? effectiveDefaults.fontWeight ?? 400);
+  const currentFontFamily = currentTypography?.fontFamily ?? effectiveDefaults.fontFamily ?? "";
   const showUnregisteredFontFamily =
     currentFontFamily !== "" &&
     !fontResources.some(
@@ -313,7 +315,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-font-style`}
             name={getControlName(controlPrefix, "FontStyle")}
-            value={currentTypography?.fontStyle ?? ""}
+            value={currentTypography?.fontStyle ?? effectiveDefaults.fontStyle ?? ""}
             onChange={(event) => {
               const fontStyle = parseFontStyleSelection(event.target.value);
 
@@ -338,7 +340,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-align`}
             name={getControlName(controlPrefix, "TextAlign")}
-            value={currentTypography?.textAlign ?? ""}
+            value={currentTypography?.textAlign ?? effectiveDefaults.textAlign ?? ""}
             onChange={(event) => {
               const textAlign = parseTextAlignSelection(event.target.value);
 
@@ -436,7 +438,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-transform`}
             name={getControlName(controlPrefix, "TextTransform")}
-            value={currentTypography?.textTransform ?? "none"}
+            value={currentTypography?.textTransform ?? effectiveDefaults.textTransform ?? "none"}
             onChange={(event) => {
               const textTransform = parseTextTransformSelection(
                 event.target.value,
@@ -471,7 +473,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-white-space`}
             name={getControlName(controlPrefix, "WhiteSpace")}
-            value={currentTypography?.whiteSpace ?? "normal"}
+            value={currentTypography?.whiteSpace ?? effectiveDefaults.whiteSpace ?? "normal"}
             onChange={(event) => {
               const whiteSpace = parseWhiteSpaceSelection(event.target.value);
 
@@ -502,7 +504,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-wrap-style`}
             name={getControlName(controlPrefix, "TextWrapStyle")}
-            value={currentTypography?.textWrapStyle ?? "auto"}
+            value={currentTypography?.textWrapStyle ?? effectiveDefaults.textWrapStyle ?? "auto"}
             onChange={(event) => {
               const textWrapStyle = parseTextWrapStyleSelection(
                 event.target.value,
@@ -529,7 +531,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-overflow-wrap`}
             name={getControlName(controlPrefix, "OverflowWrap")}
-            value={currentTypography?.overflowWrap ?? "normal"}
+            value={currentTypography?.overflowWrap ?? effectiveDefaults.overflowWrap ?? "normal"}
             onChange={(event) => {
               const overflowWrap = parseOverflowWrapSelection(
                 event.target.value,
@@ -562,7 +564,7 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-decoration-line`}
             name={getControlName(controlPrefix, "TextDecorationLine")}
-            value={currentTypography?.textDecorationLine ?? "none"}
+            value={currentTypography?.textDecorationLine ?? effectiveDefaults.textDecorationLine ?? "none"}
             onChange={(event) => {
               const textDecorationLine = parseTextDecorationLineSelection(
                 event.target.value,

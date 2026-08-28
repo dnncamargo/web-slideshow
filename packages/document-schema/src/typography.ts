@@ -85,7 +85,7 @@ export const TypographyStylesSchema = z
 
 export type TypographyStyles = z.infer<typeof TypographyStylesSchema>;
 
-const LocalTypographyStylePropertyNames = [
+export const TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES = [
   "fontFamily",
   "fontSize",
   "fontWeight",
@@ -100,10 +100,27 @@ const LocalTypographyStylePropertyNames = [
   "textDecorationLine",
 ] as const satisfies readonly (keyof ElementTypography)[];
 
+export function stripLocalTypographyStyleProperties(
+  typography: ElementTypography | undefined,
+): ElementTypography | undefined {
+  if (typography === undefined) return undefined;
+
+  const stripped = Object.fromEntries(
+    Object.entries(typography).filter(
+      ([property, value]) =>
+        !TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES.includes(
+          property as (typeof TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES)[number],
+        ) && value !== undefined,
+    ),
+  ) as ElementTypography;
+
+  return Object.keys(stripped).length > 0 ? stripped : undefined;
+}
+
 export function hasLocalTypographyStyleProperties(
   typography: ElementTypography | undefined,
 ): boolean {
-  return typography !== undefined && LocalTypographyStylePropertyNames.some(
+  return typography !== undefined && TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES.some(
     (property) => typography[property] !== undefined,
   );
 }

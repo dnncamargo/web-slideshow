@@ -3577,6 +3577,7 @@ export function EditorWorkspace({
                             if (id) setFocalEditingImageId(null);
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
+                          presentation={presentation}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition

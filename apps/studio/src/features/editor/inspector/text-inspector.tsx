@@ -6,11 +6,15 @@ import {
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
+  stripLocalTypographyStyleProperties,
 } from "@powershow/document-schema";
 import { useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+import {
+  convertAuthoringLength,
+  resolveEffectiveElementStyleDefaults,
+} from "@powershow/theme/element-style-defaults";
 
 import styles from "../editor-workspace.module.css";
 
@@ -50,6 +54,8 @@ import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-s
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { usePresentationColorPalette } from "./sections/presentation-color-palette";
+import { resolveEffectiveTextTypographyForAuthoring } from "../text-typography-authoring";
+import { listPresentationTypographyStyles } from "../typography-style-helpers";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
 
@@ -114,6 +120,7 @@ export function TextInspector({
   element,
   onUpdate,
   fontResources,
+  presentation,
   parent = null,
   layerControls = null,
 }: TypographyInspectorProps<TextInspectorElement> & {
@@ -169,7 +176,42 @@ export function TextInspector({
     onUpdate((current) => current.type === "text" ? { ...current, effect: update(current.effect) } : current);
   };
 
-  const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
+  const effectiveTypography = presentation
+    ? resolveEffectiveTextTypographyForAuthoring(presentation, element).typography
+    : undefined;
+  const themeTypographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
+  const typographyDefaults = effectiveTypography
+    ? {
+        ...effectiveTypography,
+        fontSize: convertAuthoringLength(effectiveTypography.fontSize ?? themeTypographyDefaults?.fontSize ?? 18, "px") ?? themeTypographyDefaults?.fontSize ?? 18,
+        lineHeight: typeof effectiveTypography.lineHeight === "number" ? effectiveTypography.lineHeight : themeTypographyDefaults?.lineHeight ?? 1.5,
+        letterSpacing: convertAuthoringLength(effectiveTypography.letterSpacing ?? themeTypographyDefaults?.letterSpacing ?? 0, "px") ?? themeTypographyDefaults?.letterSpacing ?? 0,
+      }
+    : themeTypographyDefaults;
+  const styleOptions = listPresentationTypographyStyles(presentation ?? { typographyStyles: [] });
+  const fundamentalLabels: Record<string, string> = {
+    title: t("inspector.titleField"),
+    subtitle: t("inspector.subtitle"),
+    body: t("inspector.body"),
+    caption: t("inspector.caption"),
+  };
+  const selectedStyle = styleOptions.find(({ id }) => id === element.variant)?.style;
+  const selectedStyleName = selectedStyle && "name" in selectedStyle
+    ? selectedStyle.name
+    : fundamentalLabels[element.variant] ?? element.variant;
+
+  function attachTypographyStyle(variant: TextInspectorElement["variant"]) {
+    onUpdate((current) => {
+      if (current.type !== "text") return current;
+      const { typographyDetached: _detached, ...attached } = current;
+      const typography = stripLocalTypographyStyleProperties(current.typography);
+      return {
+        ...attached,
+        variant,
+        ...(typography === undefined ? {} : { typography }),
+      };
+    });
+  }
 
   function updateTextElementContent(
     update: (content: TextElement["content"]) => TextElement["content"],
@@ -456,24 +498,28 @@ export function TextInspector({
             id="text-variant"
             name="textVariant"
             value={element.variant}
-            onChange={(event) => {
-              const variant = event.target.value as TextInspectorElement["variant"];
-
-              onUpdate((current) => {
-                if (current.type !== "text") {
-                  return current;
-                }
-
-                return { ...current, variant };
-              });
-            }}
+            onChange={(event) => attachTypographyStyle(event.target.value as TextInspectorElement["variant"])}
           >
-            <option value="title">{t("inspector.titleField")}</option>
-            <option value="subtitle">{t("inspector.subtitle")}</option>
-            <option value="body">{t("inspector.body")}</option>
-            <option value="caption">{t("inspector.caption")}</option>
+            {styleOptions.map(({ id, style }) => (
+              <option key={id} value={id}>
+                {style && "name" in style ? style.name : fundamentalLabels[id] ?? id}
+              </option>
+            ))}
           </select>
         </label>
+
+        <div className={styles.colorLinkedStatus} role="status">
+          <span>
+            {element.typographyDetached
+              ? `${t("inspector.localTypography")} · ${selectedStyleName}`
+              : `${t("inspector.linkedTypography")} · ${selectedStyleName}`}
+          </span>
+          {element.typographyDetached && (
+            <button type="button" onClick={() => attachTypographyStyle(element.variant)}>
+              {t("inspector.attachTypography")}
+            </button>
+          )}
+        </div>
 
         {typographyDefaults && (
           <ElementTypographyFields

@@ -4,6 +4,7 @@ import {
   CustomTypographyStyleSchema,
   FundamentalTypographyStyleOverrideSchema,
   hasLocalTypographyStyleProperties,
+  stripLocalTypographyStyleProperties,
   PresentationSchema,
   TypographyStylePropertiesSchema,
   TypographyStylesSchema,
@@ -208,6 +209,22 @@ describe("Typography Styles canonical definitions", () => {
     const resolved = resolveTextTypography(custom, custom.slides[0]!.elements[0] as Extract<typeof custom.slides[0]['elements'][number], { type: 'text' }>);
     expect(resolved).toMatchObject({ role: "body", typography: { fontStyle: "italic", fontSize: 24, textDecorationColor: "#ffffff" } });
     expect(resolved.typography).not.toHaveProperty("fontFamily");
+  });
+});
+
+describe("local typography style properties", () => {
+  it("strips only V1 style fields and preserves element-only fields", () => {
+    expect(stripLocalTypographyStyleProperties({
+      fontSize: 22,
+      fontWeight: 700,
+      textStroke: { width: 1, color: "#ffffff" },
+      textDecorationColor: "#ff0000",
+    })).toEqual({
+      textStroke: { width: 1, color: "#ffffff" },
+      textDecorationColor: "#ff0000",
+    });
+    expect(stripLocalTypographyStyleProperties({ fontSize: 22 })).toBeUndefined();
+    expect(stripLocalTypographyStyleProperties(undefined)).toBeUndefined();
   });
 });
 

@@ -1,4 +1,4 @@
-import type { ContainerElement, FontResource, PowerShowElement } from "@powershow/document-schema";
+import type { ContainerElement, FontResource, PowerShowElement, Presentation } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
@@ -36,6 +36,8 @@ interface ElementInspectorProps {
   onUpdate: ElementInspectorUpdate;
 
   fontResources: readonly FontResource[];
+
+  presentation?: Presentation;
 
   preserveImageProportion: boolean;
 
@@ -76,6 +78,7 @@ function ElementTypeInspector({
   element,
   onUpdate,
   fontResources,
+  presentation,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -106,6 +109,7 @@ function ElementTypeInspector({
           element={element}
           onUpdate={onUpdate}
           fontResources={fontResources}
+          presentation={presentation}
           parent={parent}
           layerControls={layerControls}
         />
@@ -209,6 +213,7 @@ export function ElementInspector({
   element,
   onUpdate,
   fontResources,
+  presentation,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -251,6 +256,7 @@ export function ElementInspector({
         element={element}
         onUpdate={onUpdate}
         fontResources={fontResources}
+        presentation={presentation}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditingImageId={focalEditingImageId}
