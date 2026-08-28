@@ -203,7 +203,7 @@ export function TextInspector({
   function attachTypographyStyle(variant: TextInspectorElement["variant"]) {
     onUpdate((current) => {
       if (current.type !== "text") return current;
-      const { typographyDetached: _detached, ...attached } = current;
+      const { typographyDetached: _detached, typography: _previousTypography, ...attached } = current;
       const typography = stripLocalTypographyStyleProperties(current.typography);
       return {
         ...attached,
