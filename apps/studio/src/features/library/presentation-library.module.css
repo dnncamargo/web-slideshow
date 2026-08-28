@@ -297,14 +297,17 @@
   min-width: 0;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .toolbarContext {
   display: flex;
+  max-width: 100%;
   min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .toolbarSelection {
