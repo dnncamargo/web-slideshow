@@ -109,6 +109,8 @@ describe("EditorWorkspace Text Styles rendering", () => {
     });
 
     expect(canvasText()?.getAttribute("style")).toContain('font-family:"Fira Code"');
+    expect(container.querySelectorAll("[data-powershow-font-resources]")).toHaveLength(1);
+    expect(container.querySelector("[data-text-style-preview='body'] .powershow-text")?.getAttribute("style")).toContain('font-family:"Fira Code"');
     expect(initial).toEqual(before);
     expect(container.querySelector<HTMLElement>("[data-powershow-id='body-text']")?.getAttribute("style")).not.toContain("font-size");
 

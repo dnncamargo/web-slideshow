@@ -1,7 +1,7 @@
 "use client";
 
 import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke } from "@powershow/document-schema";
-import { paletteColorCssVariableName, renderElement, renderFontResources } from "@powershow/renderer";
+import { paletteColorCssVariableName, renderElement } from "@powershow/renderer";
 import { resolveThemeTextTypographyBaseline, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -18,6 +18,7 @@ import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "@/features
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
+import { readAbsoluteNumber } from "../inspector/inspector-helpers";
 import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
 import { ColorControl } from "../inspector/sections/color-control";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
@@ -299,14 +300,9 @@ function TextStyleRow({ id, label, status, editing, style, presentation, fonts, 
   const role = fundamental ? id as TextStyleRole : (style && "role" in style ? style.role : "body");
   const typography = style?.typography;
   const visual = style?.style;
-  const previewText: TextElement = {
-    id: `text-style-preview-${id}`,
-    type: "text",
-    hidden: false,
-    variant: presentation ? id : role,
-    content: "Aa",
-    ...(presentation ? { typography } : { typography: { ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role], ...typography } }),
-  };
+  const previewText: TextElement = presentation
+    ? { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: id, content: "Aa" }
+    : { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: role, content: "Aa", typography: { ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role], ...typography } };
   const editorId = `text-style-${id}-editor`;
   const authoredProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => typography?.[property] !== undefined);
   const appearanceProperties = [
@@ -391,7 +387,6 @@ function TextStyleRow({ id, label, status, editing, style, presentation, fonts, 
         style={presentation ? Object.fromEntries((presentation.palette?.colors ?? []).map((color) => [paletteColorCssVariableName(color.id), color.value])) : undefined}
         dangerouslySetInnerHTML={{ __html: renderElement(previewText, presentation ? { presentation } : undefined) }}
       />
-      {presentation && renderFontResources(presentation.resources?.fonts) ? <style data-powershow-font-resources>{renderFontResources(presentation.resources?.fonts)}</style> : null}
       {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdate?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdate?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       {authoredProperties.length === 0 && appearanceProperties.length === 0 && !pendingFontFamily ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
@@ -460,9 +455,9 @@ function PropertyChooser({ properties, appearanceProperties, fontsAvailable, onA
 
 function TextStyleStrokeFields({ id, stroke, pendingWidth, onWidthChange, onColorChange }: { id: string; stroke: TextStroke | undefined; pendingWidth: number | undefined; onWidthChange: (width: number) => void; onColorChange: (color: ColorValue) => void }) {
   const { t } = useStudioI18n();
-  const width = stroke?.width ?? pendingWidth ?? 1;
+  const width = readAbsoluteNumber(stroke?.width ?? pendingWidth);
   return <div className={styles.fieldGrid}>
-    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={styles.unitInput}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={typeof width === "number" ? width : 1} onChange={(event) => onWidthChange(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
+    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={styles.unitInput}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={width} onChange={(event) => onWidthChange(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
     <label className={styles.field}><span>{t("inspector.textStrokeColor")}</span><ColorControl id={`text-style-${id}-stroke-color`} name={t("inspector.textStrokeColor")} value={stroke?.color} onChange={onColorChange} /></label>
   </div>;
 }

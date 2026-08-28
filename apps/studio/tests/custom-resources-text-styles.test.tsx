@@ -3,6 +3,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type FontResource, type Presentation, type PresentationPaletteColor } from "@powershow/document-schema";
+import { paletteColorCssVariableName } from "@powershow/renderer";
 import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
@@ -440,6 +441,42 @@ describe("Custom Resources Text Styles", () => {
     expect(row("quote").querySelectorAll("[data-text-style-property]")).toHaveLength(4);
     await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Decoration color']")?.click());
     expect(presentationRef.current?.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 20, textStroke: { width: 2, color: "#333333" } } });
+  });
+
+  it("reads imported pixel stroke widths and preserves the canonical width during color edits", async () => {
+    const palette = [{ id: "outline", name: "Outline", value: "#111111" }] as const;
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), palette: { colors: [...palette] }, textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { textStroke: { width: "2px", color: { kind: "palette", colorId: "outline" } } } }] });
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef, palette);
+    await act(async () => disclosure("quote").click());
+
+    expect(requiredElement<HTMLInputElement>("#text-style-quote-stroke-width").value).toBe("2");
+    expect(presentationRef.current).toEqual(initial);
+    const strokeProperty = requiredElement<HTMLElement>("[data-text-style-property='textStroke']");
+    await act(async () => strokeProperty.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    await act(async () => strokeProperty.querySelector<HTMLButtonElement>("button[aria-pressed][aria-label*='Outline']")?.click());
+    expect(presentationRef.current?.textStyles?.[0]?.typography?.textStroke?.width).toBe("2px");
+
+    await act(async () => setInputValue(requiredElement<HTMLInputElement>("#text-style-quote-stroke-color-value"), "#222222"));
+    expect(presentationRef.current?.textStyles?.[0]?.typography?.textStroke?.width).toBe("2px");
+    await act(async () => setInputValue(requiredElement<HTMLInputElement>("#text-style-quote-stroke-width"), "3"));
+    expect(presentationRef.current?.textStyles?.[0]?.typography?.textStroke?.width).toBe(3);
+  });
+
+  it("resolves a presentation-aware custom preview through the canonical style and palette", async () => {
+    const palette = [{ id: "primary", name: "Primary", value: "#336699" }, { id: "outline", name: "Outline", value: "#111111" }] as const;
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), palette: { colors: [...palette] }, textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: { kind: "palette", colorId: "primary" } }, typography: { fontSize: 20, textDecorationLine: "underline", textDecorationColor: { kind: "palette", colorId: "outline" }, textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } } } }] });
+    await render(initial, undefined, palette);
+    await act(async () => disclosure("quote").click());
+
+    const preview = requiredElement<HTMLElement>("[data-text-style-preview='quote']");
+    const previewText = requiredElement<HTMLElement>("[data-text-style-preview='quote'] .powershow-text");
+    expect(previewText.className).toContain("powershow-text-body");
+    expect(previewText.getAttribute("style")).toContain("color:var(--ps-palette-");
+    expect(previewText.getAttribute("style")).toContain("text-decoration-color:var(--ps-palette-");
+    expect(previewText.getAttribute("style")).toContain("-webkit-text-stroke:2px var(--ps-palette-");
+    expect(preview.getAttribute("style")).toContain(`${paletteColorCssVariableName("primary")}: #336699`);
+    expect(preview.getAttribute("style")).toContain(`${paletteColorCssVariableName("outline")}: #111111`);
   });
 
   it("authors and removes Decoration color without changing core typography", async () => {
