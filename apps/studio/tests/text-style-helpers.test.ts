@@ -48,6 +48,20 @@ describe("presentation typography style authoring", () => {
     expect(updateCustomTextStyle(created, "quote", { name: "   ", role: "caption" }).textStyles?.[0]).toMatchObject({ id: "quote", name: "Quote", role: "caption" });
   });
 
+  it("clears the last custom typography property without removing identity", () => {
+    const created = addCustomTextStyle(base(), "Quote", "body");
+    const styled = updateCustomTextStyle(created, "quote", { typography: { fontFamily: "Inter" } });
+    expect(styled.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", typography: { fontFamily: "Inter" } });
+
+    const renamed = updateCustomTextStyle(styled, "quote", { name: "Block Quote" });
+    expect(renamed.textStyles?.[0]).toEqual({ id: "quote", name: "Block Quote", role: "body", typography: { fontFamily: "Inter" } });
+
+    const cleared = updateCustomTextStyle(renamed, "quote", { typography: { fontFamily: undefined } });
+    expect(cleared.textStyles?.[0]).toEqual({ id: "quote", name: "Block Quote", role: "body" });
+    expect(cleared.textStyles?.[0]).not.toHaveProperty("typography");
+    expect(PresentationSchema.safeParse(cleared).success).toBe(true);
+  });
+
   it.each(nestedUsageCases)("detects a used style in a nested %s", (_label, nestedElement) => {
     const presentation = PresentationSchema.parse({
       ...addCustomTextStyle(base(), "Quote", "body"),

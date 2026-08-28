@@ -284,6 +284,12 @@ describe("Custom Resources Text Styles", () => {
       quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", typography: { fontFamily: "Inter" } });
+    await act(async () => {
+      quoteFontSelect.value = "";
+      quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "quote", name: "Block Quote", role: "caption" }]);
+    expect(presentationRef.current?.textStyles?.[0]).not.toHaveProperty("typography");
     expect(row("quote").textContent).not.toContain("Edit");
   });
 

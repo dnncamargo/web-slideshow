@@ -95,15 +95,16 @@ export function updateCustomTextStyle(
 ): Presentation {
   return withTextStyles(presentation, (presentation.textStyles ?? []).map((style) => {
     if (style.id !== id || !("name" in style)) return style;
-    return {
+    const updated = {
       ...style,
       ...(patch.name === undefined || !patch.name.trim() ? {} : { name: patch.name.trim() }),
       ...(patch.role === undefined ? {} : { role: patch.role }),
-      ...(patch.typography === undefined ? {} : (() => {
-        const typography = normalizeTypographyStyleProperties(patch.typography);
-        return Object.keys(typography).length > 0 ? { typography } : {};
-      })()),
     };
+    if (patch.typography === undefined) return updated;
+    const typography = normalizeTypographyStyleProperties(patch.typography);
+    if (Object.keys(typography).length > 0) return { ...updated, typography };
+    const { typography: _removed, ...withoutTypography } = updated;
+    return withoutTypography;
   }));
 }
 
