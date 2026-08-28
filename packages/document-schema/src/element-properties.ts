@@ -250,6 +250,26 @@ export type TypographyStyleProperties = z.infer<
   typeof TypographyStylePropertiesSchema
 >;
 
+export const TextStyleTypographyPropertiesSchema = z
+  .object({
+    ...TypographyStyleFields,
+    textDecorationColor: ColorValueSchema.optional(),
+    textStroke: TextStrokeSchema.optional(),
+  })
+  .strict();
+
+export type TextStyleTypographyProperties = z.infer<
+  typeof TextStyleTypographyPropertiesSchema
+>;
+
+export const TextStyleVisualPropertiesSchema = z.object({
+  color: ColorValueSchema.optional(),
+}).strict();
+
+export type TextStyleVisualProperties = z.infer<
+  typeof TextStyleVisualPropertiesSchema
+>;
+
 export const ElementTypographySchema = z
   .object({
     ...TypographyStyleFields,

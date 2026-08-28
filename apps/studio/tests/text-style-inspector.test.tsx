@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   TextElementSchema,
-  stripLocalTypographyStyleProperties,
+  stripLocalTextStyleProperties,
   type Presentation,
   type TextElement,
 } from "@powershow/document-schema";
@@ -213,9 +213,10 @@ describe("Text Inspector typography style attachment", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    expect(current).toMatchObject({ variant: "quote", typography: { textDecorationColor: "#ff0000", textStroke: { width: 1, color: "#ffffff" } } });
-    expect(current.typography).not.toHaveProperty("fontSize");
-    expect(current.typography).not.toHaveProperty("fontWeight");
+    expect(current).toMatchObject({ variant: "quote" });
+    expect(current).not.toHaveProperty("typography");
+    expect(current).not.toHaveProperty("typography.fontSize");
+    expect(current).not.toHaveProperty("typography.fontWeight");
     expect(current).not.toHaveProperty("styleDetached");
 
     await act(async () => {
@@ -223,7 +224,8 @@ describe("Text Inspector typography style attachment", () => {
       select.value = "title";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(current).toMatchObject({ variant: "title", typography: { textDecorationColor: "#ff0000", textStroke: { width: 1, color: "#ffffff" } } });
+    expect(current).toMatchObject({ variant: "title" });
+    expect(current).not.toHaveProperty("typography");
     expect(current).not.toHaveProperty("styleDetached");
   });
 
@@ -254,14 +256,9 @@ describe("Text Inspector typography style attachment", () => {
     const attach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach");
     await act(async () => attach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
-    expect(current).toMatchObject({
-      variant: "body",
-      typography: {
-        textStroke: { width: 1, color: "#ffffff" },
-        textDecorationColor: "#ff0000",
-      },
-    });
-    expect(current.typography).not.toHaveProperty("fontSize");
+    expect(current).toMatchObject({ variant: "body" });
+    expect(current).not.toHaveProperty("typography");
+    expect(current).not.toHaveProperty("typography.fontSize");
     expect(current).not.toHaveProperty("styleDetached");
   });
 

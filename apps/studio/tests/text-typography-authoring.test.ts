@@ -6,8 +6,8 @@ import {
 } from "@powershow/document-schema";
 
 import {
-  detachTextTypographyStyle,
-  resolveEffectiveTextTypographyForAuthoring,
+  detachTextStyle,
+  resolveEffectiveTextStyleForAuthoring,
 } from "../src/features/editor/text-typography-authoring";
 
 function presentation(textStyles?: unknown[]) {
@@ -31,7 +31,7 @@ function text(overrides: Record<string, unknown> = {}) {
 
 describe("effective text typography for authoring", () => {
   it("uses the Body baseline for a plain linked fundamental", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation(),
       text({ variant: "body" }),
     );
@@ -48,7 +48,7 @@ describe("effective text typography for authoring", () => {
   });
 
   it("lets a linked fundamental Presentation override win over the baseline", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "body", typography: { fontFamily: "Inter", fontSize: "1.4rem" } },
       ]),
@@ -67,7 +67,7 @@ describe("effective text typography for authoring", () => {
   });
 
   it("merges attached local overrides over the Presentation fundamental Style", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "body", typography: { fontFamily: "Inter", fontSize: "1.25rem", fontWeight: 500 } },
       ]),
@@ -94,12 +94,12 @@ describe("effective text typography for authoring", () => {
       { id: "body", typography: { fontFamily: "Roboto", fontSize: 20, fontWeight: 500 } },
     ]);
 
-    expect(resolveEffectiveTextTypographyForAuthoring(presentationA, localText).typography).toMatchObject({
+    expect(resolveEffectiveTextStyleForAuthoring(presentationA, localText).typography).toMatchObject({
       fontFamily: "Inter",
       fontSize: 22,
       fontWeight: 400,
     });
-    expect(resolveEffectiveTextTypographyForAuthoring(presentationB, localText).typography).toMatchObject({
+    expect(resolveEffectiveTextStyleForAuthoring(presentationB, localText).typography).toMatchObject({
       fontFamily: "Roboto",
       fontSize: 22,
       fontWeight: 500,
@@ -107,7 +107,7 @@ describe("effective text typography for authoring", () => {
   });
 
   it("does not apply the Presentation fundamental Style to a detached Text", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } },
       ]),
@@ -126,7 +126,7 @@ describe("effective text typography for authoring", () => {
   });
 
   it("resolves a custom Style from its role baseline without inheriting its fundamental override", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "body", typography: { fontFamily: "Inter" } },
         {
@@ -152,7 +152,7 @@ describe("effective text typography for authoring", () => {
   });
 
   it("uses a custom Style's Caption role baseline", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         {
           id: "note",
@@ -176,7 +176,7 @@ describe("effective text typography for authoring", () => {
   });
 
   it("preserves element-only typography while adding the role baseline", () => {
-    const resolved = resolveEffectiveTextTypographyForAuthoring(
+    const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "quote", name: "Quote", role: "body" },
       ]),
@@ -205,7 +205,7 @@ describe("detach text typography style", () => {
   it("materializes fundamental effective typography and keeps the variant", () => {
     const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     const original = text({ variant: "body", typography: { fontSize: 22 } });
-    const detached = detachTextTypographyStyle(source, original);
+    const detached = detachTextStyle(source, original);
 
     expect(detached).toMatchObject({
       variant: "body",
@@ -215,7 +215,7 @@ describe("detach text typography style", () => {
   });
 
   it("materializes the Theme baseline without inventing a font family", () => {
-    const detached = detachTextTypographyStyle(presentation(), text({ variant: "body" }));
+    const detached = detachTextStyle(presentation(), text({ variant: "body" }));
 
     expect(detached.typography).toMatchObject({ fontSize: 18, fontWeight: 400, lineHeight: 1.6 });
     expect(detached.typography).not.toHaveProperty("fontFamily");
@@ -231,13 +231,13 @@ describe("detach text typography style", () => {
         textDecorationColor: "#f00",
       },
     });
-    const detached = detachTextTypographyStyle(source, original);
+    const detached = detachTextStyle(source, original);
 
     expect(detached.typography).toMatchObject({
       textStroke: { width: 1, color: "#ffffff" },
       textDecorationColor: "#ff0000",
     });
-    expect(detachTextTypographyStyle(presentation([{ id: "body", typography: { fontFamily: "Other" } }]), detached)).toBe(detached);
+    expect(detachTextStyle(presentation([{ id: "body", typography: { fontFamily: "Other" } }]), detached)).toBe(detached);
   });
 
   it("converts a custom style to its role and materializes custom typography", () => {
@@ -246,7 +246,7 @@ describe("detach text typography style", () => {
       { id: "quote", name: "Quote", role: "body", typography: { fontFamily: "Fira Code", fontStyle: "italic" } },
     ]);
     const original = text({ variant: "quote", typography: { fontSize: 24 } });
-    const detached = detachTextTypographyStyle(source, original);
+    const detached = detachTextStyle(source, original);
 
     expect(detached).toMatchObject({
       variant: "body",
@@ -264,7 +264,7 @@ describe("detach text typography style", () => {
     const sourceSnapshot = structuredClone(source);
     const originalSnapshot = structuredClone(original);
 
-    detachTextTypographyStyle(source, original);
+    detachTextStyle(source, original);
 
     expect(source).toEqual(sourceSnapshot);
     expect(original).toEqual(originalSnapshot);

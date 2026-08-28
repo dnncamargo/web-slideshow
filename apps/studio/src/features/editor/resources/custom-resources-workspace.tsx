@@ -19,7 +19,7 @@ import type { CustomLibraryFontRepository } from "@/features/custom-library/cust
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
 import { ElementTypographyFields } from "../inspector/sections/element-typography-control";
-import { listPresentationTextStyles, normalizeTypographyStyleProperties } from "../text-style-helpers";
+import { listPresentationTextStyles, normalizeTextStyleTypographyProperties } from "../text-style-helpers";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -319,7 +319,7 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
       />
       {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdateCustom?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdateCustom?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
-      <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => (fundamental ? onUpdateTypography?.(normalizeTypographyStyleProperties(update(typography))) : onUpdateCustom?.({ typography: normalizeTypographyStyleProperties(update(typography)) }))} />
+      <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => (fundamental ? onUpdateTypography?.(normalizeTextStyleTypographyProperties(update(typography))) : onUpdateCustom?.({ typography: normalizeTextStyleTypographyProperties(update(typography)) }))} />
       {fundamental && style && onReset ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
       {!fundamental && onRemove ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
     </div> : null}

@@ -19,7 +19,7 @@ import type {
   InteractiveElement,
 } from "@powershow/document-schema";
 import type { Presentation } from "@powershow/document-schema";
-import { resolveTextTypography } from "@powershow/document-schema";
+import { resolveTextStyle } from "@powershow/document-schema";
 import { FundamentalTextStyleIdSchema } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
@@ -95,9 +95,14 @@ function buildAttributes(
 
   let baseStyle = "";
   if (element.type === "text") {
+    const resolved = context ? resolveTextStyle(context.presentation, element) : undefined;
     baseStyle = renderCanonicalTextStyle(
       element,
-      context ? resolveTextTypography(context.presentation, element).typography : element.typography,
+      resolved?.typography ?? element.typography,
+      {
+        ...element.style,
+        ...(resolved?.style.color === undefined ? {} : { color: resolved.style.color }),
+      },
     );
   } else if (element.type === "image") {
     baseStyle = renderCanonicalImageStyle(element);
@@ -133,7 +138,7 @@ function renderText(element: TextElement, context?: RenderContext): string {
       : renderRichText(element.content);
   const content = renderLinkContent(renderedContent, element.link);
   const resolved = context
-    ? resolveTextTypography(context.presentation, element)
+    ? resolveTextStyle(context.presentation, element)
     : undefined;
   const role = resolved?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
 

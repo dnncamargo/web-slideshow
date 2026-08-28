@@ -2,7 +2,8 @@ import type {
   FundamentalTextStyleId,
   Presentation,
   TextStyle,
-  TypographyStyleProperties,
+  TextStyleTypographyProperties,
+  TextStyleVisualProperties,
   TextStyleRole,
 } from "@powershow/document-schema";
 import {
@@ -13,13 +14,20 @@ import {
 
 import { someElement } from "./element-tree";
 
-export function normalizeTypographyStyleProperties(
-  typography: TypographyStyleProperties | undefined,
-): TypographyStyleProperties {
+export function normalizeTextStyleTypographyProperties(
+  typography: TextStyleTypographyProperties | undefined,
+): TextStyleTypographyProperties {
   if (!typography) return {};
   return Object.fromEntries(
     Object.entries(typography).filter(([, value]) => value !== undefined),
-  ) as TypographyStyleProperties;
+  ) as TextStyleTypographyProperties;
+}
+
+export function normalizeTextStyleVisualProperties(
+  style: TextStyleVisualProperties | undefined,
+): TextStyleVisualProperties {
+  if (!style) return {};
+  return Object.fromEntries(Object.entries(style).filter(([, value]) => value !== undefined)) as TextStyleVisualProperties;
 }
 
 export interface TextStyleListItem {
@@ -40,13 +48,35 @@ export function listPresentationTextStyles(
 export function upsertFundamentalTextStyleOverride(
   presentation: Presentation,
   id: FundamentalTextStyleId,
-  typography: TypographyStyleProperties | undefined,
+  patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties } | TextStyleTypographyProperties | undefined,
 ): Presentation {
-  const normalized = normalizeTypographyStyleProperties(typography);
   const existing = presentation.textStyles ?? [];
+  const current = existing.find((style) => style.id === id);
+  let stylePatch: TextStyleVisualProperties | undefined;
+  let typographyPatch: TextStyleTypographyProperties | undefined;
+  let hasStylePatch = false;
+  let hasTypographyPatch = false;
+  if (patch !== undefined && "style" in patch) {
+    hasStylePatch = true;
+    stylePatch = patch.style;
+  }
+  if (patch !== undefined && "typography" in patch) {
+    hasTypographyPatch = true;
+    typographyPatch = patch.typography;
+  }
+  if (patch !== undefined && !hasStylePatch && !hasTypographyPatch) {
+    hasTypographyPatch = true;
+    typographyPatch = patch as TextStyleTypographyProperties;
+  }
+  const normalizedTypography = hasTypographyPatch
+    ? normalizeTextStyleTypographyProperties(typographyPatch)
+    : current && "typography" in current && current.typography !== undefined ? current.typography : {};
+  const normalizedStyle = hasStylePatch
+    ? normalizeTextStyleVisualProperties(stylePatch)
+    : current && "style" in current && current.style !== undefined ? current.style : {};
   const remaining = existing.filter((style) => style.id !== id);
-  const nextStyles = normalized && Object.keys(normalized).length > 0
-    ? [...remaining, { id, typography: normalized }]
+  const nextStyles = Object.keys(normalizedTypography).length > 0 || Object.keys(normalizedStyle).length > 0
+    ? [...remaining, { id, ...(Object.keys(normalizedStyle).length > 0 ? { style: normalizedStyle } : {}), ...(Object.keys(normalizedTypography).length > 0 ? { typography: normalizedTypography } : {}) }]
     : remaining;
   return withTextStyles(presentation, nextStyles);
 }
@@ -91,7 +121,7 @@ export function addCustomTextStyle(
 export function updateCustomTextStyle(
   presentation: Presentation,
   id: string,
-  patch: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties },
+  patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties },
 ): Presentation {
   return withTextStyles(presentation, (presentation.textStyles ?? []).map((style) => {
     if (style.id !== id || !("name" in style)) return style;
@@ -100,11 +130,18 @@ export function updateCustomTextStyle(
       ...(patch.name === undefined || !patch.name.trim() ? {} : { name: patch.name.trim() }),
       ...(patch.role === undefined ? {} : { role: patch.role }),
     };
-    if (patch.typography === undefined) return updated;
-    const typography = normalizeTypographyStyleProperties(patch.typography);
-    if (Object.keys(typography).length > 0) return { ...updated, typography };
-    const { typography: _removed, ...withoutTypography } = updated;
-    return withoutTypography;
+    const next = { ...updated };
+    if (patch.style !== undefined) {
+      const style = normalizeTextStyleVisualProperties(patch.style);
+      if (Object.keys(style).length > 0) next.style = style;
+      else delete next.style;
+    }
+    if (patch.typography !== undefined) {
+      const typography = normalizeTextStyleTypographyProperties(patch.typography);
+      if (Object.keys(typography).length > 0) next.typography = typography;
+      else delete next.typography;
+    }
+    return next;
   }));
 }
 

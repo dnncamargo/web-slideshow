@@ -2,7 +2,7 @@ import type { Presentation, PowerShowElement } from "@powershow/document-schema"
 import {
   PowerShowElementSchema,
   PresentationSchema,
-  resolveTextTypography,
+  resolveTextStyle,
   SlideSchema,
 } from "@powershow/document-schema";
 
@@ -190,7 +190,7 @@ function recoverElement(
   if (parsed.success) {
     if (parsed.data.type === "text") {
       try {
-        resolveTextTypography(typographyContext, parsed.data);
+        resolveTextStyle(typographyContext, parsed.data);
       } catch {
         return removeElementIssue(raw, path, RECOVERY_REASON.invalidElement, issues);
       }

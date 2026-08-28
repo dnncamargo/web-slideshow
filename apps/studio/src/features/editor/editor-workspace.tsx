@@ -2112,7 +2112,7 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, typography)); }
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, { typography })); }
   function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }

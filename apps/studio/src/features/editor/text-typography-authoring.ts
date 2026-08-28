@@ -5,26 +5,28 @@ import type {
   TextStyleRole,
 } from "@powershow/document-schema";
 import {
-  resolveTextTypography,
-  stripLocalTypographyStyleProperties,
-  TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES,
+  resolveTextStyle,
+  stripLocalTextStyleProperties,
+  TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
 } from "@powershow/document-schema";
 import { resolveThemeTextTypographyBaseline } from "@powershow/theme/element-style-defaults";
 
-export interface EffectiveTextTypographyForAuthoring {
+export interface EffectiveTextStyleForAuthoring {
   role: TextStyleRole;
+  style: TextElement["style"];
   typography: ElementTypography;
 }
 
-export function resolveEffectiveTextTypographyForAuthoring(
+export function resolveEffectiveTextStyleForAuthoring(
   presentation: Presentation,
   text: TextElement,
-): EffectiveTextTypographyForAuthoring {
-  const resolved = resolveTextTypography(presentation, text);
+): EffectiveTextStyleForAuthoring {
+  const resolved = resolveTextStyle(presentation, text);
   const baseline = resolveThemeTextTypographyBaseline(resolved.role);
 
   return {
     role: resolved.role,
+    style: resolved.style,
     typography: {
       ...baseline,
       ...resolved.typography,
@@ -32,7 +34,7 @@ export function resolveEffectiveTextTypographyForAuthoring(
   };
 }
 
-export function detachTextTypographyStyle(
+export function detachTextStyle(
   presentation: Presentation,
   text: TextElement,
 ): TextElement {
@@ -40,22 +42,27 @@ export function detachTextTypographyStyle(
     return text;
   }
 
-  const resolved = resolveEffectiveTextTypographyForAuthoring(presentation, text);
+  const resolved = resolveEffectiveTextStyleForAuthoring(presentation, text);
   const materializedTypography = Object.fromEntries(
-    TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES.flatMap((property) => {
+    TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.flatMap((property) => {
       const value = resolved.typography[property];
       return value === undefined ? [] : [[property, value]];
     }),
   ) as ElementTypography;
-  const elementOnlyTypography = stripLocalTypographyStyleProperties(text.typography);
+  const local = stripLocalTextStyleProperties(text.typography, text.style);
+  const materializedStyle = {
+    ...(local.style ?? {}),
+    ...(resolved.style?.color === undefined ? {} : { color: resolved.style.color }),
+  };
 
   return {
     ...text,
     variant: resolved.role,
     styleDetached: true,
+    ...(Object.keys(materializedStyle).length > 0 ? { style: materializedStyle } : {}),
     typography: {
       ...materializedTypography,
-      ...elementOnlyTypography,
+      ...(local.typography ?? {}),
     },
   };
 }

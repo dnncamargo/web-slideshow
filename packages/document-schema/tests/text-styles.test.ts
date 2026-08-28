@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   CustomTextStyleSchema,
   FundamentalTextStyleOverrideSchema,
-  hasLocalTypographyStyleProperties,
-  stripLocalTypographyStyleProperties,
+  hasLocalTypographyFields,
+  stripLocalTypographyFields,
   PresentationSchema,
   TypographyStylePropertiesSchema,
+  TextStyleTypographyPropertiesSchema,
+  TextStyleVisualPropertiesSchema,
   TextStylesSchema,
-  resolveTextTypography,
+  resolveTextStyle,
   TextElementSchema,
 } from "../src";
 
@@ -58,6 +60,17 @@ describe("Text Styles canonical definitions", () => {
         typography: { fontFamily: "Inter" },
       }).success,
     ).toBe(true);
+  });
+
+  it("accepts sparse R2 visual and typography ownership", () => {
+    expect(FundamentalTextStyleOverrideSchema.safeParse({ id: "body", style: { color: "#ff0000" } }).success).toBe(true);
+    expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: { color: { kind: "palette", colorId: "primary" } } }).success).toBe(true);
+    expect(TextStyleTypographyPropertiesSchema.safeParse({ textDecorationColor: "#00ff00" }).success).toBe(true);
+    expect(TextStyleTypographyPropertiesSchema.safeParse({ textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } } }).success).toBe(true);
+    expect(TextStyleVisualPropertiesSchema.safeParse({}).success).toBe(true);
+    expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: {} }).success).toBe(false);
+    expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", typography: {} }).success).toBe(false);
+    expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: { background: {} } }).success).toBe(false);
   });
 
   it("rejects empty fundamental overrides and extra fields", () => {
@@ -165,17 +178,17 @@ describe("Text Styles canonical definitions", () => {
   });
 
   it("identifies only local typography style properties", () => {
-    expect(hasLocalTypographyStyleProperties(undefined)).toBe(false);
-    expect(hasLocalTypographyStyleProperties({})).toBe(false);
-    expect(hasLocalTypographyStyleProperties({ textStroke: { width: 1, color: "#000000" } })).toBe(false);
-    expect(hasLocalTypographyStyleProperties({ textDecorationColor: "#000000" })).toBe(false);
-    expect(hasLocalTypographyStyleProperties({ textStroke: { width: 1, color: "#000000" }, textDecorationColor: "#000000" })).toBe(false);
+    expect(hasLocalTypographyFields(undefined)).toBe(false);
+    expect(hasLocalTypographyFields({})).toBe(false);
+    expect(hasLocalTypographyFields({ textStroke: { width: 1, color: "#000000" } })).toBe(false);
+    expect(hasLocalTypographyFields({ textDecorationColor: "#000000" })).toBe(false);
+    expect(hasLocalTypographyFields({ textStroke: { width: 1, color: "#000000" }, textDecorationColor: "#000000" })).toBe(false);
 
     for (const property of Object.keys(allTypographyProperties)) {
-      expect(hasLocalTypographyStyleProperties({ [property]: allTypographyProperties[property as keyof typeof allTypographyProperties] })).toBe(true);
+      expect(hasLocalTypographyFields({ [property]: allTypographyProperties[property as keyof typeof allTypographyProperties] })).toBe(true);
     }
 
-    expect(hasLocalTypographyStyleProperties({ lineHeight: 1.5, textStroke: { width: 1, color: "#000000" } })).toBe(true);
+    expect(hasLocalTypographyFields({ lineHeight: 1.5, textStroke: { width: 1, color: "#000000" } })).toBe(true);
   });
 
   it("uses one canonical fundamental variant source and defaults to body", () => {
@@ -210,21 +223,31 @@ describe("Text Styles canonical definitions", () => {
       { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
     ];
     const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontSize: 22, textStroke: { width: 1, color: "#fff" }, textDecorationColor: "#000" } }), styles));
-    expect(resolveTextTypography(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", fontSize: 22, fontWeight: 400, textStroke: { width: 1, color: "#ffffff" }, textDecorationColor: "#000000" });
+    expect(resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", fontSize: 22, fontWeight: 400, textStroke: { width: 1, color: "#ffffff" }, textDecorationColor: "#000000" });
 
     const detached = PresentationSchema.parse(presentation(text({ variant: "body", styleDetached: true, typography: { fontSize: 22 } }), styles));
-    expect(resolveTextTypography(detached, detached.slides[0]!.elements[0] as Extract<typeof detached.slides[0]['elements'][number], { type: 'text' }>).typography).toEqual({ fontSize: 22 });
+    expect(resolveTextStyle(detached, detached.slides[0]!.elements[0] as Extract<typeof detached.slides[0]['elements'][number], { type: 'text' }>).typography).toEqual({ fontSize: 22 });
 
     const custom = PresentationSchema.parse(presentation(text({ variant: "quote", typography: { fontSize: 24, textDecorationColor: "#fff" } }), styles));
-    const resolved = resolveTextTypography(custom, custom.slides[0]!.elements[0] as Extract<typeof custom.slides[0]['elements'][number], { type: 'text' }>);
+    const resolved = resolveTextStyle(custom, custom.slides[0]!.elements[0] as Extract<typeof custom.slides[0]['elements'][number], { type: 'text' }>);
     expect(resolved).toMatchObject({ role: "body", typography: { fontStyle: "italic", fontSize: 24, textDecorationColor: "#ffffff" } });
     expect(resolved.typography).not.toHaveProperty("fontFamily");
+  });
+
+  it("resolves Text Style visual ownership with local precedence and preserves palette refs", () => {
+    const palette = { colors: [{ id: "primary", name: "Primary", value: "#ff0000" }] };
+    const styles = [{ id: "body", style: { color: { kind: "palette", colorId: "primary" } }, typography: { textDecorationColor: { kind: "palette", colorId: "primary" } } }];
+    const linked = PresentationSchema.parse({ ...presentation(text({ style: { color: "#00ff00" }, typography: { textStroke: { width: 2, color: { kind: "palette", colorId: "primary" } } } }), styles), palette });
+    const resolved = resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>);
+    expect(resolved.style.color).toBe("#00ff00");
+    expect(resolved.typography.textDecorationColor).toEqual({ kind: "palette", colorId: "primary" });
+    expect(resolved.typography.textStroke?.color).toEqual({ kind: "palette", colorId: "primary" });
   });
 });
 
 describe("local typography style properties", () => {
   it("strips only V1 style fields and preserves element-only fields", () => {
-    expect(stripLocalTypographyStyleProperties({
+    expect(stripLocalTypographyFields({
       fontSize: 22,
       fontWeight: 700,
       textStroke: { width: 1, color: "#ffffff" },
@@ -233,8 +256,8 @@ describe("local typography style properties", () => {
       textStroke: { width: 1, color: "#ffffff" },
       textDecorationColor: "#ff0000",
     });
-    expect(stripLocalTypographyStyleProperties({ fontSize: 22 })).toBeUndefined();
-    expect(stripLocalTypographyStyleProperties(undefined)).toBeUndefined();
+    expect(stripLocalTypographyFields({ fontSize: 22 })).toBeUndefined();
+    expect(stripLocalTypographyFields(undefined)).toBeUndefined();
   });
 });
 

@@ -6,7 +6,7 @@ import {
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
-  stripLocalTypographyStyleProperties,
+  stripLocalTextStyleProperties,
 } from "@powershow/document-schema";
 import { useRef, useState } from "react";
 
@@ -55,8 +55,8 @@ import { ColorControl } from "./sections/color-control";
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { usePresentationColorPalette } from "./sections/presentation-color-palette";
 import {
-  detachTextTypographyStyle,
-  resolveEffectiveTextTypographyForAuthoring,
+  detachTextStyle,
+  resolveEffectiveTextStyleForAuthoring,
 } from "../text-typography-authoring";
 import { listPresentationTextStyles } from "../text-style-helpers";
 
@@ -180,7 +180,7 @@ export function TextInspector({
   };
 
   const effectiveTypography = presentation
-    ? resolveEffectiveTextTypographyForAuthoring(presentation, element).typography
+    ? resolveEffectiveTextStyleForAuthoring(presentation, element).typography
     : undefined;
   const themeTypographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
   const typographyDefaults = effectiveTypography
@@ -206,12 +206,13 @@ export function TextInspector({
   function attachTextStyle(variant: TextInspectorElement["variant"]) {
     onUpdate((current) => {
       if (current.type !== "text") return current;
-      const { styleDetached: _detached, typography: _previousTypography, ...attached } = current;
-      const typography = stripLocalTypographyStyleProperties(current.typography);
+      const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, ...attached } = current;
+      const local = stripLocalTextStyleProperties(current.typography, current.style);
       return {
         ...attached,
         variant,
-        ...(typography === undefined ? {} : { typography }),
+        ...(local.style === undefined ? {} : { style: local.style }),
+        ...(local.typography === undefined ? {} : { typography: local.typography }),
       };
     });
   }
@@ -526,7 +527,7 @@ export function TextInspector({
             <button
               type="button"
               onClick={() => onUpdate((current) => current.type === "text"
-                ? detachTextTypographyStyle(presentation, current)
+                ? detachTextStyle(presentation, current)
                 : current)}
             >
               {t("inspector.detachTypography")}

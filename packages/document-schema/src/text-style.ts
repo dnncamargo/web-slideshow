@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 import type { ElementTypography } from "./element-properties";
+import type { TextVisualStyle } from "./element-properties";
 import {
-  TypographyStylePropertiesSchema,
+  TextStyleTypographyPropertiesSchema,
+  TextStyleVisualPropertiesSchema,
 } from "./element-properties";
 
 export const FUNDAMENTAL_TEXT_STYLE_IDS = [
@@ -31,12 +33,13 @@ const NonEmptyTrimmedStringSchema = z.string().trim().min(1);
 export const FundamentalTextStyleOverrideSchema = z
   .object({
     id: FundamentalTextStyleIdSchema,
-    typography: TypographyStylePropertiesSchema.refine(
-      (typography) => Object.values(typography).some((value) => value !== undefined),
-      { message: "Fundamental typography override cannot be empty." },
-    ),
+    style: TextStyleVisualPropertiesSchema.optional(),
+    typography: TextStyleTypographyPropertiesSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((style) => Object.values(style.style ?? {}).some((value) => value !== undefined) || Object.values(style.typography ?? {}).some((value) => value !== undefined), {
+    message: "Fundamental text style override cannot be empty.",
+  });
 
 export type FundamentalTextStyleOverride = z.infer<
   typeof FundamentalTextStyleOverrideSchema
@@ -50,12 +53,18 @@ export const CustomTextStyleSchema = z
     ),
     name: NonEmptyTrimmedStringSchema,
     role: TextStyleRoleSchema,
-    typography: TypographyStylePropertiesSchema.optional().refine(
-      (typography) => typography === undefined || Object.keys(typography).length > 0,
-      { message: "Custom text style typography cannot be empty." },
-    ),
+    style: TextStyleVisualPropertiesSchema.optional(),
+    typography: TextStyleTypographyPropertiesSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((style, context) => {
+    if (style.style !== undefined && Object.values(style.style).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["style"], message: "Custom text style style cannot be empty." });
+    }
+    if (style.typography !== undefined && Object.values(style.typography).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["typography"], message: "Custom text style typography cannot be empty." });
+    }
+  });
 
 export type CustomTextStyle = z.infer<
   typeof CustomTextStyleSchema
@@ -88,7 +97,7 @@ export const TextStylesSchema = z
 
 export type TextStyles = z.infer<typeof TextStylesSchema>;
 
-export const TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES = [
+export const TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES = [
   "fontFamily",
   "fontSize",
   "fontWeight",
@@ -103,7 +112,31 @@ export const TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES = [
   "textDecorationLine",
 ] as const satisfies readonly (keyof ElementTypography)[];
 
-export function stripLocalTypographyStyleProperties(
+export const TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2 = [
+  ...TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES,
+  "textDecorationColor",
+  "textStroke",
+] as const satisfies readonly (keyof ElementTypography)[];
+
+export const TEXT_STYLE_VISUAL_PROPERTY_NAMES = ["color"] as const;
+
+export function stripLocalTextStyleProperties(
+  style: ElementTypography | undefined,
+  visualStyle: TextVisualStyle | undefined,
+): { typography: ElementTypography | undefined; style: TextVisualStyle | undefined } {
+  const typography = style === undefined ? undefined : Object.fromEntries(
+    Object.entries(style).filter(([property, value]) => !TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.includes(property as (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number]) && value !== undefined),
+  ) as ElementTypography;
+  const remainingStyle = visualStyle === undefined ? undefined : Object.fromEntries(
+    Object.entries(visualStyle).filter(([property, value]) => property !== "color" && value !== undefined),
+  );
+  return {
+    typography: typography && Object.keys(typography).length > 0 ? typography : undefined,
+    style: remainingStyle && Object.keys(remainingStyle).length > 0 ? remainingStyle as TextVisualStyle : undefined,
+  };
+}
+
+export function stripLocalTypographyFields(
   typography: ElementTypography | undefined,
 ): ElementTypography | undefined {
   if (typography === undefined) return undefined;
@@ -111,8 +144,8 @@ export function stripLocalTypographyStyleProperties(
   const stripped = Object.fromEntries(
     Object.entries(typography).filter(
       ([property, value]) =>
-        !TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES.includes(
-          property as (typeof TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES)[number],
+        !TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.includes(
+          property as (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES)[number],
         ) && value !== undefined,
     ),
   ) as ElementTypography;
@@ -120,10 +153,10 @@ export function stripLocalTypographyStyleProperties(
   return Object.keys(stripped).length > 0 ? stripped : undefined;
 }
 
-export function hasLocalTypographyStyleProperties(
+export function hasLocalTypographyFields(
   typography: ElementTypography | undefined,
 ): boolean {
-  return typography !== undefined && TYPOGRAPHY_STYLE_V1_PROPERTY_NAMES.some(
+  return typography !== undefined && TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.some(
     (property) => typography[property] !== undefined,
   );
 }

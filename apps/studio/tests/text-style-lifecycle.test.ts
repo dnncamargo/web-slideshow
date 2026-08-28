@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   TextElementSchema,
-  resolveTextTypography,
+  resolveTextStyle,
 } from "@powershow/document-schema";
 import { renderPresentation } from "@powershow/renderer";
 
 import {
-  detachTextTypographyStyle,
-  resolveEffectiveTextTypographyForAuthoring,
+  detachTextStyle,
+  resolveEffectiveTextStyleForAuthoring,
 } from "../src/features/editor/text-typography-authoring";
 
 function text(overrides: Record<string, unknown> = {}) {
@@ -64,13 +64,13 @@ describe("Text Style canonical lifecycle", () => {
     ]);
     const beforeRender = structuredClone(presentationA);
 
-    expect(resolveTextTypography(presentationA, attachedText).typography).toMatchObject({
+    expect(resolveTextStyle(presentationA, attachedText).typography).toMatchObject({
       fontFamily: "Inter",
       fontSize: 22,
       fontWeight: 400,
     });
     expect(attachedText).not.toHaveProperty("styleDetached");
-    expect(resolveTextTypography(presentationB, attachedText).typography).toMatchObject({
+    expect(resolveTextStyle(presentationB, attachedText).typography).toMatchObject({
       fontFamily: "Roboto",
       fontSize: 22,
       fontWeight: 500,
@@ -87,7 +87,7 @@ describe("Text Style canonical lifecycle", () => {
     expect(attachedText).toEqual(firstText(presentationA));
     expect(presentationA).toEqual(beforeRender);
 
-    const detachedText = detachTextTypographyStyle(presentationB, attachedText);
+    const detachedText = detachTextStyle(presentationB, attachedText);
     expect(detachedText).toMatchObject({
       variant: "body",
       styleDetached: true,
@@ -142,17 +142,17 @@ describe("Text Style canonical lifecycle", () => {
     const original = firstText(source);
     const sourceSnapshot = structuredClone(source);
 
-    expect(resolveEffectiveTextTypographyForAuthoring(source, original).typography).toMatchObject({
+    expect(resolveEffectiveTextStyleForAuthoring(source, original).typography).toMatchObject({
       fontFamily: "Fira Code",
       fontStyle: "italic",
       fontSize: 24,
       fontWeight: 400,
     });
-    expect(resolveEffectiveTextTypographyForAuthoring(source, original).typography).not.toHaveProperty("fontFamily", "Inter");
-    expect(resolveEffectiveTextTypographyForAuthoring(source, original).typography).not.toHaveProperty("fontWeight", 700);
+    expect(resolveEffectiveTextStyleForAuthoring(source, original).typography).not.toHaveProperty("fontFamily", "Inter");
+    expect(resolveEffectiveTextStyleForAuthoring(source, original).typography).not.toHaveProperty("fontWeight", 700);
     expect(renderPresentation(source)).toContain("font-family:&quot;Fira Code&quot;");
 
-    const detached = detachTextTypographyStyle(source, original);
+    const detached = detachTextStyle(source, original);
     expect(detached).toMatchObject({
       variant: "body",
       styleDetached: true,
@@ -184,7 +184,7 @@ describe("Text Style canonical lifecycle", () => {
   });
 
   it("keeps an absent authored family absent when the Theme baseline is materialized", () => {
-    const detached = detachTextTypographyStyle(
+    const detached = detachTextStyle(
       presentation(text({ variant: "body" })),
       text({ variant: "body" }),
     );

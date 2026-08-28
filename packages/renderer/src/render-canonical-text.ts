@@ -3,6 +3,7 @@ import type {
   ElementTypography,
   TextElement,
   TextVisualStyle,
+  TextStyleVisualProperties,
 } from "@powershow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
@@ -124,10 +125,11 @@ function renderEffect(effect: ElementEffect | undefined): string[] {
 export function renderCanonicalTextStyle(
   element: TextElement,
   typography: ElementTypography | undefined = element.typography,
+  style: TextVisualStyle | TextStyleVisualProperties | undefined = element.style,
 ): string {
   return [
     ...renderLayout(element),
-    ...renderVisualStyle(element.style),
+    ...renderVisualStyle(style),
     ...renderTypography(typography),
     ...renderEffect(element.effect),
   ].join(";");
