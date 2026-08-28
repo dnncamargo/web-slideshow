@@ -133,7 +133,7 @@ import { findElementById, updateElementById } from "./element-tree";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "./text-style-helpers";
-import type { TypographyStyleProperties, TextStyleRole } from "@powershow/document-schema";
+import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -2112,10 +2112,10 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, { typography })); }
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, patch)); }
   function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
-  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
+  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
 
   // ==========================================================
@@ -3466,6 +3466,7 @@ export function EditorWorkspace({
             onRemovePresentationFont={removePresentationFont}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
             presentationTextStyles={presentation.textStyles ?? []}
+            presentation={presentation}
             onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
             onResetFundamentalTextStyle={resetFundamentalTextStyle}
             onAddTextStyle={addTextStyle}

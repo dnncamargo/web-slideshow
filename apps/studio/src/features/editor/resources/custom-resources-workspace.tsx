@@ -1,7 +1,7 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type FontResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TypographyStyleProperties, type TextStyleRole } from "@powershow/document-schema";
-import { renderElement } from "@powershow/renderer";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke } from "@powershow/document-schema";
+import { paletteColorCssVariableName, renderElement, renderFontResources } from "@powershow/renderer";
 import { resolveThemeTextTypographyBaseline, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -19,7 +19,9 @@ import type { CustomLibraryFontRepository } from "@/features/custom-library/cust
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
 import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
-import { listPresentationTextStyles, normalizeTextStyleTypographyProperties } from "../text-style-helpers";
+import { ColorControl } from "../inspector/sections/color-control";
+import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
+import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -36,13 +38,19 @@ interface CustomResourcesWorkspaceProps {
   onRemovePresentationFont: (id: string) => CustomLibraryFontRemoveOutcome;
   isPresentationFontInUse: (family: string) => boolean;
   presentationTextStyles?: readonly TextStyle[];
-  onUpdateFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) => void;
+  presentation?: Presentation;
+  onUpdateFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption", patch: TextStylePatch) => void;
   onResetFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption") => void;
   onAddTextStyle?: (name: string, role: TextStyleRole) => void;
-  onUpdateTextStyle?: (id: string, patch: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties }) => void;
+  onUpdateTextStyle?: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
 }
+
+type TextStylePatch = {
+  style?: TextStyleVisualProperties;
+  typography?: TextStyleTypographyProperties;
+};
 
 export type CustomLibraryFontAddKind = "added" | "merged" | "unchanged" | "conflict";
 export interface CustomLibraryFontAddOutcome {
@@ -76,6 +84,7 @@ export function CustomResourcesWorkspace({
   onRemovePresentationFont,
   isPresentationFontInUse,
   presentationTextStyles = [],
+  presentation,
   onUpdateFundamentalTextStyle = () => undefined,
   onResetFundamentalTextStyle = () => undefined,
   onAddTextStyle = () => undefined,
@@ -211,8 +220,10 @@ export function CustomResourcesWorkspace({
               {presentationFonts.map((font) => <LocalPresentationFontRow key={font.id} font={font} inUse={isPresentationFontInUse(font.family)} onRemove={onRemovePresentationFont} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFonts.length === 1 ? "customResources.fontCountOne" : "customResources.fontCountMany", { count: presentationFonts.length })}</span>
+            <PresentationColorPaletteProvider colors={presentationColors}>
             <TextStylesWorkspace
               presentationStyles={presentationTextStyles}
+              presentation={presentation}
               presentationFonts={presentationFonts}
               onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
               editingStyleId={editingStyleId}
@@ -226,6 +237,7 @@ export function CustomResourcesWorkspace({
               onRemove={onRemoveTextStyle}
               isInUse={isTextStyleInUse}
             />
+            </PresentationColorPaletteProvider>
           </div>
         </section>
       </div>
@@ -234,20 +246,21 @@ export function CustomResourcesWorkspace({
 }
 
 function TextStylesWorkspace({
-  presentationStyles, presentationFonts, editingStyleId, onEdit, onUpdateFundamental, onResetFundamental,
+  presentationStyles, presentation, presentationFonts, editingStyleId, onEdit, onUpdateFundamental, onResetFundamental,
   onAdd, adding, onCancelAdd, onCreate, onUpdate, onRemove, isInUse,
 }: {
   presentationStyles: readonly TextStyle[];
+  presentation?: Presentation;
   presentationFonts: readonly FontResource[];
   editingStyleId: string | null;
   onEdit: (id: string) => void;
-  onUpdateFundamental: (id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) => void;
+  onUpdateFundamental: (id: "title" | "subtitle" | "body" | "caption", patch: TextStylePatch) => void;
   onResetFundamental: (id: "title" | "subtitle" | "body" | "caption") => void;
   onAdd: () => void;
   adding: boolean;
   onCancelAdd: () => void;
   onCreate: (name: string, role: TextStyleRole) => void;
-  onUpdate: (id: string, patch: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties }) => void;
+  onUpdate: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemove: (id: string) => void;
   isInUse: (id: string) => boolean;
 }) {
@@ -264,38 +277,49 @@ function TextStylesWorkspace({
     <div className={styles.typographyStyleList}>
       {FUNDAMENTAL_TEXT_STYLE_IDS.map((id) => {
         const style = byId.get(id);
-        return <TextStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={style ? t("customResources.customized") : t("customResources.builtIn")} editing={editingStyleId === id} style={style} fonts={presentationFonts} onEdit={onEdit} onUpdateTypography={(typography) => onUpdateFundamental(id, typography)} onReset={() => onResetFundamental(id)} />;
+        return <TextStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={style ? t("customResources.customized") : t("customResources.builtIn")} editing={editingStyleId === id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdateFundamental(id, patch)} onReset={() => onResetFundamental(id)} />;
       })}
-      {customStyles.map((style) => <TextStyleRow key={style.id} id={style.id} label={"name" in style ? style.name : style.id} status={isInUse(style.id) ? t("customResources.inUse") : ("role" in style ? t(`customResources.role.${style.role}`) : "")} editing={editingStyleId === style.id} style={style} fonts={presentationFonts} onEdit={onEdit} onUpdateCustom={(patch) => onUpdate(style.id, patch)} onRemove={() => onRemove(style.id)} removeDisabled={isInUse(style.id)} />)}
+      {customStyles.map((style) => <TextStyleRow key={style.id} id={style.id} label={"name" in style ? style.name : style.id} status={isInUse(style.id) ? t("customResources.inUse") : ("role" in style ? t(`customResources.role.${style.role}`) : "")} editing={editingStyleId === style.id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdate(style.id, patch)} onRemove={() => onRemove(style.id)} removeDisabled={isInUse(style.id)} />)}
     </div>
     {adding ? <NewTextStyleForm fonts={presentationFonts} onCancel={onCancelAdd} onCreate={onCreate} /> : <button type="button" className={styles.resourceAction} onClick={onAdd}>{t("customResources.addStyle")}</button>}
   </section>;
 }
 
-function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpdateTypography, onUpdateCustom, onReset, onRemove, removeDisabled }: {
-  id: string; label: string; status: string; editing: boolean; style?: TextStyle; fonts: readonly FontResource[];
-  onEdit: (id: string) => void; onUpdateTypography?: (value: TypographyStyleProperties) => void; onUpdateCustom?: (value: { name?: string; role?: TextStyleRole; typography?: TypographyStyleProperties }) => void;
+function TextStyleRow({ id, label, status, editing, style, presentation, fonts, onEdit, onUpdate, onReset, onRemove, removeDisabled }: {
+  id: string; label: string; status: string; editing: boolean; style?: TextStyle; presentation?: Presentation; fonts: readonly FontResource[];
+  onEdit: (id: string) => void; onUpdate?: (value: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onReset?: () => void; onRemove?: () => void; removeDisabled?: boolean;
 }) {
   const { t } = useStudioI18n();
   const [pendingFontFamily, setPendingFontFamily] = useState(false);
+  const [pendingColor, setPendingColor] = useState(false);
+  const [pendingDecorationColor, setPendingDecorationColor] = useState(false);
+  const [pendingStroke, setPendingStroke] = useState<{ width: number } | undefined>();
   const fundamental = FUNDAMENTAL_TEXT_STYLE_IDS.some((fundamentalId) => fundamentalId === id);
   const role = fundamental ? id as TextStyleRole : (style && "role" in style ? style.role : "body");
   const typography = style?.typography;
+  const visual = style?.style;
   const previewText: TextElement = {
     id: `text-style-preview-${id}`,
     type: "text",
     hidden: false,
-    variant: role,
+    variant: presentation ? id : role,
     content: "Aa",
-    typography: {
-      ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role],
-      ...typography,
-    },
+    ...(presentation ? { typography } : { typography: { ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role], ...typography } }),
   };
   const editorId = `text-style-${id}-editor`;
   const authoredProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => typography?.[property] !== undefined);
+  const appearanceProperties = [
+    ...(visual?.color !== undefined || pendingColor ? ["color" as const] : []),
+    ...(typography?.textDecorationColor !== undefined || pendingDecorationColor ? ["textDecorationColor" as const] : []),
+    ...(typography?.textStroke !== undefined || pendingStroke !== undefined ? ["textStroke" as const] : []),
+  ];
   const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
+  const availableAppearance = [
+    ...(visual?.color === undefined && !pendingColor ? ["color" as const] : []),
+    ...(typography?.textDecorationColor === undefined && !pendingDecorationColor ? ["textDecorationColor" as const] : []),
+    ...(typography?.textStroke === undefined && pendingStroke === undefined ? ["textStroke" as const] : []),
+  ];
   const addProperty = (property: CoreTypographyProperty): void => {
     if (property === "fontFamily") {
       setPendingFontFamily(true);
@@ -305,13 +329,35 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
     const value = baseline[property];
     if (value === undefined) return;
     const nextTypography = { ...(typography ?? {}), [property]: value };
-    if (fundamental) onUpdateTypography?.(normalizeTextStyleTypographyProperties(nextTypography));
-    else onUpdateCustom?.({ typography: normalizeTextStyleTypographyProperties(nextTypography) });
+    onUpdate?.({ typography: normalizeTextStyleTypographyProperties(nextTypography) });
   };
-  const updateTypography = (update: (current: TypographyStyleProperties | undefined) => TypographyStyleProperties): void => {
+  const updateTypography = (update: (current: TextStyleTypographyProperties | undefined) => TextStyleTypographyProperties): void => {
     const nextTypography = normalizeTextStyleTypographyProperties(update(typography));
-    if (fundamental) onUpdateTypography?.(nextTypography);
-    else onUpdateCustom?.({ typography: nextTypography });
+    onUpdate?.({ typography: nextTypography });
+  };
+  const updateStyle = (update: (current: TextStyleVisualProperties | undefined) => TextStyleVisualProperties): void => {
+    onUpdate?.({ style: normalizeTextStyleVisualProperties(update(visual)) });
+  };
+  const removeAppearance = (property: "color" | "textDecorationColor" | "textStroke"): void => {
+    if (property === "color") { if (pendingColor && visual?.color === undefined) setPendingColor(false); else updateStyle((current) => ({ ...(current ?? {}), color: undefined })); }
+    else if (property === "textDecorationColor") { if (pendingDecorationColor && typography?.textDecorationColor === undefined) setPendingDecorationColor(false); else updateTypography((current) => ({ ...(current ?? {}), textDecorationColor: undefined })); }
+    else if (pendingStroke && typography?.textStroke === undefined) setPendingStroke(undefined);
+    else updateTypography((current) => ({ ...(current ?? {}), textStroke: undefined }));
+  };
+  const addAppearance = (property: (typeof availableAppearance)[number]): void => {
+    if (property === "color") setPendingColor(true);
+    else if (property === "textDecorationColor") setPendingDecorationColor(true);
+    else setPendingStroke({ width: 1 });
+  };
+  const commitColor = (property: "color" | "textDecorationColor", color: ColorValue): void => {
+    if (property === "color") { setPendingColor(false); updateStyle((current) => ({ ...(current ?? {}), color })); }
+    else { setPendingDecorationColor(false); updateTypography((current) => ({ ...(current ?? {}), textDecorationColor: color })); }
+  };
+  const commitStrokeColor = (color: ColorValue): void => {
+    const current = typography?.textStroke;
+    const width = current?.width ?? pendingStroke?.width ?? 1;
+    setPendingStroke(undefined);
+    updateTypography((value) => ({ ...(value ?? {}), textStroke: { width, color } }));
   };
   const removeProperty = (property: CoreTypographyProperty): void => {
     if (property === "fontFamily" && pendingFontFamily && typography?.fontFamily === undefined) {
@@ -342,11 +388,13 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
         className={styles.typographyStylePreview}
         data-text-style-preview={id}
         aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: renderElement(previewText) }}
+        style={presentation ? Object.fromEntries((presentation.palette?.colors ?? []).map((color) => [paletteColorCssVariableName(color.id), color.value])) : undefined}
+        dangerouslySetInnerHTML={{ __html: renderElement(previewText, presentation ? { presentation } : undefined) }}
       />
-      {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdateCustom?.({ name })} /> : null}
-      {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdateCustom?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
-      {authoredProperties.length === 0 && !pendingFontFamily ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
+      {presentation && renderFontResources(presentation.resources?.fonts) ? <style data-powershow-font-resources>{renderFontResources(presentation.resources?.fonts)}</style> : null}
+      {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdate?.({ name })} /> : null}
+      {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdate?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
+      {authoredProperties.length === 0 && appearanceProperties.length === 0 && !pendingFontFamily ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
       <div className={styles.typographyStyleProperties}>
         {authoredProperties.map((property) => <div className={styles.typographyStyleProperty} data-text-style-property={property} key={property}>
           <div className={styles.typographyStylePropertyHeader}>
@@ -362,8 +410,14 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
           </div>
           <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={["fontFamily"]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} />
         </div> : null}
+        {appearanceProperties.map((property) => <div className={styles.typographyStyleProperty} data-text-style-property={property} key={property}>
+          <div className={styles.typographyStylePropertyHeader}><span>{t(appearanceLabelKey[property])}</span><button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(appearanceLabelKey[property]) })} onClick={() => removeAppearance(property)}>×</button></div>
+          {property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
+          {property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
+          {property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
+        </div>)}
       </div>
-      {availableProperties.length > 0 ? <PropertyChooser properties={availableProperties} fontsAvailable={fonts.length > 0} onAdd={addProperty} /> : null}
+      {availableProperties.length > 0 || availableAppearance.length > 0 ? <PropertyChooser properties={availableProperties} appearanceProperties={availableAppearance} fontsAvailable={fonts.length > 0} onAdd={addProperty} onAddAppearance={addAppearance} /> : null}
       {fundamental && style && onReset ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
       {!fundamental && onRemove ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
     </div> : null}
@@ -385,14 +439,31 @@ const propertyLabelKey: Record<CoreTypographyProperty, Parameters<ReturnType<typ
   textDecorationLine: "inspector.textDecorationLine",
 };
 
-function PropertyChooser({ properties, fontsAvailable, onAdd }: { properties: readonly CoreTypographyProperty[]; fontsAvailable: boolean; onAdd: (property: CoreTypographyProperty) => void }) {
+const appearanceLabelKey = {
+  color: "inspector.topics.textColor",
+  textDecorationColor: "inspector.topics.decorationColor",
+  textStroke: "inspector.textStroke",
+} as const;
+
+function PropertyChooser({ properties, appearanceProperties, fontsAvailable, onAdd, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; fontsAvailable: boolean; onAdd: (property: CoreTypographyProperty) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
   const { t } = useStudioI18n();
   const [open, setOpen] = useState(false);
   return <div className={styles.typographyStyleChooser}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <div className={styles.typographyStylePropertyOptions}>
       {properties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} disabled={property === "fontFamily" && !fontsAvailable} title={property === "fontFamily" && !fontsAvailable ? t("customResources.addFontFirst") : undefined} onClick={() => { onAdd(property); setOpen(false); }}>{t(propertyLabelKey[property])}{property === "fontFamily" && !fontsAvailable ? ` — ${t("customResources.addFontFirst")}` : ""}</button>)}
+      {appearanceProperties.length > 0 ? <span className={styles.typographyStylePropertyOption}>Appearance</span> : null}
+      {appearanceProperties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { onAddAppearance(property); setOpen(false); }}>{t(appearanceLabelKey[property])}</button>)}
     </div> : null}
+  </div>;
+}
+
+function TextStyleStrokeFields({ id, stroke, pendingWidth, onWidthChange, onColorChange }: { id: string; stroke: TextStroke | undefined; pendingWidth: number | undefined; onWidthChange: (width: number) => void; onColorChange: (color: ColorValue) => void }) {
+  const { t } = useStudioI18n();
+  const width = stroke?.width ?? pendingWidth ?? 1;
+  return <div className={styles.fieldGrid}>
+    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={styles.unitInput}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={typeof width === "number" ? width : 1} onChange={(event) => onWidthChange(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
+    <label className={styles.field}><span>{t("inspector.textStrokeColor")}</span><ColorControl id={`text-style-${id}-stroke-color`} name={t("inspector.textStrokeColor")} value={stroke?.color} onChange={onColorChange} /></label>
   </div>;
 }
 
