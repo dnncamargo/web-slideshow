@@ -1,6 +1,7 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS, type Color, type FontResource, type PresentationPaletteColor, type TypographyStyle, type TypographyStyleProperties, type TypographyStyleRole } from "@powershow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS, type Color, type FontResource, type PresentationPaletteColor, type TextElement, type TypographyStyle, type TypographyStyleProperties, type TypographyStyleRole } from "@powershow/document-schema";
+import { renderElement } from "@powershow/renderer";
 import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -280,6 +281,17 @@ function TypographyStyleRow({ id, label, status, editing, style, fonts, onEdit, 
   const fundamental = FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.some((fundamentalId) => fundamentalId === id);
   const role = fundamental ? id as TypographyStyleRole : (style && "role" in style ? style.role : "body");
   const typography = style?.typography;
+  const previewText: TextElement = {
+    id: `typography-style-preview-${id}`,
+    type: "text",
+    hidden: false,
+    variant: role,
+    content: "Aa",
+    typography: {
+      ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role],
+      ...typography,
+    },
+  };
   const editorId = `typography-style-${id}-editor`;
 
   return <div className={styles.typographyStyleRow} data-typography-style-id={id}>
@@ -299,6 +311,12 @@ function TypographyStyleRow({ id, label, status, editing, style, fonts, onEdit, 
       </button>
     </div>
     {editing ? <div id={editorId} className={styles.typographyStyleEditor}>
+      <div
+        className={styles.typographyStylePreview}
+        data-typography-style-preview={id}
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: renderElement(previewText) }}
+      />
       {!fundamental && style && "name" in style ? <CustomTypographyStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdateCustom?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdateCustom?.({ role: event.target.value as TypographyStyleRole })}>{FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} controlPrefix={`typography-style-${id}`} onUpdateTypography={(update) => (fundamental ? onUpdateTypography?.(normalizeTypographyStyleProperties(update(typography))) : onUpdateCustom?.({ typography: normalizeTypographyStyleProperties(update(typography)) }))} />

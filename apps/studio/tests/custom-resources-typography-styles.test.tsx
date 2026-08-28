@@ -3,6 +3,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type FontResource, type Presentation } from "@powershow/document-schema";
+import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { addCustomTypographyStyle, isTypographyStyleUsed, removeUnusedCustomTypographyStyle, resetFundamentalTypographyOverride, updateCustomTypographyStyle, upsertFundamentalTypographyOverride } from "../src/features/editor/typography-style-helpers";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -174,6 +175,61 @@ describe("Custom Resources Typography Styles", () => {
     expect(disclosure("title").getAttribute("aria-expanded")).toBe("false");
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
     expect(container.querySelectorAll("[data-presentation-typography-styles] [id$='-editor']")).toHaveLength(1);
+  });
+
+  it("renders a transient live preview from effective defaults and style values", async () => {
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(undefined, presentationRef);
+
+    expect(container.querySelector("[data-typography-style-preview='body']")).toBeNull();
+    await act(async () => disclosure("body").click());
+
+    const bodyPreview = requiredElement<HTMLElement>("[data-typography-style-preview='body']");
+    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-typography-style-preview='body'] .powershow-text");
+    expect(bodyPreview.getAttribute("aria-hidden")).toBe("true");
+    expect(bodyPreview.textContent).toBe("Aa");
+    expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
+
+    const fontSelect = requiredElement<HTMLSelectElement>("#typography-style-body-font-family");
+    await act(async () => {
+      fontSelect.value = "Inter";
+      fontSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(bodyPreviewText().getAttribute("style")).toContain('font-family:"Inter"');
+    expect(JSON.stringify(presentationRef.current)).not.toContain("typography-style-preview-");
+    expect(JSON.stringify(presentationRef.current)).not.toContain("Aa");
+
+    await act(async () => rowButton("body", "Reset").click());
+    expect(bodyPreviewText().getAttribute("style")).not.toContain("Inter");
+    expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
+
+    await act(async () => disclosure("body").click());
+    expect(container.querySelector("[data-typography-style-preview='body']")).toBeNull();
+  });
+
+  it("updates a custom Style preview when its role changes", async () => {
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(undefined, presentationRef);
+
+    await act(async () => button("+ Add Style").click());
+    const nameInput = requiredElement<HTMLInputElement>("[data-new-typography-style] input");
+    await act(async () => setInputValue(nameInput, "Quote"));
+    await act(async () => button("+ Add Style").click());
+    await act(async () => disclosure("quote").click());
+
+    const quotePreviewText = () => requiredElement<HTMLElement>("[data-typography-style-preview='quote'] .powershow-text");
+    const bodyFontSize = quotePreviewText().getAttribute("style");
+    expect(bodyFontSize).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
+
+    const roleSelect = requiredElement<HTMLSelectElement>("[data-typography-style-id='quote'] select");
+    await act(async () => {
+      roleSelect.value = "caption";
+      roleSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(quotePreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.caption.fontSize}px`);
+    expect(quotePreviewText().getAttribute("style")).not.toBe(bodyFontSize);
+    expect(presentationRef.current?.typographyStyles).toMatchObject([{ id: "quote", role: "caption", typography: {} }]);
   });
 
   it("creates a custom style with a default role, rejects blank names, and commits a real name edit", async () => {
