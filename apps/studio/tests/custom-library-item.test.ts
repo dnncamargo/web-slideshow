@@ -132,6 +132,48 @@ describe("createCustomLibraryItemDraft", () => {
     }))).not.toHaveProperty("dependencies");
   });
 
+  it("keeps source FontResources immutable and snapshots nested face values", () => {
+    const sourceFonts: FontResource[] = structuredClone(fontResources);
+    const beforeFonts = structuredClone(sourceFonts);
+    const direct = text() as Extract<PowerShowElement, { type: "text" }>;
+    direct.typography = { fontFamily: "Fira Code" };
+    const draft = createCustomLibraryItemDraft(inputFor(direct, {
+      selections: new Map([["text-1", new Set(["typography.fontFamily"])]]),
+      fontResources: sourceFonts,
+    }));
+    const snapshot = draft.dependencies!.fonts![0]!;
+    snapshot.faces[0]!.source.url = "https://example.com/changed.woff2";
+
+    expect(sourceFonts).toEqual(beforeFonts);
+    expect(sourceFonts[0]!.faces![0]!.source.url).toBe("https://example.com/fira.woff2");
+  });
+
+  it("captures Fonts from canonical Topics and structured Table builders", () => {
+    const topicText = text("topic-text") as Extract<PowerShowElement, { type: "text" }>;
+    topicText.typography = { fontFamily: "Fira Code" };
+    const topics: PowerShowElement = {
+      type: "topics", id: "topics", hidden: false, kind: "unordered",
+      items: [{ id: "topic-item", content: { id: "slot", children: [topicText] }, children: [] }],
+    };
+    const topicDraft = createCustomLibraryItemDraft(inputFor(topics, {
+      selections: new Map([["topics", new Set(["items"])]]), fontResources,
+    }));
+
+    const tableText = text("table-text") as Extract<PowerShowElement, { type: "text" }>;
+    tableText.typography = { fontFamily: "Fira Code" };
+    const table: PowerShowElement = {
+      type: "table", id: "table", hidden: false, mode: "structured", showHeader: true,
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [tableText] }] }],
+    };
+    const tableDraft = createCustomLibraryItemDraft(inputFor(table, {
+      selections: new Map([["table", new Set(["rows"])]]), fontResources,
+    }));
+
+    expect(topicDraft.dependencies?.fonts?.map((font) => font.family)).toEqual(["Fira Code"]);
+    expect(tableDraft.dependencies?.fonts?.map((font) => font.family)).toEqual(["Fira Code"]);
+  });
+
   it("creates a text item draft with normalized metadata", () => {
     expect(createCustomLibraryItemDraft(inputFor(text(), {
       name: "  Presentation Title  ",
