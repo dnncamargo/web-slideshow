@@ -63,23 +63,63 @@ describe("effective text typography for authoring", () => {
     });
   });
 
-  it("uses local typography for an independent fundamental without the Presentation override", () => {
+  it("merges attached local overrides over the Presentation fundamental Style", () => {
     const resolved = resolveEffectiveTextTypographyForAuthoring(
       presentation([
-        { id: "body", typography: { fontFamily: "Inter" } },
+        { id: "body", typography: { fontFamily: "Inter", fontSize: "1.25rem", fontWeight: 500 } },
       ]),
-      text({ variant: "body", typography: { fontFamily: "Fira Code" } }),
+      text({ variant: "body", typography: { fontSize: "1.375rem" } }),
     );
 
     expect(resolved).toMatchObject({
       role: "body",
       typography: {
-        fontFamily: "Fira Code",
-        fontSize: 18,
+        fontFamily: "Inter",
+        fontSize: "1.375rem",
+        fontWeight: 500,
         lineHeight: 1.6,
       },
     });
-    expect(resolved.typography.fontFamily).not.toBe("Inter");
+  });
+
+  it("propagates Presentation fundamental Style changes while preserving attached local overrides", () => {
+    const localText = text({ variant: "body", typography: { fontSize: 22 } });
+    const presentationA = presentation([
+      { id: "body", typography: { fontFamily: "Inter", fontSize: 18, fontWeight: 400 } },
+    ]);
+    const presentationB = presentation([
+      { id: "body", typography: { fontFamily: "Roboto", fontSize: 20, fontWeight: 500 } },
+    ]);
+
+    expect(resolveEffectiveTextTypographyForAuthoring(presentationA, localText).typography).toMatchObject({
+      fontFamily: "Inter",
+      fontSize: 22,
+      fontWeight: 400,
+    });
+    expect(resolveEffectiveTextTypographyForAuthoring(presentationB, localText).typography).toMatchObject({
+      fontFamily: "Roboto",
+      fontSize: 22,
+      fontWeight: 500,
+    });
+  });
+
+  it("does not apply the Presentation fundamental Style to a detached Text", () => {
+    const resolved = resolveEffectiveTextTypographyForAuthoring(
+      presentation([
+        { id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } },
+      ]),
+      text({ variant: "body", typographyDetached: true, typography: { fontSize: 22 } }),
+    );
+
+    expect(resolved).toMatchObject({
+      role: "body",
+      typography: {
+        fontSize: 22,
+        fontWeight: 400,
+        lineHeight: 1.6,
+      },
+    });
+    expect(resolved.typography).not.toHaveProperty("fontFamily");
   });
 
   it("resolves a custom Style from its role baseline without inheriting its fundamental override", () => {
