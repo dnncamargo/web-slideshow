@@ -1,24 +1,26 @@
-import type {
-  Color,
-  ColorValue,
-  PowerShowElement,
-  TextElement,
-  ElementEffect,
-  ElementTypography,
-  TextVisualStyle,
+import {
+  resolveColorValue,
+  type ContainerElement,
+  type PowerShowElement,
+  type TextElement,
+  type ElementEffect,
+  type ElementTypography,
+  type TextVisualStyle,
 } from "@powershow/document-schema";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import styles from "../editor-workspace.module.css";
 
 import {
   applyTextContentColor,
   clearTextContentColor,
+  clearTextContentFormatting,
   getTextContentPlainText,
   getTextContentSelectionBooleanMarkState,
-  getTextContentSelectionColor,
+  getTextContentSelectionColorState,
   normalizeTextContent,
   normalizeTextSelectionRange,
   reconcileTextContentEdit,
@@ -36,9 +38,18 @@ import { CanonicalTextAppearanceSection } from "./sections/canonical-text-appear
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 
+import {
+  shouldShowElementPositioning,
+  type ElementLayerControls,
+} from "./sections/element-positioning-helpers";
+
+import { CanonicalTextPositionSection } from "./sections/canonical-text-position-section";
+
 import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
 import { ColorControl } from "./sections/color-control";
+import { ElementTypographyFields } from "./sections/element-typography-control";
+import { usePresentationColorPalette } from "./sections/presentation-color-palette";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
 
@@ -61,42 +72,36 @@ function readTextareaSelection(
   );
 }
 
-function selectionEquals(
-  left: TextSelectionRange | null,
-  right: TextSelectionRange | null,
-): boolean {
-  return (
-    left?.start === right?.start &&
-    left?.end === right?.end
-  );
-}
-
 function InlineFormatButton({
   format,
-  label,
-  active,
+  accessibleLabel,
+  visualLabel,
+  state,
   disabled,
   onClick,
 }: {
   format: "bold" | "italic" | "underline" | "code";
-  label: string;
-  active: boolean;
+  accessibleLabel: string;
+  visualLabel: string;
+  state: "off" | "on" | "mixed" | null;
   disabled: boolean;
   onClick: () => void;
 }) {
   return (
     <button
-      className={styles.secondaryButton}
+      className={styles.textEditorToolbarButton}
       type="button"
-      aria-pressed={active}
+      aria-label={accessibleLabel}
+      aria-pressed={state === "mixed" ? "mixed" : state === "on"}
       disabled={disabled}
       data-powershow-inline-format={format}
+      title={accessibleLabel}
       onMouseDown={(event) => {
         event.preventDefault();
       }}
       onClick={onClick}
     >
-      {label}
+      <span aria-hidden="true">{visualLabel}</span>
     </button>
   );
 }
@@ -109,11 +114,17 @@ export function TextInspector({
   element,
   onUpdate,
   fontResources,
-}: TypographyInspectorProps<TextInspectorElement>) {
+  parent = null,
+  layerControls = null,
+}: TypographyInspectorProps<TextInspectorElement> & {
+  parent?: ContainerElement | null;
+  layerControls?: ElementLayerControls | null;
+}) {
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
-  const [inlineColor, setInlineColor] = useState<ColorValue | undefined>(undefined);
+  const [isInlineColorOpen, setIsInlineColorOpen] = useState(false);
+  const presentationPalette = usePresentationColorPalette();
 
   const plainText = getTextContentPlainText(element.content);
   const normalizedSelection = normalizeTextSelectionRange(
@@ -121,26 +132,20 @@ export function TextInspector({
     plainText.length,
   );
   const hasSelection = normalizedSelection !== null;
-  const selectionColor = getTextContentSelectionColor(
+  const selectionColorState = getTextContentSelectionColorState(
     element.content,
     normalizedSelection,
   );
-
-  useEffect(() => {
-    setInlineColor(selectionColor);
-  }, [selectionColor]);
-
-  useEffect(() => {
-    const nextSelection = normalizeTextSelectionRange(selection, plainText.length);
-
-    if (!selectionEquals(selection, nextSelection)) {
-      setSelection(nextSelection);
-
-      if (nextSelection) {
-        selectionRef.current = nextSelection;
-      }
-    }
-  }, [plainText.length, selection]);
+  const selectionColor = selectionColorState?.kind === "uniform"
+    ? selectionColorState.color
+    : undefined;
+  const resolvedSelectionColor = selectionColor === undefined
+    ? undefined
+    : resolveColorValue(
+        selectionColor,
+        presentationPalette ? { colors: presentationPalette.colors } : undefined,
+      );
+  const isColorPanelOpen = isInlineColorOpen && hasSelection;
 
   const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
@@ -163,6 +168,8 @@ export function TextInspector({
   const updateEffect = (update: (value: ElementEffect | undefined) => ElementEffect) => {
     onUpdate((current) => current.type === "text" ? { ...current, effect: update(current.effect) } : current);
   };
+
+  const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
 
   function updateTextElementContent(
     update: (content: TextElement["content"]) => TextElement["content"],
@@ -226,16 +233,16 @@ export function TextInspector({
       <div className={styles.inspectorDivider} />
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
-        <div className={styles.inlineFormattingToolbar}>
-          <span className={styles.fieldHint}>
-            {t("inspector.inlineFormattingHint")}
-          </span>
-
-          <div className={styles.inlineFormattingButtonRow}>
+        <div className={styles.textEditor} data-powershow-text-editor="true">
+          <div
+            className={styles.textEditorToolbar}
+            data-powershow-text-editor-toolbar="true"
+          >
             <InlineFormatButton
               format="bold"
-              label={t("inspector.inlineFormat.bold")}
-              active={getTextContentSelectionBooleanMarkState(
+              accessibleLabel={t("inspector.inlineFormat.bold")}
+              visualLabel="B"
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "bold",
@@ -250,8 +257,9 @@ export function TextInspector({
 
             <InlineFormatButton
               format="italic"
-              label={t("inspector.inlineFormat.italic")}
-              active={getTextContentSelectionBooleanMarkState(
+              accessibleLabel={t("inspector.inlineFormat.italic")}
+              visualLabel="I"
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "italic",
@@ -266,8 +274,9 @@ export function TextInspector({
 
             <InlineFormatButton
               format="underline"
-              label={t("inspector.inlineFormat.underline")}
-              active={getTextContentSelectionBooleanMarkState(
+              accessibleLabel={t("inspector.inlineFormat.underline")}
+              visualLabel="U"
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "underline",
@@ -282,8 +291,9 @@ export function TextInspector({
 
             <InlineFormatButton
               format="code"
-              label={t("inspector.inlineFormat.code")}
-              active={getTextContentSelectionBooleanMarkState(
+              accessibleLabel={t("inspector.inlineFormat.code")}
+              visualLabel="</>"
+              state={getTextContentSelectionBooleanMarkState(
                 element.content,
                 normalizedSelection,
                 "code",
@@ -295,53 +305,123 @@ export function TextInspector({
                 );
               }}
             />
-          </div>
-
-          <div className={styles.inlineFormattingColorRow}>
-            <label className={styles.field}>
-              <span>{t("inspector.inlineFormat.color")}</span>
-
-              <ColorControl
-                id="text-inline-color"
-                name="textInlineColor"
-                value={inlineColor}
-                disabled={!hasSelection}
-                onChange={(color) => {
-                  setInlineColor(color);
-
-                  applySelectionTransform((content, range) =>
-                    applyTextContentColor(content, range, color),
-                  );
-                }}
-              />
-            </label>
 
             <button
-              className={styles.secondaryButton}
+              className={styles.textEditorToolbarButton}
               type="button"
+              aria-label={t("inspector.inlineFormat.color")}
+              aria-expanded={isColorPanelOpen}
+              aria-controls="text-inline-color-panel"
               disabled={!hasSelection}
-              data-powershow-inline-format-clear="true"
+              data-powershow-inline-color="true"
+              data-powershow-inline-color-state={selectionColorState?.kind ?? "none"}
+              title={t("inspector.inlineFormat.color")}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => setIsInlineColorOpen((open) => !open)}
+            >
+              <svg
+                aria-hidden="true"
+                className={styles.textEditorColorIcon}
+                data-powershow-inline-color-icon="paint-bucket"
+                viewBox="0 0 24 24"
+                focusable="false"
+              >
+                <path
+                  d="m4.5 9 5-5 9 9-5 5-9-9Z"
+                  fill={resolvedSelectionColor ?? "currentColor"}
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.7"
+                />
+                <path
+                  d="m9.5 4 2-2 9 9-2 2M4.5 9l-2 2 7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.7"
+                />
+                <path
+                  d="M17.5 16.5c0 1.4-1.1 2.5-2.5 2.5s-2.5-1.1-2.5-2.5c0-1.4 2.5-4 2.5-4s2.5 2.6 2.5 4Z"
+                  fill={resolvedSelectionColor ?? "currentColor"}
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="1.4"
+                />
+                <path
+                  d="M19 20h2"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="1.7"
+                />
+              </svg>
+              <span
+                aria-hidden="true"
+                className={styles.textEditorColorSwatch}
+                data-powershow-inline-color-swatch="true"
+                style={{ backgroundColor: resolvedSelectionColor ?? "currentColor" }}
+              />
+            </button>
+
+            <button
+              className={styles.textEditorToolbarButton}
+              type="button"
+              aria-label={t("inspector.inlineFormat.clearFormatting")}
+              disabled={!hasSelection}
+              data-powershow-inline-format-clear-formatting="true"
+              title={t("inspector.inlineFormat.clearFormatting")}
               onMouseDown={(event) => {
                 event.preventDefault();
               }}
               onClick={() => {
                 applySelectionTransform((content, range) =>
-                  clearTextContentColor(content, range),
+                  clearTextContentFormatting(content, range),
                 );
               }}
-            >
-              {t("inspector.inlineFormat.clearColor")}
-            </button>
+            >T×</button>
           </div>
-        </div>
 
-        <label className={styles.field}>
-          <span>{t("inspector.text")}</span>
+          {isColorPanelOpen && (
+            <div
+              className={styles.textEditorColorPanel}
+              id="text-inline-color-panel"
+              data-powershow-inline-color-panel="true"
+            >
+              {selectionColorState?.kind === "mixed" ? (
+                <p className={styles.textEditorColorMixedStatus} role="status">
+                  {t("inspector.inlineFormat.mixed")}
+                </p>
+              ) : null}
+              <ColorControl
+                id="text-inline-color"
+                name="textInlineColor"
+                value={selectionColor}
+                disabled={!hasSelection}
+                onChange={(color) => {
+                  applySelectionTransform((content, range) =>
+                    applyTextContentColor(content, range, color),
+                  );
+                }}
+                secondaryAction={{
+                  label: t("inspector.inlineFormat.clearColor"),
+                  onClick: () => {
+                    applySelectionTransform((content, range) =>
+                      clearTextContentColor(content, range),
+                    );
+                  },
+                }}
+              />
+            </div>
+          )}
 
           <textarea
             id="text-content"
             name="textContent"
             className={styles.textArea}
+            aria-label={t("inspector.text")}
             rows={5}
             value={plainText}
             onSelect={(event) => {
@@ -365,8 +445,10 @@ export function TextInspector({
               updateSelectionFromTextarea(event.currentTarget);
             }}
           />
-        </label>
+        </div>
+      </InspectorSection>
 
+      <InspectorSection title={t("inspector.typography")}>
         <label className={styles.field}>
           <span>{t("inspector.style")}</span>
 
@@ -382,41 +464,35 @@ export function TextInspector({
                   return current;
                 }
 
-                return {
-                  ...current,
-
-                  variant,
-                };
+                return { ...current, variant };
               });
             }}
           >
             <option value="title">{t("inspector.titleField")}</option>
-
             <option value="subtitle">{t("inspector.subtitle")}</option>
-
             <option value="body">{t("inspector.body")}</option>
-
             <option value="caption">{t("inspector.caption")}</option>
           </select>
         </label>
-      </InspectorSection>
 
-      <ElementInteractionSection
-        element={element}
-        onUpdate={onUpdate}
-        controlPrefix="text"
-      />
+        {typographyDefaults && (
+          <ElementTypographyFields
+            typography={element.typography}
+            effectiveDefaults={typographyDefaults}
+            onUpdateTypography={updateTypography}
+            controlPrefix="text"
+            fontResources={fontResources}
+          />
+        )}
+      </InspectorSection>
 
       <CanonicalTextAppearanceSection
         element={element}
         style={element.style}
-        typography={element.typography}
         effect={element.effect}
         onUpdateStyle={updateStyle}
-        onUpdateTypography={updateTypography}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
-        fontResources={fontResources}
       />
 
       <CanonicalTextEffectsSection
@@ -425,6 +501,34 @@ export function TextInspector({
         textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}
+        controlPrefix="text"
+      />
+
+      {shouldShowElementPositioning(layerControls) && (
+        <CanonicalTextPositionSection
+          element={element}
+          parent={parent}
+          layerControls={layerControls}
+          onUpdateLayout={(update) => {
+            onUpdate((current) => {
+              if (current.type !== "text") {
+                return current;
+              }
+
+              const next = update(current.layout);
+              const textLayout = next && "width" in next
+                ? Object.fromEntries(Object.entries(next).filter(([key]) => key !== "width" && key !== "height"))
+                : next;
+
+              return { ...current, layout: textLayout };
+            });
+          }}
+        />
+      )}
+
+      <ElementInteractionSection
+        element={element}
+        onUpdate={onUpdate}
         controlPrefix="text"
       />
     </>

@@ -164,7 +164,7 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
 // BEGIN: ELEMENT TYPOGRAPHY CONTROL
 // ============================================================
 
-export function ElementTypographyControl({
+export function ElementTypographyFields({
   typography,
   effectiveDefaults,
   onUpdateTypography,
@@ -202,11 +202,7 @@ export function ElementTypographyControl({
   );
 
   return (
-    <div className={styles.appearanceSubgroup}>
-      <span className={styles.appearanceSubheading}>
-        {t("inspector.typography")}
-      </span>
-
+    <>
       <div>
         <label className={styles.field}>
           <span>{t("inspector.fontFamily")}</span>
@@ -597,6 +593,20 @@ export function ElementTypographyControl({
           </select>
         </label>
       </div>
+    </>
+  );
+}
+
+export function ElementTypographyControl(props: ElementTypographyControlProps) {
+  const { t } = useStudioI18n();
+
+  return (
+    <div className={styles.appearanceSubgroup}>
+      <span className={styles.appearanceSubheading}>
+        {t("inspector.typography")}
+      </span>
+
+      <ElementTypographyFields {...props} />
     </div>
   );
 }

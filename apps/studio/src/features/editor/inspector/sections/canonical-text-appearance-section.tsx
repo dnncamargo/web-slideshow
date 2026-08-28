@@ -1,9 +1,4 @@
-import type {
-  ElementTypography,
-  FontResource,
-  TextElement,
-  TextVisualStyle,
-} from "@powershow/document-schema";
+import type { TextElement, TextVisualStyle } from "@powershow/document-schema";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -11,30 +6,22 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 
 import { getControlName, parseOptionalNumber } from "../inspector-helpers";
-import type {
-  UpdateElementEffect,
-  UpdateElementTypography,
-  UpdateElementVisualStyle,
-} from "../inspector-types";
+import type { UpdateElementEffect, UpdateElementVisualStyle } from "../inspector-types";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
 import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
-import { ElementTypographyControl } from "./element-typography-control";
 
 type CanonicalTextElement = TextElement;
 
 interface CanonicalTextAppearanceSectionProps {
   element: CanonicalTextElement;
   style: TextVisualStyle | undefined;
-  typography: ElementTypography | undefined;
   effect: { opacity?: number } | undefined;
   onUpdateStyle: UpdateElementVisualStyle;
-  onUpdateTypography: UpdateElementTypography;
   onUpdateEffect: UpdateElementEffect;
   controlPrefix: string;
-  fontResources: readonly FontResource[];
 }
 
 function readOpacityPercentage(value: number | undefined): number {
@@ -44,29 +31,16 @@ function readOpacityPercentage(value: number | undefined): number {
 export function CanonicalTextAppearanceSection({
   element,
   style,
-  typography,
   effect,
   onUpdateStyle,
-  onUpdateTypography,
   onUpdateEffect,
   controlPrefix,
-  fontResources,
 }: CanonicalTextAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const defaults = resolveEffectiveElementStyleDefaults(element);
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
-      {defaults.typography && (
-        <ElementTypographyControl
-          typography={typography}
-          effectiveDefaults={defaults.typography}
-          onUpdateTypography={onUpdateTypography}
-          controlPrefix={controlPrefix}
-          fontResources={fontResources}
-        />
-      )}
-
       <div className={styles.colorControl}>
         <label className={styles.field}>
           <span>{t("inspector.color")}</span>
