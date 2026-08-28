@@ -1,0 +1,240 @@
+.recoveryScreen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 6vw, 72px) 20px;
+  overflow-y: auto;
+  background: var(--ps-ui-background-canvas);
+  color: var(--ps-ui-text-secondary);
+}
+
+.recoveryPanel {
+  width: min(100%, 700px);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: clamp(28px, 5vw, 48px);
+  border: 1px solid var(--ps-ui-border-subtle);
+  border-radius: var(--ps-ui-radius-12);
+  background: var(--ps-ui-background-surface);
+  box-shadow: 0 18px 55px rgb(0 0 0 / 18%);
+}
+
+.warningPanel {
+  border-color: rgb(251 191 36 / 48%);
+}
+
+.recoveryHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recoveryStatus {
+  margin: 0;
+  color: var(--ps-ui-semantic-warning);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recoveryTitle {
+  margin: 0;
+  color: var(--ps-ui-text-primary);
+  font-size: clamp(25px, 4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.recoveryExplanation {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--ps-ui-text-secondary);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.recoverySummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-8);
+  background: var(--ps-ui-background-raised);
+}
+
+.issueCount {
+  margin: 0;
+  color: var(--ps-ui-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.detailsToggle {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: transparent;
+  color: var(--ps-ui-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detailsToggle:hover {
+  border-color: var(--ps-ui-border-strong);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+}
+
+.recoveryDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(48vh, 460px);
+  margin: -12px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.recoveryIssue {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-raised);
+}
+
+.recoveryIssuePath {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ps-ui-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recoveryIssueMetadata {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+}
+
+.recoveryIssueMetadata > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.recoveryIssueMetadata dt {
+  color: var(--ps-ui-text-muted);
+  font-weight: 600;
+}
+
+.recoveryIssueMetadata dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ps-ui-text-secondary);
+}
+
+.recoveryActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.primaryAction,
+.secondaryAction,
+.dangerAction {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--ps-ui-radius-6);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.primaryAction {
+  border: 1px solid #0e7490;
+  background: #164e63;
+  color: #ecfeff;
+}
+
+.primaryAction:hover {
+  border-color: var(--ps-ui-semantic-accent);
+  background: #0f394e;
+}
+
+.secondaryAction {
+  border: 1px solid var(--ps-ui-border-default);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-secondary);
+}
+
+.secondaryAction:hover {
+  border-color: var(--ps-ui-border-strong);
+  background: var(--ps-ui-background-raised);
+  color: var(--ps-ui-text-primary);
+}
+
+.dangerAction {
+  border: 1px solid rgb(248 113 113 / 65%);
+  background: rgb(127 29 29 / 38%);
+  color: #fecaca;
+}
+
+.dangerAction:hover {
+  border-color: var(--ps-ui-semantic-danger);
+  background: rgb(127 29 29 / 58%);
+}
+
+.detailsToggle:focus-visible,
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.dangerAction:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
+.statusMessage {
+  margin: 0;
+  color: var(--ps-ui-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .recoveryScreen {
+    place-items: start center;
+    padding: 16px 12px;
+  }
+
+  .recoveryPanel {
+    gap: 22px;
+    padding: 24px 18px;
+  }
+
+  .recoverySummary {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .detailsToggle {
+    width: 100%;
+  }
+}
