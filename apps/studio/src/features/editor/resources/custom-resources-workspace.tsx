@@ -254,9 +254,13 @@ function TypographyStylesWorkspace({
   const projectedStyles = listPresentationTypographyStyles({ typographyStyles: presentationStyles });
   const byId = new Map(projectedStyles.filter((item) => item.style !== undefined).map((item) => [item.id, item.style]));
   const customStyles = projectedStyles.filter((item) => !FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.some((fundamentalId) => fundamentalId === item.id) && item.style !== undefined).map((item) => item.style as TypographyStyle);
-  return <section data-presentation-typography-styles>
-    <h3 className={styles.groupTitle}>{t("customResources.typographyStyles")}</h3>
-    <div className={styles.localFontList}>
+  return <section
+    className={styles.typographyStylesSection}
+    data-presentation-typography-styles
+    aria-labelledby="presentation-typography-styles-title"
+  >
+    <h3 id="presentation-typography-styles-title" className={styles.groupTitle}>{t("customResources.typographyStyles")}</h3>
+    <div className={styles.typographyStyleList}>
       {FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.map((id) => {
         const style = byId.get(id);
         return <TypographyStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={style ? t("customResources.customized") : t("customResources.builtIn")} editing={editingStyleId === id} style={style} fonts={presentationFonts} onEdit={onEdit} onUpdateTypography={(typography) => onUpdateFundamental(id, typography)} onReset={() => onResetFundamental(id)} />;
@@ -276,15 +280,30 @@ function TypographyStyleRow({ id, label, status, editing, style, fonts, onEdit, 
   const fundamental = FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.some((fundamentalId) => fundamentalId === id);
   const role = fundamental ? id as TypographyStyleRole : (style && "role" in style ? style.role : "body");
   const typography = style?.typography;
-  return <div className={styles.localFontRow} data-typography-style-id={id}>
-    <div className={styles.localFontDetails}><strong>{label}</strong><span className={styles.masterPaletteCount}>{status}</span></div>
-    <button type="button" className={styles.resourceAction} onClick={() => onEdit(id)}>{t("customResources.edit")}</button>
-    {fundamental && style ? <button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button> : null}
-    {!fundamental && onRemove ? <button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button> : null}
-    {editing ? <div className={styles.localColorAdd}>
+  const editorId = `typography-style-${id}-editor`;
+
+  return <div className={styles.typographyStyleRow} data-typography-style-id={id}>
+    <div className={styles.typographyStyleHeader}>
+      <button
+        type="button"
+        className={styles.typographyStyleDisclosure}
+        aria-expanded={editing}
+        aria-controls={editorId}
+        onClick={() => onEdit(id)}
+      >
+        <span className={styles.typographyStyleDetails}>
+          <strong>{label}</strong>
+          <span className={styles.typographyStyleStatus}>{status}</span>
+        </span>
+        <span className={styles.typographyStyleChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
+      </button>
+    </div>
+    {editing ? <div id={editorId} className={styles.typographyStyleEditor}>
       {!fundamental && style && "name" in style ? <CustomTypographyStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdateCustom?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdateCustom?.({ role: event.target.value as TypographyStyleRole })}>{FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} controlPrefix={`typography-style-${id}`} onUpdateTypography={(update) => (fundamental ? onUpdateTypography?.(normalizeTypographyStyleProperties(update(typography))) : onUpdateCustom?.({ typography: normalizeTypographyStyleProperties(update(typography)) }))} />
+      {fundamental && style && onReset ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
+      {!fundamental && onRemove ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
     </div> : null}
   </div>;
 }

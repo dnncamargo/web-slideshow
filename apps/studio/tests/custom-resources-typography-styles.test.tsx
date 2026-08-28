@@ -98,6 +98,12 @@ describe("Custom Resources Typography Styles", () => {
     return found;
   }
 
+  function disclosure(id: string): HTMLButtonElement {
+    const found = row(id).querySelector<HTMLButtonElement>("button[aria-controls]");
+    if (!found) throw new Error(`Missing disclosure button for ${id}`);
+    return found;
+  }
+
   it("shows virtual fundamentals as built-in in This Presentation only", async () => {
     await render();
 
@@ -110,18 +116,29 @@ describe("Custom Resources Typography Styles", () => {
 
     const thisPresentation = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-this-presentation']");
     const fromLibrary = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-from-library']");
-    expect(thisPresentation.querySelector("[data-presentation-typography-styles]")).not.toBeNull();
+    const typographyStyles = requiredElement<HTMLElement>("[data-presentation-typography-styles]");
+    expect(typographyStyles.tagName).toBe("SECTION");
+    expect(typographyStyles.getAttribute("aria-labelledby")).toBe("presentation-typography-styles-title");
+    expect(typographyStyles.querySelector("#presentation-typography-styles-title")?.textContent).toBe("Typography Styles");
+    expect(thisPresentation.contains(typographyStyles)).toBe(true);
     expect(fromLibrary.querySelector("[data-presentation-typography-styles]")).toBeNull();
     expect(fromLibrary.textContent).not.toContain("Typography Styles");
+    expect(typographyStyles.textContent).not.toContain("Edit");
+
+    for (const id of fundamentalIds) {
+      expect(disclosure(id).getAttribute("aria-expanded")).toBe("false");
+      expect(row(id).querySelector("#typography-style-" + id + "-editor")).toBeNull();
+    }
   });
 
   it("edits a fundamental through the real typography control and resets the last override", async () => {
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
     await render(undefined, presentationRef);
 
-    await act(async () => rowButton("body", "Edit").click());
+    await act(async () => disclosure("body").click());
     const fontSelect = requiredElement<HTMLSelectElement>("#typography-style-body-font-family");
     expect(Array.from(fontSelect.options).map((option) => option.value)).toContain("Inter");
+    expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
 
     await act(async () => {
       fontSelect.value = "Inter";
@@ -130,10 +147,33 @@ describe("Custom Resources Typography Styles", () => {
 
     expect(presentationRef.current?.typographyStyles).toEqual([{ id: "body", typography: { fontFamily: "Inter" } }]);
     expect(row("body").textContent).toContain("Customized");
+    expect(row("body").textContent).not.toContain("Edit");
 
     await act(async () => rowButton("body", "Reset").click());
     expect(row("body").textContent).toContain("Built-in");
+    expect(row("body").querySelector("button")?.textContent).not.toContain("Reset");
     expect(presentationRef.current).not.toHaveProperty("typographyStyles");
+  });
+
+  it("opens and closes one Typography Style editor at a time", async () => {
+    await render();
+
+    expect(disclosure("body").getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector("#typography-style-body-editor")).toBeNull();
+
+    await act(async () => disclosure("body").click());
+    expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector("#typography-style-body-editor")).not.toBeNull();
+
+    await act(async () => disclosure("body").click());
+    expect(disclosure("body").getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector("#typography-style-body-editor")).toBeNull();
+
+    await act(async () => disclosure("title").click());
+    await act(async () => disclosure("body").click());
+    expect(disclosure("title").getAttribute("aria-expanded")).toBe("false");
+    expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelectorAll("[data-presentation-typography-styles] [id$='-editor']")).toHaveLength(1);
   });
 
   it("creates a custom style with a default role, rejects blank names, and commits a real name edit", async () => {
@@ -153,7 +193,7 @@ describe("Custom Resources Typography Styles", () => {
     expect(presentationRef.current?.typographyStyles).toEqual([{ id: "quote", name: "Quote", role: "body", typography: {} }]);
     expect(row("quote").textContent).toContain("Body");
 
-    await act(async () => rowButton("quote", "Edit").click());
+    await act(async () => disclosure("quote").click());
     const quoteRow = row("quote");
     const roleSelect = quoteRow.querySelector<HTMLSelectElement>("select");
     expect(roleSelect?.value).toBe("body");
@@ -188,6 +228,7 @@ describe("Custom Resources Typography Styles", () => {
       quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(presentationRef.current?.typographyStyles?.[0]).toMatchObject({ id: "quote", typography: { fontFamily: "Inter" } });
+    expect(row("quote").textContent).not.toContain("Edit");
   });
 
   it("removes an unused custom style", async () => {
@@ -200,6 +241,9 @@ describe("Custom Resources Typography Styles", () => {
     await act(async () => button("+ Add Style").click());
     expect(row("quote")).not.toBeNull();
 
+    expect(row("quote").textContent).not.toContain("Remove");
+    await act(async () => disclosure("quote").click());
+    expect(rowButton("quote", "Remove").disabled).toBe(false);
     await act(async () => rowButton("quote", "Remove").click());
     expect(container.querySelector("[data-typography-style-id='quote']")).toBeNull();
     expect(presentationRef.current).not.toHaveProperty("typographyStyles");
@@ -214,6 +258,8 @@ describe("Custom Resources Typography Styles", () => {
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
     await render(usedPresentation, presentationRef);
 
+    expect(row("quote").textContent).not.toContain("Remove");
+    await act(async () => disclosure("quote").click());
     const removeButton = rowButton("quote", "Remove");
     expect(row("quote").textContent).toContain("In use");
     expect(removeButton.disabled).toBe(true);
