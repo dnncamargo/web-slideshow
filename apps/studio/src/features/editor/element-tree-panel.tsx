@@ -4,6 +4,7 @@ import type {
   PowerShowElement,
   Slide,
   TopicItem,
+  FontResource,
   PresentationPalette,
 } from "@powershow/document-schema";
 import { useState } from "react";
@@ -12,7 +13,7 @@ import type { DragEvent } from "react";
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
-import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
+import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
 import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
 
 import styles from "./editor-workspace.module.css";
@@ -39,8 +40,9 @@ interface ElementTreePanelProps {
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
   customLibraryRepository?: CustomLibraryRepository;
-  onApplyCustomLibraryRecipe?: (recipe: CustomLibraryElementRecipe) => CustomLibraryApplyOutcome;
+  onApplyCustomLibraryItem?: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   palette?: PresentationPalette;
+  fontResources?: readonly FontResource[];
 }
 
 interface ElementTreeSelection {
@@ -471,8 +473,9 @@ export function ElementTreePanel({
   onSelectElement,
   onMoveElement,
   customLibraryRepository,
-  onApplyCustomLibraryRecipe = () => ({ ok: true }),
+  onApplyCustomLibraryItem = () => ({ ok: true }),
   palette,
+  fontResources,
 }: ElementTreePanelProps) {
   const { t } = useStudioI18n();
   const [expandedIds, setExpandedIds] = useState(() => {
@@ -697,8 +700,9 @@ export function ElementTreePanel({
         selectedElement={selectedElement}
         isStructuralTopicSelection={isStructuralTopicRow}
         customLibraryRepository={customLibraryRepository}
-        onApplyCustomLibraryRecipe={onApplyCustomLibraryRecipe}
+        onApplyCustomLibraryItem={onApplyCustomLibraryItem}
         palette={palette}
+        fontResources={fontResources}
       />
     </div>
   );

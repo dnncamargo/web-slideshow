@@ -2,7 +2,9 @@ import type { Presentation, PowerShowElement } from "@powershow/document-schema"
 import {
   PowerShowElementSchema,
   PresentationSchema,
+  resolveTextStyle,
   SlideSchema,
+  TextStyleSchema,
 } from "@powershow/document-schema";
 
 // ============================================================
@@ -20,7 +22,7 @@ import {
 // element is removed. Blocks are never internally repaired.
 // ============================================================
 
-export type RecoveryIssueKind = "element" | "slide";
+export type RecoveryIssueKind = "element" | "slide" | "text-style";
 
 export type RecoveryIssueAction = "remove";
 
@@ -57,6 +59,8 @@ export const RECOVERY_REASON = {
   invalidTopicsStructure: "Invalid Topics structure",
   invalidStructuredTable: "Invalid structured table",
   invalidTable: "Invalid table",
+  invalidTextStyle: "Invalid Text Style",
+  obsoleteTextStyleContent: "Obsolete Text Style content",
   finalPresentationInvalid: "Recovered presentation is still invalid",
 } as const;
 
@@ -136,6 +140,7 @@ function recoverElements(
   rawElements: unknown,
   pathBase: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): PowerShowElement[] {
   const recovered: PowerShowElement[] = [];
 
@@ -146,7 +151,7 @@ function recoverElements(
   rawElements.forEach((rawElement, index) => {
     const path = [...pathBase, index];
 
-    const element = recoverElement(rawElement, path, issues);
+    const element = recoverElement(rawElement, path, issues, typographyContext);
 
     if (element !== null) {
       recovered.push(element);
@@ -180,11 +185,28 @@ function recoverElement(
   raw: unknown,
   path: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): PowerShowElement | null {
   // 1. Keep anything that is already canonical.
   const parsed = PowerShowElementSchema.safeParse(raw);
 
   if (parsed.success) {
+    if (parsed.data.type === "text") {
+      try {
+        resolveTextStyle(typographyContext, parsed.data);
+      } catch {
+        return removeElementIssue(raw, path, RECOVERY_REASON.invalidElement, issues);
+      }
+    }
+    if (parsed.data.type === "container" && isRecord(raw)) {
+      return recoverContainer(raw, path, issues, typographyContext);
+    }
+    if (parsed.data.type === "topics" && isRecord(raw)) {
+      return recoverTopics(raw, path, issues, typographyContext);
+    }
+    if (parsed.data.type === "table" && parsed.data.mode === "structured" && isRecord(raw)) {
+      return recoverTable(raw, path, issues, typographyContext);
+    }
     return parsed.data;
   }
 
@@ -194,13 +216,13 @@ function recoverElement(
 
   switch (raw.type) {
     case "container":
-      return recoverContainer(raw, path, issues);
+      return recoverContainer(raw, path, issues, typographyContext);
 
     case "topics":
-      return recoverTopics(raw, path, issues);
+      return recoverTopics(raw, path, issues, typographyContext);
 
     case "table":
-      return recoverTable(raw, path, issues);
+      return recoverTable(raw, path, issues, typographyContext);
 
     case "blocks":
       // Old/incompatible Blocks are removed whole; never repaired.
@@ -220,6 +242,7 @@ function recoverContainer(
   raw: Record<string, unknown>,
   path: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): PowerShowElement | null {
   if (!Array.isArray(raw.children)) {
     return removeElementIssue(
@@ -246,6 +269,7 @@ function recoverContainer(
     raw.children,
     [...path, "children"],
     issues,
+    typographyContext,
   );
   const rebuilt = { ...raw, children };
 
@@ -353,6 +377,7 @@ function recoverTopics(
   raw: Record<string, unknown>,
   path: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): PowerShowElement | null {
   if (!topicItemsStructureIsValid(raw.items)) {
     return removeElementIssue(
@@ -379,7 +404,7 @@ function recoverTopics(
     );
   }
 
-  const items = recoverTopicItems(rawItems, [...path, "items"], issues);
+  const items = recoverTopicItems(rawItems, [...path, "items"], issues, typographyContext);
   const rebuilt = { ...raw, items };
 
   const rebuiltParsed = PowerShowElementSchema.safeParse(rebuilt);
@@ -409,6 +434,7 @@ function recoverTopicItems(
   rawItems: Record<string, unknown>[],
   pathBase: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): unknown[] {
   const recoveredItems: unknown[] = [];
 
@@ -420,12 +446,14 @@ function recoverTopicItems(
       content.children,
       [...itemPath, "content", "children"],
       issues,
+      typographyContext,
     );
 
     const children = recoverTopicItems(
       rawItem.children as Record<string, unknown>[],
       [...itemPath, "children"],
       issues,
+      typographyContext,
     );
 
     recoveredItems.push({
@@ -442,6 +470,7 @@ function recoverTable(
   raw: Record<string, unknown>,
   path: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): PowerShowElement | null {
   // Structured tables preserve structurally valid headers/cells while
   // pruning incompatible nested content. Simple tables have no nested
@@ -487,6 +516,7 @@ function recoverTable(
       header.children,
       [...path, "columns", columnIndex, "header", "children"],
       issues,
+      typographyContext,
     );
 
     return {
@@ -503,6 +533,7 @@ function recoverTable(
           cell.children,
           [...path, "rows", rowIndex, "cells", cellIndex, "children"],
           issues,
+          typographyContext,
         ),
       }),
     );
@@ -538,6 +569,7 @@ interface SlideRecoveryResult {
 function recoverSlides(
   rawSlides: unknown,
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): SlideRecoveryResult {
   const slides: unknown[] = [];
 
@@ -548,7 +580,7 @@ function recoverSlides(
   rawSlides.forEach((rawSlide, index) => {
     const path = ["slides", index];
 
-    const slide = recoverSlide(rawSlide, path, issues);
+    const slide = recoverSlide(rawSlide, path, issues, typographyContext);
 
     if (slide !== null) {
       slides.push(slide);
@@ -579,13 +611,8 @@ function recoverSlide(
   raw: unknown,
   path: (string | number)[],
   issues: RecoveryIssue[],
+  typographyContext: Presentation,
 ): unknown | null {
-  const parsed = SlideSchema.safeParse(raw);
-
-  if (parsed.success) {
-    return parsed.data;
-  }
-
   if (!isRecord(raw) || !Array.isArray(raw.elements)) {
     return removeSlideIssue(raw, path, RECOVERY_REASON.invalidSlideStructure, issues);
   }
@@ -601,6 +628,7 @@ function recoverSlide(
     raw.elements,
     [...path, "elements"],
     issues,
+    typographyContext,
   );
   const rebuilt = { ...raw, elements };
 
@@ -616,6 +644,96 @@ function recoverSlide(
 // ------------------------------------------------------------
 // Root analysis
 // ------------------------------------------------------------
+
+interface TextStyleRecoveryResult {
+  textStyles: unknown[] | undefined;
+
+  hadTextStyles: boolean;
+}
+
+function removeTextStyleIssue(
+  raw: unknown,
+  path: (string | number)[],
+  reason: string,
+  issues: RecoveryIssue[],
+): void {
+  issues.push({
+    kind: "text-style",
+    path,
+    action: "remove",
+    ...(isRecord(raw) && typeof raw.id === "string" ? { id: raw.id } : {}),
+    reason,
+  });
+}
+
+function recoverTextStyles(
+  rawPresentation: Record<string, unknown>,
+  rootShell: Presentation,
+  issues: RecoveryIssue[],
+): TextStyleRecoveryResult {
+  const hadTextStyles = Object.prototype.hasOwnProperty.call(
+    rawPresentation,
+    "textStyles",
+  );
+
+  if (!hadTextStyles) {
+    return { textStyles: undefined, hadTextStyles: false };
+  }
+
+  const rawTextStyles = rawPresentation.textStyles;
+
+  if (!Array.isArray(rawTextStyles)) {
+    removeTextStyleIssue(
+      rawTextStyles,
+      ["textStyles"],
+      RECOVERY_REASON.invalidTextStyle,
+      issues,
+    );
+    return { textStyles: undefined, hadTextStyles: false };
+  }
+
+  const recovered: unknown[] = [];
+  const recoveredIds = new Set<string>();
+
+  rawTextStyles.forEach((rawTextStyle, index) => {
+    const path = ["textStyles", index];
+    const parsed = TextStyleSchema.safeParse(rawTextStyle);
+
+    if (!parsed.success || recoveredIds.has(parsed.success ? parsed.data.id : "")) {
+      removeTextStyleIssue(
+        rawTextStyle,
+        path,
+        RECOVERY_REASON.invalidTextStyle,
+        issues,
+      );
+      return;
+    }
+
+    // PresentationSchema is the authority for cross-resource Palette
+    // references. Validate one semantic unit at a time so an invalid style
+    // is removed without making the whole root unrecoverable.
+    const styleCandidate = PresentationSchema.safeParse({
+      ...rootShell,
+      textStyles: [parsed.data],
+      slides: [],
+    });
+
+    if (!styleCandidate.success) {
+      removeTextStyleIssue(
+        rawTextStyle,
+        path,
+        RECOVERY_REASON.invalidTextStyle,
+        issues,
+      );
+      return;
+    }
+
+    recoveredIds.add(parsed.data.id);
+    recovered.push(parsed.data);
+  });
+
+  return { textStyles: recovered, hadTextStyles: true };
+}
 
 /**
  * Analyzes a raw persisted presentation object (the value stored under
@@ -657,9 +775,24 @@ export function analyzePresentationRecovery(
     return { status: "unrecoverable", presentation: null, issues };
   }
 
-  // Validate the root shell by neutralizing ONLY slides to [].
+  // Validate the structural root shell by neutralizing slides and removing
+  // only recoverable root semantic content. Unknown root fields are not
+  // carried into the canonical candidate, so obsolete aliases are removed
+  // rather than migrated.
+  const rootShellInput = { ...rawPresentation };
+  delete rootShellInput.textStyles;
+  if (Object.prototype.hasOwnProperty.call(rootShellInput, "typographyStyles")) {
+    removeTextStyleIssue(
+      rootShellInput.typographyStyles,
+      ["typographyStyles"],
+      RECOVERY_REASON.obsoleteTextStyleContent,
+      issues,
+    );
+    delete rootShellInput.typographyStyles;
+  }
+
   const rootShellParsed = PresentationSchema.safeParse({
-    ...rawPresentation,
+    ...rootShellInput,
     slides: [],
   });
 
@@ -681,9 +814,31 @@ export function analyzePresentationRecovery(
     return { status: "valid", presentation: fullParsed.data, issues };
   }
 
-  const { slides } = recoverSlides(rawPresentation.slides, issues);
+  const textStyleRecovery = recoverTextStyles(
+    rawPresentation,
+    rootShellParsed.data,
+    issues,
+  );
+  const typographyContext = {
+    ...rootShellParsed.data,
+    ...(textStyleRecovery.hadTextStyles
+      ? { textStyles: textStyleRecovery.textStyles }
+      : {}),
+    slides: [],
+  } as Presentation;
+  const { slides } = recoverSlides(
+    rawPresentation.slides,
+    issues,
+    typographyContext,
+  );
 
-  const candidate = { ...rawPresentation, slides };
+  const candidate = {
+    ...rootShellParsed.data,
+    ...(textStyleRecovery.hadTextStyles
+      ? { textStyles: textStyleRecovery.textStyles }
+      : {}),
+    slides,
+  };
   const finalParsed = PresentationSchema.safeParse(candidate);
 
   if (!finalParsed.success) {

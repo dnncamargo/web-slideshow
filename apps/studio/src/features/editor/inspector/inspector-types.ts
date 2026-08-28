@@ -5,6 +5,7 @@ import type {
   ResizablePositionedLayout,
   SurfaceVisualStyle,
   FontResource,
+  Presentation,
   PowerShowElement,
 } from "@powershow/document-schema";
 
@@ -48,6 +49,8 @@ export interface TypographyInspectorProps<
   TElement extends PowerShowElement,
 > extends TypedInspectorProps<TElement> {
   fontResources: readonly FontResource[];
+
+  presentation?: Presentation;
 }
 
 export interface TopicsAuthoringControls {

@@ -5,6 +5,7 @@ import type {
 import { escapeHtml } from "./escape-html";
 import { renderFontResources } from "./render-font-resources";
 import { renderSlide } from "./render-slide";
+import type { RenderContext } from "./render-element";
 import {
   renderPresentationPaletteVariables,
 } from "./render-palette";
@@ -12,8 +13,9 @@ import {
 export function renderPresentation(
   presentation: Presentation,
 ): string {
+  const context: RenderContext = { presentation };
   const slides = presentation.slides
-    .map(renderSlide)
+    .map((slide) => renderSlide(slide, context))
     .join("");
   const fontResources = renderFontResources(presentation.resources?.fonts);
   const fontResourceStyle = fontResources

@@ -28,6 +28,8 @@ export type {
 } from "./palette-operations";
 export * from "./resources";
 export * from "./style";
+export * from "./text-style";
+export * from "./text-style-resolution";
 export * from "./links";
 export * from "./elements";
 export * from "./slide";

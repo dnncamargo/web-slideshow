@@ -227,20 +227,52 @@ export const TextVisualStyleSchema = z.object({
 
 export type TextVisualStyle = z.infer<typeof TextVisualStyleSchema>;
 
+const TypographyStyleFields = {
+  fontFamily: FontFamilySchema.optional(),
+  fontSize: LengthSchema.optional(),
+  fontWeight: FontWeightSchema.optional(),
+  fontStyle: FontStyleSchema.optional(),
+  textAlign: TextAlignSchema.optional(),
+  lineHeight: LineHeightSchema.optional(),
+  letterSpacing: LengthSchema.optional(),
+  textTransform: TextTransformSchema.optional(),
+  whiteSpace: WhiteSpaceSchema.optional(),
+  textWrapStyle: TextWrapStyleSchema.optional(),
+  overflowWrap: OverflowWrapSchema.optional(),
+  textDecorationLine: TextDecorationLineSchema.optional(),
+};
+
+export const TypographyStylePropertiesSchema = z
+  .object(TypographyStyleFields)
+  .strict();
+
+export type TypographyStyleProperties = z.infer<
+  typeof TypographyStylePropertiesSchema
+>;
+
+export const TextStyleTypographyPropertiesSchema = z
+  .object({
+    ...TypographyStyleFields,
+    textDecorationColor: ColorValueSchema.optional(),
+    textStroke: TextStrokeSchema.optional(),
+  })
+  .strict();
+
+export type TextStyleTypographyProperties = z.infer<
+  typeof TextStyleTypographyPropertiesSchema
+>;
+
+export const TextStyleVisualPropertiesSchema = z.object({
+  color: ColorValueSchema.optional(),
+}).strict();
+
+export type TextStyleVisualProperties = z.infer<
+  typeof TextStyleVisualPropertiesSchema
+>;
+
 export const ElementTypographySchema = z
   .object({
-    fontFamily: FontFamilySchema.optional(),
-    fontSize: LengthSchema.optional(),
-    fontWeight: FontWeightSchema.optional(),
-    fontStyle: FontStyleSchema.optional(),
-    textAlign: TextAlignSchema.optional(),
-    lineHeight: LineHeightSchema.optional(),
-    letterSpacing: LengthSchema.optional(),
-    textTransform: TextTransformSchema.optional(),
-    whiteSpace: WhiteSpaceSchema.optional(),
-    textWrapStyle: TextWrapStyleSchema.optional(),
-    overflowWrap: OverflowWrapSchema.optional(),
-    textDecorationLine: TextDecorationLineSchema.optional(),
+    ...TypographyStyleFields,
     textDecorationColor: ColorValueSchema.optional(),
     textStroke: TextStrokeSchema.optional(),
   })
@@ -301,20 +333,9 @@ export const TopicsVisualStyleSchema = z.object({
   className: z.string().optional(),
 }).strict();
 
-export const TopicsTypographySchema = z.object({
-  fontFamily: FontFamilySchema.optional(),
-  fontSize: LengthSchema.optional(),
-  fontWeight: FontWeightSchema.optional(),
-  fontStyle: FontStyleSchema.optional(),
-  textAlign: TextAlignSchema.optional(),
-  lineHeight: LineHeightSchema.optional(),
-  letterSpacing: LengthSchema.optional(),
-  textTransform: TextTransformSchema.optional(),
-  whiteSpace: WhiteSpaceSchema.optional(),
-  textWrapStyle: TextWrapStyleSchema.optional(),
-  overflowWrap: OverflowWrapSchema.optional(),
-  textDecorationLine: TextDecorationLineSchema.optional(),
-}).strict();
+export const TopicsTypographySchema = z
+  .object(TypographyStyleFields)
+  .strict();
 
 export type DividerLayout = z.infer<typeof DividerLayoutSchema>;
 export type DividerVisualStyle = z.infer<typeof DividerVisualStyleSchema>;

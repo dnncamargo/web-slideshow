@@ -24,6 +24,7 @@ import type {
 } from "./element-properties";
 import type { Slide, SlideBackground } from "./slide";
 import type { Presentation } from "./presentation";
+import type { TextStyle } from "./text-style";
 
 export type PaletteColorPath = (string | number)[];
 
@@ -40,6 +41,7 @@ type ColorSlot = {
 export function visitPresentationColorValues(
   presentation: {
     slides: Slide[];
+    textStyles?: TextStyle[] | undefined;
   },
   visitor: PresentationColorValueVisitor,
 ): void {
@@ -167,6 +169,11 @@ export function visitPresentationColorValues(
   presentation.slides.forEach((slide, slideIndex) => {
     visitSlideBackground(slide.background, ["slides", slideIndex, "background"]);
     slide.elements.forEach((element, elementIndex) => visitElement(element, ["slides", slideIndex, "elements", elementIndex]));
+  });
+
+  presentation.textStyles?.forEach((textStyle, index) => {
+    visitStyle(textStyle.style, ["textStyles", index, "style"]);
+    visitTypography(textStyle.typography, ["textStyles", index, "typography"]);
   });
 }
 

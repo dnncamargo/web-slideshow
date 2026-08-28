@@ -6,6 +6,7 @@ import {
   parseAuthoringLength,
   resolveEffectiveElementStyleDefaults,
   resolveEffectiveNumericStyleValue,
+  resolveThemeTextTypographyBaseline,
   TOPICS_ITEM_GAP_DEFAULT_PX,
 } from "../src/element-style-defaults";
 
@@ -124,6 +125,52 @@ describe("element style authoring defaults", () => {
   });
   it("exposes the deterministic Topics item gap default", () => {
     expect(TOPICS_ITEM_GAP_DEFAULT_PX).toBe(6);
+  });
+
+  it("resolves the full materializable typography baseline for every role", () => {
+    expect(resolveThemeTextTypographyBaseline("title")).toEqual({
+      fontSize: 48,
+      fontWeight: 700,
+      fontStyle: "normal",
+      textAlign: "left",
+      lineHeight: 1.08,
+      letterSpacing: -1.2,
+      textTransform: "none",
+      whiteSpace: "normal",
+      textWrapStyle: "auto",
+      overflowWrap: "normal",
+      textDecorationLine: "none",
+    });
+    expect(resolveThemeTextTypographyBaseline("subtitle")).toMatchObject({
+      fontSize: 28,
+      fontWeight: 500,
+      lineHeight: 1.25,
+    });
+    expect(resolveThemeTextTypographyBaseline("body")).toMatchObject({
+      fontSize: 18,
+      fontWeight: 400,
+      lineHeight: 1.6,
+    });
+    expect(resolveThemeTextTypographyBaseline("caption")).toMatchObject({
+      fontSize: 14,
+      fontWeight: 400,
+      lineHeight: 1.45,
+    });
+
+    for (const role of ["title", "subtitle", "body", "caption"] as const) {
+      expect(resolveThemeTextTypographyBaseline(role)).toMatchObject({
+        fontStyle: "normal",
+        textAlign: "left",
+        textTransform: "none",
+        whiteSpace: "normal",
+        textWrapStyle: "auto",
+        overflowWrap: "normal",
+        textDecorationLine: "none",
+      });
+      expect(resolveThemeTextTypographyBaseline(role)).not.toHaveProperty(
+        "fontFamily",
+      );
+    }
   });
 });
 

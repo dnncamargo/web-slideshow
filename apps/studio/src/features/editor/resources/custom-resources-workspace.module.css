@@ -122,6 +122,192 @@
   gap: 8px;
 }
 
+.textStylesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid #232a36;
+}
+
+.typographyStyleList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.typographyStyleRow {
+  min-width: 0;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.typographyStyleHeader {
+  min-width: 0;
+}
+
+.typographyStyleDisclosure {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.typographyStyleDisclosure:hover,
+.typographyStyleDisclosure:focus-visible {
+  color: #f8fafc;
+  outline: none;
+}
+
+.typographyStyleDetails {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.typographyStyleDetails strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typographyStyleStatus {
+  color: #94a3b8;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.typographyStyleChevron {
+  flex: none;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.typographyStyleEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 6px 8px;
+  border-left: 1px solid #303847;
+}
+
+.typographyStyleProperties {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.typographyStyleProperty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+}
+
+.typographyStylePropertyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.typographyStyleRemove {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.typographyStyleRemove:hover,
+.typographyStyleRemove:focus-visible {
+  color: #f87171;
+}
+
+.typographyStyleChooser {
+  position: relative;
+}
+
+.typographyStylePropertyOptions {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #0f141d;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 25%);
+}
+
+.typographyStylePropertyOption {
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: #e2e8f0;
+  text-align: left;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.typographyStylePropertyOption:hover:not(:disabled),
+.typographyStylePropertyOption:focus-visible:not(:disabled) {
+  background: #1e293b;
+}
+
+.typographyStylePropertyOption:disabled {
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.typographyStylePreview {
+  display: flex;
+  width: 100%;
+  min-height: 76px;
+  box-sizing: border-box;
+  align-items: center;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #0f141d;
+  color: #e2e8f0;
+}
+
+.typographyStylePreview :global(.powershow-text) {
+  width: 100%;
+  margin: 0;
+}
+
+.typographyStyleActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .masterFontRow,
 .localFontRow {
   display: flex;

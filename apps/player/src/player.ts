@@ -524,7 +524,7 @@ export function mountPlayer(
       return;
     }
 
-    slideHost.innerHTML = renderSlide(slide);
+    slideHost.innerHTML = renderSlide(slide, { presentation });
 
     hydrateImageCrops(slideHost);
 

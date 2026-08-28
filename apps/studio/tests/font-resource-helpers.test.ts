@@ -6,6 +6,7 @@ import type {
   TopicItem,
   TopicsElement,
 } from "@powershow/document-schema";
+import { PresentationSchema } from "@powershow/document-schema";
 
 import { presentationUsesFontFamily } from "../src/features/editor/font-resource-helpers";
 
@@ -63,5 +64,17 @@ describe("font resource traversal", () => {
 
     expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
     expect(presentationUsesFontFamily(presentation, "Inter")).toBe(false);
+  });
+});
+
+describe("typography style font dependencies", () => {
+  it("detects fundamental and custom style font families", () => {
+    const presentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", textStyles: [
+      { id: "body", typography: { fontFamily: " Inter " } },
+      { id: "quote", name: "Quote", role: "body", typography: { fontFamily: "Fira Code" } },
+    ], slides: [{ id: "s", title: "", elements: [] }] });
+    expect(presentationUsesFontFamily(presentation, "inter")).toBe(true);
+    expect(presentationUsesFontFamily(presentation, "fira code")).toBe(true);
+    expect(presentationUsesFontFamily(presentation, "Roboto")).toBe(false);
   });
 });

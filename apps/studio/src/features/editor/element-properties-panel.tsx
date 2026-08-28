@@ -1,14 +1,14 @@
 "use client";
 
-import type { PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import type { FontResource, PowerShowElement, PresentationPalette } from "@powershow/document-schema";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
+import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
 import {
   CustomLibraryApplyPicker,
   type CustomLibraryApplyOutcome,
 } from "@/features/custom-library/custom-library-apply-picker";
-import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
 import { CustomLibrarySaveForm } from "@/features/custom-library/custom-library-save-form";
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
@@ -27,10 +27,9 @@ interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
   isStructuralTopicSelection: boolean;
   customLibraryRepository?: CustomLibraryRepository;
-  onApplyCustomLibraryRecipe?: (
-    recipe: CustomLibraryElementRecipe,
-  ) => CustomLibraryApplyOutcome;
+  onApplyCustomLibraryItem?: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   palette?: PresentationPalette;
+  fontResources?: readonly FontResource[];
 }
 
 function getElementIdentity(
@@ -44,8 +43,9 @@ export function ElementPropertiesPanel({
   selectedElement,
   isStructuralTopicSelection,
   customLibraryRepository,
-  onApplyCustomLibraryRecipe = () => ({ ok: true }),
+  onApplyCustomLibraryItem = () => ({ ok: true }),
   palette,
+  fontResources,
 }: ElementPropertiesPanelProps) {
   const { t } = useStudioI18n();
   const selectableProperties = useMemo(
@@ -116,6 +116,7 @@ export function ElementPropertiesPanel({
               root={selectedElement}
               selections={selections}
               palette={palette}
+              fontResources={fontResources}
               repository={customLibraryRepository}
               onSaved={() => {
                 setSaveFormElementId(null);
@@ -162,7 +163,7 @@ export function ElementPropertiesPanel({
       )}
       <CustomLibraryApplyPicker
         repository={customLibraryRepository}
-        onApply={onApplyCustomLibraryRecipe}
+        onApply={onApplyCustomLibraryItem}
       />
     </section>
   );

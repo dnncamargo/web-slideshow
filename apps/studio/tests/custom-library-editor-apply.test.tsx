@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PresentationSchema,
+  type FontFaceResource,
   type PowerShowElement,
   type Presentation,
 } from "@powershow/document-schema";
@@ -58,6 +59,28 @@ const containerRecipe = {
 };
 const chartRecipe = { type: "chart" as const, properties: [] };
 
+const firaFace: FontFaceResource = {
+  weight: 400,
+  style: "normal",
+  subset: "latin",
+  source: { type: "url", url: "https://example.com/fira-code.woff2", format: "woff2" },
+};
+
+const firaStyleItem: CustomLibraryItemRecord = {
+  id: "fira-style-item",
+  item: {
+    name: "Fira Code style",
+    root: {
+      type: "text",
+      properties: [
+        { path: "content", value: "Fira Code applied" },
+        { path: "typography.fontFamily", value: "Fira Code" },
+      ],
+    },
+    dependencies: { fonts: [{ family: "Fira Code", faces: [firaFace] }] },
+  },
+};
+
 const items: CustomLibraryItemRecord[] = [
   { id: "text-item", item: { name: "Text preset", root: textRecipe } },
   { id: "image-item", item: { name: "Image preset", root: imageRecipe } },
@@ -79,7 +102,11 @@ function topicsElement(): PowerShowElement {
   };
 }
 
-function makePresentation(elements: PowerShowElement[], secondSlide = false): Presentation {
+function makePresentation(
+  elements: PowerShowElement[],
+  secondSlide = false,
+  fonts?: NonNullable<Presentation["resources"]>["fonts"],
+): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "custom-library-editor-apply",
@@ -98,6 +125,7 @@ function makePresentation(elements: PowerShowElement[], secondSlide = false): Pr
         ? [{ id: "slide-2", title: "Second", summary: "", speakerNotes: "", elements: [text("second-root", "Untouched")] }]
         : []),
     ],
+    ...(fonts ? { resources: { fonts } } : {}),
   });
 }
 
@@ -143,8 +171,9 @@ describe("Custom Library Editor integration", () => {
     value: Presentation,
     saved: Presentation[],
     customLibraryPaletteRepository?: CustomLibraryPaletteRepository,
+    libraryItems: CustomLibraryItemRecord[] = items,
   ): Promise<{ onSave: ReturnType<typeof vi.fn>; listItems: ReturnType<typeof vi.fn> }> {
-    const listItems = vi.fn(async () => items);
+    const listItems = vi.fn(async () => libraryItems);
     const onSave = vi.fn(async (next: Presentation) => {
       saved.push(structuredClone(next));
     });
@@ -239,6 +268,57 @@ describe("Custom Library Editor integration", () => {
     expect(slide?.elements[1]?.id).not.toBe("existing");
     expect(containerElement.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
     expect(containerElement.textContent).toContain(`Text · ${slide?.elements[1]?.id}`);
+  });
+
+  it("materializes a missing FontResource through the real apply UI path", async () => {
+    const initial = makePresentation([]);
+    const initialBefore = structuredClone(initial);
+    const saved: Presentation[] = [];
+    await mount(initial, saved, undefined, [firaStyleItem]);
+    await openElements();
+    await openPicker();
+    await applyItem("Fira Code style");
+
+    const next = await saveAfterApply(saved);
+    expect(next.resources?.fonts).toHaveLength(1);
+    expect(next.resources?.fonts?.[0]).toMatchObject({
+      family: "Fira Code",
+      faces: [firaFace],
+    });
+    const applied = next.slides[0]?.elements[0];
+    expect(applied).toMatchObject({
+      type: "text",
+      content: "Fira Code applied",
+      typography: { fontFamily: "Fira Code" },
+    });
+    expect(initial).toEqual(initialBefore);
+  });
+
+  it("keeps a conflicting FontResource application atomic through the real UI path", async () => {
+    const conflictingFace: FontFaceResource = {
+      ...firaFace,
+      source: { type: "url", url: "https://example.com/conflicting.woff2", format: "woff2" },
+    };
+    const initial = makePresentation([], false, [{
+      id: "local-fira",
+      family: "Fira Code",
+      faces: [conflictingFace],
+    }]);
+    const initialBefore = structuredClone(initial);
+    const saved: Presentation[] = [];
+    await mount(initial, saved, undefined, [firaStyleItem]);
+    await openElements();
+    await openPicker();
+    await applyItem("Fira Code style");
+
+    expect(containerElement.textContent).toContain("Could not apply Custom Library item.");
+    expect(containerElement.textContent).toContain("No element selected.");
+    await act(async () => {
+      vi.advanceTimersByTime(1600);
+      await Promise.resolve();
+    });
+    expect(saved).toHaveLength(0);
+    expect(initial).toEqual(initialBefore);
   });
 
   it("wires Add from Library through Editor state and autosave", async () => {

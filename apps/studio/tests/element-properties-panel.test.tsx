@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { FontResource, PowerShowElement } from "@powershow/document-schema";
 
 import type { CustomLibraryItemDraft } from "../src/features/custom-library/custom-library-item";
 import type {
@@ -21,6 +21,7 @@ function renderPanel(
   element: PowerShowElement | null,
   isStructuralTopicSelection = false,
   customLibraryRepository?: CustomLibraryRepository,
+  fontResources?: readonly FontResource[],
 ): void {
   act(() => {
     root.render(
@@ -29,6 +30,7 @@ function renderPanel(
           selectedElement={element}
           isStructuralTopicSelection={isStructuralTopicSelection}
           customLibraryRepository={customLibraryRepository}
+          fontResources={fontResources}
         />
       </StudioI18nProvider>,
     );
@@ -257,6 +259,39 @@ describe("ElementPropertiesPanel", () => {
     });
     expect(container.textContent).toContain("Saved to Custom Library.");
     expect(container.querySelector("form")).toBeNull();
+  });
+
+  it("snapshots the authored Text Font dependency through the real save form", async () => {
+    let saved: CustomLibraryItemDraft | undefined;
+    const repository = fakeRepository(async (item) => { saved = item; return "item-1"; });
+    const element = { ...textElement, typography: { fontFamily: "Fira Code" } } as Extract<PowerShowElement, { type: "text" }>;
+    const fontResources: FontResource[] = [{
+      id: "fira-resource",
+      family: "Fira Code",
+      faces: [{ weight: 400, style: "normal", source: { type: "url", url: "https://example.com/fira.woff2", format: "woff2" } }],
+    }];
+    renderPanel(root, element, false, repository, fontResources);
+    act(() => container.querySelector<HTMLButtonElement>("button")?.click());
+    const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");
+    const form = container.querySelector<HTMLFormElement>("form");
+    act(() => { if (name) setFieldValue(name, "Fira title"); });
+    await act(async () => form?.requestSubmit());
+
+    expect(saved?.dependencies).toEqual({ fonts: [{ family: "Fira Code", faces: fontResources[0]!.faces }] });
+  });
+
+  it("saves an unregistered Text family without dependencies", async () => {
+    let saved: CustomLibraryItemDraft | undefined;
+    const repository = fakeRepository(async (item) => { saved = item; return "item-1"; });
+    const element = { ...textElement, typography: { fontFamily: "Arial" } } as Extract<PowerShowElement, { type: "text" }>;
+    renderPanel(root, element, false, repository, []);
+    act(() => container.querySelector<HTMLButtonElement>("button")?.click());
+    const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");
+    const form = container.querySelector<HTMLFormElement>("form");
+    act(() => { if (name) setFieldValue(name, "Arial title"); });
+    await act(async () => form?.requestSubmit());
+
+    expect(saved).not.toHaveProperty("dependencies");
   });
 
   it("keeps the form and metadata after a repository failure", async () => {

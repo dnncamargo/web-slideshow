@@ -154,6 +154,15 @@ describe("StudioEditorMount recovery flow", () => {
       "Presentation contains incompatible content",
     );
     expect(container.textContent ?? "").toContain("1 issues found");
+    expect(container.querySelector('[data-powershow-recovery-panel]')).not.toBeNull();
+    expect(container.querySelector('[data-powershow-recovery-summary="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-powershow-recovery-actions="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-powershow-recovery-open="true"]')).not.toBeNull();
+    expect(
+      Array.from(container.querySelectorAll("button")).some((button) =>
+        button.textContent?.includes("Back to Library"),
+      ),
+    ).toBe(true);
   });
 
   it("performs no repair on mount", async () => {
@@ -189,6 +198,14 @@ describe("StudioEditorMount recovery flow", () => {
 
     expect(container.querySelector("[data-powershow-recovery-details]")).toBeNull();
 
+    const summaryToggle = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("View details"),
+    );
+    expect(summaryToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(summaryToggle?.getAttribute("aria-controls")).toBe(
+      "powershow-recovery-details",
+    );
+
     const detailsButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("View details"),
     );
@@ -196,6 +213,8 @@ describe("StudioEditorMount recovery flow", () => {
     act(() => {
       detailsButton?.click();
     });
+
+    expect(summaryToggle?.getAttribute("aria-expanded")).toBe("true");
 
     const details = container.querySelector(
       "[data-powershow-recovery-details]",
@@ -206,6 +225,11 @@ describe("StudioEditorMount recovery flow", () => {
     expect(details?.textContent).toContain("bad-leaf");
     expect(details?.textContent).toContain("text");
     expect(details?.textContent).toContain("Invalid element");
+
+    act(() => {
+      detailsButton?.click();
+    });
+    expect(summaryToggle?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("requires explicit confirmation before calling repair", async () => {
@@ -238,6 +262,11 @@ describe("StudioEditorMount recovery flow", () => {
     // Confirmation state shown; repair NOT called yet.
     expect(
       container.querySelector('[data-powershow-recovery-confirm="true"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-powershow-recovery-confirm="true"] [data-powershow-recovery-panel]',
+      ),
     ).not.toBeNull();
     expect(testDeps.repairPresentation).not.toHaveBeenCalled();
   });
@@ -336,6 +365,7 @@ describe("StudioEditorMount recovery flow", () => {
     expect(
       container.querySelector('[data-powershow-recovery-unrecoverable="true"]'),
     ).not.toBeNull();
+    expect(container.querySelector('[data-powershow-recovery-unrecoverable="true"] [data-powershow-recovery-panel]')).not.toBeNull();
     expect(
       container.querySelector('[data-powershow-recovery-open="true"]'),
     ).toBeNull();

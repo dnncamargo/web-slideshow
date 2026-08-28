@@ -65,6 +65,76 @@ function createPresentation(): Presentation {
 }
 
 describe("renderPresentation", () => {
+  it("resolves typography style variants through presentation context", () => {
+    const presentation = createPresentationFixture({
+      textStyles: [
+        { id: "body", typography: { fontFamily: "Inter" } },
+        { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
+        { id: "hero", name: "Hero", role: "title", typography: { fontSize: 48 } },
+      ],
+      slides: [createSlide({
+        elements: [
+          createTextElement({ id: "quote", variant: "quote", content: "Quote" }),
+          createTextElement({ id: "hero", variant: "hero", content: "Hero" }),
+        ],
+      })],
+    });
+
+    const html = renderPresentation(presentation);
+    expect(html).toContain('<p class="powershow-element powershow-text powershow-text-body"');
+    expect(html).toContain('font-style:italic');
+    expect(html).toContain('<h1 class="powershow-element powershow-text powershow-text-title"');
+    expect(html).toContain('font-size:48px');
+    expect(html).not.toContain('powershow-text-quote');
+    expect(html).not.toContain('font-family:&quot;Inter&quot;');
+  });
+
+  it("keeps a fundamental local typography override independent", () => {
+    const html = renderPresentation(createPresentationFixture({
+      textStyles: [{ id: "body", typography: { fontFamily: "Inter" } }],
+      slides: [createSlide({
+        elements: [createTextElement({ variant: "body", typography: { fontFamily: "Fira Code" } })],
+      })],
+    }));
+
+    expect(html).toContain('font-family:&quot;Fira Code&quot;');
+    expect(html).not.toContain('font-family:&quot;Inter&quot;');
+  });
+
+  it("renders attached Text Style appearance through canonical Palette variables", () => {
+    const presentation = createPresentationFixture({
+      palette: {
+        colors: [
+          { id: "primary", name: "Primary", value: "#ff0000" },
+          { id: "outline", name: "Outline", value: "#0000ff" },
+        ],
+      },
+      textStyles: [{
+        id: "body",
+        style: { color: { kind: "palette", colorId: "primary" } },
+        typography: {
+          textDecorationLine: "underline",
+          textDecorationColor: { kind: "palette", colorId: "primary" },
+          textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } },
+        },
+      }],
+      slides: [createSlide({
+        elements: [createTextElement({
+          variant: "body",
+          style: { color: "#00ff00" },
+          content: "Styled",
+        })],
+      })],
+    });
+
+    const html = renderPresentation(presentation);
+    expect(html).toContain("color:#00ff00");
+    expect(html).toContain("text-decoration-line:underline");
+    expect(html).toContain("text-decoration-color:var(--ps-palette-007000720069006d006100720079)");
+    expect(html).toContain("-webkit-text-stroke:2px var(--ps-palette-006f00750074006c0069006e0065)");
+    expect(html).not.toContain("color:#ff0000");
+  });
+
   it("renders the presentation wrapper", () => {
     const html = renderPresentation(
       createPresentation(),

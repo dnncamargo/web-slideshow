@@ -86,12 +86,9 @@ export const TextElementSchema =
 
     content: TextContentSchema,
 
-    variant: z.enum([
-      "body",
-      "title",
-      "subtitle",
-      "caption",
-    ]).default("body"),
+    variant: z.string().trim().min(1).default("body"),
+
+    styleDetached: z.literal(true).optional(),
 
     layout: TextLayoutSchema.optional(),
 

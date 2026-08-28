@@ -285,8 +285,9 @@ export function PresenterView({
           {fontResourcesCss && (
             <style data-powershow-font-resources>{fontResourcesCss}</style>
           )}
-          {currentSlide && aspectRatio ? (
+          {currentSlide && aspectRatio && presentation ? (
             <PresenterSlidePreview
+              presentation={presentation}
               slide={currentSlide}
               aspectRatio={aspectRatio}
               variant="current"
@@ -465,8 +466,9 @@ export function PresenterView({
         </div>
 
         <aside className={presenterStyles.nextColumn}>
-          {nextSlide && aspectRatio && (
+          {nextSlide && aspectRatio && presentation && (
             <PresenterSlidePreview
+              presentation={presentation}
               slide={nextSlide}
               aspectRatio={aspectRatio}
               variant="next"

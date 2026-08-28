@@ -8,6 +8,8 @@ import {
   PresentationPaletteSchema,
 } from "./palette";
 import { validatePresentationPaletteReferences } from "./palette-validation";
+import { TextStylesSchema } from "./text-style";
+import { validatePresentationTextStyleReferences } from "./text-style-validation";
 
 export {
   PresentationPaletteSchema,
@@ -35,12 +37,17 @@ export const PresentationSchema =
 
     palette: PresentationPaletteSchema.optional(),
 
+    textStyles: TextStylesSchema.optional(),
+
     slides: z.array(
       SlideSchema,
     ),
   })
   .strict()
-  .superRefine(validatePresentationPaletteReferences);
+  .superRefine((presentation, context) => {
+    validatePresentationPaletteReferences(presentation, context);
+    validatePresentationTextStyleReferences(presentation, context);
+  });
 
 export type Presentation =
   z.infer<typeof PresentationSchema>;

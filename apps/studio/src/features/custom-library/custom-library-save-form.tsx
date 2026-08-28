@@ -1,6 +1,6 @@
 "use client";
 
-import type { PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import type { FontResource, PowerShowElement, PresentationPalette } from "@powershow/document-schema";
 import { useEffect, useRef, useState } from "react";
 
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
@@ -16,6 +16,7 @@ interface CustomLibrarySaveFormProps {
   root: PowerShowElement;
   selections: ElementPropertySelectionMap;
   palette?: PresentationPalette;
+  fontResources?: readonly FontResource[];
   repository?: CustomLibraryRepository;
   onSaved: () => void;
   onCancel: () => void;
@@ -25,6 +26,7 @@ export function CustomLibrarySaveForm({
   root,
   selections,
   palette,
+  fontResources,
   repository = getDefaultCustomLibraryRepository(),
   onSaved,
   onCancel,
@@ -56,6 +58,7 @@ export function CustomLibrarySaveForm({
         root,
         selections,
         palette,
+        fontResources,
       });
       await repository.saveItem(draft);
       if (isActiveRef.current) {

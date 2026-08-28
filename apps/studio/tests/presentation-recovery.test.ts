@@ -105,11 +105,297 @@ function rawWithSlides(slides: unknown[]): unknown {
   };
 }
 
+function rawWithTextStyles(
+  slides: unknown[],
+  textStyles: unknown[],
+): unknown {
+  const base = rawWithSlides(slides);
+  return {
+    ...(base as Record<string, unknown>),
+    textStyles,
+  };
+}
+
+function quoteStyle(): unknown {
+  return {
+    id: "quote",
+    name: "Quote",
+    role: "body",
+    typography: { fontStyle: "italic" },
+  };
+}
+
+function customText(id: string, typography?: unknown, variant = "quote"): unknown {
+  return {
+    type: "text",
+    id,
+    hidden: false,
+    variant,
+    content: id,
+    ...(typography === undefined ? {} : { typography }),
+  };
+}
+
 // ============================================================
 // ANALYSIS
 // ============================================================
 
 describe("presentation recovery analysis", () => {
+  it("removes obsolete typographyStyles without migrating it", () => {
+    const raw = {
+      ...(rawWithSlides([validSlide("slide-1", [
+        validText("fundamental"),
+        customText("obsolete-custom"),
+        validImage("unrelated"),
+      ])] as unknown[]) as Record<string, unknown>),
+      typographyStyles: [quoteStyle()],
+    };
+
+    const analysis = analyzePresentationRecovery(raw);
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation).not.toBeNull();
+    expect(analysis.presentation).not.toHaveProperty("typographyStyles");
+    expect(analysis.presentation).not.toHaveProperty("textStyles");
+    expect(analysis.presentation?.slides[0]?.elements.map((element) => element.id)).toEqual([
+      "fundamental",
+      "unrelated",
+    ]);
+    expect(analysis.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "text-style",
+        path: ["typographyStyles"],
+        reason: RECOVERY_REASON.obsoleteTextStyleContent,
+      }),
+      expect.objectContaining({ id: "obsolete-custom", kind: "element" }),
+    ]));
+    expect(PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("removes incompatible current Text Styles while preserving valid styles and siblings", () => {
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
+      [validSlide("slide-1", [
+        validText("fundamental"),
+        customText("valid-custom"),
+        customText("invalid-custom", undefined, "broken"),
+        validImage("unrelated"),
+      ])],
+      [quoteStyle(), { id: "broken", name: "Broken", role: "body", style: { color: "invalid" } }],
+    ));
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation?.textStyles?.map((style) => style.id)).toEqual(["quote"]);
+    expect(analysis.presentation?.slides[0]?.elements.map((element) => element.id)).toEqual([
+      "fundamental",
+      "valid-custom",
+      "unrelated",
+    ]);
+    expect(analysis.issues).toContainEqual(expect.objectContaining({
+      kind: "text-style",
+      id: "broken",
+      path: ["textStyles", 1],
+      reason: RECOVERY_REASON.invalidTextStyle,
+    }));
+    expect(PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("removes an invalid fundamental override while preserving fundamental Text", () => {
+    const analysis = analyzePresentationRecovery({
+      ...(rawWithTextStyles(
+        [validSlide("slide-1", [validText("fundamental")])],
+        [{ id: "body", style: { color: { kind: "palette", colorId: "missing" } } }],
+      ) as Record<string, unknown>),
+      palette: { colors: [] },
+    });
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation?.textStyles).toEqual([]);
+    expect(analysis.presentation?.slides[0]?.elements.map((element) => element.id)).toEqual([
+      "fundamental",
+    ]);
+    expect(analysis.issues).toContainEqual(expect.objectContaining({
+      kind: "text-style",
+      id: "body",
+      reason: RECOVERY_REASON.invalidTextStyle,
+    }));
+    expect(PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("removes a custom Text Style with an unresolved Palette reference and nested dependents", () => {
+    const analysis = analyzePresentationRecovery({
+      ...(rawWithTextStyles(
+        [validSlide("slide-1", [validContainer("container", [
+          validText("fundamental"),
+          customText("nested-custom", undefined, "palette-broken"),
+        ])])],
+        [{
+          id: "palette-broken",
+          name: "Palette broken",
+          role: "body",
+          style: { color: { kind: "palette", colorId: "missing" } },
+        }],
+      ) as Record<string, unknown>),
+      palette: { colors: [] },
+    });
+
+    expect(analysis.status).toBe("recoverable");
+    const container = analysis.presentation?.slides[0]?.elements[0];
+    expect(container?.type).toBe("container");
+    if (container?.type === "container") {
+      expect(container.children.map((element) => element.id)).toEqual(["fundamental"]);
+    }
+    expect(analysis.presentation?.textStyles).toEqual([]);
+    expect(PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("removes a wrong-type textStyles field without synthesizing it", () => {
+    const analysis = analyzePresentationRecovery({
+      ...(rawWithSlides([validSlide("slide-1", [validText("kept")])]) as Record<string, unknown>),
+      textStyles: {},
+    });
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation).not.toHaveProperty("textStyles");
+    expect(analysis.presentation?.slides[0]?.elements.map((element) => element.id)).toEqual(["kept"]);
+    expect(analysis.issues).toContainEqual(expect.objectContaining({
+      kind: "text-style",
+      path: ["textStyles"],
+      reason: RECOVERY_REASON.invalidTextStyle,
+    }));
+    expect(PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("keeps valid custom typography variants and returns a canonical presentation", () => {
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
+      [validSlide("slide-1", [customText("quote-text")])],
+      [quoteStyle()],
+    ));
+
+    expect(analysis.status).toBe("valid");
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("removes unresolved custom Text while preserving valid siblings", () => {
+    const analysis = analyzePresentationRecovery(rawWithSlides([
+      validSlide("slide-1", [validText("kept"), customText("missing")]),
+    ]));
+
+    expect(analysis.status).toBe("recoverable");
+    expect(analysis.presentation?.slides[0]?.elements.map((element) => element.id)).toEqual(["kept"]);
+    expect(analysis.issues).toContainEqual(expect.objectContaining({ id: "missing", reason: RECOVERY_REASON.invalidElement }));
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("prunes unresolved nested custom Text without removing its Container", () => {
+    const analysis = analyzePresentationRecovery(rawWithSlides([
+      validSlide("slide-1", [validContainer("container", [validText("kept"), customText("missing")])]),
+    ]));
+
+    const container = analysis.presentation?.slides[0]?.elements[0];
+    expect(container?.type).toBe("container");
+    if (container?.type === "container") {
+      expect(container.children.map((element) => element.id)).toEqual(["kept"]);
+    }
+  });
+
+  it("preserves custom Text with local V1 typography and element-only typography", () => {
+    const analysis = analyzePresentationRecovery(rawWithTextStyles([
+      validSlide("slide-1", [
+        customText("bad", { fontFamily: "Arial" }),
+        customText("stroke", { textStroke: { width: 1, color: "#fff" } }),
+        customText("decoration", { textDecorationColor: "#fff" }),
+        validText("independent", "Independent"),
+      ]),
+    ], [quoteStyle()]));
+
+    const elements = analysis.presentation?.slides[0]?.elements;
+    expect(elements?.map((element) => element.id)).toEqual(["bad", "stroke", "decoration", "independent"]);
+    expect(analysis.issues).not.toContainEqual(expect.objectContaining({ id: "bad", reason: RECOVERY_REASON.invalidElement }));
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("prunes unresolved custom Text from canonical Topics content", () => {
+    const topics = {
+      id: "topics-typography",
+      type: "topics",
+      hidden: false,
+      kind: "unordered",
+      items: [{
+        id: "topic-1",
+        content: {
+          id: "topic-slot-1",
+          children: [validText("topic-kept"), customText("topic-missing", undefined, "missing-topic-style")],
+        },
+        children: [],
+      }],
+    };
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
+      [validSlide("slide-1", [topics])],
+      [quoteStyle()],
+    ));
+
+    expect(analysis.status).toBe("recoverable");
+    const recovered = analysis.presentation?.slides[0]?.elements[0];
+    expect(recovered?.type).toBe("topics");
+    if (recovered?.type === "topics") {
+      expect(recovered.items[0]?.content.children.map((element) => element.id)).toEqual(["topic-kept"]);
+    }
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("prunes unresolved custom Text from a structured Table content slot", () => {
+    const table = {
+      id: "table-typography",
+      type: "table",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      columns: [{
+        id: "column-1",
+        header: {
+          id: "header-1",
+          children: [validText("header-kept"), customText("header-missing", undefined, "missing-header-style")],
+        },
+      }],
+      rows: [{
+        id: "row-1",
+        cells: [{ id: "cell-1", children: [validText("cell-kept")] }],
+      }],
+    };
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
+      [validSlide("slide-1", [table])],
+      [quoteStyle()],
+    ));
+
+    expect(analysis.status).toBe("recoverable");
+    const recovered = analysis.presentation?.slides[0]?.elements[0];
+    expect(recovered?.type).toBe("table");
+    if (recovered?.type === "table" && recovered.mode === "structured") {
+      expect(recovered.columns[0]?.header.children.map((element) => element.id)).toEqual(["header-kept"]);
+      expect(recovered.rows[0]?.cells[0]?.children.map((element) => element.id)).toEqual(["cell-kept"]);
+    }
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
+  it("preserves a fundamental attached Text with a local override", () => {
+    const analysis = analyzePresentationRecovery(rawWithTextStyles(
+      [validSlide("slide-1", [{
+        type: "text",
+        id: "independent",
+        hidden: false,
+        variant: "body",
+        content: "Independent",
+        typography: { fontFamily: "Fira Code" },
+      }])],
+      [{ id: "body", typography: { fontFamily: "Inter" } }],
+    ));
+
+    expect(analysis.status).toBe("valid");
+    const recovered = analysis.presentation?.slides[0]?.elements[0];
+    expect(recovered).toMatchObject({ variant: "body", typography: { fontFamily: "Fira Code" } });
+    expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
+  });
+
   it("classifies a valid presentation as valid with no issues", () => {
     const raw = rawWithSlides([
       validSlide("slide-1", [validText("text-1")]),

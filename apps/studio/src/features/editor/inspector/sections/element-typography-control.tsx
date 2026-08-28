@@ -1,4 +1,5 @@
 import type { ElementTypography, FontResource } from "@powershow/document-schema";
+import { TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES } from "@powershow/document-schema";
 import {
   convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
@@ -18,16 +19,20 @@ import type { UpdateElementTypography } from "../inspector-types";
 import { EffectiveNumberInput } from "./effective-number-input";
 import { EffectiveLengthInput } from "./effective-length-input";
 
+export type CoreTypographyProperty = (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES)[number];
+
 interface ElementTypographyControlProps {
   typography?: ElementTypography | undefined;
 
-  effectiveDefaults: ThemeTypographyDefaults;
+  effectiveDefaults: ThemeTypographyDefaults & Partial<ElementTypography>;
 
   onUpdateTypography?: UpdateElementTypography;
 
   controlPrefix: string;
 
   fontResources: readonly FontResource[];
+
+  visibleProperties?: readonly CoreTypographyProperty[];
 }
 
 function readFontWeightSelection(
@@ -170,10 +175,13 @@ export function ElementTypographyFields({
   onUpdateTypography,
   controlPrefix,
   fontResources,
+  visibleProperties,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
 
   const currentTypography = typography;
+  const isVisible = (property: CoreTypographyProperty): boolean =>
+    visibleProperties === undefined || visibleProperties.includes(property);
 
   function onUpdateStyle(
     update: (current: ElementTypography | undefined) => ElementTypography,
@@ -181,12 +189,14 @@ export function ElementTypographyFields({
     onUpdateTypography?.(update);
   }
 
-  const fontWeightSelection = readFontWeightSelection(currentTypography?.fontWeight);
+  const fontWeightSelection = readFontWeightSelection(
+    currentTypography?.fontWeight ?? effectiveDefaults.fontWeight,
+  );
 
   const showUncuratedFontWeight =
-    currentTypography?.fontWeight !== undefined &&
-    !isCuratedFontWeight(currentTypography.fontWeight);
-  const currentFontFamily = currentTypography?.fontFamily ?? "";
+    (currentTypography?.fontWeight ?? effectiveDefaults.fontWeight) !== undefined &&
+    !isCuratedFontWeight(currentTypography?.fontWeight ?? effectiveDefaults.fontWeight ?? 400);
+  const currentFontFamily = currentTypography?.fontFamily ?? effectiveDefaults.fontFamily ?? "";
   const showUnregisteredFontFamily =
     currentFontFamily !== "" &&
     !fontResources.some(
@@ -203,7 +213,7 @@ export function ElementTypographyFields({
 
   return (
     <>
-      <div>
+      {isVisible("fontFamily") ? <div>
         <label className={styles.field}>
           <span>{t("inspector.fontFamily")}</span>
 
@@ -235,10 +245,10 @@ export function ElementTypographyFields({
           </select>
         </label>
 
-      </div>
+      </div> : null}
 
       <div className={styles.fieldGrid}>
-        <div className={styles.field}>
+        {isVisible("fontSize") ? <div className={styles.field}>
           <label htmlFor={`${controlPrefix}-font-size`}>
             {t("inspector.fontSize")}
           </label>
@@ -268,9 +278,9 @@ export function ElementTypographyFields({
               }));
             }}
           />
-        </div>
+        </div> : null}
 
-        <label className={styles.field}>
+        {isVisible("fontWeight") ? <label className={styles.field}>
           <span>{t("inspector.fontWeight")}</span>
 
           <select
@@ -305,15 +315,15 @@ export function ElementTypographyFields({
 
             <option value="700">{t("inspector.fontWeight.bold")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("fontStyle") ? <label className={styles.field}>
           <span>{t("inspector.fontStyle")}</span>
 
           <select
             id={`${controlPrefix}-font-style`}
             name={getControlName(controlPrefix, "FontStyle")}
-            value={currentTypography?.fontStyle ?? ""}
+            value={currentTypography?.fontStyle ?? effectiveDefaults.fontStyle ?? ""}
             onChange={(event) => {
               const fontStyle = parseFontStyleSelection(event.target.value);
 
@@ -330,15 +340,15 @@ export function ElementTypographyFields({
 
             <option value="italic">{t("inspector.fontStyle.italic")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("textAlign") ? <label className={styles.field}>
           <span>{t("inspector.textAlignment")}</span>
 
           <select
             id={`${controlPrefix}-text-align`}
             name={getControlName(controlPrefix, "TextAlign")}
-            value={currentTypography?.textAlign ?? ""}
+            value={currentTypography?.textAlign ?? effectiveDefaults.textAlign ?? ""}
             onChange={(event) => {
               const textAlign = parseTextAlignSelection(event.target.value);
 
@@ -359,9 +369,9 @@ export function ElementTypographyFields({
 
             <option value="justify">{t("inspector.textAlign.justify")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <div className={styles.field}>
+        {isVisible("lineHeight") ? <div className={styles.field}>
           <label
             htmlFor={`${controlPrefix}-line-height`}
             title={t("inspector.lineHeightHelp")}
@@ -393,9 +403,9 @@ export function ElementTypographyFields({
               }));
             }}
           />
-        </div>
+        </div> : null}
 
-        <div className={styles.field}>
+        {isVisible("letterSpacing") ? <div className={styles.field}>
           <label
             htmlFor={`${controlPrefix}-letter-spacing`}
             title={t("inspector.letterSpacingHelp")}
@@ -428,15 +438,15 @@ export function ElementTypographyFields({
               }));
             }}
           />
-        </div>
+        </div> : null}
 
-        <label className={styles.field}>
+        {isVisible("textTransform") ? <label className={styles.field}>
           <span>{t("inspector.textCase")}</span>
 
           <select
             id={`${controlPrefix}-text-transform`}
             name={getControlName(controlPrefix, "TextTransform")}
-            value={currentTypography?.textTransform ?? "none"}
+            value={currentTypography?.textTransform ?? effectiveDefaults.textTransform ?? "none"}
             onChange={(event) => {
               const textTransform = parseTextTransformSelection(
                 event.target.value,
@@ -463,15 +473,15 @@ export function ElementTypographyFields({
               {t("inspector.textCase.capitalize")}
             </option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("whiteSpace") ? <label className={styles.field}>
           <span>{t("inspector.whiteSpace")}</span>
 
           <select
             id={`${controlPrefix}-white-space`}
             name={getControlName(controlPrefix, "WhiteSpace")}
-            value={currentTypography?.whiteSpace ?? "normal"}
+            value={currentTypography?.whiteSpace ?? effectiveDefaults.whiteSpace ?? "normal"}
             onChange={(event) => {
               const whiteSpace = parseWhiteSpaceSelection(event.target.value);
 
@@ -494,15 +504,15 @@ export function ElementTypographyFields({
               {t("inspector.whiteSpace.preWrap")}
             </option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("textWrapStyle") ? <label className={styles.field}>
           <span>{t("inspector.textWrap")}</span>
 
           <select
             id={`${controlPrefix}-text-wrap-style`}
             name={getControlName(controlPrefix, "TextWrapStyle")}
-            value={currentTypography?.textWrapStyle ?? "auto"}
+            value={currentTypography?.textWrapStyle ?? effectiveDefaults.textWrapStyle ?? "auto"}
             onChange={(event) => {
               const textWrapStyle = parseTextWrapStyleSelection(
                 event.target.value,
@@ -521,15 +531,15 @@ export function ElementTypographyFields({
 
             <option value="pretty">{t("inspector.textWrap.pretty")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("overflowWrap") ? <label className={styles.field}>
           <span>{t("inspector.overflowWrap")}</span>
 
           <select
             id={`${controlPrefix}-overflow-wrap`}
             name={getControlName(controlPrefix, "OverflowWrap")}
-            value={currentTypography?.overflowWrap ?? "normal"}
+            value={currentTypography?.overflowWrap ?? effectiveDefaults.overflowWrap ?? "normal"}
             onChange={(event) => {
               const overflowWrap = parseOverflowWrapSelection(
                 event.target.value,
@@ -554,15 +564,15 @@ export function ElementTypographyFields({
               {t("inspector.overflowWrap.anywhere")}
             </option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("textDecorationLine") ? <label className={styles.field}>
           <span>{t("inspector.textDecorationLine")}</span>
 
           <select
             id={`${controlPrefix}-text-decoration-line`}
             name={getControlName(controlPrefix, "TextDecorationLine")}
-            value={currentTypography?.textDecorationLine ?? "none"}
+            value={currentTypography?.textDecorationLine ?? effectiveDefaults.textDecorationLine ?? "none"}
             onChange={(event) => {
               const textDecorationLine = parseTextDecorationLineSelection(
                 event.target.value,
@@ -591,7 +601,7 @@ export function ElementTypographyFields({
               {t("inspector.textDecorationLine.lineThrough")}
             </option>
           </select>
-        </label>
+        </label> : null}
       </div>
     </>
   );

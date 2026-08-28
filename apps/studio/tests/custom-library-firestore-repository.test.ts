@@ -49,6 +49,16 @@ const item = {
   description: "A reusable widget",
   root: { type: "text" as const, properties: [{ path: "variant", value: "title" }] },
 };
+const itemWithDependency = {
+  name: "Fira title",
+  root: { type: "text" as const, properties: [{ path: "typography.fontFamily", value: "Fira Code" }] },
+  dependencies: {
+    fonts: [{
+      family: "Fira Code",
+      faces: [{ weight: 400, style: "normal" as const, source: { type: "url" as const, url: "https://example.com/fira.woff2", format: "woff2" as const } }],
+    }],
+  },
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -89,6 +99,14 @@ describe("FirestoreCustomLibraryRepository", () => {
     expect(mockedSetDoc.mock.calls[0]?.[1]).not.toHaveProperty("id");
     expect(mockedSetDoc.mock.calls[0]?.[1]).not.toHaveProperty("createdAt");
     expect(mockedSetDoc.mock.calls[0]?.[1]).not.toHaveProperty("userId");
+  });
+
+  it("persists a Style Font dependency snapshot exactly without identity or provenance fields", async () => {
+    await repository.saveItem(itemWithDependency);
+
+    expect(mockedSetDoc.mock.calls[0]?.[1]).toEqual(itemWithDependency);
+    expect(mockedSetDoc.mock.calls[0]?.[1]).not.toHaveProperty("dependencies.fonts[0].id");
+    expect(JSON.stringify(mockedSetDoc.mock.calls[0]?.[1])).not.toMatch(/sourcePresentationId|fontMasterId|provenance/);
   });
 
   it("validates before writing and classifies invalid local data", async () => {
@@ -135,6 +153,22 @@ describe("FirestoreCustomLibraryRepository", () => {
     } as never);
 
     await expect(repository.getItem("item-1")).resolves.toEqual({ id: "item-1", item });
+  });
+
+  it("loads dependency snapshots through get and list parsing, while retaining legacy records", async () => {
+    mockedGetDoc.mockResolvedValue({ id: "font-item", exists: () => true, data: () => itemWithDependency } as never);
+    await expect(repository.getItem("font-item")).resolves.toEqual({ id: "font-item", item: itemWithDependency });
+
+    mockedGetDocs.mockResolvedValue({
+      docs: [
+        { id: "font-item", data: () => itemWithDependency },
+        { id: "legacy-item", data: () => item },
+      ],
+    } as never);
+    await expect(repository.listItems()).resolves.toEqual([
+      { id: "font-item", item: itemWithDependency },
+      { id: "legacy-item", item },
+    ]);
   });
 
   it("rejects malformed persisted get data", async () => {

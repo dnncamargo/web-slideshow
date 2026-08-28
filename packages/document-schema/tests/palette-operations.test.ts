@@ -20,6 +20,14 @@ const presentation = PresentationSchema.parse({
       { id: "other", name: "Other", value: "#ffffff" },
     ],
   },
+  textStyles: [{
+    id: "body",
+    style: { color: reference },
+    typography: {
+      textDecorationColor: reference,
+      textStroke: { width: 2, color: reference },
+    },
+  }],
   slides: [{
     id: "slide",
     elements: [{
@@ -90,7 +98,7 @@ describe("presentation palette authoring operations", () => {
     const result = removePresentationPaletteColor(presentation, "accent");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.detachedCount).toBe(3);
+    expect(result.detachedCount).toBe(6);
     expect(result.presentation.palette?.colors).toEqual([
       { id: "other", name: "Other", value: "#ffffff" },
     ]);
@@ -98,6 +106,9 @@ describe("presentation palette authoring operations", () => {
     expect(text.style?.color).toBe("#facc15");
     expect(text.style?.border?.color).toBe("#facc15");
     expect(text.style?.background?.gradient?.stops[0]?.color).toBe("#facc15");
+    expect(result.presentation.textStyles?.[0]?.style?.color).toBe("#facc15");
+    expect(result.presentation.textStyles?.[0]?.typography?.textDecorationColor).toBe("#facc15");
+    expect(result.presentation.textStyles?.[0]?.typography?.textStroke?.color).toBe("#facc15");
     expect((result.presentation.slides[0]?.elements[1] as unknown as { config: { payload: unknown } }).config.payload).toEqual(reference);
     expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
   });

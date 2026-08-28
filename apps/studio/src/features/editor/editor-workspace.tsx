@@ -34,7 +34,7 @@ import {
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
-import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
+import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
 import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
 import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
 import type { CustomLibraryPaletteRepository } from "@/features/custom-library/custom-library-palette-repository";
@@ -43,7 +43,7 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
-import { placeCustomLibraryElementRecipe } from "@/features/custom-library/custom-library-placement";
+import { applyCustomLibraryItemToPresentation } from "@/features/custom-library/custom-library-item-apply";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -132,6 +132,8 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 import { findElementById, updateElementById } from "./element-tree";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
+import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "./text-style-helpers";
+import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -625,8 +627,8 @@ export function EditorWorkspace({
       return "";
     }
 
-    return renderSlide(selectedSlide);
-  }, [selectedSlide]);
+    return renderSlide(selectedSlide, { presentation });
+  }, [selectedSlide, presentation]);
 
   const renderedPaletteStyle = useMemo(() => {
     const style: CSSProperties & Record<`--${string}`, string> = {};
@@ -2110,6 +2112,12 @@ export function EditorWorkspace({
     return "removed";
   }
 
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, patch)); }
+  function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
+  function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
+  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
+  function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
+
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -2194,8 +2202,8 @@ export function EditorWorkspace({
   // END: ADD ELEMENT
   // ==========================================================
 
-  function applyCustomLibraryRecipe(
-    recipe: CustomLibraryElementRecipe,
+  function applyCustomLibraryItem(
+    item: CustomLibraryItemDraft,
   ): CustomLibraryApplyOutcome {
     if (!selectedSlide) {
       return { ok: false, reason: "invalid-recipe-application" };
@@ -2204,10 +2212,10 @@ export function EditorWorkspace({
     const selectedElementId = selectedElement?.contentSlotId != null
       ? null
       : selectedElement?.id ?? null;
-    const result = placeCustomLibraryElementRecipe(
-      recipe,
-      selectedSlide,
-      presentation.slides,
+    const result = applyCustomLibraryItemToPresentation(
+      item,
+      presentation,
+      selectedSlideIndex,
       selectedElementId,
     );
 
@@ -2215,15 +2223,10 @@ export function EditorWorkspace({
       return result;
     }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex ? result.slide : slide,
-      ),
-    }));
+    setPresentation(result.presentation);
 
     const appliedElement = findElementById(
-      result.slide.elements,
+      result.presentation.slides[selectedSlideIndex]?.elements ?? [],
       result.appliedElementId,
     );
     if (appliedElement) {
@@ -3462,6 +3465,14 @@ export function EditorWorkspace({
             onRemovePresentationColor={removePresentationPaletteColor}
             onRemovePresentationFont={removePresentationFont}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
+            presentationTextStyles={presentation.textStyles ?? []}
+            presentation={presentation}
+            onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
+            onResetFundamentalTextStyle={resetFundamentalTextStyle}
+            onAddTextStyle={addTextStyle}
+            onUpdateTextStyle={updateTextStyle}
+            onRemoveTextStyle={removeTextStyle}
+            isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
           />
         ) : (
           <aside className={styles.inspector}>
@@ -3504,8 +3515,9 @@ export function EditorWorkspace({
                   }}
                   onMoveElement={moveElementInTree}
                   customLibraryRepository={customLibraryRepository}
-                  onApplyCustomLibraryRecipe={applyCustomLibraryRecipe}
+                  onApplyCustomLibraryItem={applyCustomLibraryItem}
                   palette={presentation.palette}
+                  fontResources={presentation.resources?.fonts}
                 />
               ) : (
                 <>
@@ -3562,6 +3574,7 @@ export function EditorWorkspace({
                             if (id) setFocalEditingImageId(null);
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
+                          presentation={presentation}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition

@@ -52,7 +52,7 @@ function WatchSlide({
         )}
         <div
           className={styles.slideHost}
-          dangerouslySetInnerHTML={{ __html: renderSlide(slide) }}
+          dangerouslySetInnerHTML={{ __html: renderSlide(slide, { presentation }) }}
         />
       </div>
     </main>

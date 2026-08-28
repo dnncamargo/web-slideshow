@@ -47,6 +47,68 @@ describe("PowerShow Player", () => {
     expect(root.innerHTML).toContain("Slide One");
   });
 
+  it("renders attached Presentation Text Styles and preserves local overrides", () => {
+    player.destroy();
+
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "player-text-styles",
+      palette: {
+        colors: [
+          { id: "primary", name: "Primary", value: "#ff0000" },
+          { id: "outline", name: "Outline", value: "#0000ff" },
+        ],
+      },
+      textStyles: [{
+        id: "body",
+        style: { color: { kind: "palette", colorId: "primary" } },
+        typography: {
+          fontFamily: "Fira Code",
+          fontSize: 32,
+          textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } },
+        },
+      }],
+      slides: [{
+        id: "typography-slide",
+        elements: [{ type: "text", id: "styled-text", variant: "body", content: "Styled text" }],
+      }],
+    });
+
+    player = mountPlayer(root, presentation, { transition: "none" });
+
+    const styledText = root.querySelector<HTMLElement>("[data-powershow-id='styled-text']");
+    expect(styledText?.getAttribute("style")).toContain('font-family:"Fira Code"');
+    expect(styledText?.getAttribute("style")).toContain("font-size:32px");
+    expect(styledText?.getAttribute("style")).toContain("color:var(--ps-palette-007000720069006d006100720079)");
+    expect(styledText?.getAttribute("style")).toContain("-webkit-text-stroke:2px var(--ps-palette-006f00750074006c0069006e0065)");
+
+    player.destroy();
+    const locallyOverridden = PresentationSchema.parse({
+      ...presentation,
+      id: "player-typography-local-override",
+      slides: [{
+        id: "typography-slide",
+        elements: [{ type: "text", id: "styled-text", variant: "body", content: "Styled text", typography: { fontFamily: "Arial" } }],
+      }],
+    });
+    player = mountPlayer(root, locallyOverridden, { transition: "none" });
+
+    expect(root.querySelector<HTMLElement>("[data-powershow-id='styled-text']")?.getAttribute("style")).toContain('font-family:"Arial"');
+
+    player.destroy();
+    const detached = PresentationSchema.parse({
+      ...presentation,
+      id: "player-typography-detached",
+      slides: [{
+        id: "typography-slide",
+        elements: [{ type: "text", id: "styled-text", variant: "body", styleDetached: true, content: "Styled text" }],
+      }],
+    });
+    player = mountPlayer(root, detached, { transition: "none" });
+
+    expect(root.querySelector<HTMLElement>("[data-powershow-id='styled-text']")?.getAttribute("style") ?? "").not.toContain("Fira Code");
+  });
+
   it("renders and rehydrates a canonical cropped Image without changing document data", () => {
     const croppedPresentation = PresentationSchema.parse({
       ...playerTestPresentation,

@@ -36,6 +36,21 @@ const expectInvalid = (value: unknown) => {
 };
 
 describe("Custom Library persisted contract", () => {
+  const font = {
+    family: "Fira Code",
+    faces: [{ source: { type: "url" as const, url: "https://example.com/fira.woff2", format: "woff2" as const }, weight: 400, style: "normal" as const }],
+  };
+
+  it("accepts legacy and valid dependency records, but rejects empty or duplicate dependencies", () => {
+    expect(parseCustomLibraryItemDraft(item())).toEqual(item());
+    expect(parseCustomLibraryItemDraft({ ...item(), dependencies: { fonts: [font] } })).toEqual({ ...item(), dependencies: { fonts: [font] } });
+    expect(() => parseCustomLibraryItemDraft({ ...item(), dependencies: { fonts: [font, { ...font, family: " fira code " }] } })).toThrow();
+    expectInvalid({ ...item(), dependencies: {} });
+    expectInvalid({ ...item(), dependencies: { fonts: [] } });
+    expectInvalid({ ...item(), dependencies: { fonts: [font], extra: true } });
+    expectInvalid({ ...item(), dependencies: { fonts: [{ family: "Fira Code", faces: [] }] } });
+  });
+
   it("accepts a builder-produced text item", () => {
     const draft = createCustomLibraryItemDraft({
       name: "Widget",

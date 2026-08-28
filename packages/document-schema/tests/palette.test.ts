@@ -186,6 +186,19 @@ describe("palette color resolution", () => {
 });
 
 describe("presentation palette reference integrity", () => {
+  it.each([
+    ["style.color", { style: { color: { kind: "palette", colorId: "missing" } } }, ["textStyles", 0, "style", "color", "colorId"]],
+    ["decoration color", { typography: { textDecorationColor: { kind: "palette", colorId: "missing" } } }, ["textStyles", 0, "typography", "textDecorationColor", "colorId"]],
+    ["stroke color", { typography: { textStroke: { width: 1, color: { kind: "palette", colorId: "missing" } } } }, ["textStyles", 0, "typography", "textStroke", "color", "colorId"]],
+  ] as const)("rejects unresolved Text Style %s", (_name, style, path) => {
+    const result = PresentationSchema.safeParse({
+      ...defaultsInput,
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+      textStyles: [{ id: "body", ...style }],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues.some((issue) => JSON.stringify(issue.path) === JSON.stringify(path))).toBe(true);
+  });
   const reference = { kind: "palette" as const, colorId: "accent" };
   const baseSlide = { id: "linked-slide", title: "", summary: "", speakerNotes: "" };
   const presentation = {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -20,6 +21,8 @@ import type {
   PresentationRecoveryInspection,
 } from "@/features/persistence/presentation-repository";
 import type { RecoveryIssue } from "@/features/persistence/presentation-recovery";
+
+import styles from "./studio-editor-mount.module.css";
 
 const repository = getDefaultPresentationRepository();
 const notesRepository = getDefaultPresentationNotesRepository();
@@ -51,6 +54,23 @@ function formatRecoveryIssuePath(path: RecoveryIssue["path"]): string {
   }
 
   return output;
+}
+
+function RecoveryPanel({
+  children,
+  className,
+  ...attributes
+}: ComponentPropsWithoutRef<"main">) {
+  return (
+    <main className={styles.recoveryScreen} {...attributes}>
+      <section
+        className={`${styles.recoveryPanel} ${className ?? ""}`}
+        data-powershow-recovery-panel="true"
+      >
+        {children}
+      </section>
+    </main>
+  );
 }
 
 /**
@@ -222,137 +242,169 @@ export function StudioEditorMount({
   if (status.kind === "recovery") {
     if (status.inspection.status === "unrecoverable") {
       return (
-        <div data-powershow-recovery-unrecoverable="true">
-          <h2>{t("recovery.unrecoverableTitle")}</h2>
+        <RecoveryPanel data-powershow-recovery-unrecoverable="true">
+          <header className={styles.recoveryHeader}>
+            <h1 className={styles.recoveryTitle}>
+              {t("recovery.unrecoverableTitle")}
+            </h1>
 
-          <p>{t("recovery.unrecoverableExplanation")}</p>
+            <p className={styles.recoveryExplanation}>
+              {t("recovery.unrecoverableExplanation")}
+            </p>
+          </header>
+
+          <div className={styles.recoveryActions}>
+            <button
+              className={styles.secondaryAction}
+              type="button"
+              onClick={() => router.push(STUDIO_ROUTES.library)}
+            >
+              {t("recovery.backToLibrary")}
+            </button>
+          </div>
+        </RecoveryPanel>
+      );
+    }
+
+    return (
+      <RecoveryPanel data-powershow-recovery="recoverable">
+        <header className={styles.recoveryHeader}>
+          <h1 className={styles.recoveryTitle}>{t("recovery.title")}</h1>
+
+          <p className={styles.recoveryExplanation}>{t("recovery.explanation")}</p>
+        </header>
+
+        <section className={styles.recoverySummary} data-powershow-recovery-summary="true">
+          <p className={styles.issueCount}>
+            {t("recovery.issueCount", { count: status.inspection.issues.length })}
+          </p>
 
           <button
+            className={styles.detailsToggle}
+            type="button"
+            aria-controls="powershow-recovery-details"
+            aria-expanded={detailsOpen}
+            onClick={() => setDetailsOpen((open) => !open)}
+          >
+            {detailsOpen ? t("recovery.hideDetails") : t("recovery.viewDetails")}
+          </button>
+        </section>
+
+        {detailsOpen && (
+          <ul
+            className={styles.recoveryDetails}
+            id="powershow-recovery-details"
+            data-powershow-recovery-details="true"
+          >
+            {status.inspection.issues.map((issue, index) => (
+              <li className={styles.recoveryIssue} key={index} data-powershow-recovery-issue={index}>
+                <code className={styles.recoveryIssuePath}>
+                  {formatRecoveryIssuePath(issue.path)}
+                </code>
+                <dl className={styles.recoveryIssueMetadata}>
+                  {issue.id ? (
+                    <div>
+                      <dt>{t("recovery.detailsId")}</dt>
+                      <dd>{issue.id}</dd>
+                    </div>
+                  ) : null}
+
+                  {issue.elementType ? (
+                    <div>
+                      <dt>{t("recovery.detailsType")}</dt>
+                      <dd>{issue.elementType}</dd>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <dt>{t("recovery.detailsReason")}</dt>
+                    <dd>{issue.reason}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className={styles.recoveryActions} data-powershow-recovery-actions="true">
+          <button
+            className={styles.primaryAction}
+            type="button"
+            data-powershow-recovery-open="true"
+            onClick={() => setStatus({ kind: "recovery-confirm", inspection: status.inspection })}
+          >
+            {t("recovery.removeAndOpen")}
+          </button>
+          <button
+            className={styles.secondaryAction}
             type="button"
             onClick={() => router.push(STUDIO_ROUTES.library)}
           >
             {t("recovery.backToLibrary")}
           </button>
         </div>
-      );
-    }
-
-    return (
-      <div data-powershow-recovery="recoverable">
-        <h2>{t("recovery.title")}</h2>
-
-        <p>{t("recovery.explanation")}</p>
-
-        <p>
-          {t("recovery.issueCount", {
-            count: status.inspection.issues.length,
-          })}
-        </p>
-
-        <button
-          type="button"
-          onClick={() => setDetailsOpen((open) => !open)}
-        >
-          {detailsOpen
-            ? t("recovery.hideDetails")
-            : t("recovery.viewDetails")}
-        </button>
-
-        {detailsOpen && (
-          <ul data-powershow-recovery-details="true">
-            {status.inspection.issues.map((issue, index) => (
-              <li
-                key={index}
-                data-powershow-recovery-issue={index}
-              >
-                <span>
-                  {t("recovery.detailsPath")}: {formatRecoveryIssuePath(issue.path)}
-                </span>
-
-                {issue.id ? (
-                  <span>
-                    {t("recovery.detailsId")}: {issue.id}
-                  </span>
-                ) : null}
-
-                {issue.elementType ? (
-                  <span>
-                    {t("recovery.detailsType")}: {issue.elementType}
-                  </span>
-                ) : null}
-
-                <span>
-                  {t("recovery.detailsReason")}: {issue.reason}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <button
-          type="button"
-          onClick={() => router.push(STUDIO_ROUTES.library)}
-        >
-          {t("recovery.backToLibrary")}
-        </button>
-
-        <button
-          type="button"
-          data-powershow-recovery-open="true"
-          onClick={() =>
-            setStatus({ kind: "recovery-confirm", inspection: status.inspection })
-          }
-        >
-          {t("recovery.removeAndOpen")}
-        </button>
-      </div>
+      </RecoveryPanel>
     );
   }
 
   if (status.kind === "recovery-confirm") {
     return (
-      <div data-powershow-recovery-confirm="true">
-        <h2>{t("recovery.confirmTitle")}</h2>
+      <RecoveryPanel className={styles.warningPanel} data-powershow-recovery-confirm="true">
+        <header className={styles.recoveryHeader}>
+          <h1 className={styles.recoveryTitle}>{t("recovery.confirmTitle")}</h1>
 
-        <p>{t("recovery.confirmBody")}</p>
+          <p className={styles.recoveryExplanation}>{t("recovery.confirmBody")}</p>
+        </header>
 
-        <button
-          type="button"
-          data-powershow-recovery-cancel="true"
-          onClick={() =>
-            setStatus({ kind: "recovery", inspection: status.inspection })
-          }
-        >
-          {t("recovery.cancel")}
-        </button>
-
-        <button
-          type="button"
-          data-powershow-recovery-confirm-action="true"
-          onClick={() => runRepair(status.inspection)}
-        >
-          {t("recovery.confirm")}
-        </button>
-      </div>
+        <div className={styles.recoveryActions}>
+          <button
+            className={styles.dangerAction}
+            type="button"
+            data-powershow-recovery-confirm-action="true"
+            onClick={() => runRepair(status.inspection)}
+          >
+            {t("recovery.confirm")}
+          </button>
+          <button
+            className={styles.secondaryAction}
+            type="button"
+            data-powershow-recovery-cancel="true"
+            onClick={() => setStatus({ kind: "recovery", inspection: status.inspection })}
+          >
+            {t("recovery.cancel")}
+          </button>
+        </div>
+      </RecoveryPanel>
     );
   }
 
   if (status.kind === "recovery-repairing") {
-    return <div>{t("recovery.repairing")}</div>;
+    return (
+      <RecoveryPanel>
+        <p className={styles.statusMessage} role="status" aria-live="polite">
+          {t("recovery.repairing")}
+        </p>
+      </RecoveryPanel>
+    );
   }
 
   if (status.kind === "recovery-failed") {
     return (
-      <div data-powershow-recovery-failed="true">
-        <h2>{t("recovery.repairFailed")}</h2>
+      <RecoveryPanel data-powershow-recovery-failed="true">
+        <header className={styles.recoveryHeader}>
+          <h1 className={styles.recoveryTitle}>{t("recovery.repairFailed")}</h1>
+        </header>
 
-        <button
-          type="button"
-          onClick={() => router.push(STUDIO_ROUTES.library)}
-        >
-          {t("recovery.backToLibrary")}
-        </button>
-      </div>
+        <div className={styles.recoveryActions}>
+          <button
+            className={styles.secondaryAction}
+            type="button"
+            onClick={() => router.push(STUDIO_ROUTES.library)}
+          >
+            {t("recovery.backToLibrary")}
+          </button>
+        </div>
+      </RecoveryPanel>
     );
   }
 

@@ -50,6 +50,9 @@ export function presentationUsesFontFamily(
         fontFamily !== undefined &&
         normalizeFontFamily(fontFamily) === normalizedFamily
       );
-    }),
+    }) || (presentation.textStyles ?? []).some((style) =>
+      style.typography?.fontFamily !== undefined &&
+      normalizeFontFamily(style.typography.fontFamily) === normalizedFamily,
+    ),
   );
 }
