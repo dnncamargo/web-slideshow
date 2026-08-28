@@ -4,6 +4,7 @@ import {
   PresentationSchema,
   resolveTextStyle,
   SlideSchema,
+  TextStyleSchema,
 } from "@powershow/document-schema";
 
 // ============================================================
@@ -21,7 +22,7 @@ import {
 // element is removed. Blocks are never internally repaired.
 // ============================================================
 
-export type RecoveryIssueKind = "element" | "slide";
+export type RecoveryIssueKind = "element" | "slide" | "text-style";
 
 export type RecoveryIssueAction = "remove";
 
@@ -58,6 +59,8 @@ export const RECOVERY_REASON = {
   invalidTopicsStructure: "Invalid Topics structure",
   invalidStructuredTable: "Invalid structured table",
   invalidTable: "Invalid table",
+  invalidTextStyle: "Invalid Text Style",
+  obsoleteTextStyleContent: "Obsolete Text Style content",
   finalPresentationInvalid: "Recovered presentation is still invalid",
 } as const;
 
@@ -642,6 +645,96 @@ function recoverSlide(
 // Root analysis
 // ------------------------------------------------------------
 
+interface TextStyleRecoveryResult {
+  textStyles: unknown[] | undefined;
+
+  hadTextStyles: boolean;
+}
+
+function removeTextStyleIssue(
+  raw: unknown,
+  path: (string | number)[],
+  reason: string,
+  issues: RecoveryIssue[],
+): void {
+  issues.push({
+    kind: "text-style",
+    path,
+    action: "remove",
+    ...(isRecord(raw) && typeof raw.id === "string" ? { id: raw.id } : {}),
+    reason,
+  });
+}
+
+function recoverTextStyles(
+  rawPresentation: Record<string, unknown>,
+  rootShell: Presentation,
+  issues: RecoveryIssue[],
+): TextStyleRecoveryResult {
+  const hadTextStyles = Object.prototype.hasOwnProperty.call(
+    rawPresentation,
+    "textStyles",
+  );
+
+  if (!hadTextStyles) {
+    return { textStyles: undefined, hadTextStyles: false };
+  }
+
+  const rawTextStyles = rawPresentation.textStyles;
+
+  if (!Array.isArray(rawTextStyles)) {
+    removeTextStyleIssue(
+      rawTextStyles,
+      ["textStyles"],
+      RECOVERY_REASON.invalidTextStyle,
+      issues,
+    );
+    return { textStyles: undefined, hadTextStyles: false };
+  }
+
+  const recovered: unknown[] = [];
+  const recoveredIds = new Set<string>();
+
+  rawTextStyles.forEach((rawTextStyle, index) => {
+    const path = ["textStyles", index];
+    const parsed = TextStyleSchema.safeParse(rawTextStyle);
+
+    if (!parsed.success || recoveredIds.has(parsed.success ? parsed.data.id : "")) {
+      removeTextStyleIssue(
+        rawTextStyle,
+        path,
+        RECOVERY_REASON.invalidTextStyle,
+        issues,
+      );
+      return;
+    }
+
+    // PresentationSchema is the authority for cross-resource Palette
+    // references. Validate one semantic unit at a time so an invalid style
+    // is removed without making the whole root unrecoverable.
+    const styleCandidate = PresentationSchema.safeParse({
+      ...rootShell,
+      textStyles: [parsed.data],
+      slides: [],
+    });
+
+    if (!styleCandidate.success) {
+      removeTextStyleIssue(
+        rawTextStyle,
+        path,
+        RECOVERY_REASON.invalidTextStyle,
+        issues,
+      );
+      return;
+    }
+
+    recoveredIds.add(parsed.data.id);
+    recovered.push(parsed.data);
+  });
+
+  return { textStyles: recovered, hadTextStyles: true };
+}
+
 /**
  * Analyzes a raw persisted presentation object (the value stored under
  * `presentation` in the Firestore envelope).
@@ -682,9 +775,24 @@ export function analyzePresentationRecovery(
     return { status: "unrecoverable", presentation: null, issues };
   }
 
-  // Validate the root shell by neutralizing ONLY slides to [].
+  // Validate the structural root shell by neutralizing slides and removing
+  // only recoverable root semantic content. Unknown root fields are not
+  // carried into the canonical candidate, so obsolete aliases are removed
+  // rather than migrated.
+  const rootShellInput = { ...rawPresentation };
+  delete rootShellInput.textStyles;
+  if (Object.prototype.hasOwnProperty.call(rootShellInput, "typographyStyles")) {
+    removeTextStyleIssue(
+      rootShellInput.typographyStyles,
+      ["typographyStyles"],
+      RECOVERY_REASON.obsoleteTextStyleContent,
+      issues,
+    );
+    delete rootShellInput.typographyStyles;
+  }
+
   const rootShellParsed = PresentationSchema.safeParse({
-    ...rawPresentation,
+    ...rootShellInput,
     slides: [],
   });
 
@@ -706,9 +814,31 @@ export function analyzePresentationRecovery(
     return { status: "valid", presentation: fullParsed.data, issues };
   }
 
-  const { slides } = recoverSlides(rawPresentation.slides, issues, rootShellParsed.data);
+  const textStyleRecovery = recoverTextStyles(
+    rawPresentation,
+    rootShellParsed.data,
+    issues,
+  );
+  const typographyContext = {
+    ...rootShellParsed.data,
+    ...(textStyleRecovery.hadTextStyles
+      ? { textStyles: textStyleRecovery.textStyles }
+      : {}),
+    slides: [],
+  } as Presentation;
+  const { slides } = recoverSlides(
+    rawPresentation.slides,
+    issues,
+    typographyContext,
+  );
 
-  const candidate = { ...rawPresentation, slides };
+  const candidate = {
+    ...rootShellParsed.data,
+    ...(textStyleRecovery.hadTextStyles
+      ? { textStyles: textStyleRecovery.textStyles }
+      : {}),
+    slides,
+  };
   const finalParsed = PresentationSchema.safeParse(candidate);
 
   if (!finalParsed.success) {

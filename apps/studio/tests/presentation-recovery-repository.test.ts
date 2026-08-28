@@ -115,6 +115,24 @@ function unrecoverableDraft() {
   };
 }
 
+function recoverableTextStyleDraft() {
+  const presentation = {
+    ...validPresentation(),
+    palette: { colors: [] },
+    textStyles: [{
+      id: "broken",
+      name: "Broken",
+      role: "body",
+      style: { color: { kind: "palette", colorId: "missing" } },
+    }],
+  } as unknown as Presentation;
+
+  return {
+    ...validDraft(),
+    presentation,
+  };
+}
+
 function draftSnapshot(data: Record<string, unknown>, exists = true) {
   return {
     exists: () => exists,
@@ -192,6 +210,38 @@ describe("presentation recovery repository", () => {
     expect(mocks.setDoc).not.toHaveBeenCalled();
     expect(mocks.updateDoc).not.toHaveBeenCalled();
     expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it("inspects, repairs, and subsequently loads a Text Style recovery", async () => {
+    const draft = recoverableTextStyleDraft();
+    setupDirectRead(draft);
+
+    const inspection = await repository.inspectPresentationRecovery("pres-1");
+
+    expect(inspection.status).toBe("recoverable");
+    expect(inspection.issues).toContainEqual(expect.objectContaining({
+      kind: "text-style",
+      id: "broken",
+    }));
+    expect(mocks.updateDoc).not.toHaveBeenCalled();
+
+    const transaction = setupTransactionRead(draft);
+    const repaired = await repository.repairPresentation("pres-1");
+
+    expect(repaired.repaired).toBe(true);
+    expect(repaired.presentation.textStyles).toEqual([]);
+    expect(transaction.update).toHaveBeenCalledTimes(1);
+
+    const payload = transaction.update.mock.calls[0]?.[1] as Record<string, unknown>;
+    setupDirectRead({
+      ...draft,
+      presentation: payload.presentation,
+    });
+
+    await expect(repository.getPresentation("pres-1")).resolves.toMatchObject({
+      id: "pres-1",
+      textStyles: [],
+    });
   });
 
   it("returns a valid current presentation with repaired:false and zero writes", async () => {
