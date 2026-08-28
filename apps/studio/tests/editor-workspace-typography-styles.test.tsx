@@ -162,5 +162,25 @@ describe("EditorWorkspace Text Styles rendering", () => {
     expect(saved.at(-1)?.textStyles).toEqual([{ id: "body", style: { color: { kind: "palette", colorId: "primary" } }, typography: { textStroke: { width: 3, color: { kind: "palette", colorId: "outline" } } } }]);
     expect(saved.at(-1)?.slides[0]?.elements[0]).not.toHaveProperty("style.color");
     expect(saved.at(-1)?.slides[0]?.elements[0]).not.toHaveProperty("typography.textStroke");
+
+    const reloaded = saved.at(-1);
+    expect(reloaded).toBeDefined();
+    await act(async () => root?.unmount());
+    root = createRoot(container);
+    await act(async () => root?.render(<StudioI18nProvider><EditorWorkspace initialPresentation={reloaded!} onSave={async (presentation) => { saved.push(presentation); }} customLibraryPaletteRepository={repositories} customLibraryFontRepository={repositories} /></StudioI18nProvider>));
+
+    const reloadedCanvasText = container.querySelector<HTMLElement>("[data-powershow-id='body-text']");
+    expect(reloadedCanvasText?.getAttribute("style")).toContain("var(--ps-palette-");
+    expect(reloadedCanvasText?.getAttribute("style")).toContain("-webkit-text-stroke:3px var(--ps-palette-");
+    expect(reloadedCanvasText).not.toHaveProperty("typography");
+    expect(container.querySelector("[data-powershow-font-resources]")).not.toBeNull();
+
+    const reloadedResourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
+    await act(async () => reloadedResourcesButton?.click());
+    const reloadedEditBodyButton = container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button");
+    await act(async () => reloadedEditBodyButton?.click());
+    const reloadedPreview = container.querySelector<HTMLElement>("[data-text-style-preview='body'] .powershow-text");
+    expect(reloadedPreview?.getAttribute("style")).toContain("var(--ps-palette-");
+    expect(reloadedPreview?.getAttribute("style")).toContain("-webkit-text-stroke:3px var(--ps-palette-");
   });
 });

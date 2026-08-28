@@ -259,6 +259,69 @@ describe("Text Styles canonical definitions", () => {
     expect(resolved.typography.textDecorationColor).toEqual({ kind: "palette", colorId: "primary" });
     expect(resolved.typography.textStroke?.color).toEqual({ kind: "palette", colorId: "primary" });
   });
+
+  it("round-trips a representative canonical Text Style document without changing its semantics", () => {
+    const reference = { kind: "palette", colorId: "primary" } as const;
+    const canonical = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "round-trip",
+      title: "Round trip",
+      palette: {
+        colors: [
+          { id: "primary", name: "Primary", value: "#336699" },
+          { id: "outline", name: "Outline", value: "#111111" },
+        ],
+      },
+      resources: {
+        fonts: [{
+          id: "fira-code",
+          family: "Fira Code",
+          faces: [{
+            weight: 400,
+            style: "normal",
+            subset: "latin",
+            source: { type: "url", url: "https://example.com/fira-code.woff2" },
+          }],
+        }],
+      },
+      textStyles: [
+        {
+          id: "body",
+          style: { color: reference },
+          typography: {
+            fontFamily: "Fira Code",
+            fontSize: "1.25rem",
+            fontWeight: 500,
+            fontStyle: "italic",
+            textAlign: "center",
+            lineHeight: 1.5,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+            textWrapStyle: "balance",
+            overflowWrap: "anywhere",
+            textDecorationLine: "underline",
+            textDecorationColor: reference,
+            textStroke: { width: "2px", color: { kind: "palette", colorId: "outline" } },
+          },
+        },
+        { id: "quote", name: "Quote", role: "body", style: { color: "#abcdef" } },
+      ],
+      slides: [{
+        id: "slide",
+        elements: [
+          { id: "attached", type: "text", variant: "body", content: "Attached", style: { color: "#ffffff", borderRadius: 4 }, typography: { fontSize: 22 } },
+          { id: "detached", type: "text", variant: "body", styleDetached: true, content: "Detached", style: { color: reference }, typography: { fontFamily: "Fira Code", textDecorationColor: reference, textStroke: { width: "2px", color: { kind: "palette", colorId: "outline" } } } },
+          { id: "custom", type: "text", variant: "quote", content: "Custom", hidden: true },
+        ],
+      }],
+    });
+
+    const reloaded = PresentationSchema.parse(JSON.parse(JSON.stringify(canonical)));
+
+    expect(reloaded).toEqual(canonical);
+    expect(reloaded.schemaVersion).toBe(1);
+  });
 });
 
 describe("local typography style properties", () => {
