@@ -133,6 +133,7 @@ import { findElementById, updateElementById } from "./element-tree";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTypographyStyle, isTypographyStyleUsed, removeUnusedCustomTypographyStyle, resetFundamentalTypographyOverride, updateCustomTypographyStyle, upsertFundamentalTypographyOverride } from "./typography-style-helpers";
+import type { TypographyStyleProperties, TypographyStyleRole } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -2111,11 +2112,11 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  function updateFundamentalTypographyStyle(id: "title" | "subtitle" | "body" | "caption", typography: import("@powershow/document-schema").TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTypographyOverride(current, id, typography)); }
+  function updateFundamentalTypographyStyle(id: "title" | "subtitle" | "body" | "caption", typography: TypographyStyleProperties) { setPresentation((current) => upsertFundamentalTypographyOverride(current, id, typography)); }
   function resetFundamentalTypographyStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTypographyOverride(current, id)); }
-  function addTypographyStyle(name: string, role: import("@powershow/document-schema").TypographyStyleRole) { setPresentation((current) => addCustomTypographyStyle(current, name, role)); }
-  function updateTypographyStyle(id: string, patch: { name?: string; role?: import("@powershow/document-schema").TypographyStyleRole; typography?: import("@powershow/document-schema").TypographyStyleProperties }) { setPresentation((current) => updateCustomTypographyStyle(current, id, patch)); }
-  function removeTypographyStyle(id: string): boolean { let removed = false; setPresentation((current) => { const next = removeUnusedCustomTypographyStyle(current, id); removed = next !== null; return next ?? current; }); return removed; }
+  function addTypographyStyle(name: string, role: TypographyStyleRole) { setPresentation((current) => addCustomTypographyStyle(current, name, role)); }
+  function updateTypographyStyle(id: string, patch: { name?: string; role?: TypographyStyleRole; typography?: TypographyStyleProperties }) { setPresentation((current) => updateCustomTypographyStyle(current, id, patch)); }
+  function removeTypographyStyle(id: string): void { setPresentation((current) => removeUnusedCustomTypographyStyle(current, id) ?? current); }
 
   // ==========================================================
   // BEGIN: ADD ELEMENT

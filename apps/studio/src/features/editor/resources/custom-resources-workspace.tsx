@@ -39,7 +39,7 @@ interface CustomResourcesWorkspaceProps {
   onResetFundamentalTypographyStyle?: (id: "title" | "subtitle" | "body" | "caption") => void;
   onAddTypographyStyle?: (name: string, role: TypographyStyleRole) => void;
   onUpdateTypographyStyle?: (id: string, patch: { name?: string; role?: TypographyStyleRole; typography?: TypographyStyleProperties }) => void;
-  onRemoveTypographyStyle?: (id: string) => boolean;
+  onRemoveTypographyStyle?: (id: string) => void;
   isTypographyStyleInUse?: (id: string) => boolean;
 }
 
@@ -79,7 +79,7 @@ export function CustomResourcesWorkspace({
   onResetFundamentalTypographyStyle = () => undefined,
   onAddTypographyStyle = () => undefined,
   onUpdateTypographyStyle = () => undefined,
-  onRemoveTypographyStyle = () => false,
+  onRemoveTypographyStyle = () => undefined,
   isTypographyStyleInUse = () => false,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
@@ -247,12 +247,13 @@ function TypographyStylesWorkspace({
   onCancelAdd: () => void;
   onCreate: (name: string, role: TypographyStyleRole) => void;
   onUpdate: (id: string, patch: { name?: string; role?: TypographyStyleRole; typography?: TypographyStyleProperties }) => void;
-  onRemove: (id: string) => boolean;
+  onRemove: (id: string) => void;
   isInUse: (id: string) => boolean;
 }) {
   const { t } = useStudioI18n();
-  const byId = new Map(presentationStyles.map((style) => [style.id, style]));
-  const customStyles = presentationStyles.filter((style) => !FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.some((fundamentalId) => fundamentalId === style.id));
+  const projectedStyles = listPresentationTypographyStyles({ typographyStyles: presentationStyles });
+  const byId = new Map(projectedStyles.filter((item) => item.style !== undefined).map((item) => [item.id, item.style]));
+  const customStyles = projectedStyles.filter((item) => !FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.some((fundamentalId) => fundamentalId === item.id) && item.style !== undefined).map((item) => item.style as TypographyStyle);
   return <section data-presentation-typography-styles>
     <h3 className={styles.groupTitle}>{t("customResources.typographyStyles")}</h3>
     <div className={styles.localFontList}>
@@ -269,7 +270,7 @@ function TypographyStylesWorkspace({
 function TypographyStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpdateTypography, onUpdateCustom, onReset, onRemove, removeDisabled }: {
   id: string; label: string; status: string; editing: boolean; style?: TypographyStyle; fonts: readonly FontResource[];
   onEdit: (id: string) => void; onUpdateTypography?: (value: TypographyStyleProperties) => void; onUpdateCustom?: (value: { name?: string; role?: TypographyStyleRole; typography?: TypographyStyleProperties }) => void;
-  onReset?: () => void; onRemove?: () => boolean; removeDisabled?: boolean;
+  onReset?: () => void; onRemove?: () => void; removeDisabled?: boolean;
 }) {
   const { t } = useStudioI18n();
   const fundamental = FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.some((fundamentalId) => fundamentalId === id);
@@ -281,11 +282,30 @@ function TypographyStyleRow({ id, label, status, editing, style, fonts, onEdit, 
     {fundamental && style ? <button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button> : null}
     {!fundamental && onRemove ? <button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button> : null}
     {editing ? <div className={styles.localColorAdd}>
-      {!fundamental && style && "name" in style ? <label className={styles.localColorName}><span>{t("customResources.styleName")}</span><input value={style.name} onChange={(event) => { if (event.target.value.trim()) onUpdateCustom?.({ name: event.target.value }); }} /></label> : null}
+      {!fundamental && style && "name" in style ? <CustomTypographyStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdateCustom?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdateCustom?.({ role: event.target.value as TypographyStyleRole })}>{FUNDAMENTAL_TYPOGRAPHY_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} controlPrefix={`typography-style-${id}`} onUpdateTypography={(update) => (fundamental ? onUpdateTypography?.(normalizeTypographyStyleProperties(update(typography))) : onUpdateCustom?.({ typography: normalizeTypographyStyleProperties(update(typography)) }))} />
     </div> : null}
   </div>;
+}
+
+function CustomTypographyStyleNameInput({ canonicalName, onCommit }: { canonicalName: string; onCommit: (name: string) => void }) {
+  const { t } = useStudioI18n();
+  const [draft, setDraft] = useState(canonicalName);
+  const [lastCanonicalName, setLastCanonicalName] = useState(canonicalName);
+  if (canonicalName !== lastCanonicalName) {
+    setLastCanonicalName(canonicalName);
+    setDraft(canonicalName);
+  }
+  const commit = () => {
+    const next = draft.trim();
+    if (!next || next === canonicalName) {
+      setDraft(canonicalName);
+      return;
+    }
+    onCommit(next);
+  };
+  return <label className={styles.localColorName}><span>{t("customResources.styleName")}</span><input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } }} /></label>;
 }
 
 function NewTypographyStyleForm({ fonts, onCancel, onCreate }: { fonts: readonly FontResource[]; onCancel: () => void; onCreate: (name: string, role: TypographyStyleRole) => void }) {

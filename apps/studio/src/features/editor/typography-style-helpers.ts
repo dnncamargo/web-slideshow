@@ -28,7 +28,7 @@ export interface TypographyStyleListItem {
 }
 
 export function listPresentationTypographyStyles(
-  presentation: Presentation,
+  presentation: { typographyStyles?: readonly TypographyStyle[] },
 ): readonly TypographyStyleListItem[] {
   const persisted = presentation.typographyStyles ?? [];
   return [
@@ -80,6 +80,7 @@ export function addCustomTypographyStyle(
   role: TypographyStyleRole,
 ): Presentation {
   const trimmedName = name.trim();
+  if (!trimmedName) return presentation;
   const id = createTypographyStyleId(trimmedName, (presentation.typographyStyles ?? []).map((style) => style.id));
   return withTypographyStyles(presentation, [
     ...(presentation.typographyStyles ?? []),
@@ -96,7 +97,7 @@ export function updateCustomTypographyStyle(
     if (style.id !== id || !("name" in style)) return style;
     return {
       ...style,
-      ...(patch.name === undefined ? {} : { name: patch.name.trim() }),
+      ...(patch.name === undefined || !patch.name.trim() ? {} : { name: patch.name.trim() }),
       ...(patch.role === undefined ? {} : { role: patch.role }),
       ...(patch.typography === undefined ? {} : { typography: normalizeTypographyStyleProperties(patch.typography) }),
     };
