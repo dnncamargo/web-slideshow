@@ -85,6 +85,10 @@ describe("EditorWorkspace Text Styles rendering", () => {
     const editBodyButton = container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button");
     await act(async () => editBodyButton?.click());
 
+    const addProperty = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-text-style-id='body'] button")).find((button) => button.textContent?.trim() === "+ Add property");
+    await act(async () => addProperty?.click());
+    const addFontFamily = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-text-style-id='body'] button")).find((button) => button.textContent?.trim() === "Font family");
+    await act(async () => addFontFamily?.click());
     const fontSelect = container.querySelector<HTMLSelectElement>("#text-style-body-font-family");
     expect(fontSelect).not.toBeNull();
     await act(async () => {

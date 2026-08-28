@@ -137,22 +137,19 @@ describe("Custom Resources Text Styles", () => {
     await render(undefined, presentationRef);
 
     await act(async () => disclosure("body").click());
-    const fontSelect = requiredElement<HTMLSelectElement>("#text-style-body-font-family");
-    expect(Array.from(fontSelect.options).map((option) => option.value)).toContain("Inter");
+    expect(row("body").textContent).toContain("No typography properties added");
+    await act(async () => rowButton("body", "+ Add property").click());
+    const fontSizeOption = Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font size");
+    expect(fontSizeOption).toBeDefined();
+    await act(async () => fontSizeOption?.click());
+    expect(row("body").querySelector("#text-style-body-font-size")).not.toBeNull();
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
-
-    await act(async () => {
-      fontSelect.value = "Inter";
-      fontSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    expect(presentationRef.current?.textStyles).toEqual([{ id: "body", typography: { fontFamily: "Inter" } }]);
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "body", typography: { fontSize: 18 } }]);
     expect(row("body").textContent).toContain("Customized");
     expect(row("body").textContent).not.toContain("Edit");
 
-    await act(async () => rowButton("body", "Reset").click());
+    await act(async () => row("body").querySelector<HTMLButtonElement>("[aria-label='Remove Font size']")?.click());
     expect(row("body").textContent).toContain("Built-in");
-    expect(row("body").querySelector("button")?.textContent).not.toContain("Reset");
     expect(presentationRef.current).not.toHaveProperty("textStyles");
   });
 
@@ -190,7 +187,11 @@ describe("Custom Resources Text Styles", () => {
     expect(bodyPreview.textContent).toBe("Aa");
     expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
 
+    await act(async () => rowButton("body", "+ Add property").click());
+    const addFontFamily = Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font family");
+    await act(async () => addFontFamily?.click());
     const fontSelect = requiredElement<HTMLSelectElement>("#text-style-body-font-family");
+    expect(presentationRef.current?.textStyles).toBeUndefined();
     await act(async () => {
       fontSelect.value = "Inter";
       fontSelect.dispatchEvent(new Event("change", { bubbles: true }));
@@ -277,6 +278,9 @@ describe("Custom Resources Text Styles", () => {
     expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", role: "caption" });
     expect(editedQuoteRow.getAttribute("data-text-style-id")).toBe("quote");
 
+    await act(async () => rowButton("quote", "+ Add property").click());
+    const addQuoteFont = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font family");
+    await act(async () => addQuoteFont?.click());
     const quoteFontSelect = requiredElement<HTMLSelectElement>("#text-style-quote-font-family");
     expect(Array.from(quoteFontSelect.options).map((option) => option.value)).toEqual(["", "Inter"]);
     await act(async () => {
@@ -284,9 +288,10 @@ describe("Custom Resources Text Styles", () => {
       quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", typography: { fontFamily: "Inter" } });
+    const quoteFontSelectAfterSave = requiredElement<HTMLSelectElement>("#text-style-quote-font-family");
     await act(async () => {
-      quoteFontSelect.value = "";
-      quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      quoteFontSelectAfterSave.value = "";
+      quoteFontSelectAfterSave.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(presentationRef.current?.textStyles).toEqual([{ id: "quote", name: "Block Quote", role: "caption" }]);
     expect(presentationRef.current?.textStyles?.[0]).not.toHaveProperty("typography");
@@ -328,5 +333,50 @@ describe("Custom Resources Text Styles", () => {
     await act(async () => removeButton.click());
     expect(presentationRef.current?.textStyles).toEqual(usedPresentation.textStyles);
     expect(presentationRef.current?.slides[0]?.elements[0]).toMatchObject({ type: "text", variant: "quote", content: "unchanged" });
+  });
+
+  it("adds one baseline property without materializing the other defaults", async () => {
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(addCustomTextStyle(base(), "Quote", "caption"), presentationRef);
+    await act(async () => disclosure("quote").click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    const option = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font weight");
+    await act(async () => option?.click());
+
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "quote", name: "Quote", role: "caption", typography: { fontWeight: 400 } }]);
+    expect(row("quote").querySelectorAll("[data-text-style-property]")).toHaveLength(1);
+  });
+
+  it("keeps an authored value when the custom role changes", async () => {
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(addCustomTextStyle(base(), "Quote", "body"), presentationRef);
+    await act(async () => disclosure("quote").click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font size")?.click());
+    expect(presentationRef.current?.textStyles?.[0]?.typography?.fontSize).toBe(18);
+    const role = row("quote").querySelector<HTMLSelectElement>("select");
+    await act(async () => { if (role) { role.value = "caption"; role.dispatchEvent(new Event("change", { bubbles: true })); } });
+    expect(presentationRef.current?.textStyles?.[0]?.typography?.fontSize).toBe(18);
+  });
+
+  it("removes only the selected property and preserves deferred appearance", async () => {
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, fontWeight: 500, textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }] });
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef);
+    await act(async () => disclosure("quote").click());
+    await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Font size']")?.click());
+    expect(presentationRef.current?.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontWeight: 500, textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } });
+  });
+
+  it("dismisses pending Font family without persisting a placeholder", async () => {
+    const initial = addCustomTextStyle(base(), "Quote", "body");
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef);
+    await act(async () => disclosure("quote").click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font family")?.click());
+    expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
+    await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Font family']")?.click());
+    expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
   });
 });

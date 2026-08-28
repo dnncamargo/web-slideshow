@@ -1,4 +1,5 @@
 import type { ElementTypography, FontResource } from "@powershow/document-schema";
+import { TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES } from "@powershow/document-schema";
 import {
   convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
@@ -18,6 +19,8 @@ import type { UpdateElementTypography } from "../inspector-types";
 import { EffectiveNumberInput } from "./effective-number-input";
 import { EffectiveLengthInput } from "./effective-length-input";
 
+export type CoreTypographyProperty = (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES)[number];
+
 interface ElementTypographyControlProps {
   typography?: ElementTypography | undefined;
 
@@ -28,6 +31,8 @@ interface ElementTypographyControlProps {
   controlPrefix: string;
 
   fontResources: readonly FontResource[];
+
+  visibleProperties?: readonly CoreTypographyProperty[];
 }
 
 function readFontWeightSelection(
@@ -170,10 +175,13 @@ export function ElementTypographyFields({
   onUpdateTypography,
   controlPrefix,
   fontResources,
+  visibleProperties,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
 
   const currentTypography = typography;
+  const isVisible = (property: CoreTypographyProperty): boolean =>
+    visibleProperties === undefined || visibleProperties.includes(property);
 
   function onUpdateStyle(
     update: (current: ElementTypography | undefined) => ElementTypography,
@@ -205,7 +213,7 @@ export function ElementTypographyFields({
 
   return (
     <>
-      <div>
+      {isVisible("fontFamily") ? <div>
         <label className={styles.field}>
           <span>{t("inspector.fontFamily")}</span>
 
@@ -237,10 +245,10 @@ export function ElementTypographyFields({
           </select>
         </label>
 
-      </div>
+      </div> : null}
 
       <div className={styles.fieldGrid}>
-        <div className={styles.field}>
+        {isVisible("fontSize") ? <div className={styles.field}>
           <label htmlFor={`${controlPrefix}-font-size`}>
             {t("inspector.fontSize")}
           </label>
@@ -270,9 +278,9 @@ export function ElementTypographyFields({
               }));
             }}
           />
-        </div>
+        </div> : null}
 
-        <label className={styles.field}>
+        {isVisible("fontWeight") ? <label className={styles.field}>
           <span>{t("inspector.fontWeight")}</span>
 
           <select
@@ -307,9 +315,9 @@ export function ElementTypographyFields({
 
             <option value="700">{t("inspector.fontWeight.bold")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("fontStyle") ? <label className={styles.field}>
           <span>{t("inspector.fontStyle")}</span>
 
           <select
@@ -332,9 +340,9 @@ export function ElementTypographyFields({
 
             <option value="italic">{t("inspector.fontStyle.italic")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("textAlign") ? <label className={styles.field}>
           <span>{t("inspector.textAlignment")}</span>
 
           <select
@@ -361,9 +369,9 @@ export function ElementTypographyFields({
 
             <option value="justify">{t("inspector.textAlign.justify")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <div className={styles.field}>
+        {isVisible("lineHeight") ? <div className={styles.field}>
           <label
             htmlFor={`${controlPrefix}-line-height`}
             title={t("inspector.lineHeightHelp")}
@@ -395,9 +403,9 @@ export function ElementTypographyFields({
               }));
             }}
           />
-        </div>
+        </div> : null}
 
-        <div className={styles.field}>
+        {isVisible("letterSpacing") ? <div className={styles.field}>
           <label
             htmlFor={`${controlPrefix}-letter-spacing`}
             title={t("inspector.letterSpacingHelp")}
@@ -430,9 +438,9 @@ export function ElementTypographyFields({
               }));
             }}
           />
-        </div>
+        </div> : null}
 
-        <label className={styles.field}>
+        {isVisible("textTransform") ? <label className={styles.field}>
           <span>{t("inspector.textCase")}</span>
 
           <select
@@ -465,9 +473,9 @@ export function ElementTypographyFields({
               {t("inspector.textCase.capitalize")}
             </option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("whiteSpace") ? <label className={styles.field}>
           <span>{t("inspector.whiteSpace")}</span>
 
           <select
@@ -496,9 +504,9 @@ export function ElementTypographyFields({
               {t("inspector.whiteSpace.preWrap")}
             </option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("textWrapStyle") ? <label className={styles.field}>
           <span>{t("inspector.textWrap")}</span>
 
           <select
@@ -523,9 +531,9 @@ export function ElementTypographyFields({
 
             <option value="pretty">{t("inspector.textWrap.pretty")}</option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("overflowWrap") ? <label className={styles.field}>
           <span>{t("inspector.overflowWrap")}</span>
 
           <select
@@ -556,9 +564,9 @@ export function ElementTypographyFields({
               {t("inspector.overflowWrap.anywhere")}
             </option>
           </select>
-        </label>
+        </label> : null}
 
-        <label className={styles.field}>
+        {isVisible("textDecorationLine") ? <label className={styles.field}>
           <span>{t("inspector.textDecorationLine")}</span>
 
           <select
@@ -593,7 +601,7 @@ export function ElementTypographyFields({
               {t("inspector.textDecorationLine.lineThrough")}
             </option>
           </select>
-        </label>
+        </label> : null}
       </div>
     </>
   );

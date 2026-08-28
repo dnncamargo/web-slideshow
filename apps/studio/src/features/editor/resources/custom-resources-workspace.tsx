@@ -1,8 +1,8 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, type Color, type FontResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TypographyStyleProperties, type TextStyleRole } from "@powershow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type FontResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TypographyStyleProperties, type TextStyleRole } from "@powershow/document-schema";
 import { renderElement } from "@powershow/renderer";
-import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
+import { resolveThemeTextTypographyBaseline, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
@@ -18,7 +18,7 @@ import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "@/features
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
-import { ElementTypographyFields } from "../inspector/sections/element-typography-control";
+import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
 import { listPresentationTextStyles, normalizeTextStyleTypographyProperties } from "../text-style-helpers";
 
 import styles from "./custom-resources-workspace.module.css";
@@ -278,6 +278,7 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
   onReset?: () => void; onRemove?: () => void; removeDisabled?: boolean;
 }) {
   const { t } = useStudioI18n();
+  const [pendingFontFamily, setPendingFontFamily] = useState(false);
   const fundamental = FUNDAMENTAL_TEXT_STYLE_IDS.some((fundamentalId) => fundamentalId === id);
   const role = fundamental ? id as TextStyleRole : (style && "role" in style ? style.role : "body");
   const typography = style?.typography;
@@ -293,6 +294,32 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
     },
   };
   const editorId = `text-style-${id}-editor`;
+  const authoredProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => typography?.[property] !== undefined);
+  const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
+  const addProperty = (property: CoreTypographyProperty): void => {
+    if (property === "fontFamily") {
+      setPendingFontFamily(true);
+      return;
+    }
+    const baseline = resolveThemeTextTypographyBaseline(role);
+    const value = baseline[property];
+    if (value === undefined) return;
+    const nextTypography = { ...(typography ?? {}), [property]: value };
+    if (fundamental) onUpdateTypography?.(normalizeTextStyleTypographyProperties(nextTypography));
+    else onUpdateCustom?.({ typography: normalizeTextStyleTypographyProperties(nextTypography) });
+  };
+  const updateTypography = (update: (current: TypographyStyleProperties | undefined) => TypographyStyleProperties): void => {
+    const nextTypography = normalizeTextStyleTypographyProperties(update(typography));
+    if (fundamental) onUpdateTypography?.(nextTypography);
+    else onUpdateCustom?.({ typography: nextTypography });
+  };
+  const removeProperty = (property: CoreTypographyProperty): void => {
+    if (property === "fontFamily" && pendingFontFamily && typography?.fontFamily === undefined) {
+      setPendingFontFamily(false);
+      return;
+    }
+    updateTypography((current) => ({ ...(current ?? {}), [property]: undefined }));
+  };
 
   return <div className={styles.typographyStyleRow} data-text-style-id={id}>
     <div className={styles.typographyStyleHeader}>
@@ -319,9 +346,52 @@ function TextStyleRow({ id, label, status, editing, style, fonts, onEdit, onUpda
       />
       {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdateCustom?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdateCustom?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
-      <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => (fundamental ? onUpdateTypography?.(normalizeTextStyleTypographyProperties(update(typography))) : onUpdateCustom?.({ typography: normalizeTextStyleTypographyProperties(update(typography)) }))} />
+      {authoredProperties.length === 0 && !pendingFontFamily ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
+      <div className={styles.typographyStyleProperties}>
+        {authoredProperties.map((property) => <div className={styles.typographyStyleProperty} data-text-style-property={property} key={property}>
+          <div className={styles.typographyStylePropertyHeader}>
+            <span>{t(propertyLabelKey[property])}</span>
+            <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(propertyLabelKey[property]) })} onClick={() => removeProperty(property)}>×</button>
+          </div>
+          <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => updateTypography(update)} />
+        </div>)}
+        {pendingFontFamily ? <div className={styles.typographyStyleProperty} data-text-style-property="fontFamily">
+          <div className={styles.typographyStylePropertyHeader}>
+            <span>{t(propertyLabelKey.fontFamily)}</span>
+            <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(propertyLabelKey.fontFamily) })} onClick={() => removeProperty("fontFamily")}>×</button>
+          </div>
+          <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={["fontFamily"]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} />
+        </div> : null}
+      </div>
+      {availableProperties.length > 0 ? <PropertyChooser properties={availableProperties} fontsAvailable={fonts.length > 0} onAdd={addProperty} /> : null}
       {fundamental && style && onReset ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
       {!fundamental && onRemove ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
+    </div> : null}
+  </div>;
+}
+
+const propertyLabelKey: Record<CoreTypographyProperty, Parameters<ReturnType<typeof useStudioI18n>["t"]>[0]> = {
+  fontFamily: "inspector.fontFamily",
+  fontSize: "inspector.fontSize",
+  fontWeight: "inspector.fontWeight",
+  fontStyle: "inspector.fontStyle",
+  textAlign: "inspector.textAlignment",
+  lineHeight: "inspector.lineHeight",
+  letterSpacing: "inspector.letterSpacing",
+  textTransform: "inspector.textCase",
+  whiteSpace: "inspector.whiteSpace",
+  textWrapStyle: "inspector.textWrap",
+  overflowWrap: "inspector.overflowWrap",
+  textDecorationLine: "inspector.textDecorationLine",
+};
+
+function PropertyChooser({ properties, fontsAvailable, onAdd }: { properties: readonly CoreTypographyProperty[]; fontsAvailable: boolean; onAdd: (property: CoreTypographyProperty) => void }) {
+  const { t } = useStudioI18n();
+  const [open, setOpen] = useState(false);
+  return <div className={styles.typographyStyleChooser}>
+    <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
+    {open ? <div className={styles.typographyStylePropertyOptions}>
+      {properties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} disabled={property === "fontFamily" && !fontsAvailable} title={property === "fontFamily" && !fontsAvailable ? t("customResources.addFontFirst") : undefined} onClick={() => { onAdd(property); setOpen(false); }}>{t(propertyLabelKey[property])}{property === "fontFamily" && !fontsAvailable ? ` — ${t("customResources.addFontFirst")}` : ""}</button>)}
     </div> : null}
   </div>;
 }
