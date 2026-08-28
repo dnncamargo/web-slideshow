@@ -1,5 +1,6 @@
 import {
   resolveColorValue,
+  type ContainerElement,
   type PowerShowElement,
   type TextElement,
   type ElementEffect,
@@ -36,6 +37,13 @@ import type {
 import { CanonicalTextAppearanceSection } from "./sections/canonical-text-appearance-section";
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
+
+import {
+  shouldShowElementPositioning,
+  type ElementLayerControls,
+} from "./sections/element-positioning-helpers";
+
+import { CanonicalTextPositionSection } from "./sections/canonical-text-position-section";
 
 import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
@@ -106,7 +114,12 @@ export function TextInspector({
   element,
   onUpdate,
   fontResources,
-}: TypographyInspectorProps<TextInspectorElement>) {
+  parent = null,
+  layerControls = null,
+}: TypographyInspectorProps<TextInspectorElement> & {
+  parent?: ContainerElement | null;
+  layerControls?: ElementLayerControls | null;
+}) {
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
@@ -308,10 +321,47 @@ export function TextInspector({
               }}
               onClick={() => setIsInlineColorOpen((open) => !open)}
             >
-              <span aria-hidden="true" className={styles.textEditorColorGlyph}>A</span>
+              <svg
+                aria-hidden="true"
+                className={styles.textEditorColorIcon}
+                data-powershow-inline-color-icon="paint-bucket"
+                viewBox="0 0 24 24"
+                focusable="false"
+              >
+                <path
+                  d="m4.5 9 5-5 9 9-5 5-9-9Z"
+                  fill={resolvedSelectionColor ?? "currentColor"}
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.7"
+                />
+                <path
+                  d="m9.5 4 2-2 9 9-2 2M4.5 9l-2 2 7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.7"
+                />
+                <path
+                  d="M17.5 16.5c0 1.4-1.1 2.5-2.5 2.5s-2.5-1.1-2.5-2.5c0-1.4 2.5-4 2.5-4s2.5 2.6 2.5 4Z"
+                  fill={resolvedSelectionColor ?? "currentColor"}
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="1.4"
+                />
+                <path
+                  d="M19 20h2"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeWidth="1.7"
+                />
+              </svg>
               <span
                 aria-hidden="true"
                 className={styles.textEditorColorSwatch}
+                data-powershow-inline-color-swatch="true"
                 style={{ backgroundColor: resolvedSelectionColor ?? "currentColor" }}
               />
             </button>
@@ -453,6 +503,28 @@ export function TextInspector({
         onUpdateTypography={updateTypography}
         controlPrefix="text"
       />
+
+      {shouldShowElementPositioning(layerControls) && (
+        <CanonicalTextPositionSection
+          element={element}
+          parent={parent}
+          layerControls={layerControls}
+          onUpdateLayout={(update) => {
+            onUpdate((current) => {
+              if (current.type !== "text") {
+                return current;
+              }
+
+              const next = update(current.layout);
+              const textLayout = next && "width" in next
+                ? Object.fromEntries(Object.entries(next).filter(([key]) => key !== "width" && key !== "height"))
+                : next;
+
+              return { ...current, layout: textLayout };
+            });
+          }}
+        />
+      )}
 
       <ElementInteractionSection
         element={element}

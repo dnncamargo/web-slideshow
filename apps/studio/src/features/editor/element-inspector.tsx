@@ -106,6 +106,8 @@ function ElementTypeInspector({
           element={element}
           onUpdate={onUpdate}
           fontResources={fontResources}
+          parent={parent}
+          layerControls={layerControls}
         />
       );
 
@@ -263,8 +265,8 @@ export function ElementInspector({
         tableAuthoringControls={tableAuthoringControls}
       />
 
-      {element.type !== "container" && shouldShowElementPositioning(layerControls) && (
-        element.type === "text" || element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
+      {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (
+        element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
           <CanonicalElementPositionSection
             element={element}
             parent={parent}

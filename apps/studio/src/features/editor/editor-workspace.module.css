@@ -2167,8 +2167,10 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.textEditorColorGlyph {
-  line-height: 1;
+.textEditorColorIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 .textEditorColorSwatch {

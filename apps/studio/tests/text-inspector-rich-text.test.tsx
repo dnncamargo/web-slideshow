@@ -39,6 +39,7 @@ describe("TextInspector rich text authoring", () => {
   let root: Root;
   let elementState: TextElement;
   let updates: TextElement[];
+  let layerMoves: number[];
 
   function renderInspector() {
     root.render(
@@ -57,6 +58,14 @@ describe("TextInspector rich text authoring", () => {
             renderInspector();
           }}
           fontResources={[]}
+          parent={null}
+          layerControls={{
+            index: 0,
+            count: 2,
+            onMoveTo: (index) => {
+              layerMoves.push(index);
+            },
+          }}
         />
       </StudioI18nProvider>,
     );
@@ -65,6 +74,7 @@ describe("TextInspector rich text authoring", () => {
   function mount(initial: TextElement) {
     elementState = initial;
     updates = [];
+    layerMoves = [];
     renderInspector();
   }
 
@@ -285,6 +295,12 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("code").getAttribute("aria-label")).toBe("Code");
     expect(inlineColorButton().getAttribute("aria-label")).toBe("Text color");
     expect(clearFormattingButton().getAttribute("aria-label")).toBe("Clear formatting");
+    expect(inlineColorButton().textContent).not.toContain("A");
+    expect(
+      inlineColorButton().querySelector(
+        '[data-powershow-inline-color-icon="paint-bucket"]',
+      ),
+    ).not.toBeNull();
   });
 
   it("applies bold to the selected range", async () => {
@@ -570,6 +586,25 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("uniform");
   });
 
+  it("preserves resolved color indication in the paint-bucket control", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([{ text: "Hello", marks: { color: "#ef4444" } }]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(0, 5);
+    });
+
+    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("uniform");
+    expect(
+      inlineColorButton().querySelector('[data-powershow-inline-color-swatch="true"]'),
+    ).not.toBeNull();
+    expect(inlineColorButton().querySelector("svg path")?.getAttribute("fill"))
+      .not.toBe("currentColor");
+  });
+
   it("derives the color control from the current uniform selection", async () => {
     await act(async () => {
       mount(richTextElement({
@@ -800,6 +835,7 @@ describe("TextInspector rich text authoring", () => {
       "Typography",
       "Appearance",
       "Effects",
+      "Placement",
       "Interaction",
     ]);
 
@@ -816,6 +852,56 @@ describe("TextInspector rich text authoring", () => {
     expect(
       appearanceSection?.querySelector('[class*="appearanceSubheading"]'),
     ).toBeNull();
+  });
+
+  it("uses the existing Placement section for Flow and Absolute text layout", async () => {
+    await act(async () => {
+      mount(richTextElement());
+    });
+
+    const placementSection = Array.from(container.querySelectorAll("details")).find(
+      (section) => section.querySelector("summary")?.textContent === "Placement",
+    );
+    expect(placementSection).not.toBeUndefined();
+    expect(container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")?.value)
+      .toBe("flow");
+    expect(container.querySelector("#element-canonical-top")).toBeNull();
+
+    await act(async () => {
+      const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode");
+      if (!mode) throw new Error("text placement mode not found");
+      mode.value = "absolute";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(elementState.layout?.position).toBe("absolute");
+    expect(container.querySelector("#element-canonical-top")).not.toBeNull();
+    expect(container.querySelector("#element-canonical-left")).not.toBeNull();
+
+    await act(async () => {
+      const bringToFront = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Bring to front",
+      );
+      if (!bringToFront) throw new Error("bring-to-front control not found");
+      bringToFront.click();
+    });
+
+    expect(layerMoves).toEqual([1]);
+
+    await act(async () => {
+      const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode");
+      if (!mode) throw new Error("text placement mode not found");
+      mode.value = "flow";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(elementState.layout).toEqual({});
+    expect(container.querySelector("#element-canonical-top")).toBeNull();
+    expect(
+      Array.from(container.querySelectorAll("details")).map(
+        (section) => section.querySelector("summary")?.textContent,
+      ).slice(-2),
+    ).toEqual(["Placement", "Interaction"]);
   });
 
   it("changes the canonical text variant from Typography", async () => {
