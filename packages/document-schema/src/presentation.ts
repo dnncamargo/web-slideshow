@@ -8,6 +8,7 @@ import {
   PresentationPaletteSchema,
 } from "./palette";
 import { validatePresentationPaletteReferences } from "./palette-validation";
+import { TypographyStylesSchema } from "./typography";
 
 export {
   PresentationPaletteSchema,
@@ -34,6 +35,8 @@ export const PresentationSchema =
     resources: PresentationResourcesSchema.optional(),
 
     palette: PresentationPaletteSchema.optional(),
+
+    typographyStyles: TypographyStylesSchema.optional(),
 
     slides: z.array(
       SlideSchema,

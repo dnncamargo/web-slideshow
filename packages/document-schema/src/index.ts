@@ -28,6 +28,7 @@ export type {
 } from "./palette-operations";
 export * from "./resources";
 export * from "./style";
+export * from "./typography";
 export * from "./links";
 export * from "./elements";
 export * from "./slide";
