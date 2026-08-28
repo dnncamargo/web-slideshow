@@ -22,6 +22,20 @@ export interface ThemeTypographyDefaults {
   letterSpacing: number;
 }
 
+export interface ThemeTextTypographyBaseline {
+  fontSize: number;
+  fontWeight: number;
+  fontStyle: "normal";
+  textAlign: "left";
+  lineHeight: number;
+  letterSpacing: number;
+  textTransform: "none";
+  whiteSpace: "normal";
+  textWrapStyle: "auto";
+  overflowWrap: "normal";
+  textDecorationLine: "none";
+}
+
 export const AUTHORING_ROOT_FONT_SIZE_PX = 16;
 
 export type AuthoringLengthUnit = "px" | "rem" | "em" | "%";
@@ -46,30 +60,88 @@ export interface ThemeStyleDefaultElement {
 // These values are the deterministic authoring representation of the
 // canonical declarations in base.css. rem/em lengths are resolved against the
 // PowerShow authoring root so the Studio can convert rem values without
-// consulting the DOM.
-export const TEXT_VARIANT_TYPOGRAPHY_DEFAULTS: Readonly<
-  Record<ThemeTextVariant, Readonly<ThemeTypographyDefaults>>
+// consulting the DOM. The Theme font stack remains supplied by CSS rather
+// than becoming an authored font family in this baseline.
+export const TEXT_VARIANT_TYPOGRAPHY_BASELINES: Readonly<
+  Record<ThemeTextVariant, Readonly<ThemeTextTypographyBaseline>>
 > = {
   title: {
     fontSize: 48,
+    fontWeight: 700,
+    fontStyle: "normal",
+    textAlign: "left",
     lineHeight: 1.08,
     letterSpacing: -1.2,
+    textTransform: "none",
+    whiteSpace: "normal",
+    textWrapStyle: "auto",
+    overflowWrap: "normal",
+    textDecorationLine: "none",
   },
   subtitle: {
     fontSize: 28,
+    fontWeight: 500,
+    fontStyle: "normal",
+    textAlign: "left",
     lineHeight: 1.25,
     letterSpacing: 0,
+    textTransform: "none",
+    whiteSpace: "normal",
+    textWrapStyle: "auto",
+    overflowWrap: "normal",
+    textDecorationLine: "none",
   },
   body: {
     fontSize: 18,
+    fontWeight: 400,
+    fontStyle: "normal",
+    textAlign: "left",
     lineHeight: 1.6,
     letterSpacing: 0,
+    textTransform: "none",
+    whiteSpace: "normal",
+    textWrapStyle: "auto",
+    overflowWrap: "normal",
+    textDecorationLine: "none",
   },
   caption: {
     fontSize: 14,
+    fontWeight: 400,
+    fontStyle: "normal",
+    textAlign: "left",
     lineHeight: 1.45,
     letterSpacing: 0,
+    textTransform: "none",
+    whiteSpace: "normal",
+    textWrapStyle: "auto",
+    overflowWrap: "normal",
+    textDecorationLine: "none",
   },
+};
+
+export function resolveThemeTextTypographyBaseline(
+  role: ThemeTextVariant,
+): Readonly<ThemeTextTypographyBaseline> {
+  return TEXT_VARIANT_TYPOGRAPHY_BASELINES[role];
+}
+
+function numericTypographyDefaults(
+  baseline: ThemeTextTypographyBaseline,
+): ThemeTypographyDefaults {
+  return {
+    fontSize: baseline.fontSize,
+    lineHeight: baseline.lineHeight,
+    letterSpacing: baseline.letterSpacing,
+  };
+}
+
+export const TEXT_VARIANT_TYPOGRAPHY_DEFAULTS: Readonly<
+  Record<ThemeTextVariant, Readonly<ThemeTypographyDefaults>>
+> = {
+  title: numericTypographyDefaults(TEXT_VARIANT_TYPOGRAPHY_BASELINES.title),
+  subtitle: numericTypographyDefaults(TEXT_VARIANT_TYPOGRAPHY_BASELINES.subtitle),
+  body: numericTypographyDefaults(TEXT_VARIANT_TYPOGRAPHY_BASELINES.body),
+  caption: numericTypographyDefaults(TEXT_VARIANT_TYPOGRAPHY_BASELINES.caption),
 };
 
 export const TOPICS_ITEM_GAP_DEFAULT_PX = 6;
