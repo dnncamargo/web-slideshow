@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { FontResource, PowerShowElement } from "@powershow/document-schema";
 
 import {
   createCustomLibraryItemDraft,
   type CreateCustomLibraryItemDraftInput,
 } from "../src/features/custom-library/custom-library-item";
+import { snapshotCustomLibraryStyleFontDependencies } from "../src/features/custom-library/custom-library-style-dependencies";
 
 const text = (id = "text-1"): PowerShowElement => ({
   type: "text",
@@ -27,6 +28,110 @@ const inputFor = (
 });
 
 describe("createCustomLibraryItemDraft", () => {
+  const fontResources: FontResource[] = [
+    {
+      id: "font-fira",
+      family: "Fira Code",
+      faces: [{ weight: 400, style: "normal" as const, source: { type: "url" as const, url: "https://example.com/fira.woff2", format: "woff2" as const } }],
+    },
+    {
+      id: "font-inter",
+      family: "Inter",
+      source: { type: "url" as const, url: "https://example.com/inter.woff2", format: "woff2" as const },
+    },
+  ];
+
+  it("snapshots selected direct font dependencies with complete faces", () => {
+    const direct = text() as Extract<PowerShowElement, { type: "text" }>;
+    direct.typography = { fontFamily: "Fira Code" };
+    const draft = createCustomLibraryItemDraft(inputFor(direct, {
+      selections: new Map([["text-1", new Set(["typography.fontFamily"])] ]),
+      fontResources,
+    }));
+
+    expect(draft.dependencies).toEqual({
+      fonts: [{
+        family: "Fira Code",
+        faces: fontResources[0]!.faces,
+      }],
+    });
+    expect(draft.dependencies?.fonts?.[0]).not.toHaveProperty("id");
+  });
+
+  it("omits dependencies for unselected or unregistered families", () => {
+    expect(createCustomLibraryItemDraft(inputFor(text(), {
+      selections: new Map([["text-1", new Set(["variant"])] ]),
+      fontResources,
+    }))).not.toHaveProperty("dependencies");
+
+    const unregistered = text() as Extract<PowerShowElement, { type: "text" }>;
+    unregistered.typography = { fontFamily: "Arial" };
+    expect(createCustomLibraryItemDraft(inputFor(unregistered, {
+      selections: new Map([["text-1", new Set(["typography.fontFamily"])] ]),
+      fontResources,
+    }))).not.toHaveProperty("dependencies");
+  });
+
+  it("recurses through nested recipes, deduplicates normalized families, and converts legacy fonts", () => {
+    const first = text("first") as Extract<PowerShowElement, { type: "text" }>;
+    first.typography = { fontFamily: " fira code " };
+    const second = text("second") as Extract<PowerShowElement, { type: "text" }>;
+    second.typography = { fontFamily: "Inter" };
+    const third = text("third") as Extract<PowerShowElement, { type: "text" }>;
+    third.typography = { fontFamily: "FIRA CODE" };
+    const root: PowerShowElement = { type: "container", id: "root", hidden: false, children: [first, second, third] };
+
+    const draft = createCustomLibraryItemDraft(inputFor(root, {
+      selections: new Map([
+        ["root", new Set<string>()],
+        ["first", new Set(["typography.fontFamily"])],
+        ["second", new Set(["typography.fontFamily"])],
+        ["third", new Set(["typography.fontFamily"])],
+      ]),
+      fontResources: [fontResources[1]!, { id: "legacy", family: "Fira Code", source: fontResources[0]!.faces![0]!.source }],
+    }));
+
+    expect(draft.dependencies?.fonts).toEqual([
+      { family: "Fira Code", faces: [{ source: fontResources[0]!.faces![0]!.source }] },
+      { family: "Inter", faces: [{ source: fontResources[1]!.source! }] },
+    ]);
+  });
+
+  it("discovers fonts in bounded Topics and structured Table payloads", () => {
+    const topicRecipe = {
+      type: "topics" as const,
+      properties: [{
+        path: "items",
+        value: [{ content: { typography: {}, children: [{ type: "text", typography: { fontFamily: "Fira Code" } }] }, children: [] }],
+      }],
+    };
+    const tableRecipe = {
+      type: "table" as const,
+      properties: [{
+        path: "rows",
+        value: [{ cells: [{ typography: { fontFamily: "Inter" }, children: [] }] }],
+      }],
+    };
+
+    expect(snapshotCustomLibraryStyleFontDependencies(topicRecipe, fontResources)).toEqual({ fonts: [{ family: "Fira Code", faces: fontResources[0]!.faces }] });
+    expect(snapshotCustomLibraryStyleFontDependencies(tableRecipe, fontResources)).toEqual({ fonts: [{ family: "Inter", faces: [{ source: fontResources[1]!.source! }] }] });
+  });
+
+  it("does not scan arbitrary payloads for fontFamily", () => {
+    const interactive: PowerShowElement = {
+      type: "interactive",
+      id: "interactive",
+      hidden: false,
+      widget: "function-plot",
+      config: { typography: { fontFamily: "Fira Code" } },
+    } as PowerShowElement;
+
+    expect(createCustomLibraryItemDraft(inputFor(interactive, {
+      selections: new Map([["interactive", new Set(["config"])] ]),
+      fontResources,
+    }))).not.toHaveProperty("dependencies");
+  });
+
   it("creates a text item draft with normalized metadata", () => {
     expect(createCustomLibraryItemDraft(inputFor(text(), {
       name: "  Presentation Title  ",

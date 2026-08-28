@@ -4,6 +4,7 @@ import type {
   PowerShowElement,
   Slide,
   TopicItem,
+  FontResource,
   PresentationPalette,
 } from "@powershow/document-schema";
 import { useState } from "react";
@@ -41,6 +42,7 @@ interface ElementTreePanelProps {
   customLibraryRepository?: CustomLibraryRepository;
   onApplyCustomLibraryRecipe?: (recipe: CustomLibraryElementRecipe) => CustomLibraryApplyOutcome;
   palette?: PresentationPalette;
+  fontResources?: readonly FontResource[];
 }
 
 interface ElementTreeSelection {
@@ -473,6 +475,7 @@ export function ElementTreePanel({
   customLibraryRepository,
   onApplyCustomLibraryRecipe = () => ({ ok: true }),
   palette,
+  fontResources,
 }: ElementTreePanelProps) {
   const { t } = useStudioI18n();
   const [expandedIds, setExpandedIds] = useState(() => {
@@ -699,6 +702,7 @@ export function ElementTreePanel({
         customLibraryRepository={customLibraryRepository}
         onApplyCustomLibraryRecipe={onApplyCustomLibraryRecipe}
         palette={palette}
+        fontResources={fontResources}
       />
     </div>
   );

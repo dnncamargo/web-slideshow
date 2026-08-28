@@ -1,6 +1,6 @@
 "use client";
 
-import type { PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import type { FontResource, PowerShowElement, PresentationPalette } from "@powershow/document-schema";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
@@ -31,6 +31,7 @@ interface ElementPropertiesPanelProps {
     recipe: CustomLibraryElementRecipe,
   ) => CustomLibraryApplyOutcome;
   palette?: PresentationPalette;
+  fontResources?: readonly FontResource[];
 }
 
 function getElementIdentity(
@@ -46,6 +47,7 @@ export function ElementPropertiesPanel({
   customLibraryRepository,
   onApplyCustomLibraryRecipe = () => ({ ok: true }),
   palette,
+  fontResources,
 }: ElementPropertiesPanelProps) {
   const { t } = useStudioI18n();
   const selectableProperties = useMemo(
@@ -116,6 +118,7 @@ export function ElementPropertiesPanel({
               root={selectedElement}
               selections={selections}
               palette={palette}
+              fontResources={fontResources}
               repository={customLibraryRepository}
               onSaved={() => {
                 setSaveFormElementId(null);

@@ -4,6 +4,9 @@ import type { PowerShowElement } from "@powershow/document-schema";
 
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
 import type { CustomLibraryItemDraft } from "./custom-library-item";
+import { CustomLibraryFontDraftSchema } from "./custom-library-font-schema";
+import type { CustomLibraryStyleDependencies } from "./custom-library-style-dependencies";
+import { normalizeFontFamily } from "../fonts/font-face-helpers";
 
 const ELEMENT_TYPE_NAMES = {
   text: true,
@@ -90,6 +93,26 @@ export const CustomLibraryItemDraftSchema: z.ZodType<CustomLibraryItemDraft> = z
       .refine((description) => description === description.trim(), "Description must be trimmed")
       .optional(),
     root: CustomLibraryElementRecipeSchema,
+    dependencies: z
+      .object({
+        fonts: z.array(CustomLibraryFontDraftSchema).min(1),
+      })
+      .strict()
+      .superRefine((dependencies: CustomLibraryStyleDependencies, context) => {
+        const families = new Set<string>();
+        dependencies.fonts?.forEach((font, index) => {
+          const normalizedFamily = normalizeFontFamily(font.family);
+          if (families.has(normalizedFamily)) {
+            context.addIssue({
+              code: "custom",
+              message: "Font dependency families must be unique",
+              path: ["fonts", index, "family"],
+            });
+          }
+          families.add(normalizedFamily);
+        });
+      })
+      .optional(),
   })
   .strict();
 

@@ -3521,6 +3521,7 @@ export function EditorWorkspace({
                   customLibraryRepository={customLibraryRepository}
                   onApplyCustomLibraryRecipe={applyCustomLibraryRecipe}
                   palette={presentation.palette}
+                  fontResources={presentation.resources?.fonts}
                 />
               ) : (
                 <>
