@@ -123,11 +123,12 @@ function renderEffect(effect: ElementEffect | undefined): string[] {
 
 export function renderCanonicalTextStyle(
   element: TextElement,
+  typography: ElementTypography | undefined = element.typography,
 ): string {
   return [
     ...renderLayout(element),
     ...renderVisualStyle(element.style),
-    ...renderTypography(element.typography),
+    ...renderTypography(typography),
     ...renderEffect(element.effect),
   ].join(";");
 }

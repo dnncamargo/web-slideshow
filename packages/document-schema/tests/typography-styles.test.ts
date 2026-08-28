@@ -7,6 +7,7 @@ import {
   PresentationSchema,
   TypographyStylePropertiesSchema,
   TypographyStylesSchema,
+  resolveTextTypography,
 } from "../src";
 
 import { defaultsInput } from "./fixtures/schema-fixtures";
@@ -27,6 +28,21 @@ const allTypographyProperties = {
 } as const;
 
 describe("Typography Styles canonical definitions", () => {
+  const presentation = (element: unknown, typographyStyles?: unknown[]) => ({
+    schemaVersion: 1,
+    id: "presentation",
+    title: "Presentation",
+    slides: [{ id: "slide", elements: [element] }],
+    ...(typographyStyles ? { typographyStyles } : {}),
+  });
+
+  const text = (overrides: Record<string, unknown> = {}) => ({
+    id: "text",
+    type: "text",
+    content: "Text",
+    ...overrides,
+  });
+
   it("keeps presentation typography styles optional", () => {
     expect(PresentationSchema.safeParse(defaultsInput).success).toBe(true);
   });
@@ -148,5 +164,44 @@ describe("Typography Styles canonical definitions", () => {
     }
 
     expect(hasLocalTypographyStyleProperties({ lineHeight: 1.5, textStroke: { width: 1, color: "#000000" } })).toBe(true);
+  });
+
+  it("uses one canonical fundamental variant source and defaults to body", () => {
+    for (const variant of ["title", "subtitle", "body", "caption"]) {
+      expect(PresentationSchema.safeParse(presentation(text({ variant }))).success).toBe(true);
+    }
+    const parsed = PresentationSchema.parse(presentation(text()));
+    expect(parsed.slides[0]?.elements[0]).toMatchObject({ variant: "body" });
+  });
+
+  it("validates custom references and local-property ownership", () => {
+    const style = { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } };
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote" }), [style])).success).toBe(true);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "missing" }))).success).toBe(false);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { fontFamily: "Arial" } }), [style])).success).toBe(false);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { textStroke: { width: 1, color: "#fff" } } }), [style])).success).toBe(true);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { textDecorationColor: "#fff" } }), [style])).success).toBe(true);
+  });
+
+  it("validates nested custom variants", () => {
+    const nested = { id: "container", type: "container", children: [text({ variant: "missing" })] };
+    expect(PresentationSchema.safeParse(presentation(nested)).success).toBe(false);
+  });
+
+  it("resolves linked, independent, and custom typography without style inheritance", () => {
+    const styles = [
+      { id: "body", typography: { fontFamily: "Inter" } },
+      { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
+    ];
+    const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { textStroke: { width: 1, color: "#fff" } } }), styles));
+    expect(resolveTextTypography(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", textStroke: { width: 1, color: "#ffffff" } });
+
+    const independent = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontFamily: "Fira Code" } }), styles));
+    expect(resolveTextTypography(independent, independent.slides[0]!.elements[0] as Extract<typeof independent.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Fira Code" });
+
+    const custom = PresentationSchema.parse(presentation(text({ variant: "quote", typography: { textDecorationColor: "#fff" } }), styles));
+    const resolved = resolveTextTypography(custom, custom.slides[0]!.elements[0] as Extract<typeof custom.slides[0]['elements'][number], { type: 'text' }>);
+    expect(resolved).toMatchObject({ role: "body", typography: { fontStyle: "italic", textDecorationColor: "#ffffff" } });
+    expect(resolved.typography).not.toHaveProperty("fontFamily");
   });
 });

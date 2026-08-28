@@ -29,6 +29,7 @@ export type {
 export * from "./resources";
 export * from "./style";
 export * from "./typography";
+export * from "./typography-resolution";
 export * from "./links";
 export * from "./elements";
 export * from "./slide";

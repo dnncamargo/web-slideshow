@@ -9,6 +9,7 @@ import {
 } from "./palette";
 import { validatePresentationPaletteReferences } from "./palette-validation";
 import { TypographyStylesSchema } from "./typography";
+import { validatePresentationTypographyReferences } from "./typography-validation";
 
 export {
   PresentationPaletteSchema,
@@ -43,7 +44,10 @@ export const PresentationSchema =
     ),
   })
   .strict()
-  .superRefine(validatePresentationPaletteReferences);
+  .superRefine((presentation, context) => {
+    validatePresentationPaletteReferences(presentation, context);
+    validatePresentationTypographyReferences(presentation, context);
+  });
 
 export type Presentation =
   z.infer<typeof PresentationSchema>;

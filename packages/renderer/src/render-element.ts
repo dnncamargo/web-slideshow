@@ -18,6 +18,9 @@ import type {
   ChartElement,
   InteractiveElement,
 } from "@powershow/document-schema";
+import type { Presentation } from "@powershow/document-schema";
+import { resolveTextTypography } from "@powershow/document-schema";
+import { FundamentalTypographyStyleIdSchema } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
@@ -30,6 +33,10 @@ import {
 } from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
+
+export type RenderContext = Readonly<{
+  presentation: Presentation;
+}>;
 
 function renderImageCropBoxStyle(element: ImageElement): string {
   return element.layout?.position === "absolute"
@@ -70,6 +77,7 @@ function renderLinkContent(
 function buildAttributes(
   element: PowerShowElement,
   classes: string[],
+  context?: RenderContext,
   extraStyle?: string,
 ): string {
   const outputClasses = ["powershow-element", ...classes];
@@ -87,7 +95,10 @@ function buildAttributes(
 
   let baseStyle = "";
   if (element.type === "text") {
-    baseStyle = renderCanonicalTextStyle(element);
+    baseStyle = renderCanonicalTextStyle(
+      element,
+      context ? resolveTextTypography(context.presentation, element).typography : element.typography,
+    );
   } else if (element.type === "image") {
     baseStyle = renderCanonicalImageStyle(element);
   }
@@ -111,7 +122,7 @@ function buildAttributes(
   );
 }
 
-function renderText(element: TextElement): string {
+function renderText(element: TextElement, context?: RenderContext): string {
   if (element.hidden) {
     return "";
   }
@@ -121,13 +132,17 @@ function renderText(element: TextElement): string {
       ? escapeHtml(element.content)
       : renderRichText(element.content);
   const content = renderLinkContent(renderedContent, element.link);
+  const resolved = context
+    ? resolveTextTypography(context.presentation, element)
+    : undefined;
+  const role = resolved?.role ?? FundamentalTypographyStyleIdSchema.parse(element.variant);
 
   const attributes = buildAttributes(element, [
     "powershow-text",
-    `powershow-text-${element.variant}`,
-  ]);
+    `powershow-text-${role}`,
+  ], context);
 
-  switch (element.variant) {
+  switch (role) {
     case "title":
       return `<h1 ${attributes}>${content}</h1>`;
 
@@ -212,6 +227,7 @@ function renderImage(element: ImageElement): string {
     const attributes = buildAttributes(
       element,
       ["powershow-image"],
+      undefined,
       renderImageCropBoxStyle(element),
     );
     return (
@@ -225,6 +241,7 @@ function renderImage(element: ImageElement): string {
   const attributes = buildAttributes(
     element,
     ["powershow-image"],
+    undefined,
     `object-fit:${element.fit};object-position:${element.focalPoint?.x ?? 50}% ${element.focalPoint?.y ?? 50}%`,
   );
 
@@ -263,16 +280,19 @@ function assertNever(value: never): never {
   throw new Error(`Unsupported PowerShow element: ${String(value)}`);
 }
 
-export function renderElement(element: PowerShowElement): string {
+export function renderElement(
+  element: PowerShowElement,
+  context?: RenderContext,
+): string {
   switch (element.type) {
     case "text":
-      return renderText(element);
+      return renderText(element, context);
 
     case "image":
       return renderImage(element);
 
     case "container":
-      return renderContainer(element, renderElement);
+      return renderContainer(element, (child) => renderElement(child, context));
 
     case "code":
       return renderCode(element);
@@ -281,10 +301,10 @@ export function renderElement(element: PowerShowElement): string {
       return renderTerminal(element);
 
     case "table":
-      return renderTable(element, renderElement);
+      return renderTable(element, (child) => renderElement(child, context));
 
     case "topics":
-      return renderTopics(element, renderElement);
+      return renderTopics(element, (child) => renderElement(child, context));
 
     case "divider":
       return renderDivider(element);

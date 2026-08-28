@@ -65,6 +65,42 @@ function createPresentation(): Presentation {
 }
 
 describe("renderPresentation", () => {
+  it("resolves typography style variants through presentation context", () => {
+    const presentation = createPresentationFixture({
+      typographyStyles: [
+        { id: "body", typography: { fontFamily: "Inter" } },
+        { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
+        { id: "hero", name: "Hero", role: "title", typography: { fontSize: 48 } },
+      ],
+      slides: [createSlide({
+        elements: [
+          createTextElement({ id: "quote", variant: "quote", content: "Quote" }),
+          createTextElement({ id: "hero", variant: "hero", content: "Hero" }),
+        ],
+      })],
+    });
+
+    const html = renderPresentation(presentation);
+    expect(html).toContain('<p class="powershow-element powershow-text powershow-text-body"');
+    expect(html).toContain('font-style:italic');
+    expect(html).toContain('<h1 class="powershow-element powershow-text powershow-text-title"');
+    expect(html).toContain('font-size:48px');
+    expect(html).not.toContain('powershow-text-quote');
+    expect(html).not.toContain('font-family:&quot;Inter&quot;');
+  });
+
+  it("keeps a fundamental local typography override independent", () => {
+    const html = renderPresentation(createPresentationFixture({
+      typographyStyles: [{ id: "body", typography: { fontFamily: "Inter" } }],
+      slides: [createSlide({
+        elements: [createTextElement({ variant: "body", typography: { fontFamily: "Fira Code" } })],
+      })],
+    }));
+
+    expect(html).toContain('font-family:&quot;Fira Code&quot;');
+    expect(html).not.toContain('font-family:&quot;Inter&quot;');
+  });
+
   it("renders the presentation wrapper", () => {
     const html = renderPresentation(
       createPresentation(),

@@ -40,7 +40,7 @@ export interface EffectiveElementStyleDefaults {
 
 export interface ThemeStyleDefaultElement {
   type: ThemeElementType;
-  variant?: ThemeTextVariant;
+  variant?: string;
 }
 
 // These values are the deterministic authoring representation of the
@@ -211,8 +211,9 @@ export function resolveEffectiveElementStyleDefaults(
   const borderRadius = ELEMENT_BORDER_RADIUS_DEFAULTS[element.type];
 
   if (element.type === "text") {
+    const variant = element.variant as ThemeTextVariant | undefined;
     return {
-      typography: TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[element.variant ?? "body"],
+      typography: TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[variant ?? "body"] ?? TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body,
       borderRadius,
     };
   }
