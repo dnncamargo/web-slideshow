@@ -8,6 +8,7 @@ import {
   TypographyStylePropertiesSchema,
   TypographyStylesSchema,
   resolveTextTypography,
+  TextElementSchema,
 } from "../src";
 
 import { defaultsInput } from "./fixtures/schema-fixtures";
@@ -172,6 +173,8 @@ describe("Typography Styles canonical definitions", () => {
     }
     const parsed = PresentationSchema.parse(presentation(text()));
     expect(parsed.slides[0]?.elements[0]).toMatchObject({ variant: "body" });
+    expect(TextElementSchema.parse(text({ variant: "  quote  " })).variant).toBe("quote");
+    expect(TextElementSchema.safeParse(text({ variant: "   " })).success).toBe(false);
   });
 
   it("validates custom references and local-property ownership", () => {

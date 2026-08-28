@@ -1,9 +1,7 @@
-import type {
-  ElementTypography,
-  Presentation,
-  TextElement,
-  TypographyStyleRole,
-} from "./index";
+import type { ElementTypography } from "./element-properties";
+import type { Presentation } from "./presentation";
+import type { TextElement } from "./elements";
+import type { TypographyStyleRole } from "./typography";
 import {
   FundamentalTypographyStyleIdSchema,
   hasLocalTypographyStyleProperties,

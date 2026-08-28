@@ -31,7 +31,6 @@ import {
   TopicsTypographySchema,
   PositionedElementLayoutSchema,
 } from "./element-properties";
-import { FundamentalTypographyStyleIdSchema } from "./typography";
 import { BorderSchema } from "./visual";
 
 const CanonicalDataElementBaseSchema = z.object({
@@ -87,10 +86,7 @@ export const TextElementSchema =
 
     content: TextContentSchema,
 
-    variant: z.union([
-      FundamentalTypographyStyleIdSchema,
-      z.string().trim().min(1),
-    ]).default("body"),
+    variant: z.string().trim().min(1).default("body"),
 
     layout: TextLayoutSchema.optional(),
 

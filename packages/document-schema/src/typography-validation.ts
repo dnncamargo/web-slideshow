@@ -1,9 +1,5 @@
-import type {
-  ContentSlot,
-  PowerShowElement,
-  Presentation,
-  TopicItem,
-} from "./index";
+import type { ContentSlot, PowerShowElement, TopicItem } from "./elements";
+import type { Presentation } from "./presentation";
 import {
   FundamentalTypographyStyleIdSchema,
   hasLocalTypographyStyleProperties,
