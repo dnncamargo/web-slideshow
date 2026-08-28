@@ -50,13 +50,25 @@ describe("applyCustomLibraryItemToPresentation", () => {
   it("materializes a missing font and places the authored recipe", () => {
     const original = presentation();
     const style = item(textRecipe("Fira Code"), { fonts: [{ family: "Fira Code", faces: [face("https://example.com/fira.woff2")] }] });
+    const presentationBefore = structuredClone(original);
+    const itemBefore = structuredClone(style);
     const result = applyCustomLibraryItemToPresentation(style, original, 0, null);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expect(result.mode).toBe("create-root");
+    const appliedElement = result.presentation.slides[0]?.elements[0];
+    expect(appliedElement).toMatchObject({ type: "text", typography: { fontFamily: "Fira Code" } });
+    expect(result.appliedElementId).toBe(appliedElement?.id);
     expect(result.presentation.resources?.fonts).toHaveLength(1);
-    expect(result.presentation.slides[0]?.elements[0]).toMatchObject({ type: "text", typography: { fontFamily: "Fira Code" } });
-    expect(original.resources).toBeUndefined();
+    const resultFace = result.presentation.resources?.fonts?.[0]?.faces?.[0];
+    const dependencyFace = style.dependencies?.fonts?.[0]?.faces[0];
+    expect(resultFace).toBeDefined();
+    expect(dependencyFace).toBeDefined();
+    expect(resultFace).not.toBe(dependencyFace);
+    expect(resultFace?.source).not.toBe(dependencyFace?.source);
+    expect(original).toEqual(presentationBefore);
+    expect(style).toEqual(itemBefore);
   });
 
   it("reuses an equivalent resource and merges missing faces", () => {

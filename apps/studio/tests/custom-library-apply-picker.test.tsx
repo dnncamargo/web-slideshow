@@ -160,4 +160,21 @@ describe("CustomLibraryApplyPicker", () => {
     expect(container.textContent).toContain("Could not apply Custom Library item.");
     expect(container.textContent).not.toContain("cannot be created in the Editor yet");
   });
+
+  it("keeps unsupported create feedback distinct from generic failure", async () => {
+    const onApply = vi.fn(() => ({
+      ok: false as const,
+      reason: "unsupported-create-type" as const,
+    }));
+    render(async () => [item], onApply);
+    open();
+    await act(async () => undefined);
+    act(() => Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("Title style"))?.click());
+    act(() => Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent === "Apply")?.click());
+
+    expect(container.textContent).toContain("This item cannot be created in the Editor yet.");
+    expect(container.textContent).not.toContain("Could not apply Custom Library item.");
+  });
 });
