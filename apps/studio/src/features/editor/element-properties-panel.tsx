@@ -4,11 +4,11 @@ import type { FontResource, PowerShowElement, PresentationPalette } from "@power
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
+import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
 import {
   CustomLibraryApplyPicker,
   type CustomLibraryApplyOutcome,
 } from "@/features/custom-library/custom-library-apply-picker";
-import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
 import { CustomLibrarySaveForm } from "@/features/custom-library/custom-library-save-form";
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
@@ -27,9 +27,7 @@ interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
   isStructuralTopicSelection: boolean;
   customLibraryRepository?: CustomLibraryRepository;
-  onApplyCustomLibraryRecipe?: (
-    recipe: CustomLibraryElementRecipe,
-  ) => CustomLibraryApplyOutcome;
+  onApplyCustomLibraryItem?: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
 }
@@ -45,7 +43,7 @@ export function ElementPropertiesPanel({
   selectedElement,
   isStructuralTopicSelection,
   customLibraryRepository,
-  onApplyCustomLibraryRecipe = () => ({ ok: true }),
+  onApplyCustomLibraryItem = () => ({ ok: true }),
   palette,
   fontResources,
 }: ElementPropertiesPanelProps) {
@@ -165,7 +163,7 @@ export function ElementPropertiesPanel({
       )}
       <CustomLibraryApplyPicker
         repository={customLibraryRepository}
-        onApply={onApplyCustomLibraryRecipe}
+        onApply={onApplyCustomLibraryItem}
       />
     </section>
   );

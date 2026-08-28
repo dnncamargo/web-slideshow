@@ -13,18 +13,18 @@ import type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
 } from "./custom-library-repository";
-import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
-import type { CustomLibraryApplyFailureReason } from "./custom-library-apply";
+import type { CustomLibraryItemDraft } from "./custom-library-item";
+import type { CustomLibraryItemApplyFailureReason } from "./custom-library-item-apply";
 
 import styles from "../editor/editor-workspace.module.css";
 
 export type CustomLibraryApplyOutcome =
   | { ok: true }
-  | { ok: false; reason: CustomLibraryApplyFailureReason };
+  | { ok: false; reason: CustomLibraryItemApplyFailureReason };
 
 interface CustomLibraryApplyPickerProps {
   repository?: CustomLibraryRepository;
-  onApply: (recipe: CustomLibraryElementRecipe) => CustomLibraryApplyOutcome;
+  onApply: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
 }
 
 function rootTypeLabel(
@@ -86,7 +86,7 @@ export function CustomLibraryApplyPicker({
   function handleApply() {
     if (!selectedItem) return;
 
-    const outcome = onApply(selectedItem.item.root);
+    const outcome = onApply(selectedItem.item);
     setFeedback(
       outcome.ok
         ? "applied"

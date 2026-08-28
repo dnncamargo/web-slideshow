@@ -34,7 +34,7 @@ import {
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
-import type { CustomLibraryElementRecipe } from "@/features/custom-library/custom-library-recipe";
+import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
 import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
 import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
 import type { CustomLibraryPaletteRepository } from "@/features/custom-library/custom-library-palette-repository";
@@ -43,7 +43,7 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
-import { placeCustomLibraryElementRecipe } from "@/features/custom-library/custom-library-placement";
+import { applyCustomLibraryItemToPresentation } from "@/features/custom-library/custom-library-item-apply";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -2202,8 +2202,8 @@ export function EditorWorkspace({
   // END: ADD ELEMENT
   // ==========================================================
 
-  function applyCustomLibraryRecipe(
-    recipe: CustomLibraryElementRecipe,
+  function applyCustomLibraryItem(
+    item: CustomLibraryItemDraft,
   ): CustomLibraryApplyOutcome {
     if (!selectedSlide) {
       return { ok: false, reason: "invalid-recipe-application" };
@@ -2212,10 +2212,10 @@ export function EditorWorkspace({
     const selectedElementId = selectedElement?.contentSlotId != null
       ? null
       : selectedElement?.id ?? null;
-    const result = placeCustomLibraryElementRecipe(
-      recipe,
-      selectedSlide,
-      presentation.slides,
+    const result = applyCustomLibraryItemToPresentation(
+      item,
+      presentation,
+      selectedSlideIndex,
       selectedElementId,
     );
 
@@ -2223,15 +2223,10 @@ export function EditorWorkspace({
       return result;
     }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex ? result.slide : slide,
-      ),
-    }));
+    setPresentation(result.presentation);
 
     const appliedElement = findElementById(
-      result.slide.elements,
+      result.presentation.slides[selectedSlideIndex]?.elements ?? [],
       result.appliedElementId,
     );
     if (appliedElement) {
@@ -3519,7 +3514,7 @@ export function EditorWorkspace({
                   }}
                   onMoveElement={moveElementInTree}
                   customLibraryRepository={customLibraryRepository}
-                  onApplyCustomLibraryRecipe={applyCustomLibraryRecipe}
+                  onApplyCustomLibraryItem={applyCustomLibraryItem}
                   palette={presentation.palette}
                   fontResources={presentation.resources?.fonts}
                 />

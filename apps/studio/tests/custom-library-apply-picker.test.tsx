@@ -5,7 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CustomLibraryItemRecord } from "../src/features/custom-library/custom-library-repository";
-import { CustomLibraryApplyPicker } from "../src/features/custom-library/custom-library-apply-picker";
+import {
+  CustomLibraryApplyPicker,
+  type CustomLibraryApplyOutcome,
+} from "../src/features/custom-library/custom-library-apply-picker";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -18,6 +21,17 @@ const item: CustomLibraryItemRecord = {
     root: {
       type: "text",
       properties: [{ path: "content", value: "Secret recipe value" }],
+    },
+    dependencies: {
+      fonts: [{
+        family: "Fira Code",
+        faces: [{
+          weight: 400,
+          style: "normal",
+          subset: "latin",
+          source: { type: "url", url: "https://example.com/fira.woff2", format: "woff2" },
+        }],
+      }],
     },
   },
 };
@@ -48,7 +62,7 @@ describe("CustomLibraryApplyPicker", () => {
 
   function render(
     listItems: () => Promise<CustomLibraryItemRecord[]>,
-    onApply = vi.fn(() => ({ ok: true as const })),
+    onApply: ReturnType<typeof vi.fn<() => CustomLibraryApplyOutcome>> = vi.fn(() => ({ ok: true as const })),
   ) {
     act(() => {
       root.render(
@@ -116,7 +130,7 @@ describe("CustomLibraryApplyPicker", () => {
     expect(container.textContent).toContain("Title style");
   });
 
-  it("emits exactly the selected recipe when Apply is pressed", async () => {
+  it("emits exactly the selected item when Apply is pressed", async () => {
     const onApply = render(async () => [item]);
     open();
     await act(async () => undefined);
@@ -126,6 +140,24 @@ describe("CustomLibraryApplyPicker", () => {
       Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply")?.click();
     });
     expect(onApply).toHaveBeenCalledTimes(1);
-    expect(onApply).toHaveBeenCalledWith(item.item.root);
+    expect(onApply).toHaveBeenCalledWith(item.item);
+  });
+
+  it("shows generic failure feedback for font dependency conflicts", async () => {
+    const onApply = vi.fn(() => ({
+      ok: false as const,
+      reason: "font-dependency-conflict" as const,
+    }));
+    render(async () => [item], onApply);
+    open();
+    await act(async () => undefined);
+    act(() => Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("Title style"))?.click());
+    act(() => Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent === "Apply")?.click());
+
+    expect(onApply).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Could not apply Custom Library item.");
+    expect(container.textContent).not.toContain("cannot be created in the Editor yet");
   });
 });
