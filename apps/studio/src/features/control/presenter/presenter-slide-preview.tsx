@@ -8,6 +8,7 @@ import type { Presentation, Slide } from "@powershow/document-schema";
 import styles from "./presenter-view.module.css";
 
 export interface PresenterSlidePreviewProps {
+  presentation: Presentation;
   slide: Slide;
   aspectRatio: Presentation["aspectRatio"];
   variant: "current" | "next";
@@ -22,11 +23,15 @@ export interface PresenterSlidePreviewProps {
  * loading, or navigation.
  */
 export function PresenterSlidePreview({
+  presentation,
   slide,
   aspectRatio,
   variant,
 }: PresenterSlidePreviewProps) {
-  const markup = useMemo(() => renderSlide(slide), [slide]);
+  const markup = useMemo(
+    () => renderSlide(slide, { presentation }),
+    [presentation, slide],
+  );
 
   const ratio = aspectRatio === "4:3" ? "4 / 3" : "16 / 9";
   const previewClass =

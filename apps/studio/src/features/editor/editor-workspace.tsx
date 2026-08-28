@@ -627,8 +627,8 @@ export function EditorWorkspace({
       return "";
     }
 
-    return renderSlide(selectedSlide);
-  }, [selectedSlide]);
+    return renderSlide(selectedSlide, { presentation });
+  }, [selectedSlide, presentation]);
 
   const renderedPaletteStyle = useMemo(() => {
     const style: CSSProperties & Record<`--${string}`, string> = {};
