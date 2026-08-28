@@ -153,7 +153,7 @@ describe("Typography Styles canonical definitions", () => {
     }
   });
 
-  it("identifies only local typography properties as independent", () => {
+  it("identifies only local typography style properties", () => {
     expect(hasLocalTypographyStyleProperties(undefined)).toBe(false);
     expect(hasLocalTypographyStyleProperties({})).toBe(false);
     expect(hasLocalTypographyStyleProperties({ textStroke: { width: 1, color: "#000000" } })).toBe(false);
@@ -177,13 +177,15 @@ describe("Typography Styles canonical definitions", () => {
     expect(TextElementSchema.safeParse(text({ variant: "   " })).success).toBe(false);
   });
 
-  it("validates custom references and local-property ownership", () => {
+  it("validates custom references and detached state", () => {
     const style = { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } };
     expect(PresentationSchema.safeParse(presentation(text({ variant: "quote" }), [style])).success).toBe(true);
     expect(PresentationSchema.safeParse(presentation(text({ variant: "missing" }))).success).toBe(false);
-    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { fontFamily: "Arial" } }), [style])).success).toBe(false);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { fontFamily: "Arial" } }), [style])).success).toBe(true);
     expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { textStroke: { width: 1, color: "#fff" } } }), [style])).success).toBe(true);
     expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typography: { textDecorationColor: "#fff" } }), [style])).success).toBe(true);
+    expect(PresentationSchema.safeParse(presentation(text({ variant: "quote", typographyDetached: true }), [style])).success).toBe(false);
+    expect(TextElementSchema.safeParse(text({ typographyDetached: false })).success).toBe(false);
   });
 
   it("validates nested custom variants", () => {
@@ -191,20 +193,20 @@ describe("Typography Styles canonical definitions", () => {
     expect(PresentationSchema.safeParse(presentation(nested)).success).toBe(false);
   });
 
-  it("resolves linked, independent, and custom typography without style inheritance", () => {
+  it("resolves attached and detached typography with property-level overrides", () => {
     const styles = [
-      { id: "body", typography: { fontFamily: "Inter" } },
+      { id: "body", typography: { fontFamily: "Inter", fontSize: 18, fontWeight: 400 } },
       { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
     ];
-    const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { textStroke: { width: 1, color: "#fff" } } }), styles));
-    expect(resolveTextTypography(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", textStroke: { width: 1, color: "#ffffff" } });
+    const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontSize: 22, textStroke: { width: 1, color: "#fff" }, textDecorationColor: "#000" } }), styles));
+    expect(resolveTextTypography(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", fontSize: 22, fontWeight: 400, textStroke: { width: 1, color: "#ffffff" }, textDecorationColor: "#000000" });
 
-    const independent = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontFamily: "Fira Code" } }), styles));
-    expect(resolveTextTypography(independent, independent.slides[0]!.elements[0] as Extract<typeof independent.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Fira Code" });
+    const detached = PresentationSchema.parse(presentation(text({ variant: "body", typographyDetached: true, typography: { fontSize: 22 } }), styles));
+    expect(resolveTextTypography(detached, detached.slides[0]!.elements[0] as Extract<typeof detached.slides[0]['elements'][number], { type: 'text' }>).typography).toEqual({ fontSize: 22 });
 
-    const custom = PresentationSchema.parse(presentation(text({ variant: "quote", typography: { textDecorationColor: "#fff" } }), styles));
+    const custom = PresentationSchema.parse(presentation(text({ variant: "quote", typography: { fontSize: 24, textDecorationColor: "#fff" } }), styles));
     const resolved = resolveTextTypography(custom, custom.slides[0]!.elements[0] as Extract<typeof custom.slides[0]['elements'][number], { type: 'text' }>);
-    expect(resolved).toMatchObject({ role: "body", typography: { fontStyle: "italic", textDecorationColor: "#ffffff" } });
+    expect(resolved).toMatchObject({ role: "body", typography: { fontStyle: "italic", fontSize: 24, textDecorationColor: "#ffffff" } });
     expect(resolved.typography).not.toHaveProperty("fontFamily");
   });
 });

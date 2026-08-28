@@ -174,7 +174,7 @@ describe("presentation recovery analysis", () => {
     }
   });
 
-  it("removes custom Text with local V1 typography but preserves element-only typography", () => {
+  it("preserves custom Text with local V1 typography and element-only typography", () => {
     const analysis = analyzePresentationRecovery(rawWithTypographyStyles([
       validSlide("slide-1", [
         customText("bad", { fontFamily: "Arial" }),
@@ -185,8 +185,8 @@ describe("presentation recovery analysis", () => {
     ], [quoteStyle()]));
 
     const elements = analysis.presentation?.slides[0]?.elements;
-    expect(elements?.map((element) => element.id)).toEqual(["stroke", "decoration", "independent"]);
-    expect(analysis.issues).toContainEqual(expect.objectContaining({ id: "bad", reason: RECOVERY_REASON.invalidElement }));
+    expect(elements?.map((element) => element.id)).toEqual(["bad", "stroke", "decoration", "independent"]);
+    expect(analysis.issues).not.toContainEqual(expect.objectContaining({ id: "bad", reason: RECOVERY_REASON.invalidElement }));
     expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
   });
 
@@ -253,7 +253,7 @@ describe("presentation recovery analysis", () => {
     expect(analysis.presentation && PresentationSchema.safeParse(analysis.presentation).success).toBe(true);
   });
 
-  it("preserves a fundamental independent Text with a Presentation override", () => {
+  it("preserves a fundamental attached Text with a local override", () => {
     const analysis = analyzePresentationRecovery(rawWithTypographyStyles(
       [validSlide("slide-1", [{
         type: "text",

@@ -2,7 +2,6 @@ import type { ContentSlot, PowerShowElement, TopicItem } from "./elements";
 import type { Presentation } from "./presentation";
 import {
   FundamentalTypographyStyleIdSchema,
-  hasLocalTypographyStyleProperties,
 } from "./typography";
 
 function validateText(
@@ -21,10 +20,10 @@ function validateText(
   if (!style || FundamentalTypographyStyleIdSchema.safeParse(style.id).success) {
     addIssue([...path, "variant"], "Custom typography style variant does not resolve.");
   }
-  if (hasLocalTypographyStyleProperties(element.typography)) {
+  if (element.typographyDetached === true) {
     addIssue(
-      [...path, "typography"],
-      "Custom typography style variants cannot have local V1 typography properties.",
+      [...path, "typographyDetached"],
+      "Custom typography style variants cannot be detached.",
     );
   }
 }

@@ -4,7 +4,6 @@ import type { TextElement } from "./elements";
 import type { TypographyStyleRole } from "./typography";
 import {
   FundamentalTypographyStyleIdSchema,
-  hasLocalTypographyStyleProperties,
 } from "./typography";
 
 export type ResolvedTextTypography = {
@@ -22,23 +21,14 @@ export function resolveTextTypography(
 
   const fundamentalVariant = FundamentalTypographyStyleIdSchema.safeParse(variant);
   if (fundamentalVariant.success) {
-    const independent = hasLocalTypographyStyleProperties(text.typography);
-    const override = !independent
-      ? styles.find((candidate) => candidate.id === variant)
-      : undefined;
-    const typography: ElementTypography = {
-      ...(independent ? text.typography : override?.typography),
-      ...(text.typography?.textDecorationColor !== undefined
-        ? { textDecorationColor: text.typography.textDecorationColor }
-        : {}),
-      ...(text.typography?.textStroke !== undefined
-        ? { textStroke: text.typography.textStroke }
-        : {}),
-    };
-
     return {
       role: fundamentalVariant.data,
-      typography,
+      typography: {
+        ...(text.typographyDetached
+          ? {}
+          : styles.find((candidate) => candidate.id === variant)?.typography),
+        ...text.typography,
+      },
     };
   }
 
@@ -46,20 +36,11 @@ export function resolveTextTypography(
     throw new Error(`Unresolved custom typography style variant: ${variant}`);
   }
 
-  if (hasLocalTypographyStyleProperties(text.typography)) {
-    throw new Error(`Custom typography style variant cannot have local V1 typography properties: ${variant}`);
-  }
-
   return {
     role: style.role,
     typography: {
       ...style.typography,
-      ...(text.typography?.textDecorationColor !== undefined
-        ? { textDecorationColor: text.typography.textDecorationColor }
-        : {}),
-      ...(text.typography?.textStroke !== undefined
-        ? { textStroke: text.typography.textStroke }
-        : {}),
+      ...text.typography,
     },
   };
 }
