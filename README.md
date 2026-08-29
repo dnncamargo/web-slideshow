@@ -91,6 +91,12 @@ topics
 container
 ```
 
+## Container authoring
+
+Containers provide the reusable layout structure for presentation content. They support Flow / Stack child composition, authored absolute positioning where needed, and canonical overflow behavior. A Container can also scale its child composition with Children Fit (`Contain`, `Cover`, or `Fill`) while its own visual box remains unchanged.
+
+Within a parent Flow layout, a Container may use Preserve size to resist flex compression without leaving normal flow. This is not an absolute-positioning or fill-remaining-space contract.
+
 ## Import / Export
 
 PowerShow exports the canonical Presentation directly as readable JSON:
@@ -110,7 +116,7 @@ JSON.parse
 → persist as a new private draft
 ```
 
-The imported copy preserves slides, elements, internal IDs, Palette, FontResources, Text Styles, and authored content. Only the root Presentation id is replaced for the new draft.
+The imported copy preserves the complete schema-validated Presentation, including slides, elements, internal IDs, Palette, FontResources, Text Styles, and authored content. Only the root Presentation id is replaced for the new draft; private Studio metadata is not part of transfer.
 
 Legacy or incompatible documents are not silently migrated during import. Recovery is a separate explicit product flow.
 
@@ -273,4 +279,4 @@ Repository execution rules and agent guidance live in:
 
 See [`ROADMAP.md`](./ROADMAP.md) for the complete project chronology from the initial canonical document foundation through the current roadmap and backlog.
 
-At the current baseline, the document/renderer/Player/Studio/persistence/publishing/live-control/import-export/Custom Library/Text Styles foundations are established. The remaining roadmap focuses on selected UX refinement, production readiness, diagnostics, and future audience expansion without reopening the canonical contract speculatively.
+At the current baseline, the document/renderer/Player/Studio/persistence/publishing/live-control/import-export/Custom Library/Text Styles foundations and selected P12 UX/properties refinements are established. Immediate work is targeted Control refinement, followed by Production Readiness, diagnostics, and future audience expansion without reopening the canonical contract speculatively.

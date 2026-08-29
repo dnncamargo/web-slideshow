@@ -598,32 +598,78 @@ Recovery remains explicit destructive repair, not migration.
 
 ---
 
-# P12 — UX / Properties refinement ← NEXT
+# P12 — UX / Properties refinement ✅
 
-Goal: refine authoring and product ergonomics now that the canonical contracts, portability, resources and Text Styles are stable.
+P12 was intentionally selective: it refined established contracts without reopening the P11 resource and Text Style foundations or expanding the document model speculatively.
 
-P12 should be **selective**, not a reason to reopen every Editor idea before production readiness.
+## Display / geometry fidelity
 
-Candidate work, promoted checkpoint-by-checkpoint only when concrete:
+Delivered shared logical slide geometry across the rendering surfaces:
 
-- final WYSIWYG-oriented Text authoring refinements;
-- keep inline formatting controls close to the Content editing surface;
-- Image Inspector semantic ordering and framing UX;
-- broader Inspector ordering/consistency cleanup;
-- Blocks authoring UI refinement;
-- targeted Canvas refinements that preserve canonical contracts;
-- concise semantic help text where terminology remains ambiguous;
-- real authoring smoke/acceptance across representative presentation types.
+- 16:9 uses a logical `960 × 540` surface; 4:3 uses `960 × 720`;
+- Player renders a fitted logical surface;
+- Studio Editor Canvas scales the same surface;
+- Presenter, Watch, and Library previews use the corresponding logical geometry;
+- Palette propagation and gradient-stop corrections improved renderer/Studio visual parity.
 
-Already completed P12-like work such as the Text Inspector hierarchy should not be reimplemented.
+Library thumbnail previews remain a summary projection rather than a complete Presentation context, so full resource-fidelity thumbnail rendering remains future work.
 
-The rule for P12 is:
+## Element Style UX / hardening
+
+P11.3 remains the foundation for the Custom Library Style lifecycle. P12 refined its Studio UX and integration with clearer workflow guidance, required element-style actions, atomic-property selection hardening, and safer asynchronous Library state. It also delivered focused Library toolbar/folder ergonomics and selected Inspector refinements.
+
+## Container overflow
+
+Containers now author canonical `layout.overflow` with the current `visible`, `hidden`, and `auto` values.
+
+## Container Children Fit
+
+Delivered V1 Children Fit authoring: None, Contain, Cover, and Fill.
 
 ```text
-fix concrete authoring friction
-→ preserve canonical contract
-→ avoid speculative feature expansion
+layout.children.fit = {
+  mode,
+  sourceWidth,
+  sourceHeight
+}
 ```
+
+Only the child composition scales; the outer Container visual box remains unscaled. The renderer/runtime share hydration behavior, including nested Fit rendering. Studio captures the source design surface and exposes Inspector authoring; Custom Library handling is atomic and Canvas has a safe direct-manipulation guard.
+
+Direct Canvas drag/resize of descendants inside a fitted Container remains disabled until inverse transformed-authoring geometry is implemented.
+
+## Flow sizing
+
+Containers may set `layout.flexShrink?: 0`, shown in Studio as Preserve size / Preservar tamanho. It lets a Container used as a parent Flow flex item resist compression while remaining in normal flow. It is not absolute positioning, applies only to Containers as flex items, and introduces neither `flexGrow` nor a fill-remaining-space contract.
+
+## Import / Export current-contract audit
+
+The P12 audit found no production transfer defect. Transfer remains schema-driven:
+
+```text
+Export: canonical Presentation → JSON.stringify → .powershow.json
+Import: JSON.parse → PresentationSchema → new root id → private draft
+```
+
+Current canonical fields, including recent Container contracts, travel automatically because the transfer boundary does not whitelist individual features. Regression coverage now verifies the raw/no-envelope shape, deep round-trip preservation, and strict rejection of invalid Container `flexShrink` and partial Fit data. No transfer version or schema change was introduced.
+
+---
+
+# Immediate next execution area — Control refinement ← NEXT
+
+This targeted follow-up precedes broader P13 Production Readiness.
+
+## C1 — Navigation refinement
+
+- Summary entries should navigate directly to a slide/page;
+- `ArrowLeft` should request Previous and `ArrowRight` Next;
+- reuse the existing canonical Live Control desired-state path rather than introducing a second command mechanism.
+
+## C2 — Local fullscreen
+
+- use the native browser Fullscreen API for the Presenter/Control surface only;
+- keep it local browser behavior, not an RTDB command to Player;
+- respect browser user-gesture requirements.
 
 ---
 
@@ -696,6 +742,15 @@ verify current implementation
 → freeze architecture if needed
 → implement narrowly
 ```
+
+## P12 follow-ups
+
+These remain future promotion candidates, not P12 blockers:
+
+- inverse direct-manipulation geometry for descendants inside a fitted Container (Fit-D);
+- a remaining-space / flex-grow-like Container contract, if still desired;
+- full Presentation-resource fidelity for Library thumbnails;
+- broader WYSIWYG-oriented authoring refinements.
 
 ## Presentation lifecycle / version history
 
@@ -879,7 +934,7 @@ Future work must preserve:
 
 ## Control / Live extensions
 
-Potential future work:
+Broader future work beyond the immediate Control refinement:
 
 - richer Control commands;
 - explicit command protocol extensions;
@@ -947,10 +1002,11 @@ P11   Resources, Organization & Text Styles                 ✅
   11.7   Presentation-local Text Styles                     ✅
   11.8   Recovery hardening + recovery UI                   ✅
 
-P12   UX / Properties refinement                            ← NEXT
-P13   Production Readiness                                  planned
+P12   UX / Properties refinement                            ✅
+Control refinement                                         ← NEXT
+P13   Production Readiness                                  planned (after Control refinement)
 P14   Diagnostics                                           deferred / partial base
 P15   Audience expansion                                    future / Watch base exists
 ```
 
-The next checkpoint should start from current `main`, inspect concrete P12 authoring friction, and promote only the smallest high-value refinement before moving toward P13 Production Readiness.
+The next work area is targeted Control refinement. P13 Production Readiness follows it; deferred P12 follow-ups remain Backlog candidates rather than active blockers.
