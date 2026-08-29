@@ -350,6 +350,45 @@ describe("Gradient Border authoring", () => {
     ]);
   });
 
+  it("13a. gradient stops expose semantic groups for color, position, and actions", async () => {
+    await act(async () =>
+      mount(
+        containerElement({
+          style: { border: { width: 1, style: "solid", gradient: DEFAULT_BORDER_GRADIENT } },
+        }),
+      ),
+    );
+
+    const stopGroups = host.querySelectorAll("fieldset");
+    expect(stopGroups).toHaveLength(2);
+    expect(Array.from(host.querySelectorAll("legend")).map((legend) => legend.textContent)).toEqual([
+      "Stop 1",
+      "Stop 2",
+    ]);
+
+    stopGroups.forEach((stopGroup, index) => {
+      const colorInput = stopGroup.querySelector(
+        `#container-border-gradient-stop-${index}-color`,
+      );
+      const positionInput = stopGroup.querySelector(
+        `#container-border-gradient-stop-${index}-position`,
+      );
+      const colorArea = colorInput?.closest("label");
+      const positionArea = positionInput?.closest("label");
+
+      expect(colorArea).not.toBeNull();
+      expect(colorInput).not.toBeNull();
+      expect(positionArea).not.toBeNull();
+      expect(positionInput).not.toBeNull();
+      expect(stopGroup.querySelector(`#container-border-gradient-stop-${index}-remove`)).not.toBeNull();
+      expect(
+        stopGroup.querySelector<HTMLButtonElement>(
+          `#container-border-gradient-stop-${index}-remove`,
+        )?.disabled,
+      ).toBe(true);
+    });
+  });
+
   it("14. add stop inserts at the midpoint of the largest gap", async () => {
     await act(async () =>
       mount(
@@ -369,6 +408,12 @@ describe("Gradient Border authoring", () => {
       { color: "#7c3aed", position: 0 },
       { color: "#7c3aed", position: 50 },
       { color: "#06b6d4", position: 100 },
+    ]);
+    expect(host.querySelectorAll("fieldset")).toHaveLength(3);
+    expect(Array.from(host.querySelectorAll("legend")).map((legend) => legend.textContent)).toEqual([
+      "Stop 1",
+      "Stop 2",
+      "Stop 3",
     ]);
   });
 
