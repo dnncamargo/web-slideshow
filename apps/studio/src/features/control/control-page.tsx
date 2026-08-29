@@ -47,6 +47,7 @@ export function ControlPage() {
     failedPromotionVersionId,
     previous,
     next,
+    goTo,
     followPlayer,
     updatePlayer,
   } = useLiveSessionControl({ resolvePageId, resolvePageIndex });
@@ -121,6 +122,7 @@ export function ControlPage() {
       presentationState={presentationState}
       previous={previous}
       next={next}
+      goTo={goTo}
       followPlayer={followPlayer}
       updatePlayer={updatePlayer}
       promotingVersionId={promotingVersionId}

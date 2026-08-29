@@ -67,6 +67,18 @@ function useLocalClock(): string {
   });
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.matches("input, textarea, select, [contenteditable]") ||
+    target.closest("[contenteditable]") !== null ||
+    target.isContentEditable
+  );
+}
+
 export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
@@ -75,13 +87,14 @@ export interface PresenterViewProps {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  goTo(index: number): void;
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
   end(): void;
 }
 
 /**
- * Owns the /control presentation markup. Receives already-resolved Live and
+ * Owns the /studio/control presentation markup. Receives already-resolved Live and
  * published-presentation data from ControlPage.
  *
  * The slide counter uses the Control desired position (`presentationState
@@ -112,6 +125,7 @@ export function PresenterView({
   failedPromotionVersionId,
   previous,
   next,
+  goTo,
   followPlayer,
   updatePlayer,
   end,
@@ -187,6 +201,37 @@ export function PresenterView({
     displayIndex >= 0 &&
     presentation !== null &&
     displayIndex < presentation.slides.length - 1;
+
+  const navigationDisabled = pendingVersion !== null || disabled;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.repeat ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft" && canGoPrevious) {
+        event.preventDefault();
+        previous();
+      }
+
+      if (event.key === "ArrowRight" && canGoNext) {
+        event.preventDefault();
+        next();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [canGoNext, canGoPrevious, next, previous]);
 
   const isPlayerChanged = view?.status.kind === "player-changed";
 
@@ -277,6 +322,8 @@ export function PresenterView({
             <PresenterSlideList
               presentation={presentation}
               desiredPageIndex={displayIndex}
+              navigationDisabled={navigationDisabled}
+              onNavigate={goTo}
             />
           )}
         </aside>

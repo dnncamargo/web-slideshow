@@ -74,6 +74,7 @@ describe("PresenterView published presentation title", () => {
             failedPromotionVersionId={null}
             previous={vi.fn()}
             next={vi.fn()}
+            goTo={vi.fn()}
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
             end={vi.fn()}

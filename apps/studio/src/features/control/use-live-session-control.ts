@@ -27,6 +27,7 @@ export interface UseLiveSessionControlResult {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  goTo(index: number): void;
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
 }
@@ -206,6 +207,13 @@ export function useLiveSessionControl({
     control.next();
   }, []);
 
+  const goTo = useCallback((index: number) => {
+    const control = controlRef.current;
+    if (!control) return;
+    setSendFailed(false);
+    control.goTo(index);
+  }, []);
+
   const followPlayer = useCallback(() => {
     const control = controlRef.current;
     if (!control) return;
@@ -263,6 +271,7 @@ export function useLiveSessionControl({
         : null,
     previous,
     next,
+    goTo,
     followPlayer,
     updatePlayer,
   };
