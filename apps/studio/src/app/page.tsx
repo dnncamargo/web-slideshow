@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 import {
@@ -10,6 +10,9 @@ import {
 import { resolvePublicPlayerUrl } from "@/features/public-player/public-player-url";
 
 import styles from "./page.module.css";
+import { clampWatchQrPosition, type WatchQrPosition } from "./watch-qr-position";
+
+const QR_SAFE_INSET = 12;
 
 export default function Home() {
   const player = resolvePublicPlayerUrl();
@@ -17,6 +20,15 @@ export default function Home() {
   const watchUrl = player.baseUrl === null ? null : `${player.baseUrl}/watch`;
   const coverUrl = player.baseUrl === null ? null : `${player.baseUrl}/cover`;
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
+  const [qrPosition, setQrPosition] = useState<WatchQrPosition | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const qrRef = useRef<HTMLElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origin: WatchQrPosition;
+  } | null>(null);
   const isLive = liveState.kind === "active";
   const presentationUrl = isLive ? coverUrl : demoUrl;
   const coverKey = isLive
@@ -34,6 +46,67 @@ export default function Home() {
       unsubscribe?.();
     };
   }, []);
+
+  useEffect(() => {
+    const clampOnResize = () => {
+      const element = qrRef.current;
+      if (element === null || qrPosition === null) return;
+      const rect = element.getBoundingClientRect();
+      setQrPosition(clampWatchQrPosition(qrPosition, {
+        width: rect.width,
+        height: rect.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        inset: QR_SAFE_INSET,
+      }));
+    };
+    window.addEventListener("resize", clampOnResize);
+    return () => window.removeEventListener("resize", clampOnResize);
+  }, [qrPosition]);
+
+  useEffect(() => {
+    if (isLive) return;
+    dragRef.current = null;
+    setDragging(false);
+    setQrPosition(null);
+  }, [isLive]);
+
+  function handlePointerDown(event: PointerEvent<HTMLElement>): void {
+    if (dragRef.current !== null) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: { x: rect.left, y: rect.top },
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setQrPosition({ x: rect.left, y: rect.top });
+    setDragging(true);
+  }
+
+  function finishDrag(event: PointerEvent<HTMLElement>): void {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLElement>): void {
+    const drag = dragRef.current;
+    const element = qrRef.current;
+    if (drag?.pointerId !== event.pointerId || element === null) return;
+    const rect = element.getBoundingClientRect();
+    setQrPosition(clampWatchQrPosition({
+      x: drag.origin.x + event.clientX - drag.startX,
+      y: drag.origin.y + event.clientY - drag.startY,
+    }, {
+      width: rect.width,
+      height: rect.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      inset: QR_SAFE_INSET,
+    }));
+  }
 
   return (
     <div className={styles.landing}>
@@ -57,7 +130,21 @@ export default function Home() {
 
         <div className={styles.rail}>
           {isLive && coverUrl !== null && watchUrl !== null ? (
-            <aside className={styles.watchQr} aria-label="Watch live presentation">
+            <aside
+              ref={qrRef}
+              className={`${styles.watchQr} ${dragging ? styles.dragging : ""}`}
+              aria-label="Watch live presentation"
+              style={qrPosition === null ? undefined : {
+                left: `${qrPosition.x}px`,
+                top: `${qrPosition.y}px`,
+                bottom: "auto",
+                transform: "none",
+              }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={finishDrag}
+              onPointerCancel={finishDrag}
+            >
               <div className={styles.watchStatus}>
                 <span className={styles.liveDot} aria-hidden="true" />
                 <span>WATCH LIVE</span>

@@ -102,6 +102,14 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   transform: translateX(-50%);
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  z-index: 2;
+}
+
+.dragging {
+  cursor: grabbing;
 }
 
 .watchQr svg {

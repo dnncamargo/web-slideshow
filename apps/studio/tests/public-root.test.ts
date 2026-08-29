@@ -175,4 +175,11 @@ describe("public root", () => {
     expect(pageSource).toContain("@/features/live/live-current-read");
     expect(pageSource).not.toMatch(/firebase\/database|runTransaction|update\(|set\(/);
   });
+
+  it("keeps the QR Pointer Events interaction local to Root", () => {
+    expect(pageSource).toContain("onPointerDown={handlePointerDown}");
+    expect(pageSource).toContain("onPointerMove={handlePointerMove}");
+    expect(pageSource).toContain("setPointerCapture(event.pointerId)");
+    expect(pageSource).toContain("onPointerCancel={finishDrag}");
+  });
 });
