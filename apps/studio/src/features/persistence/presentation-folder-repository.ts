@@ -11,4 +11,5 @@ export interface PresentationFolderRepository {
   listFolders(): Promise<PresentationFolder[]>;
   createFolder(name: string): Promise<string>;
   renameFolder(id: string, name: string): Promise<void>;
+  deleteFolder(id: string): Promise<void>;
 }

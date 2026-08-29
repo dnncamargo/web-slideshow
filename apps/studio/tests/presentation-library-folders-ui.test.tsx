@@ -80,6 +80,7 @@ interface Harness {
   listFolders: ReturnType<typeof vi.fn>;
   createFolder: ReturnType<typeof vi.fn>;
   renameFolder: ReturnType<typeof vi.fn>;
+  deleteFolder: ReturnType<typeof vi.fn>;
   getSummaries: () => PresentationSummary[];
   setSummaries: (next: PresentationSummary[]) => void;
   getFolders: () => PresentationFolder[];
@@ -150,11 +151,15 @@ function buildHarness(
   const renameFolder = vi.fn(async (id: string, name: string) => {
     folders = folders.map((item) => item.id === id ? { ...item, name } : item);
   });
+  const deleteFolder = vi.fn(async (id: string) => {
+    folders = folders.filter((item) => item.id !== id);
+  });
 
   const folderRepository: PresentationFolderRepository = {
     listFolders,
     createFolder,
     renameFolder,
+    deleteFolder,
   };
 
   return {
@@ -170,6 +175,7 @@ function buildHarness(
     listFolders,
     createFolder,
     renameFolder,
+    deleteFolder,
     getSummaries: () => summaries,
     setSummaries: (next) => {
       summaries = next;
@@ -506,6 +512,110 @@ describe("presentation library folders workspace", () => {
 
     expect(container.textContent).toContain("Title one");
     expect(container.textContent).toContain("Could not load folders.");
+    errorSpy.mockRestore();
+  });
+
+  it("replaces New folder with Delete folder only inside a folder", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    expect(buttonsWithText("New folder")).toHaveLength(1);
+    expect(buttonsWithText("Delete folder")).toHaveLength(0);
+
+    clickButton("Alpha");
+
+    expect(buttonsWithText("New folder")).toHaveLength(0);
+    expect(buttonsWithText("Delete folder")).toHaveLength(1);
+  });
+
+  it("opens and cancels folder deletion without mutating presentations or the folder", async () => {
+    const harness = buildHarness({
+      summaries: [summary({ id: "one", folderId: "folder-a" })],
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    clickButton("Delete folder");
+
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Alpha");
+    const dialogCancel = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Cancel");
+    if (!dialogCancel) throw new Error("expected folder deletion cancel button");
+    act(() => dialogCancel.click());
+
+    expect(harness.deleteFolder).not.toHaveBeenCalled();
+    expect(harness.movePresentationToFolder).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("unassigns every folder member before deleting and preserves archived state", async () => {
+    const harness = buildHarness({
+      summaries: [
+        summary({ id: "active", folderId: "folder-a" }),
+        summary({ id: "archived", folderId: "folder-a", archived: true, archivedAt: "archived-ts" }),
+        summary({ id: "other", folderId: "folder-b" }),
+      ],
+      folders: [folder("folder-a", "Alpha"), folder("folder-b", "Beta")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    clickButton("Delete folder");
+    const dialogDelete = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Delete folder");
+    if (!dialogDelete) throw new Error("expected folder deletion confirm button");
+    await act(async () => {
+      dialogDelete.click();
+      await flushWorkspaceEffects();
+    });
+
+    expect(harness.listPresentations).toHaveBeenCalledWith({ includeArchived: true });
+    expect(harness.movePresentationToFolder).toHaveBeenCalledWith("active", null);
+    expect(harness.movePresentationToFolder).toHaveBeenCalledWith("archived", null);
+    expect(harness.movePresentationToFolder).toHaveBeenCalledTimes(2);
+    expect(harness.archivePresentation).not.toHaveBeenCalled();
+    expect(harness.restorePresentation).not.toHaveBeenCalled();
+    expect(harness.deleteArchivedPresentation).not.toHaveBeenCalled();
+    expect(harness.deleteFolder).toHaveBeenCalledWith("folder-a");
+    expect(harness.movePresentationToFolder.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      harness.deleteFolder.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("All");
+    expect(buttonsWithText("Alpha")).toHaveLength(0);
+    expect(container.textContent).toContain("Title active");
+    expect(container.textContent).not.toContain("Title archived");
+  });
+
+  it("keeps the folder when a member unassignment fails and allows retry", async () => {
+    const harness = buildHarness({
+      summaries: [summary({ id: "active", folderId: "folder-a" })],
+      folders: [folder("folder-a", "Alpha")],
+    });
+    harness.movePresentationToFolder.mockRejectedValueOnce(new Error("nope"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    clickButton("Delete folder");
+    const dialogDelete = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Delete folder");
+    if (!dialogDelete) throw new Error("expected folder deletion confirm button");
+    await act(async () => {
+      dialogDelete.click();
+      await flushWorkspaceEffects();
+    });
+
+    expect(harness.deleteFolder).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not delete folder.",
+    );
     errorSpy.mockRestore();
   });
 

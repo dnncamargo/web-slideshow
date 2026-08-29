@@ -76,6 +76,7 @@ import { PresentationDetails } from "./presentation-details";
 import { PresentationToolbar } from "./presentation-toolbar";
 import { StudioSidebar } from "./studio-sidebar";
 import { DeletePresentationDialog } from "./delete-presentation-dialog";
+import { DeleteFolderDialog } from "./delete-folder-dialog";
 import { CustomLibraryBrowser } from "../custom-library/custom-library-browser";
 import { CustomLibraryDetails } from "../custom-library/custom-library-details";
 import { CustomLibraryDeleteDialog } from "../custom-library/custom-library-delete-dialog";
@@ -208,6 +209,9 @@ export function PresentationLibrary({
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [deleteFolderTargetId, setDeleteFolderTargetId] = useState<string | null>(null);
+  const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
+  const [deleteFolderError, setDeleteFolderError] = useState<string | null>(null);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingFolderValue, setRenamingFolderValue] = useState("");
   const [renamingFolderSaving, setRenamingFolderSaving] = useState(false);
@@ -1087,6 +1091,83 @@ export function PresentationLibrary({
     }
   }, [folderRepository, folders, renamingFolderId, renamingFolderSaving, renamingFolderValue, t]);
 
+  const handleRequestDeleteFolder = useCallback(() => {
+    if (!isFolderDestination(destination) || renamingFolderId !== null || deletingFolderId !== null) {
+      return;
+    }
+
+    if (!folders.some((folder) => folder.id === destination.folderId)) return;
+
+    setDeleteFolderTargetId(destination.folderId);
+    setDeleteFolderError(null);
+  }, [deletingFolderId, destination, folders, renamingFolderId]);
+
+  const handleCancelDeleteFolder = useCallback(() => {
+    if (deletingFolderId !== null) return;
+
+    setDeleteFolderTargetId(null);
+    setDeleteFolderError(null);
+  }, [deletingFolderId]);
+
+  const handleConfirmDeleteFolder = useCallback(async () => {
+    if (deleteFolderTargetId === null || deletingFolderId !== null) return;
+
+    const folderId = deleteFolderTargetId;
+    setDeletingFolderId(folderId);
+    setDeleteFolderError(null);
+
+    try {
+      const authoritativeSummaries = await repository.listPresentations({
+        includeArchived: true,
+      });
+      const members = authoritativeSummaries.filter(
+        (summary) => summary.folderId === folderId,
+      );
+
+      for (const summary of members) {
+        await repository.movePresentationToFolder(summary.id, null);
+      }
+
+      await folderRepository.deleteFolder(folderId);
+
+      if (!mountedRef.current) return;
+
+      let items = authoritativeSummaries.map((summary) =>
+        summary.folderId === folderId ? { ...summary, folderId: null } : summary,
+      );
+      try {
+        items = await repository.listPresentations({ includeArchived: true });
+      } catch (refreshError) {
+        console.error("Library: could not refresh presentations after folder deletion", refreshError);
+      }
+      if (!mountedRef.current) return;
+
+      setSummaries(items);
+      setFolders((current) => current.filter((folder) => folder.id !== folderId));
+      setDestination("all");
+      setSelectedId(null);
+      setRenamingFolderId(null);
+      setRenamingFolderValue("");
+      setFolderRenameError(null);
+      setDeleteFolderTargetId(null);
+      setDeleteFolderError(null);
+    } catch (error) {
+      console.error("Library: could not delete folder", error);
+      if (mountedRef.current) {
+        try {
+          const items = await repository.listPresentations({ includeArchived: true });
+          if (mountedRef.current) setSummaries(items);
+        } catch (refreshError) {
+          console.error("Library: could not refresh presentations after folder deletion failure", refreshError);
+        }
+
+        if (mountedRef.current) setDeleteFolderError(t("library.folderDeleteFailed"));
+      }
+    } finally {
+      if (mountedRef.current) setDeletingFolderId(null);
+    }
+  }, [deleteFolderTargetId, deletingFolderId, folderRepository, repository, t]);
+
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
@@ -1098,6 +1179,8 @@ export function PresentationLibrary({
   const activeFolder = isFolderDestination(destination)
     ? folders.find((folder) => folder.id === destination.folderId) ?? null
     : null;
+  const deleteFolderTarget =
+    folders.find((folder) => folder.id === deleteFolderTargetId) ?? null;
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -1230,8 +1313,13 @@ export function PresentationLibrary({
                 deletingId={deletingId}
                 transferBusy={transferBusy}
                 newFolderDisabled={newFolderOpen || creatingFolder}
+                folderDestination={activeFolder !== null}
+                folderDeleteDisabled={
+                  renamingFolderId !== null || deletingFolderId !== null
+                }
                 onNew={() => void handleNew()}
                 onNewFolder={handleOpenNewFolder}
+                onDeleteFolder={handleRequestDeleteFolder}
                 onEdit={handleOpen}
                 onPresent={(summary) => void handlePresent(summary)}
                 onControl={() => router.push(STUDIO_ROUTES.control)}
@@ -1464,6 +1552,16 @@ export function PresentationLibrary({
           error={deleteError}
           onCancel={handleCancelDelete}
           onConfirm={() => void handleConfirmDelete()}
+        />
+      ) : null}
+
+      {deleteFolderTarget ? (
+        <DeleteFolderDialog
+          folderName={deleteFolderTarget.name}
+          deleting={deletingFolderId !== null}
+          error={deleteFolderError}
+          onCancel={handleCancelDeleteFolder}
+          onConfirm={() => void handleConfirmDeleteFolder()}
         />
       ) : null}
 

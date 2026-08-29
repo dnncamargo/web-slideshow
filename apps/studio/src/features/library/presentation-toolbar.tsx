@@ -19,8 +19,11 @@ interface PresentationToolbarProps {
   deletingId: string | null;
   transferBusy: boolean;
   newFolderDisabled: boolean;
+  folderDestination: boolean;
+  folderDeleteDisabled: boolean;
   onNew: () => void;
   onNewFolder: () => void;
+  onDeleteFolder: () => void;
   onEdit: (id: string) => void;
   onPresent: (summary: PresentationSummary) => void;
   onControl: () => void;
@@ -38,7 +41,7 @@ interface PresentationToolbarProps {
  * - CONTEXT: selected presentation title and fixed contextual actions. Empty
  *            when nothing is selected; the title is the only elastic item.
  * - RIGHT:   fixed global management actions (New, Import/Export transfer
- *            slot, New folder).
+ *            slot, New folder or Delete folder).
  */
 export function PresentationToolbar({
   selected,
@@ -50,8 +53,11 @@ export function PresentationToolbar({
   deletingId,
   transferBusy,
   newFolderDisabled,
+  folderDestination,
+  folderDeleteDisabled,
   onNew,
   onNewFolder,
+  onDeleteFolder,
   onEdit,
   onPresent,
   onControl,
@@ -194,16 +200,28 @@ export function PresentationToolbar({
           </Button>
         )}
 
-        {/* GLOBAL: New folder opens the inline creation control in the
-            Folders sidebar area. */}
-        <Button
-          size="compact"
-          disabled={newFolderDisabled}
-          onClick={onNewFolder}
-          aria-label={t("library.newFolder")}
-        >
-          {t("library.newFolder")}
-        </Button>
+        {folderDestination ? (
+          <Button
+            variant="danger"
+            size="compact"
+            disabled={folderDeleteDisabled}
+            onClick={onDeleteFolder}
+            aria-label={t("library.deleteFolder")}
+          >
+            {t("library.deleteFolder")}
+          </Button>
+        ) : (
+          /* GLOBAL: New folder opens the inline creation control in the
+             Folders sidebar area. */
+          <Button
+            size="compact"
+            disabled={newFolderDisabled}
+            onClick={onNewFolder}
+            aria-label={t("library.newFolder")}
+          >
+            {t("library.newFolder")}
+          </Button>
+        )}
       </div>
     </div>
   );
