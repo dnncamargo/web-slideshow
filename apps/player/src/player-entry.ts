@@ -48,10 +48,11 @@ export function startPlayer(root: HTMLElement): () => void {
   let currentSessionKey: string | null = null;
   let loadToken = 0;
 
-  function renderLoadState(message: string): void {
+  function renderLoadState(message: string, loading = false): void {
     root.innerHTML = `
-      <div class="powershow-player-load-state">
-        ${message}
+      <div class="powershow-player-load-state" data-loading="${loading}">
+        <span>${message}</span>
+        <span class="powershow-player-load-indicator" aria-hidden="true"></span>
       </div>
     `;
   }
@@ -179,7 +180,7 @@ export function startPlayer(root: HTMLElement): () => void {
     const token = loadToken;
 
     if (!promotion) {
-      renderLoadState("Loading presentation…");
+      renderLoadState("Loading presentation…", true);
     }
 
     const result = await resolveLiveIdentityMount(event.live, loadPublishedVersion);
@@ -262,7 +263,7 @@ export function startPlayer(root: HTMLElement): () => void {
   if (!database) {
     renderLoadState("Could not load presentation.");
   } else {
-    renderLoadState("Loading presentation…");
+    renderLoadState("Loading presentation…", true);
     cleanupLiveCurrent = subscribeLiveCurrent(database, (event) => {
       void handleLiveEvent(event);
     });

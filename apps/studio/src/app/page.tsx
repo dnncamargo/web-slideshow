@@ -8,38 +8,37 @@ export default function Home() {
 
   return (
     <div className={styles.landing}>
+      <div className={styles.background}>
+        {demoUrl === null ? (
+          <span className={styles.unavailable}>Player unavailable</span>
+        ) : (
+          <iframe
+            className={styles.demo}
+            src={demoUrl}
+            title="PowerShow demo presentation"
+            tabIndex={-1}
+          />
+        )}
+      </div>
+      <div className={styles.overlay} aria-hidden="true" />
+
       <main className={styles.main}>
         <h1 className={styles.brand}>PowerShow</h1>
 
-        <div className={styles.content}>
-          <div className={styles.presentation}>
-            {demoUrl === null ? (
-              <span className={styles.unavailable}>Player unavailable</span>
-            ) : (
-              <iframe
-                className={styles.demo}
-                src={demoUrl}
-                title="PowerShow demo presentation"
-                tabIndex={-1}
-              />
-            )}
-          </div>
+        <div className={styles.actions}>
+          <a className={`${styles.action} ${styles.studioAction}`} href="/studio">
+            <span>Studio</span>
+          </a>
 
-          <div className={styles.actions}>
-            <a className={styles.primary} href="/studio">
-              Studio
+          {player.available && player.baseUrl !== null ? (
+            <a className={`${styles.action} ${styles.playerAction}`} href={player.baseUrl}>
+              <span>Player</span>
             </a>
-
-            {player.available && player.baseUrl !== null ? (
-              <a className={styles.primary} href={player.baseUrl}>
-                Player
-              </a>
-            ) : (
-              <span className={styles.primary} aria-disabled="true">
-                Player
-              </span>
-            )}
-          </div>
+          ) : (
+            <span className={`${styles.action} ${styles.playerAction}`} aria-disabled="true">
+              <span>Player</span>
+            </span>
+          )}
         </div>
       </main>
     </div>

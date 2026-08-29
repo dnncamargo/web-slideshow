@@ -49,10 +49,11 @@ function matchesLiveIdentity(
   );
 }
 
-function renderMessage(root: HTMLElement, message: string): void {
+function renderMessage(root: HTMLElement, message: string, loading = false): void {
   root.innerHTML = `
-    <div class="powershow-player-load-state">
-      ${message}
+    <div class="powershow-player-load-state" data-loading="${loading}">
+      <span>${message}</span>
+      <span class="powershow-player-load-indicator" aria-hidden="true"></span>
     </div>
   `;
 }
@@ -99,13 +100,13 @@ export function startWatch(root: HTMLElement): WatchController {
 
     if (versionState?.identityKey !== currentIdentity) {
       destroyProjection();
-      renderMessage(root, WATCH_COPY.loading);
+      renderMessage(root, WATCH_COPY.loading, true);
       return;
     }
 
     if (versionState.kind === "loading") {
       destroyProjection();
-      renderMessage(root, WATCH_COPY.loading);
+      renderMessage(root, WATCH_COPY.loading, true);
       return;
     }
 
