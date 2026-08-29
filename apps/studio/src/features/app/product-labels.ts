@@ -1,7 +1,7 @@
 export const PRODUCT_NAME = "PowerShow";
 
 export const PRODUCT_SURFACE_LABELS = {
-  studio: "Studio",
+  library: "Library",
   editor: "Editor",
   control: "Control",
 } as const;

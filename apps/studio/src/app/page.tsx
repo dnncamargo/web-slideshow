@@ -28,7 +28,7 @@ export default function Home() {
             className={styles.primary}
             onClick={() => router.push("/studio")}
           >
-            {t("public.studio")}
+            {t("control.library")}
           </button>
 
           <button type="button" className={styles.secondary} disabled>

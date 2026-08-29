@@ -116,13 +116,13 @@ describe("editor UI foundation", () => {
   it("keeps the product name and surface names as separate central labels", () => {
     expect(PRODUCT_NAME).toBe("PowerShow");
     expect(PRODUCT_SURFACE_LABELS).toEqual({
-      studio: "Studio",
+      library: "Library",
       editor: "Editor",
       control: "Control",
     });
   });
 
-  it.each(["studio", "editor", "control"] as const)(
+  it.each(["library", "editor", "control"] as const)(
     "renders the canonical brand composition as separate semantic pieces for %s",
     (surface: ProductSurfaceName) => {
       act(() => {

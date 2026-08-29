@@ -46,7 +46,7 @@ import {
 // ============================================================
 
 export const metadata: Metadata = {
-  title: "PowerShow Studio",
+  title: "PowerShow",
 
   description:
     "Create and edit interactive PowerShow presentations.",

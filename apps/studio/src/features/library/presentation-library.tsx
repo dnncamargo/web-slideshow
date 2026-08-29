@@ -1196,7 +1196,7 @@ export function PresentationLibrary({
   return (
     <div className={styles.library}>
       <Topbar className={styles.libraryTopbar}>
-        <ProductSurfaceBrand surface="studio" />
+        <ProductSurfaceBrand surface="library" />
 
         <TopbarActions>
           {user?.displayName ?? user?.email ? (
