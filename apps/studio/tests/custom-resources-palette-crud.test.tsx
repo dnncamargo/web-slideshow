@@ -126,7 +126,7 @@ describe("Custom Resources palette composition", () => {
     expect(container.textContent).not.toContain("New");
     expect(container.textContent).toContain("From Library");
     expect(container.textContent).toContain("This Presentation");
-    expect(container.textContent).not.toContain("Custom Library");
+    expect(container.textContent).toContain("Element Styles");
     const fromLibrary = container.querySelector("[aria-labelledby='custom-resources-from-library']");
     expect(fromLibrary?.querySelector("[data-presentation-text-styles]")).toBeNull();
     expect(container.querySelector("details[open]")).not.toBeNull();

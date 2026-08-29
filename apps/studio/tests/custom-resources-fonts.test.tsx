@@ -117,7 +117,10 @@ describe("Custom Resources Fonts", () => {
     await act(async () => Array.from(error.container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font")?.click());
     await flush();
     expect(error.container.textContent).toContain("Could not load fonts.");
-    const retry = Array.from(error.container.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+    const fontSection = Array.from(error.container.querySelectorAll("details")).find((section) =>
+      section.querySelector("summary")?.textContent?.trim() === "Fonts",
+    );
+    const retry = Array.from(fontSection?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) => button.textContent === "Retry");
     await act(async () => retry?.click()); await flush();
     expect(errorRepository.listFonts).toHaveBeenCalledTimes(2);
     expect(error.container.textContent).toContain("Inter");

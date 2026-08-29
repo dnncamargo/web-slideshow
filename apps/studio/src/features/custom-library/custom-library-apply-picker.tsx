@@ -25,6 +25,7 @@ export type CustomLibraryApplyOutcome =
 interface CustomLibraryApplyPickerProps {
   repository?: CustomLibraryRepository;
   onApply: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
+  embedded?: boolean;
 }
 
 function rootTypeLabel(
@@ -37,6 +38,7 @@ function rootTypeLabel(
 export function CustomLibraryApplyPicker({
   repository = getDefaultCustomLibraryRepository(),
   onApply,
+  embedded = false,
 }: CustomLibraryApplyPickerProps) {
   const { t } = useStudioI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -47,7 +49,7 @@ export function CustomLibraryApplyPicker({
   const [reloadToken, setReloadToken] = useState(0);
   const [feedback, setFeedback] = useState<"applied" | "failed" | "unsupported" | null>(null);
   useEffect(() => {
-    if (!isOpen) return;
+    if (!embedded && !isOpen) return;
 
     let isRequestActive = true;
     setIsLoading(true);
@@ -73,7 +75,7 @@ export function CustomLibraryApplyPicker({
     return () => {
       isRequestActive = false;
     };
-  }, [isOpen, reloadToken, repository]);
+  }, [embedded, isOpen, reloadToken, repository]);
 
   const selectedItem = items?.find((record) => record.id === selectedId) ?? null;
 
@@ -92,16 +94,18 @@ export function CustomLibraryApplyPicker({
 
   return (
     <div className={styles.customLibraryApply}>
-      <button
-        className={styles.customLibrarySaveButton}
-        type="button"
-        data-custom-library-apply
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((current) => !current)}
-      >
-        {t("customLibrary.applyOpen")}
-      </button>
-      {isOpen && (
+      {!embedded && (
+        <button
+          className={styles.customLibrarySaveButton}
+          type="button"
+          data-custom-library-apply
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((current) => !current)}
+        >
+          {t("customLibrary.applyOpen")}
+        </button>
+      )}
+      {(embedded || isOpen) && (
         <div className={styles.customLibraryApplyPanel}>
           {isLoading && (
             <p className={styles.customLibraryApplyStatus} role="status">

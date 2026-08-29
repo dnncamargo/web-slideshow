@@ -800,11 +800,13 @@
 }
 
 .elementProperties {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   max-height: 34%;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding: 8px 10px 10px;
   border-top: 1px solid #232a36;
   background: #0f141d;
@@ -826,6 +828,19 @@
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.elementPropertiesActions {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.elementPropertiesActions .customLibrarySaveButton {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
 }
 
 .customLibrarySaveButton {
@@ -1014,15 +1029,18 @@
 
 .elementPropertiesList {
   display: flex;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
   flex-direction: column;
   gap: 3px;
+  overflow-y: auto;
 }
 
 .elementPropertyRow {
   display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: auto minmax(0, 3fr) minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   font-size: 10px;

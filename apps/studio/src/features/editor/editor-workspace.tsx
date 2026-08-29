@@ -3557,10 +3557,12 @@ export function EditorWorkspace({
           <CustomResourcesWorkspace
             customLibraryPaletteRepository={customLibraryPaletteRepository}
             customLibraryFontRepository={customLibraryFontRepository}
+            customLibraryRepository={customLibraryRepository}
             presentationColors={presentation.palette?.colors ?? []}
             presentationFonts={presentation.resources?.fonts ?? []}
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
+            onApplyElementStyle={applyCustomLibraryItem}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
@@ -3616,7 +3618,7 @@ export function EditorWorkspace({
                   }}
                   onMoveElement={moveElementInTree}
                   customLibraryRepository={customLibraryRepository}
-                  onApplyCustomLibraryItem={applyCustomLibraryItem}
+                  onBrowseElementStyles={() => setRightPanelMode("resources")}
                   palette={presentation.palette}
                   fontResources={presentation.resources?.fonts}
                 />

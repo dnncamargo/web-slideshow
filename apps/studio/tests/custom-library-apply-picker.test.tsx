@@ -64,6 +64,7 @@ describe("CustomLibraryApplyPicker", () => {
     listItems: () => Promise<CustomLibraryItemRecord[]>,
     onApply: ReturnType<typeof vi.fn<() => CustomLibraryApplyOutcome>> = vi.fn(() => ({ ok: true as const })),
     strictMode = false,
+    embedded = false,
   ) {
     act(() => {
       root.render(
@@ -73,12 +74,14 @@ describe("CustomLibraryApplyPicker", () => {
               <CustomLibraryApplyPicker
                 repository={repository(listItems)}
                 onApply={onApply}
+                embedded={embedded}
               />
             </StrictMode>
           ) : (
             <CustomLibraryApplyPicker
               repository={repository(listItems)}
               onApply={onApply}
+              embedded={embedded}
             />
           )}
         </StudioI18nProvider>,
@@ -100,6 +103,18 @@ describe("CustomLibraryApplyPicker", () => {
     open();
     expect(listItems).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("Loading Custom Library");
+  });
+
+  it("loads embedded mode immediately without rendering the old disclosure", async () => {
+    const listItems = vi.fn(async () => [item]);
+    render(listItems, undefined, false, true);
+
+    expect(container.querySelector("[data-custom-library-apply]")).toBeNull();
+    expect(listItems).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Loading Custom Library");
+
+    await act(async () => undefined);
+    expect(container.textContent).toContain("Title style");
   });
 
   it("renders records in repository order without ids or raw recipe values", async () => {

@@ -4,11 +4,6 @@ import type { FontResource, PowerShowElement, PresentationPalette } from "@power
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
-import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
-import {
-  CustomLibraryApplyPicker,
-  type CustomLibraryApplyOutcome,
-} from "@/features/custom-library/custom-library-apply-picker";
 import { CustomLibrarySaveForm } from "@/features/custom-library/custom-library-save-form";
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
@@ -27,7 +22,7 @@ interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
   isStructuralTopicSelection: boolean;
   customLibraryRepository?: CustomLibraryRepository;
-  onApplyCustomLibraryItem?: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
+  onBrowseElementStyles?: () => void;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
 }
@@ -43,7 +38,7 @@ export function ElementPropertiesPanel({
   selectedElement,
   isStructuralTopicSelection,
   customLibraryRepository,
-  onApplyCustomLibraryItem = () => ({ ok: true }),
+  onBrowseElementStyles,
   palette,
   fontResources,
 }: ElementPropertiesPanelProps) {
@@ -97,19 +92,29 @@ export function ElementPropertiesPanel({
           <div className={styles.elementPropertiesIdentity}>
             {getElementIdentity(selectedElement, t)}
           </div>
-          {saveFormElementId !== selectedElement.id && (
+          <div className={styles.elementPropertiesActions}>
+            {saveFormElementId !== selectedElement.id && (
+              <button
+                className={styles.customLibrarySaveButton}
+                type="button"
+                data-custom-library-save
+                onClick={() => {
+                  setSaveFeedback(null);
+                  setSaveFormElementId(selectedElement.id);
+                }}
+              >
+                {t("customLibrary.saveStyle")}
+              </button>
+            )}
             <button
               className={styles.customLibrarySaveButton}
               type="button"
-              data-custom-library-save
-              onClick={() => {
-                setSaveFeedback(null);
-                setSaveFormElementId(selectedElement.id);
-              }}
+              data-custom-library-browse
+              onClick={onBrowseElementStyles}
             >
-              {t("customLibrary.save")}
+              {t("customLibrary.browseStyles")}
             </button>
-          )}
+          </div>
           {saveFormElementId === selectedElement.id && (
             <CustomLibrarySaveForm
               key={selectedElement.id}
@@ -147,7 +152,9 @@ export function ElementPropertiesPanel({
                     }));
                   }}
                 />
-                <span className={styles.elementPropertyPath}>{entry.path}</span>
+                <span className={styles.elementPropertyPath} title={entry.path}>
+                  {entry.path}
+                </span>
                 <span
                   className={styles.elementPropertyValue}
                   title={entry.displayValue}
@@ -161,10 +168,6 @@ export function ElementPropertiesPanel({
       ) : (
         <p className={styles.elementPropertiesEmpty}>{t("properties.noSelection")}</p>
       )}
-      <CustomLibraryApplyPicker
-        repository={customLibraryRepository}
-        onApply={onApplyCustomLibraryItem}
-      />
     </section>
   );
 }

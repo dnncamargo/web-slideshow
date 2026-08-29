@@ -216,9 +216,12 @@ describe("Custom Library Editor integration", () => {
   }
 
   async function openPicker(): Promise<void> {
-    const button = containerElement.querySelector<HTMLButtonElement>("[data-custom-library-apply]");
-    if (!button) throw new Error("Custom Library Apply opener not found");
-    await act(async () => button.click());
+    const button = containerElement.querySelector<HTMLButtonElement>("[data-custom-library-browse]");
+    if (button) {
+      await act(async () => button.click());
+    } else {
+      await clickToolbarMode("Custom Resources");
+    }
     await act(async () => undefined);
   }
 
@@ -357,6 +360,7 @@ describe("Custom Library Editor integration", () => {
     expect(slide?.elements[0]?.id).toBe("existing");
     expect(slide?.elements[1]?.type === "text" && slide.elements[1].content).toBe("Applied text");
     expect(slide?.elements[1]?.id).not.toBe("existing");
+    await clickToolbarMode("Custom Resources");
     expect(containerElement.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
     expect(containerElement.textContent).toContain(`Text · ${slide?.elements[1]?.id}`);
   });
@@ -403,6 +407,7 @@ describe("Custom Library Editor integration", () => {
     await applyItem("Fira Code style");
 
     expect(containerElement.textContent).toContain("Could not apply Custom Library item.");
+    await clickToolbarMode("Custom Resources");
     expect(containerElement.textContent).toContain("No element selected.");
     await act(async () => {
       vi.advanceTimersByTime(1600);
@@ -867,6 +872,7 @@ describe("Custom Library Editor integration", () => {
 
     expect(containerElement.textContent).toContain("This item cannot be created in the Editor yet.");
     expect(saved).toHaveLength(0);
+    await clickToolbarMode("Custom Resources");
     expect(containerElement.textContent).toContain("No element selected.");
   });
 
