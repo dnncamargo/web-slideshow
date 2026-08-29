@@ -73,6 +73,7 @@
 }
 
 .rail {
+  position: relative;
   display: grid;
   width: min(76vw, 972px);
   max-width: 100%;
@@ -87,8 +88,8 @@
 
 .watchQr {
   position: absolute;
-  right: 0;
-  bottom: calc(100% + 14px);
+  left: 75%;
+  bottom: calc(100% + 18px);
   display: grid;
   justify-items: center;
   align-content: center;
@@ -100,6 +101,7 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
+  transform: translateX(-50%);
 }
 
 .watchQr svg {
@@ -211,7 +213,7 @@
   }
 
   .watchQr {
-    right: 0;
+    left: 50%;
     bottom: calc(100% + 12px);
   }
 
