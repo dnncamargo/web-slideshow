@@ -135,6 +135,7 @@ export default function Home() {
               className={`${styles.watchQr} ${dragging ? styles.dragging : ""}`}
               aria-label="Watch live presentation"
               style={qrPosition === null ? undefined : {
+                position: "fixed",
                 left: `${qrPosition.x}px`,
                 top: `${qrPosition.y}px`,
                 bottom: "auto",
@@ -144,6 +145,7 @@ export default function Home() {
               onPointerMove={handlePointerMove}
               onPointerUp={finishDrag}
               onPointerCancel={finishDrag}
+              onLostPointerCapture={finishDrag}
             >
               <div className={styles.watchStatus}>
                 <span className={styles.liveDot} aria-hidden="true" />

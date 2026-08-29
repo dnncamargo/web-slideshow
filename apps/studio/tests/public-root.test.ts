@@ -181,5 +181,7 @@ describe("public root", () => {
     expect(pageSource).toContain("onPointerMove={handlePointerMove}");
     expect(pageSource).toContain("setPointerCapture(event.pointerId)");
     expect(pageSource).toContain("onPointerCancel={finishDrag}");
+    expect(pageSource).toContain("onLostPointerCapture={finishDrag}");
+    expect(pageSource).toContain('position: "fixed"');
   });
 });
