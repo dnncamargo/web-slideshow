@@ -515,6 +515,79 @@ describe("fullscreen request writer", () => {
     expect(mocks.ref).toHaveBeenCalledWith({}, "live");
   });
 
+  it("retries an uncached null and writes only the fullscreen request", async () => {
+    const expectedLive = {
+      publicationId: "publication-1",
+      currentVersionId: "version-1",
+      revision: 2,
+    };
+    const current = {
+      activationRevision: 2,
+      current: expectedLive,
+      controlState: { revision: 4 },
+      playerState: { appliedControlRevision: 4 },
+      fullscreenRequest: { activationRevision: 2, currentVersionId: "version-1", revision: 3 },
+    };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
+      const result = updater(current) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    await expect(writeFullscreenRequest({} as never, expectedLive)).resolves.toMatchObject({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 4,
+    });
+
+    expect(mocks.runTransaction).toHaveBeenCalledWith(
+      { path: "live" },
+      expect.any(Function),
+      { applyLocally: false },
+    );
+  });
+
+  it("rejects when an uncached null remains the server value", async () => {
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
+      return { committed: true, snapshot: { val: () => null } };
+    });
+
+    await expect(
+      writeFullscreenRequest({} as never, {
+        publicationId: "publication-1",
+        currentVersionId: "version-1",
+        revision: 2,
+      }),
+    ).rejects.toThrow(/changed/);
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+
+  it("rejects an uncached null followed by a stale identity without writing", async () => {
+    const stale = {
+      current: {
+        publicationId: "publication-new",
+        currentVersionId: "version-new",
+        revision: 3,
+      },
+      fullscreenRequest: { activationRevision: 3, currentVersionId: "version-new", revision: 2 },
+    };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(null)).toBeNull();
+      expect(updater(stale)).toBeUndefined();
+      return { committed: false, snapshot: { val: () => stale } };
+    });
+
+    await expect(
+      writeFullscreenRequest({} as never, {
+        publicationId: "publication-old",
+        currentVersionId: "version-old",
+        revision: 2,
+      }),
+    ).rejects.toThrow(/changed/);
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+
   it("fails closed for a stale identity without changing projection state", async () => {
     const current = {
       activationRevision: 3,

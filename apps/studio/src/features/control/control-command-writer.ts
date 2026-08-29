@@ -301,10 +301,20 @@ export async function writeFullscreenRequest(
 
   getCurrentUserIdForControl();
 
+  const outcome: { kind: "pending" | "uncached" | "written" | "stale" } = {
+    kind: "pending",
+  };
+
   const result = await runTransaction(
     ref(database, "live"),
     (current) => {
-      if (typeof current !== "object" || current === null) {
+      if (current === null) {
+        outcome.kind = "uncached";
+        return null;
+      }
+
+      if (typeof current !== "object") {
+        outcome.kind = "stale";
         return undefined;
       }
 
@@ -317,6 +327,7 @@ export async function writeFullscreenRequest(
         live.currentVersionId !== expectedLive.currentVersionId ||
         live.revision !== expectedLive.revision
       ) {
+        outcome.kind = "stale";
         return undefined;
       }
 
@@ -328,6 +339,7 @@ export async function writeFullscreenRequest(
           ? previous.revision + 1
           : 1;
 
+      outcome.kind = "written";
       return {
         ...currentRecord,
         fullscreenRequest: buildFullscreenRequest(
@@ -340,8 +352,11 @@ export async function writeFullscreenRequest(
     { applyLocally: false },
   );
 
-  if (result.committed !== true) {
-    throw new Error("Live session changed before fullscreen request.");
+  if (result.committed !== true || outcome.kind !== "written") {
+    if (outcome.kind === "uncached" || outcome.kind === "stale") {
+      throw new Error("Live session changed before fullscreen request.");
+    }
+    throw new Error("Fullscreen request transaction did not commit.");
   }
 
   const committedRecord = result.snapshot.val();
