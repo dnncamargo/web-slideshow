@@ -289,6 +289,18 @@ export const ElementEffectSchema = z
 
 export type ElementEffect = z.infer<typeof ElementEffectSchema>;
 
+export const ContainerChildrenFitSchema = z
+  .object({
+    mode: z.enum(["contain", "cover", "fill"]),
+    sourceWidth: z.number().finite().gt(0),
+    sourceHeight: z.number().finite().gt(0),
+  })
+  .strict();
+
+export type ContainerChildrenFit = z.infer<
+  typeof ContainerChildrenFitSchema
+>;
+
 export const ContainerChildrenLayoutSchema = z
   .object({
     mode: LayoutModeSchema.optional(),
@@ -297,6 +309,7 @@ export const ContainerChildrenLayoutSchema = z
     distribution: DistributionSchema.optional(),
     horizontalAlign: HorizontalAlignmentSchema.optional(),
     verticalAlign: VerticalAlignmentSchema.optional(),
+    fit: ContainerChildrenFitSchema.optional(),
   })
   .strict();
 
