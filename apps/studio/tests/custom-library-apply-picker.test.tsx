@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -63,14 +63,24 @@ describe("CustomLibraryApplyPicker", () => {
   function render(
     listItems: () => Promise<CustomLibraryItemRecord[]>,
     onApply: ReturnType<typeof vi.fn<() => CustomLibraryApplyOutcome>> = vi.fn(() => ({ ok: true as const })),
+    strictMode = false,
   ) {
     act(() => {
       root.render(
         <StudioI18nProvider>
-          <CustomLibraryApplyPicker
-            repository={repository(listItems)}
-            onApply={onApply}
-          />
+          {strictMode ? (
+            <StrictMode>
+              <CustomLibraryApplyPicker
+                repository={repository(listItems)}
+                onApply={onApply}
+              />
+            </StrictMode>
+          ) : (
+            <CustomLibraryApplyPicker
+              repository={repository(listItems)}
+              onApply={onApply}
+            />
+          )}
         </StudioI18nProvider>,
       );
     });
@@ -112,6 +122,54 @@ describe("CustomLibraryApplyPicker", () => {
     open();
     await act(async () => undefined);
     expect(container.textContent).toContain("No Custom Library items yet.");
+  });
+
+  it("completes the active load after Strict Mode effect replay", async () => {
+    let resolveList: ((records: CustomLibraryItemRecord[]) => void) | undefined;
+    const listItems = vi.fn(() => new Promise<CustomLibraryItemRecord[]>((resolve) => {
+      resolveList = resolve;
+    }));
+    render(listItems, undefined, true);
+    open();
+
+    expect(container.textContent).toContain("Loading Custom Library");
+    await act(async () => {
+      resolveList?.([item]);
+    });
+
+    expect(container.textContent).not.toContain("Loading Custom Library");
+    expect(container.textContent).toContain("Title style");
+  });
+
+  it("ignores a stale load after closing and reopening", async () => {
+    let resolveFirst: ((records: CustomLibraryItemRecord[]) => void) | undefined;
+    let resolveSecond: ((records: CustomLibraryItemRecord[]) => void) | undefined;
+    const listItems = vi.fn()
+      .mockImplementationOnce(() => new Promise<CustomLibraryItemRecord[]>((resolve) => {
+        resolveFirst = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise<CustomLibraryItemRecord[]>((resolve) => {
+        resolveSecond = resolve;
+      }));
+    render(listItems);
+    open();
+    act(() => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+    });
+    act(() => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+    });
+
+    await act(async () => {
+      resolveFirst?.([{ ...item, id: "stale", item: { ...item.item, name: "Stale" } }]);
+    });
+    expect(container.textContent).toContain("Loading Custom Library");
+
+    await act(async () => {
+      resolveSecond?.([item]);
+    });
+    expect(container.textContent).toContain("Title style");
+    expect(container.textContent).not.toContain("Stale");
   });
 
   it("shows failure and retries listing", async () => {

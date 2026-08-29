@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
 import {
@@ -46,12 +46,6 @@ export function CustomLibraryApplyPicker({
   const [hasLoadFailed, setHasLoadFailed] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [feedback, setFeedback] = useState<"applied" | "failed" | "unsupported" | null>(null);
-  const isActiveRef = useRef(true);
-
-  useEffect(() => () => {
-    isActiveRef.current = false;
-  }, []);
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -62,18 +56,18 @@ export function CustomLibraryApplyPicker({
 
     repository.listItems()
       .then((nextItems) => {
-        if (!isRequestActive || !isActiveRef.current) return;
+        if (!isRequestActive) return;
         setItems(nextItems);
         setSelectedId(null);
       })
       .catch(() => {
-        if (!isRequestActive || !isActiveRef.current) return;
+        if (!isRequestActive) return;
         setItems(null);
         setHasLoadFailed(true);
         setSelectedId(null);
       })
       .finally(() => {
-        if (isRequestActive && isActiveRef.current) setIsLoading(false);
+        if (isRequestActive) setIsLoading(false);
       });
 
     return () => {
