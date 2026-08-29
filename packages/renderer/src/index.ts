@@ -11,6 +11,7 @@ export * from "./render-embed";
 export * from "./render-blocks";
 export * from "./render-scripted";
 export * from "./render-slide";
+export * from "./slide-geometry";
 export * from "./render-presentation";
 export * from "./render-palette";
 export * from "./image-crop";
