@@ -569,15 +569,21 @@
    ========================================================== */
 
 .slideCanvas {
-  width:
-    min(
-      960px,
-      calc(100cqw - 64px),
-      calc((100cqh - 64px) * 16 / 9)
-    );
+  position: absolute;
+  top: 0;
+  left: 0;
 
-  aspect-ratio:
-    16 / 9;
+  flex: none;
+
+  overflow: hidden;
+
+  background: #000;
+
+  transform-origin: 0 0;
+}
+
+.canvasStage {
+  position: relative;
 
   flex: none;
 

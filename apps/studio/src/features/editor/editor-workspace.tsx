@@ -12,6 +12,9 @@ import {
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
+  fitLogicalSlideGeometry,
+  resolveLogicalSlideSize,
+  type FittedSlideGeometry,
 } from "@powershow/renderer";
 import {
   Button,
@@ -481,6 +484,10 @@ export function EditorWorkspace({
   // ==========================================================
 
   const slideCanvasRef = useRef<HTMLDivElement>(null);
+  const canvasViewportRef = useRef<HTMLDivElement>(null);
+  const [canvasGeometry, setCanvasGeometry] = useState<FittedSlideGeometry>(
+    () => fitLogicalSlideGeometry(presentation.aspectRatio, 0, 0),
+  );
   const canvasDragRef = useRef<CanvasDragState | null>(null);
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
   const canvasFocalDragRef = useRef<CanvasFocalDragState | null>(null);
@@ -651,11 +658,45 @@ export function EditorWorkspace({
       : null;
 
   useEffect(() => {
+    const viewport = canvasViewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    const measure = () => {
+      const logical = resolveLogicalSlideSize(presentation.aspectRatio);
+      const usableWidth = Math.max(0, viewport.clientWidth - 64);
+      const usableHeight = Math.max(0, viewport.clientHeight - 64);
+      const geometry = fitLogicalSlideGeometry(
+        presentation.aspectRatio,
+        Math.min(usableWidth, logical.logicalWidth),
+        usableHeight,
+      );
+
+      setCanvasGeometry(geometry);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(viewport);
+
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", measure);
+
+    return () => window.removeEventListener("resize", measure);
+  }, [presentation.aspectRatio]);
+
+  useEffect(() => {
     const canvas = slideCanvasRef.current;
     if (canvas) {
       hydrateImageCrops(canvas);
     }
-  }, [renderedSlide]);
+  }, [canvasGeometry, renderedSlide]);
 
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
@@ -750,6 +791,7 @@ export function EditorWorkspace({
       height: bounds.height,
     });
   }, [
+    canvasGeometry,
     locale,
     renderedSlide,
     selectedDocumentElement,
@@ -796,7 +838,7 @@ export function EditorWorkspace({
       width: bounds.width,
       height: bounds.height,
     });
-  }, [focalEditingImageId, renderedSlide, selectedDocumentElement]);
+  }, [canvasGeometry, focalEditingImageId, renderedSlide, selectedDocumentElement]);
 
   useEffect(() => {
     if (
@@ -851,7 +893,7 @@ export function EditorWorkspace({
       source: selectedDocumentElement.src,
       crop: resolveCropCanvasRect(preview, crop),
     });
-  }, [cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
+  }, [canvasGeometry, cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
 
   useEffect(() => {
     if (!cropEditingImageId) return;
@@ -3233,7 +3275,7 @@ export function EditorWorkspace({
             </span>
           </div>
 
-          <div className={styles.canvasViewport}>
+          <div ref={canvasViewportRef} className={styles.canvasViewport}>
             {renderedFontResources && (
               <style data-powershow-font-resources>
                 {renderedFontResources}
@@ -3241,19 +3283,32 @@ export function EditorWorkspace({
             )}
 
             <div
-              ref={slideCanvasRef}
-              className={styles.slideCanvas}
-              style={renderedPaletteStyle}
-              onPointerDown={handleCanvasPointerDown}
-              onPointerMove={handleCanvasPointerMove}
-              onPointerUp={handleCanvasPointerUp}
-              onPointerCancel={handleCanvasPointerCancel}
-              onLostPointerCapture={handleCanvasPointerCancel}
-              onClick={handleCanvasLinkClick}
-              dangerouslySetInnerHTML={{
-                __html: renderedSlide,
+              className={styles.canvasStage}
+              style={{
+                width: `${canvasGeometry.physicalWidth}px`,
+                height: `${canvasGeometry.physicalHeight}px`,
               }}
-            />
+            >
+              <div
+                ref={slideCanvasRef}
+                className={styles.slideCanvas}
+                style={{
+                  ...renderedPaletteStyle,
+                  width: `${canvasGeometry.logicalWidth}px`,
+                  height: `${canvasGeometry.logicalHeight}px`,
+                  transform: `scale(${canvasGeometry.scale})`,
+                }}
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+                onPointerCancel={handleCanvasPointerCancel}
+                onLostPointerCapture={handleCanvasPointerCancel}
+                onClick={handleCanvasLinkClick}
+                dangerouslySetInnerHTML={{
+                  __html: renderedSlide,
+                }}
+              />
+            </div>
             {cropEditingImageId && selectedDocumentElement?.type === "image" && (
               <img
                 key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
