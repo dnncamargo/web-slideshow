@@ -69,6 +69,9 @@ function renderLayout(element: ContainerElement): string[] {
 
   addStyle(output, "overflow", layout.overflow);
   addStyle(output, "position", layout.position);
+  if (layout.flexShrink === 0) {
+    output.push("flex-shrink:0");
+  }
 
   for (const [property, value] of [
     ["top", layout.top],

@@ -75,6 +75,28 @@ describe("production canonical Container renderer", () => {
     }
   });
 
+  it("renders authored Container flex shrinking on the outer Container only", () => {
+    const defaultTag = rootTag(renderElement(createContainerElement()));
+    expect(defaultTag).not.toContain("flex-shrink:");
+
+    const fittedHtml = renderElement(createContainerElement({
+      layout: {
+        flexShrink: 0,
+        width: 800,
+        height: 400,
+        padding: 12,
+        children: {
+          fit: { mode: "contain", sourceWidth: 400, sourceHeight: 200 },
+        },
+      },
+      children: [createTextElement({ id: "fit-child" })],
+    }));
+
+    expect(rootTag(fittedHtml)).toContain("flex-shrink:0");
+    expect(fittedHtml).toContain('class="powershow-container-fit-viewport"');
+    expect(tagForId(fittedHtml, "fit-child")).not.toContain("flex-shrink:");
+  });
+
   it("renders canonical absolute placement with opposite edges", () => {
     const tag = rootTag(renderElement(createContainerElement({
       layout: {

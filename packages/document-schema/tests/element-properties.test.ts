@@ -9,6 +9,7 @@ import {
   ElementTypographySchema,
   ElementVisualStyleSchema,
 } from "../src/element-properties";
+import { PowerShowElementSchema } from "../src/elements";
 
 describe("canonical element property vocabulary", () => {
   it("does not materialize optional namespaces or their fields", () => {
@@ -118,5 +119,54 @@ describe("canonical element property vocabulary", () => {
         horizontalAlign: "center",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts only literal zero for Container flex shrinking", () => {
+    expect(ContainerLayoutSchema.parse({ flexShrink: 0 })).toEqual({
+      flexShrink: 0,
+    });
+    expect(ContainerLayoutSchema.parse({}).flexShrink).toBeUndefined();
+
+    for (const value of [1, -1, true, "0", null]) {
+      expect(ContainerLayoutSchema.safeParse({ flexShrink: value }).success).toBe(false);
+    }
+  });
+
+  it("allows Container flex shrinking alongside sizing, children fit, and nesting", () => {
+    const parsed = ContainerLayoutSchema.parse({
+      flexShrink: 0,
+      width: "80%",
+      height: 100,
+      padding: 12,
+      children: {
+        mode: "flow",
+        direction: "row",
+        fit: { mode: "contain", sourceWidth: 800, sourceHeight: 400 },
+      },
+    });
+
+    expect(parsed).toMatchObject({ flexShrink: 0, width: "80%", height: 100 });
+    const nested = PowerShowElementSchema.parse({
+      id: "outer",
+      type: "container",
+      hidden: false,
+      layout: { flexShrink: 0 },
+      children: [{
+        id: "inner",
+        type: "container",
+        hidden: false,
+        layout: { flexShrink: 0 },
+        children: [],
+      }],
+    });
+
+    expect(nested.type).toBe("container");
+    if (nested.type !== "container") {
+      throw new Error("Expected nested Container element");
+    }
+    expect(nested.children[0]).toMatchObject({
+      type: "container",
+      layout: { flexShrink: 0 },
+    });
   });
 });

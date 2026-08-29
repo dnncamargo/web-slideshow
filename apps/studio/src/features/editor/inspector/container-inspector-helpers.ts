@@ -73,6 +73,39 @@ export function updateContainerPositionEdge(
   };
 }
 
+export function updateContainerPreserveSize(
+  container: ContainerElement,
+  preserve: boolean,
+): ContainerElement {
+  if (preserve) {
+    return {
+      ...container,
+      layout: {
+        ...container.layout,
+        flexShrink: 0,
+      },
+    };
+  }
+
+  const { flexShrink: _flexShrink, ...layout } = container.layout ?? {};
+
+  return {
+    ...container,
+    ...(Object.keys(layout).length > 0 ? { layout } : { layout: undefined }),
+  };
+}
+
+export function shouldShowContainerPreserveSize(
+  element: ContainerElement,
+  parent: ContainerElement | null,
+): boolean {
+  return (
+    parent !== null &&
+    element.layout?.position !== "absolute" &&
+    (parent.layout?.children?.mode ?? "flow") === "flow"
+  );
+}
+
 export function shouldShowContainerLayerControls(
   isAbsolute: boolean,
   parentLayoutMode: string | undefined,

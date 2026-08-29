@@ -318,6 +318,7 @@ export type ContainerChildrenLayout = z.infer<
 >;
 
 export const ContainerLayoutSchema = ElementLayoutSchema.extend({
+  flexShrink: z.literal(0).optional(),
   children: ContainerChildrenLayoutSchema.optional(),
 });
 

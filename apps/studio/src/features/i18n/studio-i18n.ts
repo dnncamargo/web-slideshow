@@ -496,6 +496,9 @@ const englishMessages = {
   "inspector.position": "Position",
   "inspector.positionHelp":
     "Defines how this container is positioned inside its parent.",
+  "inspector.preserveSize": "Preserve size",
+  "inspector.preserveSizeHelp":
+    "Prevents this container from shrinking along its parent's flow direction.",
   "inspector.canvasSnapHelp":
     "Drag near edges or centers to align automatically. Hold Alt to move without snapping.",
   "inspector.absolute": "Absolute",
@@ -1424,6 +1427,9 @@ const portugueseMessages = {
   "inspector.position": "Posição",
   "inspector.positionHelp":
     "Define como este container é posicionado dentro do elemento pai.",
+  "inspector.preserveSize": "Preservar tamanho",
+  "inspector.preserveSizeHelp":
+    "Impede que este contêiner seja comprimido no eixo de fluxo do contêiner pai.",
   "inspector.canvasSnapHelp":
     "Arraste próximo às bordas ou centros para alinhar automaticamente. Segure Alt para mover sem encaixe.",
   "inspector.absolute": "Absoluto",

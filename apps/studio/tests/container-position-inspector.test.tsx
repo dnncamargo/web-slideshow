@@ -91,6 +91,87 @@ describe("Container canonical position inspector", () => {
     expect(host.querySelector("#container-position-top")).toBeNull();
     expect(host.textContent).not.toContain("Anchor");
     expect(host.textContent).not.toContain("X offset");
+    expect(host.querySelector("#container-preserve-size")).toBeNull();
+  });
+
+  it("shows Preserve size only for a child in an effective Flow parent", async () => {
+    state = containerElement();
+    await act(async () => renderInspector(containerElement()));
+    expect(host.querySelector("#container-preserve-size")).not.toBeNull();
+
+    await act(async () =>
+      renderInspector(containerElement({ layout: { children: { mode: "flow" } } })),
+    );
+    expect(host.querySelector("#container-preserve-size")).not.toBeNull();
+
+    await act(async () =>
+      renderInspector(containerElement({ layout: { children: { mode: "stack" } } })),
+    );
+    expect(host.querySelector("#container-preserve-size")).toBeNull();
+
+    state = containerElement({ layout: { position: "absolute" } });
+    await act(async () => renderInspector(containerElement()));
+    expect(host.querySelector("#container-preserve-size")).toBeNull();
+  });
+
+  it("authors Preserve size without disturbing layout and cleans up when unchecked", async () => {
+    state = containerElement({
+      layout: {
+        width: "80%",
+        height: 100,
+        padding: 12,
+        children: { direction: "row" },
+      },
+    });
+    const parent = containerElement();
+    await act(async () => renderInspector(parent));
+
+    await act(async () =>
+      (host.querySelector("#container-preserve-size") as HTMLInputElement).click(),
+    );
+    expect(state.layout).toMatchObject({
+      flexShrink: 0,
+      width: "80%",
+      height: 100,
+      padding: 12,
+      children: { direction: "row" },
+    });
+
+    await act(async () =>
+      (host.querySelector("#container-preserve-size") as HTMLInputElement).click(),
+    );
+    expect(state.layout).toEqual({
+      width: "80%",
+      height: 100,
+      padding: 12,
+      children: { direction: "row" },
+    });
+
+    state = containerElement({ layout: { flexShrink: 0 } });
+    await act(async () => renderInspector(parent));
+    await act(async () =>
+      (host.querySelector("#container-preserve-size") as HTMLInputElement).click(),
+    );
+    expect(state.layout).toBeUndefined();
+  });
+
+  it("preserves authored size across Absolute and Flow", async () => {
+    state = containerElement({ layout: { flexShrink: 0 } });
+    const parent = containerElement();
+    await act(async () => renderInspector(parent));
+    expect(host.querySelector<HTMLInputElement>("#container-preserve-size")?.checked).toBe(true);
+
+    await act(async () =>
+      changeSelect(host.querySelector("#container-position-mode")!, "absolute"),
+    );
+    expect(state.layout?.flexShrink).toBe(0);
+    expect(host.querySelector("#container-preserve-size")).toBeNull();
+
+    await act(async () =>
+      changeSelect(host.querySelector("#container-position-mode")!, "flow"),
+    );
+    expect(state.layout?.flexShrink).toBe(0);
+    expect(host.querySelector<HTMLInputElement>("#container-preserve-size")?.checked).toBe(true);
   });
 
   it("enters Absolute with top and left defaults while preserving layout", async () => {
