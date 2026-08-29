@@ -31,6 +31,7 @@ const atomicPaths = new Set([
   "style.border.color",
   "typography.textDecorationColor",
   "markerColor",
+  "layout.children.fit",
 ]);
 
 const normallyUnselectedRoots = new Set([
@@ -76,6 +77,13 @@ function formatAtomicValue(path: string, value: unknown): string {
       (typeof value.y === "string" || typeof value.y === "number") &&
       (typeof value.blur === "string" || typeof value.blur === "number")) {
     return `${value.x} ${value.y} ${value.blur}${typeof value.color === "string" ? ` · ${value.color}` : ""}`;
+  }
+
+  if (path === "layout.children.fit" &&
+      typeof value.mode === "string" &&
+      typeof value.sourceWidth === "number" &&
+      typeof value.sourceHeight === "number") {
+    return `${value.mode} · ${value.sourceWidth} × ${value.sourceHeight}`;
   }
 
   if (path.endsWith(".gradient") && typeof value.type === "string" &&

@@ -2,6 +2,7 @@ import type {
   ContainerElement,
   PowerShowElement,
 } from "@powershow/document-schema";
+import type { ContainerFitMode } from "../container-fit-authoring";
 
 import styles from "../editor-workspace.module.css";
 
@@ -24,6 +25,8 @@ interface ContainerInspectorProps {
 
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
 
+  onContainerFitModeChange?: (mode: ContainerFitMode | null) => boolean;
+
   parent?: ContainerElement | null;
 
   layerControls?: {
@@ -40,6 +43,7 @@ interface ContainerInspectorProps {
 export function ContainerInspector({
   element,
   onUpdate,
+  onContainerFitModeChange,
   parent = null,
   layerControls = null,
 }: ContainerInspectorProps) {
@@ -59,7 +63,11 @@ export function ContainerInspector({
     <>
       <div className={styles.inspectorDivider} />
 
-      <ContainerLayoutSection element={element} onUpdate={updateContainer} />
+      <ContainerLayoutSection
+        element={element}
+        onUpdate={updateContainer}
+        onContainerFitModeChange={onContainerFitModeChange}
+      />
 
       <ContainerPositionSection
         element={element}

@@ -242,6 +242,26 @@ describe("getSelectableElementProperties", () => {
     expect(result["layout.children.horizontalAlign"]).toBeDefined();
   });
 
+  it("keeps Container Fit atomic with a compact display value", () => {
+    const result = properties({
+      type: "container",
+      id: "container-fit",
+      hidden: false,
+      layout: {
+        children: {
+          fit: { mode: "contain", sourceWidth: 800, sourceHeight: 400 },
+        },
+      },
+      children: [],
+    });
+
+    expect(result["layout.children.fit"]?.kind).toBe("atomic-object");
+    expect(result["layout.children.fit"]?.displayValue).toBe("contain · 800 × 400");
+    expect(result["layout.children.fit.mode"]).toBeUndefined();
+    expect(result["layout.children.fit.sourceWidth"]).toBeUndefined();
+    expect(result["layout.children.fit.sourceHeight"]).toBeUndefined();
+  });
+
   it("keeps intrinsic arrays as one unchecked payload unit", () => {
     const result = properties({
       type: "table",

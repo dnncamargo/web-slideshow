@@ -1,4 +1,5 @@
 import type { ContainerElement } from "@powershow/document-schema";
+import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,6 +9,7 @@ import {
   type UpdateContainer,
   updateContainerLayoutMode,
 } from "../container-inspector-helpers";
+import type { ContainerFitMode } from "../../container-fit-authoring";
 
 import { InspectorSection } from "../inspector-section";
 
@@ -27,6 +29,8 @@ interface ContainerLayoutSectionProps {
   element: ContainerElement;
 
   onUpdate: UpdateContainer;
+
+  onContainerFitModeChange?: (mode: ContainerFitMode | null) => boolean;
 }
 
 // ============================================================
@@ -36,8 +40,10 @@ interface ContainerLayoutSectionProps {
 export function ContainerLayoutSection({
   element,
   onUpdate,
+  onContainerFitModeChange,
 }: ContainerLayoutSectionProps) {
   const { t } = useStudioI18n();
+  const [fitError, setFitError] = useState(false);
 
   const hasDistributedMainAxis =
     (element.layout?.children?.distribution ?? "packed") !== "packed";
@@ -71,6 +77,33 @@ export function ContainerLayoutSection({
           <option value="stack">{t("inspector.stack")}</option>
         </select>
       </label>
+
+      <label className={styles.field}>
+        <span title={t("inspector.childrenFitHelp")}>{t("inspector.childrenFit")}</span>
+        <select
+          id="container-children-fit"
+          name="containerChildrenFit"
+          value={element.layout?.children?.fit?.mode ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            const mode = value === "" ? null : (value as ContainerFitMode);
+            const accepted = onContainerFitModeChange?.(mode) ?? false;
+            setFitError(!accepted && mode !== null);
+            if (accepted || mode === null) return;
+          }}
+        >
+          <option value="">{t("inspector.childrenFit.none")}</option>
+          <option value="contain">{t("inspector.childrenFit.contain")}</option>
+          <option value="cover">{t("inspector.childrenFit.cover")}</option>
+          <option value="fill">{t("inspector.childrenFit.fill")}</option>
+        </select>
+      </label>
+      <p className={styles.inspectorHint}>{t("inspector.childrenFitHelp")}</p>
+      {fitError && (
+        <p className={styles.inspectorError} role="status">
+          {t("inspector.childrenFitMeasurementError")}
+        </p>
+      )}
 
       <label className={styles.field}>
         <span title={t("inspector.overflowHelp")}>{t("inspector.overflow")}</span>

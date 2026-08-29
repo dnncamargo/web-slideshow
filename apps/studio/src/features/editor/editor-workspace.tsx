@@ -81,6 +81,12 @@ import {
 } from "./canvas-pointer-selection-helpers";
 import { isAuthoredPowerShowLink } from "./canvas-link-interception";
 import {
+  isInsideContainerFitSurface,
+  measureContainerFitSourceSize,
+  updateContainerFit,
+  type ContainerFitMode,
+} from "./container-fit-authoring";
+import {
   getEffectiveImageFocalPoint,
   getImageFocalPointFromClientPosition,
   type ImageFocalPoint,
@@ -812,7 +818,7 @@ export function EditorWorkspace({
                   ? documentElement.layout?.position === "absolute"
                   : false;
 
-        if (draggable) {
+        if (draggable && !isInsideContainerFitSurface(candidate)) {
           candidate.classList.add("powershow-editor-draggable");
         }
       }
@@ -832,7 +838,8 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
-      !isCanvasResizable(selectedDocumentElement)
+      !isCanvasResizable(selectedDocumentElement) ||
+      isInsideContainerFitSurface(target)
     ) {
       setCanvasResizeOverlay(null);
       return;
@@ -1266,6 +1273,10 @@ export function EditorWorkspace({
             ? selection.documentElement.layout?.position === "absolute"
             : false;
 
+    if (elementTarget && isInsideContainerFitSurface(elementTarget)) {
+      return;
+    }
+
     if (!draggable || !elementTarget) {
       return;
     }
@@ -1629,6 +1640,10 @@ export function EditorWorkspace({
     );
 
     if (!target || !layoutParent) {
+      return;
+    }
+
+    if (isInsideContainerFitSurface(target)) {
       return;
     }
 
@@ -2023,6 +2038,32 @@ export function EditorWorkspace({
         };
       }),
     }));
+  }
+
+  function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
+    if (selectedDocumentElement?.type !== "container") return false;
+
+    const canvas = slideCanvasRef.current;
+    const target = canvas
+      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
+          .find((candidate) => candidate.dataset.powershowId === selectedDocumentElement.id)
+      : undefined;
+    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined
+      ? target ? measureContainerFitSourceSize(target) : null
+      : undefined;
+    const updated = updateContainerFit(selectedDocumentElement, mode, sourceSize ?? undefined);
+
+    if (!updated) return false;
+
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? { ...slide, elements: updateElementById(slide.elements, selectedDocumentElement.id, () => updated) }
+          : slide,
+      ),
+    }));
+    return true;
   }
 
   // ==========================================================
@@ -3665,6 +3706,7 @@ export function EditorWorkspace({
                         <ElementInspector
                           element={selectedDocumentElement}
                           onUpdate={updateSelectedElement}
+                          onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={
                             setPreserveImageProportion

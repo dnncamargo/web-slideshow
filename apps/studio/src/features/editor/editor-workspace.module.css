@@ -1239,6 +1239,19 @@
   outline-offset: 2px;
 }
 
+.inspectorError {
+  margin: 6px 0 0;
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.inspectorHint {
+  margin: 6px 0 0;
+  color: #87909f;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /*
  * A linked Container renders an internal transparent anchor surface
  * (data-powershow-container-link-surface) that captures the whole
