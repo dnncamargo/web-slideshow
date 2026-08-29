@@ -134,6 +134,11 @@
     auto;
 }
 
+.slideLayoutPickerSlot {
+  min-width: 0;
+  min-height: 0;
+}
+
 /* ==========================================================
    END: SLIDE SIDEBAR COM PRESETS
    ========================================================== */
@@ -569,15 +574,21 @@
    ========================================================== */
 
 .slideCanvas {
-  width:
-    min(
-      960px,
-      calc(100cqw - 64px),
-      calc((100cqh - 64px) * 16 / 9)
-    );
+  position: absolute;
+  top: 0;
+  left: 0;
 
-  aspect-ratio:
-    16 / 9;
+  flex: none;
+
+  overflow: hidden;
+
+  background: #000;
+
+  transform-origin: 0 0;
+}
+
+.canvasStage {
+  position: relative;
 
   flex: none;
 
@@ -789,11 +800,13 @@
 }
 
 .elementProperties {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   max-height: 34%;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding: 8px 10px 10px;
   border-top: 1px solid #232a36;
   background: #0f141d;
@@ -815,6 +828,19 @@
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.elementPropertiesActions {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.elementPropertiesActions .customLibrarySaveButton {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
 }
 
 .customLibrarySaveButton {
@@ -1003,15 +1029,18 @@
 
 .elementPropertiesList {
   display: flex;
+  flex: 1;
+  min-height: 0;
   min-width: 0;
   flex-direction: column;
   gap: 3px;
+  overflow-y: auto;
 }
 
 .elementPropertyRow {
   display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: auto minmax(0, 3fr) minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   font-size: 10px;
@@ -1208,6 +1237,19 @@
     rgba(129, 140, 248, 0.55);
 
   outline-offset: 2px;
+}
+
+.inspectorError {
+  margin: 6px 0 0;
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.inspectorHint {
+  margin: 6px 0 0;
+  color: #87909f;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /*
@@ -2540,22 +2582,55 @@
 }
 
 
-.gradientStopRow {
-  display: grid;
+.gradientStop {
+  min-width: 0;
 
-  grid-template-columns:
-    minmax(0, 72px)
-    minmax(0, 1fr)
-    auto;
+  display: flex;
 
-  align-items:
-    end;
+  flex-direction: column;
+
+  gap: 10px;
+
+  margin: 0;
+
+  padding: 10px;
+
+  border: 1px solid #252d3a;
+  border-radius: 6px;
+
+  background: #0f141d;
+}
+
+
+.gradientStopHeader {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
 
   gap: 8px;
 }
 
 
-.gradientStopRow .secondaryButton {
+.gradientStopLegend {
+  min-width: 0;
+
+  padding: 0;
+
+  color: #cbd5e1;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+
+.gradientStopColor,
+.gradientStopPosition {
+  min-width: 0;
+}
+
+
+.gradientStopHeader .secondaryButton {
   min-height: 34px;
 
   white-space:

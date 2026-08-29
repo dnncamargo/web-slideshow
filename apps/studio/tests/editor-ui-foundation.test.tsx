@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
+import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { updatePresentationTitle } from "../src/features/editor/presentation-title";
 import { SlideLayoutPicker } from "../src/features/editor/slide-layout-picker";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -53,6 +54,54 @@ describe("editor UI foundation", () => {
     expect(onCreate).toHaveBeenCalledOnce();
   });
 
+  it("keeps the slide sidebar rows stable as the layout picker opens and closes", () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={createBlankPresentation("sidebar-structure")} />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const sidebar = container.querySelector("aside");
+    expect(sidebar).not.toBeNull();
+    if (!sidebar) throw new Error("expected the slide sidebar");
+
+    const getRows = () => Array.from(sidebar.children);
+    const getPickerSlot = () => getRows()[1];
+
+    expect(getRows()).toHaveLength(4);
+    expect(getRows()[0]?.className).toContain("slidePanelHeader");
+    expect(getPickerSlot()?.className).toContain("slideLayoutPickerSlot");
+    expect(getRows()[2]?.className).toContain("slideList");
+    expect(getRows()[3]?.className).toContain("slideActions");
+    expect(getPickerSlot()?.querySelector("[class*='layoutPicker']")).toBeNull();
+
+    const newButton = Array.from(sidebar.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "+ New slide",
+    );
+    if (!newButton) throw new Error("expected the New button");
+    act(() => newButton.click());
+
+    expect(getRows()).toHaveLength(4);
+    expect(getRows()[1]).toBe(getPickerSlot());
+    expect(getPickerSlot()?.querySelector("[class*='layoutPicker']")).not.toBeNull();
+    expect(getRows()[2]?.className).toContain("slideList");
+    expect(getRows()[3]?.className).toContain("slideActions");
+
+    const closeButton = Array.from(sidebar.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Close",
+    );
+    if (!closeButton) throw new Error("expected the Close button");
+    act(() => closeButton.click());
+
+    expect(getRows()).toHaveLength(4);
+    expect(getRows()[1]).toBe(getPickerSlot());
+    expect(getPickerSlot()?.querySelector("[class*='layoutPicker']")).toBeNull();
+    expect(getRows()[2]?.className).toContain("slideList");
+    expect(getRows()[3]?.className).toContain("slideActions");
+  });
+
   it("updates Presentation.title without mutating a slide title", () => {
     const presentation = createBlankPresentation("presentation-1", "Before");
     const firstSlide = presentation.slides[0];
@@ -67,13 +116,13 @@ describe("editor UI foundation", () => {
   it("keeps the product name and surface names as separate central labels", () => {
     expect(PRODUCT_NAME).toBe("PowerShow");
     expect(PRODUCT_SURFACE_LABELS).toEqual({
-      studio: "Studio",
+      library: "Library",
       editor: "Editor",
       control: "Control",
     });
   });
 
-  it.each(["studio", "editor", "control"] as const)(
+  it.each(["library", "editor", "control"] as const)(
     "renders the canonical brand composition as separate semantic pieces for %s",
     (surface: ProductSurfaceName) => {
       act(() => {

@@ -283,6 +283,7 @@ describe("presentation library thumbnail reads", () => {
       listFolders: vi.fn(async () => []),
       createFolder: vi.fn(async () => "folder-new"),
       renameFolder: vi.fn(async () => {}),
+      deleteFolder: vi.fn(async () => {}),
     };
 
     act(() => {

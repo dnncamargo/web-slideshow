@@ -1,16 +1,15 @@
 import type { Presentation } from "@powershow/document-schema";
 
 import {
-  hydrateImageCrops,
-  renderFontResources,
-  renderSlide,
-} from "@powershow/renderer";
+  mountProjectionSurface,
+  type PlayerTransition,
+} from "./projection-surface";
+
+export type { PlayerTransition } from "./projection-surface";
 
 // ============================================================
 // TIPOS PÚBLICOS DO PLAYER
 // ============================================================
-
-export type PlayerTransition = "none" | "fade";
 
 // ============================================================
 // BEGIN: POSIÇÃO DOS CONTROLES
@@ -221,94 +220,26 @@ export function mountPlayer(
   // Estado interno
   // ----------------------------------------------------------
 
-  let currentIndex = 0;
-
   let controlsHideTimer: ReturnType<typeof setTimeout> | undefined;
 
   let destroyed = false;
 
-  // ----------------------------------------------------------
-  // Estrutura HTML do Player
-  //
-  // IMPORTANTE:
-  // - slide-host contém somente o slide.
-  // - controls é irmão do slide-host.
-  // - navegação não pertence ao renderSlide().
-  // ----------------------------------------------------------
+  const projection = mountProjectionSurface(root, presentation, {
+    transition,
+  });
 
-  root.innerHTML = `
-    <div class="powershow-player">
-      <div class="powershow-player-stage">
+  const stage = projection.stage;
 
-        <div
-          class="powershow-player-slide-host"
-        ></div>
-
-        <div
-          class="powershow-player-controls"
-        >
-          <button
-            type="button"
-            data-player-action="previous"
-            aria-label="Previous slide"
-          >
-            ←
-          </button>
-
-          <!-- ======================================================
-              CONTADOR DE SLIDES
-
-              Usamos <output> porque ele possui semanticamente
-              uma propriedade "value", preservando o contrato
-              já utilizado pelos testes do Player.
-              ====================================================== -->
-
-          <output
-            class="powershow-player-counter"
-          ></output>
-
-          <button
-            type="button"
-            data-player-action="next"
-            aria-label="Next slide"
-          >
-            →
-          </button>
-
-          <button
-            type="button"
-            data-player-action="fullscreen"
-            aria-label="Fullscreen"
-          >
-            ⛶
-          </button>
-        </div>
-
+  stage.insertAdjacentHTML(
+    "beforeend",
+    `
+      <div class="powershow-player-controls">
+        <button type="button" data-player-action="previous" aria-label="Previous slide">←</button>
+        <output class="powershow-player-counter"></output>
+        <button type="button" data-player-action="next" aria-label="Next slide">→</button>
+        <button type="button" data-player-action="fullscreen" aria-label="Fullscreen">⛶</button>
       </div>
-    </div>
-  `;
-
-  // ----------------------------------------------------------
-  // Elementos necessários
-  // ----------------------------------------------------------
-
-  const player = queryRequired<HTMLElement>(root, ".powershow-player");
-
-  const fontResourceCss = renderFontResources(presentation.resources?.fonts);
-
-  if (fontResourceCss) {
-    const fontResourceStyle = document.createElement("style");
-
-    fontResourceStyle.setAttribute("data-powershow-font-resources", "");
-    fontResourceStyle.textContent = fontResourceCss;
-    player.prepend(fontResourceStyle);
-  }
-
-  const stage = queryRequired<HTMLElement>(root, ".powershow-player-stage");
-
-  const slideHost = queryRequired<HTMLElement>(
-    root,
-    ".powershow-player-slide-host",
+    `,
   );
 
   const controls = queryRequired<HTMLElement>(
@@ -392,34 +323,6 @@ export function mountPlayer(
   // END: CLASSES ESTRUTURAIS DOS CONTROLES
   // ==========================================================
 
-  // ----------------------------------------------------------
-  // Ajusta o tamanho do stage mantendo o aspect ratio
-  // ----------------------------------------------------------
-
-  function updateStageSize(): void {
-    const aspectRatio = presentation.aspectRatio === "4:3" ? 4 / 3 : 16 / 9;
-
-    const availableWidth = window.innerWidth;
-
-    const availableHeight = window.innerHeight;
-
-    let width = availableWidth;
-
-    let height = width / aspectRatio;
-
-    if (height > availableHeight) {
-      height = availableHeight;
-
-      width = height * aspectRatio;
-    }
-
-    stage.style.width = `${width}px`;
-
-    stage.style.height = `${height}px`;
-
-    hydrateImageCrops(slideHost);
-  }
-
   // ============================================================
   // BEGIN: ATUALIZA ESTADO DOS CONTROLES
   //
@@ -454,84 +357,20 @@ export function mountPlayer(
     // 3 / 3
     // ----------------------------------------------------------
 
-    counter.value = `${currentIndex + 1} / ${slideCount}`;
+    counter.value = `${projection.getCurrentIndex() + 1} / ${slideCount}`;
 
     // ----------------------------------------------------------
     // Estado dos botões nos limites da apresentação.
     // ----------------------------------------------------------
 
-    previousButton.disabled = currentIndex === 0;
+    previousButton.disabled = projection.getCurrentIndex() === 0;
 
-    nextButton.disabled = currentIndex === slideCount - 1;
+    nextButton.disabled = projection.getCurrentIndex() === slideCount - 1;
   }
 
   // ============================================================
   // END: ATUALIZA ESTADO DOS CONTROLES
   // ============================================================
-
-  // ----------------------------------------------------------
-  // Animação do slide
-  // ----------------------------------------------------------
-
-  function animateSlide(): void {
-    if (transition !== "fade") {
-      return;
-    }
-
-    // Element.animate não existe em alguns
-    // ambientes de teste / browsers antigos.
-    if (typeof slideHost.animate !== "function") {
-      return;
-    }
-
-    slideHost.animate(
-      [
-        {
-          opacity: 0,
-          transform: "scale(0.995)",
-        },
-
-        {
-          opacity: 1,
-          transform: "scale(1)",
-        },
-      ],
-      {
-        duration: 180,
-        easing: "ease-out",
-      },
-    );
-  }
-
-  // ----------------------------------------------------------
-  // Renderiza o slide atual
-  // ----------------------------------------------------------
-
-  function renderCurrentSlide(): void {
-    const slide = presentation.slides[currentIndex];
-
-    if (!slide) {
-      slideHost.innerHTML = `
-        <div
-          class="powershow-player-empty"
-        >
-          No slides
-        </div>
-      `;
-
-      updateControls();
-
-      return;
-    }
-
-    slideHost.innerHTML = renderSlide(slide, { presentation });
-
-    hydrateImageCrops(slideHost);
-
-    animateSlide();
-
-    updateControls();
-  }
 
   // ----------------------------------------------------------
   // Auto-hide dos controles
@@ -584,42 +423,14 @@ export function mountPlayer(
   // ============================================================
 
   function goTo(index: number): void {
-    // ----------------------------------------------------------
-    // Se não há slides, não há navegação possível.
-    // ----------------------------------------------------------
+    const previousIndex = projection.getCurrentIndex();
 
-    if (presentation.slides.length === 0) {
-      return;
-    }
+    projection.goTo(index);
 
-    // ----------------------------------------------------------
-    // Ignora índices fora dos limites da apresentação.
-    // ----------------------------------------------------------
-
-    if (index < 0 || index >= presentation.slides.length) {
-      return;
-    }
-
-    // ----------------------------------------------------------
-    // Se já estamos nesse slide, não precisamos renderizar
-    // novamente.
-    // ----------------------------------------------------------
-
-    if (index === currentIndex) {
+    if (projection.getCurrentIndex() !== previousIndex) {
       updateControls();
-
-      return;
+      showControls();
     }
-
-    // ----------------------------------------------------------
-    // Atualiza estado e renderiza o novo slide.
-    // ----------------------------------------------------------
-
-    currentIndex = index;
-
-    renderCurrentSlide();
-
-    showControls();
   }
 
   // ============================================================
@@ -627,11 +438,11 @@ export function mountPlayer(
   // ============================================================
 
   function next(): void {
-    goTo(currentIndex + 1);
+    goTo(projection.getCurrentIndex() + 1);
   }
 
   function previous(): void {
-    goTo(currentIndex - 1);
+    goTo(projection.getCurrentIndex() - 1);
   }
 
   // ----------------------------------------------------------
@@ -747,23 +558,10 @@ export function mountPlayer(
   window.addEventListener("keydown", handleKeyDown);
 
   // ----------------------------------------------------------
-  // Resize
-  // ----------------------------------------------------------
-
-  function handleResize(): void {
-    updateStageSize();
-  }
-
-  window.addEventListener("resize", handleResize);
-
-  // ----------------------------------------------------------
   // Inicialização
   // ----------------------------------------------------------
 
-  updateStageSize();
-
-  renderCurrentSlide();
-
+  updateControls();
   showControls();
 
   // ----------------------------------------------------------
@@ -780,7 +578,7 @@ export function mountPlayer(
     fullscreen,
 
     getCurrentIndex(): number {
-      return currentIndex;
+      return projection.getCurrentIndex();
     },
 
     destroy(): void {
@@ -817,13 +615,11 @@ export function mountPlayer(
 
       window.removeEventListener("keydown", handleKeyDown);
 
-      window.removeEventListener("resize", handleResize);
-
       // ------------------------------------------------------
       // Remove Player do DOM
       // ------------------------------------------------------
 
-      root.innerHTML = "";
+      projection.destroy();
     },
   };
 }

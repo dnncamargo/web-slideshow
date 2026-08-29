@@ -51,6 +51,50 @@ describe("getSelectableElementProperties", () => {
     expect(topicsResult["markerColor.colorId"]).toBeUndefined();
   });
 
+  it("keeps literal ColorValue paths atomic and unique", () => {
+    const result = getSelectableElementProperties({
+      type: "text",
+      id: "text",
+      hidden: false,
+      variant: "body",
+      content: "Text",
+      style: {
+        color: "#111111",
+        background: { color: "#ffffff" },
+        border: { width: 1, color: "#222222" },
+      },
+      typography: { textDecorationColor: "#333333" },
+    });
+    const paths = result.map((property) => property.path);
+
+    expect(new Set(paths).size).toBe(paths.length);
+    for (const path of [
+      "style.color",
+      "style.background.color",
+      "style.border.color",
+      "typography.textDecorationColor",
+    ]) {
+      expect(result.filter((property) => property.path === path)).toHaveLength(1);
+      expect(result.find((property) => property.path === path)?.kind).toBe("atomic-object");
+    }
+  });
+
+  it("keeps literal markerColor atomic and unique", () => {
+    const result = getSelectableElementProperties({
+      type: "topics",
+      id: "topics",
+      hidden: false,
+      kind: "unordered",
+      items: [],
+      markerColor: "#444444",
+    });
+    const paths = result.map((property) => property.path);
+
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(result.filter((property) => property.path === "markerColor")).toHaveLength(1);
+    expect(result.find((property) => property.path === "markerColor")?.kind).toBe("atomic-object");
+  });
+
   it("selects authored visual and layout leaves, but not identity or absent values", () => {
     const element: PowerShowElement = {
       type: "text",
@@ -196,6 +240,26 @@ describe("getSelectableElementProperties", () => {
     expect(result["layout.children.direction"]).toBeDefined();
     expect(result["layout.children.gap"].defaultSelected).toBe(true);
     expect(result["layout.children.horizontalAlign"]).toBeDefined();
+  });
+
+  it("keeps Container Fit atomic with a compact display value", () => {
+    const result = properties({
+      type: "container",
+      id: "container-fit",
+      hidden: false,
+      layout: {
+        children: {
+          fit: { mode: "contain", sourceWidth: 800, sourceHeight: 400 },
+        },
+      },
+      children: [],
+    });
+
+    expect(result["layout.children.fit"]?.kind).toBe("atomic-object");
+    expect(result["layout.children.fit"]?.displayValue).toBe("contain · 800 × 400");
+    expect(result["layout.children.fit.mode"]).toBeUndefined();
+    expect(result["layout.children.fit.sourceWidth"]).toBeUndefined();
+    expect(result["layout.children.fit.sourceHeight"]).toBeUndefined();
   });
 
   it("keeps intrinsic arrays as one unchecked payload unit", () => {

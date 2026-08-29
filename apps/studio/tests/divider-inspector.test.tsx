@@ -382,6 +382,7 @@ describe("ElementInspector dispatcher for Divider", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
+            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}

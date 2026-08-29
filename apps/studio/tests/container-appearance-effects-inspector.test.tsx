@@ -49,6 +49,7 @@ describe("Container canonical appearance and effects inspector", () => {
             updates.push(state);
             renderInspector();
           }}
+          onContainerFitModeChange={() => true}
         />
       </StudioI18nProvider>,
     );

@@ -9,6 +9,8 @@ import styles from "./presenter-view.module.css";
 export interface PresenterSlideListProps {
   presentation: Presentation;
   desiredPageIndex: number | null;
+  navigationDisabled: boolean;
+  onNavigate(index: number): void;
 }
 
 function slideLabel(slide: Presentation["slides"][number], index: number): string {
@@ -16,15 +18,17 @@ function slideLabel(slide: Presentation["slides"][number], index: number): strin
 }
 
 /**
- * Read-only ordered slide summary for the Control's desired current slide.
+ * Ordered slide summary for the Control's desired current slide.
  *
  * Highlights the desired slide (presentation.slides[desiredPageIndex]) and
- * does nothing else: it does not navigate on click, send Live commands, own
- * Live state, or render slide previews.
+ * delegates navigation to its owning Presenter. It does not own Live state,
+ * send Live commands, or render slide previews.
  */
 export function PresenterSlideList({
   presentation,
   desiredPageIndex,
+  navigationDisabled,
+  onNavigate,
 }: PresenterSlideListProps) {
   return (
     <ol className={styles.slideList}>
@@ -34,14 +38,21 @@ export function PresenterSlideList({
         return (
           <li
             key={slide.id}
-            aria-current={isCurrent ? "step" : undefined}
             className={`${styles.slideListItem}${isCurrent ? ` ${styles.slideListItemCurrent}` : ""}`}
           >
-            <span className={styles.slideNumber}>{index + 1}</span>
-            <HoverScrollText
-              className={styles.slideTitle}
-              text={slideLabel(slide, index)}
-            />
+            <button
+              type="button"
+              className={styles.slideListButton}
+              disabled={navigationDisabled}
+              onClick={() => onNavigate(index)}
+              aria-current={isCurrent ? "step" : undefined}
+            >
+              <span className={styles.slideNumber}>{index + 1}</span>
+              <HoverScrollText
+                className={styles.slideTitle}
+                text={slideLabel(slide, index)}
+              />
+            </button>
           </li>
         );
       })}

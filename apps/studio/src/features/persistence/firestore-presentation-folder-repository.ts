@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   orderBy,
@@ -130,6 +131,22 @@ export class FirestorePresentationFolderRepository
 
       throw new FirestoreOperationError(
         `Failed to rename presentation folder "${id}".`,
+        error,
+      );
+    }
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    const user = this.requireAuthenticatedUser();
+    const documentRef = folderDocumentRef(user.uid, id);
+
+    try {
+      await deleteDoc(documentRef);
+    } catch (error) {
+      console.error(`Failed to delete presentation folder "${id}"`, error);
+
+      throw new FirestoreOperationError(
+        `Failed to delete presentation folder "${id}".`,
         error,
       );
     }

@@ -684,6 +684,59 @@ describe("LiveControl", () => {
     expect(h.views.at(-1)?.status).toEqual({ kind: "syncing" });
   });
 
+  it("goTo enters the existing coalesced navigation path", async () => {
+    vi.useFakeTimers();
+    const h = createHarness();
+    h.control.handlePlayerState(playerState());
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-c",
+    });
+
+    h.control.goTo(2);
+    h.advance(COALESCE_DELAY_MS);
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(2);
+  });
+
+  it("goTo fails closed before a baseline, for invalid targets, and for the current target", () => {
+    vi.useFakeTimers();
+    const h = createHarness();
+
+    h.control.goTo(2);
+    h.control.handlePlayerState(playerState());
+    h.control.goTo(-1);
+    h.control.goTo(99);
+    h.control.goTo(0);
+    h.advance(COALESCE_DELAY_MS);
+
+    expect(h.writeControlState).not.toHaveBeenCalled();
+  });
+
+  it("coalesces rapid direct targets to the latest target", async () => {
+    vi.useFakeTimers();
+    const h = createHarness();
+    h.control.handlePlayerState(playerState());
+    h.writeControlState.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+      pageId: "page-d",
+    });
+
+    h.control.goTo(1);
+    h.control.goTo(3);
+    h.advance(COALESCE_DELAY_MS);
+    await Promise.resolve();
+
+    expect(h.writeControlState).toHaveBeenCalledTimes(1);
+    expect(h.writeControlState).toHaveBeenLastCalledWith(3);
+  });
+
   it("measures latency on the matching Player confirmation", async () => {
     vi.useFakeTimers();
     const h = createHarness();

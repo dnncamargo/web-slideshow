@@ -65,6 +65,7 @@ describe("Gradient Border authoring", () => {
       <StudioI18nProvider>
         <ContainerInspector
           element={state as ContainerElement}
+          onContainerFitModeChange={() => true}
           onUpdate={(update) => {
             const next = update(state);
             if (next.type !== "container") return;
@@ -350,6 +351,52 @@ describe("Gradient Border authoring", () => {
     ]);
   });
 
+  it("13a. gradient stops expose semantic groups for color, position, and actions", async () => {
+    await act(async () =>
+      mount(
+        containerElement({
+          style: { border: { width: 1, style: "solid", gradient: DEFAULT_BORDER_GRADIENT } },
+        }),
+      ),
+    );
+
+    const stopGroups = host.querySelectorAll('[role="group"]');
+    expect(stopGroups).toHaveLength(2);
+
+    stopGroups.forEach((stopGroup, index) => {
+      const stopLabelId = stopGroup.getAttribute("aria-labelledby");
+      const stopLabel = stopLabelId
+        ? stopGroup.querySelector(`#${stopLabelId}`)
+        : null;
+      const colorInput = stopGroup.querySelector(
+        `#container-border-gradient-stop-${index}-color`,
+      );
+      const positionInput = stopGroup.querySelector(
+        `#container-border-gradient-stop-${index}-position`,
+      );
+      const colorArea = colorInput
+        ? stopGroup.querySelector(`label[for="${colorInput.id}"]`)
+        : null;
+      const positionArea = positionInput?.closest("label");
+
+      expect(stopLabelId).not.toBeNull();
+      expect(stopLabel).not.toBeNull();
+      expect(stopLabel?.textContent).toBe(`Stop ${index + 1}`);
+      expect(colorArea).not.toBeNull();
+      expect(colorInput).not.toBeNull();
+      expect(colorArea?.getAttribute("for")).toBe(colorInput?.id);
+      expect(colorInput?.closest("label")).toBeNull();
+      expect(positionArea).not.toBeNull();
+      expect(positionInput).not.toBeNull();
+      expect(stopGroup.querySelector(`#container-border-gradient-stop-${index}-remove`)).not.toBeNull();
+      expect(
+        stopGroup.querySelector<HTMLButtonElement>(
+          `#container-border-gradient-stop-${index}-remove`,
+        )?.disabled,
+      ).toBe(true);
+    });
+  });
+
   it("14. add stop inserts at the midpoint of the largest gap", async () => {
     await act(async () =>
       mount(
@@ -369,6 +416,15 @@ describe("Gradient Border authoring", () => {
       { color: "#7c3aed", position: 0 },
       { color: "#7c3aed", position: 50 },
       { color: "#06b6d4", position: 100 },
+    ]);
+    expect(host.querySelectorAll('[role="group"]')).toHaveLength(3);
+    expect(Array.from(host.querySelectorAll('[role="group"][aria-labelledby]')).map((group) => {
+      const labelId = group.getAttribute("aria-labelledby");
+      return labelId ? group.querySelector(`#${labelId}`)?.textContent : undefined;
+    })).toEqual([
+      "Stop 1",
+      "Stop 2",
+      "Stop 3",
     ]);
   });
 

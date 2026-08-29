@@ -27,6 +27,7 @@ import type {
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
+import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 
@@ -34,6 +35,8 @@ interface ElementInspectorProps {
   element: PowerShowElement;
 
   onUpdate: ElementInspectorUpdate;
+
+  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
   fontResources: readonly FontResource[];
 
@@ -77,6 +80,7 @@ interface ElementTypeInspectorProps extends ElementInspectorProps {
 function ElementTypeInspector({
   element,
   onUpdate,
+  onContainerFitModeChange,
   fontResources,
   presentation,
   preserveImageProportion,
@@ -98,6 +102,7 @@ function ElementTypeInspector({
         <ContainerInspector
           element={element}
           onUpdate={onUpdate}
+          onContainerFitModeChange={onContainerFitModeChange}
           parent={parent}
           layerControls={layerControls}
         />
@@ -212,6 +217,7 @@ function ElementTypeInspector({
 export function ElementInspector({
   element,
   onUpdate,
+  onContainerFitModeChange,
   fontResources,
   presentation,
   preserveImageProportion,
@@ -255,6 +261,7 @@ export function ElementInspector({
       <ElementTypeInspector
         element={element}
         onUpdate={onUpdate}
+        onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}
         presentation={presentation}
         preserveImageProportion={preserveImageProportion}

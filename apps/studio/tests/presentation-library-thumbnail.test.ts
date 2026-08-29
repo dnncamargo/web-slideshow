@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveLogicalSlideSize } from "@powershow/renderer";
+
 import { deriveThumbnailPreview } from "../src/features/persistence/presentation-persistence";
 import {
   computeThumbnailScale,
-  THUMBNAIL_LOGICAL_HEIGHT_16_9,
-  THUMBNAIL_LOGICAL_HEIGHT_4_3,
-  THUMBNAIL_LOGICAL_WIDTH,
   thumbnailLogicalHeight,
 } from "../src/features/library/presentation-thumbnail-geometry";
 
@@ -128,42 +127,48 @@ describe("deriveThumbnailPreview", () => {
 
 describe("presentation-thumbnail-geometry", () => {
   it("exposes the 16:9 logical canvas height", () => {
-    expect(thumbnailLogicalHeight("16:9")).toBe(THUMBNAIL_LOGICAL_HEIGHT_16_9);
-    expect(THUMBNAIL_LOGICAL_HEIGHT_16_9).toBe(THUMBNAIL_LOGICAL_WIDTH * (9 / 16));
+    const logicalSize = resolveLogicalSlideSize("16:9");
+
+    expect(thumbnailLogicalHeight("16:9")).toBe(logicalSize.logicalHeight);
+    expect(logicalSize).toEqual({ logicalWidth: 960, logicalHeight: 540 });
   });
 
   it("exposes the 4:3 logical canvas height", () => {
-    expect(thumbnailLogicalHeight("4:3")).toBe(THUMBNAIL_LOGICAL_HEIGHT_4_3);
-    expect(THUMBNAIL_LOGICAL_HEIGHT_4_3).toBe(THUMBNAIL_LOGICAL_WIDTH * (3 / 4));
+    const logicalSize = resolveLogicalSlideSize("4:3");
+
+    expect(thumbnailLogicalHeight("4:3")).toBe(logicalSize.logicalHeight);
+    expect(logicalSize).toEqual({ logicalWidth: 960, logicalHeight: 720 });
   });
 
   it("fits a 16:9 logical canvas exactly inside a 16:9 host", () => {
     const hostWidth = 112;
     const hostHeight = hostWidth * (9 / 16);
+    const logicalSize = resolveLogicalSlideSize("16:9");
     const scale = computeThumbnailScale(
       hostWidth,
       hostHeight,
-      THUMBNAIL_LOGICAL_WIDTH,
-      THUMBNAIL_LOGICAL_HEIGHT_16_9,
+      logicalSize.logicalWidth,
+      logicalSize.logicalHeight,
     );
 
-    expect(scale).toBeCloseTo(hostWidth / THUMBNAIL_LOGICAL_WIDTH);
-    expect(THUMBNAIL_LOGICAL_WIDTH * scale).toBeCloseTo(hostWidth);
-    expect(THUMBNAIL_LOGICAL_HEIGHT_16_9 * scale).toBeCloseTo(hostHeight);
+    expect(scale).toBeCloseTo(hostWidth / logicalSize.logicalWidth);
+    expect(logicalSize.logicalWidth * scale).toBeCloseTo(hostWidth);
+    expect(logicalSize.logicalHeight * scale).toBeCloseTo(hostHeight);
   });
 
   it("preserves 4:3 ratio with horizontal letterboxing in a 16:9 host", () => {
     const hostWidth = 112;
     const hostHeight = hostWidth * (9 / 16);
+    const logicalSize = resolveLogicalSlideSize("4:3");
     const scale = computeThumbnailScale(
       hostWidth,
       hostHeight,
-      THUMBNAIL_LOGICAL_WIDTH,
-      THUMBNAIL_LOGICAL_HEIGHT_4_3,
+      logicalSize.logicalWidth,
+      logicalSize.logicalHeight,
     );
 
-    const scaledWidth = THUMBNAIL_LOGICAL_WIDTH * scale;
-    const scaledHeight = THUMBNAIL_LOGICAL_HEIGHT_4_3 * scale;
+    const scaledWidth = logicalSize.logicalWidth * scale;
+    const scaledHeight = logicalSize.logicalHeight * scale;
 
     // Fits entirely inside the host without stretching.
     expect(scaledWidth).toBeLessThanOrEqual(hostWidth);
@@ -176,21 +181,22 @@ describe("presentation-thumbnail-geometry", () => {
   });
 
   it("changes the computed scale when the host width changes", () => {
+    const logicalSize = resolveLogicalSlideSize("16:9");
     const desktop = computeThumbnailScale(
       112,
       63,
-      THUMBNAIL_LOGICAL_WIDTH,
-      THUMBNAIL_LOGICAL_HEIGHT_16_9,
+      logicalSize.logicalWidth,
+      logicalSize.logicalHeight,
     );
     const mobile = computeThumbnailScale(
       86,
       86 * (9 / 16),
-      THUMBNAIL_LOGICAL_WIDTH,
-      THUMBNAIL_LOGICAL_HEIGHT_16_9,
+      logicalSize.logicalWidth,
+      logicalSize.logicalHeight,
     );
 
     expect(mobile).toBeLessThan(desktop);
-    expect(mobile).toBeCloseTo(86 / THUMBNAIL_LOGICAL_WIDTH);
+    expect(mobile).toBeCloseTo(86 / logicalSize.logicalWidth);
   });
 
   it("returns zero for non-positive or non-finite dimensions", () => {

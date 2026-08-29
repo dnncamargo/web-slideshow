@@ -276,38 +276,87 @@
   font-weight: 600;
 }
 
+.workspaceFolderTitle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspaceFolderTitle:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.workspaceFolderTitle:focus-visible,
+.workspaceFolderRenameInput:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 3px;
+}
+
+.workspaceFolderRenameInput {
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  min-width: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font: inherit;
+}
+
+.workspaceFolderRenameError {
+  margin: 5px 0 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .toolbar {
   display: grid;
   min-width: 0;
   flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
 }
 
-/* LEFT: intentionally empty breathing space. */
-.toolbarLeft {
-  min-width: 0;
-}
-
-/* CENTER: selected presentation context, geometrically centered by the
-   symmetric outer grid tracks. */
+/* CONTEXT: selected presentation title and fixed local actions. */
 .toolbarCenter {
   display: flex;
   min-width: 0;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
 .toolbarContext {
   display: flex;
+  width: 100%;
   min-width: 0;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 8px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.toolbarLocalActions {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: max-content;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .toolbarSelection {
+
   min-width: 0;
   max-width: 240px;
   overflow: hidden;
@@ -321,11 +370,13 @@
 /* RIGHT: global management actions, right-aligned in the final track. */
 .toolbarRight {
   display: flex;
+  flex: 0 0 auto;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .workspaceBody {
@@ -884,7 +935,7 @@
 @media (max-width: 760px) {
   /* ==========================================================
      STUDIO MOBILE TOPBAR
-     row 1: PowerShow Studio + Locale
+     row 1: PowerShow Library + Locale
      row 2: user + Sign out
      ========================================================== */
   .libraryTopbar {
@@ -977,7 +1028,6 @@
     align-items: stretch;
     gap: 8px;
   }
-  .toolbarLeft { display: none; }
   .toolbarCenter { justify-content: flex-start; }
   .toolbarContext { justify-content: flex-start; flex-wrap: wrap; }
   .toolbarRight { justify-content: flex-start; }

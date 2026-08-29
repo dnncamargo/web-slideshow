@@ -139,8 +139,11 @@ function renderToolbar(
         deletingId={null}
         transferBusy={false}
         newFolderDisabled={false}
+        folderDestination={false}
+        folderDeleteDisabled={false}
         onNew={vi.fn()}
         onNewFolder={vi.fn()}
+        onDeleteFolder={vi.fn()}
         onEdit={vi.fn()}
         onPresent={vi.fn()}
         onControl={vi.fn()}
@@ -309,6 +312,7 @@ function emptyFolderRepository(): PresentationFolderRepository {
     listFolders: vi.fn(async () => []),
     createFolder: vi.fn(async () => "folder-new"),
     renameFolder: vi.fn(async () => {}),
+    deleteFolder: vi.fn(async () => {}),
   };
 }
 

@@ -9,10 +9,12 @@ import styles from "../../editor-workspace.module.css";
 
 import {
   shouldShowContainerLayerControls,
+  shouldShowContainerPreserveSize,
   type ContainerPositionEdge,
   type UpdateContainer,
   updateContainerPositionEdge,
   updateContainerPositionMode,
+  updateContainerPreserveSize,
 } from "../container-inspector-helpers";
 
 import { readAbsoluteNumber, parseOptionalNumber } from "../inspector-helpers";
@@ -53,6 +55,7 @@ export function ContainerPositionSection({
       isAbsolute,
       parent?.layout?.children?.mode,
     );
+  const showPreserveSize = shouldShowContainerPreserveSize(element, parent);
 
   function updateEdge(edge: ContainerPositionEdge, value: Length | undefined) {
     onUpdate((container) => updateContainerPositionEdge(container, edge, value));
@@ -104,6 +107,26 @@ export function ContainerPositionSection({
             </label>
           ))}
         </div>
+      )}
+
+      {showPreserveSize && (
+        <label className={styles.checkboxRow}>
+          <span title={t("inspector.preserveSizeHelp")}>
+            {t("inspector.preserveSize")}
+          </span>
+
+          <input
+            id="container-preserve-size"
+            name="containerPreserveSize"
+            type="checkbox"
+            checked={element.layout?.flexShrink === 0}
+            onChange={(event) => {
+              onUpdate((container) =>
+                updateContainerPreserveSize(container, event.target.checked),
+              );
+            }}
+          />
+        </label>
       )}
 
       {showLayerControls && layerControls !== null && (

@@ -284,6 +284,7 @@ describe("Text Inspector typography style attachment", () => {
           element={current}
           presentation={activePresentation}
           onUpdate={(update) => { current = update(current) as TextElement; }}
+          onContainerFitModeChange={() => true}
           fontResources={fonts}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}

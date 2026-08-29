@@ -31,6 +31,24 @@ export interface SlideAck {
   pageIndex: number;
 }
 
+export interface FullscreenRequest {
+  activationRevision: number;
+  currentVersionId: string;
+  revision: number;
+}
+
+export function buildFullscreenRequestPath(): string {
+  return "live/fullscreenRequest";
+}
+
+export function buildFullscreenRequest(
+  activationRevision: number,
+  currentVersionId: string,
+  revision: number,
+): FullscreenRequest {
+  return { activationRevision, currentVersionId, revision };
+}
+
 export function buildSlideCommandPath(): string {
   return "live/slideCommand";
 }

@@ -13,8 +13,6 @@ import type { DragEvent } from "react";
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
-import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
-import type { CustomLibraryApplyOutcome } from "@/features/custom-library/custom-library-apply-picker";
 
 import styles from "./editor-workspace.module.css";
 import { ElementPropertiesPanel } from "./element-properties-panel";
@@ -40,7 +38,7 @@ interface ElementTreePanelProps {
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
   customLibraryRepository?: CustomLibraryRepository;
-  onApplyCustomLibraryItem?: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
+  onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
 }
@@ -473,7 +471,7 @@ export function ElementTreePanel({
   onSelectElement,
   onMoveElement,
   customLibraryRepository,
-  onApplyCustomLibraryItem = () => ({ ok: true }),
+  onBrowseElementStyles,
   palette,
   fontResources,
 }: ElementTreePanelProps) {
@@ -700,7 +698,7 @@ export function ElementTreePanel({
         selectedElement={selectedElement}
         isStructuralTopicSelection={isStructuralTopicRow}
         customLibraryRepository={customLibraryRepository}
-        onApplyCustomLibraryItem={onApplyCustomLibraryItem}
+        onBrowseElementStyles={onBrowseElementStyles}
         palette={palette}
         fontResources={fontResources}
       />

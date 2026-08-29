@@ -23,6 +23,13 @@
   background: #0b0f17;
 }
 
+.previewSurface {
+  position: absolute;
+  inset: 0 auto auto 0;
+
+  transform-origin: 0 0;
+}
+
 .previewCurrent {
   width: 100%;
   max-width: 960px;
@@ -385,6 +392,18 @@
 .slideListItem,
 .slideListItemCurrent {
   width: 100%;
+}
+
+.slideListItem {
+  background: transparent;
+}
+
+.slideListItemCurrent {
+  background: #24213d;
+}
+
+.slideListButton {
+  width: 100%;
 
   display: grid;
 
@@ -405,18 +424,31 @@
 
   border-radius: 8px;
 
-  color: #cbd5e1;
-
-  text-align: left;
-}
-
-.slideListItem {
   background: transparent;
+  color: #cbd5e1;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.slideListItemCurrent {
+.slideListItemCurrent .slideListButton {
   border-color: #4f46e5;
   background: #24213d;
+}
+
+.slideListButton:hover:not(:disabled) {
+  border-color: #475569;
+  background: #151b26;
+}
+
+.slideListButton:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+.slideListButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .slideNumber {

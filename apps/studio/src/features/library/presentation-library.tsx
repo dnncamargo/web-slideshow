@@ -34,7 +34,10 @@ import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-
 import { getDefaultCustomLibraryFontRepository } from "../persistence/custom-library-font-repository-instance";
 import type { PresentationRepository } from "../persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
-import type { PresentationFolder } from "../persistence/presentation-folder";
+import {
+  normalizeFolderName,
+  type PresentationFolder,
+} from "../persistence/presentation-folder";
 import type { PresentationSummary } from "../persistence/presentation-persistence";
 import type {
   CustomLibraryItemRecord,
@@ -73,6 +76,7 @@ import { PresentationDetails } from "./presentation-details";
 import { PresentationToolbar } from "./presentation-toolbar";
 import { StudioSidebar } from "./studio-sidebar";
 import { DeletePresentationDialog } from "./delete-presentation-dialog";
+import { DeleteFolderDialog } from "./delete-folder-dialog";
 import { CustomLibraryBrowser } from "../custom-library/custom-library-browser";
 import { CustomLibraryDetails } from "../custom-library/custom-library-details";
 import { CustomLibraryDeleteDialog } from "../custom-library/custom-library-delete-dialog";
@@ -205,6 +209,13 @@ export function PresentationLibrary({
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [deleteFolderTargetId, setDeleteFolderTargetId] = useState<string | null>(null);
+  const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
+  const [deleteFolderError, setDeleteFolderError] = useState<string | null>(null);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingFolderValue, setRenamingFolderValue] = useState("");
+  const [renamingFolderSaving, setRenamingFolderSaving] = useState(false);
+  const [folderRenameError, setFolderRenameError] = useState<string | null>(null);
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -222,6 +233,7 @@ export function PresentationLibrary({
   const customLibraryFontDeleteRef = useRef(false);
   const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const folderRenameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -369,6 +381,10 @@ export function PresentationLibrary({
   const handleDestinationChange = useCallback((next: LibraryDestination) => {
     setDestination(next);
     setSelectedId(null);
+    setRenamingFolderId(null);
+    setRenamingFolderValue("");
+    setRenamingFolderSaving(false);
+    setFolderRenameError(null);
     setSelectedCustomLibraryItemId(null);
     setCustomLibraryDeleteTargetId(null);
     setSelectedCustomLibraryPaletteId(null);
@@ -1013,6 +1029,145 @@ export function PresentationLibrary({
     [creatingFolder, folderRepository, t],
   );
 
+  const handleStartFolderRename = useCallback((folder: PresentationFolder) => {
+    setRenamingFolderId(folder.id);
+    setRenamingFolderValue(folder.name);
+    setRenamingFolderSaving(false);
+    setFolderRenameError(null);
+  }, []);
+
+  useEffect(() => {
+    if (renamingFolderId === null) return;
+
+    const input = folderRenameInputRef.current;
+    input?.focus();
+    input?.select();
+  }, [renamingFolderId]);
+
+  const handleCancelFolderRename = useCallback(() => {
+    if (renamingFolderSaving) return;
+
+    setRenamingFolderId(null);
+    setRenamingFolderValue("");
+    setFolderRenameError(null);
+  }, [renamingFolderSaving]);
+
+  const handleCommitFolderRename = useCallback(async () => {
+    if (renamingFolderId === null || renamingFolderSaving) return;
+
+    const currentFolder = folders.find((folder) => folder.id === renamingFolderId);
+    if (!currentFolder) return;
+
+    const normalizedName = normalizeFolderName(renamingFolderValue);
+    if (normalizedName === currentFolder.name) {
+      setRenamingFolderId(null);
+      setRenamingFolderValue("");
+      setFolderRenameError(null);
+      return;
+    }
+
+    setRenamingFolderSaving(true);
+    setFolderRenameError(null);
+
+    try {
+      await folderRepository.renameFolder(currentFolder.id, normalizedName);
+
+      if (!mountedRef.current) return;
+
+      setFolders((current) =>
+        current.map((folder) =>
+          folder.id === currentFolder.id
+            ? { ...folder, name: normalizedName }
+            : folder,
+        ),
+      );
+      setRenamingFolderId(null);
+      setRenamingFolderValue("");
+    } catch (error) {
+      console.error("Library: could not rename folder", error);
+      if (mountedRef.current) setFolderRenameError(t("library.folderRenameFailed"));
+    } finally {
+      if (mountedRef.current) setRenamingFolderSaving(false);
+    }
+  }, [folderRepository, folders, renamingFolderId, renamingFolderSaving, renamingFolderValue, t]);
+
+  const handleRequestDeleteFolder = useCallback(() => {
+    if (!isFolderDestination(destination) || renamingFolderId !== null || deletingFolderId !== null) {
+      return;
+    }
+
+    if (!folders.some((folder) => folder.id === destination.folderId)) return;
+
+    setDeleteFolderTargetId(destination.folderId);
+    setDeleteFolderError(null);
+  }, [deletingFolderId, destination, folders, renamingFolderId]);
+
+  const handleCancelDeleteFolder = useCallback(() => {
+    if (deletingFolderId !== null) return;
+
+    setDeleteFolderTargetId(null);
+    setDeleteFolderError(null);
+  }, [deletingFolderId]);
+
+  const handleConfirmDeleteFolder = useCallback(async () => {
+    if (deleteFolderTargetId === null || deletingFolderId !== null) return;
+
+    const folderId = deleteFolderTargetId;
+    setDeletingFolderId(folderId);
+    setDeleteFolderError(null);
+
+    try {
+      const authoritativeSummaries = await repository.listPresentations({
+        includeArchived: true,
+      });
+      const members = authoritativeSummaries.filter(
+        (summary) => summary.folderId === folderId,
+      );
+
+      for (const summary of members) {
+        await repository.movePresentationToFolder(summary.id, null);
+      }
+
+      await folderRepository.deleteFolder(folderId);
+
+      if (!mountedRef.current) return;
+
+      let items = authoritativeSummaries.map((summary) =>
+        summary.folderId === folderId ? { ...summary, folderId: null } : summary,
+      );
+      try {
+        items = await repository.listPresentations({ includeArchived: true });
+      } catch (refreshError) {
+        console.error("Library: could not refresh presentations after folder deletion", refreshError);
+      }
+      if (!mountedRef.current) return;
+
+      setSummaries(items);
+      setFolders((current) => current.filter((folder) => folder.id !== folderId));
+      setDestination("all");
+      setSelectedId(null);
+      setRenamingFolderId(null);
+      setRenamingFolderValue("");
+      setFolderRenameError(null);
+      setDeleteFolderTargetId(null);
+      setDeleteFolderError(null);
+    } catch (error) {
+      console.error("Library: could not delete folder", error);
+      if (mountedRef.current) {
+        try {
+          const items = await repository.listPresentations({ includeArchived: true });
+          if (mountedRef.current) setSummaries(items);
+        } catch (refreshError) {
+          console.error("Library: could not refresh presentations after folder deletion failure", refreshError);
+        }
+
+        if (mountedRef.current) setDeleteFolderError(t("library.folderDeleteFailed"));
+      }
+    } finally {
+      if (mountedRef.current) setDeletingFolderId(null);
+    }
+  }, [deleteFolderTargetId, deletingFolderId, folderRepository, repository, t]);
+
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
@@ -1021,6 +1176,11 @@ export function PresentationLibrary({
   const fontsDestination = destination === "fonts";
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const fontMutationPending = customLibraryFontWriteState !== null || deletingCustomLibraryFontId !== null;
+  const activeFolder = isFolderDestination(destination)
+    ? folders.find((folder) => folder.id === destination.folderId) ?? null
+    : null;
+  const deleteFolderTarget =
+    folders.find((folder) => folder.id === deleteFolderTargetId) ?? null;
   const visibleSummaries = useMemo(
     () => filterPresentationsByDestination(summaries, destination),
     [summaries, destination],
@@ -1036,7 +1196,7 @@ export function PresentationLibrary({
   return (
     <div className={styles.library}>
       <Topbar className={styles.libraryTopbar}>
-        <ProductSurfaceBrand surface="studio" />
+        <ProductSurfaceBrand surface="library" />
 
         <TopbarActions>
           {user?.displayName ?? user?.email ? (
@@ -1094,7 +1254,53 @@ export function PresentationLibrary({
               <p className={styles.eyebrow}>
                 {destinationSectionTitle(destination, t)}
               </p>
-              <h1>{destinationTitle(destination, t, folders)}</h1>
+              {activeFolder && renamingFolderId === activeFolder.id ? (
+                <>
+                  <h1>
+                    <input
+                      ref={folderRenameInputRef}
+                      className={styles.workspaceFolderRenameInput}
+                      type="text"
+                      value={renamingFolderValue}
+                      aria-label={t("library.folderNamePlaceholder")}
+                      aria-busy={renamingFolderSaving}
+                      readOnly={renamingFolderSaving}
+                      onChange={(event) => setRenamingFolderValue(event.target.value)}
+                      onBlur={() => void handleCommitFolderRename()}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCommitFolderRename();
+                        } else if (event.key === "Escape") {
+                          event.preventDefault();
+                          handleCancelFolderRename();
+                        }
+                      }}
+                    />
+                  </h1>
+                  {folderRenameError ? (
+                    <p className={styles.workspaceFolderRenameError} role="alert">
+                      {folderRenameError}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <h1>
+                  {activeFolder ? (
+                    <button
+                      type="button"
+                      className={styles.workspaceFolderTitle}
+                      title={activeFolder.name}
+                      aria-label={t("library.renameFolder", { name: activeFolder.name })}
+                      onClick={() => handleStartFolderRename(activeFolder)}
+                    >
+                      {activeFolder.name}
+                    </button>
+                  ) : (
+                    destinationTitle(destination, t, folders)
+                  )}
+                </h1>
+              )}
             </div>
             {presentationDestination ? (
               <PresentationToolbar
@@ -1107,8 +1313,13 @@ export function PresentationLibrary({
                 deletingId={deletingId}
                 transferBusy={transferBusy}
                 newFolderDisabled={newFolderOpen || creatingFolder}
+                folderDestination={activeFolder !== null}
+                folderDeleteDisabled={
+                  renamingFolderId !== null || deletingFolderId !== null
+                }
                 onNew={() => void handleNew()}
                 onNewFolder={handleOpenNewFolder}
+                onDeleteFolder={handleRequestDeleteFolder}
                 onEdit={handleOpen}
                 onPresent={(summary) => void handlePresent(summary)}
                 onControl={() => router.push(STUDIO_ROUTES.control)}
@@ -1341,6 +1552,16 @@ export function PresentationLibrary({
           error={deleteError}
           onCancel={handleCancelDelete}
           onConfirm={() => void handleConfirmDelete()}
+        />
+      ) : null}
+
+      {deleteFolderTarget ? (
+        <DeleteFolderDialog
+          folderName={deleteFolderTarget.name}
+          deleting={deletingFolderId !== null}
+          error={deleteFolderError}
+          onCancel={handleCancelDeleteFolder}
+          onConfirm={() => void handleConfirmDeleteFolder()}
         />
       ) : null}
 

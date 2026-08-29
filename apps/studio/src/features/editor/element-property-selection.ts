@@ -31,6 +31,7 @@ const atomicPaths = new Set([
   "style.border.color",
   "typography.textDecorationColor",
   "markerColor",
+  "layout.children.fit",
 ]);
 
 const normallyUnselectedRoots = new Set([
@@ -78,6 +79,13 @@ function formatAtomicValue(path: string, value: unknown): string {
     return `${value.x} ${value.y} ${value.blur}${typeof value.color === "string" ? ` · ${value.color}` : ""}`;
   }
 
+  if (path === "layout.children.fit" &&
+      typeof value.mode === "string" &&
+      typeof value.sourceWidth === "number" &&
+      typeof value.sourceHeight === "number") {
+    return `${value.mode} · ${value.sourceWidth} × ${value.sourceHeight}`;
+  }
+
   if (path.endsWith(".gradient") && typeof value.type === "string" &&
       Array.isArray(value.stops)) {
     return `${value.type} · ${value.stops.length} stops`;
@@ -119,7 +127,8 @@ export function getSelectableElementProperties(
     if (element.type === "container" && entry.path === "children") {
       return [];
     }
-    if ([...atomicPaths].some((path) => entry.path.startsWith(`${path}.`))) {
+    if ([...atomicPaths].some((path) =>
+      entry.path === path || entry.path.startsWith(`${path}.`))) {
       return [];
     }
     const kind = entry.displayValue.endsWith(" item") || entry.displayValue.endsWith(" items")

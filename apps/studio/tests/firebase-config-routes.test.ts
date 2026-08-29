@@ -27,6 +27,7 @@ describe("studio routing structure", () => {
   it("places the library under /studio/library and editor under /studio/editor", () => {
     expect(STUDIO_ROUTES.library).toBe("/studio/library");
     expect(STUDIO_ROUTES.editor).toBe("/studio/editor");
+    expect(STUDIO_ROUTES.control).toBe("/studio/control");
     expect(STUDIO_ROUTES.studio).toBe("/studio");
     expect(STUDIO_ROUTES.root).toBe("/");
   });

@@ -354,13 +354,57 @@ export function ElementGradientControl({
 
             const maximumPosition = nextStop?.position ?? MAX_STOP_POSITION;
 
+            const stopLabelId = `${controlPrefix}-gradient-stop-${index}-label`;
+
+            const colorInputId = `${controlPrefix}-gradient-stop-${index}-color`;
+
             return (
-              <div className={styles.gradientStopRow} key={index}>
-                <label className={styles.field}>
-                  <span>{t("inspector.gradientStopColor")}</span>
+              <div
+                className={styles.gradientStop}
+                key={index}
+                role="group"
+                aria-labelledby={stopLabelId}
+              >
+                <div className={styles.gradientStopHeader}>
+                  <span
+                    id={stopLabelId}
+                    className={styles.gradientStopLegend}
+                  >
+                    {t("inspector.gradientStop", { number: index + 1 })}
+                  </span>
+
+                  <button
+                    id={`${controlPrefix}-gradient-stop-${index}-remove`}
+                    className={styles.secondaryButton}
+                    type="button"
+                    disabled={gradient.stops.length <= MIN_GRADIENT_STOPS}
+                    onClick={() => {
+                      if (gradient.stops.length <= MIN_GRADIENT_STOPS) {
+                        return;
+                      }
+
+                      onChange(
+                        replaceStops(
+                          gradient,
+                          gradient.stops.filter(
+                            (_currentStop, currentIndex) =>
+                              currentIndex !== index,
+                          ),
+                        ),
+                      );
+                    }}
+                  >
+                    <span>{t("inspector.gradientRemoveStop")}</span>
+                  </button>
+                </div>
+
+                <div className={`${styles.field} ${styles.gradientStopColor}`}>
+                  <label htmlFor={colorInputId}>
+                    {t("inspector.gradientStopColor")}
+                  </label>
 
                   <ColorControl
-                    id={`${controlPrefix}-gradient-stop-${index}-color`}
+                    id={colorInputId}
                     name={getControlName(
                       controlPrefix,
                       `GradientStop${index}Color`,
@@ -374,9 +418,9 @@ export function ElementGradientControl({
                       }));
                     }}
                   />
-                </label>
+                </div>
 
-                <label className={styles.field}>
+                <label className={`${styles.field} ${styles.gradientStopPosition}`}>
                   <span>{t("inspector.gradientStopPosition")}</span>
 
                   <div className={styles.unitInput}>
@@ -416,30 +460,6 @@ export function ElementGradientControl({
                     <span>%</span>
                   </div>
                 </label>
-
-                <button
-                  id={`${controlPrefix}-gradient-stop-${index}-remove`}
-                  className={styles.secondaryButton}
-                  type="button"
-                  disabled={gradient.stops.length <= MIN_GRADIENT_STOPS}
-                  onClick={() => {
-                    if (gradient.stops.length <= MIN_GRADIENT_STOPS) {
-                      return;
-                    }
-
-                    onChange(
-                      replaceStops(
-                        gradient,
-                        gradient.stops.filter(
-                          (_currentStop, currentIndex) =>
-                            currentIndex !== index,
-                        ),
-                      ),
-                    );
-                  }}
-                >
-                  <span>{t("inspector.gradientRemoveStop")}</span>
-                </button>
               </div>
             );
           })}

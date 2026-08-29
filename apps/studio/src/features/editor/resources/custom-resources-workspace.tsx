@@ -9,6 +9,12 @@ import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 import { InspectorSection } from "@/features/editor/inspector/inspector-section";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
+import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
+import {
+  CustomLibraryApplyPicker,
+  type CustomLibraryApplyOutcome,
+} from "@/features/custom-library/custom-library-apply-picker";
+import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
 import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
@@ -27,12 +33,14 @@ import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, nor
 import styles from "./custom-resources-workspace.module.css";
 
 interface CustomResourcesWorkspaceProps {
+  customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
   presentationColors: readonly PresentationPaletteColor[];
   presentationFonts: readonly FontResource[];
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
+  onApplyElementStyle: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   onAddPresentationColor: (name: string, value: Color) => void;
   onUpdatePresentationColor: (id: string, patch: { name: string; value: Color }) => void;
   onRemovePresentationColor: (id: string) => void;
@@ -73,12 +81,14 @@ type FontLoadState =
 const PREVIEW_COLOR_LIMIT = 6;
 
 export function CustomResourcesWorkspace({
+  customLibraryRepository,
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   customLibraryFontRepository = getDefaultCustomLibraryFontRepository(),
   presentationColors,
   presentationFonts,
   onAddLibraryPalette,
   onAddLibraryFont,
+  onApplyElementStyle,
   onAddPresentationColor,
   onUpdatePresentationColor,
   onRemovePresentationColor,
@@ -163,6 +173,13 @@ export function CustomResourcesWorkspace({
       <div className={styles.content}>
         <section className={styles.scope} aria-labelledby="custom-resources-from-library">
           <h2 id="custom-resources-from-library" className={styles.sectionTitle}>{t("customResources.fromLibrary")}</h2>
+          <InspectorSection title={t("customResources.elementStyles")} defaultOpen>
+            <CustomLibraryApplyPicker
+              repository={customLibraryRepository}
+              onApply={onApplyElementStyle}
+              embedded
+            />
+          </InspectorSection>
           <InspectorSection title={t("customResources.palettes")} defaultOpen>
             <div className={styles.group}>
               <div className={styles.groupHeader}>

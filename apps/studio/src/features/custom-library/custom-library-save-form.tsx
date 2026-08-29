@@ -39,8 +39,11 @@ export function CustomLibrarySaveForm({
   const isActiveRef = useRef(true);
   const isSavingRef = useRef(false);
 
-  useEffect(() => () => {
-    isActiveRef.current = false;
+  useEffect(() => {
+    isActiveRef.current = true;
+    return () => {
+      isActiveRef.current = false;
+    };
   }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

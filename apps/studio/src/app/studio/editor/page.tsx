@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
+
 import { StudioEditorMount } from "@/features/editor/studio-editor-mount";
+
+export const metadata: Metadata = {
+  title: "PowerShow Editor",
+};
 
 interface StudioEditorPageProps {
   searchParams: Promise<{ id?: string | string[] }>;

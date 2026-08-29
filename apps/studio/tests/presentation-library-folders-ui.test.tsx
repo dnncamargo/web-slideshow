@@ -79,6 +79,8 @@ interface Harness {
   movePresentationToFolder: ReturnType<typeof vi.fn>;
   listFolders: ReturnType<typeof vi.fn>;
   createFolder: ReturnType<typeof vi.fn>;
+  renameFolder: ReturnType<typeof vi.fn>;
+  deleteFolder: ReturnType<typeof vi.fn>;
   getSummaries: () => PresentationSummary[];
   setSummaries: (next: PresentationSummary[]) => void;
   getFolders: () => PresentationFolder[];
@@ -146,11 +148,18 @@ function buildHarness(
 
   const listFolders = vi.fn(async () => folders);
   const createFolder = vi.fn(async () => "folder-created");
+  const renameFolder = vi.fn(async (id: string, name: string) => {
+    folders = folders.map((item) => item.id === id ? { ...item, name } : item);
+  });
+  const deleteFolder = vi.fn(async (id: string) => {
+    folders = folders.filter((item) => item.id !== id);
+  });
 
   const folderRepository: PresentationFolderRepository = {
     listFolders,
     createFolder,
-    renameFolder: vi.fn(async () => {}),
+    renameFolder,
+    deleteFolder,
   };
 
   return {
@@ -165,6 +174,8 @@ function buildHarness(
     movePresentationToFolder,
     listFolders,
     createFolder,
+    renameFolder,
+    deleteFolder,
     getSummaries: () => summaries,
     setSummaries: (next) => {
       summaries = next;
@@ -238,10 +249,109 @@ describe("presentation library folders workspace", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Aulas");
   });
 
+  it("enters inline folder rename with the current name selected", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+
+    const title = container.querySelector<HTMLButtonElement>("h1 button");
+    if (!title) throw new Error("expected workspace folder title");
+    act(() => title.click());
+
+    const input = container.querySelector<HTMLInputElement>("h1 input");
+    expect(input?.value).toBe("Alpha");
+    expect(document.activeElement).toBe(input);
+    expect(input?.selectionStart).toBe(0);
+    expect(input?.selectionEnd).toBe("Alpha".length);
+  });
+
+  it("renames the active folder by stable id and updates heading and sidebar", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    const title = container.querySelector<HTMLButtonElement>("h1 button");
+    if (!title) throw new Error("expected workspace folder title");
+    act(() => title.click());
+
+    const input = container.querySelector<HTMLInputElement>("h1 input");
+    if (!input) throw new Error("expected folder rename input");
+    act(() => setInputValue(input, "  Renamed  "));
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await flushWorkspaceEffects();
+
+    expect(harness.renameFolder).toHaveBeenCalledWith("folder-a", "Renamed");
+    expect(container.querySelector("h1")?.textContent).toBe("Renamed");
+    const renamedSidebarItem = buttonsWithText("Renamed")[0];
+    expect(renamedSidebarItem?.getAttribute("data-active")).toBe("true");
+  });
+
+  it("cancels folder rename with Escape without persisting", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    const title = container.querySelector<HTMLButtonElement>("h1 button");
+    if (!title) throw new Error("expected workspace folder title");
+    act(() => title.click());
+
+    const input = container.querySelector<HTMLInputElement>("h1 input");
+    if (!input) throw new Error("expected folder rename input");
+    act(() => setInputValue(input, "Cancelled"));
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(harness.renameFolder).not.toHaveBeenCalled();
+    expect(container.querySelector("h1")?.textContent).toBe("Alpha");
+  });
+
+  it("keeps the inline folder rename open with a localized error when saving fails", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Alpha")],
+    });
+    harness.renameFolder.mockRejectedValue(new Error("nope"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    const title = container.querySelector<HTMLButtonElement>("h1 button");
+    if (!title) throw new Error("expected workspace folder title");
+    act(() => title.click());
+
+    const input = container.querySelector<HTMLInputElement>("h1 input");
+    if (!input) throw new Error("expected folder rename input");
+    act(() => setInputValue(input, "Broken"));
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    await flushWorkspaceEffects();
+
+    expect(harness.renameFolder).toHaveBeenCalledWith("folder-a", "Broken");
+    expect(container.querySelector<HTMLInputElement>("h1 input")?.value).toBe("Broken");
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not rename folder.",
+    );
+    errorSpy.mockRestore();
+  });
+
   function buttonsWithText(text: string): HTMLButtonElement[] {
     return Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter(
       (button) => button.textContent === text,
     );
+  }
+
+  function sidebarButtonsWithText(text: string): HTMLButtonElement[] {
+    return buttonsWithText(text).filter((button) => button.hasAttribute("data-active"));
   }
 
   function clickButton(text: string) {
@@ -405,6 +515,110 @@ describe("presentation library folders workspace", () => {
     errorSpy.mockRestore();
   });
 
+  it("replaces New folder with Delete folder only inside a folder", async () => {
+    const harness = buildHarness({
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    expect(buttonsWithText("New folder")).toHaveLength(1);
+    expect(buttonsWithText("Delete folder")).toHaveLength(0);
+
+    clickButton("Alpha");
+
+    expect(buttonsWithText("New folder")).toHaveLength(0);
+    expect(buttonsWithText("Delete folder")).toHaveLength(1);
+  });
+
+  it("opens and cancels folder deletion without mutating presentations or the folder", async () => {
+    const harness = buildHarness({
+      summaries: [summary({ id: "one", folderId: "folder-a" })],
+      folders: [folder("folder-a", "Alpha")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    clickButton("Delete folder");
+
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Alpha");
+    const dialogCancel = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Cancel");
+    if (!dialogCancel) throw new Error("expected folder deletion cancel button");
+    act(() => dialogCancel.click());
+
+    expect(harness.deleteFolder).not.toHaveBeenCalled();
+    expect(harness.movePresentationToFolder).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("unassigns every folder member before deleting and preserves archived state", async () => {
+    const harness = buildHarness({
+      summaries: [
+        summary({ id: "active", folderId: "folder-a" }),
+        summary({ id: "archived", folderId: "folder-a", archived: true, archivedAt: "archived-ts" }),
+        summary({ id: "other", folderId: "folder-b" }),
+      ],
+      folders: [folder("folder-a", "Alpha"), folder("folder-b", "Beta")],
+    });
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    clickButton("Delete folder");
+    const dialogDelete = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Delete folder");
+    if (!dialogDelete) throw new Error("expected folder deletion confirm button");
+    await act(async () => {
+      dialogDelete.click();
+      await flushWorkspaceEffects();
+    });
+
+    expect(harness.listPresentations).toHaveBeenCalledWith({ includeArchived: true });
+    expect(harness.movePresentationToFolder).toHaveBeenCalledWith("active", null);
+    expect(harness.movePresentationToFolder).toHaveBeenCalledWith("archived", null);
+    expect(harness.movePresentationToFolder).toHaveBeenCalledTimes(2);
+    expect(harness.archivePresentation).not.toHaveBeenCalled();
+    expect(harness.restorePresentation).not.toHaveBeenCalled();
+    expect(harness.deleteArchivedPresentation).not.toHaveBeenCalled();
+    expect(harness.deleteFolder).toHaveBeenCalledWith("folder-a");
+    expect(harness.movePresentationToFolder.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      harness.deleteFolder.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("All");
+    expect(buttonsWithText("Alpha")).toHaveLength(0);
+    expect(container.textContent).toContain("Title active");
+    expect(container.textContent).not.toContain("Title archived");
+  });
+
+  it("keeps the folder when a member unassignment fails and allows retry", async () => {
+    const harness = buildHarness({
+      summaries: [summary({ id: "active", folderId: "folder-a" })],
+      folders: [folder("folder-a", "Alpha")],
+    });
+    harness.movePresentationToFolder.mockRejectedValueOnce(new Error("nope"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await renderLibrary(harness);
+    clickButton("Alpha");
+    clickButton("Delete folder");
+    const dialogDelete = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent === "Delete folder");
+    if (!dialogDelete) throw new Error("expected folder deletion confirm button");
+    await act(async () => {
+      dialogDelete.click();
+      await flushWorkspaceEffects();
+    });
+
+    expect(harness.deleteFolder).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not delete folder.",
+    );
+    errorSpy.mockRestore();
+  });
+
   it("opens the inline New folder editor from the global management action", async () => {
     const harness = buildHarness();
 
@@ -473,7 +687,7 @@ describe("presentation library folders workspace", () => {
 
     await submitInlineForm();
 
-    const physicsButtons = buttonsWithText("Physics");
+    const physicsButtons = sidebarButtonsWithText("Physics");
     expect(physicsButtons).toHaveLength(2);
     // The second folder carries the returned id and must be the active one,
     // proving navigation used the returned id rather than a name lookup.

@@ -800,6 +800,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
+            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}
@@ -836,6 +837,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
+            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}
@@ -863,6 +865,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
+            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}

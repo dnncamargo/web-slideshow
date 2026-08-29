@@ -107,6 +107,10 @@ export class LiveControl {
     this.requestTarget(baseIndex + 1);
   }
 
+  goTo(index: number): void {
+    this.requestTarget(index);
+  }
+
   /**
    * Create a new desired generation targeting the Player's actual page. Used
    * by the player-changed "Follow Player" action. Does not silently mutate the

@@ -489,6 +489,7 @@ describe("ElementInspector dispatcher for Embed", () => {
           <ElementInspector
             element={element}
             onUpdate={() => undefined}
+            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}

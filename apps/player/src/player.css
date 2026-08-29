@@ -60,7 +60,15 @@ button {
   z-index: 1;
 }
 
-.powershow-player-slide-host > .powershow-slide {
+.powershow-player-slide-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  transform-origin: 0 0;
+}
+
+.powershow-player-slide-surface > .powershow-slide {
   width: 100%;
   height: 100%;
 }
@@ -482,4 +490,26 @@ button {
   background: #000;
   color: #94a3b8;
   font-size: 14px;
+}
+
+.powershow-player-fullscreen-request {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 200;
+  transform: translateX(-50%);
+
+  padding: 10px 16px;
+
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+
+  cursor: pointer;
+}
+
+.powershow-player-fullscreen-request:hover {
+  background: rgba(30, 41, 59, 0.95);
 }

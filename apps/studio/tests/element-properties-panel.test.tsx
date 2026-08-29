@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FontResource, PowerShowElement } from "@powershow/document-schema";
 
@@ -22,6 +22,7 @@ function renderPanel(
   isStructuralTopicSelection = false,
   customLibraryRepository?: CustomLibraryRepository,
   fontResources?: readonly FontResource[],
+  onBrowseElementStyles: () => void = () => undefined,
 ): void {
   act(() => {
     root.render(
@@ -31,6 +32,7 @@ function renderPanel(
           isStructuralTopicSelection={isStructuralTopicSelection}
           customLibraryRepository={customLibraryRepository}
           fontResources={fontResources}
+          onBrowseElementStyles={onBrowseElementStyles}
         />
       </StudioI18nProvider>,
     );
@@ -142,6 +144,20 @@ describe("ElementPropertiesPanel", () => {
     expect(container.textContent).toContain("srchttps://example.com/logo.svg");
   });
 
+  it("exposes Save style and Browse styles actions without an embedded browser", () => {
+    const onBrowse = vi.fn();
+    renderPanel(root, textElement, false, undefined, undefined, onBrowse);
+
+    expect(container.querySelector("[data-custom-library-save]")?.textContent).toBe("Save style");
+    expect(container.querySelector("[data-custom-library-browse]")?.textContent).toBe("Browse styles…");
+    expect(container.querySelector("[data-custom-library-apply]")).toBeNull();
+    expect(container.querySelector<HTMLElement>("[title='content']")).not.toBeNull();
+    expect(container.querySelector("[class*='elementPropertiesList']")).not.toBeNull();
+
+    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-browse]")?.click());
+    expect(onBrowse).toHaveBeenCalledOnce();
+  });
+
   it("does not expose a Topics element as the selected ContentSlot", () => {
     renderPanel(
       root,
@@ -202,11 +218,11 @@ describe("ElementPropertiesPanel", () => {
   it("does not offer save for no selection or a structural content slot", () => {
     renderPanel(root, null);
     expect(container.querySelector("[data-custom-library-save]")).toBeNull();
-    expect(container.querySelector("[data-custom-library-apply]")).not.toBeNull();
+    expect(container.querySelector("[data-custom-library-browse]")).toBeNull();
 
     renderPanel(root, textElement, true);
     expect(container.querySelector("[data-custom-library-save]")).toBeNull();
-    expect(container.querySelector("[data-custom-library-apply]")).not.toBeNull();
+    expect(container.querySelector("[data-custom-library-browse]")).toBeNull();
   });
 
   it("opens, cancels, and resets the save form without saving", () => {
@@ -219,7 +235,7 @@ describe("ElementPropertiesPanel", () => {
     expect(container.querySelector("form")).not.toBeNull();
 
     act(() => {
-      container.querySelector<HTMLButtonElement>('button[type="button"]')?.click();
+      container.querySelector<HTMLButtonElement>('form button[type="button"]')?.click();
     });
     expect(container.querySelector("form")).toBeNull();
   });

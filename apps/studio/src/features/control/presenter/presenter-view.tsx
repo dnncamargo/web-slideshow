@@ -67,6 +67,18 @@ function useLocalClock(): string {
   });
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.matches("input, textarea, select, [contenteditable]") ||
+    target.closest("[contenteditable]") !== null ||
+    target.isContentEditable
+  );
+}
+
 export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
@@ -75,13 +87,15 @@ export interface PresenterViewProps {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  goTo(index: number): void;
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
+  requestFullscreen(): void;
   end(): void;
 }
 
 /**
- * Owns the /control presentation markup. Receives already-resolved Live and
+ * Owns the /studio/control presentation markup. Receives already-resolved Live and
  * published-presentation data from ControlPage.
  *
  * The slide counter uses the Control desired position (`presentationState
@@ -100,7 +114,7 @@ export interface PresenterViewProps {
  * local clock, Live sync/latency status and End action. The body contains the
  * slide summary, current preview and next preview + notes. Previous/Next,
  * Fullscreen and the desired slide counter belong to the control row below the
- * current slide. Fullscreen stays disabled until its protocol is implemented.
+ * current slide. Fullscreen sends an intent to the mounted Player.
  * There is no footer.
  */
 
@@ -112,8 +126,10 @@ export function PresenterView({
   failedPromotionVersionId,
   previous,
   next,
+  goTo,
   followPlayer,
   updatePlayer,
+  requestFullscreen,
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
@@ -187,6 +203,42 @@ export function PresenterView({
     displayIndex >= 0 &&
     presentation !== null &&
     displayIndex < presentation.slides.length - 1;
+
+  const navigationDisabled = pendingVersion !== null || disabled;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.repeat ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft" && canGoPrevious) {
+        event.preventDefault();
+        previous();
+      }
+
+      if (event.key === "ArrowRight" && canGoNext) {
+        event.preventDefault();
+        next();
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        end();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [canGoNext, canGoPrevious, end, next, previous]);
 
   const isPlayerChanged = view?.status.kind === "player-changed";
 
@@ -277,6 +329,8 @@ export function PresenterView({
             <PresenterSlideList
               presentation={presentation}
               desiredPageIndex={displayIndex}
+              navigationDisabled={navigationDisabled}
+              onNavigate={goTo}
             />
           )}
         </aside>
@@ -346,7 +400,8 @@ export function PresenterView({
             <button
               type="button"
               className={presenterStyles.fullscreenButton}
-              disabled
+              disabled={disabled}
+              onClick={requestFullscreen}
               aria-label={t("control.fullscreen")}
               title={t("control.fullscreen")}
             >

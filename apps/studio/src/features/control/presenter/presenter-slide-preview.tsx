@@ -1,8 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { renderSlide } from "@powershow/renderer";
+import {
+  fitLogicalSlideGeometry,
+  hydrateRendererRuntime,
+  paletteColorCssVariableName,
+  renderSlide,
+  resolveLogicalSlideSize,
+} from "@powershow/renderer";
 import type { Presentation, Slide } from "@powershow/document-schema";
 
 import styles from "./presenter-view.module.css";
@@ -33,15 +40,68 @@ export function PresenterSlidePreview({
     [presentation, slide],
   );
 
-  const ratio = aspectRatio === "4:3" ? "4 / 3" : "16 / 9";
+  const logicalSize = resolveLogicalSlideSize(aspectRatio);
+  const paletteStyle = Object.fromEntries(
+    (presentation.palette?.colors ?? []).map((color) => [
+      paletteColorCssVariableName(color.id),
+      color.value,
+    ]),
+  );
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const previewSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0);
   const previewClass =
     variant === "current" ? styles.previewCurrent : styles.previewNext;
 
+  useEffect(() => {
+    const preview = previewRef.current;
+
+    if (!preview) {
+      return;
+    }
+
+    const measure = () => {
+      const rect = preview.getBoundingClientRect();
+      setScale(
+        fitLogicalSlideGeometry(aspectRatio, rect.width, rect.height).scale,
+      );
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(preview);
+
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", measure);
+
+    return () => window.removeEventListener("resize", measure);
+  }, [aspectRatio]);
+
+  useEffect(() => {
+    if (previewSurfaceRef.current) hydrateRendererRuntime(previewSurfaceRef.current);
+  }, [markup]);
+
   return (
     <div
+      ref={previewRef}
       className={`${styles.preview} ${previewClass}`}
-      style={{ aspectRatio: ratio }}
-      dangerouslySetInnerHTML={{ __html: markup }}
-    />
+      style={{ aspectRatio: aspectRatio === "4:3" ? "4 / 3" : "16 / 9" }}
+    >
+      <div
+        ref={previewSurfaceRef}
+        className={styles.previewSurface}
+        style={{
+          width: logicalSize.logicalWidth,
+          height: logicalSize.logicalHeight,
+          transform: `scale(${scale})`,
+          ...paletteStyle,
+        } as CSSProperties}
+        dangerouslySetInnerHTML={{ __html: markup }}
+      />
+    </div>
   );
 }

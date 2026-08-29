@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { onValue, ref } from "firebase/database";
 
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
-import { writeControlState as writeLiveControlState } from "./control-command-writer";
+import {
+  writeControlState as writeLiveControlState,
+  writeFullscreenRequest,
+} from "./control-command-writer";
 import {
   promoteLivePresentationVersion,
   subscribeLiveCurrent,
@@ -27,8 +30,10 @@ export interface UseLiveSessionControlResult {
   failedPromotionVersionId: string | null;
   previous(): void;
   next(): void;
+  goTo(index: number): void;
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
+  requestFullscreen(): void;
 }
 
 export interface UseLiveSessionControlOptions {
@@ -206,6 +211,13 @@ export function useLiveSessionControl({
     control.next();
   }, []);
 
+  const goTo = useCallback((index: number) => {
+    const control = controlRef.current;
+    if (!control) return;
+    setSendFailed(false);
+    control.goTo(index);
+  }, []);
+
   const followPlayer = useCallback(() => {
     const control = controlRef.current;
     if (!control) return;
@@ -244,6 +256,22 @@ export function useLiveSessionControl({
     [liveState],
   );
 
+  const requestFullscreen = useCallback(() => {
+    if (liveState.kind !== "active") return;
+
+    const database = getRealtimeDatabaseOrNull();
+
+    if (!database) {
+      setSendFailed(true);
+      return;
+    }
+
+    void writeFullscreenRequest(database, liveState.live).catch((error: unknown) => {
+      console.error("Control: fullscreen request failed", error);
+      setSendFailed(true);
+    });
+  }, [liveState]);
+
   const attemptMatchesLive =
     promotionAttempt !== null &&
     liveState.kind === "active" &&
@@ -263,7 +291,9 @@ export function useLiveSessionControl({
         : null,
     previous,
     next,
+    goTo,
     followPlayer,
     updatePlayer,
+    requestFullscreen,
   };
 }

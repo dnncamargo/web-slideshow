@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
+  deleteDoc: vi.fn(),
   doc: vi.fn(),
   getDocs: vi.fn(),
   orderBy: vi.fn(),
@@ -29,6 +30,7 @@ import { InvalidFolderNameError } from "../src/features/persistence/persistence-
 
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   orderBy,
@@ -40,6 +42,7 @@ import { getFirebaseFirestore } from "../src/features/persistence/firebase-clien
 import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
 
 const mockedCollection = vi.mocked(collection);
+const mockedDeleteDoc = vi.mocked(deleteDoc);
 const mockedDoc = vi.mocked(doc);
 const mockedGetDocs = vi.mocked(getDocs);
 const mockedOrderBy = vi.mocked(orderBy);
@@ -159,6 +162,21 @@ describe("presentation folder repository", () => {
 
   it("rejects an invalid rename without writing", async () => {
     await expect(repository.renameFolder("folder-1", "")).rejects.toThrow(InvalidFolderNameError);
+    expect(mockedUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the exact private folder document", async () => {
+    await repository.deleteFolder("folder-1");
+
+    expect(mockedDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      "users",
+      "user-1",
+      "presentationFolders",
+      "folder-1",
+    );
+    expect(mockedDeleteDoc).toHaveBeenCalledWith({ id: "folder-1" });
+    expect(mockedSetDoc).not.toHaveBeenCalled();
     expect(mockedUpdateDoc).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   ref: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
   writeControlState: vi.fn(),
+  writeFullscreenRequest: vi.fn(),
 }));
 
 vi.mock("firebase/database", () => ({
@@ -24,6 +25,7 @@ vi.mock("../src/features/control/realtime-db", () => ({
 
 vi.mock("../src/features/control/control-command-writer", () => ({
   writeControlState: mocks.writeControlState,
+  writeFullscreenRequest: mocks.writeFullscreenRequest,
 }));
 
 vi.mock("../src/features/control/live-current", () => ({
@@ -84,6 +86,11 @@ describe("useLiveSessionControl hydration", () => {
       revision: 1,
       pageId: "page-b",
     });
+    mocks.writeFullscreenRequest.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+    });
     mocks.promoteLivePresentationVersion.mockResolvedValue(undefined);
     mocks.subscribeLiveCurrent.mockImplementation((next) => {
       next({
@@ -126,6 +133,7 @@ describe("useLiveSessionControl hydration", () => {
     document.body.innerHTML = "";
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("waits for both initial snapshots before exposing an enabled view when playerState arrives first", async () => {
@@ -232,5 +240,53 @@ describe("useLiveSessionControl hydration", () => {
       status: { kind: "awaiting-player" },
     });
     expect(mocks.writeControlState).not.toHaveBeenCalled();
+  });
+
+  it("exposes goTo through the existing live control writer", async () => {
+    vi.useFakeTimers();
+    const controlHandler = handlerFor("live/controlState");
+    const playerHandler = handlerFor("live/playerState");
+
+    await act(async () => {
+      controlHandler(snapshot(null));
+      playerHandler(
+        snapshot({
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          appliedControlRevision: 0,
+          pageId: "page-a",
+          pageIndex: 0,
+        }),
+      );
+    });
+
+    await act(async () => {
+      result?.goTo(2);
+      vi.advanceTimersByTime(75);
+      await Promise.resolve();
+    });
+
+    expect(mocks.writeControlState).toHaveBeenCalledWith(
+      {},
+      1,
+      "version-1",
+      "page-c",
+    );
+  });
+
+  it("exposes fullscreen requests through the dedicated writer", async () => {
+    await act(async () => {
+      result?.requestFullscreen();
+      await Promise.resolve();
+    });
+
+    expect(mocks.writeFullscreenRequest).toHaveBeenCalledWith(
+      {},
+      {
+        publicationId: "publication-1",
+        currentVersionId: "version-1",
+        revision: 1,
+      },
+    );
   });
 });

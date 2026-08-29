@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   PresentationSchema,
@@ -125,6 +125,8 @@ describe("single-line hover-scroll slide titles", () => {
         <PresenterSlideList
           presentation={createTitledPresentation()}
           desiredPageIndex={0}
+          navigationDisabled={false}
+          onNavigate={vi.fn()}
         />,
       );
     });
@@ -149,20 +151,27 @@ describe("single-line hover-scroll slide titles", () => {
     expect(untitledSlide?.getAttribute("title")).toBe("Slide 3");
   });
 
-  it("keeps the Control Summary read-only without navigation affordances", () => {
+  it("renders clickable Control Summary navigation affordances", () => {
+    const onNavigate = vi.fn();
+
     act(() => {
       root.render(
         <PresenterSlideList
           presentation={createTitledPresentation()}
           desiredPageIndex={1}
+          navigationDisabled={false}
+          onNavigate={onNavigate}
         />,
       );
     });
 
-    const interactive = container.querySelectorAll(
-      "button, a, input, [role='button']",
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("ol button"),
     );
-    expect(interactive.length).toBe(0);
+    expect(buttons).toHaveLength(3);
+
+    act(() => buttons[1]?.click());
+    expect(onNavigate).toHaveBeenCalledWith(1);
 
     const current = container.querySelector('[aria-current="step"]');
     expect(current).not.toBeNull();

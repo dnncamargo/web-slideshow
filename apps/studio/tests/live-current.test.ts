@@ -162,6 +162,7 @@ describe("live-current activation", () => {
       "activationRevision",
       "controlState",
       "current",
+      "fullscreenRequest",
       "playerState",
       "slideAck",
       "slideCommand",
@@ -172,6 +173,7 @@ describe("live-current activation", () => {
     expect(current.currentVersionId).toBe("ver-1");
     expect(committed.slideCommand).toBeNull();
     expect(committed.slideAck).toBeNull();
+    expect(committed.fullscreenRequest).toBeNull();
   });
 
   it("rejects when the activation transaction does not commit", async () => {
@@ -205,7 +207,7 @@ describe("live-current activation", () => {
     expect(committed.activationRevision).toBe(5);
   });
 
-  it("end clears current, controlState, playerState, slideCommand and slideAck but preserves activationRevision", async () => {
+  it("end clears current, controlState, playerState, fullscreenRequest, slideCommand and slideAck but preserves activationRevision", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
@@ -217,6 +219,7 @@ describe("live-current activation", () => {
         current: null,
         controlState: null,
         playerState: null,
+        fullscreenRequest: null,
         slideCommand: null,
         slideAck: null,
       },
@@ -241,6 +244,7 @@ describe("live-current activation", () => {
       playerState: { revision: 4 },
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
+      fullscreenRequest: { revision: 4 },
     };
     let committed: unknown;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -262,6 +266,7 @@ describe("live-current activation", () => {
       playerState: null,
       slideCommand: null,
       slideAck: null,
+      fullscreenRequest: null,
     });
   });
 
@@ -282,6 +287,7 @@ describe("live-current activation", () => {
       playerState: { revision: 4 },
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
+      fullscreenRequest: { revision: 4 },
     };
     let committed: unknown;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -308,6 +314,7 @@ describe("live-current activation", () => {
       playerState: null,
       slideCommand: null,
       slideAck: null,
+      fullscreenRequest: null,
     });
   });
 
@@ -384,6 +391,7 @@ describe("live-current activation", () => {
       playerState: null,
       slideCommand: { currentVersionId: "ver-2", revision: 1 },
       slideAck: { currentVersionId: "ver-2", revision: 1 },
+      fullscreenRequest: { currentVersionId: "ver-2", revision: 1 },
     };
     let updateResult: unknown = "not-called";
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {

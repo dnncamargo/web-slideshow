@@ -1,4 +1,5 @@
 import type { ContainerElement } from "@powershow/document-schema";
+import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -8,6 +9,7 @@ import {
   type UpdateContainer,
   updateContainerLayoutMode,
 } from "../container-inspector-helpers";
+import type { ContainerFitMode } from "../../container-fit-authoring";
 
 import { InspectorSection } from "../inspector-section";
 
@@ -17,6 +19,8 @@ type ContainerDirection = "row" | "column";
 
 type ContainerLayoutMode = "flow" | "stack";
 
+type ContainerOverflow = "visible" | "hidden" | "auto";
+
 type ContainerHorizontalAlign = "start" | "center" | "end" | "stretch";
 
 type ContainerVerticalAlign = "start" | "center" | "end" | "stretch";
@@ -25,6 +29,8 @@ interface ContainerLayoutSectionProps {
   element: ContainerElement;
 
   onUpdate: UpdateContainer;
+
+  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 }
 
 // ============================================================
@@ -34,8 +40,14 @@ interface ContainerLayoutSectionProps {
 export function ContainerLayoutSection({
   element,
   onUpdate,
+  onContainerFitModeChange,
 }: ContainerLayoutSectionProps) {
   const { t } = useStudioI18n();
+  const [fitError, setFitError] = useState(false);
+
+  useEffect(() => {
+    setFitError(false);
+  }, [element.id]);
 
   const hasDistributedMainAxis =
     (element.layout?.children?.distribution ?? "packed") !== "packed";
@@ -67,6 +79,60 @@ export function ContainerLayoutSection({
           <option value="flow">{t("inspector.flow")}</option>
 
           <option value="stack">{t("inspector.stack")}</option>
+        </select>
+      </label>
+
+      <label className={styles.field}>
+        <span title={t("inspector.childrenFitHelp")}>{t("inspector.childrenFit")}</span>
+        <select
+          id="container-children-fit"
+          name="containerChildrenFit"
+          value={element.layout?.children?.fit?.mode ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            const mode = value === "" ? null : (value as ContainerFitMode);
+            const accepted = onContainerFitModeChange(mode);
+            setFitError(!accepted && mode !== null);
+            if (accepted || mode === null) return;
+          }}
+        >
+          <option value="">{t("inspector.childrenFit.none")}</option>
+          <option value="contain">{t("inspector.childrenFit.contain")}</option>
+          <option value="cover">{t("inspector.childrenFit.cover")}</option>
+          <option value="fill">{t("inspector.childrenFit.fill")}</option>
+        </select>
+      </label>
+      <p className={styles.inspectorHint}>{t("inspector.childrenFitHelp")}</p>
+      {fitError && (
+        <p className={styles.inspectorError} role="status">
+          {t("inspector.childrenFitMeasurementError")}
+        </p>
+      )}
+
+      <label className={styles.field}>
+        <span title={t("inspector.overflowHelp")}>{t("inspector.overflow")}</span>
+
+        <select
+          id="container-overflow"
+          name="containerOverflow"
+          value={element.layout?.overflow ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            const overflow = value === "" ? undefined : (value as ContainerOverflow);
+
+            onUpdate((container) => ({
+              ...container,
+              layout: { ...container.layout, overflow },
+            }));
+          }}
+        >
+          <option value="">{t("inspector.overflow.default")}</option>
+
+          <option value="visible">{t("inspector.overflow.visible")}</option>
+
+          <option value="hidden">{t("inspector.overflow.hidden")}</option>
+
+          <option value="auto">{t("inspector.overflow.auto")}</option>
         </select>
       </label>
 

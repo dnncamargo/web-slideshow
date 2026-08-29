@@ -8,10 +8,13 @@ import type { CSSProperties } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import {
-  hydrateImageCrops,
+  hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
+  fitLogicalSlideGeometry,
+  resolveLogicalSlideSize,
+  type FittedSlideGeometry,
 } from "@powershow/renderer";
 import {
   Button,
@@ -48,6 +51,7 @@ import { applyCustomLibraryItemToPresentation } from "@/features/custom-library/
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { LocaleSelector } from "@/features/i18n/locale-selector";
+import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
@@ -76,6 +80,12 @@ import {
   resolveCanvasPointerSelection,
 } from "./canvas-pointer-selection-helpers";
 import { isAuthoredPowerShowLink } from "./canvas-link-interception";
+import {
+  isInsideContainerFitSurface,
+  measureContainerFitSourceSize,
+  updateContainerFit,
+  type ContainerFitMode,
+} from "./container-fit-authoring";
 import {
   getEffectiveImageFocalPoint,
   getImageFocalPointFromClientPosition,
@@ -243,6 +253,23 @@ interface SelectedElementInfo {
    * of TopicItem/ContentSlot as PowerShowElements.
    */
   contentSlotId?: string | null;
+}
+
+interface PendingElementDeletion {
+  elementId: string;
+  elementType: PowerShowElement["type"];
+  slideIndex: number;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.matches("input, textarea, select, [contenteditable]") ||
+    target.closest("[contenteditable]") !== null
+  );
 }
 
 interface CanvasDragState {
@@ -424,6 +451,8 @@ export function EditorWorkspace({
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
+  const [pendingElementDeletion, setPendingElementDeletion] =
+    useState<PendingElementDeletion | null>(null);
 
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
@@ -481,6 +510,10 @@ export function EditorWorkspace({
   // ==========================================================
 
   const slideCanvasRef = useRef<HTMLDivElement>(null);
+  const canvasViewportRef = useRef<HTMLDivElement>(null);
+  const [canvasGeometry, setCanvasGeometry] = useState<FittedSlideGeometry>(
+    () => fitLogicalSlideGeometry(presentation.aspectRatio, 0, 0),
+  );
   const canvasDragRef = useRef<CanvasDragState | null>(null);
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
   const canvasFocalDragRef = useRef<CanvasFocalDragState | null>(null);
@@ -567,6 +600,43 @@ export function EditorWorkspace({
     return findElementById(selectedSlide.elements, selectedElement.id);
   }, [selectedSlide, selectedElement]);
 
+  function requestElementDeletion() {
+    if (!selectedDocumentElement || pendingElementDeletion !== null) {
+      return;
+    }
+
+    setPendingElementDeletion({
+      elementId: selectedDocumentElement.id,
+      elementType: selectedDocumentElement.type,
+      slideIndex: selectedSlideIndex,
+    });
+  }
+
+  useEffect(() => {
+    if (rightPanelMode !== "editor") {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Delete" ||
+        event.repeat ||
+        event.defaultPrevented ||
+        pendingElementDeletion !== null ||
+        isEditableKeyboardTarget(event.target) ||
+        !selectedDocumentElement
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      requestElementDeletion();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pendingElementDeletion, rightPanelMode, selectedDocumentElement, selectedSlideIndex]);
+
   // ==========================================================
   // BEGIN: POSIÇÃO DO ELEMENTO SELECIONADO
   //
@@ -651,11 +721,45 @@ export function EditorWorkspace({
       : null;
 
   useEffect(() => {
+    const viewport = canvasViewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    const measure = () => {
+      const logical = resolveLogicalSlideSize(presentation.aspectRatio);
+      const usableWidth = Math.max(0, viewport.clientWidth - 64);
+      const usableHeight = Math.max(0, viewport.clientHeight - 64);
+      const geometry = fitLogicalSlideGeometry(
+        presentation.aspectRatio,
+        Math.min(usableWidth, logical.logicalWidth),
+        usableHeight,
+      );
+
+      setCanvasGeometry(geometry);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(viewport);
+
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", measure);
+
+    return () => window.removeEventListener("resize", measure);
+  }, [presentation.aspectRatio]);
+
+  useEffect(() => {
     const canvas = slideCanvasRef.current;
     if (canvas) {
-      hydrateImageCrops(canvas);
+      hydrateRendererRuntime(canvas);
     }
-  }, [renderedSlide]);
+  }, [canvasGeometry, renderedSlide]);
 
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
@@ -714,7 +818,7 @@ export function EditorWorkspace({
                   ? documentElement.layout?.position === "absolute"
                   : false;
 
-        if (draggable) {
+        if (draggable && !isInsideContainerFitSurface(candidate)) {
           candidate.classList.add("powershow-editor-draggable");
         }
       }
@@ -734,7 +838,8 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
-      !isCanvasResizable(selectedDocumentElement)
+      !isCanvasResizable(selectedDocumentElement) ||
+      isInsideContainerFitSurface(target)
     ) {
       setCanvasResizeOverlay(null);
       return;
@@ -750,6 +855,7 @@ export function EditorWorkspace({
       height: bounds.height,
     });
   }, [
+    canvasGeometry,
     locale,
     renderedSlide,
     selectedDocumentElement,
@@ -796,7 +902,7 @@ export function EditorWorkspace({
       width: bounds.width,
       height: bounds.height,
     });
-  }, [focalEditingImageId, renderedSlide, selectedDocumentElement]);
+  }, [canvasGeometry, focalEditingImageId, renderedSlide, selectedDocumentElement]);
 
   useEffect(() => {
     if (
@@ -851,7 +957,7 @@ export function EditorWorkspace({
       source: selectedDocumentElement.src,
       crop: resolveCropCanvasRect(preview, crop),
     });
-  }, [cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
+  }, [canvasGeometry, cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
 
   useEffect(() => {
     if (!cropEditingImageId) return;
@@ -1166,6 +1272,10 @@ export function EditorWorkspace({
           : selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "chart" || selection.documentElement.type === "interactive"
             ? selection.documentElement.layout?.position === "absolute"
             : false;
+
+    if (elementTarget && isInsideContainerFitSurface(elementTarget)) {
+      return;
+    }
 
     if (!draggable || !elementTarget) {
       return;
@@ -1530,6 +1640,10 @@ export function EditorWorkspace({
     );
 
     if (!target || !layoutParent) {
+      return;
+    }
+
+    if (isInsideContainerFitSurface(target)) {
       return;
     }
 
@@ -1924,6 +2038,32 @@ export function EditorWorkspace({
         };
       }),
     }));
+  }
+
+  function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
+    if (selectedDocumentElement?.type !== "container") return false;
+
+    const canvas = slideCanvasRef.current;
+    const target = canvas
+      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
+          .find((candidate) => candidate.dataset.powershowId === selectedDocumentElement.id)
+      : undefined;
+    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined
+      ? target ? measureContainerFitSourceSize(target) : null
+      : undefined;
+    const updated = updateContainerFit(selectedDocumentElement, mode, sourceSize ?? undefined);
+
+    if (!updated) return false;
+
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? { ...slide, elements: updateElementById(slide.elements, selectedDocumentElement.id, () => updated) }
+          : slide,
+      ),
+    }));
+    return true;
   }
 
   // ==========================================================
@@ -2545,24 +2685,8 @@ export function EditorWorkspace({
   // BEGIN: DELETE ELEMENT
   // ==========================================================
 
-  function deleteSelectedElement() {
-    if (!selectedDocumentElement) {
-      return;
-    }
-
-    const description =
-      selectedDocumentElement.type === "container"
-        ? t("elementCrud.deleteContainerConfirm", {
-            id: selectedDocumentElement.id,
-          })
-        : t("elementCrud.deleteElementConfirm", {
-            id: selectedDocumentElement.id,
-            type: t(ELEMENT_TYPE_MESSAGE_KEYS[selectedDocumentElement.type]),
-          });
-
-    const confirmed = window.confirm(description);
-
-    if (!confirmed) {
+  function confirmElementDeletion() {
+    if (!pendingElementDeletion) {
       return;
     }
 
@@ -2570,7 +2694,7 @@ export function EditorWorkspace({
       ...current,
 
       slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
+        if (index !== pendingElementDeletion.slideIndex) {
           return slide;
         }
 
@@ -2579,13 +2703,16 @@ export function EditorWorkspace({
 
           elements: removeElementById(
             slide.elements,
-            selectedDocumentElement.id,
+            pendingElementDeletion.elementId,
           ),
         };
       }),
     }));
 
-    setSelectedElement(null);
+    setSelectedElement((current) =>
+      current?.id === pendingElementDeletion.elementId ? null : current,
+    );
+    setPendingElementDeletion(null);
   }
 
   // ==========================================================
@@ -3072,15 +3199,17 @@ export function EditorWorkspace({
     BEGIN: CONDITIONAL SLIDE LAYOUT PICKER
     ========================================================== */}
 
-          {isSlideLayoutPickerOpen && (
-            <SlideLayoutPicker
-              value={newSlidePreset}
-              onChange={setNewSlidePreset}
-              onCreate={() => {
-                addSlide(newSlidePreset);
-              }}
-            />
-          )}
+          <div className={styles.slideLayoutPickerSlot}>
+            {isSlideLayoutPickerOpen && (
+              <SlideLayoutPicker
+                value={newSlidePreset}
+                onChange={setNewSlidePreset}
+                onCreate={() => {
+                  addSlide(newSlidePreset);
+                }}
+              />
+            )}
+          </div>
 
           {/* ==========================================================
     END: CONDITIONAL SLIDE LAYOUT PICKER
@@ -3233,7 +3362,7 @@ export function EditorWorkspace({
             </span>
           </div>
 
-          <div className={styles.canvasViewport}>
+          <div ref={canvasViewportRef} className={styles.canvasViewport}>
             {renderedFontResources && (
               <style data-powershow-font-resources>
                 {renderedFontResources}
@@ -3241,19 +3370,32 @@ export function EditorWorkspace({
             )}
 
             <div
-              ref={slideCanvasRef}
-              className={styles.slideCanvas}
-              style={renderedPaletteStyle}
-              onPointerDown={handleCanvasPointerDown}
-              onPointerMove={handleCanvasPointerMove}
-              onPointerUp={handleCanvasPointerUp}
-              onPointerCancel={handleCanvasPointerCancel}
-              onLostPointerCapture={handleCanvasPointerCancel}
-              onClick={handleCanvasLinkClick}
-              dangerouslySetInnerHTML={{
-                __html: renderedSlide,
+              className={styles.canvasStage}
+              style={{
+                width: `${canvasGeometry.physicalWidth}px`,
+                height: `${canvasGeometry.physicalHeight}px`,
               }}
-            />
+            >
+              <div
+                ref={slideCanvasRef}
+                className={styles.slideCanvas}
+                style={{
+                  ...renderedPaletteStyle,
+                  width: `${canvasGeometry.logicalWidth}px`,
+                  height: `${canvasGeometry.logicalHeight}px`,
+                  transform: `scale(${canvasGeometry.scale})`,
+                }}
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+                onPointerCancel={handleCanvasPointerCancel}
+                onLostPointerCapture={handleCanvasPointerCancel}
+                onClick={handleCanvasLinkClick}
+                dangerouslySetInnerHTML={{
+                  __html: renderedSlide,
+                }}
+              />
+            </div>
             {cropEditingImageId && selectedDocumentElement?.type === "image" && (
               <img
                 key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
@@ -3456,10 +3598,12 @@ export function EditorWorkspace({
           <CustomResourcesWorkspace
             customLibraryPaletteRepository={customLibraryPaletteRepository}
             customLibraryFontRepository={customLibraryFontRepository}
+            customLibraryRepository={customLibraryRepository}
             presentationColors={presentation.palette?.colors ?? []}
             presentationFonts={presentation.resources?.fonts ?? []}
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
+            onApplyElementStyle={applyCustomLibraryItem}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
@@ -3515,7 +3659,7 @@ export function EditorWorkspace({
                   }}
                   onMoveElement={moveElementInTree}
                   customLibraryRepository={customLibraryRepository}
-                  onApplyCustomLibraryItem={applyCustomLibraryItem}
+                  onBrowseElementStyles={() => setRightPanelMode("resources")}
                   palette={presentation.palette}
                   fontResources={presentation.resources?.fonts}
                 />
@@ -3536,7 +3680,7 @@ export function EditorWorkspace({
                     }
                     onAdd={addElement}
                     onDuplicate={duplicateSelectedElement}
-                    onDelete={deleteSelectedElement}
+                    onDelete={requestElementDeletion}
                   />
 
                   {/* ==========================================================
@@ -3562,6 +3706,7 @@ export function EditorWorkspace({
                         <ElementInspector
                           element={selectedDocumentElement}
                           onUpdate={updateSelectedElement}
+                          onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={
                             setPreserveImageProportion
@@ -3668,6 +3813,28 @@ export function EditorWorkspace({
             END: INSPECTOR
             =================================================== */}
       </div>
+
+      {pendingElementDeletion ? (
+        <DangerConfirmDialog
+          title={t("elementCrud.deleteDialogTitle")}
+          message={
+            pendingElementDeletion.elementType === "container"
+              ? t("elementCrud.deleteContainerConfirm", {
+                  id: pendingElementDeletion.elementId,
+                })
+              : t("elementCrud.deleteElementConfirm", {
+                  id: pendingElementDeletion.elementId,
+                  type: t(
+                    ELEMENT_TYPE_MESSAGE_KEYS[pendingElementDeletion.elementType],
+                  ),
+                })
+          }
+          confirmLabel={t("elementCrud.delete")}
+          cancelLabel={t("elementCrud.cancel")}
+          onCancel={() => setPendingElementDeletion(null)}
+          onConfirm={confirmElementDeletion}
+        />
+      ) : null}
 
       {/* =====================================================
           END: WORKSPACE
