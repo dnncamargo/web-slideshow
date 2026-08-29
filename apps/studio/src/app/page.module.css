@@ -56,7 +56,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: clamp(24px, 5vh, 56px) 24px clamp(28px, 7vh, 72px);
+  padding:
+    clamp(24px, 5vh, 56px)
+    24px
+    clamp(18px, 4vh, 40px);
 }
 
 .brand {
@@ -79,7 +82,7 @@
 
 .actions {
   display: grid;
-  width: min(76vw, 760px);
+  width: min(76vw, 972px);
   max-width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
