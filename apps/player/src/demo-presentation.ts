@@ -118,8 +118,186 @@ const demoImageSrc =
 // BEGIN: APRESENTAÇÃO DE DEMONSTRAÇÃO
 // ============================================================
 
+type DemoRecord = Record<string, unknown>;
+
+function isDemoRecord(value: unknown): value is DemoRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function migrateLegacyStyle(style: DemoRecord): {
+  style: DemoRecord | undefined;
+  effect: DemoRecord | undefined;
+} {
+  const {
+    width: _width,
+    height: _height,
+    padding: _padding,
+    paddingTop: _paddingTop,
+    paddingRight: _paddingRight,
+    paddingBottom: _paddingBottom,
+    paddingLeft: _paddingLeft,
+    margin: _margin,
+    marginTop: _marginTop,
+    marginRight: _marginRight,
+    marginBottom: _marginBottom,
+    marginLeft: _marginLeft,
+    backgroundGradient,
+    shadow,
+    background,
+    ...remainingStyle
+  } = style;
+
+  const migratedStyle: DemoRecord = { ...remainingStyle };
+  if (isDemoRecord(background)) {
+    migratedStyle.background = background;
+  } else if (typeof background === "string") {
+    migratedStyle.background = { color: background };
+  }
+
+  if (backgroundGradient !== undefined) {
+    const currentBackground = isDemoRecord(migratedStyle.background)
+      ? migratedStyle.background
+      : {};
+    migratedStyle.background = { ...currentBackground, gradient: backgroundGradient };
+  }
+
+  return {
+    style: Object.keys(migratedStyle).length > 0 ? migratedStyle : undefined,
+    effect: isDemoRecord(shadow) ? { shadow } : undefined,
+  };
+}
+
+function legacyLayout(style: DemoRecord, layout: unknown): DemoRecord {
+  const currentLayout = isDemoRecord(layout) ? layout : {};
+  const sizing = Object.fromEntries(
+    [
+      "width", "height", "padding", "paddingTop", "paddingRight", "paddingBottom",
+      "paddingLeft", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+    ].flatMap((key) => style[key] === undefined ? [] : [[key, style[key]]]),
+  );
+
+  return { ...currentLayout, ...sizing };
+}
+
+function migrateLegacyElement(element: unknown): unknown {
+  if (!isDemoRecord(element) || typeof element.type !== "string") return element;
+
+  if (element.type === "container") {
+    const {
+      direction,
+      gap,
+      distribution,
+      horizontalAlign,
+      verticalAlign,
+      style: styleValue,
+      layout: layoutValue,
+      children: childrenValue,
+      ...container
+    } = element;
+    const style = isDemoRecord(styleValue) ? styleValue : {};
+    const migrated = migrateLegacyStyle(style);
+    const currentLayout = legacyLayout(style, layoutValue);
+    const currentChildren = isDemoRecord(currentLayout.children)
+      ? currentLayout.children
+      : {};
+    const childrenLayout = {
+      ...currentChildren,
+      ...(direction === undefined ? {} : { direction }),
+      ...(gap === undefined ? {} : { gap }),
+      ...(distribution === undefined ? {} : { distribution }),
+      ...(horizontalAlign === undefined ? {} : { horizontalAlign }),
+      ...(verticalAlign === undefined ? {} : { verticalAlign }),
+    };
+
+    return {
+      ...container,
+      layout: {
+        ...currentLayout,
+        ...(Object.keys(childrenLayout).length === 0 ? {} : { children: childrenLayout }),
+      },
+      ...(migrated.style === undefined ? {} : { style: migrated.style }),
+      ...(migrated.effect === undefined ? {} : { effect: migrated.effect }),
+      children: Array.isArray(childrenValue)
+        ? childrenValue.map(migrateLegacyElement)
+        : childrenValue,
+    };
+  }
+
+  if (element.type === "image") {
+    const { style: styleValue, layout: layoutValue, ...image } = element;
+    const style = isDemoRecord(styleValue) ? styleValue : {};
+    const migrated = migrateLegacyStyle(style);
+    const imageStyle = migrated.style;
+    const hasBackground = isDemoRecord(imageStyle?.background);
+    const { background: _background, ...imageVisualStyle } = imageStyle ?? {};
+    const imageElement = {
+      ...image,
+      layout: legacyLayout(style, layoutValue),
+      ...(Object.keys(imageVisualStyle).length === 0 ? {} : { style: imageVisualStyle }),
+      ...(migrated.effect === undefined ? {} : { effect: migrated.effect }),
+    };
+
+    return hasBackground
+      ? {
+          type: "container",
+          id: `${String(image.id)}-frame`,
+          hidden: false,
+          style: { background: imageStyle?.background },
+          children: [imageElement],
+        }
+      : imageElement;
+  }
+
+  if (element.type === "table") {
+    const { style: styleValue, layout: layoutValue, ...table } = element;
+    const style = isDemoRecord(styleValue) ? styleValue : {};
+    const migrated = migrateLegacyStyle(style);
+    return {
+      ...table,
+      layout: legacyLayout(style, layoutValue),
+      ...(migrated.style === undefined ? {} : { style: migrated.style }),
+      ...(migrated.effect === undefined ? {} : { effect: migrated.effect }),
+    };
+  }
+
+  if (element.type === "chart" || element.type === "interactive") {
+    const { style: styleValue, layout: layoutValue, id, ...component } = element;
+    const style = isDemoRecord(styleValue) ? styleValue : {};
+    const migrated = migrateLegacyStyle(style);
+    const layout = legacyLayout(style, layoutValue);
+    return {
+      type: "container",
+      id: `${String(id)}-frame`,
+      hidden: false,
+      layout,
+      ...(migrated.style === undefined ? {} : { style: migrated.style }),
+      ...(migrated.effect === undefined ? {} : { effect: migrated.effect }),
+      children: [{ ...component, id }],
+    };
+  }
+
+  return element;
+}
+
+function migrateLegacyDemoDocument(document: DemoRecord): DemoRecord {
+  return {
+    ...document,
+    slides: Array.isArray(document.slides)
+      ? document.slides.map((slide) => {
+          if (!isDemoRecord(slide)) return slide;
+          return {
+            ...slide,
+            elements: Array.isArray(slide.elements)
+              ? slide.elements.map(migrateLegacyElement)
+              : slide.elements,
+          };
+        })
+      : document.slides,
+  };
+}
+
 export const demoPresentation =
-  PresentationSchema.parse({
+  PresentationSchema.parse(migrateLegacyDemoDocument({
     schemaVersion: 1,
 
     id: "powershow-demo",
@@ -1714,7 +1892,7 @@ export const demoPresentation =
         ],
       },
     ],
-  });
+  }));
 
 // ============================================================
 // END: APRESENTAÇÃO DE DEMONSTRAÇÃO

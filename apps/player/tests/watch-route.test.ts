@@ -4,7 +4,9 @@ import mainSource from "../src/main.ts?raw";
 import vercelSource from "../vercel.json?raw";
 
 describe("public Watch runtime route", () => {
-  it("dispatches /watch to the Watch entry and every other path to Player", () => {
+  it("dispatches /demo and /watch before the standard Player entry", () => {
+    expect(mainSource).toContain('window.location.pathname === "/demo"');
+    expect(mainSource).toContain("startDemo(root)");
     expect(mainSource).toContain('window.location.pathname === "/watch"');
     expect(mainSource).toContain("startWatch(root)");
     expect(mainSource).toContain("startPlayer(root)");
@@ -23,6 +25,16 @@ describe("public Watch runtime route", () => {
       source: "/watch",
       destination: "/",
     });
+    expect(config.rewrites).toContainEqual({ source: "/demo", destination: "/" });
+  });
+
+  it("applies the same no-cache HTML policy to /demo", () => {
+    const config = JSON.parse(vercelSource) as {
+      headers?: Array<{ source?: string; headers?: Array<{ key?: string; value?: string }> }>;
+    };
+    const demoHeaders = config.headers?.find((rule) => rule.source === "/demo")?.headers;
+
+    expect(demoHeaders).toEqual(config.headers?.find((rule) => rule.source === "/watch")?.headers);
   });
 
   it("applies the HTML/runtime no-cache headers before the /watch rewrite", () => {

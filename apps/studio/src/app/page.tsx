@@ -1,39 +1,46 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-
-import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { resolvePublicPlayerUrl } from "@/features/public-player/public-player-url";
 
 import styles from "./page.module.css";
 
 export default function Home() {
-  const { t } = useStudioI18n();
-  const router = useRouter();
+  const player = resolvePublicPlayerUrl();
+  const demoUrl = player.baseUrl === null ? null : `${player.baseUrl}/demo`;
 
   return (
     <div className={styles.landing}>
       <main className={styles.main}>
-        <div className={styles.brand}>
-          <h1>PowerShow</h1>
-          <p>{t("home.getStartedPrefix")}</p>
-        </div>
+        <h1 className={styles.brand}>PowerShow</h1>
 
-        <div className={styles.liveArea}>
-          <span>{t("public.noLive")}</span>
+        <div className={styles.presentation}>
+          {demoUrl === null ? (
+            <span className={styles.unavailable}>Player unavailable</span>
+          ) : (
+            <iframe
+              className={styles.demo}
+              src={demoUrl}
+              title="PowerShow demo presentation"
+              tabIndex={-1}
+            />
+          )}
         </div>
 
         <div className={styles.actions}>
-          <button
-            type="button"
+          <a
             className={styles.primary}
-            onClick={() => router.push("/studio")}
+            href="/studio"
           >
-            {t("public.library")}
-          </button>
+            Studio
+          </a>
 
-          <button type="button" className={styles.secondary} disabled>
-            {t("public.play")}
-          </button>
+          {player.available && player.baseUrl !== null ? (
+            <a className={styles.primary} href={player.baseUrl}>
+              Player
+            </a>
+          ) : (
+            <span className={styles.primary} aria-disabled="true">
+              Player
+            </span>
+          )}
         </div>
       </main>
     </div>
