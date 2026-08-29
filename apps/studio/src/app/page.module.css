@@ -72,6 +72,25 @@
   text-shadow: 0 1px 12px rgb(0 0 0 / 48%);
 }
 
+.watchQr {
+  position: absolute;
+  right: clamp(24px, 5vw, 72px);
+  bottom: clamp(116px, 16vh, 180px);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.watchQr svg {
+  display: block;
+}
+
 .unavailable {
   display: grid;
   width: 100%;
@@ -154,6 +173,11 @@
 }
 
 @media (max-width: 520px) {
+  .watchQr {
+    right: 24px;
+    bottom: clamp(178px, 30vh, 240px);
+  }
+
   .actions {
     width: min(92vw, 420px);
     grid-template-columns: 1fr;

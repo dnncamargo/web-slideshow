@@ -1,37 +1,155 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 
-import pageSource from "../src/app/page.tsx?raw";
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const stylesSource = readFileSync(
-  fileURLToPath(new URL("../src/app/page.module.css", import.meta.url)),
-  "utf8",
-);
+const stylesSource = readFileSync("src/app/page.module.css", "utf8");
+const pageSource = readFileSync("src/app/page.tsx", "utf8");
+
+const mocks = vi.hoisted(() => ({
+  subscribeLiveCurrent: vi.fn(),
+  resolvePublicPlayerUrl: vi.fn(),
+}));
+
+vi.mock("../src/features/live/live-current-read", () => ({
+  subscribeLiveCurrent: mocks.subscribeLiveCurrent,
+}));
+
+vi.mock("../src/features/public-player/public-player-url", () => ({
+  resolvePublicPlayerUrl: mocks.resolvePublicPlayerUrl,
+}));
+
+vi.mock("qrcode.react", () => ({
+  QRCodeSVG: ({ value }: { value: string }) =>
+    createElement("svg", { "data-qr-value": value }),
+}));
+
+import Home from "../src/app/page";
+
+type LiveState =
+  | { kind: "loading" | "none" | "error" }
+  | {
+      kind: "active";
+      live: { publicationId: string; currentVersionId: string; revision: number };
+    };
 
 describe("public root", () => {
-  it("offers PowerShow, Studio, and Player without the old idle copy", () => {
-    expect(pageSource).toContain("PowerShow");
-    expect(pageSource).toContain("Studio");
-    expect(pageSource).toContain("Player");
-    expect(pageSource).not.toContain("public.library");
-    expect(pageSource).not.toContain("public.play");
-    expect(pageSource).not.toContain("public.noLive");
+  let container: HTMLDivElement;
+  let root: Root;
+  let callback: (state: LiveState) => void;
+  let unsubscribe: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    unsubscribe = vi.fn();
+    mocks.resolvePublicPlayerUrl.mockReturnValue({
+      available: true,
+      baseUrl: "https://player.example.com",
+    });
+    mocks.subscribeLiveCurrent.mockImplementation((next: (state: LiveState) => void) => {
+      callback = next;
+      return unsubscribe;
+    });
+
+    await act(async () => {
+      root.render(createElement(Home));
+    });
   });
 
-  it("uses the configured Player demo as a full-screen, visual-only background", () => {
-    expect(pageSource).toContain("${player.baseUrl}/demo");
-    expect(pageSource).toContain('tabIndex={-1}');
-    expect(pageSource).toContain('className={styles.background}');
-    expect(pageSource).toContain('className={styles.overlay}');
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.clearAllMocks();
+  });
+
+  function iframeSrc(): string | null {
+    return container.querySelector("iframe")?.getAttribute("src") ?? null;
+  }
+
+  async function emit(state: LiveState): Promise<void> {
+    await act(async () => callback(state));
+  }
+
+  it("keeps the demo background for initial, loading, none, and error states", async () => {
+    expect(iframeSrc()).toBe("https://player.example.com/demo");
+    expect(container.querySelector("[data-qr-value]")).toBeNull();
+
+    await emit({ kind: "loading" });
+    await emit({ kind: "none" });
+    await emit({ kind: "error" });
+
+    expect(iframeSrc()).toBe("https://player.example.com/demo");
+    expect(container.querySelector("[data-qr-value]")).toBeNull();
+  });
+
+  it("uses the same stable Watch URL for the active background and QR", async () => {
+    await emit({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
+    });
+
+    expect(iframeSrc()).toBe("https://player.example.com/watch");
+    expect(container.querySelector("[data-qr-value]")?.getAttribute("data-qr-value")).toBe(
+      "https://player.example.com/watch",
+    );
+  });
+
+  it("returns to demo and removes the QR when Live ends", async () => {
+    await emit({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
+    });
+    await emit({ kind: "none" });
+
+    expect(iframeSrc()).toBe("https://player.example.com/demo");
+    expect(container.querySelector("[data-qr-value]")).toBeNull();
+  });
+
+  it("unsubscribes and ignores callbacks after unmount", async () => {
+    await act(async () => root.unmount());
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      callback({
+        kind: "active",
+        live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
+      });
+    });
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("keeps the unavailable fallback and does not render a QR without Player", async () => {
+    await act(async () => root.unmount());
+    mocks.resolvePublicPlayerUrl.mockReturnValue({ available: false, baseUrl: null });
+    root = createRoot(container);
+    await act(async () => root.render(createElement(Home)));
+    await emit({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
+    });
+
+    expect(container.textContent).toContain("Player unavailable");
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector("[data-qr-value]")).toBeNull();
+  });
+
+  it("preserves the primary actions and approved immersive composition", () => {
+    expect(container.textContent).toContain("PowerShow");
+    expect(container.textContent).toContain("Studio");
+    expect(container.textContent).toContain("Player");
+    expect(stylesSource).toContain("width: min(76vw, 972px)");
     expect(stylesSource).toContain("width: max(100vw, calc(100dvh * 16 / 9))");
-    expect(stylesSource).not.toContain(".presentation");
+    expect(stylesSource).toContain("border-radius: 0");
   });
 
-  it("gives Studio and Player distinct square action classes", () => {
-    expect(pageSource).toContain("styles.studioAction");
-    expect(pageSource).toContain("styles.playerAction");
-    expect(stylesSource).toContain("border-radius: 0");
-    expect(stylesSource).not.toContain(".content");
+  it("uses only the neutral live read seam", () => {
+    expect(pageSource).toContain("@/features/live/live-current-read");
+    expect(pageSource).not.toMatch(/firebase\/database|runTransaction|update\(|set\(/);
   });
 });
