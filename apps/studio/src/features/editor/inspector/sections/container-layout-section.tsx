@@ -17,6 +17,8 @@ type ContainerDirection = "row" | "column";
 
 type ContainerLayoutMode = "flow" | "stack";
 
+type ContainerOverflow = "visible" | "hidden" | "auto";
+
 type ContainerHorizontalAlign = "start" | "center" | "end" | "stretch";
 
 type ContainerVerticalAlign = "start" | "center" | "end" | "stretch";
@@ -67,6 +69,33 @@ export function ContainerLayoutSection({
           <option value="flow">{t("inspector.flow")}</option>
 
           <option value="stack">{t("inspector.stack")}</option>
+        </select>
+      </label>
+
+      <label className={styles.field}>
+        <span title={t("inspector.overflowHelp")}>{t("inspector.overflow")}</span>
+
+        <select
+          id="container-overflow"
+          name="containerOverflow"
+          value={element.layout?.overflow ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            const overflow = value === "" ? undefined : (value as ContainerOverflow);
+
+            onUpdate((container) => ({
+              ...container,
+              layout: { ...container.layout, overflow },
+            }));
+          }}
+        >
+          <option value="">{t("inspector.overflow.default")}</option>
+
+          <option value="visible">{t("inspector.overflow.visible")}</option>
+
+          <option value="hidden">{t("inspector.overflow.hidden")}</option>
+
+          <option value="auto">{t("inspector.overflow.auto")}</option>
         </select>
       </label>
 
