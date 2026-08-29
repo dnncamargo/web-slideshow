@@ -119,7 +119,8 @@ export function getSelectableElementProperties(
     if (element.type === "container" && entry.path === "children") {
       return [];
     }
-    if ([...atomicPaths].some((path) => entry.path.startsWith(`${path}.`))) {
+    if ([...atomicPaths].some((path) =>
+      entry.path === path || entry.path.startsWith(`${path}.`))) {
       return [];
     }
     const kind = entry.displayValue.endsWith(" item") || entry.displayValue.endsWith(" items")
