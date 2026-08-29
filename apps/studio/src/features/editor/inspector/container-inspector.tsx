@@ -25,7 +25,7 @@ interface ContainerInspectorProps {
 
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
 
-  onContainerFitModeChange?: (mode: ContainerFitMode | null) => boolean;
+  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
   parent?: ContainerElement | null;
 

@@ -94,6 +94,27 @@ describe("Container children fit Inspector", () => {
     expect(host.textContent).not.toContain("Container must have a measurable content size");
   });
 
+  it("clears a rejected activation error when the selected Container changes", () => {
+    const callback = vi.fn(() => false);
+    const { select } = mount(container(), callback);
+    act(() => changeSelect(select, "contain"));
+    expect(host.textContent).toContain("Container must have a measurable content size");
+
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <ContainerInspector
+            element={{ ...container(), id: "container-b" }}
+            onUpdate={(update) => update({ ...container(), id: "container-b" })}
+            onContainerFitModeChange={callback}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    expect(host.textContent).not.toContain("Container must have a measurable content size");
+  });
+
   it("provides Portuguese translations for the fit controls", () => {
     expect(translateStudioMessage("pt-BR", "inspector.childrenFit")).toBe(
       "Ajuste dos filhos",

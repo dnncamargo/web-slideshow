@@ -1,5 +1,5 @@
 import type { ContainerElement } from "@powershow/document-schema";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -30,7 +30,7 @@ interface ContainerLayoutSectionProps {
 
   onUpdate: UpdateContainer;
 
-  onContainerFitModeChange?: (mode: ContainerFitMode | null) => boolean;
+  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 }
 
 // ============================================================
@@ -44,6 +44,10 @@ export function ContainerLayoutSection({
 }: ContainerLayoutSectionProps) {
   const { t } = useStudioI18n();
   const [fitError, setFitError] = useState(false);
+
+  useEffect(() => {
+    setFitError(false);
+  }, [element.id]);
 
   const hasDistributedMainAxis =
     (element.layout?.children?.distribution ?? "packed") !== "packed";
@@ -87,7 +91,7 @@ export function ContainerLayoutSection({
           onChange={(event) => {
             const value = event.target.value;
             const mode = value === "" ? null : (value as ContainerFitMode);
-            const accepted = onContainerFitModeChange?.(mode) ?? false;
+            const accepted = onContainerFitModeChange(mode);
             setFitError(!accepted && mode !== null);
             if (accepted || mode === null) return;
           }}

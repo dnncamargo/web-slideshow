@@ -36,7 +36,7 @@ interface ElementInspectorProps {
 
   onUpdate: ElementInspectorUpdate;
 
-  onContainerFitModeChange?: (mode: ContainerFitMode | null) => boolean;
+  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
   fontResources: readonly FontResource[];
 

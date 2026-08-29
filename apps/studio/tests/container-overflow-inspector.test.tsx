@@ -56,6 +56,7 @@ describe("Container overflow inspector", () => {
               state = update(state);
               renderInspector();
             }}
+            onContainerFitModeChange={() => true}
           />
         )}
       </StudioI18nProvider>,

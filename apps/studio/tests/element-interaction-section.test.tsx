@@ -1186,6 +1186,7 @@ describe("shared Interaction control in inspectors", () => {
           <ContainerInspector
             element={containerElement()}
             onUpdate={() => {}}
+            onContainerFitModeChange={() => true}
           />
         </StudioI18nProvider>,
       );

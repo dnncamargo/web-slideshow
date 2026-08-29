@@ -53,6 +53,7 @@ describe("Container canonical position inspector", () => {
       <StudioI18nProvider>
         <ContainerInspector
           element={state as ContainerElement}
+          onContainerFitModeChange={() => true}
           parent={parent}
           layerControls={{
             index: 1,
