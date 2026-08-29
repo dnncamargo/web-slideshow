@@ -40,7 +40,7 @@ interface CustomResourcesWorkspaceProps {
   presentationFonts: readonly FontResource[];
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
-  onApplyElementStyle?: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
+  onApplyElementStyle: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   onAddPresentationColor: (name: string, value: Color) => void;
   onUpdatePresentationColor: (id: string, patch: { name: string; value: Color }) => void;
   onRemovePresentationColor: (id: string) => void;
@@ -176,7 +176,7 @@ export function CustomResourcesWorkspace({
           <InspectorSection title={t("customResources.elementStyles")} defaultOpen>
             <CustomLibraryApplyPicker
               repository={customLibraryRepository}
-              onApply={onApplyElementStyle ?? (() => ({ ok: true }))}
+              onApply={onApplyElementStyle}
               embedded
             />
           </InspectorSection>

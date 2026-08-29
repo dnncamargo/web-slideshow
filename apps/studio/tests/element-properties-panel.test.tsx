@@ -22,7 +22,7 @@ function renderPanel(
   isStructuralTopicSelection = false,
   customLibraryRepository?: CustomLibraryRepository,
   fontResources?: readonly FontResource[],
-  onBrowseElementStyles?: () => void,
+  onBrowseElementStyles: () => void = () => undefined,
 ): void {
   act(() => {
     root.render(

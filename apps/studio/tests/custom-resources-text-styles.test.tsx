@@ -49,6 +49,7 @@ function Harness({
     presentationFonts={[presentationFont]}
     onAddLibraryPalette={() => ({ ok: true, addedColors: [] })}
     onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
+    onApplyElementStyle={() => ({ ok: true })}
     onAddPresentationColor={() => undefined}
     onUpdatePresentationColor={() => undefined}
     onRemovePresentationColor={() => undefined}

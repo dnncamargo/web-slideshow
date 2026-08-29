@@ -264,6 +264,7 @@ describe("ElementTreePanel", () => {
             selectedContentSlotId={options.selectedContentSlotId ?? null}
             onSelectElement={onSelectElement}
             onMoveElement={onMoveElement}
+            onBrowseElementStyles={vi.fn()}
           />
         </StudioI18nProvider>,
       );

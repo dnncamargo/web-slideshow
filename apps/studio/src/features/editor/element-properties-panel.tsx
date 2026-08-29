@@ -22,7 +22,7 @@ interface ElementPropertiesPanelProps {
   selectedElement: PowerShowElement | null;
   isStructuralTopicSelection: boolean;
   customLibraryRepository?: CustomLibraryRepository;
-  onBrowseElementStyles?: () => void;
+  onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
 }

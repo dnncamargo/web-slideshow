@@ -38,7 +38,7 @@ interface ElementTreePanelProps {
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
   customLibraryRepository?: CustomLibraryRepository;
-  onBrowseElementStyles?: () => void;
+  onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
 }

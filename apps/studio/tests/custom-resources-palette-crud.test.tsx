@@ -68,6 +68,7 @@ function Harness({ repository }: { repository: CustomLibraryPaletteRepository })
         setPresentation(result.presentation);
         return { ok: true };
       }}
+      onApplyElementStyle={() => ({ ok: true })}
       onAddPresentationColor={(name: string, value: Color) => {
         setPresentation((current) => {
           const result = addPresentationPaletteColor(current, name, value);

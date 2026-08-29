@@ -66,6 +66,7 @@ function renderWorkspace({
     presentationFonts={fonts}
     onAddLibraryPalette={() => ({ ok: true, addedColors: [] })}
     onAddLibraryFont={onAddLibraryFont}
+    onApplyElementStyle={() => ({ ok: true })}
     onAddPresentationColor={() => undefined}
     onUpdatePresentationColor={() => undefined}
     onRemovePresentationColor={() => undefined}
