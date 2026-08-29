@@ -30,6 +30,8 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 import {
   buildControlCommand,
   buildControlPath,
+  buildFullscreenRequest,
+  buildFullscreenRequestPath,
   buildSlideCommand,
   buildSlideCommandPath,
   buildSlideAckPath,
@@ -38,6 +40,7 @@ import {
 import {
   writeControlCommand,
   writeControlState,
+  writeFullscreenRequest,
   writeSlideCommand,
 } from "../src/features/control/control-command-writer";
 
@@ -62,6 +65,15 @@ describe("control command helpers", () => {
       currentVersionId: "version-1",
       revision: 1,
       pageId: "slide-3",
+    });
+  });
+
+  it("builds the fullscreen request path and shape", () => {
+    expect(buildFullscreenRequestPath()).toBe("live/fullscreenRequest");
+    expect(buildFullscreenRequest(2, "version-1", 3)).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 3,
     });
   });
 });
@@ -442,5 +454,91 @@ describe("control state writer", () => {
     await expect(
       writeControlState({} as never, 2, "version-new", "page-a"),
     ).rejects.toThrow(/did not commit/);
+  });
+});
+
+describe("fullscreen request writer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_DATABASE_URL", "https://example.firebaseio.com");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "key");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "domain");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID", "project");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "bucket");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "sender");
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_APP_ID", "app");
+    mocks.getApps.mockReturnValue([]);
+    mocks.initializeApp.mockReturnValue({});
+    mocks.getDatabase.mockReturnValue({});
+    mocks.ref.mockImplementation((_db, path: string) => ({ path }));
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("starts at revision 1 and increments a matching request", async () => {
+    const expectedLive = {
+      publicationId: "publication-1",
+      currentVersionId: "version-1",
+      revision: 2,
+    };
+    const values = [
+      {
+        activationRevision: 2,
+        current: expectedLive,
+        controlState: { revision: 4 },
+        playerState: { appliedControlRevision: 4 },
+        fullscreenRequest: { activationRevision: 2, currentVersionId: "version-1", revision: 3 },
+      },
+      {
+        activationRevision: 2,
+        current: expectedLive,
+        controlState: { revision: 5 },
+        playerState: { appliedControlRevision: 5 },
+      },
+    ];
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const current = values.shift();
+      const result = updater(current) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => result } };
+    });
+
+    await expect(writeFullscreenRequest({} as never, expectedLive)).resolves.toMatchObject({
+      revision: 4,
+    });
+    await expect(writeFullscreenRequest({} as never, expectedLive)).resolves.toMatchObject({
+      revision: 1,
+    });
+
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live");
+  });
+
+  it("fails closed for a stale identity without changing projection state", async () => {
+    const current = {
+      activationRevision: 3,
+      current: {
+        publicationId: "publication-new",
+        currentVersionId: "version-new",
+        revision: 3,
+      },
+      controlState: { revision: 8 },
+      playerState: { appliedControlRevision: 7 },
+      fullscreenRequest: { activationRevision: 3, currentVersionId: "version-new", revision: 2 },
+    };
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      expect(updater(current)).toBeUndefined();
+      return { committed: false, snapshot: { val: () => current } };
+    });
+
+    await expect(
+      writeFullscreenRequest({} as never, {
+        publicationId: "publication-old",
+        currentVersionId: "version-old",
+        revision: 2,
+      }),
+    ).rejects.toThrow(/changed/);
+    expect(mocks.set).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ import {
 } from "./live-entry";
 import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
+import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
@@ -40,6 +41,7 @@ function isVersionPromotion(previous: LiveCurrent, next: LiveCurrent): boolean {
 export function startPlayer(root: HTMLElement): () => void {
   let activeController: PlayerController | undefined;
   let cleanupLiveProjection: (() => void) | undefined;
+  let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let activePresentation: Presentation | undefined;
   let activeLive: LiveCurrent | undefined;
@@ -63,7 +65,9 @@ export function startPlayer(root: HTMLElement): () => void {
     presentation: Presentation,
     logsEnabled: boolean,
   ): void {
-    if (!activeController) {
+    const controller = activeController;
+
+    if (!controller) {
       return;
     }
 
@@ -88,13 +92,21 @@ export function startPlayer(root: HTMLElement): () => void {
         live.revision,
         live.currentVersionId,
         presentation,
-        activeController,
+        controller,
         logsEnabled,
       );
 
       recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_OK", {
         revision: live.revision,
       });
+
+      cleanupLiveFullscreenRequest = subscribeLiveFullscreenRequest(
+        database,
+        live.revision,
+        live.currentVersionId,
+        controller,
+        root,
+      );
     } catch (error) {
       console.error("Player: live projection state initialization failed", error);
       recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_ERROR", { error });
@@ -106,10 +118,16 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveProjection = undefined;
   }
 
+  function detachLiveFullscreenRequest(): void {
+    cleanupLiveFullscreenRequest?.();
+    cleanupLiveFullscreenRequest = undefined;
+  }
+
   function teardownLiveSession(): void {
     loadToken += 1;
     currentSessionKey = null;
     detachLiveSlideAck();
+    detachLiveFullscreenRequest();
     activeController?.destroy();
     activeController = undefined;
     activePresentation = undefined;
@@ -150,6 +168,7 @@ export function startPlayer(root: HTMLElement): () => void {
 
     if (promotion) {
       detachLiveSlideAck();
+      detachLiveFullscreenRequest();
       loadToken += 1;
     } else {
       teardownLiveSession();

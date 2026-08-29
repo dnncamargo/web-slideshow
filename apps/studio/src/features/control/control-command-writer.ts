@@ -10,8 +10,10 @@ import {
 import {
   buildControlCommand,
   buildControlPath,
+  buildFullscreenRequest,
   buildSlideCommandPath,
   type ControlAction,
+  type FullscreenRequest,
   type SlideCommand,
 } from "./control-commands";
 import {
@@ -24,6 +26,7 @@ import {
   parseLiveControlState,
   type LiveControlState,
 } from "../live/live-state";
+import type { LiveCurrent } from "./live-current";
 
 function getCurrentUserIdForControl(): string {
   const user = getCurrentNonAnonymousUser();
@@ -79,7 +82,7 @@ export async function writeControlCommand(
   }
 }
 
-function isNonNegativeInteger(value: unknown): boolean {
+function isNonNegativeInteger(value: unknown): value is number {
   return (
     typeof value === "number" &&
     Number.isFinite(value) &&
@@ -233,4 +236,124 @@ export async function writeControlState(
   }
 
   return committed;
+}
+
+function parseFullscreenRequest(value: unknown): FullscreenRequest | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (Object.keys(record).length !== 3) {
+    return null;
+  }
+
+  if (
+    !isNonNegativeInteger(record.activationRevision) ||
+    typeof record.currentVersionId !== "string" ||
+    record.currentVersionId.trim() === "" ||
+    !isNonNegativeInteger(record.revision) ||
+    record.revision < 1
+  ) {
+    return null;
+  }
+
+  return {
+    activationRevision: record.activationRevision,
+    currentVersionId: record.currentVersionId.trim(),
+    revision: record.revision,
+  };
+}
+
+function parseLiveRecord(value: unknown): LiveCurrent | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (
+    typeof record.publicationId !== "string" ||
+    record.publicationId.trim() === "" ||
+    typeof record.currentVersionId !== "string" ||
+    record.currentVersionId.trim() === "" ||
+    !isNonNegativeInteger(record.revision)
+  ) {
+    return null;
+  }
+
+  return {
+    publicationId: record.publicationId.trim(),
+    currentVersionId: record.currentVersionId.trim(),
+    revision: record.revision,
+  };
+}
+
+/** Writes a Player fullscreen intent only while the expected Live session is current. */
+export async function writeFullscreenRequest(
+  database: Database,
+  expectedLive: LiveCurrent,
+): Promise<FullscreenRequest> {
+  if (!isRealtimeDatabaseConfigured()) {
+    throw new Error("Realtime Database is not configured.");
+  }
+
+  getCurrentUserIdForControl();
+
+  const result = await runTransaction(
+    ref(database, "live"),
+    (current) => {
+      if (typeof current !== "object" || current === null) {
+        return undefined;
+      }
+
+      const currentRecord = current as Record<string, unknown>;
+      const live = parseLiveRecord(currentRecord.current);
+
+      if (
+        live === null ||
+        live.publicationId !== expectedLive.publicationId ||
+        live.currentVersionId !== expectedLive.currentVersionId ||
+        live.revision !== expectedLive.revision
+      ) {
+        return undefined;
+      }
+
+      const previous = parseFullscreenRequest(currentRecord.fullscreenRequest);
+      const revision =
+        previous !== null &&
+        previous.activationRevision === expectedLive.revision &&
+        previous.currentVersionId === expectedLive.currentVersionId
+          ? previous.revision + 1
+          : 1;
+
+      return {
+        ...currentRecord,
+        fullscreenRequest: buildFullscreenRequest(
+          expectedLive.revision,
+          expectedLive.currentVersionId,
+          revision,
+        ),
+      };
+    },
+    { applyLocally: false },
+  );
+
+  if (result.committed !== true) {
+    throw new Error("Live session changed before fullscreen request.");
+  }
+
+  const committedRecord = result.snapshot.val();
+  const committed =
+    typeof committedRecord === "object" && committedRecord !== null
+      ? (committedRecord as Record<string, unknown>).fullscreenRequest
+      : null;
+  const request = parseFullscreenRequest(committed);
+
+  if (request === null) {
+    throw new Error("Fullscreen request transaction committed a malformed value.");
+  }
+
+  return request;
 }

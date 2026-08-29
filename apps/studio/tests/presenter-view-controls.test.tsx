@@ -52,29 +52,21 @@ function view(index: number, enabled = true): LiveControlView {
 describe("PresenterView controls", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const originalRequestFullscreen = Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "requestFullscreen",
-  );
-  const originalExitFullscreen = Object.getOwnPropertyDescriptor(
-    document,
-    "exitFullscreen",
-  );
-  const originalFullscreenElement = Object.getOwnPropertyDescriptor(
-    document,
-    "fullscreenElement",
-  );
+  let originalRequestFullscreen: PropertyDescriptor | undefined;
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    originalRequestFullscreen = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "requestFullscreen",
+    );
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
-
     if (originalRequestFullscreen) {
       Object.defineProperty(
         HTMLElement.prototype,
@@ -84,49 +76,7 @@ describe("PresenterView controls", () => {
     } else {
       Reflect.deleteProperty(HTMLElement.prototype, "requestFullscreen");
     }
-
-    if (originalExitFullscreen) {
-      Object.defineProperty(document, "exitFullscreen", originalExitFullscreen);
-    } else {
-      Reflect.deleteProperty(document, "exitFullscreen");
-    }
-
-    if (originalFullscreenElement) {
-      Object.defineProperty(
-        document,
-        "fullscreenElement",
-        originalFullscreenElement,
-      );
-    } else {
-      Reflect.deleteProperty(document, "fullscreenElement");
-    }
   });
-
-  function installFullscreenApi({
-    requestFullscreen = vi.fn().mockResolvedValue(undefined),
-    exitFullscreen = vi.fn().mockResolvedValue(undefined),
-  }: {
-    requestFullscreen?: ReturnType<typeof vi.fn>;
-    exitFullscreen?: ReturnType<typeof vi.fn>;
-  } = {}) {
-    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
-      configurable: true,
-      value: requestFullscreen,
-    });
-    Object.defineProperty(document, "exitFullscreen", {
-      configurable: true,
-      value: exitFullscreen,
-    });
-
-    return { requestFullscreen, exitFullscreen };
-  }
-
-  function setFullscreenElement(element: Element | null): void {
-    Object.defineProperty(document, "fullscreenElement", {
-      configurable: true,
-      value: element,
-    });
-  }
 
   function render({
     controlView = view(1),
@@ -135,6 +85,7 @@ describe("PresenterView controls", () => {
     previous = vi.fn(),
     next = vi.fn(),
     goTo = vi.fn(),
+    requestFullscreen = vi.fn(),
     end = vi.fn(),
   }: {
     controlView?: LiveControlView | null;
@@ -143,6 +94,7 @@ describe("PresenterView controls", () => {
     previous?: ReturnType<typeof vi.fn>;
     next?: ReturnType<typeof vi.fn>;
     goTo?: ReturnType<typeof vi.fn>;
+    requestFullscreen?: ReturnType<typeof vi.fn>;
     end?: ReturnType<typeof vi.fn>;
   } = {}) {
     const publishedPresentation = presentation();
@@ -167,13 +119,14 @@ describe("PresenterView controls", () => {
             goTo={goTo}
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
+            requestFullscreen={requestFullscreen}
             end={end}
           />
         </StudioI18nProvider>,
       );
     });
 
-    return { previous, next, goTo, end };
+    return { previous, next, goTo, requestFullscreen, end };
   }
 
   function dispatchKey(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
@@ -202,83 +155,23 @@ describe("PresenterView controls", () => {
     expect(goTo).toHaveBeenCalledWith(2);
   });
 
-  it("keeps Fullscreen disabled when the native API is unavailable", () => {
-    render();
-
-    expect(
-      container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Fullscreen"]',
-      )?.disabled,
-    ).toBe(true);
-  });
-
-  it("enters fullscreen when the native API is supported", () => {
-    const { requestFullscreen } = installFullscreenApi();
-    render();
-
-    const fullscreenButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Fullscreen"]',
-    );
-
-    expect(fullscreenButton?.disabled).toBe(false);
-    act(() => fullscreenButton?.click());
-
-    expect(requestFullscreen).toHaveBeenCalledTimes(1);
-  });
-
-  it("follows browser fullscreen state and exits this Presenter fullscreen", () => {
-    const { exitFullscreen } = installFullscreenApi();
-    render();
-
-    const presenterRoot = container.querySelector("main");
-    const fullscreenButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Fullscreen"]',
-    );
-
-    setFullscreenElement(presenterRoot);
-    act(() => document.dispatchEvent(new Event("fullscreenchange")));
-
-    expect(fullscreenButton?.getAttribute("aria-label")).toBe(
-      "Exit fullscreen",
-    );
-    act(() => fullscreenButton?.click());
-
-    expect(exitFullscreen).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not crash when entering or exiting fullscreen is rejected", async () => {
-    const { requestFullscreen, exitFullscreen } = installFullscreenApi({
-      requestFullscreen: vi.fn().mockRejectedValue(new Error("denied")),
-      exitFullscreen: vi.fn().mockRejectedValue(new Error("denied")),
+  it("sends a fullscreen request without calling the Presenter native API", () => {
+    const requestFullscreen = vi.fn();
+    const nativeRequestFullscreen = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: nativeRequestFullscreen,
     });
-    render();
+    const result = render({ requestFullscreen });
 
-    const presenterRoot = container.querySelector("main");
     const fullscreenButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Fullscreen"]',
     );
 
-    await act(async () => fullscreenButton?.click());
-    setFullscreenElement(presenterRoot);
-    act(() => document.dispatchEvent(new Event("fullscreenchange")));
-    await act(async () => fullscreenButton?.click());
+    act(() => fullscreenButton?.click());
 
-    expect(requestFullscreen).toHaveBeenCalledTimes(1);
-    expect(exitFullscreen).toHaveBeenCalledTimes(1);
-  });
-
-  it("removes the fullscreenchange listener on unmount", () => {
-    installFullscreenApi();
-    const removeEventListener = vi.spyOn(document, "removeEventListener");
-    render();
-
-    act(() => root.unmount());
-
-    expect(removeEventListener).toHaveBeenCalledWith(
-      "fullscreenchange",
-      expect.any(Function),
-    );
-    removeEventListener.mockRestore();
+    expect(result.requestFullscreen).toHaveBeenCalledTimes(1);
+    expect(nativeRequestFullscreen).not.toHaveBeenCalled();
   });
 
   it("disables Summary navigation when Control is unavailable or a version is pending", () => {
@@ -328,27 +221,13 @@ describe("PresenterView controls", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it("ends the presentation on Escape outside fullscreen", () => {
+  it("ends the presentation on Escape while Control is active", () => {
     const { end } = render();
 
     const escape = dispatchKey(document, { key: "Escape" });
 
     expect(escape.defaultPrevented).toBe(true);
     expect(end).toHaveBeenCalledTimes(1);
-  });
-
-  it("leaves Escape to the browser while Presenter is fullscreen", () => {
-    installFullscreenApi();
-    const { end } = render();
-
-    const presenterRoot = container.querySelector("main");
-    setFullscreenElement(presenterRoot);
-    act(() => document.dispatchEvent(new Event("fullscreenchange")));
-
-    const escape = dispatchKey(document, { key: "Escape" });
-
-    expect(escape.defaultPrevented).toBe(false);
-    expect(end).not.toHaveBeenCalled();
   });
 
   it("does not consume arrows when movement is unavailable", () => {

@@ -135,6 +135,7 @@ export async function activateLivePresentation(
         },
         controlState: null,
         playerState: null,
+        fullscreenRequest: null,
         slideCommand: null,
         slideAck: null,
       };
@@ -228,6 +229,7 @@ export async function promoteLivePresentationVersion(
         },
         controlState: null,
         playerState: null,
+        fullscreenRequest: null,
         slideCommand: null,
         slideAck: null,
       };
@@ -260,6 +262,7 @@ export async function endLivePresentation(): Promise<void> {
     current: null,
     controlState: null,
     playerState: null,
+    fullscreenRequest: null,
     slideCommand: null,
     slideAck: null,
   });

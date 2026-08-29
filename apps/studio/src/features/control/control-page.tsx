@@ -22,6 +22,18 @@ import { resolveLivePageId } from "./presenter/use-presenter-presentation";
 
 import styles from "./control-page.module.css";
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.matches("input, textarea, select, [contenteditable]") ||
+    target.closest("[contenteditable]") !== null ||
+    target.isContentEditable
+  );
+}
+
 export function ControlPage() {
   const { t } = useStudioI18n();
   const router = useRouter();
@@ -56,6 +68,7 @@ export function ControlPage() {
     goTo,
     followPlayer,
     updatePlayer,
+    requestFullscreen,
   } = useLiveSessionControl({ resolvePageId, resolvePageIndex });
   const presentationState = usePresenterPresentation(
     liveState,
@@ -79,6 +92,30 @@ export function ControlPage() {
   useEffect(() => {
     presentationStateRef.current = presentationState;
   }, [presentationState]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        liveState.kind !== "none" ||
+        event.repeat ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.key !== "Escape" ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      router.push(STUDIO_ROUTES.library);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [liveState.kind, router]);
 
   const end = () => {
     void endLivePresentation().catch((error: unknown) => {
@@ -176,6 +213,7 @@ export function ControlPage() {
       goTo={goTo}
       followPlayer={followPlayer}
       updatePlayer={updatePlayer}
+      requestFullscreen={requestFullscreen}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}
       end={end}

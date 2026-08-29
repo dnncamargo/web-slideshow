@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   ref: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
   writeControlState: vi.fn(),
+  writeFullscreenRequest: vi.fn(),
 }));
 
 vi.mock("firebase/database", () => ({
@@ -24,6 +25,7 @@ vi.mock("../src/features/control/realtime-db", () => ({
 
 vi.mock("../src/features/control/control-command-writer", () => ({
   writeControlState: mocks.writeControlState,
+  writeFullscreenRequest: mocks.writeFullscreenRequest,
 }));
 
 vi.mock("../src/features/control/live-current", () => ({
@@ -83,6 +85,11 @@ describe("useLiveSessionControl hydration", () => {
       currentVersionId: "version-1",
       revision: 1,
       pageId: "page-b",
+    });
+    mocks.writeFullscreenRequest.mockResolvedValue({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
     });
     mocks.promoteLivePresentationVersion.mockResolvedValue(undefined);
     mocks.subscribeLiveCurrent.mockImplementation((next) => {
@@ -264,6 +271,22 @@ describe("useLiveSessionControl hydration", () => {
       1,
       "version-1",
       "page-c",
+    );
+  });
+
+  it("exposes fullscreen requests through the dedicated writer", async () => {
+    await act(async () => {
+      result?.requestFullscreen();
+      await Promise.resolve();
+    });
+
+    expect(mocks.writeFullscreenRequest).toHaveBeenCalledWith(
+      {},
+      {
+        publicationId: "publication-1",
+        currentVersionId: "version-1",
+        revision: 1,
+      },
     );
   });
 });

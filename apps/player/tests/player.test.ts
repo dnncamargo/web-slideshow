@@ -318,6 +318,36 @@ describe("PowerShow Player", () => {
     expect(root.innerHTML).toContain("Slide Two");
   });
 
+  it("keeps the Player-local fullscreen button and F-key behavior", async () => {
+    const originalRequestFullscreen = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "requestFullscreen",
+    );
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    root.querySelector<HTMLButtonElement>(
+      '[data-player-action="fullscreen"]',
+    )?.click();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "f" }));
+    await Promise.resolve();
+
+    expect(requestFullscreen).toHaveBeenCalledTimes(2);
+
+    if (originalRequestFullscreen) {
+      Object.defineProperty(
+        HTMLElement.prototype,
+        "requestFullscreen",
+        originalRequestFullscreen,
+      );
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, "requestFullscreen");
+    }
+  });
+
   it("goes directly to a slide", () => {
     player.goTo(2);
 

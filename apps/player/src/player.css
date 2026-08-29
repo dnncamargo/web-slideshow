@@ -491,3 +491,25 @@ button {
   color: #94a3b8;
   font-size: 14px;
 }
+
+.powershow-player-fullscreen-request {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 200;
+  transform: translateX(-50%);
+
+  padding: 10px 16px;
+
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+
+  cursor: pointer;
+}
+
+.powershow-player-fullscreen-request:hover {
+  background: rgba(30, 41, 59, 0.95);
+}

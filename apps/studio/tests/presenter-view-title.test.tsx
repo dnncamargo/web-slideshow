@@ -77,6 +77,7 @@ describe("PresenterView published presentation title", () => {
             goTo={vi.fn()}
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
+            requestFullscreen={vi.fn()}
             end={vi.fn()}
           />
         </StudioI18nProvider>,

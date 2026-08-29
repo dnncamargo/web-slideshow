@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCurrent: vi.fn(),
   resolveLiveIdentityMount: vi.fn(),
   subscribeLiveProjectionState: vi.fn(),
+  subscribeLiveFullscreenRequest: vi.fn(),
   mountPlayer: vi.fn(),
   liveHandler: undefined as
     | ((event: {
@@ -41,6 +42,10 @@ vi.mock("../src/live-entry", () => ({
 
 vi.mock("../src/live-state", () => ({
   subscribeLiveProjectionState: mocks.subscribeLiveProjectionState,
+}));
+
+vi.mock("../src/live-fullscreen-request", () => ({
+  subscribeLiveFullscreenRequest: mocks.subscribeLiveFullscreenRequest,
 }));
 
 vi.mock("../src/player", () => ({
@@ -108,6 +113,7 @@ describe("Player live version promotion", () => {
       },
     );
     mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
+    mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
   });
 
   it("keeps V1 visible, discards stale V2, maps V3, then attaches its baseline ACK", async () => {

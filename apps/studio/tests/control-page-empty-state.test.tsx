@@ -78,12 +78,63 @@ describe("ControlPage empty state recovery", () => {
       .find((button) => button.textContent?.includes("Re-display")) ?? null;
   }
 
+  function dispatchKey(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    act(() => target.dispatchEvent(event));
+    return event;
+  }
+
   it("shows the initial no-active state without recovery", () => {
     render();
 
     expect(container.textContent).toContain("No presentation is active.");
     expect(recoveryButton()).toBeNull();
     expect(container.textContent).toContain("Back to Library");
+  });
+
+  it("routes an unmodified Escape to Library without changing recovery state", () => {
+    render();
+
+    const escape = dispatchKey(document, { key: "Escape" });
+
+    expect(escape.defaultPrevented).toBe(true);
+    expect(mocks.push).toHaveBeenCalledWith("/studio/library");
+    expect(mocks.activateLivePresentation).not.toHaveBeenCalled();
+    expect(recoveryButton()).toBeNull();
+  });
+
+  it("preserves no-active Escape keyboard safety guards", () => {
+    render();
+
+    const input = document.createElement("input");
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    const editableChild = document.createElement("span");
+    editable.appendChild(editableChild);
+    document.body.append(input, editable);
+
+    const repeated = dispatchKey(document, { key: "Escape", repeat: true });
+    const modified = dispatchKey(document, { key: "Escape", ctrlKey: true });
+    const inputEscape = dispatchKey(input, { key: "Escape" });
+    const editableEscape = dispatchKey(editableChild, { key: "Escape" });
+    const prevented = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    prevented.preventDefault();
+    act(() => document.dispatchEvent(prevented));
+
+    expect(repeated.defaultPrevented).toBe(false);
+    expect(modified.defaultPrevented).toBe(false);
+    expect(inputEscape.defaultPrevented).toBe(false);
+    expect(editableEscape.defaultPrevented).toBe(false);
+    expect(prevented.defaultPrevented).toBe(true);
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("remembers the latest active identity and re-displays it without its revision", async () => {

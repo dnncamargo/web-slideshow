@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 
@@ -90,6 +90,7 @@ export interface PresenterViewProps {
   goTo(index: number): void;
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
+  requestFullscreen(): void;
   end(): void;
 }
 
@@ -113,8 +114,7 @@ export interface PresenterViewProps {
  * local clock, Live sync/latency status and End action. The body contains the
  * slide summary, current preview and next preview + notes. Previous/Next,
  * Fullscreen and the desired slide counter belong to the control row below the
- * current slide. Fullscreen is local to this Presenter surface and uses the
- * browser's native Fullscreen API.
+ * current slide. Fullscreen sends an intent to the mounted Player.
  * There is no footer.
  */
 
@@ -129,15 +129,12 @@ export function PresenterView({
   goTo,
   followPlayer,
   updatePlayer,
+  requestFullscreen,
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
 
   const clock = useLocalClock();
-
-  const presenterRootRef = useRef<HTMLElement | null>(null);
-  const [fullscreenSupported, setFullscreenSupported] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const disabled = view === null || !view.enabled;
 
@@ -210,50 +207,6 @@ export function PresenterView({
   const navigationDisabled = pendingVersion !== null || disabled;
 
   useEffect(() => {
-    const presenterRoot = presenterRootRef.current;
-
-    if (!presenterRoot) {
-      return;
-    }
-
-    const supported =
-      typeof presenterRoot.requestFullscreen === "function" &&
-      typeof document.exitFullscreen === "function" &&
-      document.fullscreenEnabled !== false;
-
-    const updateFullscreenState = () => {
-      setIsFullscreen(document.fullscreenElement === presenterRoot);
-    };
-
-    setFullscreenSupported(supported);
-    updateFullscreenState();
-    document.addEventListener("fullscreenchange", updateFullscreenState);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", updateFullscreenState);
-    };
-  }, []);
-
-  const toggleFullscreen = () => {
-    const presenterRoot = presenterRootRef.current;
-
-    if (!presenterRoot || !fullscreenSupported) {
-      return;
-    }
-
-    try {
-      if (document.fullscreenElement === presenterRoot) {
-        void document.exitFullscreen().catch(() => undefined);
-      } else {
-        void presenterRoot.requestFullscreen().catch(() => undefined);
-      }
-    } catch {
-      // Fullscreen can be rejected synchronously by a browser or embedding
-      // context. Control remains usable when that happens.
-    }
-  };
-
-  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.repeat ||
@@ -276,7 +229,7 @@ export function PresenterView({
         next();
       }
 
-      if (event.key === "Escape" && !isFullscreen) {
+      if (event.key === "Escape") {
         event.preventDefault();
         end();
       }
@@ -285,7 +238,7 @@ export function PresenterView({
     document.addEventListener("keydown", onKeyDown);
 
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [canGoNext, canGoPrevious, end, isFullscreen, next, previous]);
+  }, [canGoNext, canGoPrevious, end, next, previous]);
 
   const isPlayerChanged = view?.status.kind === "player-changed";
 
@@ -305,10 +258,7 @@ export function PresenterView({
   );
 
   return (
-    <main
-      ref={presenterRootRef}
-      className={`${styles.shell} ${presenterStyles.presenterRoot}`}
-    >
+    <main className={styles.shell}>
       <Topbar mobileLayout="stack-title">
         {/* ========================================================
       BEGIN: BRAND
@@ -450,14 +400,10 @@ export function PresenterView({
             <button
               type="button"
               className={presenterStyles.fullscreenButton}
-              disabled={!fullscreenSupported}
-              onClick={toggleFullscreen}
-              aria-label={
-                t(isFullscreen ? "control.exitFullscreen" : "control.fullscreen")
-              }
-              title={
-                t(isFullscreen ? "control.exitFullscreen" : "control.fullscreen")
-              }
+              disabled={disabled}
+              onClick={requestFullscreen}
+              aria-label={t("control.fullscreen")}
+              title={t("control.fullscreen")}
             >
               <svg
                 className={presenterStyles.fullscreenIcon}
