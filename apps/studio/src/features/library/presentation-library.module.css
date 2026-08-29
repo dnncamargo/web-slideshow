@@ -276,6 +276,47 @@
   font-weight: 600;
 }
 
+.workspaceFolderTitle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspaceFolderTitle:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.workspaceFolderTitle:focus-visible,
+.workspaceFolderRenameInput:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 3px;
+}
+
+.workspaceFolderRenameInput {
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  min-width: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font: inherit;
+}
+
+.workspaceFolderRenameError {
+  margin: 5px 0 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .toolbar {
   display: grid;
   min-width: 0;
