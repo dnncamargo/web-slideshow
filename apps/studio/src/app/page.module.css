@@ -24,10 +24,6 @@
   background: #000;
 }
 
-.live {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-}
-
 .demo {
   position: absolute;
   top: 50%;
@@ -83,43 +79,32 @@
   gap: 14px;
 }
 
-.livePanels,
 .actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
-.cover,
-.watchPanel {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 0;
-  border-radius: 0;
-}
-
-.cover {
-  pointer-events: none;
-  background: #000;
-}
-
-.watchPanel {
+.watchQr {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 14px);
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: clamp(10px, 1.4vw, 18px);
-  padding: clamp(14px, 2vw, 24px);
+  gap: 10px;
+  padding: 12px;
   overflow: hidden;
-  background: #111827;
+  background: rgb(15 23 42 / 88%);
   color: #f8fafc;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
-.watchPanel svg {
+.watchQr svg {
   display: block;
-  width: clamp(132px, 16vw, 210px);
+  width: clamp(190px, 17vw, 260px);
   max-width: 100%;
   height: auto;
   padding: 8px;
@@ -221,9 +206,17 @@
     width: min(92vw, 420px);
   }
 
-  .livePanels,
   .actions {
     grid-template-columns: 1fr;
+  }
+
+  .watchQr {
+    right: 0;
+    bottom: calc(100% + 12px);
+  }
+
+  .watchQr svg {
+    width: clamp(150px, 52vw, 210px);
   }
 }
 

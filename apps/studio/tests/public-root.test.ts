@@ -103,6 +103,24 @@ describe("public root", () => {
     );
   });
 
+  it("remounts the visual-only cover when the Live identity changes", async () => {
+    await emit({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
+    });
+    const firstCover = container.querySelector('iframe[title="PowerShow live presentation cover"]');
+
+    await emit({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-2", revision: 1 },
+    });
+    const secondCover = container.querySelector('iframe[title="PowerShow live presentation cover"]');
+
+    expect(firstCover).not.toBe(secondCover);
+    expect(secondCover?.getAttribute("src")).toBe("https://player.example.com/cover");
+    expect(secondCover?.getAttribute("tabindex")).toBe("-1");
+  });
+
   it("returns to demo and removes the QR when Live ends", async () => {
     await emit({
       kind: "active",

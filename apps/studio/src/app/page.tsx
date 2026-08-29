@@ -18,6 +18,7 @@ export default function Home() {
   const coverUrl = player.baseUrl === null ? null : `${player.baseUrl}/cover`;
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
   const isLive = liveState.kind === "active";
+  const presentationUrl = isLive ? coverUrl : demoUrl;
   const coverKey = isLive
     ? `${liveState.live.publicationId}:${liveState.live.currentVersionId}:${liveState.live.revision}`
     : null;
@@ -35,18 +36,19 @@ export default function Home() {
   }, []);
 
   return (
-    <div className={`${styles.landing} ${isLive ? styles.live : ""}`}>
+    <div className={styles.landing}>
       <div className={styles.background}>
-        {demoUrl === null ? (
+        {presentationUrl === null ? (
           <span className={styles.unavailable}>Player unavailable</span>
-        ) : !isLive ? (
+        ) : (
           <iframe
             className={styles.demo}
-            src={demoUrl}
-            title="PowerShow demo presentation"
+            key={isLive ? coverKey : "demo"}
+            src={presentationUrl}
+            title={isLive ? "PowerShow live presentation cover" : "PowerShow demo presentation"}
             tabIndex={-1}
           />
-        ) : null}
+        )}
       </div>
       <div className={styles.overlay} aria-hidden="true" />
 
@@ -55,22 +57,13 @@ export default function Home() {
 
         <div className={styles.rail}>
           {isLive && coverUrl !== null && watchUrl !== null ? (
-            <div className={styles.livePanels}>
-              <iframe
-                key={coverKey}
-                className={styles.cover}
-                src={coverUrl}
-                title="PowerShow live presentation cover"
-                tabIndex={-1}
-              />
-              <aside className={styles.watchPanel} aria-label="Watch live presentation">
-                <div className={styles.watchStatus}>
-                  <span className={styles.liveDot} aria-hidden="true" />
-                  <span>WATCH LIVE</span>
-                </div>
-                <QRCodeSVG value={watchUrl} level="M" includeMargin />
-              </aside>
-            </div>
+            <aside className={styles.watchQr} aria-label="Watch live presentation">
+              <div className={styles.watchStatus}>
+                <span className={styles.liveDot} aria-hidden="true" />
+                <span>WATCH LIVE</span>
+              </div>
+              <QRCodeSVG value={watchUrl} level="M" includeMargin />
+            </aside>
           ) : null}
           <div className={styles.actions}>
             <a className={`${styles.action} ${styles.studioAction}`} href="/studio">
