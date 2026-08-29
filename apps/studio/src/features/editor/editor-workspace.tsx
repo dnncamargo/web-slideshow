@@ -3114,15 +3114,17 @@ export function EditorWorkspace({
     BEGIN: CONDITIONAL SLIDE LAYOUT PICKER
     ========================================================== */}
 
-          {isSlideLayoutPickerOpen && (
-            <SlideLayoutPicker
-              value={newSlidePreset}
-              onChange={setNewSlidePreset}
-              onCreate={() => {
-                addSlide(newSlidePreset);
-              }}
-            />
-          )}
+          <div className={styles.slideLayoutPickerSlot}>
+            {isSlideLayoutPickerOpen && (
+              <SlideLayoutPicker
+                value={newSlidePreset}
+                onChange={setNewSlidePreset}
+                onCreate={() => {
+                  addSlide(newSlidePreset);
+                }}
+              />
+            )}
+          </div>
 
           {/* ==========================================================
     END: CONDITIONAL SLIDE LAYOUT PICKER
