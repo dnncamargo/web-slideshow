@@ -934,6 +934,7 @@ const englishMessages = {
   "control.updatePlayerFailed": "Could not update Player.",
 
   "public.noLive": "No live presentation",
+  "public.library": "Library",
   "public.studio": "Studio",
   "public.play": "Play",
 } as const;
@@ -1866,6 +1867,7 @@ const portugueseMessages = {
   "control.updatePlayerFailed": "Não foi possível atualizar o Player.",
 
   "public.noLive": "Nenhuma apresentação ao vivo",
+  "public.library": "Biblioteca",
   "public.studio": "Studio",
   "public.play": "Apresentar",
 } satisfies StudioMessages;
