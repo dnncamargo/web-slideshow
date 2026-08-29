@@ -1,6 +1,7 @@
 import type { Presentation } from "@powershow/document-schema";
 
 import {
+  fitLogicalSlideGeometry,
   hydrateImageCrops,
   renderFontResources,
   renderSlide,
@@ -242,7 +243,11 @@ export function mountPlayer(
 
         <div
           class="powershow-player-slide-host"
-        ></div>
+        >
+          <div
+            class="powershow-player-slide-surface"
+          ></div>
+        </div>
 
         <div
           class="powershow-player-controls"
@@ -309,6 +314,11 @@ export function mountPlayer(
   const slideHost = queryRequired<HTMLElement>(
     root,
     ".powershow-player-slide-host",
+  );
+
+  const slideSurface = queryRequired<HTMLElement>(
+    root,
+    ".powershow-player-slide-surface",
   );
 
   const controls = queryRequired<HTMLElement>(
@@ -397,25 +407,21 @@ export function mountPlayer(
   // ----------------------------------------------------------
 
   function updateStageSize(): void {
-    const aspectRatio = presentation.aspectRatio === "4:3" ? 4 / 3 : 16 / 9;
+    const geometry = fitLogicalSlideGeometry(
+      presentation.aspectRatio,
+      window.innerWidth,
+      window.innerHeight,
+    );
 
-    const availableWidth = window.innerWidth;
+    stage.style.width = `${geometry.physicalWidth}px`;
 
-    const availableHeight = window.innerHeight;
+    stage.style.height = `${geometry.physicalHeight}px`;
 
-    let width = availableWidth;
+    slideSurface.style.width = `${geometry.logicalWidth}px`;
 
-    let height = width / aspectRatio;
+    slideSurface.style.height = `${geometry.logicalHeight}px`;
 
-    if (height > availableHeight) {
-      height = availableHeight;
-
-      width = height * aspectRatio;
-    }
-
-    stage.style.width = `${width}px`;
-
-    stage.style.height = `${height}px`;
+    slideSurface.style.transform = `scale(${geometry.scale})`;
 
     hydrateImageCrops(slideHost);
   }
@@ -511,7 +517,7 @@ export function mountPlayer(
     const slide = presentation.slides[currentIndex];
 
     if (!slide) {
-      slideHost.innerHTML = `
+      slideSurface.innerHTML = `
         <div
           class="powershow-player-empty"
         >
@@ -524,9 +530,9 @@ export function mountPlayer(
       return;
     }
 
-    slideHost.innerHTML = renderSlide(slide, { presentation });
+    slideSurface.innerHTML = renderSlide(slide, { presentation });
 
-    hydrateImageCrops(slideHost);
+    hydrateImageCrops(slideSurface);
 
     animateSlide();
 

@@ -14,8 +14,12 @@ import { playerTestPresentation } from "./fixtures/player-presentation";
 describe("PowerShow Player", () => {
   let root: HTMLElement;
   let player: PlayerController;
+  let originalInnerWidth: number;
+  let originalInnerHeight: number;
 
   beforeEach(() => {
+    originalInnerWidth = window.innerWidth;
+    originalInnerHeight = window.innerHeight;
     document.body.innerHTML = `<div id="app"></div>`;
 
     const element = document.querySelector<HTMLElement>("#app");
@@ -38,13 +42,105 @@ describe("PowerShow Player", () => {
   afterEach(() => {
     player.destroy();
 
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+
     document.body.replaceChildren();
   });
+
+  function setViewport(width: number, height: number): void {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: width,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: height,
+    });
+  }
 
   it("starts on the first slide", () => {
     expect(player.getCurrentIndex()).toBe(0);
 
     expect(root.innerHTML).toContain("Slide One");
+  });
+  it("fits a 16:9 logical surface into a 1920x1080 viewport", () => {
+    player.destroy();
+    setViewport(1920, 1080);
+    player = mountPlayer(root, playerTestPresentation, { transition: "none" });
+
+    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const surface = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-surface",
+    );
+
+    expect(stage?.style.width).toBe("1920px");
+    expect(stage?.style.height).toBe("1080px");
+    expect(surface?.style.width).toBe("960px");
+    expect(surface?.style.height).toBe("540px");
+    expect(surface?.style.transform).toBe("scale(2)");
+  });
+  it("letterboxes a tall 16:9 viewport while keeping the logical surface fixed", () => {
+    player.destroy();
+    setViewport(800, 1200);
+    player = mountPlayer(root, playerTestPresentation, { transition: "none" });
+
+    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const surface = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-surface",
+    );
+
+    expect(stage?.style.width).toBe("800px");
+    expect(stage?.style.height).toBe("450px");
+    expect(surface?.style.width).toBe("960px");
+    expect(surface?.style.height).toBe("540px");
+    expect(surface?.style.transform).toBe("scale(0.8333333333333334)");
+  });
+  it("fits a 4:3 presentation on the shared logical surface", () => {
+    player.destroy();
+    setViewport(1200, 900);
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "player-4-3-geometry",
+      aspectRatio: "4:3",
+    });
+    player = mountPlayer(root, presentation, { transition: "none" });
+
+    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const surface = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-surface",
+    );
+
+    expect(stage?.style.width).toBe("1200px");
+    expect(stage?.style.height).toBe("900px");
+    expect(surface?.style.width).toBe("960px");
+    expect(surface?.style.height).toBe("720px");
+    expect(surface?.style.transform).toBe("scale(1.25)");
+  });
+  it("changes physical geometry on resize without changing logical geometry", () => {
+    player.destroy();
+    setViewport(1920, 1080);
+    player = mountPlayer(root, playerTestPresentation, { transition: "none" });
+
+    setViewport(1280, 720);
+    window.dispatchEvent(new Event("resize"));
+
+    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const surface = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-surface",
+    );
+
+    expect(stage?.style.width).toBe("1280px");
+    expect(stage?.style.height).toBe("720px");
+    expect(surface?.style.width).toBe("960px");
+    expect(surface?.style.height).toBe("540px");
+    expect(surface?.style.transform).toBe("scale(1.3333333333333333)");
   });
 
   it("renders attached Presentation Text Styles and preserves local overrides", () => {
@@ -308,11 +404,18 @@ describe("PowerShow Player", () => {
     const slide = root.querySelector(".powershow-slide");
 
     const controls = root.querySelector(".powershow-player-controls");
+    const surface = root.querySelector(".powershow-player-slide-surface");
+    const slideHost = root.querySelector(".powershow-player-slide-host");
 
     expect(slide).not.toBeNull();
     expect(controls).not.toBeNull();
+    expect(surface).not.toBeNull();
+    expect(slideHost).not.toBeNull();
 
     expect(slide?.contains(controls ?? null)).toBe(false);
+    expect(surface?.contains(controls ?? null)).toBe(false);
+    expect(slideHost?.contains(surface ?? null)).toBe(true);
+    expect(surface?.contains(slide ?? null)).toBe(true);
   });
   it("mounts presentation font resources once across slide navigation", () => {
     player.destroy();
