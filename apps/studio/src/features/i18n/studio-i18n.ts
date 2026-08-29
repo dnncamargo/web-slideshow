@@ -216,6 +216,8 @@ const englishMessages = {
   "elementCrud.moveDownTitle": "Move element down",
   "elementCrud.duplicate": "Duplicate",
   "elementCrud.delete": "Delete",
+  "elementCrud.deleteDialogTitle": "Delete element?",
+  "elementCrud.cancel": "Cancel",
   "elementCrud.deleteContainerConfirm":
     'Delete container "{id}" and all its children?',
   "elementCrud.deleteElementConfirm": 'Delete {type} "{id}"?',
@@ -1121,6 +1123,8 @@ const portugueseMessages = {
   "elementCrud.moveDownTitle": "Mover elemento para baixo",
   "elementCrud.duplicate": "Duplicar",
   "elementCrud.delete": "Excluir",
+  "elementCrud.deleteDialogTitle": "Excluir elemento?",
+  "elementCrud.cancel": "Cancelar",
   "elementCrud.deleteContainerConfirm":
     'Excluir o contêiner "{id}" e todos os seus elementos filhos?',
   "elementCrud.deleteElementConfirm": 'Excluir {type} "{id}"?',

@@ -1,0 +1,48 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(11 15 23 / 62%);
+}
+
+.dialog {
+  box-sizing: border-box;
+  display: flex;
+  width: min(420px, 100%);
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-8);
+  background: var(--ps-ui-background-surface);
+  color: var(--ps-ui-text-secondary);
+}
+
+.title {
+  margin: 0;
+  color: var(--ps-ui-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.error {
+  margin: 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

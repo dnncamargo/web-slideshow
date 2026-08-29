@@ -51,6 +51,7 @@ import { applyCustomLibraryItemToPresentation } from "@/features/custom-library/
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { LocaleSelector } from "@/features/i18n/locale-selector";
+import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
@@ -248,6 +249,23 @@ interface SelectedElementInfo {
   contentSlotId?: string | null;
 }
 
+interface PendingElementDeletion {
+  elementId: string;
+  elementType: PowerShowElement["type"];
+  slideIndex: number;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.matches("input, textarea, select, [contenteditable]") ||
+    target.closest("[contenteditable]") !== null
+  );
+}
+
 interface CanvasDragState {
   pointerId: number;
   elementId: string;
@@ -427,6 +445,8 @@ export function EditorWorkspace({
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
+  const [pendingElementDeletion, setPendingElementDeletion] =
+    useState<PendingElementDeletion | null>(null);
 
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
@@ -573,6 +593,43 @@ export function EditorWorkspace({
 
     return findElementById(selectedSlide.elements, selectedElement.id);
   }, [selectedSlide, selectedElement]);
+
+  function requestElementDeletion() {
+    if (!selectedDocumentElement || pendingElementDeletion !== null) {
+      return;
+    }
+
+    setPendingElementDeletion({
+      elementId: selectedDocumentElement.id,
+      elementType: selectedDocumentElement.type,
+      slideIndex: selectedSlideIndex,
+    });
+  }
+
+  useEffect(() => {
+    if (rightPanelMode !== "editor") {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Delete" ||
+        event.repeat ||
+        event.defaultPrevented ||
+        pendingElementDeletion !== null ||
+        isEditableKeyboardTarget(event.target) ||
+        !selectedDocumentElement
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      requestElementDeletion();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pendingElementDeletion, rightPanelMode, selectedDocumentElement, selectedSlideIndex]);
 
   // ==========================================================
   // BEGIN: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -2587,24 +2644,8 @@ export function EditorWorkspace({
   // BEGIN: DELETE ELEMENT
   // ==========================================================
 
-  function deleteSelectedElement() {
-    if (!selectedDocumentElement) {
-      return;
-    }
-
-    const description =
-      selectedDocumentElement.type === "container"
-        ? t("elementCrud.deleteContainerConfirm", {
-            id: selectedDocumentElement.id,
-          })
-        : t("elementCrud.deleteElementConfirm", {
-            id: selectedDocumentElement.id,
-            type: t(ELEMENT_TYPE_MESSAGE_KEYS[selectedDocumentElement.type]),
-          });
-
-    const confirmed = window.confirm(description);
-
-    if (!confirmed) {
+  function confirmElementDeletion() {
+    if (!pendingElementDeletion) {
       return;
     }
 
@@ -2612,7 +2653,7 @@ export function EditorWorkspace({
       ...current,
 
       slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
+        if (index !== pendingElementDeletion.slideIndex) {
           return slide;
         }
 
@@ -2621,13 +2662,16 @@ export function EditorWorkspace({
 
           elements: removeElementById(
             slide.elements,
-            selectedDocumentElement.id,
+            pendingElementDeletion.elementId,
           ),
         };
       }),
     }));
 
-    setSelectedElement(null);
+    setSelectedElement((current) =>
+      current?.id === pendingElementDeletion.elementId ? null : current,
+    );
+    setPendingElementDeletion(null);
   }
 
   // ==========================================================
@@ -3593,7 +3637,7 @@ export function EditorWorkspace({
                     }
                     onAdd={addElement}
                     onDuplicate={duplicateSelectedElement}
-                    onDelete={deleteSelectedElement}
+                    onDelete={requestElementDeletion}
                   />
 
                   {/* ==========================================================
@@ -3725,6 +3769,28 @@ export function EditorWorkspace({
             END: INSPECTOR
             =================================================== */}
       </div>
+
+      {pendingElementDeletion ? (
+        <DangerConfirmDialog
+          title={t("elementCrud.deleteDialogTitle")}
+          message={
+            pendingElementDeletion.elementType === "container"
+              ? t("elementCrud.deleteContainerConfirm", {
+                  id: pendingElementDeletion.elementId,
+                })
+              : t("elementCrud.deleteElementConfirm", {
+                  id: pendingElementDeletion.elementId,
+                  type: t(
+                    ELEMENT_TYPE_MESSAGE_KEYS[pendingElementDeletion.elementType],
+                  ),
+                })
+          }
+          confirmLabel={t("elementCrud.delete")}
+          cancelLabel={t("elementCrud.cancel")}
+          onCancel={() => setPendingElementDeletion(null)}
+          onConfirm={confirmElementDeletion}
+        />
+      ) : null}
 
       {/* =====================================================
           END: WORKSPACE

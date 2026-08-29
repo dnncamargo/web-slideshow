@@ -251,6 +251,97 @@ describe("Custom Library Editor integration", () => {
     await act(async () => button.click());
   }
 
+  function dispatchKey(target: EventTarget, key: string): void {
+    act(() => {
+      target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+  }
+
+  it("confirms element deletion through the shared dialog and preserves the container warning", async () => {
+    const saved: Presentation[] = [];
+    const confirmSpy = vi.spyOn(window, "confirm");
+    await mount(makePresentation([container("container-a", [text("child-a", "Existing child")])]), saved);
+    await openElements();
+    await selectElement("Container");
+    const inspectorButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Inspector");
+    if (!inspectorButton) throw new Error("Inspector tab not found");
+    await act(async () => inspectorButton.click());
+
+    const deleteButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Delete" && !button.disabled);
+    if (!deleteButton) throw new Error("Delete button not found");
+    await act(async () => deleteButton.click());
+
+    const dialog = containerElement.querySelector('[data-studio-danger-confirm-dialog]');
+    expect(dialog?.textContent).toContain("Delete container \"container-a\" and all its children?");
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(containerElement.textContent).toContain("Container · container-a");
+
+    const cancelButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Cancel");
+    if (!cancelButton) throw new Error("Cancel button not found");
+    await act(async () => cancelButton.click());
+    expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+    expect(containerElement.textContent).toContain("Container · container-a");
+
+    await act(async () => deleteButton.click());
+    const confirmButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Delete");
+    if (!confirmButton) throw new Error("confirm button not found");
+    await act(async () => confirmButton.click());
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+    expect(containerElement.textContent).not.toContain("Container · container-a");
+    expect(deleteButton.disabled).toBe(true);
+    confirmSpy.mockRestore();
+  });
+
+  it("uses the same confirmation flow for Delete and protects editable controls", async () => {
+    const saved: Presentation[] = [];
+    await mount(makePresentation([text("target-text", "Before")]), saved);
+    await openElements();
+    await selectElement("Text — Before");
+
+    dispatchKey(window, "Backspace");
+    expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+
+    dispatchKey(window, "Delete");
+    expect(containerElement.querySelectorAll('[data-studio-danger-confirm-dialog]')).toHaveLength(1);
+    expect(containerElement.textContent).toContain("Delete Text \"target-text\"?");
+
+    dispatchKey(window, "Delete");
+    expect(containerElement.querySelectorAll('[data-studio-danger-confirm-dialog]')).toHaveLength(1);
+    expect(containerElement.textContent).toContain("Text · target-text");
+
+    const escapeTarget = containerElement.querySelector('[role="dialog"]');
+    if (!escapeTarget) throw new Error("dialog not found");
+    dispatchKey(escapeTarget, "Escape");
+    expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+    expect(containerElement.textContent).toContain("Text · target-text");
+
+    const input = containerElement.querySelector<HTMLInputElement>("input");
+    const select = containerElement.querySelector<HTMLSelectElement>("select");
+    const textarea = document.createElement("textarea");
+    const contentEditable = document.createElement("div");
+    contentEditable.setAttribute("contenteditable", "true");
+    containerElement.append(textarea, contentEditable);
+    if (!input || !select) throw new Error("expected editor controls");
+
+    for (const target of [input, textarea, select, contentEditable]) {
+      dispatchKey(target, "Delete");
+      expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+    }
+
+    dispatchKey(window, "Delete");
+    const confirmButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Delete");
+    if (!confirmButton) throw new Error("confirm button not found");
+    await act(async () => confirmButton.click());
+    expect(containerElement.textContent).not.toContain("Text · target-text");
+  });
+
   it("lazily creates a root Text and selects the applied element", async () => {
     const saved: Presentation[] = [];
     const mounted = await mount(makePresentation([text("existing", "Existing")]), saved);
