@@ -59,5 +59,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/watch",
+      "destination": "/"
+    }
   ]
 }
