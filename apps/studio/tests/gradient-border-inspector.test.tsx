@@ -359,25 +359,32 @@ describe("Gradient Border authoring", () => {
       ),
     );
 
-    const stopGroups = host.querySelectorAll("fieldset");
+    const stopGroups = host.querySelectorAll('[role="group"]');
     expect(stopGroups).toHaveLength(2);
-    expect(Array.from(host.querySelectorAll("legend")).map((legend) => legend.textContent)).toEqual([
-      "Stop 1",
-      "Stop 2",
-    ]);
 
     stopGroups.forEach((stopGroup, index) => {
+      const stopLabelId = stopGroup.getAttribute("aria-labelledby");
+      const stopLabel = stopLabelId
+        ? stopGroup.querySelector(`#${stopLabelId}`)
+        : null;
       const colorInput = stopGroup.querySelector(
         `#container-border-gradient-stop-${index}-color`,
       );
       const positionInput = stopGroup.querySelector(
         `#container-border-gradient-stop-${index}-position`,
       );
-      const colorArea = colorInput?.closest("label");
+      const colorArea = colorInput
+        ? stopGroup.querySelector(`label[for="${colorInput.id}"]`)
+        : null;
       const positionArea = positionInput?.closest("label");
 
+      expect(stopLabelId).not.toBeNull();
+      expect(stopLabel).not.toBeNull();
+      expect(stopLabel?.textContent).toBe(`Stop ${index + 1}`);
       expect(colorArea).not.toBeNull();
       expect(colorInput).not.toBeNull();
+      expect(colorArea?.getAttribute("for")).toBe(colorInput?.id);
+      expect(colorInput?.closest("label")).toBeNull();
       expect(positionArea).not.toBeNull();
       expect(positionInput).not.toBeNull();
       expect(stopGroup.querySelector(`#container-border-gradient-stop-${index}-remove`)).not.toBeNull();
@@ -409,8 +416,11 @@ describe("Gradient Border authoring", () => {
       { color: "#7c3aed", position: 50 },
       { color: "#06b6d4", position: 100 },
     ]);
-    expect(host.querySelectorAll("fieldset")).toHaveLength(3);
-    expect(Array.from(host.querySelectorAll("legend")).map((legend) => legend.textContent)).toEqual([
+    expect(host.querySelectorAll('[role="group"]')).toHaveLength(3);
+    expect(Array.from(host.querySelectorAll('[role="group"][aria-labelledby]')).map((group) => {
+      const labelId = group.getAttribute("aria-labelledby");
+      return labelId ? group.querySelector(`#${labelId}`)?.textContent : undefined;
+    })).toEqual([
       "Stop 1",
       "Stop 2",
       "Stop 3",

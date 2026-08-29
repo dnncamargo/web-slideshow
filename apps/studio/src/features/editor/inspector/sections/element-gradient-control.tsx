@@ -354,12 +354,24 @@ export function ElementGradientControl({
 
             const maximumPosition = nextStop?.position ?? MAX_STOP_POSITION;
 
+            const stopLabelId = `${controlPrefix}-gradient-stop-${index}-label`;
+
+            const colorInputId = `${controlPrefix}-gradient-stop-${index}-color`;
+
             return (
-              <fieldset className={styles.gradientStop} key={index}>
+              <div
+                className={styles.gradientStop}
+                key={index}
+                role="group"
+                aria-labelledby={stopLabelId}
+              >
                 <div className={styles.gradientStopHeader}>
-                  <legend className={styles.gradientStopLegend}>
+                  <span
+                    id={stopLabelId}
+                    className={styles.gradientStopLegend}
+                  >
                     {t("inspector.gradientStop", { number: index + 1 })}
-                  </legend>
+                  </span>
 
                   <button
                     id={`${controlPrefix}-gradient-stop-${index}-remove`}
@@ -386,11 +398,13 @@ export function ElementGradientControl({
                   </button>
                 </div>
 
-                <label className={`${styles.field} ${styles.gradientStopColor}`}>
-                  <span>{t("inspector.gradientStopColor")}</span>
+                <div className={`${styles.field} ${styles.gradientStopColor}`}>
+                  <label htmlFor={colorInputId}>
+                    {t("inspector.gradientStopColor")}
+                  </label>
 
                   <ColorControl
-                    id={`${controlPrefix}-gradient-stop-${index}-color`}
+                    id={colorInputId}
                     name={getControlName(
                       controlPrefix,
                       `GradientStop${index}Color`,
@@ -404,7 +418,7 @@ export function ElementGradientControl({
                       }));
                     }}
                   />
-                </label>
+                </div>
 
                 <label className={`${styles.field} ${styles.gradientStopPosition}`}>
                   <span>{t("inspector.gradientStopPosition")}</span>
@@ -446,7 +460,7 @@ export function ElementGradientControl({
                     <span>%</span>
                   </div>
                 </label>
-              </fieldset>
+              </div>
             );
           })}
 
