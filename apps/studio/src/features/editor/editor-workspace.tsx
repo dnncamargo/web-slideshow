@@ -8,7 +8,7 @@ import type { CSSProperties } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import {
-  hydrateImageCrops,
+  hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
@@ -751,7 +751,7 @@ export function EditorWorkspace({
   useEffect(() => {
     const canvas = slideCanvasRef.current;
     if (canvas) {
-      hydrateImageCrops(canvas);
+      hydrateRendererRuntime(canvas);
     }
   }, [canvasGeometry, renderedSlide]);
 

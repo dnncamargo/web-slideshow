@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   fitLogicalSlideGeometry,
+  hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderSlide,
   resolveLogicalSlideSize,
@@ -47,6 +48,7 @@ export function PresenterSlidePreview({
     ]),
   );
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const previewSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0);
   const previewClass =
     variant === "current" ? styles.previewCurrent : styles.previewNext;
@@ -79,6 +81,10 @@ export function PresenterSlidePreview({
     return () => window.removeEventListener("resize", measure);
   }, [aspectRatio]);
 
+  useEffect(() => {
+    if (previewSurfaceRef.current) hydrateRendererRuntime(previewSurfaceRef.current);
+  }, [markup]);
+
   return (
     <div
       ref={previewRef}
@@ -86,6 +92,7 @@ export function PresenterSlidePreview({
       style={{ aspectRatio: aspectRatio === "4:3" ? "4 / 3" : "16 / 9" }}
     >
       <div
+        ref={previewSurfaceRef}
         className={styles.previewSurface}
         style={{
           width: logicalSize.logicalWidth,

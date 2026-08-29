@@ -2,7 +2,7 @@ import type { Presentation } from "@powershow/document-schema";
 
 import {
   fitLogicalSlideGeometry,
-  hydrateImageCrops,
+  hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
@@ -431,7 +431,7 @@ export function mountPlayer(
 
     slideSurface.style.transform = `scale(${geometry.scale})`;
 
-    hydrateImageCrops(slideHost);
+    hydrateRendererRuntime(slideHost);
   }
 
   // ============================================================
@@ -540,7 +540,7 @@ export function mountPlayer(
 
     slideSurface.innerHTML = renderSlide(slide, { presentation });
 
-    hydrateImageCrops(slideSurface);
+    hydrateRendererRuntime(slideSurface);
 
     animateSlide();
 

@@ -7,6 +7,7 @@ import {
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
+  hydrateRendererRuntime,
   resolveLogicalSlideSize,
 } from "@powershow/renderer";
 
@@ -49,6 +50,7 @@ function WatchSlide({
     ]),
   );
   const viewportRef = useRef<HTMLElement | null>(null);
+  const slideSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [geometry, setGeometry] = useState(() =>
     fitLogicalSlideGeometry(presentation.aspectRatio, 0, 0),
   );
@@ -83,6 +85,10 @@ function WatchSlide({
     return () => window.removeEventListener("resize", measure);
   }, [presentation.aspectRatio]);
 
+  useEffect(() => {
+    if (slideSurfaceRef.current) hydrateRendererRuntime(slideSurfaceRef.current);
+  }, [slide]);
+
   return (
     <main ref={viewportRef} className={styles.center}>
       <div
@@ -96,6 +102,7 @@ function WatchSlide({
           <style data-powershow-font-resources>{fontResourcesCss}</style>
         )}
         <div
+          ref={slideSurfaceRef}
           className={styles.slideSurface}
           style={{
             width: logicalSize.logicalWidth,

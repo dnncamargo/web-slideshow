@@ -197,6 +197,46 @@ function renderStackChild(child: string): string {
       );
 }
 
+function renderChildLayout(
+  element: ContainerElement,
+  output: string[],
+): void {
+  const childrenLayout = element.layout?.children;
+  const mode = childrenLayout?.mode ?? "flow";
+  const direction = childrenLayout?.direction ?? "column";
+  const distribution = childrenLayout?.distribution ?? "packed";
+  const horizontalAlign = childrenLayout?.horizontalAlign;
+  const verticalAlign = childrenLayout?.verticalAlign;
+
+  output.push(mode === "stack" ? "display:grid" : "display:flex");
+
+  if (mode === "stack") {
+    if (horizontalAlign) output.push(`justify-items:${horizontalAlign}`);
+    if (verticalAlign) output.push(`align-items:${verticalAlign}`);
+    return;
+  }
+
+  output.push(`flex-direction:${direction}`);
+
+  if (childrenLayout?.gap !== undefined) {
+    output.push(`gap:${renderLength(childrenLayout.gap)}`);
+  }
+
+  if (distribution !== "packed") {
+    output.push(`justify-content:${distribution}`);
+  } else if (direction === "row" && horizontalAlign) {
+    output.push(`justify-content:${renderMainAxisAlignment(horizontalAlign)}`);
+  } else if (direction === "column" && verticalAlign) {
+    output.push(`justify-content:${renderMainAxisAlignment(verticalAlign)}`);
+  }
+
+  if (direction === "row" && verticalAlign) {
+    output.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
+  } else if (direction === "column" && horizontalAlign) {
+    output.push(`align-items:${renderCrossAxisAlignment(horizontalAlign)}`);
+  }
+}
+
 function getTagName(
   role: ContainerElement["role"],
 ): "div" | "main" | "header" | "footer" {
@@ -256,18 +296,22 @@ export function renderContainer(
     ...renderEffect(element),
   ];
   const childrenLayout = element.layout?.children;
+  const fit = childrenLayout?.fit;
   const mode = childrenLayout?.mode ?? "flow";
-  const direction = childrenLayout?.direction ?? "column";
-  const distribution = childrenLayout?.distribution ?? "packed";
-  const horizontalAlign = childrenLayout?.horizontalAlign;
-  const verticalAlign = childrenLayout?.verticalAlign;
   const isStack = mode === "stack";
+  const isFitted = fit !== undefined;
   const isLinked = element.link !== undefined;
   const hasPattern = element.style?.background?.pattern !== undefined;
-  const needsContainingBlock = hasAbsoluteChild(element) || isLinked || hasPattern;
+  const needsContainingBlock = isFitted
+    ? isLinked || hasPattern
+    : hasAbsoluteChild(element) || isLinked || hasPattern;
   const hasAuthoredAbsolute = element.layout?.position === "absolute";
 
-  styles.push(isStack ? "display:grid" : "display:flex");
+  if (isFitted) {
+    styles.push("display:block");
+  } else {
+    renderChildLayout(element, styles);
+  }
 
   if (needsContainingBlock && !hasAuthoredAbsolute) {
     styles.push("position:relative");
@@ -281,37 +325,9 @@ export function renderContainer(
     styles.push("z-index:0");
   }
 
-  if (isStack) {
-    if (horizontalAlign) {
-      styles.push(`justify-items:${horizontalAlign}`);
-    }
-    if (verticalAlign) {
-      styles.push(`align-items:${verticalAlign}`);
-    }
-  } else {
-    styles.push(`flex-direction:${direction}`);
-
-    if (childrenLayout?.gap !== undefined) {
-      styles.push(`gap:${renderLength(childrenLayout.gap)}`);
-    }
-
-    if (distribution !== "packed") {
-      styles.push(`justify-content:${distribution}`);
-    } else if (direction === "row" && horizontalAlign) {
-      styles.push(`justify-content:${renderMainAxisAlignment(horizontalAlign)}`);
-    } else if (direction === "column" && verticalAlign) {
-      styles.push(`justify-content:${renderMainAxisAlignment(verticalAlign)}`);
-    }
-
-    if (direction === "row" && verticalAlign) {
-      styles.push(`align-items:${renderCrossAxisAlignment(verticalAlign)}`);
-    } else if (direction === "column" && horizontalAlign) {
-      styles.push(`align-items:${renderCrossAxisAlignment(horizontalAlign)}`);
-    }
-  }
-
   const classes = ["powershow-element", "powershow-container"];
   if (isStack) classes.push("powershow-container-stack");
+  if (isFitted) classes.push("powershow-container-fit");
   if (element.role) classes.push(`powershow-container-${element.role}`);
   if (element.style?.className?.trim()) classes.push(element.style.className.trim());
 
@@ -333,13 +349,26 @@ export function renderContainer(
     ? ` data-powershow-role="${escapeHtml(element.role)}"`
     : "";
 
+  const childrenMarkup = isFitted
+    ? (() => {
+        const surfaceStyles = [
+          "position:relative",
+          `width:${fit.sourceWidth}px`,
+          `height:${fit.sourceHeight}px`,
+          "transform-origin:0 0",
+        ];
+        renderChildLayout(element, surfaceStyles);
+        return `<div class="powershow-container-fit-viewport" data-powershow-container-fit="true" data-powershow-container-fit-mode="${fit.mode}" data-powershow-container-fit-source-width="${fit.sourceWidth}" data-powershow-container-fit-source-height="${fit.sourceHeight}" style="position:relative;width:100%;height:100%;${fit.mode === "cover" ? "overflow:hidden;" : "overflow:visible;"}"><div class="powershow-container-fit-surface" style="${escapeHtml(surfaceStyles.join(";"))}">${children}</div></div>`;
+      })()
+    : children;
+
   return (
     `<${tag} class="${escapeHtml(classes.join(" "))}"` +
     ` data-powershow-id="${escapeHtml(element.id)}"` +
     ` data-powershow-type="container"${role}` +
     ` style="${escapeHtml(styles.join(";"))}">` +
     patternLayer +
-    children +
+    childrenMarkup +
     (element.link ? renderLinkSurface(element.link) : "") +
     `</${tag}>`
   );

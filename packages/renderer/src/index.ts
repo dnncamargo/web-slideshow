@@ -17,3 +17,5 @@ export * from "./render-palette";
 export * from "./image-crop";
 export * from "./image-crop-runtime";
 export * from "./container-fit";
+export * from "./container-fit-runtime";
+export * from "./renderer-runtime";
