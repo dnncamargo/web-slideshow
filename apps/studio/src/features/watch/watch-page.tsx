@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   fitLogicalSlideGeometry,
+  paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
   resolveLogicalSlideSize,
@@ -41,6 +42,12 @@ function WatchSlide({
   const { presentation, slide } = state;
   const fontResourcesCss = renderFontResources(presentation.resources?.fonts);
   const logicalSize = resolveLogicalSlideSize(presentation.aspectRatio);
+  const paletteStyle = Object.fromEntries(
+    (presentation.palette?.colors ?? []).map((color) => [
+      paletteColorCssVariableName(color.id),
+      color.value,
+    ]),
+  );
   const viewportRef = useRef<HTMLElement | null>(null);
   const [geometry, setGeometry] = useState(() =>
     fitLogicalSlideGeometry(presentation.aspectRatio, 0, 0),
@@ -94,6 +101,7 @@ function WatchSlide({
             width: logicalSize.logicalWidth,
             height: logicalSize.logicalHeight,
             transform: `scale(${geometry.scale})`,
+            ...paletteStyle,
           }}
           dangerouslySetInnerHTML={{ __html: renderSlide(slide, { presentation }) }}
         />

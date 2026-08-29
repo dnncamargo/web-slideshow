@@ -1,9 +1,11 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   fitLogicalSlideGeometry,
+  paletteColorCssVariableName,
   renderSlide,
   resolveLogicalSlideSize,
 } from "@powershow/renderer";
@@ -38,6 +40,12 @@ export function PresenterSlidePreview({
   );
 
   const logicalSize = resolveLogicalSlideSize(aspectRatio);
+  const paletteStyle = Object.fromEntries(
+    (presentation.palette?.colors ?? []).map((color) => [
+      paletteColorCssVariableName(color.id),
+      color.value,
+    ]),
+  );
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0);
   const previewClass =
@@ -83,7 +91,8 @@ export function PresenterSlidePreview({
           width: logicalSize.logicalWidth,
           height: logicalSize.logicalHeight,
           transform: `scale(${scale})`,
-        }}
+          ...paletteStyle,
+        } as CSSProperties}
         dangerouslySetInnerHTML={{ __html: markup }}
       />
     </div>

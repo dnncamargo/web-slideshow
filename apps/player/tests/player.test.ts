@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema } from "@powershow/document-schema";
+import { paletteColorCssVariableName } from "@powershow/renderer";
 
 import {
   mountPlayer,
@@ -203,6 +204,55 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, detached, { transition: "none" });
 
     expect(root.querySelector<HTMLElement>("[data-powershow-id='styled-text']")?.getAttribute("style") ?? "").not.toContain("Fira Code");
+  });
+
+  it("propagates canonical palette variables only to the authored slide surface", () => {
+    player.destroy();
+    setViewport(960, 540);
+
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "player-palette-runtime",
+      palette: {
+        colors: [
+          { id: "background", name: "Background", value: "#102030" },
+          { id: "accent", name: "Accent", value: "#f0c000" },
+        ],
+      },
+      slides: [{
+        id: "palette-slide",
+        elements: [{
+          type: "text",
+          id: "palette-text",
+          content: "Palette text",
+          style: { color: { kind: "palette", colorId: "accent" } },
+        }],
+      }],
+    });
+
+    player = mountPlayer(root, presentation, { transition: "none" });
+
+    const surface = root.querySelector<HTMLElement>(
+      ".powershow-player-slide-surface",
+    );
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+    const renderedText = root.querySelector<HTMLElement>(
+      "[data-powershow-id='palette-text']",
+    );
+
+    expect(surface?.style.getPropertyValue(paletteColorCssVariableName("background"))).toBe("#102030");
+    expect(surface?.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe("#f0c000");
+    expect(renderedText?.getAttribute("style")).toContain(
+      "var(--ps-palette-0061006300630065006e0074)",
+    );
+    expect(surface?.style.width).toBe("960px");
+    expect(surface?.style.height).toBe("540px");
+    expect(surface?.style.transform).toBe("scale(1)");
+    expect(surface?.contains(renderedText)).toBe(true);
+    expect(controls?.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe("");
+    expect(surface?.contains(controls ?? null)).toBe(false);
   });
 
   it("renders and rehydrates a canonical cropped Image without changing document data", () => {

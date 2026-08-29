@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Presentation } from "@powershow/document-schema";
+import { paletteColorCssVariableName } from "@powershow/renderer";
 
 import {
   createBlankPresentation,
@@ -233,7 +234,15 @@ describe("Watch read model", () => {
   it("fits the rendered 16:9 slide into the measured Watch viewport", async () => {
     const restoreViewport = mockWatchViewport(528, 318);
     try {
-      mocks.reader.getVersion.mockResolvedValue(presentation(["page-a"]));
+      mocks.reader.getVersion.mockResolvedValue({
+        ...presentation(["page-a"]),
+        palette: {
+          colors: [
+            { id: "background", name: "Background", value: "#102030" },
+            { id: "accent", name: "Accent", value: "#f0c000" },
+          ],
+        },
+      });
 
       await mountWatch();
       await emitLive(liveState());
@@ -247,6 +256,9 @@ describe("Watch read model", () => {
       expect(surface.style.width).toBe("960px");
       expect(surface.style.height).toBe("540px");
       expect(surface.style.transform).toBe("scale(0.5)");
+      expect(surface.style.getPropertyValue(paletteColorCssVariableName("background"))).toBe("#102030");
+      expect(surface.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe("#f0c000");
+      expect(surface.querySelector("[data-powershow-slide-id='page-a']")).not.toBeNull();
     } finally {
       restoreViewport();
     }

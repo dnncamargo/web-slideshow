@@ -4,7 +4,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveLogicalSlideSize } from "@powershow/renderer";
+import {
+  paletteColorCssVariableName,
+  resolveLogicalSlideSize,
+} from "@powershow/renderer";
 
 import { PresenterSlidePreview } from "../src/features/control/presenter/presenter-slide-preview";
 import {
@@ -106,5 +109,64 @@ describe("PresenterSlidePreview logical geometry", () => {
     expect(surface.style.width).toBe(`${logicalSize.logicalWidth}px`);
     expect(surface.style.height).toBe(`${logicalSize.logicalHeight}px`);
     expect(surface.style.transform).toBe("scale(0.5)");
+  });
+
+  it("propagates the canonical palette to both current and next surfaces", async () => {
+    const presentation = {
+      ...createBlankPresentation("presentation-1", "Presentation"),
+      palette: {
+        colors: [
+          { id: "background", name: "Background", value: "#102030" },
+          { id: "accent", name: "Accent", value: "#f0c000" },
+        ],
+      },
+    };
+    const slide = {
+      ...createBlankSlide("slide-1"),
+      elements: [{
+        type: "text" as const,
+        id: "palette-text",
+        hidden: false,
+        variant: "body",
+        content: "Palette text",
+        style: { color: { kind: "palette" as const, colorId: "accent" } },
+      }],
+    };
+
+    await act(async () => {
+      root.render(
+        <>
+          <PresenterSlidePreview
+            presentation={presentation}
+            slide={slide}
+            aspectRatio="16:9"
+            variant="current"
+          />
+          <PresenterSlidePreview
+            presentation={presentation}
+            slide={slide}
+            aspectRatio="16:9"
+            variant="next"
+          />
+        </>,
+      );
+    });
+
+    const surfaces = container.querySelectorAll<HTMLElement>("[class*='previewSurface']");
+    expect(surfaces).toHaveLength(2);
+
+    for (const surface of surfaces) {
+      expect(surface.style.getPropertyValue(paletteColorCssVariableName("background"))).toBe("#102030");
+      expect(surface.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe("#f0c000");
+      expect(surface.style.width).toBe("960px");
+      expect(surface.style.height).toBe("540px");
+      expect(surface.style.transform).toBe("scale(0.5)");
+      expect(surface.querySelector("[data-powershow-id='palette-text']")).not.toBeNull();
+      expect(surface.innerHTML).toContain("var(--ps-palette-0061006300630065006e0074)");
+    }
+
+    expect(slide.elements[0]).toMatchObject({
+      style: { color: { kind: "palette", colorId: "accent" } },
+    });
   });
 });

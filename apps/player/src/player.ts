@@ -3,6 +3,7 @@ import type { Presentation } from "@powershow/document-schema";
 import {
   fitLogicalSlideGeometry,
   hydrateImageCrops,
+  paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
 } from "@powershow/renderer";
@@ -325,6 +326,13 @@ export function mountPlayer(
     root,
     ".powershow-player-controls",
   );
+
+  for (const color of presentation.palette?.colors ?? []) {
+    slideSurface.style.setProperty(
+      paletteColorCssVariableName(color.id),
+      color.value,
+    );
+  }
 
   // ==========================================================
   // BEGIN: REFERÊNCIA AO CONTADOR
