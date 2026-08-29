@@ -483,13 +483,53 @@ button {
 
 .powershow-player-load-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   width: 100%;
   height: 100%;
   background: #000;
   color: #94a3b8;
   font-size: 14px;
+}
+
+.powershow-player-load-indicator {
+  display: none;
+  width: 72px;
+  height: 2px;
+  overflow: hidden;
+  background: rgb(148 163 184 / 28%);
+}
+
+.powershow-player-load-state[data-loading="true"] .powershow-player-load-indicator {
+  display: block;
+}
+
+.powershow-player-load-indicator::before {
+  display: block;
+  width: 42%;
+  height: 100%;
+  content: "";
+  background: #60a5fa;
+  animation: powershow-load-indicator 1.1s ease-in-out infinite;
+}
+
+@keyframes powershow-load-indicator {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .powershow-player-load-indicator::before {
+    animation: none;
+    transform: translateX(70%);
+  }
 }
 
 .powershow-player-fullscreen-request {
