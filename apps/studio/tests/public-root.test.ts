@@ -68,8 +68,8 @@ describe("public root", () => {
     vi.clearAllMocks();
   });
 
-  function iframeSrc(): string | null {
-    return container.querySelector("iframe")?.getAttribute("src") ?? null;
+  function iframeSrc(title: string): string | null {
+    return container.querySelector(`iframe[title="${title}"]`)?.getAttribute("src") ?? null;
   }
 
   async function emit(state: LiveState): Promise<void> {
@@ -77,24 +77,27 @@ describe("public root", () => {
   }
 
   it("keeps the demo background for initial, loading, none, and error states", async () => {
-    expect(iframeSrc()).toBe("https://player.example.com/demo");
+    expect(iframeSrc("PowerShow demo presentation")).toBe("https://player.example.com/demo");
     expect(container.querySelector("[data-qr-value]")).toBeNull();
 
     await emit({ kind: "loading" });
     await emit({ kind: "none" });
     await emit({ kind: "error" });
 
-    expect(iframeSrc()).toBe("https://player.example.com/demo");
+    expect(iframeSrc("PowerShow demo presentation")).toBe("https://player.example.com/demo");
     expect(container.querySelector("[data-qr-value]")).toBeNull();
   });
 
-  it("uses the same stable Watch URL for the active background and QR", async () => {
+  it("uses a contained keyed cover and the stable Watch URL QR while active", async () => {
     await emit({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
     });
 
-    expect(iframeSrc()).toBe("https://player.example.com/watch");
+    expect(iframeSrc("PowerShow demo presentation")).toBeNull();
+    expect(iframeSrc("PowerShow live presentation cover")).toBe("https://player.example.com/cover");
+    expect(container.textContent).toContain("WATCH LIVE");
+    expect(container.querySelector("[aria-hidden=\"true\"]")).not.toBeNull();
     expect(container.querySelector("[data-qr-value]")?.getAttribute("data-qr-value")).toBe(
       "https://player.example.com/watch",
     );
@@ -107,7 +110,8 @@ describe("public root", () => {
     });
     await emit({ kind: "none" });
 
-    expect(iframeSrc()).toBe("https://player.example.com/demo");
+    expect(iframeSrc("PowerShow demo presentation")).toBe("https://player.example.com/demo");
+    expect(iframeSrc("PowerShow live presentation cover")).toBeNull();
     expect(container.querySelector("[data-qr-value]")).toBeNull();
   });
 
@@ -144,6 +148,7 @@ describe("public root", () => {
     expect(container.textContent).toContain("Studio");
     expect(container.textContent).toContain("Player");
     expect(stylesSource).toContain("width: min(76vw, 972px)");
+    expect(stylesSource).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
     expect(stylesSource).toContain("width: max(100vw, calc(100dvh * 16 / 9))");
     expect(stylesSource).toContain("border-radius: 0");
   });

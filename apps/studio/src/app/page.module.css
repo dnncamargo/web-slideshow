@@ -24,6 +24,10 @@
   background: #000;
 }
 
+.live {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
 .demo {
   position: absolute;
   top: 50%;
@@ -72,23 +76,67 @@
   text-shadow: 0 1px 12px rgb(0 0 0 / 48%);
 }
 
-.watchQr {
-  position: absolute;
-  right: clamp(24px, 5vw, 72px);
-  bottom: clamp(116px, 16vh, 180px);
+.rail {
+  display: grid;
+  width: min(76vw, 972px);
+  max-width: 100%;
+  gap: 14px;
+}
+
+.livePanels,
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cover,
+.watchPanel {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0;
+}
+
+.cover {
+  pointer-events: none;
+  background: #000;
+}
+
+.watchPanel {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 10px;
-  background: #fff;
-  color: #0f172a;
-  font-size: 12px;
+  align-content: center;
+  gap: clamp(10px, 1.4vw, 18px);
+  padding: clamp(14px, 2vw, 24px);
+  overflow: hidden;
+  background: #111827;
+  color: #f8fafc;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
-.watchQr svg {
+.watchPanel svg {
   display: block;
+  width: clamp(132px, 16vw, 210px);
+  max-width: 100%;
+  height: auto;
+  padding: 8px;
+  background: #fff;
+}
+
+.watchStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
 }
 
 .unavailable {
@@ -100,11 +148,7 @@
 }
 
 .actions {
-  display: grid;
-  width: min(76vw, 972px);
-  max-width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  width: 100%;
 }
 
 .action {
@@ -173,13 +217,12 @@
 }
 
 @media (max-width: 520px) {
-  .watchQr {
-    right: 24px;
-    bottom: clamp(178px, 30vh, 240px);
+  .rail {
+    width: min(92vw, 420px);
   }
 
+  .livePanels,
   .actions {
-    width: min(92vw, 420px);
     grid-template-columns: 1fr;
   }
 }

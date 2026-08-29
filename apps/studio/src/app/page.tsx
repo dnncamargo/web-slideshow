@@ -15,9 +15,12 @@ export default function Home() {
   const player = resolvePublicPlayerUrl();
   const demoUrl = player.baseUrl === null ? null : `${player.baseUrl}/demo`;
   const watchUrl = player.baseUrl === null ? null : `${player.baseUrl}/watch`;
+  const coverUrl = player.baseUrl === null ? null : `${player.baseUrl}/cover`;
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
   const isLive = liveState.kind === "active";
-  const presentationUrl = isLive ? watchUrl : demoUrl;
+  const coverKey = isLive
+    ? `${liveState.live.publicationId}:${liveState.live.currentVersionId}:${liveState.live.revision}`
+    : null;
 
   useEffect(() => {
     let active = true;
@@ -32,45 +35,58 @@ export default function Home() {
   }, []);
 
   return (
-    <div className={styles.landing}>
+    <div className={`${styles.landing} ${isLive ? styles.live : ""}`}>
       <div className={styles.background}>
-        {presentationUrl === null ? (
+        {demoUrl === null ? (
           <span className={styles.unavailable}>Player unavailable</span>
-        ) : (
+        ) : !isLive ? (
           <iframe
             className={styles.demo}
-            src={presentationUrl}
-            title={isLive ? "PowerShow live presentation" : "PowerShow demo presentation"}
+            src={demoUrl}
+            title="PowerShow demo presentation"
             tabIndex={-1}
           />
-        )}
+        ) : null}
       </div>
       <div className={styles.overlay} aria-hidden="true" />
 
       <main className={styles.main}>
         <h1 className={styles.brand}>PowerShow</h1>
 
-        {isLive && watchUrl !== null ? (
-          <aside className={styles.watchQr} aria-label="Watch live presentation">
-            <QRCodeSVG value={watchUrl} size={112} level="M" includeMargin />
-            <span>Watch live</span>
-          </aside>
-        ) : null}
-
-        <div className={styles.actions}>
-          <a className={`${styles.action} ${styles.studioAction}`} href="/studio">
-            <span>Studio</span>
-          </a>
-
-          {player.available && player.baseUrl !== null ? (
-            <a className={`${styles.action} ${styles.playerAction}`} href={player.baseUrl}>
-              <span>Player</span>
+        <div className={styles.rail}>
+          {isLive && coverUrl !== null && watchUrl !== null ? (
+            <div className={styles.livePanels}>
+              <iframe
+                key={coverKey}
+                className={styles.cover}
+                src={coverUrl}
+                title="PowerShow live presentation cover"
+                tabIndex={-1}
+              />
+              <aside className={styles.watchPanel} aria-label="Watch live presentation">
+                <div className={styles.watchStatus}>
+                  <span className={styles.liveDot} aria-hidden="true" />
+                  <span>WATCH LIVE</span>
+                </div>
+                <QRCodeSVG value={watchUrl} level="M" includeMargin />
+              </aside>
+            </div>
+          ) : null}
+          <div className={styles.actions}>
+            <a className={`${styles.action} ${styles.studioAction}`} href="/studio">
+              <span>Studio</span>
             </a>
-          ) : (
-            <span className={`${styles.action} ${styles.playerAction}`} aria-disabled="true">
-              <span>Player</span>
-            </span>
-          )}
+
+            {player.available && player.baseUrl !== null ? (
+              <a className={`${styles.action} ${styles.playerAction}`} href={player.baseUrl}>
+                <span>Player</span>
+              </a>
+            ) : (
+              <span className={`${styles.action} ${styles.playerAction}`} aria-disabled="true">
+                <span>Player</span>
+              </span>
+            )}
+          </div>
         </div>
       </main>
     </div>
