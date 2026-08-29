@@ -1,21 +1,10 @@
 import type { PresentationThumbnailPreview } from "../persistence/presentation-persistence";
-
-/**
- * Logical preview canvas width. Matches the Editor's nominal slide width so
- * px/rem-based authored content renders at the same visual scale before the
- * whole canvas is uniformly scaled down to the Library thumbnail slot.
- */
-export const THUMBNAIL_LOGICAL_WIDTH = 960;
-
-export const THUMBNAIL_LOGICAL_HEIGHT_16_9 = 540;
-export const THUMBNAIL_LOGICAL_HEIGHT_4_3 = 720;
+import { resolveLogicalSlideSize } from "@powershow/renderer";
 
 export function thumbnailLogicalHeight(
   aspectRatio: PresentationThumbnailPreview["aspectRatio"],
 ): number {
-  return aspectRatio === "4:3"
-    ? THUMBNAIL_LOGICAL_HEIGHT_4_3
-    : THUMBNAIL_LOGICAL_HEIGHT_16_9;
+  return resolveLogicalSlideSize(aspectRatio).logicalHeight;
 }
 
 /**

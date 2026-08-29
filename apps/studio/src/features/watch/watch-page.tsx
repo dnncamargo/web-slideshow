@@ -1,8 +1,13 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { renderFontResources, renderSlide } from "@powershow/renderer";
+import {
+  fitLogicalSlideGeometry,
+  renderFontResources,
+  renderSlide,
+  resolveLogicalSlideSize,
+} from "@powershow/renderer";
 
 import { useWatchSession, type WatchViewState } from "./use-watch-session";
 
@@ -35,23 +40,61 @@ function WatchSlide({
 }) {
   const { presentation, slide } = state;
   const fontResourcesCss = renderFontResources(presentation.resources?.fonts);
-  const ratio = presentation.aspectRatio === "4:3" ? 4 / 3 : 16 / 9;
+  const logicalSize = resolveLogicalSlideSize(presentation.aspectRatio);
+  const viewportRef = useRef<HTMLElement | null>(null);
+  const [geometry, setGeometry] = useState(() =>
+    fitLogicalSlideGeometry(presentation.aspectRatio, 0, 0),
+  );
 
-  // Scale the slide to the available area while preserving the presentation
-  // aspect ratio: width fits 100% unless the height would overflow.
-  const stageStyle: CSSProperties = {
-    aspectRatio: `${ratio}`,
-    width: `min(100%, calc(100svh * ${1 / ratio}))`,
-  };
+  useEffect(() => {
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    const measure = () => {
+      const width = Math.max(0, viewport.clientWidth - 48);
+      const height = Math.max(0, viewport.clientHeight - 48);
+
+      setGeometry(
+        fitLogicalSlideGeometry(presentation.aspectRatio, width, height),
+      );
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(viewport);
+
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", measure);
+
+    return () => window.removeEventListener("resize", measure);
+  }, [presentation.aspectRatio]);
 
   return (
-    <main className={styles.center}>
-      <div className={styles.stage} style={stageStyle}>
+    <main ref={viewportRef} className={styles.center}>
+      <div
+        className={styles.stage}
+        style={{
+          width: geometry.physicalWidth,
+          height: geometry.physicalHeight,
+        }}
+      >
         {fontResourcesCss !== "" && (
           <style data-powershow-font-resources>{fontResourcesCss}</style>
         )}
         <div
-          className={styles.slideHost}
+          className={styles.slideSurface}
+          style={{
+            width: logicalSize.logicalWidth,
+            height: logicalSize.logicalHeight,
+            transform: `scale(${geometry.scale})`,
+          }}
           dangerouslySetInnerHTML={{ __html: renderSlide(slide, { presentation }) }}
         />
       </div>

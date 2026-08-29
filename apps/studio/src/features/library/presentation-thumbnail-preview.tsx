@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { renderSlide } from "@powershow/renderer";
+import { renderSlide, resolveLogicalSlideSize } from "@powershow/renderer";
 
 import type { PresentationThumbnailPreview } from "../persistence/presentation-persistence";
 
 import {
   computeThumbnailScale,
-  THUMBNAIL_LOGICAL_WIDTH,
   thumbnailLogicalHeight,
 } from "./presentation-thumbnail-geometry";
 import styles from "./presentation-library.module.css";
@@ -32,7 +31,7 @@ export function PresentationThumbnailPreview({
     [preview.firstSlide],
   );
 
-  const logicalWidth = THUMBNAIL_LOGICAL_WIDTH;
+  const logicalWidth = resolveLogicalSlideSize(preview.aspectRatio).logicalWidth;
   const logicalHeight = thumbnailLogicalHeight(preview.aspectRatio);
 
   const hostRef = useRef<HTMLDivElement | null>(null);

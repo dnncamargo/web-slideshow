@@ -23,6 +23,13 @@
   background: #0b0f17;
 }
 
+.previewSurface {
+  position: absolute;
+  inset: 0 auto auto 0;
+
+  transform-origin: 0 0;
+}
+
 .previewCurrent {
   width: 100%;
   max-width: 960px;

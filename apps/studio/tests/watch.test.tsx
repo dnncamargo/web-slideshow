@@ -169,6 +169,40 @@ describe("Watch read model", () => {
     );
   }
 
+  function mockWatchViewport(width: number, height: number): () => void {
+    const widthDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientWidth",
+    );
+    const heightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get: () => width,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: () => height,
+    });
+
+    return () => {
+      if (widthDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "clientWidth", widthDescriptor);
+      } else {
+        delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+
+      if (heightDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "clientHeight", heightDescriptor);
+      } else {
+        delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      }
+    };
+  }
+
   it("B: no live/current shows the no-live state without touching playerState or the reader", async () => {
     await mountWatch();
     await emitLive({ kind: "none" });
@@ -194,6 +228,55 @@ describe("Watch read model", () => {
     );
     expect(renderedSlideId()).toBe("page-a");
     expect(container.textContent).not.toContain(WAITING_PLAYER_COPY);
+  });
+
+  it("fits the rendered 16:9 slide into the measured Watch viewport", async () => {
+    const restoreViewport = mockWatchViewport(528, 318);
+    try {
+      mocks.reader.getVersion.mockResolvedValue(presentation(["page-a"]));
+
+      await mountWatch();
+      await emitLive(liveState());
+      await emitPlayer(playerState());
+
+      const stage = container.querySelector("main > div") as HTMLElement;
+      const surface = stage.querySelector("div") as HTMLElement;
+
+      expect(stage.style.width).toBe("480px");
+      expect(stage.style.height).toBe("270px");
+      expect(surface.style.width).toBe("960px");
+      expect(surface.style.height).toBe("540px");
+      expect(surface.style.transform).toBe("scale(0.5)");
+    } finally {
+      restoreViewport();
+    }
+  });
+
+  it("fits the rendered 4:3 slide without changing its logical dimensions", async () => {
+    const restoreViewport = mockWatchViewport(528, 408);
+    try {
+      mocks.reader.getVersion.mockResolvedValue(
+        {
+          ...presentation(["page-a"]),
+          aspectRatio: "4:3",
+        },
+      );
+
+      await mountWatch();
+      await emitLive(liveState());
+      await emitPlayer(playerState());
+
+      const stage = container.querySelector("main > div") as HTMLElement;
+      const surface = stage.querySelector("div") as HTMLElement;
+
+      expect(stage.style.width).toBe("480px");
+      expect(stage.style.height).toBe("360px");
+      expect(surface.style.width).toBe("960px");
+      expect(surface.style.height).toBe("720px");
+      expect(surface.style.transform).toBe("scale(0.5)");
+    } finally {
+      restoreViewport();
+    }
   });
 
   it("D: matching identity but no playerState stays on the waiting Player state", async () => {
