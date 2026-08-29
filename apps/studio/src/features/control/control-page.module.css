@@ -27,6 +27,13 @@
   font-weight: 600;
 }
 
+.statusBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
 .shell {
   width: 100%;
   height: 100dvh;

@@ -275,12 +275,17 @@ export function PresenterView({
         event.preventDefault();
         next();
       }
+
+      if (event.key === "Escape" && !isFullscreen) {
+        event.preventDefault();
+        end();
+      }
     };
 
     document.addEventListener("keydown", onKeyDown);
 
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [canGoNext, canGoPrevious, next, previous]);
+  }, [canGoNext, canGoPrevious, end, isFullscreen, next, previous]);
 
   const isPlayerChanged = view?.status.kind === "player-changed";
 

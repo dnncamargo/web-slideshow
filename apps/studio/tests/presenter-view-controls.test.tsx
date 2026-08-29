@@ -135,6 +135,7 @@ describe("PresenterView controls", () => {
     previous = vi.fn(),
     next = vi.fn(),
     goTo = vi.fn(),
+    end = vi.fn(),
   }: {
     controlView?: LiveControlView | null;
     displayIndex?: number;
@@ -142,6 +143,7 @@ describe("PresenterView controls", () => {
     previous?: ReturnType<typeof vi.fn>;
     next?: ReturnType<typeof vi.fn>;
     goTo?: ReturnType<typeof vi.fn>;
+    end?: ReturnType<typeof vi.fn>;
   } = {}) {
     const publishedPresentation = presentation();
 
@@ -165,13 +167,13 @@ describe("PresenterView controls", () => {
             goTo={goTo}
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
-            end={vi.fn()}
+            end={end}
           />
         </StudioI18nProvider>,
       );
     });
 
-    return { previous, next, goTo };
+    return { previous, next, goTo, end };
   }
 
   function dispatchKey(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
@@ -326,6 +328,29 @@ describe("PresenterView controls", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  it("ends the presentation on Escape outside fullscreen", () => {
+    const { end } = render();
+
+    const escape = dispatchKey(document, { key: "Escape" });
+
+    expect(escape.defaultPrevented).toBe(true);
+    expect(end).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves Escape to the browser while Presenter is fullscreen", () => {
+    installFullscreenApi();
+    const { end } = render();
+
+    const presenterRoot = container.querySelector("main");
+    setFullscreenElement(presenterRoot);
+    act(() => document.dispatchEvent(new Event("fullscreenchange")));
+
+    const escape = dispatchKey(document, { key: "Escape" });
+
+    expect(escape.defaultPrevented).toBe(false);
+    expect(end).not.toHaveBeenCalled();
+  });
+
   it("does not consume arrows when movement is unavailable", () => {
     const first = render({ displayIndex: 0, controlView: view(0) });
     const firstLeft = dispatchKey(document, { key: "ArrowLeft" });
@@ -365,8 +390,8 @@ describe("PresenterView controls", () => {
     expect(pending.next).not.toHaveBeenCalled();
   });
 
-  it("ignores repeated, modified, default-prevented, and editable-target arrows", () => {
-    const { previous, next } = render();
+  it("ignores repeated, modified, default-prevented, and editable-target keys", () => {
+    const { previous, next, end } = render();
     const input = document.createElement("input");
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
@@ -378,6 +403,10 @@ describe("PresenterView controls", () => {
     const modified = dispatchKey(document, { key: "ArrowRight", ctrlKey: true });
     const inputEvent = dispatchKey(input, { key: "ArrowLeft" });
     const editableEvent = dispatchKey(editableChild, { key: "ArrowRight" });
+    const repeatedEscape = dispatchKey(document, { key: "Escape", repeat: true });
+    const modifiedEscape = dispatchKey(document, { key: "Escape", metaKey: true });
+    const inputEscape = dispatchKey(input, { key: "Escape" });
+    const editableEscape = dispatchKey(editableChild, { key: "Escape" });
     const prevented = new KeyboardEvent("keydown", {
       key: "ArrowLeft",
       bubbles: true,
@@ -385,12 +414,24 @@ describe("PresenterView controls", () => {
     });
     prevented.preventDefault();
     document.dispatchEvent(prevented);
+    const preventedEscape = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    preventedEscape.preventDefault();
+    document.dispatchEvent(preventedEscape);
 
     expect(repeated.defaultPrevented).toBe(false);
     expect(modified.defaultPrevented).toBe(false);
     expect(inputEvent.defaultPrevented).toBe(false);
     expect(editableEvent.defaultPrevented).toBe(false);
+    expect(repeatedEscape.defaultPrevented).toBe(false);
+    expect(modifiedEscape.defaultPrevented).toBe(false);
+    expect(inputEscape.defaultPrevented).toBe(false);
+    expect(editableEscape.defaultPrevented).toBe(false);
     expect(previous).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
+    expect(end).not.toHaveBeenCalled();
   });
 });

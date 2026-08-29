@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@powershow/ui";
+
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { useRouter } from "next/navigation";
@@ -10,7 +12,11 @@ import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
-import { endLivePresentation } from "./live-current";
+import {
+  activateLivePresentation,
+  endLivePresentation,
+  type LiveCurrent,
+} from "./live-current";
 import type { PresenterPresentationState } from "./presenter/use-presenter-presentation";
 import { resolveLivePageId } from "./presenter/use-presenter-presentation";
 
@@ -56,6 +62,19 @@ export function ControlPage() {
     view?.enabled === true ? view.desiredPageId : null,
   );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
+  const lastLiveIdentityRef = useRef<Pick<LiveCurrent, "publicationId" | "currentVersionId"> | null>(null);
+  const [reactivationInFlight, setReactivationInFlight] = useState(false);
+
+  useEffect(() => {
+    if (liveState.kind !== "active") {
+      return;
+    }
+
+    lastLiveIdentityRef.current = {
+      publicationId: liveState.live.publicationId,
+      currentVersionId: liveState.live.currentVersionId,
+    };
+  }, [liveState]);
 
   useEffect(() => {
     presentationStateRef.current = presentationState;
@@ -65,6 +84,23 @@ export function ControlPage() {
     void endLivePresentation().catch((error: unknown) => {
       console.error("Control: end failed", error);
     });
+  };
+
+  const reactivateLastPresentation = () => {
+    const lastLiveIdentity = lastLiveIdentityRef.current;
+    if (lastLiveIdentity === null || reactivationInFlight) {
+      return;
+    }
+
+    setReactivationInFlight(true);
+    void activateLivePresentation(
+      lastLiveIdentity.publicationId,
+      lastLiveIdentity.currentVersionId,
+    )
+      .catch((error: unknown) => {
+        console.error("Control: re-display failed", error);
+      })
+      .finally(() => setReactivationInFlight(false));
   };
 
   if (!available) {
@@ -98,11 +134,26 @@ export function ControlPage() {
   }
 
   if (liveState.kind === "none") {
+    const hasLastLiveIdentity = lastLiveIdentityRef.current !== null;
+
     return (
       <main className={styles.page}>
         <div className={styles.card}>
           <div className={styles.statusBlock}>
             <p className={styles.status}>{t("control.noActivePresentation")}</p>
+            {hasLastLiveIdentity && (
+              <Button
+                variant="primary"
+                disabled={reactivationInFlight}
+                onClick={reactivateLastPresentation}
+              >
+                {t(
+                  reactivationInFlight
+                    ? "control.reDisplayingLastPresentation"
+                    : "control.reDisplayLastPresentation",
+                )}
+              </Button>
+            )}
             <button
               type="button"
               onClick={() => router.push(STUDIO_ROUTES.library)}
