@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Slide } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@powershow/document-schema";
 
 import { PresentationThumbnail } from "../src/features/library/presentation-thumbnail";
 import { PresentationThumbnailPreview } from "../src/features/library/presentation-thumbnail-preview";
@@ -97,7 +97,16 @@ function previewData(
   firstSlide: Slide,
   aspectRatio: "16:9" | "4:3" = "16:9",
 ): PresentationThumbnailPreviewData {
-  return { aspectRatio, firstSlide };
+  const presentation: Presentation = {
+    schemaVersion: 1,
+    id: "thumbnail-presentation",
+    title: "Thumbnail presentation",
+    description: "",
+    aspectRatio,
+    slides: [firstSlide],
+  };
+
+  return { aspectRatio, firstSlide, presentation };
 }
 
 function summary(
@@ -161,6 +170,30 @@ describe("presentation thumbnail preview", () => {
     expect(container.querySelectorAll(".powershow-slide")).toHaveLength(1);
     expect(container.textContent).toContain("First slide");
     expect(container.textContent).not.toContain("Second slide");
+  });
+
+  it("renders linked Containers with the preview owner Presentation context", () => {
+    const firstSlide: Slide = {
+      ...emptySlide("slide-1"),
+      elements: [{
+        id: "card",
+        type: "container",
+        hidden: false,
+        linkedStyleId: "card-style",
+        children: [],
+      }],
+    };
+    const preview = previewData(firstSlide);
+    preview.presentation.linkedStyles = [{
+      id: "card-style",
+      name: "Card",
+      style: { background: { color: "#123456" } },
+    }];
+
+    renderNode(<PresentationThumbnailPreview preview={preview} />);
+
+    expect(container.querySelector('[data-powershow-id="card"]')).not.toBeNull();
+    expect(container.innerHTML).toContain("background:#123456");
   });
 
   it("uses the decorative fallback when thumbnailPreview is absent", () => {

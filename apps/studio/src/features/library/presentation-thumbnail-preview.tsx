@@ -31,8 +31,8 @@ export function PresentationThumbnailPreview({
   preview,
 }: PresentationThumbnailPreviewProps) {
   const markup = useMemo(
-    () => renderSlide(preview.firstSlide),
-    [preview.firstSlide],
+    () => renderSlide(preview.firstSlide, { presentation: preview.presentation }),
+    [preview.firstSlide, preview.presentation],
   );
 
   const logicalWidth = resolveLogicalSlideSize(preview.aspectRatio).logicalWidth;

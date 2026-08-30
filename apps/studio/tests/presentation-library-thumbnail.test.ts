@@ -44,6 +44,7 @@ describe("deriveThumbnailPreview", () => {
     expect(preview?.aspectRatio).toBe("4:3");
     expect(preview?.firstSlide.id).toBe("slide-1");
     expect(preview?.firstSlide.elements.length).toBe(1);
+    expect(preview?.presentation.slides).toHaveLength(1);
   });
 
   it("defaults the aspect ratio to 16:9 when it is absent", () => {
@@ -68,6 +69,41 @@ describe("deriveThumbnailPreview", () => {
     );
 
     expect(preview?.firstSlide.id).toBe("slide-1");
+    expect(preview?.presentation.slides).toHaveLength(1);
+    expect(preview?.presentation.slides[0]?.id).toBe("slide-1");
+  });
+
+  it("tolerates malformed later slides because it parses only the first-slide projection", () => {
+    const preview = deriveThumbnailPreview(makePresentation({
+      slides: [makeSlide("slide-1", [textElement]), { malformed: true }],
+    }));
+
+    expect(preview?.firstSlide.id).toBe("slide-1");
+    expect(preview?.presentation.slides).toHaveLength(1);
+  });
+
+  it("retains linked style owner context for a linked first-slide Container", () => {
+    const source = makePresentation({
+      slides: [makeSlide("slide-1", [{
+        id: "card", type: "container", children: [], linkedStyleId: "card-style",
+      }])],
+    }) as Record<string, unknown>;
+    const preview = deriveThumbnailPreview({
+      ...source,
+      linkedStyles: [{ id: "card-style", name: "Card", style: { background: { color: "#123456" } } }],
+    });
+
+    expect(preview?.presentation.linkedStyles).toEqual([
+      { id: "card-style", name: "Card", style: { background: { color: "#123456" } } },
+    ]);
+  });
+
+  it("falls back when the first slide references an unresolved linked style", () => {
+    expect(deriveThumbnailPreview(makePresentation({
+      slides: [makeSlide("slide-1", [{
+        id: "card", type: "container", children: [], linkedStyleId: "missing",
+      }])],
+    }))).toBeUndefined();
   });
 
   it("returns undefined when the first slide has no authored elements", () => {

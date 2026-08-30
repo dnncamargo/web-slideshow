@@ -1,5 +1,5 @@
 import type { Presentation, Slide } from "@powershow/document-schema";
-import { PresentationSchema, SlideSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@powershow/document-schema";
 
 import {
   InvalidPersistedPresentationError,
@@ -61,6 +61,7 @@ export interface PresentationSummary {
 export interface PresentationThumbnailPreview {
   aspectRatio: "16:9" | "4:3";
   firstSlide: Slide;
+  presentation: Presentation;
 }
 
 /**
@@ -354,9 +355,6 @@ export function deriveThumbnailPreview(
 
   const pres = rawPresentation as Record<string, unknown>;
 
-  const aspectRatio: PresentationThumbnailPreview["aspectRatio"] =
-    pres.aspectRatio === "4:3" ? "4:3" : "16:9";
-
   const slides = Array.isArray(pres.slides) ? pres.slides : [];
 
   if (slides.length === 0) {
@@ -381,14 +379,24 @@ export function deriveThumbnailPreview(
     return undefined;
   }
 
-  const parsed = SlideSchema.safeParse(firstSlideCandidate);
+  const parsed = PresentationSchema.safeParse({
+    ...pres,
+    slides: [firstSlideCandidate],
+  });
 
   if (!parsed.success) {
     return undefined;
   }
 
+  const firstSlide = parsed.data.slides[0];
+
+  if (!firstSlide) {
+    return undefined;
+  }
+
   return {
-    aspectRatio,
-    firstSlide: parsed.data,
+    aspectRatio: parsed.data.aspectRatio,
+    firstSlide,
+    presentation: parsed.data,
   };
 }

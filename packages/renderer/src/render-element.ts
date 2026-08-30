@@ -297,7 +297,11 @@ export function renderElement(
       return renderImage(element);
 
     case "container":
-      return renderContainer(element, (child) => renderElement(child, context));
+      return renderContainer(
+        element,
+        (child) => renderElement(child, context),
+        context?.presentation,
+      );
 
     case "code":
       return renderCode(element);
