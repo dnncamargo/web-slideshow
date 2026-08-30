@@ -31,6 +31,7 @@ export * from "./style";
 export * from "./text-style";
 export * from "./text-style-resolution";
 export * from "./linked-style";
+export * from "./linked-style-resolution";
 export * from "./links";
 export * from "./elements";
 export * from "./slide";
