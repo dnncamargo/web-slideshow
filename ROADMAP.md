@@ -7,7 +7,7 @@ It has two purposes:
 1. preserve the real historical sequence so the project does not lose architectural context;
 2. define the current execution order without turning old planning labels into competing sources of truth.
 
-Merged PRs and commits remain authoritative for implementation details. The roadmap summarizes product milestones and invariants.
+Merged PRs and commits remain authoritative for implementation details. The roadmap summarizes product milestones, current decisions, and future work.
 
 ## Status legend
 
@@ -19,11 +19,12 @@ Merged PRs and commits remain authoritative for implementation details. The road
 
 ## Execution policy
 
-PowerShow uses checkpoint-driven development:
+PowerShow uses audit-first, checkpoint-driven development:
 
 ```text
 inspect current code
-→ identify the concrete product need
+→ verify whether the capability already exists
+→ identify the existing boundary to reuse
 → freeze architecture / invariants
 → implement narrowly
 → test
@@ -33,13 +34,13 @@ inspect current code
 
 Completed architecture should not be reopened speculatively. Canonical changes after the contract cleanup must be driven by concrete product requirements.
 
-`schemaVersion` remains literally `1` unless a future explicitly approved migration milestone changes that rule.
+`schemaVersion` remains literally `1`; no migration, dual schema, or compatibility layer is introduced unless a future explicitly approved requirement makes it necessary.
 
 ---
 
 # P0–P8 — Foundation history ✅
 
-The earliest repository history did not consistently use the later P-number vocabulary. P0–P8 below are **retrospective milestone groupings** used only to make the roadmap continuous from the beginning. PR chronology is the authoritative historical reference.
+The earliest repository history did not consistently use the later P-number vocabulary. P0–P8 below are retrospective groupings used only to keep the roadmap continuous. PR chronology remains the authoritative historical reference.
 
 ## P0 — Canonical document foundation ✅
 
@@ -47,15 +48,13 @@ Reference: PR #2.
 
 Established:
 
-- the first `@powershow/document-schema` package;
+- `@powershow/document-schema`;
 - canonical Presentation / Slide / element data;
 - strict runtime validation;
 - recursive Container composition;
-- `schemaVersion: 1` as the document version baseline.
+- `schemaVersion: 1`.
 
-This created the rule that PowerShow presentation state is semantic document data rather than serialized Editor DOM state.
-
----
+PowerShow presentation state became semantic document data rather than serialized Editor DOM state.
 
 ## P1 — Renderer and Player foundation ✅
 
@@ -66,9 +65,9 @@ Established:
 - shared Presentation rendering pipeline;
 - first public Player runtime;
 - visual primitives and Theme integration;
-- semantic rendering as a reusable package boundary rather than Player-only rendering.
+- renderer as a reusable package boundary.
 
-Core invariant established here:
+Core invariant:
 
 ```text
 canonical Presentation
@@ -76,49 +75,41 @@ canonical Presentation
 → Studio preview / Player runtime
 ```
 
----
-
 ## P2 — Studio Editor V0 ✅
 
 References: PRs #6–#13.
 
-Delivered the first usable visual authoring environment:
+Delivered the first visual authoring environment:
 
 - three-column Studio editor;
-- slide navigation and slide CRUD;
+- slide navigation and CRUD;
 - recursive element selection/update;
-- Text, Textbox, Code, Terminal, Image and Table inspectors;
-- element movement/reparenting foundations;
+- early Text, Textbox, Code, Terminal, Image and Table inspectors;
+- movement/reparenting foundations;
 - layout presets and spacing controls;
-- Studio localization EN / pt-BR;
-- Inspector section architecture;
-- shared Appearance authoring.
+- localization;
+- Inspector section architecture.
 
 The Editor remained an interface over the canonical Presentation rather than a second persisted editor model.
-
----
 
 ## P3 — Visual authoring vocabulary ✅
 
 References: PRs #14–#29.
 
-Expanded semantic authoring without introducing arbitrary CSS persistence:
+Expanded semantic authoring with:
 
-- renderer visual-style hardening;
+- renderer style hardening;
 - typography controls;
-- background gradients;
-- presentation FontResources;
-- secure Google Fonts / Fontsource / manual acquisition workflows;
+- gradients;
+- FontResources;
+- Google Fonts / Fontsource / manual font acquisition;
 - text stroke;
-- supported HEX / RGBA colors;
+- HEX / RGBA color handling;
 - reusable presentation colors;
-- layout-preset refinements;
 - Image sizing;
-- effective Theme/default authoring behavior.
+- effective Theme/default authoring.
 
 Provider-specific font metadata remained authoring-time information; Presentations store normalized FontResources.
-
----
 
 ## P4 — Hierarchy, positioning and direct Canvas authoring ✅
 
@@ -130,13 +121,11 @@ Delivered:
 - semantic positioning and layer operations;
 - hierarchical Elements tree;
 - drag/reparent hierarchy operations;
-- direct Canvas movement;
-- direct Canvas resizing;
+- direct Canvas movement and resizing;
 - Image proportion-preserving resize;
-- semantic Image focal point;
-- direct focal-point Canvas editing.
+- focal-point authoring.
 
-Historical placement models from this phase were later simplified by P10.11. The final canonical rule is now:
+Historical placement models from this phase were later simplified by P10.11. The final canonical rule is:
 
 ```text
 Flow
@@ -147,38 +136,33 @@ Absolute
 → direct top/right/bottom/left edges
 ```
 
-Hierarchy continues to be represented by the nested document tree, not separate `parentId`, order or numeric `zIndex` fields.
-
----
+Hierarchy is represented by the nested document tree, not `parentId`, order, or numeric `zIndex` fields.
 
 ## P5 — Firebase persistence, Library and autosave ✅
 
 References: PRs #39–#41.
 
-Established the private draft lifecycle:
+Established:
 
 - Firebase modular Web configuration;
-- authenticated user-scoped Firestore repository;
-- Presentation persistence behind repository abstractions;
-- Library creation/open/archive workflows;
-- repository-backed Editor loading by Presentation id;
+- user-scoped Firestore repository;
+- Library create/open/archive flows;
+- repository-backed Editor loading;
 - explicit Save and debounced autosave;
 - dirty/saving/error state handling;
-- persistence metadata outside the canonical Presentation.
+- persistence metadata outside canonical Presentation data.
 
-Private draft storage established the path:
+Private drafts:
 
 ```text
 users/{uid}/presentations/{presentationId}
 ```
 
----
-
 ## P6 — Immutable publishing ✅
 
 Reference: PR #42.
 
-Established the separation between mutable authoring and immutable delivery:
+Established:
 
 ```text
 private draft
@@ -187,20 +171,9 @@ private draft
 → Player
 ```
 
-Delivered:
-
-- `draftRevision` persistence metadata;
-- transactional publication;
-- stable `publicationId` across publishes;
-- immutable `versionId` snapshots;
-- idempotent unchanged publication;
-- public direct-read published versions;
-- strict Firestore Rules around authoritative publication;
-- public Player loading of an immutable published version.
+Delivered `draftRevision`, stable `publicationId`, immutable `versionId` snapshots, idempotent unchanged publication, strict Firestore Rules, and public published-version loading.
 
 Published versions are snapshots and are never modified in place.
-
----
 
 ## P7 — Authentication, public publication pointer and remote-control foundation ✅
 
@@ -210,7 +183,7 @@ Delivered:
 
 - persistent Google/Firebase Auth for Studio;
 - authenticated Control boundary;
-- RTDB remote navigation foundation;
+- RTDB remote-navigation foundation;
 - public publication pointer:
 
 ```text
@@ -218,18 +191,14 @@ publishedPresentations/{publicationId}
 ```
 
 - pointer-owned `currentVersionId`;
-- public Player resolving the current published version by `publicationId`;
-- separation of public Player delivery from mutable Studio draft state.
-
-Studio / Control became authenticated surfaces while Player remained public.
-
----
+- public Player version resolution;
+- separation of public delivery from mutable Studio drafts.
 
 ## P8 — Live activation and Library entry ✅
 
 References: PRs #45–#46.
 
-Established the user-facing Live lifecycle:
+Established:
 
 ```text
 Library Present
@@ -251,38 +220,34 @@ Publish and Present remain separate operations. Starting Live never implicitly p
 
 References: PRs #47–#57, with later production hardening in PR #72.
 
-Status: **complete**.
-
-Delivered the current real-presentation runtime:
+Delivered the current real-presentation runtime foundation:
 
 - Player live entry from `live/current`;
 - exact immutable published-version loading;
 - activation-scoped slide state;
-- Player ACK and Control confirmed state;
+- Player ACK and confirmed state;
 - command coalescing and latency measurement;
 - private slide Notes outside canonical Presentation data;
-- Presenter / Control view;
-- Current and Next slide previews;
-- responsive Control shell;
-- staged publication updates while a Player remains live;
-- explicit promotion to a newer immutable version;
+- Control current/next preview foundation;
+- staged publication updates;
+- explicit promotion to newer immutable versions;
 - logical slide/page identity by `pageId`;
-- desired / applied live-state convergence;
+- desired / applied state convergence;
 - reload/reconnect convergence;
 - Watch following actual Player-applied state;
-- production-safe Player diagnostics and stale-shell cache hardening.
+- production-safe Player diagnostics and cache hardening.
 
-Current high-level Live flow:
+High-level Live flow:
 
 ```text
 Control desired state
 → RTDB
-→ Player applies state from immutable publication
+→ Player applies immutable published state
 → Player applied state / ACK
-→ Control + Watch observe actual state
+→ Control + Watch observe convergence
 ```
 
-Deferred live extensions remain in Backlog rather than keeping P9 open indefinitely.
+Deferred Live extensions remain future work rather than keeping P9 open indefinitely.
 
 ---
 
@@ -290,20 +255,20 @@ Deferred live extensions remain in Backlog rather than keeping P9 open indefinit
 
 Goal: provide a semantic, self-contained authoring model that can be safely saved, published, rendered, exported and imported.
 
-Final baseline rules established by this milestone:
+Final baseline rules:
 
 - `schemaVersion` remains `1`;
 - strict responsibility-specific element contracts;
 - no universal persisted `ElementStyle` bag;
 - Flow = absence of `layout.position`;
 - Absolute = `layout.position: "absolute"` + direct edges;
-- no persisted anchor/offset placement compatibility model;
+- no persisted anchor/offset compatibility model;
 - published versions remain immutable and self-contained;
 - Player remains independent from Studio-private data;
 - `textbox` is not canonical; boxed text is `Container + Text`;
-- import/export use the canonical Presentation directly, without a second transfer schema.
+- import/export use canonical Presentation directly.
 
-## P10 status
+## P10 checkpoints
 
 | Checkpoint | Area | Status | Main references |
 |---|---|---:|---|
@@ -321,47 +286,30 @@ Final baseline rules established by this milestone:
 | P10.12 | JSON Import / Export | ✅ | #84 |
 | P10.13 | Import compatibility gate | ✅ absorbed | #84 + later recovery validation |
 
-Supporting work during this period also included Firestore nesting-depth protection, Divider, shared application UI, Library organization, and Player production diagnostics.
-
----
-
-## P10.11 — Canonical Contract Cleanup ✅
-
-The cleanup replaced earlier broad/shared persisted style abstractions with the current responsibility-specific contracts.
+### P10.11 — Canonical Contract Cleanup ✅
 
 Delivered:
 
 - canonical Container / Text / Image contracts;
-- surface and data-element-specific contracts;
+- surface- and data-element-specific contracts;
 - canonical ContentSlot;
 - Image Crop;
 - Divider and Topics final contracts;
 - Chart / Interactive semantic position-only contracts;
 - dedicated renderer paths;
 - removal of universal `BaseElementSchema` / `ElementStyleSchema` / historical placement contracts;
-- strict schema/renderer/Studio/Player regressions;
-- removal of canonical Textbox in PR #83.
+- removal of canonical Textbox.
 
 This checkpoint exists to free product development, not to start an endless schema-cleanup cycle.
 
----
-
-## P10.12 — JSON Import / Export ✅
+### P10.12 — JSON Import / Export ✅
 
 Reference: PR #84.
-
-PowerShow now exports/imports the canonical Presentation directly:
-
-```text
-*.powershow.json
-```
-
-Contract:
 
 ```text
 Export
 Presentation
-→ readable JSON
+→ readable *.powershow.json
 
 Import
 JSON.parse
@@ -370,30 +318,7 @@ JSON.parse
 → new private draft
 ```
 
-There is:
-
-- no export envelope;
-- no second schema language;
-- no migration layer;
-- no compatibility alias system;
-- no asset package format.
-
-Slides, elements, internal IDs, resources and authored strings remain canonical through the transfer boundary.
-
----
-
-## P10.13 — Import compatibility gate ✅ absorbed
-
-The planned compatibility gate was satisfied without introducing a separate compatibility architecture.
-
-The current boundary explicitly rejects:
-
-- malformed JSON;
-- wrong schema versions;
-- removed/legacy canonical element types such as `textbox`;
-- documents that fail current `PresentationSchema` validation.
-
-Subsequent recovery hardening ensures old persisted private drafts can be handled separately without weakening Import.
+There is no export envelope, second schema language, migration layer, compatibility alias system, or asset package format.
 
 Import and Recovery remain intentionally different product boundaries.
 
@@ -401,129 +326,55 @@ Import and Recovery remain intentionally different product boundaries.
 
 # P11 — Resources, Organization & Text Styles ✅
 
-The original P11 direction has now largely been delivered.
-
 ## P11.1 — Shared Studio / Library application shell ✅
 
 References: PRs #69–#71 and #100.
 
-Delivered:
-
-- shared `@powershow/ui` tokens and primitives;
-- file-manager-style authenticated Library;
-- first-slide previews;
-- selection-first contextual actions;
-- responsive Studio navigation;
-- active / archived presentation views;
-- consistent heading/action hierarchy.
-
----
+Delivered shared `@powershow/ui`, file-manager-style Library, first-slide previews, selection-first contextual actions, responsive navigation, archive/folder organization, and consistent UI hierarchy.
 
 ## P11.2 — Folders and private organization metadata ✅
 
 Reference: PR #71.
 
-Rules:
-
-- folders are private Studio metadata;
-- folders are not part of canonical Presentation data;
-- Player never depends on folders;
-- archive/folder changes do not change draft content or publication snapshots;
-- V1 folders remain flat.
-
----
+Folders remain private Studio metadata, outside canonical Presentation and Player runtime. V1 folders are flat.
 
 ## P11.3 — Custom Library Styles ✅
 
 References: PRs #85–#99.
 
-Delivered the complete V1 reusable Style recipe lifecycle:
+Delivered reusable Style recipe extraction, persistence, preview, Apply, materialization, same-type merge, and placement workflows.
 
-- selected-property inventory;
-- recipe extraction and composition;
-- strict private persisted contract;
-- Firestore persistence;
-- Save flow;
-- Library browser and safe preview;
-- materialization into ordinary canonical elements;
-- same-type merge and sibling/root placement;
-- Apply workflow;
-- no live dependency link from Presentation back to Custom Library.
-
-Architectural rule:
+Architecture:
 
 ```text
 Custom Library Style
 → materialize/copy canonical values
-→ Presentation owns its resulting data
+→ Presentation owns resulting data
 ```
 
----
+There is no live dependency link from a Presentation back to Custom Library data.
 
 ## P11.4 — Presentation + Custom Library Palettes ✅
 
 Reference: PR #101.
 
-Delivered:
-
-- canonical Presentation-local Palette colors;
-- stable Palette references;
-- renderer CSS-variable resolution;
-- Custom Library Palette masters;
-- copy/materialization into Presentation-local Palette;
-- safe edit/rename/remove behavior;
-- literal ↔ Palette authoring lifecycle.
-
-Private master Palette data never becomes a runtime dependency of the Player.
-
----
+Delivered Presentation-local Palette colors and references plus private Custom Library Palette masters with safe materialization and edit lifecycle.
 
 ## P11.5 — Presentation + Custom Library Fonts ✅
 
 Reference: PR #102.
 
-Delivered:
-
-- private Custom Library Font masters;
-- Google / Fontsource / manual acquisition in the Custom Library workflow;
-- Presentation-local FontResource materialization;
-- face merge/conflict rules;
-- in-use removal protection;
-- real previews and multi-weight selection;
-- no provider/provenance links in canonical Presentation data.
-
-Architecture:
-
-```text
-Custom Library Font
-→ Presentation FontResource
-→ element/Text Style typography
-```
-
----
+Delivered Custom Library Font masters, provider/manual acquisition, Presentation-local FontResource materialization, face merge/conflict rules, previews, and in-use removal protection.
 
 ## P11.6 — Text Inspector authoring refinement ✅
 
 Reference: PR #103.
 
-Delivered the authoring foundation required before Text Styles:
-
-- Content / Typography / Appearance / Effects / Placement / Interaction hierarchy;
-- compact RichText formatting integration;
-- mixed-selection semantics;
-- clear-formatting behavior;
-- Palette-aware inline color equality;
-- canonical Placement before Interaction.
-
-Broader WYSIWYG polish remains backlog/P12 work.
-
----
+Delivered Content / Typography / Appearance / Effects / Placement / Interaction hierarchy, compact RichText formatting integration, mixed-selection semantics, clear-formatting behavior, and Palette-aware inline color handling.
 
 ## P11.7 — Canonical Presentation-local Text Styles ✅
 
 Reference: PR #105.
-
-Text Styles are Presentation-local reusable text appearance, distinct from Custom Library families.
 
 Fundamental roles:
 
@@ -534,7 +385,7 @@ body
 caption
 ```
 
-Final precedence:
+Precedence:
 
 ```text
 Theme role baseline
@@ -542,57 +393,13 @@ Theme role baseline
 → local Text override
 ```
 
-Text Styles own exactly:
+Delivered fundamental/custom Text Styles, sparse authoring, Palette/FontResource integration, attach/switch/detach/reattach, local override precedence, real renderer preview, JSON round-trip, autosave/reload, and Player/shared-renderer acceptance.
 
-```text
-style.color
-
-typography.fontFamily
-typography.fontSize
-typography.fontWeight
-typography.fontStyle
-typography.textAlign
-typography.lineHeight
-typography.letterSpacing
-typography.textTransform
-typography.whiteSpace
-typography.textWrapStyle
-typography.overflowWrap
-typography.textDecorationLine
-typography.textDecorationColor
-typography.textStroke
-```
-
-Delivered lifecycle coverage includes:
-
-- fundamental and custom Styles;
-- sparse authoring;
-- Palette-linked colors;
-- FontResource integration;
-- attach / switch / detach / reattach;
-- local override precedence;
-- Aa preview through the real renderer;
-- canonical JSON round-trip;
-- autosave and Editor remount/reload;
-- Player and shared-renderer acceptance.
-
-`schemaVersion` remains `1`; no migration or compatibility aliases were introduced.
-
----
+`schemaVersion` remained `1`.
 
 ## P11.8 — Recovery hardening and recovery UI ✅
 
 Reference: PR #105 final checkpoints.
-
-Delivered:
-
-- recovery of incompatible Presentation-level Text Style content;
-- removal of obsolete branch-local `typographyStyles` without migration;
-- wrong-type/current invalid `textStyles` recovery;
-- dependent custom Text pruning through existing structural recovery;
-- preservation of fundamental Text where its invalid override can be removed;
-- explicit `text-style` recovery issues;
-- polished recoverable / confirmation / repairing / failure / unrecoverable screens.
 
 Recovery remains explicit destructive repair, not migration.
 
@@ -600,76 +407,364 @@ Recovery remains explicit destructive repair, not migration.
 
 # P12 — UX / Properties refinement ✅
 
-P12 was intentionally selective: it refined established contracts without reopening the P11 resource and Text Style foundations or expanding the document model speculatively.
+P12 refined established contracts without reopening P11 foundations or expanding the document model speculatively.
 
-## Display / geometry fidelity
+Delivered:
 
-Delivered shared logical slide geometry across the rendering surfaces:
+- shared logical slide geometry (`960 × 540` for 16:9, `960 × 720` for 4:3);
+- Player/Editor/Presenter/Watch logical geometry convergence;
+- Palette and gradient rendering corrections;
+- Custom Library Style UX hardening;
+- canonical Container `layout.overflow`;
+- Container Children Fit (`Contain`, `Cover`, `Fill`);
+- nested Fit runtime hydration;
+- Preserve size via `layout.flexShrink?: 0`;
+- current-contract Import/Export regression coverage.
 
-- 16:9 uses a logical `960 × 540` surface; 4:3 uses `960 × 720`;
-- Player renders a fitted logical surface;
-- Studio Editor Canvas scales the same surface;
-- Presenter, Watch, and Library previews use the corresponding logical geometry;
-- Palette propagation and gradient-stop corrections improved renderer/Studio visual parity.
-
-Library thumbnail previews remain a summary projection rather than a complete Presentation context, so full resource-fidelity thumbnail rendering remains future work.
-
-## Element Style UX / hardening
-
-P11.3 remains the foundation for the Custom Library Style lifecycle. P12 refined its Studio UX and integration with clearer workflow guidance, required element-style actions, atomic-property selection hardening, and safer asynchronous Library state. It also delivered focused Library toolbar/folder ergonomics and selected Inspector refinements.
-
-## Container overflow
-
-Containers now author canonical `layout.overflow` with the current `visible`, `hidden`, and `auto` values.
-
-## Container Children Fit
-
-Delivered V1 Children Fit authoring: None, Contain, Cover, and Fill.
-
-```text
-layout.children.fit = {
-  mode,
-  sourceWidth,
-  sourceHeight
-}
-```
-
-Only the child composition scales; the outer Container visual box remains unscaled. The renderer/runtime share hydration behavior, including nested Fit rendering. Studio captures the source design surface and exposes Inspector authoring; Custom Library handling is atomic and Canvas has a safe direct-manipulation guard.
-
-Direct Canvas drag/resize of descendants inside a fitted Container remains disabled until inverse transformed-authoring geometry is implemented.
-
-## Flow sizing
-
-Containers may set `layout.flexShrink?: 0`, shown in Studio as Preserve size / Preservar tamanho. It lets a Container used as a parent Flow flex item resist compression while remaining in normal flow. It is not absolute positioning, applies only to Containers as flex items, and introduces neither `flexGrow` nor a fill-remaining-space contract.
-
-## Import / Export current-contract audit
-
-The P12 audit found no production transfer defect. Transfer remains schema-driven:
-
-```text
-Export: canonical Presentation → JSON.stringify → .powershow.json
-Import: JSON.parse → PresentationSchema → new root id → private draft
-```
-
-Current canonical fields, including recent Container contracts, travel automatically because the transfer boundary does not whitelist individual features. Regression coverage now verifies the raw/no-envelope shape, deep round-trip preservation, and strict rejection of invalid Container `flexShrink` and partial Fit data. No transfer version or schema change was introduced.
+Direct Canvas manipulation of descendants inside fitted Containers remains deferred until inverse transformed-authoring geometry is implemented.
 
 ---
 
-# Immediate next execution area — Control refinement ← NEXT
+# Runtime and surface refinement ✅
 
-This targeted follow-up precedes broader P13 Production Readiness.
+Reference: PR #107.
 
-## C1 — Navigation refinement
+This follow-up closed the previously listed Control refinement area and aligned product/runtime ownership.
 
-- Summary entries should navigate directly to a slide/page;
-- `ArrowLeft` should request Previous and `ArrowRight` Next;
-- reuse the existing canonical Live Control desired-state path rather than introducing a second command mechanism.
+Delivered:
 
-## C2 — Local fullscreen
+- authenticated Studio route and naming coherence;
+- `/studio/library`, `/studio/editor`, `/studio/control` surface alignment;
+- direct Control slide navigation;
+- keyboard Previous/Next refinement;
+- shared Player projection surface;
+- Watch moved to the Player/live runtime;
+- Control exit/recovery behavior;
+- Player-local fullscreen confirmation flow;
+- fullscreen intent through dedicated `live/fullscreenRequest`;
+- diagnostics ownership kept in Player instead of creating a second diagnostics route;
+- cache hardening.
 
-- use the native browser Fullscreen API for the Presenter/Control surface only;
-- keep it local browser behavior, not an RTDB command to Player;
-- respect browser user-gesture requirements.
+Architecture after this checkpoint:
+
+```text
+PowerShow
+│
+├── Public Portal        /
+├── Studio
+│   ├── Library          /studio/library
+│   ├── Editor           /studio/editor
+│   └── Control          /studio/control
+└── Live Runtime
+    ├── Player
+    └── Watch
+```
+
+Fullscreen remains Player-local because the browser requires local user activation.
+
+---
+
+# Branding support ✅
+
+Reference: PR #108.
+
+PowerShow favicons were added to Studio and Player surfaces.
+
+---
+
+# Public Portal / Live Cover ✅
+
+Reference: PR #109.
+
+The root `/` is now an operational public PowerShow portal.
+
+## No Live
+
+```text
+/
+→ /demo
+→ full-screen ambient demo
+→ autoplay
+```
+
+## Active Live
+
+```text
+/
+→ /cover
+→ first slide only
+→ static
+```
+
+The Live cover intentionally does **not** follow:
+
+- Control current preview;
+- `live/playerState`;
+- Player navigation;
+- autoplay;
+- fullscreen requests;
+- ACK state.
+
+It resolves the active immutable published version and renders its first slide through the shared projection surface.
+
+The Watch QR:
+
+- points to `/watch`;
+- is generated locally with `qrcode.react`;
+- appears only while Live is active;
+- has no `Open Watch` CTA;
+- is draggable using Pointer Events;
+- is clamped to the viewport;
+- has no persisted position;
+- is intended to work on the current operational target including Firefox 116 on Android touchscreen hardware.
+
+Responsibility split:
+
+```text
+Player      = real projection
+Watch       = real audience follower
+Root        = portal / showcase
+Control     = operator intent
+Diagnostics = technical observability
+```
+
+---
+
+# Immediate next execution area — Linked Styles ← NEXT
+
+Linked Styles address a concrete reuse problem that current Custom Library Styles do not solve.
+
+Current Custom Library Style behavior is copy/materialization reuse:
+
+```text
+Custom Library Style
+→ apply/copy
+→ resulting element becomes independent
+```
+
+Linked Styles are intended to provide **live Presentation-local reuse by reference**.
+
+Example product need:
+
+```text
+30 Containers use gap: 16
+→ edit one Linked Style to gap: 12
+→ all linked Containers update
+```
+
+This is semantically similar to a CSS class, but remains a canonical authored PowerShow relationship rather than raw CSS dependency.
+
+## Product location
+
+```text
+This Presentation
+└── Linked Styles
+```
+
+Linked Styles belong to the current Presentation, not to Custom Resources.
+
+## V1 frozen direction
+
+V1 is intentionally narrow:
+
+- Container-only;
+- Presentation-scoped;
+- self-contained in save/export/publish/Player;
+- zero or one Linked Style reference per Container;
+- may provide `layout`, `style`, `typography`, and `effect`;
+- must not own `id`, `type`, `role`, `hidden`, `link`, `children`, or content;
+- the presence of a property in the Linked Style defines what it provides;
+- no separate `managedProperties[]` list;
+- local Container values remain overrides;
+- no multiple-style cascade in V1;
+- no runtime dependency on Custom Library data;
+- `schemaVersion` remains `1`.
+
+Precedence:
+
+```text
+Theme / defaults
+→ Linked Style
+→ local Container override
+```
+
+## Attach / Detach semantics
+
+**Attach** transfers responsibility for the properties supplied by the Linked Style from local element values to the shared definition while preserving the current appearance.
+
+**Detach** materializes the effective linked values locally before removing the reference, again preserving the current appearance.
+
+**Reset to linked value** removes only the local override for that property.
+
+## Resolution rule
+
+Nested contracts must be resolved explicitly. Do not implement a generic blind `deepMerge()`.
+
+Example:
+
+```text
+Linked:
+layout.children.gap = 12
+
+Local:
+layout.children.direction = row
+
+Effective:
+gap = 12
+direction = row
+```
+
+The existing Presentation-local Text Styles architecture is the main precedent to audit and reuse: Presentation-level definitions, stable references, validation traversal, resolver boundary, and local override precedence.
+
+## Planned Linked Styles checkpoints
+
+### LS1 — Canonical Contract
+
+- audit current `main` again before freezing persisted names;
+- Presentation-level Linked Style definitions;
+- Container reference;
+- unique IDs;
+- valid-reference validation;
+- non-empty definition validation;
+- Container-only V1;
+- canonical tests;
+- no renderer or Studio UI yet.
+
+### LS2 — Resolution
+
+- explicit field-safe resolver;
+- linked + local precedence;
+- nested resolution tests;
+- attach/detach helpers only if the audited boundary supports them naturally.
+
+### LS3 — Renderer Integration
+
+- shared renderer consumes effective Container values;
+- Player and Studio preview stay visually coherent;
+- no second renderer path.
+
+### LS4 — Inspector Attach / Detach
+
+- select Linked Style;
+- create from selected Container;
+- attach;
+- detach preserving appearance;
+- show current relationship.
+
+### LS5 — This Presentation management
+
+- list;
+- create;
+- edit;
+- rename;
+- delete with explicit reference semantics;
+- usage count.
+
+### LS6 — Override UX
+
+- show Linked vs Local override;
+- Reset to linked value;
+- show linked value where useful;
+- indicate affected element count when editing a shared definition.
+
+### LS7 — Bulk reuse
+
+- create from selection;
+- find matching Containers;
+- attach many;
+- select linked elements.
+
+Bulk operations must not enter LS1 merely because they are useful later.
+
+---
+
+# Short-term authoring / runtime queue
+
+These are explicit roadmap candidates after or around Linked Styles. They should still be promoted one checkpoint at a time after auditing the current implementation.
+
+## Mobile Control and Library simplification
+
+Target the actual mobile/touch operating surface rather than creating a parallel mobile product.
+
+Current important compatibility target includes Firefox 116 on Android touchscreen hardware.
+
+## Configurable slide transitions
+
+The Player/projection surface already has transition capability. Future work should expose a semantic configurable transition contract by reusing that implementation instead of creating a second animation system.
+
+Audit the current transition ownership before changing the canonical schema.
+
+## Short Undo / Redo
+
+Implement a bounded authoring history for Editor actions.
+
+Keep this distinct from persisted immutable Version History:
+
+```text
+Undo / Redo
+= short local authoring history
+
+Version History
+= persisted Presentation/publication history
+```
+
+## AI Import
+
+Future AI-assisted import should produce the existing canonical Presentation directly:
+
+```text
+input / source
+→ AI transformation
+→ canonical Presentation
+→ PresentationSchema validation
+→ normal import/persistence path
+```
+
+Do not create a second persisted AI document language unless a concrete requirement proves necessary.
+
+## Chart V1
+
+`chart` already has a canonical semantic contract with:
+
+```text
+line
+bar
+area
+scatter
+```
+
+and renderer-library-neutral series data.
+
+The current renderer still uses a placeholder for Chart.
+
+Chart V1 should:
+
+- implement real rendering for the existing semantic types;
+- add Studio creation/authoring;
+- audit sizing/style needs before expanding the schema;
+- keep canonical series data renderer-library-neutral;
+- choose rendering technology only when promoted;
+- keep Player lightweight.
+
+Do not redesign canonical Chart merely to fit a chosen charting library.
+
+## Gallery V2
+
+Gallery already exists and has a functional minimum horizontal carousel based on native CSS scrolling and scroll snap.
+
+Gallery V2 should improve that existing element rather than create a second Gallery path.
+
+Potential areas to audit when promoted:
+
+- navigation controls;
+- indicators;
+- captions;
+- thumbnails;
+- focal point/crop behavior;
+- autoplay;
+- touch ergonomics.
+
+Do not expand the canonical contract before deciding which behaviors are actually authored versus renderer-owned.
 
 ---
 
@@ -680,8 +775,8 @@ Goal: move PowerShow from a rapidly evolving development system into dependable 
 Expected areas:
 
 - full Studio → Save/reload → Publish → Control → Player E2E;
-- Live/publication reliability under real reload/reconnect conditions;
-- authentication / authorization / public-read boundary review;
+- Live/publication reliability under reload/reconnect;
+- authentication / authorization / public-read review;
 - failure/recovery behavior;
 - deployment configuration and production smoke tests;
 - Player performance on constrained/older hardware;
@@ -695,31 +790,36 @@ Production Readiness should prioritize concrete failures over cosmetic backlog.
 
 ---
 
-# P14 — Diagnostics — deferred / partially founded
+# P14 — Maintenance & Diagnostics — planned / partially founded
 
-A diagnostics foundation already exists, especially Player `?logs=true` and production loading diagnostics.
+A diagnostics foundation already exists, especially Player `?logs=true` and runtime loading diagnostics.
 
-Future diagnostics may include:
+Future work may include:
 
-- production-safe runtime diagnostics expansion;
-- explicit live latency/convergence instrumentation surfaces;
-- operator troubleshooting views;
-- deploy/runtime health visibility.
+- a deliberate maintenance/diagnostics surface;
+- connectivity and active-version visibility;
+- Player state / Live convergence visibility;
+- latency instrumentation;
+- operator troubleshooting;
+- deploy/runtime health visibility;
+- recovery guidance.
 
-Diagnostics must remain gated and must not expose sensitive internals to public clients.
+Diagnostics must remain bounded and must not expose sensitive internals to public clients.
+
+Do not duplicate diagnostics already owned by Player merely to create a symmetric route.
 
 ---
 
-# P15 — Audience — future / Watch foundation exists
+# P15 — Audience / Watch expansion — future
 
 A basic public read-only Watch surface already follows actual Player-applied state.
 
-Future Audience work may add:
+Future work may add:
 
 - lightweight viewer presence;
-- optional nickname without account;
 - heartbeat / TTL / disconnect semantics;
 - viewer count in Control;
+- optional nickname without account;
 - optional viewer list;
 - privacy boundaries;
 - multi-tab behavior;
@@ -729,34 +829,42 @@ Audience clients must never gain control of shared presentation state through pr
 
 ---
 
+# Player resilience — planned
+
+Player offline/recovery work should preserve presentation continuity during temporary connection failure.
+
+Direction to audit when promoted:
+
+- cache the last valid immutable presentation/version locally;
+- continue rendering the last known usable content while connectivity is unavailable where safe;
+- separate resilience behavior from diagnostics UI;
+- converge back to authoritative Live state after reconnection;
+- avoid unnecessary polling or continuous rendering loops.
+
+Offline/recovery is a runtime continuity problem; Maintenance/Diagnostics is an observability problem. Do not collapse them into one feature.
+
+---
+
 # Backlog
 
-Backlog items are preserved deliberately but **do not automatically become the next checkpoint**.
+Backlog items are preserved deliberately but do **not** automatically become the next checkpoint.
 
 Before promotion:
 
 ```text
-verify current implementation
+audit current implementation
+→ verify what already exists
 → identify concrete missing behavior
 → decide whether it blocks active roadmap
-→ freeze architecture if needed
+→ freeze smallest architecture
 → implement narrowly
 ```
 
-## P12 follow-ups
+## Presentation lifecycle / Version History
 
-These remain future promotion candidates, not P12 blockers:
+Future management should expose immutable version history owned by a Presentation without changing the canonical Presentation document.
 
-- inverse direct-manipulation geometry for descendants inside a fitted Container (Fit-D);
-- a remaining-space / flex-grow-like Container contract, if still desired;
-- full Presentation-resource fidelity for Library thumbnails;
-- broader WYSIWYG-oriented authoring refinements.
-
-## Presentation lifecycle / version history
-
-### Permanent Delete of the Presentation aggregate
-
-Future permanent deletion should treat one Presentation and its history as one independent aggregate:
+Permanent Delete should treat one Presentation and its complete history as one independent aggregate:
 
 ```text
 Presentation
@@ -767,26 +875,11 @@ Presentation
     └── immutable versions/*
 ```
 
-Frozen direction:
-
-- one Presentation/history must never affect another Presentation;
-- immutable versions are never edited in place;
-- deleting the whole Presentation may delete its complete private/public history;
-- a live active publication should be handled explicitly before permanent deletion;
-- public version enumeration should not be opened merely to support browser-side deletion;
-- safe server/privileged cascade deletion should be evaluated with future Version History management.
-
-### Version History management
-
-Future Library/Editor management should expose the immutable version history owned by a Presentation without changing the canonical Presentation document.
-
-A version belongs to one Presentation/publication aggregate and is not shared across presentations.
-
----
+A live active publication should be handled explicitly before permanent deletion. Public version enumeration should not be opened merely to support browser-side deletion.
 
 ## Custom Library custom-variant portability
 
-Known follow-up:
+Known dependency problem:
 
 ```text
 Custom Library recipe may contain:
@@ -795,22 +888,16 @@ variant: "quote"
 while the Presentation-local custom Text Style "quote" is not part of the recipe.
 ```
 
-Do not solve this by adding a fourth Custom Library family casually.
+Do not solve this by casually adding another Custom Library family. Design the dependency/materialization contract explicitly when promoted.
 
-The dependency/materialization contract should be designed explicitly when this backlog item is promoted.
+## Known Canvas bug — Cropped Image selection visibility
 
----
-
-## Known bugs / Canvas
-
-### Cropped Image selection visibility — high
+High priority when reproduced/promoted:
 
 - an Image with canonical `crop` may disappear visually while selected in Studio Canvas;
-- the crop persists correctly;
-- after reload the Image renders with the expected crop;
+- crop persists correctly;
+- after reload the Image renders correctly;
 - treat as Studio/Canvas lifecycle/rendering behavior, not a canonical-contract failure.
-
----
 
 ## Image Inspector semantic organization
 
@@ -833,75 +920,34 @@ Placement
 Interaction
 ```
 
-Interaction should normally remain near the end of a visual-element Inspector.
+## Text / WYSIWYG refinements
 
----
-
-## Text / rich-authoring refinements
-
-- continue moving inline formatting toward a compact WYSIWYG editing surface;
-- richer topics/bullets integration only where it fits the canonical structure;
-- verify final nowrap authoring UX;
-- keep `Normal` first/default for text-transform;
-- provide ALL CAPS affordance only where still useful beyond `textTransform`;
-- preserve RichText runs instead of flattening them during ordinary edits.
-
----
+- compact WYSIWYG editing surface;
+- topics/bullets integration where compatible with canonical structure;
+- final nowrap UX;
+- `Normal` first/default for text-transform;
+- ALL CAPS affordance where still useful;
+- preserve RichText runs through ordinary edits.
 
 ## Fonts / typography UX
 
-- Normal / Regular remains first/default when provider variants are shown;
+- Normal / Regular remains first/default when variants are shown;
 - never choose Italic merely because provider ordering puts it first;
-- provider-specific acquisition remains behind the Custom Library Font workflow;
-- Presentation typography consumes normalized FontResources only.
-
----
+- provider-specific acquisition remains behind Custom Library Font workflow;
+- Presentation typography consumes normalized FontResources.
 
 ## Blocks authoring UI
 
-Canonical Blocks semantics are complete, but authoring can become more visual/direct:
+Canonical Blocks semantics are complete; future authoring can become more direct while preserving provider-neutral static canonical Blocks and avoiding unnecessary runtime coupling.
 
-- improve block/part/socket hierarchy manipulation;
-- reduce form-like editing where safe;
-- preserve static provider-neutral canonical Blocks;
-- do not add Blockly/runtime coupling merely for Editor convenience.
+## Visual vocabulary
 
----
-
-## Gallery / visual vocabulary
-
-- richer interactive Gallery behavior beyond current minimum;
-- additional pattern vocabulary when driven by concrete design needs;
+- additional background patterns when driven by real design needs;
+- gradient-border refinements;
+- Divider refinements;
+- Gallery V2 as listed above;
 - reusable visual components should use responsibility-specific contracts;
-- never reintroduce a universal style bag to solve convenience gaps.
-
-Already implemented and not generic backlog items:
-
-- Divider;
-- Topics;
-- Gallery minimum;
-- Embed minimum;
-- Scripted minimum;
-- approved background patterns;
-- supported gradient borders.
-
----
-
-## Chart implementation
-
-Chart has a canonical semantic contract but remains a renderer/authoring expansion opportunity.
-
-Future direction:
-
-- implement real rendering for existing `line`, `bar`, `area`, `scatter` contracts;
-- add Studio creation/authoring;
-- keep canonical series data renderer-library-neutral;
-- choose rendering technology only when promoted;
-- keep Player lightweight.
-
-Do not redesign the canonical Chart merely to fit a chosen charting library.
-
----
+- never reintroduce a universal style bag for convenience.
 
 ## Interactive educational elements
 
@@ -917,53 +963,34 @@ Potential semantic components include:
 
 Official interactive components should have explicit semantic contracts. Rendering technology must not leak into canonical Presentation data.
 
----
-
 ## Scripted future enhancements
 
-The secure Scripted minimum is complete.
-
-Future work must preserve:
+Preserve:
 
 - authored JavaScript does not execute in the PowerShow application context;
 - no `eval` / `Function`;
 - sandbox permissions remain renderer-owned unless a dedicated security design changes them;
 - no PowerShow/session/control bridge by default.
 
----
+## Control / Presenter refinement
 
-## Control / Live extensions
-
-Broader future work beyond the immediate Control refinement:
+Potential future work:
 
 - richer Control commands;
-- explicit command protocol extensions;
-- native browser fullscreen UX consistent with local user-gesture rules;
-- additional presentation-mode controls.
-
-Do not claim browser-restricted behavior succeeded when the browser requires a local user gesture.
-
----
+- additional presentation-mode controls;
+- dedicated Presenter UX improvements where a concrete distinction from Control is needed;
+- Notes UX refinement without moving private Notes into canonical Presentation data.
 
 ## Studio polish
 
-- use the Chinese ideogram `文` as the translation symbol where the translation action is surfaced;
+- use the Chinese ideogram `文` as the translation symbol where translation action is surfaced;
 - broader visual consistency refinements;
 - documentation/help when terminology stabilizes;
 - avoid proliferating top-level Inspector sections for every capability.
 
 ---
 
-## Player / runtime future work
-
-- additional legacy-runtime expansion only when justified by real compatibility needs;
-- offline/resilience improvements;
-- performance work driven by measurement;
-- avoid unnecessary polling or continuous rendering loops.
-
----
-
-# Complete execution order
+# Current execution summary
 
 ```text
 P0    Canonical document foundation                         ✅
@@ -976,37 +1003,29 @@ P6    Immutable publishing                                  ✅
 P7    Auth / publication pointer / remote-control base      ✅
 P8    Live activation / Library Present-Control-End         ✅
 P9    Live presentation foundation                          ✅
-
 P10   Canonical Authoring & Import Foundation               ✅
-  10.1   Typography & Fonts refinement                      ✅
-  10.2   Links / Interaction                                ✅
-  10.3   ContentSlot foundation                             ✅
-  10.4   Topics                                             ✅
-  10.5   Structured Table                                   ✅
-  10.6   Inline Text / Rich Text                            ✅
-  10.7   Gallery minimum                                    ✅
-  10.8   Embed minimum                                      ✅
-  10.9   Blocks + Code semantics                            ✅
-  10.10  Scripted                                           ✅
-  10.11  Canonical Contract Cleanup + Textbox removal       ✅
-  10.12  JSON Import / Export                               ✅
-  10.13  Import compatibility gate                          ✅ absorbed
-
 P11   Resources, Organization & Text Styles                 ✅
-  11.1   Shared Studio / Library shell                      ✅
-  11.2   Folders / private organization                     ✅
-  11.3   Custom Library Styles                              ✅
-  11.4   Presentation + Custom Library Palettes             ✅
-  11.5   Presentation + Custom Library Fonts                ✅
-  11.6   Text Inspector authoring refinement                ✅
-  11.7   Presentation-local Text Styles                     ✅
-  11.8   Recovery hardening + recovery UI                   ✅
-
 P12   UX / Properties refinement                            ✅
-Control refinement                                         ← NEXT
-P13   Production Readiness                                  planned (after Control refinement)
-P14   Diagnostics                                           deferred / partial base
-P15   Audience expansion                                    future / Watch base exists
+       Runtime / Control / Watch refinement (#107)          ✅
+       Branding support (#108)                              ✅
+       Public Portal / Live Cover (#109)                    ✅
+
+Linked Styles — This Presentation                          ← NEXT
+
+Near-term candidates:
+  Mobile Control / Library simplification
+  Configurable slide transitions
+  Short Undo / Redo
+  AI Import → canonical Presentation
+  Chart V1
+  Gallery V2
+  Player offline cache / recovery
+  Maintenance + Diagnostics
+  Audience / Watch presence expansion
+
+P13   Production Readiness                                  planned
+P14   Maintenance & Diagnostics                             planned / partial base
+P15   Audience / Watch expansion                            future / Watch base exists
 ```
 
-The next work area is targeted Control refinement. P13 Production Readiness follows it; deferred P12 follow-ups remain Backlog candidates rather than active blockers.
+The next implementation checkpoint should start with a fresh audit of the current `main` canonical schema and existing Text Style/resource patterns before freezing the persisted Linked Styles contract.
