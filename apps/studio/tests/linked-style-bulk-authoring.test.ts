@@ -59,6 +59,17 @@ describe("linked style bulk authoring", () => {
     ]);
   });
 
+  it("bulk-transfers a Container inside a Structured Table ContentSlot", () => {
+    const document = presentation([{ id: "table", type: "table", mode: "structured", hidden: false, showHeader: true,
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [container("cell-match", { layout: { children: { gap: 16 } } })] }] }],
+    }], [linked("gap", { layout: { children: { gap: 16 } } })]);
+    const result = attachLinkedStyleToMatchingContainers(document, "gap");
+    expect(result.attachedLocations).toEqual([{ slideIndex: 0, elementId: "cell-match" }]);
+    expect(getContainer(result.presentation, 0, "cell-match")).toMatchObject({ linkedStyleId: "gap" });
+    expect(getContainer(result.presentation, 0, "cell-match")).not.toHaveProperty("layout");
+  });
+
   it("uses authored subset equality, presence, link status, and exact canonical values", () => {
     const document = presentation([
       container("subset", { layout: { children: { gap: 16 }, padding: 24 }, style: { className: "local" } }),
@@ -106,6 +117,18 @@ describe("linked style bulk authoring", () => {
     expect(getContainer(result.presentation, 0, "match")).not.toHaveProperty("layout.children.fit");
     expect(getContainer(result.presentation, 0, "match")).not.toHaveProperty("style.background");
     expect(getContainer(result.presentation, 0, "match")).not.toHaveProperty("effect");
+  });
+
+  it("cleans only empty nested bags while preserving unrelated background overrides", () => {
+    const gradient = { type: "linear", stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] };
+    const document = presentation([
+      container("with-extra", { style: { background: { gradient, color: "#123456" } } }),
+      container("only-gradient", { style: { background: { gradient } } }),
+    ], [linked("gradient", { style: { background: { gradient } } })]);
+    const result = attachLinkedStyleToMatchingContainers(document, "gradient").presentation;
+    expect(getContainer(result, 0, "with-extra")).toMatchObject({ style: { background: { color: "#123456" } } });
+    expect(getContainer(result, 0, "with-extra")).not.toHaveProperty("style.background.gradient");
+    expect(getContainer(result, 0, "only-gradient")).not.toHaveProperty("style");
   });
 
   it("preserves valid positioning for an extra local edge and keeps the definition immutable", () => {
