@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PresentationSchema, type Presentation } from "@powershow/document-schema";
 import { collectLinkedStyleReferenceCounts } from "../src/features/editor/element-hierarchy";
-import { createLinkedStyleFromContainer, removeUnusedLinkedStyle, renameLinkedStyle, updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
+import { canUpdateLinkedStyle, createLinkedStyleFromContainer, removeUnusedLinkedStyle, renameLinkedStyle, updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
 import { getContainerPropertySource, getContainerShareablePropertySource } from "../src/features/editor/inspector/linked-style-inspector";
 
 const presentation = (elements: Presentation["slides"][number]["elements"]): Presentation => PresentationSchema.parse({
@@ -50,5 +50,14 @@ describe("Linked Style correction contracts", () => {
     const next = createLinkedStyleFromContainer(document, 0, "c", " Card ");
     expect(next.linkedStyles?.[1]?.style).toEqual({ color: "#ffffff" });
     expect(next.slides[0]!.elements[0]).toMatchObject({ linkedStyleId: "card-2", style: { className: "local" } });
+  });
+
+  it("preserves Fit geometry, enforces positioning cleanup, and toggles flex shrink", () => {
+    const document = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "card", name: "Card", layout: { position: "absolute", top: 1, right: 2, bottom: 3, left: 4, flexShrink: 0, width: "20%", children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
+    const changed = updateLinkedStyle(document, "card", { layout: { ...document.linkedStyles![0]!.layout, position: undefined, top: undefined, right: undefined, bottom: undefined, left: undefined, flexShrink: undefined, children: { ...document.linkedStyles![0]!.layout!.children, fit: { mode: "cover", sourceWidth: 800, sourceHeight: 600 } } } });
+    expect(changed.linkedStyles?.[0]?.layout).toMatchObject({ width: "20%", children: { fit: { mode: "cover", sourceWidth: 800, sourceHeight: 600 } } });
+    expect(changed.linkedStyles?.[0]?.layout).not.toHaveProperty("position");
+    expect(changed.linkedStyles?.[0]?.layout).not.toHaveProperty("flexShrink");
+    expect(canUpdateLinkedStyle(changed, "card", { layout: { children: {} } })).toBe(false);
   });
 });

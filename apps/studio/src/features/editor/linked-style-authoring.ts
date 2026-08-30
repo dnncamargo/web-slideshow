@@ -156,9 +156,37 @@ export function updateLinkedStyle(
   // Parse through the canonical boundary; partial patches replace semantic bags.
   const candidate = styles.find((style) => style.id === linkedStyleId);
   if (candidate === undefined) return presentation;
-  const updated = { ...candidate, ...patch };
+  const updated = {
+    ...candidate,
+    ...patch,
+    ...(patch.layout === undefined ? {} : { layout: authoredObject(patch.layout) }),
+    ...(patch.style === undefined ? {} : { style: authoredObject(patch.style) }),
+    ...(patch.typography === undefined ? {} : { typography: authoredObject(patch.typography) }),
+    ...(patch.effect === undefined ? {} : { effect: authoredObject(patch.effect) }),
+  };
   const parsed = PresentationSchema.safeParse({ ...presentation, linkedStyles: styles.map((style) => style.id === linkedStyleId ? updated : style) });
   return parsed.success ? parsed.data : presentation;
+}
+
+export function canUpdateLinkedStyle(
+  presentation: Presentation,
+  linkedStyleId: string,
+  patch: LinkedStylePatch,
+): boolean {
+  const styles = presentation.linkedStyles;
+  const current = styles?.find((style) => style.id === linkedStyleId);
+  if (!styles || !current) return false;
+  return PresentationSchema.safeParse({
+    ...presentation,
+    linkedStyles: styles.map((style) => style.id === linkedStyleId ? {
+      ...style,
+      ...patch,
+      ...(patch.layout === undefined ? {} : { layout: authoredObject(patch.layout) }),
+      ...(patch.style === undefined ? {} : { style: authoredObject(patch.style) }),
+      ...(patch.typography === undefined ? {} : { typography: authoredObject(patch.typography) }),
+      ...(patch.effect === undefined ? {} : { effect: authoredObject(patch.effect) }),
+    } : style),
+  }).success;
 }
 
 export function renameLinkedStyle(presentation: Presentation, linkedStyleId: string, name: string): Presentation {
