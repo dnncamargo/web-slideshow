@@ -170,4 +170,19 @@ describe("Container canonical appearance and effects inspector", () => {
     await act(async () => reset?.click());
     expect(state.style?.borderRadius).toBeUndefined();
   });
+
+  it("preserves a Linked string radius unit through local edit and Reset", async () => {
+    linkedPresentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "linked", name: "Linked", style: { borderRadius: "1rem" } }] });
+    state = containerElement({ linkedStyleId: "linked" });
+    updates = [];
+    await act(async () => renderInspector());
+    expect((host.querySelector("#container-border-radius") as HTMLInputElement).value).toBe("1");
+    expect((host.querySelector("#container-border-radius-unit") as HTMLSelectElement).value).toBe("rem");
+    await act(async () => changeInput(host.querySelector("#container-border-radius")!, "24"));
+    expect(state.style?.borderRadius).toBe("24rem");
+    expect(linkedPresentation.linkedStyles?.[0]?.style?.borderRadius).toBe("1rem");
+    const reset = host.querySelector("#container-border-radius")?.parentElement?.parentElement?.querySelector("button");
+    await act(async () => (reset as HTMLButtonElement)?.click());
+    expect(state.style?.borderRadius).toBeUndefined();
+  });
 });

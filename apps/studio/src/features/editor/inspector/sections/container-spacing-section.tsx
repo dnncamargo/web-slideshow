@@ -147,6 +147,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingTop")}
           </label>
 
           <label className={styles.field}>
@@ -170,6 +171,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingRight")}
           </label>
 
           <label className={styles.field}>
@@ -193,6 +195,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingBottom")}
           </label>
 
           <label className={styles.field}>
@@ -216,15 +219,15 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingLeft")}
           </label>
         </div>
       </details>
-      <div>{(["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"] as const).map(spacingMeta)}</div>
 
       <label className={styles.field}>
-        <span title={t("inspector.marginTooltip")}>
-          {t("inspector.margin")}
-        </span>
+          <span title={t("inspector.marginTooltip")}>
+            {t("inspector.margin")}
+          </span>
 
         <div className={styles.unitInput}>
           <input
@@ -246,8 +249,8 @@ export function ContainerSpacingSection({
 
           <span>px</span>
         </div>
+        <ContainerLinkedPropertyMeta source={source("layout.margin").source} linkedValue={source("layout.margin").linkedValue} onReset={source("layout.margin").source === "local" && source("layout.margin").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, margin: undefined } })) : undefined} />
       </label>
-      <ContainerLinkedPropertyMeta source={source("layout.margin").source} linkedValue={source("layout.margin").linkedValue} onReset={source("layout.margin").source === "local" && source("layout.margin").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, margin: undefined } })) : undefined} />
 
       <details className={styles.spacingDetails}>
         <summary>
@@ -276,6 +279,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginTop")}
           </label>
 
           <label className={styles.field}>
@@ -299,6 +303,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginRight")}
           </label>
 
           <label className={styles.field}>
@@ -322,6 +327,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginBottom")}
           </label>
 
           <label className={styles.field}>
@@ -345,10 +351,10 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginLeft")}
           </label>
         </div>
       </details>
-      <div>{(["marginTop", "marginRight", "marginBottom", "marginLeft"] as const).map(spacingMeta)}</div>
     </InspectorSection>
   );
 }

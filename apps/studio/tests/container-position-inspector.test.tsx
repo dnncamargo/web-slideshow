@@ -6,8 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PowerShowElementSchema,
+  PresentationSchema,
   type ContainerElement,
   type PowerShowElement,
+  type Presentation,
 } from "@powershow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
@@ -47,12 +49,14 @@ describe("Container canonical position inspector", () => {
   let root: Root;
   let state: PowerShowElement;
   let moves: number[];
+  let linkedPresentation: Presentation | undefined;
 
   function renderInspector(parent: ContainerElement | null = null): void {
     root.render(
       <StudioI18nProvider>
         <ContainerInspector
           element={state as ContainerElement}
+          presentation={linkedPresentation}
           onContainerFitModeChange={() => true}
           parent={parent}
           layerControls={{
@@ -78,6 +82,7 @@ describe("Container canonical position inspector", () => {
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    linkedPresentation = undefined;
     document.body.innerHTML = "";
   });
 
@@ -274,5 +279,20 @@ describe("Container canonical position inspector", () => {
       ),
     );
     expect(host.textContent).toContain("Send to back");
+  });
+
+  it("writes and resets a Linked edge without materializing sibling edges", async () => {
+    linkedPresentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "linked", name: "Linked", layout: { position: "absolute", top: 10, left: 20 } }] });
+    state = containerElement({ linkedStyleId: "linked" });
+    await act(async () => renderInspector());
+    await act(async () => changeInput(host.querySelector("#container-position-top")!, "30"));
+    expect(state.layout).toMatchObject({ position: "absolute", top: 30 });
+    expect(state.layout?.left).toBeUndefined();
+    expect(linkedPresentation.linkedStyles?.[0]?.layout).toMatchObject({ position: "absolute", top: 10, left: 20 });
+    const reset = host.querySelector("#container-position-top")?.closest("label")?.querySelector("button");
+    expect(reset).not.toBeNull();
+    await act(async () => (reset as HTMLButtonElement).click());
+    expect(state.layout?.top).toBeUndefined();
+    expect(state.layout?.position).toBeUndefined();
   });
 });

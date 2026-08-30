@@ -23,6 +23,7 @@ interface EffectiveLengthInputProps {
   min?: string;
   step?: string;
   stepByUnit?: Partial<Record<AuthoringLengthUnit, string>>;
+  preserveInheritedUnit?: boolean;
   onChange: (value: Length | undefined) => void;
   onReset: () => void;
 }
@@ -49,18 +50,19 @@ export function EffectiveLengthInput({
   min,
   step,
   stepByUnit,
+  preserveInheritedUnit = false,
   onChange,
   onReset,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
   const supportedUnitsKey = units.join(",");
   const [unit, setUnit] = useState<AuthoringLengthUnit>(() =>
-    getInitialUnit(value, units, preferredUnit),
+    getInitialUnit(preserveInheritedUnit ? value ?? inheritedValue : value, units, preferredUnit),
   );
 
   useEffect(() => {
     if (value === undefined) {
-      setUnit(preferredUnit);
+      setUnit(getInitialUnit(preserveInheritedUnit ? inheritedValue : value, units, preferredUnit));
       return;
     }
 
@@ -69,7 +71,7 @@ export function EffectiveLengthInput({
     if (parsed && units.includes(parsed.unit)) {
       setUnit(parsed.unit);
     }
-  }, [preferredUnit, supportedUnitsKey, value]);
+  }, [inheritedValue, preferredUnit, preserveInheritedUnit, supportedUnitsKey, units, value]);
 
   const numericValue =
     value === undefined

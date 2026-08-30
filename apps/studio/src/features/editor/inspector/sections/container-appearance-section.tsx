@@ -110,6 +110,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
             value={localElement.style?.borderRadius}
             inheritedValue={(source("style.borderRadius").linkedValue as Length | undefined) ?? defaults.borderRadius}
             inheritedSource={source("style.borderRadius").linkedValue !== undefined ? "linked" : "theme"}
+            preserveInheritedUnit
             preferredUnit="px"
             units={["px", "rem"]}
             stepByUnit={{ px: "1", rem: "0.1" }}
