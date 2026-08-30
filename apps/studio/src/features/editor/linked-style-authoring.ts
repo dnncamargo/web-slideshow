@@ -6,7 +6,7 @@ import {
   type Presentation,
 } from "@powershow/document-schema";
 
-import { updateElementById } from "./element-tree";
+import { findElementById, updateElementById } from "./element-tree";
 import { createTextStyleId } from "./text-style-helpers";
 
 type ShareableStyle = Omit<ElementVisualStyle, "className">;
@@ -53,6 +53,7 @@ export function createLinkedStyleId(name: string, existingIds: readonly string[]
 }
 
 export function canCreateLinkedStyleFromContainer(container: ContainerElement): boolean {
+  if (container.linkedStyleId !== undefined) return false;
   return [
     authoredObject(container.layout),
     shareableStyle(container.style),
@@ -69,9 +70,10 @@ export function createLinkedStyleFromContainer(
 ): Presentation {
   const trimmedName = name.trim();
   if (!trimmedName) return presentation;
-  const container = presentation.slides[slideIndex] === undefined
+  const element = presentation.slides[slideIndex] === undefined
     ? undefined
-    : findContainer(presentation.slides[slideIndex]!.elements, containerId);
+    : findElementById(presentation.slides[slideIndex]!.elements, containerId);
+  const container = element?.type === "container" ? element : undefined;
   if (container === undefined || !canCreateLinkedStyleFromContainer(container)) return presentation;
 
   const layout = authoredObject(container.layout);
@@ -138,14 +140,4 @@ export function detachLinkedStyle(
       ...(resolved.effect === undefined ? {} : { effect: resolved.effect }),
     };
   });
-}
-
-function findContainer(elements: readonly import("@powershow/document-schema").PowerShowElement[], id: string): ContainerElement | undefined {
-  for (const element of elements) {
-    if (element.type !== "container") continue;
-    if (element.id === id) return element;
-    const nested = findContainer(element.children, id);
-    if (nested !== undefined) return nested;
-  }
-  return undefined;
 }

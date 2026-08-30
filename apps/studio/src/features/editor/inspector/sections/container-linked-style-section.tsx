@@ -52,28 +52,30 @@ export function ContainerLinkedStyleSection({
         </button>
       ) : null}
 
-      <div className={styles.fieldGrid}>
-        <label className={styles.field}>
-          <span>{t("inspector.newLinkedContainerStyleName")}</span>
-          <input
-            id="container-linked-style-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          className={styles.resourceAction}
-          disabled={!canCreate || !name.trim()}
-          title={canCreate ? undefined : t("inspector.emptyLinkedContainerStyle")}
-          onClick={() => {
-            onCreate(name);
-            setName("");
-          }}
-        >
-          {t("inspector.createLinkedContainerStyle")}
-        </button>
-      </div>
+      {element.linkedStyleId === undefined ? (
+        <div className={styles.fieldGrid}>
+          <label className={styles.field}>
+            <span>{t("inspector.newLinkedContainerStyleName")}</span>
+            <input
+              id="container-linked-style-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className={styles.resourceAction}
+            disabled={!canCreate || !name.trim()}
+            title={canCreate ? undefined : t("inspector.emptyLinkedContainerStyle")}
+            onClick={() => {
+              onCreate(name);
+              setName("");
+            }}
+          >
+            {t("inspector.createLinkedContainerStyle")}
+          </button>
+        </div>
+      ) : null}
     </InspectorSection>
   );
 }

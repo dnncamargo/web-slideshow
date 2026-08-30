@@ -26,7 +26,7 @@ describe("Container linked style Inspector section", () => {
     document.body.innerHTML = "";
   });
 
-  it("shows, selects, detaches, and safely disables create for an empty container", async () => {
+  it("shows, selects, and detaches a linked Container without create controls", async () => {
     const attach = vi.fn();
     const detach = vi.fn();
     const create = vi.fn();
@@ -48,7 +48,8 @@ describe("Container linked style Inspector section", () => {
     expect(host.textContent).toContain("Linked style");
     expect(select.value).toBe("card");
     expect(Array.from(select.options).map((option) => option.text)).toContain("Card");
-    expect(host.querySelector<HTMLButtonElement>("button[title]")?.disabled).toBe(true);
+    expect(host.querySelector("#container-linked-style-name")).toBeNull();
+    expect(host.textContent).toContain("Detach linked style");
 
     await act(async () => {
       select.value = "hero";

@@ -8,6 +8,7 @@ import {
   createLinkedStyleFromContainer,
   detachLinkedStyle,
 } from "../src/features/editor/linked-style-authoring";
+import { findElementById } from "../src/features/editor/element-tree";
 
 function presentation(element: object, linkedStyles?: readonly object[]): Presentation {
   return PresentationSchema.parse({
@@ -54,6 +55,18 @@ describe("linked container style authoring", () => {
     expect(createLinkedStyleFromContainer(styled, 0, "container", "Card").linkedStyles?.at(-1)?.id).toBe("card-2");
   });
 
+  it("refuses creation from a linked Container without changing its relationship or local override", () => {
+    const initial = presentation({
+      id: "container", type: "container", hidden: false, linkedStyleId: "card",
+      style: { color: "#111" }, children: [],
+    }, [{ id: "card", name: "Card", layout: { children: { gap: 8 } } }]);
+    expect(canCreateLinkedStyleFromContainer(selected(initial))).toBe(false);
+    const result = createLinkedStyleFromContainer(initial, 0, "container", "Replacement");
+    expect(result).toEqual(initial);
+    expect(selected(result)).toMatchObject({ linkedStyleId: "card", style: { color: "#111111" } });
+    expect(PresentationSchema.safeParse(result).success).toBe(true);
+  });
+
   it("attaches and switches without removing local overrides", () => {
     const initial = presentation({ id: "container", type: "container", hidden: false, layout: { children: { gap: 9 } }, style: { color: "#111" }, children: [] }, [
       { id: "a", name: "A", layout: { children: { gap: 4 } } }, { id: "b", name: "B", style: { color: "#222" } },
@@ -89,5 +102,40 @@ describe("linked container style authoring", () => {
     const parent = selected(result);
     expect(parent.children[0]).toMatchObject({ id: "nested", linkedStyleId: "nested" });
     expect(parent.children[1]).toMatchObject({ id: "sibling", content: "unchanged" });
+  });
+
+  it("creates from a Container in a Structured Table ContentSlot", () => {
+    const initial = presentation({
+      id: "table", type: "table", mode: "structured", hidden: false, showHeader: true,
+      columns: [{ id: "column", header: { id: "header", children: [{ id: "header-text", type: "text", hidden: false, content: "Header" }] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [
+        { id: "table-container", type: "container", hidden: false, style: { borderRadius: 8 }, children: [] },
+        { id: "cell-sibling", type: "text", hidden: false, content: "Sibling" },
+      ] }] }],
+    });
+    const result = createLinkedStyleFromContainer(initial, 0, "table-container", "Table card");
+    expect(findElementById(result.slides[0]!.elements, "table-container")).toMatchObject({ linkedStyleId: "table-card" });
+    expect(result.linkedStyles?.[0]).toMatchObject({ id: "table-card", style: { borderRadius: 8 } });
+    expect(findElementById(result.slides[0]!.elements, "cell-sibling")).toMatchObject({ content: "Sibling" });
+    expect(PresentationSchema.safeParse(result).success).toBe(true);
+  });
+
+  it("creates from a Container in Topics content without changing topic siblings", () => {
+    const initial = presentation({
+      id: "topics", type: "topics", hidden: false, kind: "unordered", items: [{
+        id: "topic", content: { id: "topic-slot", children: [
+          { id: "topic-container", type: "container", hidden: false, layout: { children: { gap: 6 } }, children: [] },
+          { id: "topic-sibling", type: "text", hidden: false, content: "Sibling" },
+        ] }, children: [{
+          id: "child-topic", content: { id: "child-slot", children: [{ id: "child-text", type: "text", hidden: false, content: "Child" }] }, children: [],
+        }],
+      }],
+    });
+    const result = createLinkedStyleFromContainer(initial, 0, "topic-container", "Topic card");
+    expect(findElementById(result.slides[0]!.elements, "topic-container")).toMatchObject({ linkedStyleId: "topic-card" });
+    expect(result.linkedStyles?.[0]).toMatchObject({ id: "topic-card", layout: { children: { gap: 6 } } });
+    expect(findElementById(result.slides[0]!.elements, "topic-sibling")).toMatchObject({ content: "Sibling" });
+    expect(findElementById(result.slides[0]!.elements, "child-text")).toMatchObject({ content: "Child" });
+    expect(PresentationSchema.safeParse(result).success).toBe(true);
   });
 });
