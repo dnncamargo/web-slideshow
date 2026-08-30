@@ -156,6 +156,7 @@ import {
   renameLinkedStyle,
   removeUnusedLinkedStyle,
 } from "./linked-style-authoring";
+import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -2310,6 +2311,17 @@ export function EditorWorkspace({
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
   function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
   function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
+  function attachLinkedStyleMatches(id: string): void {
+    setPresentation((current) => attachLinkedStyleToMatchingContainers(current, id).presentation);
+  }
+  function selectLinkedStyleContainer(location: LinkedStyleContainerLocation): void {
+    const slide = presentation.slides[location.slideIndex];
+    if (slide === undefined) return;
+    const element = findElementById(slide.elements, location.elementId);
+    if (element?.type !== "container" || element.linkedStyleId === undefined) return;
+    setSelectedSlideIndex(location.slideIndex);
+    setSelectedElement({ id: element.id, type: "container" });
+  }
 
   // ==========================================================
   // BEGIN: ADD ELEMENT
@@ -3675,6 +3687,8 @@ export function EditorWorkspace({
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
+             onAttachLinkedStyleMatches={attachLinkedStyleMatches}
+             onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />

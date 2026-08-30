@@ -34,7 +34,7 @@ import { ContainerEffectsSection } from "../inspector/sections/container-effects
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
 import { canCreateLinkedStyleFromContainer, canUpdateLinkedStyle } from "../linked-style-authoring";
-import { collectLinkedStyleReferenceCounts } from "../element-hierarchy";
+import { findContainersLinkedToStyle, findMatchingContainersForLinkedStyle, type LinkedStyleContainerLocation } from "../linked-style-bulk-authoring";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -65,6 +65,8 @@ interface CustomResourcesWorkspaceProps {
   onUpdateLinkedStyle?: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
   onRenameLinkedStyle?: (id: string, name: string) => void;
   onRemoveLinkedStyle?: (id: string) => void;
+  onAttachLinkedStyleMatches?: (id: string) => void;
+  onSelectLinkedStyleContainer?: (location: LinkedStyleContainerLocation) => void;
   resourceSections?: Record<string, boolean>;
   onResourceSectionChange?: (id: string, open: boolean) => void;
 }
@@ -120,6 +122,8 @@ export function CustomResourcesWorkspace({
   onUpdateLinkedStyle = () => undefined,
   onRenameLinkedStyle = () => undefined,
   onRemoveLinkedStyle = () => undefined,
+  onAttachLinkedStyleMatches = () => undefined,
+  onSelectLinkedStyleContainer = () => undefined,
   resourceSections = {},
   onResourceSectionChange = () => undefined,
 }: CustomResourcesWorkspaceProps) {
@@ -227,7 +231,7 @@ export function CustomResourcesWorkspace({
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
           <div className={styles.group}>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
-              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} selectedContainer={selectedContainer} fonts={presentationFonts} onCreate={onCreateLinkedStyleFromSelected} onUpdate={onUpdateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} /></PresentationColorPaletteProvider>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} selectedContainer={selectedContainer} fonts={presentationFonts} onCreate={onCreateLinkedStyleFromSelected} onUpdate={onUpdateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
             <InspectorSection title={t("customResources.textStyles")} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
@@ -298,6 +302,8 @@ function LinkedStylesWorkspace({
   onUpdate: dispatchUpdate,
   onRename,
   onRemove,
+  onAttach,
+  onSelectContainer,
 }: {
   presentation?: Presentation;
   selectedContainer: ContainerElement | null;
@@ -306,6 +312,8 @@ function LinkedStylesWorkspace({
   onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
   onRename: (id: string, name: string) => void;
   onRemove: (id: string) => void;
+  onAttach: (id: string) => void;
+  onSelectContainer: (location: LinkedStyleContainerLocation) => void;
 }) {
   const { t } = useStudioI18n();
   const [newName, setNewName] = useState("");
@@ -316,19 +324,21 @@ function LinkedStylesWorkspace({
     else setFeedback(t("customResources.linkedStyleMustNotBeEmpty"));
   };
   const onUpdate = commitUpdate;
-  const counts = new Map<string, number>();
-  for (const slide of presentation?.slides ?? []) collectLinkedStyleReferenceCounts(slide.elements, counts);
   const stylesList = presentation?.linkedStyles ?? [];
   return <div data-presentation-linked-styles>
     {stylesList.length === 0 ? <p className={styles.status}>{t("customResources.linkedStyleNoStyles")}</p> : null}
     {stylesList.map((linkedStyle) => {
-      const count = counts.get(linkedStyle.id) ?? 0;
+      const linkedLocations = presentation === undefined ? [] : findContainersLinkedToStyle(presentation, linkedStyle.id);
+      const matchingLocations = presentation === undefined ? [] : findMatchingContainersForLinkedStyle(presentation, linkedStyle.id);
+      const count = linkedLocations.length;
+      const matchingCount = matchingLocations.length;
       const editing = editingId === linkedStyle.id;
       return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
         <button type="button" className={styles.resourceAction} aria-expanded={editing} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
           {linkedStyle.name} · {count}
         </button>
         <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count })}</span>
+        <span className={styles.status}>{t(matchingCount === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingCount })}</span>
         {editing ? <div className={styles.fieldGrid}>
           <LinkedStyleNameField style={linkedStyle} onRename={onRename} />
           <label className={styles.field}><span>{t("inspector.layoutMode")}</span><select value={linkedStyle.layout?.children?.mode ?? "flow"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, mode: event.target.value as "flow" | "stack" } } })}><option value="flow">{t("inspector.flow")}</option><option value="stack">{t("inspector.stack")}</option></select></label>
@@ -352,6 +362,15 @@ function LinkedStylesWorkspace({
           <label className={styles.field}><span>{t("inspector.opacity")}</span><input type="number" min="0" max="100" value={linkedStyle.effect?.opacity === undefined ? "" : linkedStyle.effect.opacity * 100} onChange={(event) => onUpdate(linkedStyle.id, { effect: { ...linkedStyle.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} /></label>
           <ContainerEffectsSection element={{ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }} onUpdate={(update) => { const next = update({ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }); onUpdate(linkedStyle.id, { effect: next.type === "container" ? next.effect : undefined }); }} />
           <ElementTypographyFields typography={linkedStyle.typography} effectiveDefaults={resolveThemeTextTypographyBaseline("body")} onUpdateTypography={(update) => onUpdate(linkedStyle.id, { typography: update(linkedStyle.typography) })} controlPrefix={`linked-style-${linkedStyle.id}`} fontResources={fonts} />
+          {matchingCount > 0 ? <button type="button" className={styles.resourceAction} onClick={() => onAttach(linkedStyle.id)}>{t(matchingCount === 1 ? "customResources.linkedStyleAttachOne" : "customResources.linkedStyleAttachMany", { count: matchingCount })}</button> : null}
+          {count > 0 ? <div className={styles.fieldGrid}>
+            <span className={styles.status}>{t("customResources.linkedStyleLinkedElements")}</span>
+            {linkedLocations.map((location) => {
+              const slide = presentation?.slides[location.slideIndex];
+              const title = slide?.title.trim();
+              return <button key={`${location.slideIndex}:${location.elementId}`} type="button" className={styles.resourceAction} onClick={() => onSelectContainer(location)}>{t(title ? "customResources.linkedStyleLocationWithTitle" : "customResources.linkedStyleLocation", { slide: location.slideIndex + 1, title: title ?? "", id: location.elementId })}</button>;
+            })}
+          </div> : null}
           <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count })}</span>
           <button type="button" className={styles.resourceAction} disabled={count > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</button>
           {feedback ? <span className={styles.status} role="status">{feedback}</span> : null}
