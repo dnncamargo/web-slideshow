@@ -15,7 +15,8 @@ interface EffectiveLengthInputProps {
   id: string;
   name: string;
   value: Length | undefined;
-  inheritedValue: number;
+  inheritedValue: Length;
+  inheritedSource?: "linked" | "theme";
   preferredUnit: AuthoringLengthUnit;
   units: readonly AuthoringLengthUnit[];
   relativeFontSizePx?: number;
@@ -41,6 +42,7 @@ export function EffectiveLengthInput({
   name,
   value,
   inheritedValue,
+  inheritedSource = "theme",
   preferredUnit,
   units,
   relativeFontSizePx,
@@ -146,19 +148,19 @@ export function EffectiveLengthInput({
 
       {inherited ? (
         <span className={styles.inheritedValueLabel}>
-          {t("inspector.default")}
+          {inheritedSource === "linked" ? t("inspector.linkedValue") : t("inspector.default")}
         </span>
       ) : (
         <button
           className={styles.effectiveValueReset}
           type="button"
-          title={t("inspector.useThemeDefault")}
+          title={inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.useThemeDefault")}
           onClick={() => {
             setUnit(preferredUnit);
             onReset();
           }}
         >
-          {t("inspector.default")}
+          {inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.default")}
         </button>
       )}
     </div>

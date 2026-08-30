@@ -12,7 +12,7 @@ import { ContainerBackgroundPatternControl } from "./container-background-patter
 import { EffectiveLengthInput } from "./effective-length-input";
 import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
-import { resolveContainerInspectorValue } from "../linked-style-inspector";
+import { getContainerPropertySource } from "../linked-style-inspector";
 
 interface ContainerAppearanceSectionProps {
   element: ContainerElement;
@@ -100,14 +100,15 @@ export function ContainerAppearanceSection({ element, presentation, onUpdate }: 
             name={getControlName("container", "BorderRadius")}
             min="0"
             value={style?.borderRadius}
-            inheritedValue={resolveContainerInspectorValue(presentation, element, "borderRadius").linkedValue ?? defaults.borderRadius}
+            inheritedValue={getContainerPropertySource(presentation, element, "borderRadius").linkedValue ?? defaults.borderRadius}
+            inheritedSource={getContainerPropertySource(presentation, element, "borderRadius").source === "linked" ? "linked" : "theme"}
             preferredUnit="px"
             units={["px", "rem"]}
             stepByUnit={{ px: "1", rem: "0.1" }}
             onChange={(borderRadius) => updateStyle((current) => ({ ...current, borderRadius }))}
             onReset={() => updateStyle((current) => ({ ...current, borderRadius: undefined }))}
           />
-          {resolveContainerInspectorValue(presentation, element, "borderRadius").source === "local" && resolveContainerInspectorValue(presentation, element, "borderRadius").linkedValue !== undefined ? <span className={styles.inheritedValueLabel}>{t("inspector.localOverride")}</span> : null}
+          {getContainerPropertySource(presentation, element, "borderRadius").source === "local" && getContainerPropertySource(presentation, element, "borderRadius").linkedValue !== undefined ? <span className={styles.inheritedValueLabel}>{t("inspector.localOverride")}</span> : null}
         </div>
 
         <label className={styles.field}>

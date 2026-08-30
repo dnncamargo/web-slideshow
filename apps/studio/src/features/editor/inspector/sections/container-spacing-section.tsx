@@ -12,7 +12,8 @@ import {
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
-import { resolveContainerInspectorValue } from "../linked-style-inspector";
+import { getContainerPropertySource } from "../linked-style-inspector";
+import { resolveLinkedContainerStyle } from "@powershow/document-schema";
 
 type IndividualSpacingField =
   | "paddingTop"
@@ -92,7 +93,7 @@ export function ContainerSpacingSection({
               name="containerGap"
               type="number"
               min="0"
-              value={readAbsoluteNumber(resolveContainerInspectorValue(presentation, element, "gap").value)}
+              value={readAbsoluteNumber(resolveLinkedContainerStyle(presentation as Presentation, element).layout?.children?.gap)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
@@ -104,8 +105,8 @@ export function ContainerSpacingSection({
 
             <span>px</span>
           </div>
-          {(() => { const state = resolveContainerInspectorValue(presentation, element, "gap"); return state.source === "local" ? <span className={styles.inheritedValueLabel}>{t("inspector.localOverride")}</span> : state.source === "linked" ? <span className={styles.inheritedValueLabel}>{t("inspector.linkedValue")}</span> : null; })()}
-          {resolveContainerInspectorValue(presentation, element, "gap").source === "local" && resolveContainerInspectorValue(presentation, element, "gap").linkedValue !== undefined ? <button type="button" className={styles.effectiveValueReset} onClick={() => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: undefined } } }))}>{t("inspector.resetLinkedOverride")}</button> : null}
+          {(() => { const state = getContainerPropertySource(presentation, element, "gap"); return state.source === "local" ? <span className={styles.inheritedValueLabel}>{state.linkedValue !== undefined ? t("inspector.localOverride") : t("inspector.default")}</span> : state.source === "linked" ? <span className={styles.inheritedValueLabel}>{t("inspector.linkedValue")}</span> : null; })()}
+          {getContainerPropertySource(presentation, element, "gap").source === "local" && getContainerPropertySource(presentation, element, "gap").linkedValue !== undefined ? <button type="button" className={styles.effectiveValueReset} onClick={() => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: undefined } } }))}>{t("inspector.resetLinkedOverride")}</button> : null}
         </label>
       </div>
 
