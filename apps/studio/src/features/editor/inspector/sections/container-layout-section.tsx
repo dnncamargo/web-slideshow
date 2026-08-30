@@ -1,4 +1,5 @@
 import type { ContainerElement } from "@powershow/document-schema";
+import type { Presentation } from "@powershow/document-schema";
 import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -27,6 +28,8 @@ type ContainerVerticalAlign = "start" | "center" | "end" | "stretch";
 
 interface ContainerLayoutSectionProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
 
@@ -39,6 +42,8 @@ interface ContainerLayoutSectionProps {
 
 export function ContainerLayoutSection({
   element,
+  localElement = element,
+  presentation,
   onUpdate,
   onContainerFitModeChange,
 }: ContainerLayoutSectionProps) {
@@ -52,6 +57,13 @@ export function ContainerLayoutSection({
   const hasDistributedMainAxis =
     (element.layout?.children?.distribution ?? "packed") !== "packed";
   const isStack = element.layout?.children?.mode === "stack";
+  const linked = presentation?.linkedStyles?.find((style) => style.id === localElement.linkedStyleId);
+  const linkedMode = linked?.layout?.children?.mode;
+  const linkedDirection = linked?.layout?.children?.direction;
+  const linkedDistribution = linked?.layout?.children?.distribution;
+  const linkedOverflow = linked?.layout?.overflow;
+  const linkedHorizontalAlign = linked?.layout?.children?.horizontalAlign;
+  const linkedVerticalAlign = linked?.layout?.children?.verticalAlign;
 
   const isHorizontalAlignmentDisabled =
     element.layout?.children?.direction === "row" && hasDistributedMainAxis;
@@ -72,7 +84,9 @@ export function ContainerLayoutSection({
             const layoutMode = event.target.value as ContainerLayoutMode;
 
             onUpdate((container) =>
-              updateContainerLayoutMode(container, layoutMode),
+              linkedMode !== undefined
+                ? { ...container, layout: { ...container.layout, children: { ...container.layout?.children, mode: layoutMode } } }
+                : updateContainerLayoutMode(container, layoutMode),
             );
           }}
         >
@@ -118,6 +132,7 @@ export function ContainerLayoutSection({
           value={element.layout?.overflow ?? ""}
           onChange={(event) => {
             const value = event.target.value;
+            if (value === "" && linkedOverflow !== undefined) return;
             const overflow = value === "" ? undefined : (value as ContainerOverflow);
 
             onUpdate((container) => ({
@@ -177,7 +192,7 @@ export function ContainerLayoutSection({
             const value = event.target.value as ContainerDistribution;
 
             onUpdate((container) => ({
-              ...container, layout: { ...container.layout, children: { ...container.layout?.children, distribution: value === "packed" ? undefined : value } },
+              ...container, layout: { ...container.layout, children: { ...container.layout?.children, distribution: value === "packed" && linkedDistribution === undefined ? undefined : value } },
             }));
           }}
         >
@@ -217,8 +232,8 @@ export function ContainerLayoutSection({
             onChange={(event) => {
               const value = event.target.value;
 
-              const horizontalAlign =
-                value === "" ? undefined : (value as ContainerHorizontalAlign);
+              if (value === "" && linkedHorizontalAlign !== undefined) return;
+              const horizontalAlign = value === "" ? undefined : (value as ContainerHorizontalAlign);
 
               onUpdate((container) => ({
                 ...container, layout: { ...container.layout, children: { ...container.layout?.children, horizontalAlign } },
@@ -256,8 +271,8 @@ export function ContainerLayoutSection({
             onChange={(event) => {
               const value = event.target.value;
 
-              const verticalAlign =
-                value === "" ? undefined : (value as ContainerVerticalAlign);
+              if (value === "" && linkedVerticalAlign !== undefined) return;
+              const verticalAlign = value === "" ? undefined : (value as ContainerVerticalAlign);
 
               onUpdate((container) => ({
                 ...container, layout: { ...container.layout, children: { ...container.layout?.children, verticalAlign } },

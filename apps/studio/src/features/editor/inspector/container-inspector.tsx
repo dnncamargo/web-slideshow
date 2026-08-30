@@ -3,6 +3,7 @@ import type {
   PowerShowElement,
   Presentation,
 } from "@powershow/document-schema";
+import { resolveLinkedContainerStyle } from "@powershow/document-schema";
 import type { ContainerFitMode } from "../container-fit-authoring";
 
 import styles from "../editor-workspace.module.css";
@@ -29,7 +30,7 @@ interface ContainerInspectorProps {
 
   onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
-  presentation?: Pick<Presentation, "linkedStyles">;
+  presentation?: Presentation | Pick<Presentation, "linkedStyles">;
 
   onAttachLinkedStyle?: (linkedStyleId: string) => void;
 
@@ -54,13 +55,16 @@ export function ContainerInspector({
   element,
   onUpdate,
   onContainerFitModeChange,
-  presentation = {},
+  presentation,
   onAttachLinkedStyle = () => {},
   onDetachLinkedStyle = () => {},
   onCreateLinkedStyle = () => {},
   parent = null,
   layerControls = null,
 }: ContainerInspectorProps) {
+  const effective = presentation === undefined || !("slides" in presentation)
+    ? element
+    : { ...element, ...resolveLinkedContainerStyle(presentation, element) };
   function updateContainer(
     update: (container: ContainerElement) => ContainerElement,
   ) {
@@ -86,25 +90,29 @@ export function ContainerInspector({
       />
 
       <ContainerLayoutSection
-        element={element}
+        element={effective}
+        localElement={element}
+        presentation={presentation}
         onUpdate={updateContainer}
         onContainerFitModeChange={onContainerFitModeChange}
       />
 
       <ContainerPositionSection
-        element={element}
+        element={effective}
+        localElement={element}
+        presentation={presentation}
         onUpdate={updateContainer}
         parent={parent}
         layerControls={layerControls}
       />
 
-      <ContainerSizeSection element={element} onUpdate={updateContainer} />
+      <ContainerSizeSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
 
-      <ContainerSpacingSection element={element} presentation={presentation} onUpdate={updateContainer} />
+      <ContainerSpacingSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
 
-      <ContainerAppearanceSection element={element} presentation={presentation} onUpdate={updateContainer} />
+      <ContainerAppearanceSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
 
-      <ContainerEffectsSection element={element} onUpdate={updateContainer} />
+      <ContainerEffectsSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
 
       <ElementInteractionSection
         element={element}

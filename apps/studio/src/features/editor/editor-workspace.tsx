@@ -32,6 +32,7 @@ import {
   removePresentationPaletteColor as removePaletteEntry,
   renamePresentationPaletteColor as renamePaletteEntry,
   updatePresentationPaletteColorValue,
+  resolveLinkedContainerStyle,
   type Color,
 } from "@powershow/document-schema";
 
@@ -2093,10 +2094,14 @@ export function EditorWorkspace({
       ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
           .find((candidate) => candidate.dataset.powershowId === selectedDocumentElement.id)
       : undefined;
-    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined
+    const linkedFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
+    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit === undefined
       ? target ? measureContainerFitSourceSize(target) : null
       : undefined;
-    const updated = updateContainerFit(selectedDocumentElement, mode, sourceSize ?? undefined);
+    const base = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit !== undefined
+      ? { ...selectedDocumentElement, layout: { ...selectedDocumentElement.layout, children: { ...selectedDocumentElement.layout?.children, fit: { ...linkedFit } } } }
+      : selectedDocumentElement;
+    const updated = updateContainerFit(base, mode, sourceSize ?? undefined);
 
     if (!updated) return false;
 

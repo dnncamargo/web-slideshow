@@ -12,8 +12,8 @@ import {
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
-import { getContainerPropertySource } from "../linked-style-inspector";
-import { resolveLinkedContainerStyle } from "@powershow/document-schema";
+import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 type IndividualSpacingField =
   | "paddingTop"
@@ -27,6 +27,7 @@ type IndividualSpacingField =
 
 interface ContainerSpacingSectionProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
   presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
@@ -38,10 +39,13 @@ interface ContainerSpacingSectionProps {
 
 export function ContainerSpacingSection({
   element,
+  localElement,
   presentation,
   onUpdate,
 }: ContainerSpacingSectionProps) {
   const { t } = useStudioI18n();
+  const local = localElement ?? element;
+  const source = (property: Parameters<typeof getContainerShareablePropertySource>[2]) => getContainerShareablePropertySource(presentation, local, property);
 
   function updateStyleField(
     field: IndividualSpacingField,
@@ -82,6 +86,7 @@ export function ContainerSpacingSection({
 
             <span>px</span>
           </div>
+          <ContainerLinkedPropertyMeta source={source("layout.padding").source} linkedValue={source("layout.padding").linkedValue} onReset={source("layout.padding").source === "local" && source("layout.padding").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, padding: undefined } })) : undefined} />
         </label>
 
         <label className={styles.field}>
@@ -93,7 +98,7 @@ export function ContainerSpacingSection({
               name="containerGap"
               type="number"
               min="0"
-              value={readAbsoluteNumber(resolveLinkedContainerStyle(presentation as Presentation, element).layout?.children?.gap)}
+              value={readAbsoluteNumber(element.layout?.children?.gap)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
@@ -105,8 +110,7 @@ export function ContainerSpacingSection({
 
             <span>px</span>
           </div>
-          {(() => { const state = getContainerPropertySource(presentation, element, "gap"); return state.source === "local" ? <span className={styles.inheritedValueLabel}>{state.linkedValue !== undefined ? t("inspector.localOverride") : t("inspector.default")}</span> : state.source === "linked" ? <span className={styles.inheritedValueLabel}>{t("inspector.linkedValue")}</span> : null; })()}
-          {getContainerPropertySource(presentation, element, "gap").source === "local" && getContainerPropertySource(presentation, element, "gap").linkedValue !== undefined ? <button type="button" className={styles.effectiveValueReset} onClick={() => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: undefined } } }))}>{t("inspector.resetLinkedOverride")}</button> : null}
+          <ContainerLinkedPropertyMeta source={source("layout.children.gap").source} linkedValue={source("layout.children.gap").linkedValue} onReset={source("layout.children.gap").source === "local" && source("layout.children.gap").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: undefined } } })) : undefined} />
         </label>
       </div>
 
@@ -125,7 +129,7 @@ export function ContainerSpacingSection({
                 name="containerPaddingTop"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.layout?.paddingTop)}
+                  value={readAbsoluteNumber(element.layout?.paddingTop)}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingTop",

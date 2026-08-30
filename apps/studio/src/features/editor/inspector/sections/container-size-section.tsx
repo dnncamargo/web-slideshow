@@ -1,4 +1,4 @@
-import type { ContainerElement } from "@powershow/document-schema";
+import type { ContainerElement, Presentation } from "@powershow/document-schema";
 
 import {
   PANEL_SIZE_PRESETS,
@@ -16,11 +16,15 @@ import type { UpdateContainer } from "../container-inspector-helpers";
 import { parseOptionalNumber } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
+import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 type PanelSizeSelection = PanelSizePreset | "custom";
 
 interface ContainerSizeSectionProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
 }
@@ -59,9 +63,12 @@ function detectPanelSizePreset(
 
 export function ContainerSizeSection({
   element,
+  localElement = element,
+  presentation,
   onUpdate,
 }: ContainerSizeSectionProps) {
   const { t } = useStudioI18n();
+  const source = (property: "layout.width" | "layout.height") => getContainerShareablePropertySource(presentation, localElement, property);
 
   return (
     <InspectorSection title={t("inspector.size")}>
@@ -129,6 +136,7 @@ export function ContainerSizeSection({
 
             <span>%</span>
           </div>
+          <ContainerLinkedPropertyMeta source={source("layout.width").source} linkedValue={source("layout.width").linkedValue} onReset={source("layout.width").source === "local" && source("layout.width").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, width: undefined } })) : undefined} />
         </label>
 
         <label className={styles.field}>
@@ -155,6 +163,7 @@ export function ContainerSizeSection({
 
             <span>%</span>
           </div>
+          <ContainerLinkedPropertyMeta source={source("layout.height").source} linkedValue={source("layout.height").linkedValue} onReset={source("layout.height").source === "local" && source("layout.height").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, height: undefined } })) : undefined} />
         </label>
       </div>
     </InspectorSection>

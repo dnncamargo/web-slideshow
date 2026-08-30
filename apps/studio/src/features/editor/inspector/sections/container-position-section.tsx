@@ -1,6 +1,7 @@
 import type {
   ContainerElement,
   Length,
+  Presentation,
 } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -19,9 +20,13 @@ import {
 
 import { readAbsoluteNumber, parseOptionalNumber } from "../inspector-helpers";
 import { InspectorSection } from "../inspector-section";
+import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 interface ContainerPositionSectionProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
 
@@ -43,6 +48,8 @@ const EDGES: readonly ContainerPositionEdge[] = [
 
 export function ContainerPositionSection({
   element,
+  localElement = element,
+  presentation,
   onUpdate,
   parent,
   layerControls,
@@ -56,6 +63,10 @@ export function ContainerPositionSection({
       parent?.layout?.children?.mode,
     );
   const showPreserveSize = shouldShowContainerPreserveSize(element, parent);
+  const linked = presentation?.linkedStyles?.find((style) => style.id === localElement.linkedStyleId);
+  const linkedPosition = linked?.layout?.position;
+  const linkedFlexShrink = linked?.layout?.flexShrink;
+  const source = (property: "layout.position" | "layout.top" | "layout.right" | "layout.bottom" | "layout.left" | "layout.flexShrink") => getContainerShareablePropertySource(presentation, localElement, property);
 
   function updateEdge(edge: ContainerPositionEdge, value: Length | undefined) {
     onUpdate((container) => updateContainerPositionEdge(container, edge, value));
@@ -72,10 +83,9 @@ export function ContainerPositionSection({
           value={isAbsolute ? "absolute" : "flow"}
           onChange={(event) => {
             onUpdate((container) =>
-              updateContainerPositionMode(
-                container,
-                event.target.value as "flow" | "absolute",
-              ),
+              linkedPosition === "absolute" && event.target.value === "flow"
+                ? container
+                : updateContainerPositionMode(container, event.target.value as "flow" | "absolute"),
             );
           }}
         >
@@ -83,6 +93,7 @@ export function ContainerPositionSection({
           <option value="absolute">{t("inspector.absolute")}</option>
         </select>
       </label>
+      <ContainerLinkedPropertyMeta source={source("layout.position").source} />
 
       {isAbsolute && (
         <div className={styles.fieldGrid}>
@@ -98,7 +109,7 @@ export function ContainerPositionSection({
                   inputMode="decimal"
                   value={readAbsoluteNumber(element.layout?.[edge])}
                   onChange={(event) => {
-                    updateEdge(edge, parseOptionalNumber(event.target.value));
+                    onUpdate((container) => ({ ...container, layout: { ...container.layout, position: "absolute", [edge]: parseOptionalNumber(event.target.value) } }));
                   }}
                 />
 
@@ -122,10 +133,13 @@ export function ContainerPositionSection({
             checked={element.layout?.flexShrink === 0}
             onChange={(event) => {
               onUpdate((container) =>
-                updateContainerPreserveSize(container, event.target.checked),
+                linkedFlexShrink === 0 && !event.target.checked
+                  ? container
+                  : updateContainerPreserveSize(container, event.target.checked),
               );
             }}
           />
+          <ContainerLinkedPropertyMeta source={source("layout.flexShrink").source} />
         </label>
       )}
 

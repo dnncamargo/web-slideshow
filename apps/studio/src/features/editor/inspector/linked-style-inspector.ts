@@ -1,35 +1,36 @@
 import type { ContainerElement, LinkedContainerStyle, Presentation } from "@powershow/document-schema";
-type LinkedStylePresentation = Pick<Presentation, "linkedStyles">;
 
 export type LinkedSource = "local" | "linked" | "theme";
 export type ContainerShareableProperty =
   | "layout.position" | "layout.top" | "layout.right" | "layout.bottom" | "layout.left"
   | "layout.width" | "layout.height" | "layout.minWidth" | "layout.minHeight" | "layout.maxWidth" | "layout.maxHeight"
-  | "layout.margin" | "layout.padding" | "layout.children.mode" | "layout.children.direction" | "layout.children.gap"
+  | "layout.margin" | "layout.marginTop" | "layout.marginRight" | "layout.marginBottom" | "layout.marginLeft"
+  | "layout.padding" | "layout.paddingTop" | "layout.paddingRight" | "layout.paddingBottom" | "layout.paddingLeft"
+  | "layout.flexShrink" | "layout.children.mode" | "layout.children.direction" | "layout.children.gap"
   | "layout.children.distribution" | "layout.children.horizontalAlign" | "layout.children.verticalAlign" | "layout.children.fit" | "layout.overflow"
   | "style.color" | "style.background.color" | "style.background.gradient" | "style.background.pattern" | "style.border" | "style.borderRadius"
   | "effect.opacity" | "effect.shadow";
 
-export function linkedStyleForContainer(presentation: LinkedStylePresentation | undefined, element: ContainerElement) {
+export function linkedStyleForContainer(presentation: Pick<Presentation, "linkedStyles"> | undefined, element: ContainerElement) {
   return element.linkedStyleId === undefined ? undefined : presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
 }
 
+/** @deprecated Use getContainerShareablePropertySource. Kept for existing Inspector consumers. */
 export function getContainerPropertySource(
-  presentation: LinkedStylePresentation | undefined,
+  presentation: Pick<Presentation, "linkedStyles"> | undefined,
   element: ContainerElement,
   property: "gap" | "borderRadius",
-): { localValue: number | string | undefined; linkedValue: number | string | undefined; source: LinkedSource } {
-  const linked = linkedStyleForContainer(presentation, element);
-  const localValue = property === "gap" ? element.layout?.children?.gap : element.style?.borderRadius;
-  const linkedValue = property === "gap" ? linked?.layout?.children?.gap : linked?.style?.borderRadius;
-  if (localValue !== undefined) return { localValue, linkedValue, source: "local" };
-  if (linkedValue !== undefined) return { localValue, linkedValue, source: "linked" };
-  return { localValue, linkedValue, source: "theme" };
+) {
+  return getContainerShareablePropertySource(
+    presentation,
+    element,
+    property === "gap" ? "layout.children.gap" : "style.borderRadius",
+  ) as { localValue: number | string | undefined; linkedValue: number | string | undefined; source: LinkedSource };
 }
 
 /** Source inspection only; effective values remain owned by resolveLinkedContainerStyle. */
 export function getContainerShareablePropertySource(
-  presentation: LinkedStylePresentation | undefined,
+  presentation: Pick<Presentation, "linkedStyles"> | undefined,
   element: ContainerElement,
   property: ContainerShareableProperty,
 ): { localValue: unknown; linkedValue: unknown; source: LinkedSource } {
@@ -48,7 +49,16 @@ export function getContainerShareablePropertySource(
       case "layout.maxWidth": return bag?.layout?.maxWidth;
       case "layout.maxHeight": return bag?.layout?.maxHeight;
       case "layout.margin": return bag?.layout?.margin;
+      case "layout.marginTop": return bag?.layout?.marginTop;
+      case "layout.marginRight": return bag?.layout?.marginRight;
+      case "layout.marginBottom": return bag?.layout?.marginBottom;
+      case "layout.marginLeft": return bag?.layout?.marginLeft;
       case "layout.padding": return bag?.layout?.padding;
+      case "layout.paddingTop": return bag?.layout?.paddingTop;
+      case "layout.paddingRight": return bag?.layout?.paddingRight;
+      case "layout.paddingBottom": return bag?.layout?.paddingBottom;
+      case "layout.paddingLeft": return bag?.layout?.paddingLeft;
+      case "layout.flexShrink": return bag?.layout?.flexShrink;
       case "layout.children.mode": return bag?.layout?.children?.mode;
       case "layout.children.direction": return bag?.layout?.children?.direction;
       case "layout.children.gap": return bag?.layout?.children?.gap;

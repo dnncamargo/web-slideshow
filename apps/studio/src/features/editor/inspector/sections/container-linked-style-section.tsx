@@ -10,7 +10,7 @@ import { InspectorSection } from "../inspector-section";
 
 interface ContainerLinkedStyleSectionProps {
   element: ContainerElement;
-  presentation: Pick<Presentation, "linkedStyles">;
+  presentation?: Pick<Presentation, "linkedStyles">;
   onAttach: (linkedStyleId: string) => void;
   onDetach: () => void;
   onCreate: (name: string) => void;
@@ -40,7 +40,7 @@ export function ContainerLinkedStyleSection({
           }}
         >
           <option value="">{t("inspector.noLinkedContainerStyle")}</option>
-          {(presentation.linkedStyles ?? []).map((style) => (
+          {(presentation?.linkedStyles ?? []).map((style) => (
             <option key={style.id} value={style.id}>{style.name}</option>
           ))}
         </select>
