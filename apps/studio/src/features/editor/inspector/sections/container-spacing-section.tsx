@@ -58,6 +58,12 @@ export function ContainerSpacingSection({
     }));
   }
 
+  function spacingMeta(field: IndividualSpacingField) {
+    const property = `layout.${field}` as Parameters<typeof getContainerShareablePropertySource>[2];
+    const state = source(property);
+    return <ContainerLinkedPropertyMeta key={field} source={state.source} linkedValue={state.linkedValue} onReset={state.source === "local" && state.linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, [field]: undefined } })) : undefined} />;
+  }
+
   return (
     <InspectorSection title={t("inspector.spacing")}>
       <div className={styles.fieldGrid}>
@@ -213,6 +219,7 @@ export function ContainerSpacingSection({
           </label>
         </div>
       </details>
+      <div>{(["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"] as const).map(spacingMeta)}</div>
 
       <label className={styles.field}>
         <span title={t("inspector.marginTooltip")}>
@@ -240,6 +247,7 @@ export function ContainerSpacingSection({
           <span>px</span>
         </div>
       </label>
+      <ContainerLinkedPropertyMeta source={source("layout.margin").source} linkedValue={source("layout.margin").linkedValue} onReset={source("layout.margin").source === "local" && source("layout.margin").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, margin: undefined } })) : undefined} />
 
       <details className={styles.spacingDetails}>
         <summary>
@@ -340,6 +348,7 @@ export function ContainerSpacingSection({
           </label>
         </div>
       </details>
+      <div>{(["marginTop", "marginRight", "marginBottom", "marginLeft"] as const).map(spacingMeta)}</div>
     </InspectorSection>
   );
 }

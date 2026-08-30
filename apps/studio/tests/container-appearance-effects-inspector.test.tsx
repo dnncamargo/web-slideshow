@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema, type ContainerElement, type PowerShowElement } from "@powershow/document-schema";
+import { PowerShowElementSchema, PresentationSchema, type ContainerElement, type PowerShowElement, type Presentation } from "@powershow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -38,12 +38,14 @@ describe("Container canonical appearance and effects inspector", () => {
   let root: Root;
   let state: PowerShowElement;
   let updates: PowerShowElement[];
+  let linkedPresentation: Presentation | undefined;
 
   function renderInspector(): void {
     root.render(
       <StudioI18nProvider>
         <ContainerInspector
           element={state as ContainerElement}
+          presentation={linkedPresentation}
           onUpdate={(update) => {
             state = update(state);
             updates.push(state);
@@ -63,6 +65,7 @@ describe("Container canonical appearance and effects inspector", () => {
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    linkedPresentation = undefined;
     document.body.innerHTML = "";
   });
 
@@ -133,5 +136,38 @@ describe("Container canonical appearance and effects inspector", () => {
     await act(async () => changeSelect(host.querySelector("#container-shadow-mode")!, "none"));
     expect(state.effect?.opacity).toBeUndefined();
     expect(state.effect?.shadow).toBeUndefined();
+  });
+
+  it("clones a Linked atomic Shadow and resets only the local override", async () => {
+    state = containerElement();
+    updates = [];
+    const presentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "linked", name: "Linked", effect: { shadow: { x: 20, y: 30, blur: 50, color: "#ff0000" } } }] });
+    linkedPresentation = presentation;
+    state = { ...state, linkedStyleId: "linked" };
+    await act(async () => renderInspector());
+    await act(async () => changeInput(host.querySelector("#container-shadow-blur")!, "60"));
+    expect(state.effect?.shadow).toEqual({ x: 20, y: 30, blur: 60, color: "#ff0000" });
+    expect(presentation.linkedStyles?.[0]?.effect?.shadow).toEqual({ x: 20, y: 30, blur: 50, color: "#ff0000" });
+    expect((host.querySelector("#container-shadow-mode") as HTMLSelectElement).querySelector("option[value=none]")).toHaveProperty("disabled", true);
+    const reset = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Reset");
+    expect(reset).toBeDefined();
+    await act(async () => reset?.click());
+    expect(state.effect?.shadow).toBeUndefined();
+  });
+
+  it("keeps radius authorship separate from effective Linked radius", async () => {
+    const presentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "linked", name: "Linked", style: { borderRadius: 16 } }] });
+    linkedPresentation = presentation;
+    state = containerElement({ linkedStyleId: "linked" });
+    updates = [];
+    await act(async () => renderInspector());
+    expect((host.querySelector("#container-border-radius") as HTMLInputElement).value).toBe("16");
+    expect(host.textContent).toContain("Linked");
+    await act(async () => changeInput(host.querySelector("#container-border-radius")!, "24"));
+    expect(state.style?.borderRadius).toBe(24);
+    expect(presentation.linkedStyles?.[0]?.style?.borderRadius).toBe(16);
+    const reset = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Reset");
+    await act(async () => reset?.click());
+    expect(state.style?.borderRadius).toBeUndefined();
   });
 });

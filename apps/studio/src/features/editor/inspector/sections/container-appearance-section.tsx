@@ -107,7 +107,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
             id="container-border-radius"
             name={getControlName("container", "BorderRadius")}
             min="0"
-            value={style?.borderRadius}
+            value={localElement.style?.borderRadius}
             inheritedValue={(source("style.borderRadius").linkedValue as Length | undefined) ?? defaults.borderRadius}
             inheritedSource={source("style.borderRadius").linkedValue !== undefined ? "linked" : "theme"}
             preferredUnit="px"

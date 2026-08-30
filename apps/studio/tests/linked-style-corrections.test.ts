@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PresentationSchema, type Presentation } from "@powershow/document-schema";
 import { collectLinkedStyleReferenceCounts } from "../src/features/editor/element-hierarchy";
 import { canUpdateLinkedStyle, createLinkedStyleFromContainer, removeUnusedLinkedStyle, renameLinkedStyle, updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
-import { getContainerPropertySource, getContainerShareablePropertySource } from "../src/features/editor/inspector/linked-style-inspector";
+import { getContainerShareablePropertySource } from "../src/features/editor/inspector/linked-style-inspector";
 
 const presentation = (elements: Presentation["slides"][number]["elements"]): Presentation => PresentationSchema.parse({
   schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements }], linkedStyles: [{ id: "card", name: "Card", layout: { children: { gap: 12 } } }],
@@ -40,8 +40,8 @@ describe("Linked Style correction contracts", () => {
     const container = document.slides[0]!.elements[0]!;
     expect(container.type).toBe("container");
     if (container.type !== "container") return;
-    expect(getContainerPropertySource(document, container, "gap").source).toBe("linked");
-    expect(getContainerPropertySource(document, container, "borderRadius")).toMatchObject({ source: "local", linkedValue: "1rem" });
+    expect(getContainerShareablePropertySource(document, container, "layout.children.gap").source).toBe("linked");
+    expect(getContainerShareablePropertySource(document, container, "style.borderRadius")).toMatchObject({ source: "local", linkedValue: "1rem" });
     expect(getContainerShareablePropertySource(document, container, "style.color").linkedValue).toEqual({ kind: "palette", colorId: "accent" });
   });
 

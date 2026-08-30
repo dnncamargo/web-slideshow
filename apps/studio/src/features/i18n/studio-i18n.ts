@@ -162,6 +162,7 @@ const englishMessages = {
   "customResources.updateFailed": "Could not save palette changes.",
   "customResources.deleteFailed": "Could not delete palette.",
   "inspector.linkedValue": "Linked",
+  "inspector.linkedValueHelp": "Provided by the Linked Style. Edit the Linked Style or detach to remove it.",
   "inspector.localOverride": "Local override",
   "inspector.resetLinkedOverride": "Reset",
 
@@ -1111,6 +1112,7 @@ const portugueseMessages = {
   "customResources.updateFailed": "Não foi possível salvar as alterações da paleta.",
   "customResources.deleteFailed": "Não foi possível excluir a paleta.",
   "inspector.linkedValue": "Vinculado",
+  "inspector.linkedValueHelp": "Fornecido pelo Estilo vinculado. Edite o Estilo vinculado ou desanexe para removê-lo.",
   "inspector.localOverride": "Substituição local",
   "inspector.resetLinkedOverride": "Redefinir",
 

@@ -15,19 +15,6 @@ export function linkedStyleForContainer(presentation: Pick<Presentation, "linked
   return element.linkedStyleId === undefined ? undefined : presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
 }
 
-/** @deprecated Use getContainerShareablePropertySource. Kept for existing Inspector consumers. */
-export function getContainerPropertySource(
-  presentation: Pick<Presentation, "linkedStyles"> | undefined,
-  element: ContainerElement,
-  property: "gap" | "borderRadius",
-) {
-  return getContainerShareablePropertySource(
-    presentation,
-    element,
-    property === "gap" ? "layout.children.gap" : "style.borderRadius",
-  ) as { localValue: number | string | undefined; linkedValue: number | string | undefined; source: LinkedSource };
-}
-
 /** Source inspection only; effective values remain owned by resolveLinkedContainerStyle. */
 export function getContainerShareablePropertySource(
   presentation: Pick<Presentation, "linkedStyles"> | undefined,

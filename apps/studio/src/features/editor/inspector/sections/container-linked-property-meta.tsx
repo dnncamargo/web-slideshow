@@ -11,7 +11,7 @@ interface ContainerLinkedPropertyMetaProps {
 export function ContainerLinkedPropertyMeta({ source, linkedValue, onReset, formatValue }: ContainerLinkedPropertyMetaProps) {
   const { t } = useStudioI18n();
   if (source === "theme") return null;
-  if (source === "linked") return <span className={styles.inheritedValueLabel}>{t("inspector.linkedValue")}</span>;
+  if (source === "linked") return <span className={styles.inheritedValueLabel} title={t("inspector.linkedValueHelp")}>{t("inspector.linkedValue")}</span>;
   return (
     <span className={styles.inheritedValueLabel}>
       {t("inspector.localOverride")}

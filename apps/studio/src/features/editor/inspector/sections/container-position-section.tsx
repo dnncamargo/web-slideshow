@@ -115,6 +115,14 @@ export function ContainerPositionSection({
 
                 <span>px</span>
               </div>
+              <ContainerLinkedPropertyMeta
+                source={source(`layout.${edge}` as "layout.top" | "layout.right" | "layout.bottom" | "layout.left").source}
+                onReset={source(`layout.${edge}` as "layout.top" | "layout.right" | "layout.bottom" | "layout.left").source === "local" && source(`layout.${edge}` as "layout.top" | "layout.right" | "layout.bottom" | "layout.left").linkedValue !== undefined ? () => onUpdate((container) => {
+                  const layout = { ...container.layout, [edge]: undefined };
+                  const hasLocalEdge = ["top", "right", "bottom", "left"].some((candidate) => candidate !== edge && layout[candidate as ContainerPositionEdge] !== undefined);
+                  return { ...container, layout: hasLocalEdge ? layout : { ...layout, position: undefined } };
+                }) : undefined}
+              />
             </label>
           ))}
         </div>
