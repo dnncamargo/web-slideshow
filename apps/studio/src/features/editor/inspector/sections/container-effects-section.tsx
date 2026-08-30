@@ -15,11 +15,13 @@ interface ContainerEffectsSectionProps {
   localElement?: ContainerElement;
   presentation?: Pick<Presentation, "linkedStyles">;
   onUpdate: (update: (element: ContainerElement) => ContainerElement) => void;
+  embedded?: boolean;
+  showSourceMeta?: boolean;
 }
 
 const DEFAULT_SHADOW: Shadow = { x: 0, y: 4, blur: 12, color: "#000000" };
 
-export function ContainerEffectsSection({ element, localElement = element, presentation, onUpdate }: ContainerEffectsSectionProps) {
+export function ContainerEffectsSection({ element, localElement = element, presentation, onUpdate, embedded = false, showSourceMeta = true }: ContainerEffectsSectionProps) {
   const { t } = useStudioI18n();
   const shadow = element.effect?.shadow;
   const shadowSource = getContainerShareablePropertySource(presentation, localElement, "effect.shadow");
@@ -28,8 +30,8 @@ export function ContainerEffectsSection({ element, localElement = element, prese
     onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? shadow ?? DEFAULT_SHADOW) } }));
   }
 
-  return (
-    <InspectorSection title={t("inspector.effects")}>
+  const content = (
+    <>
       <label className={styles.field}>
         <span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span>
         <select
@@ -87,7 +89,8 @@ export function ContainerEffectsSection({ element, localElement = element, prese
           </label>
         </>
       )}
-      <ContainerLinkedPropertyMeta source={shadowSource.source} onReset={shadowSource.source === "local" && shadowSource.linkedValue !== undefined ? () => onUpdate((current) => ({ ...current, effect: current.effect === undefined ? undefined : { ...current.effect, shadow: undefined } })) : undefined} />
-    </InspectorSection>
+      {showSourceMeta ? <ContainerLinkedPropertyMeta source={shadowSource.source} onReset={shadowSource.source === "local" && shadowSource.linkedValue !== undefined ? () => onUpdate((current) => ({ ...current, effect: current.effect === undefined ? undefined : { ...current.effect, shadow: undefined } })) : undefined} /> : null}
+    </>
   );
+  return embedded ? content : <InspectorSection title={t("inspector.effects")}>{content}</InspectorSection>;
 }

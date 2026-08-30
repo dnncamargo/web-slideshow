@@ -74,12 +74,10 @@
   font-size: 10px;
 }
 
-.linkedStyleField input,
-.linkedStyleField select,
-.field input,
-.field select,
-.linkedStyleEditor input,
-.linkedStyleEditor select {
+.linkedStyleField > input,
+.linkedStyleField > select,
+.field > input,
+.field > select {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -108,8 +106,8 @@
   gap: 4px;
 }
 
-.linkedStyleUnitInput input,
-.unitInput input {
+.linkedStyleUnitInput > input,
+.unitInput > input {
   min-width: 0;
   flex: 1;
 }

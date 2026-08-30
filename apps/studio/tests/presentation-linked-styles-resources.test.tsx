@@ -58,7 +58,7 @@ describe("Linked Styles Resources contract", () => {
 
   it("organizes the expanded definition editor into semantic static groups", async () => {
     const base = makePresentation();
-    const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "card", name: "Card", layout: { padding: 100, children: { gap: 16 } }, style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } }, borderRadius: 8 }, effect: { opacity: 0.5 } }] });
+    const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "card", name: "Card", layout: { padding: 100, children: { gap: 16 } }, style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } }, borderRadius: 8 }, effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } } }] });
     const onUpdate = vi.fn();
     await render(value, onUpdate);
     const row = host.querySelector<HTMLElement>("[data-linked-style-id='card']");
@@ -70,6 +70,9 @@ describe("Linked Styles Resources contract", () => {
     expect(sections[4]?.textContent).toContain("Pattern");
     expect(sections[4]?.textContent).toContain("Rounded corners");
     expect(sections[5]?.textContent).toContain("Opacity");
+    expect(sections[5]?.textContent).toContain("Shadow");
+    expect(sections[5]?.querySelector("details")).toBeNull();
+    expect(sections[5]?.textContent).not.toContain("Local override");
     expect(sections[6]?.textContent).toContain("Typography");
     expect(sections[7]?.textContent).toContain("Changes affect");
     expect(sections.every((section) => section.tagName.toLowerCase() !== "details")).toBe(true);
