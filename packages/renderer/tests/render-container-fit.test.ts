@@ -75,7 +75,7 @@ describe("renderContainer children fit", () => {
     expect(surface).toContain("align-items:center");
   });
 
-  it("does not use a fit surface when an immediate child is absolute", () => {
+  it("uses the source surface as the absolute containing block", () => {
     const html = renderElement(container({
       layout: {
         children: {
@@ -85,10 +85,11 @@ describe("renderContainer children fit", () => {
       children: [{ ...text, layout: { position: "absolute", left: "25%", top: "10%" } }],
     }));
 
-    expect(html).not.toContain("powershow-container-fit-surface");
-    expect(html).toContain("position:relative");
-    expect(html).toContain('left:25%');
-    expect(html).toContain('top:10%');
+    const surfaceStart = html.indexOf("powershow-container-fit-surface");
+    expect(surfaceStart).toBeGreaterThan(-1);
+    expect(html.slice(surfaceStart)).toContain("position:relative");
+    expect(html.slice(surfaceStart)).toContain('left:25%');
+    expect(html.slice(surfaceStart)).toContain('top:10%');
   });
 
   it("preserves pattern and link layers outside the fitted surface", () => {

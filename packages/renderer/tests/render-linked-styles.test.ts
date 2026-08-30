@@ -7,6 +7,14 @@ import {
 
 import { renderElement, renderPresentation } from "../src";
 
+function tagForId(html: string, id: string): string {
+  const marker = `data-powershow-id="${id}"`;
+  const markerIndex = html.indexOf(marker);
+  const start = html.lastIndexOf("<", markerIndex);
+  const end = html.indexOf(">", markerIndex);
+  return html.slice(start, end);
+}
+
 function presentation(elements: ContainerElement[]) {
   return PresentationSchema.parse({
     schemaVersion: 1,
@@ -102,15 +110,40 @@ describe("Linked Container Style rendering", () => {
       }],
     }]));
 
-    expect(html).not.toContain("powershow-container-fit-surface");
-    expect(html).toContain('data-powershow-id="parent"');
-    expect(html).toContain("position:relative");
-    expect(html).toContain('data-powershow-id="child"');
-    expect(html).toContain("position:absolute");
-    expect(html).toContain("top:10px");
-    expect(html).toContain("right:20px");
-    expect(html).toContain("bottom:30px");
-    expect(html).toContain("left:40px");
+    const surfaceStart = html.indexOf("powershow-container-fit-surface");
+    const childStart = html.indexOf('data-powershow-id="child"');
+
+    expect(surfaceStart).toBeGreaterThan(-1);
+    expect(html.slice(surfaceStart)).toContain("position:relative");
+    expect(childStart).toBeGreaterThan(surfaceStart);
+    expect(tagForId(html, "child")).toContain("position:absolute");
+    expect(tagForId(html, "child")).toContain("top:10px");
+    expect(tagForId(html, "child")).toContain("right:20px");
+    expect(tagForId(html, "child")).toContain("bottom:30px");
+    expect(tagForId(html, "child")).toContain("left:40px");
+  });
+
+  it("uses linked absolute child layout for a non-fitted parent containing block", () => {
+    const html = renderPresentation(presentation([{
+      id: "parent",
+      type: "container",
+      hidden: false,
+      children: [{
+        id: "child",
+        type: "container",
+        hidden: false,
+        linkedStyleId: "absolute",
+        children: [],
+      }],
+    }]));
+
+    expect(tagForId(html, "parent")).toContain("position:relative");
+    expect(tagForId(html, "parent")).not.toContain("position:absolute");
+    expect(tagForId(html, "child")).toContain("position:absolute");
+    expect(tagForId(html, "child")).toContain("top:10px");
+    expect(tagForId(html, "child")).toContain("right:20px");
+    expect(tagForId(html, "child")).toContain("bottom:30px");
+    expect(tagForId(html, "child")).toContain("left:40px");
   });
 
   it("fails linked low-level rendering without presentation context while preserving unlinked compatibility", () => {

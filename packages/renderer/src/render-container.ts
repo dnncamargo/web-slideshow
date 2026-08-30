@@ -324,7 +324,7 @@ export function renderContainer(
   const mode = childrenLayout?.mode ?? "flow";
   const isStack = mode === "stack";
   const containsAbsoluteChild = hasAbsoluteChild(element, presentation);
-  const isFitted = fit !== undefined && !containsAbsoluteChild;
+  const isFitted = fit !== undefined;
   const isLinked = element.link !== undefined;
   const hasPattern = renderedElement.style?.background?.pattern !== undefined;
   const needsContainingBlock = isFitted
