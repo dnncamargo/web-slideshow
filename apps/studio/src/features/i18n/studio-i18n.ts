@@ -159,6 +159,9 @@ const englishMessages = {
   "customResources.saveFailed": "Could not save palette.",
   "customResources.updateFailed": "Could not save palette changes.",
   "customResources.deleteFailed": "Could not delete palette.",
+  "inspector.linkedValue": "Linked",
+  "inspector.localOverride": "Local override",
+  "inspector.resetLinkedOverride": "Reset",
 
   "inspector.title": "Inspector",
   "inspector.element": "Element",
@@ -1103,6 +1106,9 @@ const portugueseMessages = {
   "customResources.saveFailed": "Não foi possível salvar a paleta.",
   "customResources.updateFailed": "Não foi possível salvar as alterações da paleta.",
   "customResources.deleteFailed": "Não foi possível excluir a paleta.",
+  "inspector.linkedValue": "Vinculado",
+  "inspector.localOverride": "Substituição local",
+  "inspector.resetLinkedOverride": "Redefinir",
 
   "inspector.title": "Inspetor",
   "inspector.element": "Elemento",

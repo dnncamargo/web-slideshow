@@ -1,4 +1,4 @@
-import type { ContainerElement } from "@powershow/document-schema";
+import type { ContainerElement, Presentation } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -12,6 +12,7 @@ import {
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
+import { resolveContainerInspectorValue } from "../linked-style-inspector";
 
 type IndividualSpacingField =
   | "paddingTop"
@@ -25,6 +26,7 @@ type IndividualSpacingField =
 
 interface ContainerSpacingSectionProps {
   element: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
 }
@@ -35,6 +37,7 @@ interface ContainerSpacingSectionProps {
 
 export function ContainerSpacingSection({
   element,
+  presentation,
   onUpdate,
 }: ContainerSpacingSectionProps) {
   const { t } = useStudioI18n();
@@ -89,7 +92,7 @@ export function ContainerSpacingSection({
               name="containerGap"
               type="number"
               min="0"
-              value={readAbsoluteNumber(element.layout?.children?.gap)}
+              value={readAbsoluteNumber(resolveContainerInspectorValue(presentation, element, "gap").value)}
               onChange={(event) => {
                 const number = parseOptionalNumber(event.target.value);
 
@@ -101,6 +104,8 @@ export function ContainerSpacingSection({
 
             <span>px</span>
           </div>
+          {(() => { const state = resolveContainerInspectorValue(presentation, element, "gap"); return state.source === "local" ? <span className={styles.inheritedValueLabel}>{t("inspector.localOverride")}</span> : state.source === "linked" ? <span className={styles.inheritedValueLabel}>{t("inspector.linkedValue")}</span> : null; })()}
+          {resolveContainerInspectorValue(presentation, element, "gap").source === "local" && resolveContainerInspectorValue(presentation, element, "gap").linkedValue !== undefined ? <button type="button" className={styles.effectiveValueReset} onClick={() => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: undefined } } }))}>{t("inspector.resetLinkedOverride")}</button> : null}
         </label>
       </div>
 

@@ -100,9 +100,9 @@ export function ContainerInspector({
 
       <ContainerSizeSection element={element} onUpdate={updateContainer} />
 
-      <ContainerSpacingSection element={element} onUpdate={updateContainer} />
+      <ContainerSpacingSection element={element} presentation={presentation} onUpdate={updateContainer} />
 
-      <ContainerAppearanceSection element={element} onUpdate={updateContainer} />
+      <ContainerAppearanceSection element={element} presentation={presentation} onUpdate={updateContainer} />
 
       <ContainerEffectsSection element={element} onUpdate={updateContainer} />
 

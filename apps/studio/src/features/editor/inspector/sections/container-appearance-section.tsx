@@ -1,4 +1,4 @@
-import type { ContainerElement, Gradient } from "@powershow/document-schema";
+import type { ContainerElement, Gradient, Presentation } from "@powershow/document-schema";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -12,9 +12,11 @@ import { ContainerBackgroundPatternControl } from "./container-background-patter
 import { EffectiveLengthInput } from "./effective-length-input";
 import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
+import { resolveContainerInspectorValue } from "../linked-style-inspector";
 
 interface ContainerAppearanceSectionProps {
   element: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
   onUpdate: (update: (element: ContainerElement) => ContainerElement) => void;
 }
 
@@ -22,7 +24,7 @@ function readOpacityPercentage(value: number | undefined): number {
   return value === undefined ? 100 : value * 100;
 }
 
-export function ContainerAppearanceSection({ element, onUpdate }: ContainerAppearanceSectionProps) {
+export function ContainerAppearanceSection({ element, presentation, onUpdate }: ContainerAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const style = element.style;
   const background = style?.background;
@@ -98,13 +100,14 @@ export function ContainerAppearanceSection({ element, onUpdate }: ContainerAppea
             name={getControlName("container", "BorderRadius")}
             min="0"
             value={style?.borderRadius}
-            inheritedValue={defaults.borderRadius}
+            inheritedValue={resolveContainerInspectorValue(presentation, element, "borderRadius").linkedValue ?? defaults.borderRadius}
             preferredUnit="px"
             units={["px", "rem"]}
             stepByUnit={{ px: "1", rem: "0.1" }}
             onChange={(borderRadius) => updateStyle((current) => ({ ...current, borderRadius }))}
             onReset={() => updateStyle((current) => ({ ...current, borderRadius: undefined }))}
           />
+          {resolveContainerInspectorValue(presentation, element, "borderRadius").source === "local" && resolveContainerInspectorValue(presentation, element, "borderRadius").linkedValue !== undefined ? <span className={styles.inheritedValueLabel}>{t("inspector.localOverride")}</span> : null}
         </div>
 
         <label className={styles.field}>
