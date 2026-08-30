@@ -2,26 +2,46 @@
 
 PowerShow is a cloud-first slide authoring and presentation system built around a strict canonical document model, shared rendering, immutable publication snapshots, and live presentation control.
 
-The project separates authoring, projection, audience viewing, and presenter control so the same presentation data can move safely through the complete lifecycle:
+The project separates authoring, projection, audience viewing, presenter control, and the public entry surface so the same Presentation can move safely through its complete lifecycle:
 
 ```text
-Studio
-→ save/reload
+Library / Editor
+→ save / reload
 → publish
 → immutable version
-→ Control / Presenter
+→ Control
 → Player
 → Watch
 ```
 
 ## Product surfaces
 
-- **Studio / Library** — authenticated presentation management, folders, Custom Library resources, import/export, publishing, and lifecycle actions.
-- **Editor** — visual authoring of canonical PowerShow presentations.
-- **Control / Presenter** — authenticated live-session control with current/next preview, Notes, navigation, publication promotion, and Player state feedback.
-- **Player** — public projection runtime optimized for lightweight playback.
-- **Watch** — public read-only audience surface following the actual applied Player state.
+```text
+PowerShow
+│
+├── Public Portal        /
+│
+├── Studio               authenticated namespace
+│   ├── Library          /studio/library
+│   ├── Editor           /studio/editor
+│   └── Control          /studio/control
+│
+└── Live Runtime         public
+    ├── Player
+    ├── Watch            /watch
+    ├── Demo             /demo   (technical route)
+    └── Cover            /cover  (technical route)
+```
+
+- **Public Portal** — public PowerShow root. When no Live session is active it uses the self-contained demo as an ambient full-screen surface; during Live it shows only the active presentation cover and exposes a Watch QR code.
+- **PowerShow Library** — authenticated presentation management, folders, Custom Library resources, import/export, publishing, and lifecycle actions.
+- **PowerShow Editor** — visual authoring of canonical PowerShow presentations.
+- **PowerShow Control** — authenticated live-session control, direct slide navigation, publication promotion, Player-state feedback, and presentation recovery actions.
+- **PowerShow Player** — public projection runtime optimized for lightweight playback.
+- **PowerShow Watch** — public read-only audience surface following the actual applied Player state.
 - **Legacy Player** — compatibility runtime kept separate from the current Player.
+
+The public root is deliberately **not another Player**. During Live it renders the first slide only through `/cover`; Watch remains the audience follower and Player remains the real projection surface.
 
 ## Repository structure
 
@@ -29,8 +49,8 @@ PowerShow is a pnpm monorepo.
 
 ```text
 apps/
-  studio/         authenticated Studio, Library, Editor, Control and Watch
-  player/         current public projection runtime
+  studio/         public root + authenticated Library, Editor and Control
+  player/         Player, Watch, Demo and Cover public runtime routes
   player-legacy/  compatibility projection runtime
 
 packages/
@@ -62,15 +82,9 @@ Current invariants:
 - Studio-private organization metadata does not enter the published Presentation;
 - Player never depends on Custom Library records or private Studio metadata;
 - `textbox` is no longer a canonical element — boxed text is represented with `Container + Text`;
-- hierarchical composition is represented by the document tree, not by separate `parentId` or `zIndex` fields;
+- hierarchical composition is represented by the document tree, not by separate `parentId` or numeric `zIndex` fields;
 - Flow is the absence of absolute positioning; authored edges require `layout.position: "absolute"`;
-- Text Styles are Presentation-local resources with precedence:
-
-```text
-Theme role baseline
-→ Text Style
-→ local Text override
-```
+- canonical changes are driven by concrete product needs rather than speculative compatibility layers.
 
 The current canonical PowerShow element union includes:
 
@@ -93,9 +107,45 @@ container
 
 ## Container authoring
 
-Containers provide the reusable layout structure for presentation content. They support Flow / Stack child composition, authored absolute positioning where needed, and canonical overflow behavior. A Container can also scale its child composition with Children Fit (`Contain`, `Cover`, or `Fill`) while its own visual box remains unchanged.
+Containers provide the reusable layout structure for presentation content. They support Flow / Stack child composition, authored absolute positioning where needed, canonical overflow behavior, typography/effects, and nested composition.
+
+A Container can also scale its child composition with Children Fit (`Contain`, `Cover`, or `Fill`) while its own visual box remains unchanged.
 
 Within a parent Flow layout, a Container may use Preserve size to resist flex compression without leaving normal flow. This is not an absolute-positioning or fill-remaining-space contract.
+
+## Presentation-local reuse
+
+PowerShow distinguishes **copy/materialization reuse** from **live Presentation-local reuse**.
+
+Existing Presentation-local systems include Palette references and Text Styles. Text Styles resolve with:
+
+```text
+Theme role baseline
+→ Text Style
+→ local Text override
+```
+
+The next planned reuse feature is **Linked Styles** under **This Presentation**. Linked Styles are intended to let multiple existing Containers share a live Presentation-local style/layout decision instead of repeatedly copying the same values.
+
+V1 direction:
+
+```text
+Theme / defaults
+→ Linked Style
+→ local Container override
+```
+
+Linked Styles are planned as:
+
+- Presentation-scoped and self-contained;
+- Container-only in V1;
+- one linked style reference per Container;
+- able to provide `layout`, `style`, `typography`, and `effect` values;
+- compatible with local overrides;
+- attachable/detachable without changing the current visual result;
+- independent from private Custom Library data at Player runtime.
+
+The final persisted shape must be audited against the current canonical schema before implementation.
 
 ## Import / Export
 
@@ -119,6 +169,8 @@ JSON.parse
 The imported copy preserves the complete schema-validated Presentation, including slides, elements, internal IDs, Palette, FontResources, Text Styles, and authored content. Only the root Presentation id is replaced for the new draft; private Studio metadata is not part of transfer.
 
 Legacy or incompatible documents are not silently migrated during import. Recovery is a separate explicit product flow.
+
+A future **AI Import** path is expected to produce the same canonical Presentation contract rather than introducing a second persisted document language.
 
 ## Persistence and publishing
 
@@ -158,6 +210,16 @@ Control desired state
 → Control and Watch observe convergence
 ```
 
+Current live responsibilities are intentionally separate:
+
+```text
+Player      = real projection
+Watch       = real audience follower
+Root        = portal / showcase
+Control     = operator intent
+Diagnostics = technical observability
+```
+
 The architecture supports:
 
 - authenticated activation and termination;
@@ -168,7 +230,26 @@ The architecture supports:
 - explicit promotion to a newer immutable version;
 - preservation of logical slide identity across publication promotion;
 - public Watch following actual applied Player state;
+- Player-local fullscreen behavior consistent with browser user-gesture restrictions;
 - bounded production diagnostics for Player troubleshooting.
+
+## Public Portal and Live Cover
+
+The public root has two modes:
+
+```text
+No Live
+→ /demo
+→ full-screen ambient demo
+
+Live
+→ /cover
+→ static first slide of the active immutable version
+```
+
+The Live cover does not follow `live/playerState`, Control preview, navigation, autoplay, fullscreen requests, or ACK state.
+
+The root Watch QR points to `/watch`, is generated locally, and can be dragged with Pointer Events on touchscreen devices while remaining clamped to the viewport. The current operational compatibility target includes Firefox 116 on Android touchscreen hardware.
 
 ## Authoring resources
 
@@ -177,11 +258,11 @@ PowerShow distinguishes Presentation-local resources from reusable private Custo
 ```text
 Custom Library master
 → copy/materialize into Presentation
-→ canonical Presentation resource
+→ canonical Presentation resource/data
 → publish as self-contained snapshot
 ```
 
-Current reusable resource families are:
+Current reusable Custom Library resource families include:
 
 - Styles;
 - Palettes;
@@ -193,35 +274,15 @@ Presentation-local resources include:
 - FontResources;
 - Text Styles.
 
+Linked Styles are planned as another Presentation-local authoring mechanism, but unlike Custom Library Styles they are intended to preserve a live relationship between multiple elements **inside the same Presentation**.
+
 There are no live dependency links from a published Presentation back to private Custom Library data.
 
-## Text Styles
+## Chart and Gallery status
 
-Text Styles provide reusable Presentation-local text appearance while preserving local overrides.
+`chart` already exists in the canonical element union with semantic `line`, `bar`, `area`, and `scatter` series data, but the current shared renderer still treats it as a placeholder. **Chart V1** is planned to implement real rendering and Studio authoring without redesigning the canonical model around a rendering library.
 
-Fundamental roles:
-
-```text
-title
-subtitle
-body
-caption
-```
-
-Custom Text Styles choose one of those roles as their Theme baseline and may author:
-
-- text color;
-- font family;
-- font size;
-- font weight/style;
-- alignment;
-- line height and letter spacing;
-- transform/wrapping behavior;
-- decoration;
-- decoration color;
-- text stroke.
-
-Palette references and FontResources remain canonical resources rather than being flattened into renderer-only values.
+`gallery` already has a functional minimum horizontal swipe/scroll carousel based on native CSS scroll snapping. **Gallery V2** is planned as an improvement of that existing element rather than a second Gallery implementation.
 
 ## Recovery
 
@@ -257,16 +318,18 @@ Copy it to `.env.local` and provide the project-specific values required by the 
 
 ## Project workflow
 
-PowerShow development is checkpoint-driven.
+PowerShow development is checkpoint-driven and audit-first.
 
 The normal implementation loop is:
 
 ```text
 inspect current code
-→ freeze architecture and invariants
+→ verify whether the capability already exists
+→ identify the existing boundary to reuse
+→ freeze the smallest correct architecture
 → implement narrowly
 → test
-→ review the real remote diff/commit
+→ review the real remote commit / diff
 → advance
 ```
 
@@ -277,6 +340,8 @@ Repository execution rules and agent guidance live in:
 
 ## Roadmap
 
-See [`ROADMAP.md`](./ROADMAP.md) for the complete project chronology from the initial canonical document foundation through the current roadmap and backlog.
+See [`ROADMAP.md`](./ROADMAP.md) for the complete project chronology and current execution queue.
 
-At the current baseline, the document/renderer/Player/Studio/persistence/publishing/live-control/import-export/Custom Library/Text Styles foundations and selected P12 UX/properties refinements are established. Immediate work is targeted Control refinement, followed by Production Readiness, diagnostics, and future audience expansion without reopening the canonical contract speculatively.
+The current baseline includes the canonical document/renderer foundation, Studio authoring, persistence and immutable publishing, live Control/Player/Watch convergence, import/export, Custom Library resources, Text Styles, runtime surface refinement, and the immersive Public Portal/Live Cover.
+
+The next explicit feature checkpoint is **Linked Styles — This Presentation**, followed by the broader authoring/runtime queue recorded in the roadmap, including mobile Control/Library simplification, configurable slide transitions, short Undo/Redo, AI Import, Chart V1, Gallery V2, Player offline recovery, maintenance/diagnostics, and audience expansion.
