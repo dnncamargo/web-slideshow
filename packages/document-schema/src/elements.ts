@@ -738,6 +738,8 @@ export type ContainerElement = {
 
   effect?: z.infer<typeof ElementEffectSchema> | undefined;
 
+  linkedStyleId?: string | undefined;
+
   hidden: boolean;
 
   link?:
@@ -805,6 +807,8 @@ export const PowerShowElementSchema:
         typography: ElementTypographySchema.optional(),
 
         effect: ElementEffectSchema.optional(),
+
+        linkedStyleId: z.string().trim().min(1).optional(),
 
         link: ElementLinkSchema.optional(),
 
