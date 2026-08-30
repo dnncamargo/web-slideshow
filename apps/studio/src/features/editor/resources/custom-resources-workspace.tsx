@@ -1,8 +1,8 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle } from "@powershow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle } from "@powershow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@powershow/renderer";
-import { resolveThemeTextTypographyBaseline, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
+import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, type AuthoringLengthUnit } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
@@ -348,7 +348,7 @@ function LinkedStylesWorkspace({
           <ElementGradientControl gradient={linkedStyle.style?.background?.gradient} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(gradient) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, gradient } } })} />
           <ContainerBackgroundPatternControl element={{ id: `linked-style-${linkedStyle.id}`, type: "container", hidden: false, children: [], style: linkedStyle.style }} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(pattern, color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />
           <ElementBorderControl border={linkedStyle.style?.border} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(border) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, border } })} />
-          <label className={styles.field}><span>{t("inspector.roundedCorners")}</span><input value={linkedStyle.style?.borderRadius ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, borderRadius: event.target.value || undefined } })} /></label>
+          <LinkedStyleLengthField id={`linked-style-${linkedStyle.id}-border-radius`} label={t("inspector.roundedCorners")} value={linkedStyle.style?.borderRadius} onChange={(borderRadius) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, borderRadius } })} />
           <label className={styles.field}><span>{t("inspector.opacity")}</span><input type="number" min="0" max="100" value={linkedStyle.effect?.opacity === undefined ? "" : linkedStyle.effect.opacity * 100} onChange={(event) => onUpdate(linkedStyle.id, { effect: { ...linkedStyle.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} /></label>
           <ContainerEffectsSection element={{ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }} onUpdate={(update) => { const next = update({ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }); onUpdate(linkedStyle.id, { effect: next.type === "container" ? next.effect : undefined }); }} />
           <ElementTypographyFields typography={linkedStyle.typography} effectiveDefaults={resolveThemeTextTypographyBaseline("body")} onUpdateTypography={(update) => onUpdate(linkedStyle.id, { typography: update(linkedStyle.typography) })} controlPrefix={`linked-style-${linkedStyle.id}`} fontResources={fonts} />
@@ -371,6 +371,38 @@ function LinkedStyleNameField({ style, onRename }: { style: LinkedContainerStyle
   useEffect(() => setDraft(style.name), [style.id, style.name]);
   const commit = () => { const next = draft.trim(); if (next) onRename(style.id, next); else setDraft(style.name); };
   return <label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); event.currentTarget.blur(); } }} /></label>;
+}
+
+function LinkedStyleLengthField({ id, label, value, onChange }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void }) {
+  const parsed = value === undefined ? undefined : parseAuthoringLength(value);
+  const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit === "rem" ? "rem" : "px");
+  useEffect(() => setUnit(parsed?.unit === "rem" ? "rem" : "px"), [parsed?.unit]);
+  const numericValue = value === undefined ? "" : (convertAuthoringLength(value, unit) ?? "");
+
+  return <label className={styles.field}>
+    <span>{label}</span>
+    <div className={styles.unitInput}>
+      <input id={id} type="number" step="any" value={numericValue} onChange={(event) => {
+        if (event.target.value === "") {
+          onChange(undefined);
+          return;
+        }
+        const next = event.target.valueAsNumber;
+        if (Number.isFinite(next)) onChange(serializeAuthoringLength(next, unit));
+      }} />
+      <select aria-label={`${label} unit`} value={unit} onChange={(event) => {
+        const nextUnit = event.target.value as AuthoringLengthUnit;
+        setUnit(nextUnit);
+        if (value !== undefined) {
+          const converted = convertAuthoringLength(value, nextUnit);
+          if (converted !== undefined) onChange(serializeAuthoringLength(converted, nextUnit));
+        }
+      }}>
+        <option value="px">px</option>
+        <option value="rem">rem</option>
+      </select>
+    </div>
+  </label>;
 }
 
 function TextStylesWorkspace({
