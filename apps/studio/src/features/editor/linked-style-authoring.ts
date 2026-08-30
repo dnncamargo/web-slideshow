@@ -3,10 +3,12 @@ import {
   resolveLinkedContainerStyle,
   type ContainerElement,
   type ElementVisualStyle,
+  type LinkedContainerStyle,
   type Presentation,
 } from "@powershow/document-schema";
 
 import { findElementById, updateElementById } from "./element-tree";
+import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";
 import { createTextStyleId } from "./text-style-helpers";
 
 type ShareableStyle = Omit<ElementVisualStyle, "className">;
@@ -140,4 +142,36 @@ export function detachLinkedStyle(
       ...(resolved.effect === undefined ? {} : { effect: resolved.effect }),
     };
   });
+}
+
+export type LinkedStylePatch = Pick<LinkedContainerStyle, "layout" | "style" | "typography" | "effect">;
+
+export function updateLinkedStyle(
+  presentation: Presentation,
+  linkedStyleId: string,
+  patch: LinkedStylePatch,
+): Presentation {
+  const styles = presentation.linkedStyles;
+  if (styles === undefined) return presentation;
+  // Parse through the canonical boundary; partial patches replace semantic bags.
+  const candidate = styles.find((style) => style.id === linkedStyleId);
+  if (candidate === undefined) return presentation;
+  const updated = { ...candidate, ...patch };
+  const parsed = PresentationSchema.safeParse({ ...presentation, linkedStyles: styles.map((style) => style.id === linkedStyleId ? updated : style) });
+  return parsed.success ? parsed.data : presentation;
+}
+
+export function renameLinkedStyle(presentation: Presentation, linkedStyleId: string, name: string): Presentation {
+  const trimmed = name.trim();
+  if (!trimmed || !presentation.linkedStyles?.some((style) => style.id === linkedStyleId)) return presentation;
+  return PresentationSchema.parse({ ...presentation, linkedStyles: presentation.linkedStyles.map((style) => style.id === linkedStyleId ? { ...style, name: trimmed } : style) });
+}
+
+export function removeUnusedLinkedStyle(presentation: Presentation, linkedStyleId: string): Presentation | undefined {
+  if (!presentation.linkedStyles?.some((style) => style.id === linkedStyleId)) return undefined;
+  const referenced = presentation.slides.some((slide) =>
+    (collectLinkedStyleReferenceCounts(slide.elements).get(linkedStyleId) ?? 0) > 0);
+  if (referenced) return undefined;
+  const linkedStyles = presentation.linkedStyles.filter((style) => style.id !== linkedStyleId);
+  return PresentationSchema.parse({ ...presentation, ...(linkedStyles.length === 0 ? { linkedStyles: undefined } : { linkedStyles }) });
 }

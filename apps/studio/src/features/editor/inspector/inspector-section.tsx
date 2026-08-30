@@ -9,6 +9,10 @@ interface InspectorSectionProps {
 
   defaultOpen?: boolean;
 
+  open?: boolean;
+
+  onOpenChange?: (open: boolean) => void;
+
   count?: number;
 
   className?: string;
@@ -22,6 +26,8 @@ export function InspectorSection({
   title,
   children,
   defaultOpen = false,
+  open,
+  onOpenChange,
   count,
   className,
 }: InspectorSectionProps) {
@@ -30,7 +36,11 @@ export function InspectorSection({
     : styles.inspectorSection;
 
   return (
-    <details className={sectionClassName} open={defaultOpen || undefined}>
+      <details
+        className={sectionClassName}
+        open={open ?? (defaultOpen || undefined)}
+        onToggle={onOpenChange === undefined ? undefined : (event) => onOpenChange(event.currentTarget.open)}
+      >
       <summary className={styles.inspectorSectionTitle}>
         <span>{title}</span>
 

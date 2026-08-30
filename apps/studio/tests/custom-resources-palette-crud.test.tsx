@@ -130,7 +130,7 @@ describe("Custom Resources palette composition", () => {
     expect(container.textContent).toContain("Element Styles");
     const fromLibrary = container.querySelector("[aria-labelledby='custom-resources-from-library']");
     expect(fromLibrary?.querySelector("[data-presentation-text-styles]")).toBeNull();
-    expect(container.querySelector("details[open]")).not.toBeNull();
+    expect(container.querySelector("details[open]")).toBeNull();
     expect(container.querySelector("[data-presentation-color-name-input]")).toBeNull();
     expect(container.textContent).not.toContain("Copy");
     expect(container.textContent).not.toContain("Delete");

@@ -877,6 +877,39 @@ export function collectContainerIds(
   }
 }
 
+/** Counts linked Container references using the canonical hierarchy traversal. */
+export function collectLinkedStyleReferenceCounts(
+  elements: readonly PowerShowElement[],
+  counts: Map<string, number> = new Map(),
+): Map<string, number> {
+  for (const element of elements) {
+    if (element.type === "container") {
+      if (element.linkedStyleId !== undefined) {
+        counts.set(element.linkedStyleId, (counts.get(element.linkedStyleId) ?? 0) + 1);
+      }
+      collectLinkedStyleReferenceCounts(element.children, counts);
+    }
+
+    if (isStructuredTable(element)) {
+      for (const column of element.columns) collectLinkedStyleReferenceCounts(column.header.children, counts);
+      for (const row of element.rows) for (const cell of row.cells) collectLinkedStyleReferenceCounts(cell.children, counts);
+    }
+
+    if (element.type === "topics") {
+      for (const item of element.items) {
+        collectLinkedStyleReferenceCounts(item.content.children, counts);
+        for (const child of item.children) collectLinkedStyleReferenceCountsFromTopicItem(child, counts);
+      }
+    }
+  }
+  return counts;
+}
+
+function collectLinkedStyleReferenceCountsFromTopicItem(item: TopicItem, counts: Map<string, number>): void {
+  collectLinkedStyleReferenceCounts(item.content.children, counts);
+  for (const child of item.children) collectLinkedStyleReferenceCountsFromTopicItem(child, counts);
+}
+
 function collectContainerIdsFromTopicItems(
   items: readonly TopicItem[],
   ids: Set<string>,

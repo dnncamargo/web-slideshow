@@ -151,6 +151,9 @@ import {
   attachLinkedStyle,
   createLinkedStyleFromContainer,
   detachLinkedStyle,
+  updateLinkedStyle,
+  renameLinkedStyle,
+  removeUnusedLinkedStyle,
 } from "./linked-style-authoring";
 
 // ============================================================
@@ -462,6 +465,14 @@ export function EditorWorkspace({
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
   >("editor");
+  const [resourceSections, setResourceSections] = useState<Record<string, boolean>>({});
+  const resourcePresentationId = useRef(presentation.id);
+  useEffect(() => {
+    if (resourcePresentationId.current !== presentation.id) {
+      resourcePresentationId.current = presentation.id;
+      setResourceSections({});
+    }
+  }, [presentation.id]);
 
   const [editorPanelView, setEditorPanelView] = useState<
     "inspector" | "elements"
@@ -2291,6 +2302,9 @@ export function EditorWorkspace({
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
+  function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
+  function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
+  function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
 
   // ==========================================================
   // BEGIN: ADD ELEMENT
@@ -3650,8 +3664,15 @@ export function EditorWorkspace({
             onAddTextStyle={addTextStyle}
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
-            isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
-          />
+             isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
+             selectedContainer={selectedDocumentElement?.type === "container" ? selectedDocumentElement : null}
+             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedContainer}
+             onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onRenameLinkedStyle={renamePresentationLinkedStyle}
+             onRemoveLinkedStyle={removePresentationLinkedStyle}
+             resourceSections={resourceSections}
+             onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
+           />
         ) : (
           <aside className={styles.inspector}>
             <div className={styles.panelHeader}>

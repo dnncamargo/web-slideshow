@@ -1,6 +1,6 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke } from "@powershow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle } from "@powershow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@powershow/renderer";
 import { resolveThemeTextTypographyBaseline, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,6 +29,8 @@ import { ElementTypographyFields, type CoreTypographyProperty } from "../inspect
 import { ColorControl } from "../inspector/sections/color-control";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
+import { canCreateLinkedStyleFromContainer, createLinkedStyleFromContainer, removeUnusedLinkedStyle, renameLinkedStyle, updateLinkedStyle } from "../linked-style-authoring";
+import { collectLinkedStyleReferenceCounts } from "../element-hierarchy";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -54,6 +56,13 @@ interface CustomResourcesWorkspaceProps {
   onUpdateTextStyle?: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
+  selectedContainer?: ContainerElement | null;
+  onCreateLinkedStyleFromSelected?: (name: string) => void;
+  onUpdateLinkedStyle?: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
+  onRenameLinkedStyle?: (id: string, name: string) => void;
+  onRemoveLinkedStyle?: (id: string) => void;
+  resourceSections?: Record<string, boolean>;
+  onResourceSectionChange?: (id: string, open: boolean) => void;
 }
 
 type TextStylePatch = {
@@ -102,6 +111,13 @@ export function CustomResourcesWorkspace({
   onUpdateTextStyle = () => undefined,
   onRemoveTextStyle = () => undefined,
   isTextStyleInUse = () => false,
+  selectedContainer = null,
+  onCreateLinkedStyleFromSelected = () => undefined,
+  onUpdateLinkedStyle = () => undefined,
+  onRenameLinkedStyle = () => undefined,
+  onRemoveLinkedStyle = () => undefined,
+  resourceSections = {},
+  onResourceSectionChange = () => undefined,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
@@ -173,14 +189,14 @@ export function CustomResourcesWorkspace({
       <div className={styles.content}>
         <section className={styles.scope} aria-labelledby="custom-resources-from-library">
           <h2 id="custom-resources-from-library" className={styles.sectionTitle}>{t("customResources.fromLibrary")}</h2>
-          <InspectorSection title={t("customResources.elementStyles")} defaultOpen>
+          <InspectorSection title={t("customResources.elementStyles")} open={resourceSections.elementStyles} onOpenChange={(open) => onResourceSectionChange("elementStyles", open)}>
             <CustomLibraryApplyPicker
               repository={customLibraryRepository}
               onApply={onApplyElementStyle}
               embedded
             />
           </InspectorSection>
-          <InspectorSection title={t("customResources.palettes")} defaultOpen>
+          <InspectorSection title={t("customResources.palettes")} open={resourceSections.libraryPalettes} onOpenChange={(open) => onResourceSectionChange("libraryPalettes", open)}>
             <div className={styles.group}>
               <div className={styles.groupHeader}>
                 <button type="button" className={styles.resourceAction} onClick={() => setChooserOpen((open) => !open)}>
@@ -190,7 +206,7 @@ export function CustomResourcesWorkspace({
               {chooserOpen ? <MasterPaletteChooser loadState={loadState} onRetry={loadPalettes} onAdd={onAddLibraryPalette} /> : null}
             </div>
           </InspectorSection>
-          <InspectorSection title={t("customResources.fonts")} defaultOpen>
+          <InspectorSection title={t("customResources.fonts")} open={resourceSections.libraryFonts} onOpenChange={(open) => onResourceSectionChange("libraryFonts", open)}>
             <div className={styles.group}>
               <div className={styles.groupHeader}>
                 <button type="button" className={styles.resourceAction} onClick={() => setFontChooserOpen((open) => !open)}>
@@ -206,7 +222,30 @@ export function CustomResourcesWorkspace({
         <section className={styles.scope} aria-labelledby="custom-resources-this-presentation">
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
           <div className={styles.group}>
-            <h3 className={styles.groupTitle}>{t("customResources.palettes")}</h3>
+            <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
+              <LinkedStylesWorkspace presentation={presentation} selectedContainer={selectedContainer} onCreate={onCreateLinkedStyleFromSelected} onUpdate={onUpdateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} />
+            </InspectorSection>
+            <PresentationColorPaletteProvider colors={presentationColors}>
+            <InspectorSection title={t("customResources.textStyles")} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
+              <TextStylesWorkspace
+                presentationStyles={presentationTextStyles}
+                presentation={presentation}
+                presentationFonts={presentationFonts}
+                onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
+                editingStyleId={editingStyleId}
+                onUpdateFundamental={onUpdateFundamentalTextStyle}
+                onResetFundamental={onResetFundamentalTextStyle}
+                onAdd={() => setAddingStyle(true)}
+                adding={addingStyle}
+                onCancelAdd={() => setAddingStyle(false)}
+                onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
+                onUpdate={onUpdateTextStyle}
+                onRemove={onRemoveTextStyle}
+                isInUse={isTextStyleInUse}
+              />
+            </InspectorSection>
+            </PresentationColorPaletteProvider>
+            <InspectorSection title={t("customResources.palettes")} open={resourceSections.presentationPalette} onOpenChange={(open) => onResourceSectionChange("presentationPalette", open)}>
             {presentationColors.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationColors")}</p> : null}
             <div className={styles.localColorList} data-presentation-palette>
               {presentationColors.map((color) => (
@@ -232,35 +271,65 @@ export function CustomResourcesWorkspace({
                 <button type="button" className={styles.resourceAction} disabled={!colorName.trim()} onClick={addIndividualColor}>{t("customResources.addColor")}</button>
               </div>
             ) : null}
-            <h3 className={styles.groupTitle}>{t("customResources.fonts")}</h3>
+            </InspectorSection>
+            <InspectorSection title={t("customResources.fonts")} open={resourceSections.presentationFonts} onOpenChange={(open) => onResourceSectionChange("presentationFonts", open)}>
             {presentationFonts.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationFonts")}</p> : null}
             <div className={styles.localFontList} data-presentation-fonts>
               {presentationFonts.map((font) => <LocalPresentationFontRow key={font.id} font={font} inUse={isPresentationFontInUse(font.family)} onRemove={onRemovePresentationFont} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFonts.length === 1 ? "customResources.fontCountOne" : "customResources.fontCountMany", { count: presentationFonts.length })}</span>
-            <PresentationColorPaletteProvider colors={presentationColors}>
-            <TextStylesWorkspace
-              presentationStyles={presentationTextStyles}
-              presentation={presentation}
-              presentationFonts={presentationFonts}
-              onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
-              editingStyleId={editingStyleId}
-              onUpdateFundamental={onUpdateFundamentalTextStyle}
-              onResetFundamental={onResetFundamentalTextStyle}
-              onAdd={() => setAddingStyle(true)}
-              adding={addingStyle}
-              onCancelAdd={() => setAddingStyle(false)}
-              onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
-              onUpdate={onUpdateTextStyle}
-              onRemove={onRemoveTextStyle}
-              isInUse={isTextStyleInUse}
-            />
-            </PresentationColorPaletteProvider>
+            </InspectorSection>
           </div>
         </section>
       </div>
     </aside>
   );
+}
+
+function LinkedStylesWorkspace({
+  presentation,
+  selectedContainer,
+  onCreate,
+  onUpdate,
+  onRename,
+  onRemove,
+}: {
+  presentation?: Presentation;
+  selectedContainer: ContainerElement | null;
+  onCreate: (name: string) => void;
+  onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"] }) => void;
+  onRename: (id: string, name: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useStudioI18n();
+  const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const counts = new Map<string, number>();
+  for (const slide of presentation?.slides ?? []) collectLinkedStyleReferenceCounts(slide.elements, counts);
+  const stylesList = presentation?.linkedStyles ?? [];
+  return <div data-presentation-linked-styles>
+    {stylesList.length === 0 ? <p className={styles.status}>{t("customResources.linkedStyleNoStyles")}</p> : null}
+    {stylesList.map((linkedStyle) => {
+      const count = counts.get(linkedStyle.id) ?? 0;
+      const editing = editingId === linkedStyle.id;
+      return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
+        <button type="button" className={styles.resourceAction} aria-expanded={editing} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
+          {linkedStyle.name} · {count}
+        </button>
+        <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count })}</span>
+        {editing ? <div className={styles.fieldGrid}>
+          <label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={linkedStyle.name} onChange={(event) => onRename(linkedStyle.id, event.target.value)} /></label>
+          <label className={styles.field}><span>{t("inspector.gap")}</span><input type="number" min="0" value={linkedStyle.layout?.children?.gap ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, gap: event.target.value === "" ? undefined : Number(event.target.value) } } })} /></label>
+          <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count })}</span>
+          <button type="button" className={styles.resourceAction} disabled={count > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</button>
+        </div> : null}
+      </div>;
+    })}
+    {selectedContainer && canCreateLinkedStyleFromContainer(selectedContainer) ? <div className={styles.fieldGrid}>
+      <input aria-label={t("customResources.linkedStyleName")} value={newName} onChange={(event) => setNewName(event.target.value)} />
+      <button type="button" className={styles.resourceAction} disabled={!newName.trim()} onClick={() => { onCreate(newName); setNewName(""); }}>{t("customResources.linkedStyleCreate")}</button>
+    </div> : null}
+  </div>;
 }
 
 function TextStylesWorkspace({
