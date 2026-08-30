@@ -7,17 +7,21 @@ import { CustomResourcesWorkspace } from "../src/features/editor/resources/custo
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 const repository = { listPalettes: async () => [], listFonts: async () => [] } as never;
-const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion: 1, id, title: "P", slides: [{ id: "s", title: "S", elements: [] }] });
+const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion: 1, id, title: "P", slides: [{ id: "s", title: "S", elements: [
+  { id: "linked", type: "container", hidden: false, linkedStyleId: "gap", children: [] },
+  { id: "match-a", type: "container", hidden: false, layout: { children: { gap: 16 } }, children: [] },
+  { id: "match-b", type: "container", hidden: false, layout: { children: { gap: 16 } }, children: [] },
+  { id: "mismatch", type: "container", hidden: false, layout: { children: { gap: 12 } }, children: [] },
+] }, { id: "s2", title: "Second", elements: [] }], linkedStyles: [{ id: "gap", name: "Gap", layout: { children: { gap: 16 } } }] });
 
 describe("Linked Styles Resources contract", () => {
   let root: Root | undefined;
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); });
 
-  async function render(id = "p") {
+  async function render(value = makePresentation()) {
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-    const presentation = makePresentation(id);
-    await act(async () => root?.render(<StudioI18nProvider><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={presentation} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} /></StudioI18nProvider>));
   }
 
   it("renders the exact Resources IA with local singular Palette and no library counts", async () => {
@@ -38,5 +42,17 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => { (details[0] as HTMLDetailsElement).querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })); (details[1] as HTMLDetailsElement).querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
     expect(host.querySelectorAll("details[open]").length).toBeGreaterThanOrEqual(2);
     expect(JSON.stringify(makePresentation())).not.toContain("open");
+  });
+
+  it("shows authored matching counts, attach action, and linked locations", async () => {
+    await render();
+    const linkedSection = Array.from(host.querySelectorAll("details")).find((detail) => detail.textContent?.includes("Linked Styles"));
+    await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const row = host.querySelector<HTMLElement>("[data-linked-style-id='gap']");
+    expect(row?.textContent).toContain("Used by 1 element");
+    expect(row?.textContent).toContain("Matching 2 elements");
+    await act(async () => row?.querySelector("button")?.click());
+    expect(row?.textContent).toContain("Attach 2 matching elements");
+    expect(row?.textContent).toContain("Slide 1 · S · linked");
   });
 });
