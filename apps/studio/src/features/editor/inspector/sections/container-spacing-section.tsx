@@ -1,4 +1,4 @@
-import type { ContainerElement } from "@powershow/document-schema";
+import type { ContainerElement, Presentation } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -12,6 +12,8 @@ import {
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
+import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 type IndividualSpacingField =
   | "paddingTop"
@@ -25,6 +27,8 @@ type IndividualSpacingField =
 
 interface ContainerSpacingSectionProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
 }
@@ -35,9 +39,13 @@ interface ContainerSpacingSectionProps {
 
 export function ContainerSpacingSection({
   element,
+  localElement,
+  presentation,
   onUpdate,
 }: ContainerSpacingSectionProps) {
   const { t } = useStudioI18n();
+  const local = localElement ?? element;
+  const source = (property: Parameters<typeof getContainerShareablePropertySource>[2]) => getContainerShareablePropertySource(presentation, local, property);
 
   function updateStyleField(
     field: IndividualSpacingField,
@@ -48,6 +56,12 @@ export function ContainerSpacingSection({
 
       layout: { ...container.layout, [field]: value },
     }));
+  }
+
+  function spacingMeta(field: IndividualSpacingField) {
+    const property = `layout.${field}` as Parameters<typeof getContainerShareablePropertySource>[2];
+    const state = source(property);
+    return <ContainerLinkedPropertyMeta key={field} source={state.source} linkedValue={state.linkedValue} onReset={state.source === "local" && state.linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, [field]: undefined } })) : undefined} />;
   }
 
   return (
@@ -78,6 +92,7 @@ export function ContainerSpacingSection({
 
             <span>px</span>
           </div>
+          <ContainerLinkedPropertyMeta source={source("layout.padding").source} linkedValue={source("layout.padding").linkedValue} onReset={source("layout.padding").source === "local" && source("layout.padding").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, padding: undefined } })) : undefined} />
         </label>
 
         <label className={styles.field}>
@@ -101,6 +116,7 @@ export function ContainerSpacingSection({
 
             <span>px</span>
           </div>
+          <ContainerLinkedPropertyMeta source={source("layout.children.gap").source} linkedValue={source("layout.children.gap").linkedValue} onReset={source("layout.children.gap").source === "local" && source("layout.children.gap").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: undefined } } })) : undefined} />
         </label>
       </div>
 
@@ -119,7 +135,7 @@ export function ContainerSpacingSection({
                 name="containerPaddingTop"
                 type="number"
                 min="0"
-                value={readAbsoluteNumber(element.layout?.paddingTop)}
+                  value={readAbsoluteNumber(element.layout?.paddingTop)}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingTop",
@@ -131,6 +147,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingTop")}
           </label>
 
           <label className={styles.field}>
@@ -154,6 +171,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingRight")}
           </label>
 
           <label className={styles.field}>
@@ -177,6 +195,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingBottom")}
           </label>
 
           <label className={styles.field}>
@@ -200,14 +219,15 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("paddingLeft")}
           </label>
         </div>
       </details>
 
       <label className={styles.field}>
-        <span title={t("inspector.marginTooltip")}>
-          {t("inspector.margin")}
-        </span>
+          <span title={t("inspector.marginTooltip")}>
+            {t("inspector.margin")}
+          </span>
 
         <div className={styles.unitInput}>
           <input
@@ -229,6 +249,7 @@ export function ContainerSpacingSection({
 
           <span>px</span>
         </div>
+        <ContainerLinkedPropertyMeta source={source("layout.margin").source} linkedValue={source("layout.margin").linkedValue} onReset={source("layout.margin").source === "local" && source("layout.margin").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, margin: undefined } })) : undefined} />
       </label>
 
       <details className={styles.spacingDetails}>
@@ -258,6 +279,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginTop")}
           </label>
 
           <label className={styles.field}>
@@ -281,6 +303,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginRight")}
           </label>
 
           <label className={styles.field}>
@@ -304,6 +327,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginBottom")}
           </label>
 
           <label className={styles.field}>
@@ -327,6 +351,7 @@ export function ContainerSpacingSection({
 
               <span>px</span>
             </div>
+            {spacingMeta("marginLeft")}
           </label>
         </div>
       </details>

@@ -21,6 +21,7 @@ interface ContainerBackgroundPatternControlProps {
   element: ContainerElement;
   onChange: (pattern: BackgroundPattern | undefined, color?: string) => void;
   controlPrefix: string;
+  allowNone?: boolean;
 }
 
 type PatternControlMode =
@@ -56,6 +57,7 @@ export function ContainerBackgroundPatternControl({
   element,
   onChange,
   controlPrefix,
+  allowNone = true,
 }: ContainerBackgroundPatternControlProps) {
   const { t } = useStudioI18n();
   const pattern = element.style?.background?.pattern;
@@ -109,6 +111,7 @@ export function ContainerBackgroundPatternControl({
 
             setMode(nextMode as PatternControlMode);
             if (nextMode === "none") {
+              if (!allowNone) return;
               setError(undefined);
               onChange(undefined);
               return;
@@ -127,7 +130,7 @@ export function ContainerBackgroundPatternControl({
             onChange(preset.pattern);
           }}
         >
-          <option value="none">{t("inspector.pattern.none")}</option>
+          {allowNone && <option value="none">{t("inspector.pattern.none")}</option>}
           <option value="grid">{t("inspector.pattern.grid")}</option>
           <option value="fine-grid">{t("inspector.pattern.fineGrid")}</option>
           <option value="dots">{t("inspector.pattern.dots")}</option>

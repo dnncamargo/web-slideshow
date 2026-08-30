@@ -595,7 +595,7 @@ const StructuredTableElementBaseSchema =
   });
 
 export const StructuredTableElementSchema =
-  StructuredTableElementBaseSchema.superRefine(
+  StructuredTableElementBaseSchema.strict().superRefine(
     (table, context) => {
       table.rows.forEach((row, rowIndex) => {
         if (row.cells.length !== table.columns.length) {
@@ -738,6 +738,8 @@ export type ContainerElement = {
 
   effect?: z.infer<typeof ElementEffectSchema> | undefined;
 
+  linkedStyleId?: string | undefined;
+
   hidden: boolean;
 
   link?:
@@ -805,6 +807,8 @@ export const PowerShowElementSchema:
         typography: ElementTypographySchema.optional(),
 
         effect: ElementEffectSchema.optional(),
+
+        linkedStyleId: z.string().trim().min(1).optional(),
 
         link: ElementLinkSchema.optional(),
 

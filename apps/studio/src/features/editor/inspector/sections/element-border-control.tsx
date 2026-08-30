@@ -25,6 +25,8 @@ interface ElementBorderControlProps {
   controlPrefix: string;
 
   allowGradient?: boolean;
+
+  allowNone?: boolean;
 }
 
 type EnabledBorderStyle = NonNullable<Border["style"]>;
@@ -72,6 +74,7 @@ export function ElementBorderControl({
   onChange,
   controlPrefix,
   allowGradient = true,
+  allowNone = true,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
 
@@ -98,6 +101,7 @@ export function ElementBorderControl({
             const borderSelection = event.target.value;
 
             if (borderSelection === "none") {
+              if (!allowNone) return;
               onChange(undefined);
 
               return;
@@ -124,7 +128,7 @@ export function ElementBorderControl({
             );
           }}
         >
-          <option value="none">{t("inspector.border.none")}</option>
+          {allowNone && <option value="none">{t("inspector.border.none")}</option>}
 
           <option value="solid">{t("inspector.border.solid")}</option>
 

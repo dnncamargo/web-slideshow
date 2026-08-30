@@ -10,6 +10,8 @@ import {
 import { validatePresentationPaletteReferences } from "./palette-validation";
 import { TextStylesSchema } from "./text-style";
 import { validatePresentationTextStyleReferences } from "./text-style-validation";
+import { LinkedContainerStylesSchema } from "./linked-style";
+import { validatePresentationLinkedStyleReferences } from "./linked-style-validation";
 
 export {
   PresentationPaletteSchema,
@@ -39,6 +41,8 @@ export const PresentationSchema =
 
     textStyles: TextStylesSchema.optional(),
 
+    linkedStyles: LinkedContainerStylesSchema.optional(),
+
     slides: z.array(
       SlideSchema,
     ),
@@ -47,6 +51,7 @@ export const PresentationSchema =
   .superRefine((presentation, context) => {
     validatePresentationPaletteReferences(presentation, context);
     validatePresentationTextStyleReferences(presentation, context);
+    validatePresentationLinkedStyleReferences(presentation, context);
   });
 
 export type Presentation =

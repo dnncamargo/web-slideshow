@@ -25,6 +25,7 @@ import type {
 import type { Slide, SlideBackground } from "./slide";
 import type { Presentation } from "./presentation";
 import type { TextStyle } from "./text-style";
+import type { LinkedContainerStyle } from "./linked-style";
 
 export type PaletteColorPath = (string | number)[];
 
@@ -42,6 +43,7 @@ export function visitPresentationColorValues(
   presentation: {
     slides: Slide[];
     textStyles?: TextStyle[] | undefined;
+    linkedStyles?: LinkedContainerStyle[] | undefined;
   },
   visitor: PresentationColorValueVisitor,
 ): void {
@@ -175,6 +177,12 @@ export function visitPresentationColorValues(
     visitStyle(textStyle.style, ["textStyles", index, "style"]);
     visitTypography(textStyle.typography, ["textStyles", index, "typography"]);
   });
+
+  presentation.linkedStyles?.forEach((linkedStyle, index) => {
+    visitStyle(linkedStyle.style, ["linkedStyles", index, "style"]);
+    visitTypography(linkedStyle.typography, ["linkedStyles", index, "typography"]);
+    visitEffect(linkedStyle.effect, ["linkedStyles", index, "effect"]);
+  });
 }
 
 export function mapPresentationColorValues(
@@ -201,6 +209,8 @@ export function validatePresentationPaletteReferences(
   presentation: {
     palette?: PresentationPalette | undefined;
     slides: Slide[];
+    textStyles?: TextStyle[] | undefined;
+    linkedStyles?: LinkedContainerStyle[] | undefined;
   },
   context: z.RefinementCtx,
 ): void {

@@ -15,13 +15,15 @@ interface EffectiveLengthInputProps {
   id: string;
   name: string;
   value: Length | undefined;
-  inheritedValue: number;
+  inheritedValue: Length;
+  inheritedSource?: "linked" | "theme";
   preferredUnit: AuthoringLengthUnit;
   units: readonly AuthoringLengthUnit[];
   relativeFontSizePx?: number;
   min?: string;
   step?: string;
   stepByUnit?: Partial<Record<AuthoringLengthUnit, string>>;
+  preserveInheritedUnit?: boolean;
   onChange: (value: Length | undefined) => void;
   onReset: () => void;
 }
@@ -41,24 +43,26 @@ export function EffectiveLengthInput({
   name,
   value,
   inheritedValue,
+  inheritedSource = "theme",
   preferredUnit,
   units,
   relativeFontSizePx,
   min,
   step,
   stepByUnit,
+  preserveInheritedUnit = false,
   onChange,
   onReset,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
   const supportedUnitsKey = units.join(",");
   const [unit, setUnit] = useState<AuthoringLengthUnit>(() =>
-    getInitialUnit(value, units, preferredUnit),
+    getInitialUnit(preserveInheritedUnit ? value ?? inheritedValue : value, units, preferredUnit),
   );
 
   useEffect(() => {
     if (value === undefined) {
-      setUnit(preferredUnit);
+      setUnit(getInitialUnit(preserveInheritedUnit ? inheritedValue : value, units, preferredUnit));
       return;
     }
 
@@ -67,7 +71,7 @@ export function EffectiveLengthInput({
     if (parsed && units.includes(parsed.unit)) {
       setUnit(parsed.unit);
     }
-  }, [preferredUnit, supportedUnitsKey, value]);
+  }, [inheritedValue, preferredUnit, preserveInheritedUnit, supportedUnitsKey, units, value]);
 
   const numericValue =
     value === undefined
@@ -146,19 +150,19 @@ export function EffectiveLengthInput({
 
       {inherited ? (
         <span className={styles.inheritedValueLabel}>
-          {t("inspector.default")}
+          {inheritedSource === "linked" ? t("inspector.linkedValue") : t("inspector.default")}
         </span>
       ) : (
         <button
           className={styles.effectiveValueReset}
           type="button"
-          title={t("inspector.useThemeDefault")}
+          title={inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.useThemeDefault")}
           onClick={() => {
             setUnit(preferredUnit);
             onReset();
           }}
         >
-          {t("inspector.default")}
+          {inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.default")}
         </button>
       )}
     </div>

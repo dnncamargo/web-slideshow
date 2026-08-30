@@ -2,7 +2,9 @@ import type {
   ContainerElement,
   ElementLink,
   PowerShowElement,
+  Presentation,
 } from "@powershow/document-schema";
+import { resolveLinkedContainerStyle } from "@powershow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
@@ -253,10 +255,15 @@ function getTagName(
   }
 }
 
-function hasAbsoluteChild(element: ContainerElement): boolean {
+function hasAbsoluteChild(
+  element: ContainerElement,
+  presentation: Presentation | undefined,
+): boolean {
   return element.children.some((child) => {
     if (child.type === "container") {
-      return child.layout?.position === "absolute";
+      return presentation
+        ? resolveLinkedContainerStyle(presentation, child).layout?.position === "absolute"
+        : child.layout?.position === "absolute";
     }
 
     if (child.type === "text" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics" || child.type === "chart" || child.type === "interactive") {
@@ -287,33 +294,48 @@ function renderLinkSurface(link: ElementLink): string {
 export function renderContainer(
   element: ContainerElement,
   renderChild: RenderChild,
+  presentation?: Presentation,
 ): string {
   if (element.hidden) {
     return "";
   }
 
+  if (element.linkedStyleId !== undefined && presentation === undefined) {
+    throw new Error(
+      `Cannot render linked container style without presentation context: ${element.linkedStyleId}`,
+    );
+  }
+
+  const resolved = presentation
+    ? resolveLinkedContainerStyle(presentation, element)
+    : undefined;
+  const renderedElement: ContainerElement = resolved
+    ? { ...element, ...resolved }
+    : element;
+
   const styles = [
-    ...renderLayout(element),
-    ...renderVisualStyle(element),
-    ...renderTypography(element),
-    ...renderEffect(element),
+    ...renderLayout(renderedElement),
+    ...renderVisualStyle(renderedElement),
+    ...renderTypography(renderedElement),
+    ...renderEffect(renderedElement),
   ];
-  const childrenLayout = element.layout?.children;
+  const childrenLayout = renderedElement.layout?.children;
   const fit = childrenLayout?.fit;
   const mode = childrenLayout?.mode ?? "flow";
   const isStack = mode === "stack";
+  const containsAbsoluteChild = hasAbsoluteChild(element, presentation);
   const isFitted = fit !== undefined;
   const isLinked = element.link !== undefined;
-  const hasPattern = element.style?.background?.pattern !== undefined;
+  const hasPattern = renderedElement.style?.background?.pattern !== undefined;
   const needsContainingBlock = isFitted
     ? isLinked || hasPattern
-    : hasAbsoluteChild(element) || isLinked || hasPattern;
-  const hasAuthoredAbsolute = element.layout?.position === "absolute";
+    : containsAbsoluteChild || isLinked || hasPattern;
+  const hasAuthoredAbsolute = renderedElement.layout?.position === "absolute";
 
   if (isFitted) {
     styles.push("display:block");
   } else {
-    renderChildLayout(element, styles);
+    renderChildLayout(renderedElement, styles);
   }
 
   if (needsContainingBlock && !hasAuthoredAbsolute) {
@@ -335,7 +357,7 @@ export function renderContainer(
   if (element.style?.className?.trim()) classes.push(element.style.className.trim());
 
   const tag = getTagName(element.role);
-  const pattern = element.style?.background?.pattern;
+  const pattern = renderedElement.style?.background?.pattern;
   const patternLayer = pattern
     ? `<div class="powershow-container-background-pattern" aria-hidden="true" style="${escapeHtml(
         "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;" +
@@ -360,7 +382,7 @@ export function renderContainer(
           `height:${fit.sourceHeight}px`,
           "transform-origin:0 0",
         ];
-        renderChildLayout(element, surfaceStyles);
+        renderChildLayout(renderedElement, surfaceStyles);
         return `<div class="powershow-container-fit-viewport" data-powershow-container-fit="true" data-powershow-container-fit-mode="${fit.mode}" data-powershow-container-fit-source-width="${fit.sourceWidth}" data-powershow-container-fit-source-height="${fit.sourceHeight}" style="position:relative;width:100%;height:100%;${fit.mode === "cover" ? "overflow:hidden;" : "overflow:visible;"}"><div class="powershow-container-fit-surface" style="${escapeHtml(surfaceStyles.join(";"))}">${children}</div></div>`;
       })()
     : children;

@@ -1,8 +1,8 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke } from "@powershow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle } from "@powershow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@powershow/renderer";
-import { resolveThemeTextTypographyBaseline, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
+import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, type AuthoringLengthUnit } from "@powershow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
@@ -27,8 +27,14 @@ import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/cu
 import { readAbsoluteNumber } from "../inspector/inspector-helpers";
 import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
 import { ColorControl } from "../inspector/sections/color-control";
+import { ElementBorderControl } from "../inspector/sections/element-border-control";
+import { ElementGradientControl } from "../inspector/sections/element-gradient-control";
+import { ContainerBackgroundPatternControl } from "../inspector/sections/container-background-pattern-control";
+import { ContainerEffectsSection } from "../inspector/sections/container-effects-section";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
+import { canCreateLinkedStyleFromContainer, canUpdateLinkedStyle } from "../linked-style-authoring";
+import { collectLinkedStyleReferenceCounts } from "../element-hierarchy";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -54,6 +60,13 @@ interface CustomResourcesWorkspaceProps {
   onUpdateTextStyle?: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
+  selectedContainer?: ContainerElement | null;
+  onCreateLinkedStyleFromSelected?: (name: string) => void;
+  onUpdateLinkedStyle?: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
+  onRenameLinkedStyle?: (id: string, name: string) => void;
+  onRemoveLinkedStyle?: (id: string) => void;
+  resourceSections?: Record<string, boolean>;
+  onResourceSectionChange?: (id: string, open: boolean) => void;
 }
 
 type TextStylePatch = {
@@ -102,6 +115,13 @@ export function CustomResourcesWorkspace({
   onUpdateTextStyle = () => undefined,
   onRemoveTextStyle = () => undefined,
   isTextStyleInUse = () => false,
+  selectedContainer = null,
+  onCreateLinkedStyleFromSelected = () => undefined,
+  onUpdateLinkedStyle = () => undefined,
+  onRenameLinkedStyle = () => undefined,
+  onRemoveLinkedStyle = () => undefined,
+  resourceSections = {},
+  onResourceSectionChange = () => undefined,
 }: CustomResourcesWorkspaceProps) {
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
@@ -173,14 +193,14 @@ export function CustomResourcesWorkspace({
       <div className={styles.content}>
         <section className={styles.scope} aria-labelledby="custom-resources-from-library">
           <h2 id="custom-resources-from-library" className={styles.sectionTitle}>{t("customResources.fromLibrary")}</h2>
-          <InspectorSection title={t("customResources.elementStyles")} defaultOpen>
+          <InspectorSection title={t("customResources.elementStyles")} open={resourceSections.elementStyles} onOpenChange={(open) => onResourceSectionChange("elementStyles", open)}>
             <CustomLibraryApplyPicker
               repository={customLibraryRepository}
               onApply={onApplyElementStyle}
               embedded
             />
           </InspectorSection>
-          <InspectorSection title={t("customResources.palettes")} defaultOpen>
+          <InspectorSection title={t("customResources.palettes")} open={resourceSections.libraryPalettes} onOpenChange={(open) => onResourceSectionChange("libraryPalettes", open)}>
             <div className={styles.group}>
               <div className={styles.groupHeader}>
                 <button type="button" className={styles.resourceAction} onClick={() => setChooserOpen((open) => !open)}>
@@ -190,7 +210,7 @@ export function CustomResourcesWorkspace({
               {chooserOpen ? <MasterPaletteChooser loadState={loadState} onRetry={loadPalettes} onAdd={onAddLibraryPalette} /> : null}
             </div>
           </InspectorSection>
-          <InspectorSection title={t("customResources.fonts")} defaultOpen>
+          <InspectorSection title={t("customResources.fonts")} open={resourceSections.libraryFonts} onOpenChange={(open) => onResourceSectionChange("libraryFonts", open)}>
             <div className={styles.group}>
               <div className={styles.groupHeader}>
                 <button type="button" className={styles.resourceAction} onClick={() => setFontChooserOpen((open) => !open)}>
@@ -206,7 +226,30 @@ export function CustomResourcesWorkspace({
         <section className={styles.scope} aria-labelledby="custom-resources-this-presentation">
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
           <div className={styles.group}>
-            <h3 className={styles.groupTitle}>{t("customResources.palettes")}</h3>
+            <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} selectedContainer={selectedContainer} fonts={presentationFonts} onCreate={onCreateLinkedStyleFromSelected} onUpdate={onUpdateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} /></PresentationColorPaletteProvider>
+            </InspectorSection>
+            <PresentationColorPaletteProvider colors={presentationColors}>
+            <InspectorSection title={t("customResources.textStyles")} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
+              <TextStylesWorkspace
+                presentationStyles={presentationTextStyles}
+                presentation={presentation}
+                presentationFonts={presentationFonts}
+                onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
+                editingStyleId={editingStyleId}
+                onUpdateFundamental={onUpdateFundamentalTextStyle}
+                onResetFundamental={onResetFundamentalTextStyle}
+                onAdd={() => setAddingStyle(true)}
+                adding={addingStyle}
+                onCancelAdd={() => setAddingStyle(false)}
+                onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
+                onUpdate={onUpdateTextStyle}
+                onRemove={onRemoveTextStyle}
+                isInUse={isTextStyleInUse}
+              />
+            </InspectorSection>
+            </PresentationColorPaletteProvider>
+            <InspectorSection title={t("customResources.presentationPalette")} open={resourceSections.presentationPalette} onOpenChange={(open) => onResourceSectionChange("presentationPalette", open)}>
             {presentationColors.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationColors")}</p> : null}
             <div className={styles.localColorList} data-presentation-palette>
               {presentationColors.map((color) => (
@@ -232,35 +275,134 @@ export function CustomResourcesWorkspace({
                 <button type="button" className={styles.resourceAction} disabled={!colorName.trim()} onClick={addIndividualColor}>{t("customResources.addColor")}</button>
               </div>
             ) : null}
-            <h3 className={styles.groupTitle}>{t("customResources.fonts")}</h3>
+            </InspectorSection>
+            <InspectorSection title={t("customResources.fonts")} open={resourceSections.presentationFonts} onOpenChange={(open) => onResourceSectionChange("presentationFonts", open)}>
             {presentationFonts.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationFonts")}</p> : null}
             <div className={styles.localFontList} data-presentation-fonts>
               {presentationFonts.map((font) => <LocalPresentationFontRow key={font.id} font={font} inUse={isPresentationFontInUse(font.family)} onRemove={onRemovePresentationFont} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFonts.length === 1 ? "customResources.fontCountOne" : "customResources.fontCountMany", { count: presentationFonts.length })}</span>
-            <PresentationColorPaletteProvider colors={presentationColors}>
-            <TextStylesWorkspace
-              presentationStyles={presentationTextStyles}
-              presentation={presentation}
-              presentationFonts={presentationFonts}
-              onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
-              editingStyleId={editingStyleId}
-              onUpdateFundamental={onUpdateFundamentalTextStyle}
-              onResetFundamental={onResetFundamentalTextStyle}
-              onAdd={() => setAddingStyle(true)}
-              adding={addingStyle}
-              onCancelAdd={() => setAddingStyle(false)}
-              onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
-              onUpdate={onUpdateTextStyle}
-              onRemove={onRemoveTextStyle}
-              isInUse={isTextStyleInUse}
-            />
-            </PresentationColorPaletteProvider>
+            </InspectorSection>
           </div>
         </section>
       </div>
     </aside>
   );
+}
+
+function LinkedStylesWorkspace({
+  presentation,
+  selectedContainer,
+  fonts,
+  onCreate,
+  onUpdate: dispatchUpdate,
+  onRename,
+  onRemove,
+}: {
+  presentation?: Presentation;
+  selectedContainer: ContainerElement | null;
+  fonts: readonly FontResource[];
+  onCreate: (name: string) => void;
+  onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
+  onRename: (id: string, name: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useStudioI18n();
+  const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const commitUpdate = (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => {
+    if (!presentation || canUpdateLinkedStyle(presentation, id, patch)) { setFeedback(null); dispatchUpdate(id, patch); }
+    else setFeedback(t("customResources.linkedStyleMustNotBeEmpty"));
+  };
+  const onUpdate = commitUpdate;
+  const counts = new Map<string, number>();
+  for (const slide of presentation?.slides ?? []) collectLinkedStyleReferenceCounts(slide.elements, counts);
+  const stylesList = presentation?.linkedStyles ?? [];
+  return <div data-presentation-linked-styles>
+    {stylesList.length === 0 ? <p className={styles.status}>{t("customResources.linkedStyleNoStyles")}</p> : null}
+    {stylesList.map((linkedStyle) => {
+      const count = counts.get(linkedStyle.id) ?? 0;
+      const editing = editingId === linkedStyle.id;
+      return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
+        <button type="button" className={styles.resourceAction} aria-expanded={editing} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
+          {linkedStyle.name} · {count}
+        </button>
+        <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count })}</span>
+        {editing ? <div className={styles.fieldGrid}>
+          <LinkedStyleNameField style={linkedStyle} onRename={onRename} />
+          <label className={styles.field}><span>{t("inspector.layoutMode")}</span><select value={linkedStyle.layout?.children?.mode ?? "flow"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, mode: event.target.value as "flow" | "stack" } } })}><option value="flow">{t("inspector.flow")}</option><option value="stack">{t("inspector.stack")}</option></select></label>
+          <label className={styles.field}><span>{t("inspector.direction")}</span><select value={linkedStyle.layout?.children?.direction ?? "column"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, direction: event.target.value as "row" | "column" } } })}><option value="column">{t("inspector.vertical")}</option><option value="row">{t("inspector.horizontal")}</option></select></label>
+          <label className={styles.field}><span>{t("inspector.gap")}</span><input type="number" min="0" value={linkedStyle.layout?.children?.gap ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, gap: event.target.value === "" ? undefined : Number(event.target.value) } } })} /></label>
+          <label className={styles.field}><span>{t("inspector.distribution")}</span><select value={linkedStyle.layout?.children?.distribution ?? "packed"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, distribution: event.target.value === "packed" ? undefined : event.target.value as "space-between" | "space-around" | "space-evenly" } } })}><option value="packed">{t("inspector.distribution.packed")}</option><option value="space-between">{t("inspector.distribution.spaceBetween")}</option><option value="space-around">{t("inspector.distribution.spaceAround")}</option><option value="space-evenly">{t("inspector.distribution.spaceEvenly")}</option></select></label>
+          <label className={styles.field}><span>{t("inspector.overflow")}</span><select value={linkedStyle.layout?.overflow ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, overflow: event.target.value === "" ? undefined : event.target.value as "visible" | "hidden" | "auto" } })}><option value="">{t("inspector.overflow.default")}</option><option value="visible">{t("inspector.overflow.visible")}</option><option value="hidden">{t("inspector.overflow.hidden")}</option><option value="auto">{t("inspector.overflow.auto")}</option></select></label>
+          <div className={styles.fieldGrid}>{(["horizontalAlign", "verticalAlign"] as const).map((field) => <label className={styles.field} key={field}><span>{field === "horizontalAlign" ? t("inspector.horizontal") : t("inspector.vertical")}</span><select value={linkedStyle.layout?.children?.[field] ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, [field]: event.target.value === "" ? undefined : event.target.value as "start" | "center" | "end" | "stretch" } } })}><option value="">{t("inspector.default")}</option><option value="start">{t("inspector.start")}</option><option value="center">{t("inspector.center")}</option><option value="end">{t("inspector.end")}</option><option value="stretch">{t("inspector.stretch")}</option></select></label>)}</div>
+          {(() => { const fit = linkedStyle.layout?.children?.fit; if (!fit) return null; return <label className={styles.field}><span>{t("inspector.childrenFit")}</span><select value={fit.mode} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, fit: event.target.value === "none" ? undefined : { mode: event.target.value as "contain" | "cover" | "fill", sourceWidth: fit.sourceWidth, sourceHeight: fit.sourceHeight } } } })}><option value="none">{t("inspector.childrenFit.none")}</option><option value="contain">{t("inspector.childrenFit.contain")}</option><option value="cover">{t("inspector.childrenFit.cover")}</option><option value="fill">{t("inspector.childrenFit.fill")}</option></select></label>; })()}
+          <label className={styles.field}><span>{t("inspector.position")}</span><select value={linkedStyle.layout?.position ?? "flow"} onChange={(event) => onUpdate(linkedStyle.id, { layout: event.target.value === "flow" ? (() => { const { position: _p, top: _t, right: _r, bottom: _b, left: _l, ...rest } = linkedStyle.layout ?? {}; return rest; })() : { ...linkedStyle.layout, position: "absolute" } })}><option value="flow">{t("inspector.flow")}</option><option value="absolute">{t("inspector.absolute")}</option></select></label>
+          {(["top", "right", "bottom", "left"] as const).map((edge) => <label className={styles.field} key={edge}><span>{t(`inspector.${edge}`)}</span><input type="number" value={typeof linkedStyle.layout?.[edge] === "number" ? linkedStyle.layout[edge] as number : ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, position: "absolute", [edge]: event.target.value === "" ? undefined : Number(event.target.value) } })} /></label>)}
+          {(["width", "height"] as const).map((field) => <label className={styles.field} key={field}><span>{t(`inspector.${field}`)}</span><div className={styles.unitInput}><input type="number" min="1" max="100" value={typeof linkedStyle.layout?.[field] === "string" && linkedStyle.layout[field].endsWith("%") ? Number(linkedStyle.layout[field].slice(0, -1)) : ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, [field]: event.target.value === "" ? undefined : `${Number(event.target.value)}%` } })} /><span>%</span></div></label>)}
+          <label className={styles.checkboxRow}><span>{t("inspector.preserveSize")}</span><input type="checkbox" checked={linkedStyle.layout?.flexShrink === 0} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, flexShrink: event.target.checked ? 0 : undefined } })} /></label>
+          {(["padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).map((field) => <label className={styles.field} key={field}><span>{field}</span><input type="number" min="0" value={linkedStyle.layout?.[field] ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, [field]: event.target.value === "" ? undefined : Number(event.target.value) } })} /></label>)}
+          <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`linked-style-${linkedStyle.id}-color`} name={t("inspector.color")} value={linkedStyle.style?.color} onChange={(color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, color } })} /></label>
+          <label className={styles.field}><span>{t("inspector.background")}</span><ColorControl id={`linked-style-${linkedStyle.id}-background`} name={t("inspector.background")} value={linkedStyle.style?.background?.color} onChange={(color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, color } } })} /></label>
+          <ElementGradientControl gradient={linkedStyle.style?.background?.gradient} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(gradient) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, gradient } } })} />
+          <ContainerBackgroundPatternControl element={{ id: `linked-style-${linkedStyle.id}`, type: "container", hidden: false, children: [], style: linkedStyle.style }} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(pattern, color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />
+          <ElementBorderControl border={linkedStyle.style?.border} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(border) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, border } })} />
+          <LinkedStyleLengthField id={`linked-style-${linkedStyle.id}-border-radius`} label={t("inspector.roundedCorners")} value={linkedStyle.style?.borderRadius} onChange={(borderRadius) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, borderRadius } })} />
+          <label className={styles.field}><span>{t("inspector.opacity")}</span><input type="number" min="0" max="100" value={linkedStyle.effect?.opacity === undefined ? "" : linkedStyle.effect.opacity * 100} onChange={(event) => onUpdate(linkedStyle.id, { effect: { ...linkedStyle.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} /></label>
+          <ContainerEffectsSection element={{ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }} onUpdate={(update) => { const next = update({ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }); onUpdate(linkedStyle.id, { effect: next.type === "container" ? next.effect : undefined }); }} />
+          <ElementTypographyFields typography={linkedStyle.typography} effectiveDefaults={resolveThemeTextTypographyBaseline("body")} onUpdateTypography={(update) => onUpdate(linkedStyle.id, { typography: update(linkedStyle.typography) })} controlPrefix={`linked-style-${linkedStyle.id}`} fontResources={fonts} />
+          <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count })}</span>
+          <button type="button" className={styles.resourceAction} disabled={count > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</button>
+          {feedback ? <span className={styles.status} role="status">{feedback}</span> : null}
+        </div> : null}
+      </div>;
+    })}
+    {selectedContainer && canCreateLinkedStyleFromContainer(selectedContainer) ? <div className={styles.fieldGrid}>
+      <input aria-label={t("customResources.linkedStyleName")} value={newName} onChange={(event) => setNewName(event.target.value)} />
+      <button type="button" className={styles.resourceAction} disabled={!newName.trim()} onClick={() => { onCreate(newName); setNewName(""); }}>{t("customResources.linkedStyleCreate")}</button>
+    </div> : null}
+  </div>;
+}
+
+function LinkedStyleNameField({ style, onRename }: { style: LinkedContainerStyle; onRename: (id: string, name: string) => void }) {
+  const { t } = useStudioI18n();
+  const [draft, setDraft] = useState(style.name);
+  useEffect(() => setDraft(style.name), [style.id, style.name]);
+  const commit = () => { const next = draft.trim(); if (next) onRename(style.id, next); else setDraft(style.name); };
+  return <label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); event.currentTarget.blur(); } }} /></label>;
+}
+
+function LinkedStyleLengthField({ id, label, value, onChange }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void }) {
+  const parsed = value === undefined ? undefined : parseAuthoringLength(value);
+  const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit === "rem" ? "rem" : "px");
+  useEffect(() => setUnit(parsed?.unit === "rem" ? "rem" : "px"), [parsed?.unit]);
+  const numericValue = value === undefined ? "" : (convertAuthoringLength(value, unit) ?? "");
+
+  return <label className={styles.field}>
+    <span>{label}</span>
+    <div className={styles.unitInput}>
+      <input id={id} type="number" step="any" value={numericValue} onChange={(event) => {
+        if (event.target.value === "") {
+          onChange(undefined);
+          return;
+        }
+        const next = event.target.valueAsNumber;
+        if (Number.isFinite(next)) onChange(serializeAuthoringLength(next, unit));
+      }} />
+      <select aria-label={`${label} unit`} value={unit} onChange={(event) => {
+        const nextUnit = event.target.value as AuthoringLengthUnit;
+        setUnit(nextUnit);
+        if (value !== undefined) {
+          const converted = convertAuthoringLength(value, nextUnit);
+          if (converted !== undefined) onChange(serializeAuthoringLength(converted, nextUnit));
+        }
+      }}>
+        <option value="px">px</option>
+        <option value="rem">rem</option>
+      </select>
+    </div>
+  </label>;
 }
 
 function TextStylesWorkspace({

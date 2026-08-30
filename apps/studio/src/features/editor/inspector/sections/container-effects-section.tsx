@@ -1,4 +1,4 @@
-import type { ContainerElement, Shadow } from "@powershow/document-schema";
+import type { ContainerElement, Presentation, Shadow } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -7,20 +7,25 @@ import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber, readAbsoluteNumber } from "../inspector-helpers";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
+import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 interface ContainerEffectsSectionProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
+  presentation?: Pick<Presentation, "linkedStyles">;
   onUpdate: (update: (element: ContainerElement) => ContainerElement) => void;
 }
 
 const DEFAULT_SHADOW: Shadow = { x: 0, y: 4, blur: 12, color: "#000000" };
 
-export function ContainerEffectsSection({ element, onUpdate }: ContainerEffectsSectionProps) {
+export function ContainerEffectsSection({ element, localElement = element, presentation, onUpdate }: ContainerEffectsSectionProps) {
   const { t } = useStudioI18n();
   const shadow = element.effect?.shadow;
+  const shadowSource = getContainerShareablePropertySource(presentation, localElement, "effect.shadow");
 
   function updateShadow(update: (shadow: Shadow) => Shadow) {
-    onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? DEFAULT_SHADOW) } }));
+    onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? shadow ?? DEFAULT_SHADOW) } }));
   }
 
   return (
@@ -33,6 +38,7 @@ export function ContainerEffectsSection({ element, onUpdate }: ContainerEffectsS
           value={shadow === undefined ? "none" : shadow.inset ? "inset" : "outer"}
           onChange={(event) => {
             if (event.target.value === "none") {
+              if (shadowSource.linkedValue !== undefined) return;
               onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: undefined } }));
               return;
             }
@@ -40,7 +46,7 @@ export function ContainerEffectsSection({ element, onUpdate }: ContainerEffectsS
             updateShadow((current) => ({ ...current, inset: event.target.value === "inset" ? true : undefined }));
           }}
         >
-          <option value="none">{t("inspector.shadow.none")}</option>
+          <option value="none" disabled={shadowSource.linkedValue !== undefined}>{t("inspector.shadow.none")}</option>
           <option value="outer">{t("inspector.shadow.outer")}</option>
           <option value="inset">{t("inspector.shadow.inset")}</option>
         </select>
@@ -81,6 +87,7 @@ export function ContainerEffectsSection({ element, onUpdate }: ContainerEffectsS
           </label>
         </>
       )}
+      <ContainerLinkedPropertyMeta source={shadowSource.source} onReset={shadowSource.source === "local" && shadowSource.linkedValue !== undefined ? () => onUpdate((current) => ({ ...current, effect: current.effect === undefined ? undefined : { ...current.effect, shadow: undefined } })) : undefined} />
     </InspectorSection>
   );
 }

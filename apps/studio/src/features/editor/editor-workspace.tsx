@@ -32,6 +32,7 @@ import {
   removePresentationPaletteColor as removePaletteEntry,
   renamePresentationPaletteColor as renamePaletteEntry,
   updatePresentationPaletteColorValue,
+  resolveLinkedContainerStyle,
   type Color,
 } from "@powershow/document-schema";
 
@@ -147,6 +148,14 @@ import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyPrope
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
+import {
+  attachLinkedStyle,
+  createLinkedStyleFromContainer,
+  detachLinkedStyle,
+  updateLinkedStyle,
+  renameLinkedStyle,
+  removeUnusedLinkedStyle,
+} from "./linked-style-authoring";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -457,6 +466,14 @@ export function EditorWorkspace({
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
   >("editor");
+  const [resourceSections, setResourceSections] = useState<Record<string, boolean>>({});
+  const resourcePresentationId = useRef(presentation.id);
+  useEffect(() => {
+    if (resourcePresentationId.current !== presentation.id) {
+      resourcePresentationId.current = presentation.id;
+      setResourceSections({});
+    }
+  }, [presentation.id]);
 
   const [editorPanelView, setEditorPanelView] = useState<
     "inspector" | "elements"
@@ -2040,6 +2057,35 @@ export function EditorWorkspace({
     }));
   }
 
+  function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
+    if (selectedDocumentElement?.type !== "container") return;
+    setPresentation((current) => attachLinkedStyle(
+      current,
+      selectedSlideIndex,
+      selectedDocumentElement.id,
+      linkedStyleId,
+    ));
+  }
+
+  function detachSelectedContainerLinkedStyle(): void {
+    if (selectedDocumentElement?.type !== "container") return;
+    setPresentation((current) => detachLinkedStyle(
+      current,
+      selectedSlideIndex,
+      selectedDocumentElement.id,
+    ));
+  }
+
+  function createLinkedStyleFromSelectedContainer(name: string): void {
+    if (selectedDocumentElement?.type !== "container") return;
+    setPresentation((current) => createLinkedStyleFromContainer(
+      current,
+      selectedSlideIndex,
+      selectedDocumentElement.id,
+      name,
+    ));
+  }
+
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
@@ -2048,10 +2094,14 @@ export function EditorWorkspace({
       ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
           .find((candidate) => candidate.dataset.powershowId === selectedDocumentElement.id)
       : undefined;
-    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined
+    const linkedFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
+    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit === undefined
       ? target ? measureContainerFitSourceSize(target) : null
       : undefined;
-    const updated = updateContainerFit(selectedDocumentElement, mode, sourceSize ?? undefined);
+    const base = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit !== undefined
+      ? { ...selectedDocumentElement, layout: { ...selectedDocumentElement.layout, children: { ...selectedDocumentElement.layout?.children, fit: { ...linkedFit } } } }
+      : selectedDocumentElement;
+    const updated = updateContainerFit(base, mode, sourceSize ?? undefined);
 
     if (!updated) return false;
 
@@ -2257,6 +2307,9 @@ export function EditorWorkspace({
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
+  function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
+  function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
+  function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
 
   // ==========================================================
   // BEGIN: ADD ELEMENT
@@ -3616,8 +3669,15 @@ export function EditorWorkspace({
             onAddTextStyle={addTextStyle}
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
-            isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
-          />
+             isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
+             selectedContainer={selectedDocumentElement?.type === "container" ? selectedDocumentElement : null}
+             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedContainer}
+             onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onRenameLinkedStyle={renamePresentationLinkedStyle}
+             onRemoveLinkedStyle={removePresentationLinkedStyle}
+             resourceSections={resourceSections}
+             onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
+           />
         ) : (
           <aside className={styles.inspector}>
             <div className={styles.panelHeader}>
@@ -3720,6 +3780,9 @@ export function EditorWorkspace({
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
+                          onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
+                          onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
+                          onCreateLinkedStyle={createLinkedStyleFromSelectedContainer}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition
