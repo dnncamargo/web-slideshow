@@ -877,6 +877,47 @@ export function collectContainerIds(
   }
 }
 
+/** Visits Containers in canonical authoring order, including slot content. */
+export function visitContainers(
+  elements: readonly PowerShowElement[],
+  visit: (container: ContainerElement) => void,
+): void {
+  for (const element of elements) {
+    if (isContainer(element)) {
+      visit(element);
+      visitContainers(element.children, visit);
+    }
+
+    if (isStructuredTable(element)) {
+      for (const column of element.columns) {
+        visitContainers(column.header.children, visit);
+      }
+      for (const row of element.rows) {
+        for (const cell of row.cells) {
+          visitContainers(cell.children, visit);
+        }
+      }
+    }
+
+    if (isTopics(element)) {
+      for (const item of element.items) {
+        visitContainers(item.content.children, visit);
+        visitContainersInTopicItems(item.children, visit);
+      }
+    }
+  }
+}
+
+function visitContainersInTopicItems(
+  items: readonly TopicItem[],
+  visit: (container: ContainerElement) => void,
+): void {
+  for (const item of items) {
+    visitContainers(item.content.children, visit);
+    visitContainersInTopicItems(item.children, visit);
+  }
+}
+
 /** Counts linked Container references using the canonical hierarchy traversal. */
 export function collectLinkedStyleReferenceCounts(
   elements: readonly PowerShowElement[],
