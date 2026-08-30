@@ -37,6 +37,107 @@
   flex-direction: column;
 }
 
+.linkedStyleEditor {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 6px 8px;
+  border-left: 1px solid #303847;
+}
+
+.linkedStyleSection {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 8px;
+  border-top: 1px solid #232a36;
+}
+
+.linkedStyleSectionTitle {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.linkedStyleField,
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.linkedStyleField input,
+.linkedStyleField select,
+.field input,
+.field select,
+.linkedStyleEditor input,
+.linkedStyleEditor select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.linkedStyleFields,
+.fieldGrid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+}
+
+.linkedStyleFieldPair {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.linkedStyleUnitInput,
+.unitInput {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.linkedStyleUnitInput input,
+.unitInput input {
+  min-width: 0;
+  flex: 1;
+}
+
+.linkedStyleCheckboxRow,
+.checkboxRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.linkedStyleCheckboxRow input,
+.checkboxRow input {
+  width: auto;
+  flex: none;
+}
+
+.linkedStyleReuse {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
 .scope {
   gap: 14px;
 }

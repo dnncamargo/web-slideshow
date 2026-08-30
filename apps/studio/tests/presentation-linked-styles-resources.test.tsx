@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema } from "@powershow/document-schema";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -19,9 +19,9 @@ describe("Linked Styles Resources contract", () => {
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); });
 
-  async function render(value = makePresentation()) {
+  async function render(value = makePresentation(), onUpdateLinkedStyle = () => undefined) {
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-    await act(async () => root?.render(<StudioI18nProvider><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} /></StudioI18nProvider>));
   }
 
   it("renders the exact Resources IA with local singular Palette and no library counts", async () => {
@@ -54,5 +54,26 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => row?.querySelector("button")?.click());
     expect(row?.textContent).toContain("Attach 2 matching elements");
     expect(row?.textContent).toContain("Slide 1 · S · linked");
+  });
+
+  it("organizes the expanded definition editor into semantic static groups", async () => {
+    const base = makePresentation();
+    const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "card", name: "Card", layout: { padding: 100, children: { gap: 16 } }, style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } }, borderRadius: 8 }, effect: { opacity: 0.5 } }] });
+    const onUpdate = vi.fn();
+    await render(value, onUpdate);
+    const row = host.querySelector<HTMLElement>("[data-linked-style-id='card']");
+    await act(async () => row?.querySelector("button")?.click());
+    const sections = Array.from(host.querySelectorAll<HTMLElement>("[data-linked-style-section]"));
+    expect(sections.map((section) => section.dataset.linkedStyleSection)).toEqual(["layout", "position", "size", "spacing", "appearance", "effects", "typography", "reuse"]);
+    expect(sections[0]?.textContent).toContain("Gap");
+    expect(sections[3]?.textContent).toContain("padding");
+    expect(sections[4]?.textContent).toContain("Pattern");
+    expect(sections[4]?.textContent).toContain("Rounded corners");
+    expect(sections[5]?.textContent).toContain("Opacity");
+    expect(sections[6]?.textContent).toContain("Typography");
+    expect(sections[7]?.textContent).toContain("Changes affect");
+    expect(sections.every((section) => section.tagName.toLowerCase() !== "details")).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#linked-style-card-border-radius")?.value).toBe("8");
+    expect(sections[0]?.querySelector<HTMLInputElement>("input[type='number']")?.value).toBe("16");
   });
 });
