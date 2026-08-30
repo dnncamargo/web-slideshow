@@ -42,6 +42,12 @@ interface ElementInspectorProps {
 
   presentation?: Presentation;
 
+  onAttachLinkedStyle?: (linkedStyleId: string) => void;
+
+  onDetachLinkedStyle?: () => void;
+
+  onCreateLinkedStyle?: (name: string) => void;
+
   preserveImageProportion: boolean;
 
   onPreserveImageProportionChange: (value: boolean) => void;
@@ -83,6 +89,9 @@ function ElementTypeInspector({
   onContainerFitModeChange,
   fontResources,
   presentation,
+  onAttachLinkedStyle = () => {},
+  onDetachLinkedStyle = () => {},
+  onCreateLinkedStyle = () => {},
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -103,6 +112,10 @@ function ElementTypeInspector({
           element={element}
           onUpdate={onUpdate}
           onContainerFitModeChange={onContainerFitModeChange}
+          presentation={presentation}
+          onAttachLinkedStyle={onAttachLinkedStyle}
+          onDetachLinkedStyle={onDetachLinkedStyle}
+          onCreateLinkedStyle={onCreateLinkedStyle}
           parent={parent}
           layerControls={layerControls}
         />
@@ -220,6 +233,9 @@ export function ElementInspector({
   onContainerFitModeChange,
   fontResources,
   presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
+  onCreateLinkedStyle,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -264,6 +280,9 @@ export function ElementInspector({
         onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}
         presentation={presentation}
+        onAttachLinkedStyle={onAttachLinkedStyle}
+        onDetachLinkedStyle={onDetachLinkedStyle}
+        onCreateLinkedStyle={onCreateLinkedStyle}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditingImageId={focalEditingImageId}

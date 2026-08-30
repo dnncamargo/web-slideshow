@@ -262,7 +262,8 @@ describe("Container canonical position inspector", () => {
     await act(async () => renderInspector());
     expect(host.textContent).toContain("Send to back");
     await act(async () =>
-      (host.querySelector("button") as HTMLButtonElement).click(),
+      Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent === "Send to back")?.click(),
     );
     expect(moves).toEqual([0]);
 

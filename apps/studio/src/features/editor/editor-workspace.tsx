@@ -147,6 +147,11 @@ import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyPrope
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
+import {
+  attachLinkedStyle,
+  createLinkedStyleFromContainer,
+  detachLinkedStyle,
+} from "./linked-style-authoring";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -2040,6 +2045,35 @@ export function EditorWorkspace({
     }));
   }
 
+  function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
+    if (selectedDocumentElement?.type !== "container") return;
+    setPresentation((current) => attachLinkedStyle(
+      current,
+      selectedSlideIndex,
+      selectedDocumentElement.id,
+      linkedStyleId,
+    ));
+  }
+
+  function detachSelectedContainerLinkedStyle(): void {
+    if (selectedDocumentElement?.type !== "container") return;
+    setPresentation((current) => detachLinkedStyle(
+      current,
+      selectedSlideIndex,
+      selectedDocumentElement.id,
+    ));
+  }
+
+  function createLinkedStyleFromSelectedContainer(name: string): void {
+    if (selectedDocumentElement?.type !== "container") return;
+    setPresentation((current) => createLinkedStyleFromContainer(
+      current,
+      selectedSlideIndex,
+      selectedDocumentElement.id,
+      name,
+    ));
+  }
+
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
@@ -3720,6 +3754,9 @@ export function EditorWorkspace({
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
+                          onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
+                          onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
+                          onCreateLinkedStyle={createLinkedStyleFromSelectedContainer}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition
