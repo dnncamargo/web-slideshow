@@ -121,6 +121,13 @@ describe("Linked Style references", () => {
   it.each([
     { id: "text", type: "text", content: "Text" },
     { id: "image", type: "image", src: "image.png" },
+    {
+      id: "table",
+      type: "table",
+      mode: "structured",
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+    },
   ])("rejects linkedStyleId on non-Container elements", (element) => {
     expect(PresentationSchema.safeParse(presentation([{ ...element, linkedStyleId: "layout-card" }])).success).toBe(false);
   });

@@ -595,7 +595,7 @@ const StructuredTableElementBaseSchema =
   });
 
 export const StructuredTableElementSchema =
-  StructuredTableElementBaseSchema.superRefine(
+  StructuredTableElementBaseSchema.strict().superRefine(
     (table, context) => {
       table.rows.forEach((row, rowIndex) => {
         if (row.cells.length !== table.columns.length) {
