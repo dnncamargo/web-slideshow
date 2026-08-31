@@ -126,6 +126,28 @@ describe("Linked Styles Resources contract", () => {
     expect(chooser.querySelectorAll("button").length).toBeGreaterThan(0);
   });
 
+  it("keeps Add Property text under translation authority with one leading plus", async () => {
+    const findAddProperty = () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='gap'] button")).find((button) => button.textContent?.includes("Add property"));
+    await openStyle(makePresentation());
+    expect(findAddProperty()?.textContent).toBe("+ Add property");
+    await render(PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Propriedade", layout: { children: { gap: 16 } } }] }), () => undefined, "pt-BR");
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    expect(Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='gap'] button")).find((button) => button.textContent?.includes("Adicionar propriedade"))?.textContent).toBe("+ Adicionar propriedade");
+  });
+
+  it("owns unit controls and remove actions in the property row control track", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Dimensions", layout: { width: "100%", height: "100%", padding: 48 }, style: { borderRadius: 8 }, effect: { opacity: 0.5 } }] });
+    await openStyle(value);
+    for (const property of ["width", "height", "borderRadius", "padding", "opacity"]) {
+      const row = host.querySelector<HTMLElement>(`[data-linked-style-property='${property}']`)!;
+      expect(row.querySelector("[data-linked-style-property-control]")).not.toBeNull();
+      expect(row.querySelector("[data-linked-style-property-remove]")).not.toBeNull();
+    }
+    expect(Array.from(host.querySelectorAll("[data-linked-style-property='width'] span")).some((span) => span.textContent === "%")).toBe(true);
+    expect(Array.from(host.querySelectorAll("[data-linked-style-property='height'] span")).some((span) => span.textContent === "%")).toBe(true);
+    expect(host.querySelector("[data-linked-style-property='borderRadius'] select")).not.toBeNull();
+  });
+
   it("organizes the expanded definition editor into semantic static groups", async () => {
     const base = makePresentation();
     const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "card", name: "Card", layout: { padding: 100, children: { gap: 16 } }, style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } }, borderRadius: 8 }, effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } } }] });
@@ -303,11 +325,11 @@ describe("Linked Styles Resources contract", () => {
   });
 
   it("keeps composite property rows valid and independently removable", async () => {
-    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Composite", style: { color: "#fff", background: { color: "#000", gradient: { type: "linear", angle: 0, stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] }, pattern: { image: "linear-gradient(#000, #fff)" } }, border: { width: 1, style: "solid", color: "#fff" } }, effect: { shadow: { x: 0, y: 2, blur: 4, color: "#000" } } }] });
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Composite", style: { color: "#fff", background: { color: "#000", gradient: { type: "linear", angle: 0, stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] }, pattern: { image: "linear-gradient(#000, #fff)" } }, border: { width: 1, style: "solid", color: "#fff" }, borderRadius: 8 }, effect: { shadow: { x: 0, y: 2, blur: 4, color: "#000" } } }] });
     await openStyle(value);
     const editor = host.querySelector("[data-linked-style-id='gap']")!;
     for (const label of editor.querySelectorAll("label")) expect(label.querySelector("label")).toBeNull();
-    for (const property of ["color", "gradient", "pattern", "border", "shadow"]) {
+    for (const property of ["color", "gradient", "pattern", "border", "borderRadius", "shadow"]) {
       const row = editor.querySelector(`[data-linked-style-property='${property}']`);
       expect(row).not.toBeNull();
       expect(row?.querySelector("button")).not.toBeNull();
