@@ -50,12 +50,18 @@ interface ElementInspectorProps {
 
   onPreserveImageProportionChange: (value: boolean) => void;
 
-  focalEditingImageId: string | null;
+  focalEditing?: boolean;
 
-  onFocalEditingImageIdChange: (id: string | null) => void;
+  onFocalEditingChange?: (editing: boolean) => void;
 
+  cropEditing?: boolean;
+
+  onCropEditingChange?: (editing: boolean) => void;
+
+  /** Compatibility props for standalone inspector tests and callers. */
+  focalEditingImageId?: string | null;
+  onFocalEditingImageIdChange?: (id: string | null) => void;
   cropEditingImageId?: string | null;
-
   onCropEditingImageIdChange?: (id: string | null) => void;
 
   parent: ContainerElement | null;
@@ -95,6 +101,10 @@ function ElementTypeInspector({
   onDetachLinkedStyle = () => {},
   preserveImageProportion,
   onPreserveImageProportionChange,
+  focalEditing,
+  onFocalEditingChange,
+  cropEditing,
+  onCropEditingChange,
   focalEditingImageId,
   onFocalEditingImageIdChange,
   cropEditingImageId,
@@ -150,15 +160,17 @@ function ElementTypeInspector({
           onUpdate={onUpdate}
           preserveImageProportion={preserveImageProportion}
           onPreserveImageProportionChange={onPreserveImageProportionChange}
-          focalEditing={focalEditingImageId === element.id}
+          focalEditing={focalEditing ?? focalEditingImageId === element.id}
           onFocalEditingChange={(editing) => {
-            if (editing) onCropEditingImageIdChange?.(null);
-            onFocalEditingImageIdChange(editing ? element.id : null);
+            if (editing) onCropEditingChange?.(false);
+            if (onFocalEditingChange) onFocalEditingChange(editing);
+            else onFocalEditingImageIdChange?.(editing ? element.id : null);
           }}
-          cropEditing={cropEditingImageId === element.id}
+          cropEditing={cropEditing ?? cropEditingImageId === element.id}
           onCropEditingChange={(editing) => {
-            if (editing) onFocalEditingImageIdChange(null);
-            onCropEditingImageIdChange?.(editing ? element.id : null);
+            if (editing) onFocalEditingChange?.(false);
+            if (onCropEditingChange) onCropEditingChange(editing);
+            else onCropEditingImageIdChange?.(editing ? element.id : null);
           }}
         />
       );
@@ -188,7 +200,7 @@ function ElementTypeInspector({
       );
 
     case "gallery":
-      return <GalleryInspector element={element} onUpdate={onUpdate} selectedItemIndex={galleryItemIndex} onSelectedItemIndexChange={onGalleryItemIndexChange} />;
+      return <GalleryInspector element={element} onUpdate={onUpdate} selectedItemIndex={galleryItemIndex} onSelectedItemIndexChange={onGalleryItemIndexChange} focalEditing={focalEditing} onFocalEditingChange={onFocalEditingChange} cropEditing={cropEditing} onCropEditingChange={onCropEditingChange} />;
 
     case "topics":
       return (
@@ -239,6 +251,10 @@ export function ElementInspector({
   onDetachLinkedStyle,
   preserveImageProportion,
   onPreserveImageProportionChange,
+  focalEditing,
+  onFocalEditingChange,
+  cropEditing,
+  onCropEditingChange,
   focalEditingImageId,
   onFocalEditingImageIdChange,
   cropEditingImageId = null,
@@ -287,6 +303,10 @@ export function ElementInspector({
         onDetachLinkedStyle={onDetachLinkedStyle}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
+        focalEditing={focalEditing}
+        onFocalEditingChange={onFocalEditingChange}
+        cropEditing={cropEditing}
+        onCropEditingChange={onCropEditingChange}
         focalEditingImageId={focalEditingImageId}
         onFocalEditingImageIdChange={onFocalEditingImageIdChange}
         cropEditingImageId={cropEditingImageId}

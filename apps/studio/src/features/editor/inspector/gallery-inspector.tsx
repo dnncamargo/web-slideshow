@@ -14,9 +14,13 @@ const GALLERY_ITEM_DEFAULT: GalleryItem = { src: "/powershow-demo.svg", alt: "Ne
 interface GalleryInspectorProps extends TypedInspectorProps<GalleryElement> {
   selectedItemIndex?: number | null;
   onSelectedItemIndexChange?: (index: number | null) => void;
+  focalEditing?: boolean;
+  onFocalEditingChange?: (editing: boolean) => void;
+  cropEditing?: boolean;
+  onCropEditingChange?: (editing: boolean) => void;
 }
 
-export function GalleryInspector({ element, onUpdate, selectedItemIndex = element.items.length > 0 ? 0 : null, onSelectedItemIndexChange = () => undefined }: GalleryInspectorProps) {
+export function GalleryInspector({ element, onUpdate, selectedItemIndex = element.items.length > 0 ? 0 : null, onSelectedItemIndexChange = () => undefined, focalEditing = false, onFocalEditingChange = () => undefined, cropEditing = false, onCropEditingChange = () => undefined }: GalleryInspectorProps) {
   const { t } = useStudioI18n();
   const selectedItem = selectedItemIndex === null || selectedItemIndex === undefined ? undefined : element.items[selectedItemIndex];
   const updateGallery = (update: (gallery: GalleryElement) => GalleryElement) => onUpdate((current) => current.type === "gallery" ? update(current) : current);
@@ -56,8 +60,8 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
         <label className={styles.field}><span>{t("inspector.source")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-src`} name={`galleryItemSrc_${element.id}`} className={styles.textArea} rows={2} spellCheck={false} value={selectedItem.src} data-powershow-gallery-src="true" onChange={(event) => updateSelectedItem((item) => ({ ...item, src: event.target.value }))} /></label>
         <label className={styles.field}><span>{t("image.alternativeText")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-alt`} name={`galleryItemAlt_${element.id}`} className={styles.textArea} rows={2} value={selectedItem.alt} data-powershow-gallery-alt="true" onChange={(event) => updateSelectedItem((item) => ({ ...item, alt: event.target.value }))} /></label>
         <label className={styles.field}><span>{t("image.fit")}</span><select id={`gallery-${element.id}-item-${selectedItemIndex}-fit`} value={selectedItem.fit ?? ""} onChange={(event) => updateSelectedItem((item) => { const fit = event.target.value as GalleryFit | ""; if (fit === "") { const { fit: _fit, ...inherited } = item; return inherited; } return { ...item, fit }; })}><option value="">{t("gallery.inheritFit")}</option><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
-        <ImageCropControl crop={selectedItem.crop} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onCropChange={(crop) => updateSelectedItem((item) => ({ ...item, crop }))} onResetCrop={() => updateSelectedItem((item) => ({ ...item, crop: undefined }))} />
-        <ImageFocalPointControl focalPoint={selectedItem.focalPoint} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onFocalPointChange={(focalPoint) => updateSelectedItem((item) => ({ ...item, focalPoint }))} onResetFocalPoint={() => updateSelectedItem((item) => ({ ...item, focalPoint: undefined }))} />
+        <ImageCropControl crop={selectedItem.crop} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onCropChange={(crop) => updateSelectedItem((item) => ({ ...item, crop }))} onResetCrop={() => updateSelectedItem((item) => ({ ...item, crop: undefined }))} canvasEdit={{ editing: cropEditing, onEditingChange: onCropEditingChange }} />
+        <ImageFocalPointControl focalPoint={selectedItem.focalPoint} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onFocalPointChange={(focalPoint) => updateSelectedItem((item) => ({ ...item, focalPoint }))} onResetFocalPoint={() => updateSelectedItem((item) => ({ ...item, focalPoint: undefined }))} canvasEdit={{ editing: focalEditing, onEditingChange: onFocalEditingChange }} />
         <div className={styles.galleryItemActions}><button type="button" className={styles.secondaryButton} disabled={selectedItemIndex === 0} aria-label={t("gallery.moveUp")} data-powershow-gallery-move-up="true" onClick={() => moveItem(-1)}>↑</button><button type="button" className={styles.secondaryButton} disabled={selectedItemIndex === element.items.length - 1} aria-label={t("gallery.moveDown")} data-powershow-gallery-move-down="true" onClick={() => moveItem(1)}>↓</button><button type="button" className={styles.iconButtonDanger} aria-label={t("gallery.remove")} data-powershow-gallery-remove="true" onClick={removeItem}>×</button></div>
       </> : <div className={styles.emptyInspectorList}><span>{t("gallery.items", { count: 0 })}</span></div>}
     </InspectorSection>
