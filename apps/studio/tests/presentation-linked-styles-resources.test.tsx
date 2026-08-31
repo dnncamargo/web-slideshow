@@ -24,6 +24,23 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => root?.render(<StudioI18nProvider><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} /></StudioI18nProvider>));
   }
 
+  async function openStyle(value: ReturnType<typeof makePresentation>, onUpdate = vi.fn()) {
+    await render(value, onUpdate);
+    const linkedSection = Array.from(host.querySelectorAll("details")).find((detail) => detail.textContent?.includes("Linked Styles"));
+    await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    return onUpdate;
+  }
+
+  async function setInput(input: HTMLInputElement, value: string) {
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
   it("renders the exact Resources IA with local singular Palette and no library counts", async () => {
     await render();
     expect(host.textContent).toContain("Resources");
@@ -79,6 +96,34 @@ describe("Linked Styles Resources contract", () => {
     expect(sections[0]?.querySelector<HTMLInputElement>("input[type='number']")?.value).toBe("16");
     expect(host.textContent).not.toContain("Create from selected Container");
     expect(host.querySelector("[data-linked-style-section='typography']")).toBeNull();
+  });
+
+  it("commits real numeric property edits through the Resources update boundary", async () => {
+    const make = (layout: Record<string, unknown>, effect?: Record<string, unknown>) => PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Numeric", layout, effect }] });
+    const gapUpdate = await openStyle(make({ children: { gap: 16 } }));
+    await setInput(host.querySelector<HTMLInputElement>("[data-linked-style-section='layout'] input[type='number']")!, "24");
+    expect(gapUpdate).toHaveBeenLastCalledWith("gap", { layout: { children: { gap: 24 } } });
+
+    const paddingUpdate = await openStyle(make({ padding: 100 }));
+    await setInput(host.querySelector<HTMLInputElement>("[data-linked-style-section='spacing'] input[type='number']")!, "48");
+    expect(paddingUpdate).toHaveBeenLastCalledWith("gap", { layout: { padding: 48 } });
+
+    const topUpdate = await openStyle(make({ position: "absolute", top: 10 }));
+    await setInput(host.querySelector<HTMLInputElement>("[data-linked-style-section='position'] input[type='number']")!, "30");
+    expect(topUpdate).toHaveBeenLastCalledWith("gap", { layout: { position: "absolute", top: 30 } });
+
+    const opacityUpdate = await openStyle(make({}, { opacity: 0.5 }));
+    await setInput(host.querySelector<HTMLInputElement>("[data-linked-style-section='effects'] input[type='number']")!, "25");
+    expect(opacityUpdate).toHaveBeenLastCalledWith("gap", { effect: { opacity: 0.25 } });
+  });
+
+  it("keeps packed distribution explicitly authored through real select changes", async () => {
+    const update = await openStyle(PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Distribution", layout: { children: { distribution: "packed" } } }] }));
+    const select = host.querySelector<HTMLSelectElement>("[data-linked-style-section='layout'] select")!;
+    await act(async () => { select.value = "space-between"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(update).toHaveBeenLastCalledWith("gap", { layout: { children: { distribution: "space-between" } } });
+    await act(async () => { select.value = "packed"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(update).toHaveBeenLastCalledWith("gap", { layout: { children: { distribution: "packed" } } });
   });
 
   it("shows legacy typography as compatibility-only and removes it through the update boundary", async () => {

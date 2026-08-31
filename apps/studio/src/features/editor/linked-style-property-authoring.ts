@@ -1,14 +1,21 @@
 import { PresentationSchema, type LinkedContainerStyle, type Presentation } from "@powershow/document-schema";
+import { THEME_COLORS } from "@powershow/theme/element-style-defaults";
+import { createDefaultGradient } from "./inspector/sections/element-gradient-control";
+import { BACKGROUND_PATTERN_PRESETS } from "./inspector/sections/element-background-pattern";
+import { createDefaultBorder } from "./inspector/sections/element-border-control";
+import { createDefaultShadow } from "./inspector/sections/container-effects-section";
 import { createLinkedStyleId } from "./linked-style-authoring";
 
-export type LinkedStyleAuthorableProperty =
+export type LinkedStyleProperty =
   | "layoutMode" | "direction" | "gap" | "distribution" | "horizontalAlign" | "verticalAlign" | "overflow" | "fit"
   | "position" | "top" | "right" | "bottom" | "left" | "width" | "height" | "preserveSize"
   | "padding" | "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft"
   | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft"
   | "color" | "backgroundColor" | "gradient" | "pattern" | "border" | "borderRadius" | "opacity" | "shadow";
 
-export const LINKED_STYLE_PROPERTY_ORDER: readonly LinkedStyleAuthorableProperty[] = [
+export type LinkedStyleAuthorableProperty = Exclude<LinkedStyleProperty, "fit">;
+
+export const LINKED_STYLE_PROPERTY_ORDER: readonly LinkedStyleProperty[] = [
   "layoutMode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign", "overflow", "fit",
   "position", "top", "right", "bottom", "left", "width", "height", "preserveSize",
   "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
@@ -28,7 +35,7 @@ type PropertyBag = Record<string, unknown>;
 
 function has(value: unknown): boolean { return value !== undefined; }
 
-export function hasLinkedStyleProperty(style: LinkedContainerStyle, property: LinkedStyleAuthorableProperty | "fit"): boolean {
+export function hasLinkedStyleProperty(style: LinkedContainerStyle, property: LinkedStyleProperty): boolean {
   switch (property) {
     case "layoutMode": return has(style.layout?.children?.mode);
     case "direction": return has(style.layout?.children?.direction);
@@ -67,12 +74,12 @@ export function hasLinkedStyleProperty(style: LinkedContainerStyle, property: Li
   }
 }
 
-export function listLinkedStyleAuthoredProperties(style: LinkedContainerStyle): LinkedStyleAuthorableProperty[] {
+export function listLinkedStyleAuthoredProperties(style: LinkedContainerStyle): LinkedStyleProperty[] {
   return LINKED_STYLE_PROPERTY_ORDER.filter((property) => hasLinkedStyleProperty(style, property));
 }
 
 export function listAvailableLinkedStyleProperties(style: LinkedContainerStyle): LinkedStyleAuthorableProperty[] {
-  return LINKED_STYLE_PROPERTY_ORDER.filter((property) => property !== "fit" && !hasLinkedStyleProperty(style, property))
+  return LINKED_STYLE_PROPERTY_ORDER.filter((property): property is LinkedStyleAuthorableProperty => property !== "fit" && !hasLinkedStyleProperty(style, property))
     .filter((property) => !(property === "top" || property === "right" || property === "bottom" || property === "left") || style.layout?.position === "absolute");
 }
 
@@ -87,7 +94,7 @@ export function addLinkedStyleProperty(style: LinkedContainerStyle, property: Li
     case "layoutMode": children.mode = "flow"; break;
     case "direction": children.direction = "column"; break;
     case "gap": children.gap = 0; break;
-    case "distribution": children.distribution = "space-between"; break;
+    case "distribution": children.distribution = "packed"; break;
     case "horizontalAlign": children.horizontalAlign = "start"; break;
     case "verticalAlign": children.verticalAlign = "start"; break;
     case "overflow": layout.overflow = "visible"; break;
@@ -109,14 +116,14 @@ export function addLinkedStyleProperty(style: LinkedContainerStyle, property: Li
     case "marginRight": layout.marginRight = 0; break;
     case "marginBottom": layout.marginBottom = 0; break;
     case "marginLeft": layout.marginLeft = 0; break;
-    case "color": visual.color = "#e2e8f0"; break;
-    case "backgroundColor": background.color = "#0f141d"; break;
-    case "gradient": background.gradient = { type: "linear", angle: 135, stops: [{ color: "#7c3aed", position: 0 }, { color: "#06b6d4", position: 100 }] }; break;
-    case "pattern": background.pattern = { image: "radial-gradient(#64748b 1px, transparent 1px)", size: "12px 12px" }; break;
-    case "border": visual.border = { width: 1, style: "solid", color: "#94a3b8" }; break;
+    case "color": visual.color = THEME_COLORS.textPrimary; break;
+    case "backgroundColor": background.color = THEME_COLORS.surfaceStrong; break;
+    case "gradient": background.gradient = createDefaultGradient("linear"); break;
+    case "pattern": { const preset = BACKGROUND_PATTERN_PRESETS[0]; if (preset !== undefined) background.pattern = { ...preset.pattern }; break; }
+    case "border": visual.border = createDefaultBorder(); break;
     case "borderRadius": visual.borderRadius = 0; break;
     case "opacity": effect.opacity = 1; break;
-    case "shadow": effect.shadow = { x: 0, y: 4, blur: 12, color: "#000000" }; break;
+    case "shadow": effect.shadow = createDefaultShadow(); break;
   }
   return {
     ...style,
@@ -126,7 +133,7 @@ export function addLinkedStyleProperty(style: LinkedContainerStyle, property: Li
   };
 }
 
-export function removeLinkedStyleProperty(style: LinkedContainerStyle, property: LinkedStyleAuthorableProperty): LinkedContainerStyle {
+export function removeLinkedStyleProperty(style: LinkedContainerStyle, property: LinkedStyleProperty): LinkedContainerStyle {
   if (property === "position" && [style.layout?.top, style.layout?.right, style.layout?.bottom, style.layout?.left].some(has)) return style;
   const layout = style.layout === undefined ? undefined : { ...style.layout, ...(style.layout.children === undefined ? {} : { children: { ...style.layout.children } }) };
   const visual = style.style === undefined ? undefined : { ...style.style, ...(style.style.background === undefined ? {} : { background: { ...style.style.background } }) };

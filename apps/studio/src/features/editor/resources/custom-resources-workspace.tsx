@@ -34,7 +34,7 @@ import { ContainerEffectsSection } from "../inspector/sections/container-effects
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
 import { canUpdateLinkedStyle } from "../linked-style-authoring";
-import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, LINKED_STYLE_PROPERTY_ORDER, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty } from "../linked-style-property-authoring";
+import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
 import { findContainersLinkedToStyle, findMatchingContainersForLinkedStyle, type LinkedStyleContainerLocation } from "../linked-style-bulk-authoring";
 
 import styles from "./custom-resources-workspace.module.css";
@@ -230,7 +230,7 @@ export function CustomResourcesWorkspace({
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
           <div className={styles.group}>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
-              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspaceV2 presentation={presentation} onUpdate={onUpdateLinkedStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} /></PresentationColorPaletteProvider>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} onUpdate={onUpdateLinkedStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
             <InspectorSection title={t("customResources.textStyles")} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
@@ -293,7 +293,7 @@ export function CustomResourcesWorkspace({
   );
 }
 
-function LinkedStylesWorkspaceV2({
+function LinkedStylesWorkspace({
   presentation, onUpdate: dispatchUpdate, onCreate, onRename, onRemove, onAttach, onSelectContainer,
 }: {
   presentation?: Presentation;
@@ -329,7 +329,7 @@ function LinkedStylesWorkspaceV2({
       const matchingLocations = presentation ? findMatchingContainersForLinkedStyle(presentation, linkedStyle.id) : [];
       const editing = editingId === linkedStyle.id;
       const authored = listLinkedStyleAuthoredProperties(linkedStyle);
-      const patch = (next: LinkedContainerStyle, property: LinkedStyleAuthorableProperty) =>
+      const patch = (next: LinkedContainerStyle, property: LinkedStyleProperty) =>
         LINKED_STYLE_PROPERTY_GROUPS.layout.includes(property as never) ? { layout: next.layout } : LINKED_STYLE_PROPERTY_GROUPS.position.includes(property as never) || LINKED_STYLE_PROPERTY_GROUPS.size.includes(property as never) || LINKED_STYLE_PROPERTY_GROUPS.spacing.includes(property as never) ? { layout: next.layout } : LINKED_STYLE_PROPERTY_GROUPS.appearance.includes(property as never) ? { style: next.style } : { effect: next.effect };
       return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
         <button type="button" className={styles.resourceAction} aria-expanded={editing} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>{linkedStyle.name} · {linkedLocations.length}</button>
@@ -349,143 +349,59 @@ function LinkedStylesWorkspaceV2({
         </div> : null}
       </div>;
     })}
-    {adding ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={LINKED_STYLE_PROPERTY_ORDER.filter((property) => property !== "fit")} onChoose={create} /> : null}<button type="button" className={styles.resourceAction} onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</button></div> : <button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button>}
+    {adding ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={create} /> : null}<button type="button" className={styles.resourceAction} onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</button></div> : <button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button>}
   </div>;
 }
 
-function LinkedStylePropertyChooser({ properties, onChoose }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void }) {
-  const labels: Record<LinkedStyleAuthorableProperty, string> = {
-    layoutMode: "Layout mode", direction: "Direction", gap: "Gap", distribution: "Distribution", horizontalAlign: "Horizontal align", verticalAlign: "Vertical align", overflow: "Overflow", fit: "Children fit",
-    position: "Position", top: "Top", right: "Right", bottom: "Bottom", left: "Left", width: "Width", height: "Height", preserveSize: "Preserve size",
-    padding: "Padding", paddingTop: "Padding top", paddingRight: "Padding right", paddingBottom: "Padding bottom", paddingLeft: "Padding left", margin: "Margin", marginTop: "Margin top", marginRight: "Margin right", marginBottom: "Margin bottom", marginLeft: "Margin left",
-    color: "Color", backgroundColor: "Background color", gradient: "Gradient", pattern: "Pattern", border: "Border", borderRadius: "Border radius", opacity: "Opacity", shadow: "Shadow",
-  };
-  return <div className={styles.linkedStylePropertyChooser}>{properties.map((property) => <button type="button" className={styles.resourceAction} key={property} onClick={() => onChoose(property)}>{labels[property]}</button>)}</div>;
+function linkedStylePropertyLabel(t: ReturnType<typeof useStudioI18n>["t"], property: LinkedStyleProperty): string {
+  switch (property) {
+    case "layoutMode": return t("inspector.layoutMode"); case "direction": return t("inspector.direction"); case "gap": return t("inspector.gap"); case "distribution": return t("inspector.distribution"); case "horizontalAlign": return t("inspector.horizontal"); case "verticalAlign": return t("inspector.vertical"); case "overflow": return t("inspector.overflow"); case "fit": return t("inspector.childrenFit");
+    case "position": return t("inspector.position"); case "top": return t("inspector.top"); case "right": return t("inspector.right"); case "bottom": return t("inspector.bottom"); case "left": return t("inspector.left"); case "width": return t("inspector.width"); case "height": return t("inspector.height"); case "preserveSize": return t("inspector.preserveSize");
+    case "padding": case "paddingTop": case "paddingRight": case "paddingBottom": case "paddingLeft": return t("inspector.padding"); case "margin": case "marginTop": case "marginRight": case "marginBottom": case "marginLeft": return t("inspector.margin");
+    case "color": return t("inspector.color"); case "backgroundColor": return t("inspector.background"); case "gradient": return t("inspector.gradient"); case "pattern": return t("inspector.pattern"); case "border": return t("inspector.border"); case "borderRadius": return t("inspector.roundedCorners"); case "opacity": return t("inspector.opacity"); case "shadow": return t("inspector.shadow");
+  }
 }
 
-function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove }: { style: LinkedContainerStyle; property: LinkedStyleAuthorableProperty; onUpdate: (style: LinkedContainerStyle) => void; onRemove: () => void; canRemove: boolean }) {
+function LinkedStylePropertyChooser({ properties, onChoose }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void }) {
   const { t } = useStudioI18n();
-  const label = property.replace(/([A-Z])/g, " $1");
-  const numeric = (value: number | undefined, update: (next: number | undefined) => LinkedContainerStyle) => <input type="number" value={value ?? ""} onChange={(event) => update(event.target.value === "" ? undefined : Number(event.target.value))} />;
+  return <div className={styles.linkedStylePropertyChooser}>{properties.map((property) => <button type="button" className={styles.resourceAction} key={property} onClick={() => onChoose(property)}>{linkedStylePropertyLabel(t, property)}</button>)}</div>;
+}
+
+function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove }: { style: LinkedContainerStyle; property: LinkedStyleProperty; onUpdate: (style: LinkedContainerStyle) => void; onRemove: () => void; canRemove: boolean }) {
+  const { t } = useStudioI18n();
+  const numeric = (value: number | undefined, update: (next: number | undefined) => LinkedContainerStyle) => <input type="number" value={value ?? ""} onChange={(event) => onUpdate(update(event.target.value === "" ? undefined : Number(event.target.value)))} />;
   const layoutUpdate = (update: (layout: NonNullable<LinkedContainerStyle["layout"]>) => NonNullable<LinkedContainerStyle["layout"]>) => ({ ...style, layout: update({ ...style.layout, children: style.layout?.children === undefined ? undefined : { ...style.layout.children } }) });
   const childrenUpdate = (update: (children: NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => layoutUpdate((layout) => ({ ...layout, children: update({ ...(layout.children ?? {}) }) }));
   const numberLayout = (field: "padding" | "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft" | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" | "top" | "right" | "bottom" | "left", value: number | undefined) => layoutUpdate((layout) => ({ ...layout, [field]: value }));
   const numericLayoutValue = (field: "padding" | "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft" | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" | "top" | "right" | "bottom" | "left") => typeof style.layout?.[field] === "number" ? style.layout[field] : undefined;
   const commitLayout = (update: (layout: NonNullable<LinkedContainerStyle["layout"]>) => NonNullable<LinkedContainerStyle["layout"]>) => onUpdate(layoutUpdate(update));
   const commitChildren = (update: (children: NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => onUpdate(childrenUpdate(update));
-  const propertyLabel = (propertyName: string) => propertyName.replace(/([A-Z])/g, " $1");
   let control: ReactNode;
   switch (property) {
     case "layoutMode": control = <select value={style.layout?.children?.mode ?? "flow"} onChange={(event) => commitChildren((children) => ({ ...children, mode: event.target.value as "flow" | "stack" }))}><option value="flow">Flow</option><option value="stack">Stack</option></select>; break;
     case "direction": control = <select value={style.layout?.children?.direction ?? "column"} onChange={(event) => commitChildren((children) => ({ ...children, direction: event.target.value as "row" | "column" }))}><option value="column">Column</option><option value="row">Row</option></select>; break;
     case "gap": control = numeric(typeof style.layout?.children?.gap === "number" ? style.layout.children.gap : undefined, (next) => { const updated = addLinkedStyleProperty(removeLinkedStyleProperty(style, property), property); updated.layout = { ...updated.layout, children: { ...updated.layout?.children, gap: next } }; return updated; }); break;
-    case "distribution": control = <select value={style.layout?.children?.distribution ?? "packed"} onChange={(event) => commitChildren((children) => ({ ...children, distribution: event.target.value === "packed" ? undefined : event.target.value as "space-between" | "space-around" | "space-evenly" }))}><option value="packed">Packed</option><option value="space-between">Space between</option><option value="space-around">Space around</option><option value="space-evenly">Space evenly</option></select>; break;
+    case "distribution": control = <select value={style.layout?.children?.distribution ?? "packed"} onChange={(event) => commitChildren((children) => ({ ...children, distribution: event.target.value as "packed" | "space-between" | "space-around" | "space-evenly" }))}><option value="packed">Packed</option><option value="space-between">Space between</option><option value="space-around">Space around</option><option value="space-evenly">Space evenly</option></select>; break;
     case "horizontalAlign":
     case "verticalAlign": control = <select value={style.layout?.children?.[property] ?? "start"} onChange={(event) => commitChildren((children) => ({ ...children, [property]: event.target.value as "start" | "center" | "end" | "stretch" }))}><option value="start">Start</option><option value="center">Center</option><option value="end">End</option><option value="stretch">Stretch</option></select>; break;
     case "overflow": control = <select value={style.layout?.overflow ?? "visible"} onChange={(event) => commitLayout((layout) => ({ ...layout, overflow: event.target.value as "visible" | "hidden" | "auto" }))}><option value="visible">Visible</option><option value="hidden">Hidden</option><option value="auto">Auto</option></select>; break;
-    case "fit": control = <select value={style.layout?.children?.fit?.mode ?? "contain"} onChange={(event) => commitChildren((children) => ({ ...children, fit: { ...(children.fit ?? { sourceWidth: 1, sourceHeight: 1 }), mode: event.target.value as "contain" | "cover" | "fill" } }))}><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Fill</option></select>; break;
+    case "fit": control = <select value={style.layout?.children?.fit?.mode ?? "contain"} onChange={(event) => commitChildren((children) => children.fit === undefined ? children : ({ ...children, fit: { ...children.fit, mode: event.target.value as "contain" | "cover" | "fill" } }))}><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Fill</option></select>; break;
     case "position": control = <select value={style.layout?.position ?? "absolute"} onChange={(event) => commitLayout((layout) => ({ ...layout, position: event.target.value as "absolute" }))}><option value="absolute">Absolute</option></select>; break;
     case "top": case "right": case "bottom": case "left": control = numeric(numericLayoutValue(property), (next) => numberLayout(property, next)); break;
     case "width": case "height": control = <div className={styles.unitInput}><input type="number" min="0" max="100" value={typeof style.layout?.[property] === "string" && style.layout[property].endsWith("%") ? Number(style.layout[property].slice(0, -1)) : ""} onChange={(event) => commitLayout((layout) => ({ ...layout, [property]: event.target.value === "" ? undefined : `${Number(event.target.value)}%` }))} /><span>%</span></div>; break;
     case "preserveSize": control = <input type="checkbox" checked={style.layout?.flexShrink === 0} onChange={(event) => commitLayout((layout) => ({ ...layout, flexShrink: event.target.checked ? 0 : undefined }))} />; break;
     case "padding": case "paddingTop": case "paddingRight": case "paddingBottom": case "paddingLeft": case "margin": case "marginTop": case "marginRight": case "marginBottom": case "marginLeft": control = numeric(numericLayoutValue(property), (next) => numberLayout(property, next)); break;
-    case "color": control = <ColorControl id={`linked-style-${style.id}-color`} name={propertyLabel(property)} value={style.style?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, color } })} />; break;
-    case "backgroundColor": control = <ColorControl id={`linked-style-${style.id}-background-color`} name={propertyLabel(property)} value={style.style?.background?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, color } } })} />; break;
-    case "gradient": control = <ElementGradientControl gradient={style.style?.background?.gradient} controlPrefix={`linked-style-${style.id}`} onChange={(gradient) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, gradient } } })} />; break;
-    case "pattern": control = <ContainerBackgroundPatternControl element={{ id: style.id, type: "container", hidden: false, children: [], style: style.style }} controlPrefix={`linked-style-${style.id}`} onChange={(pattern, color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />; break;
-    case "border": control = <ElementBorderControl border={style.style?.border} controlPrefix={`linked-style-${style.id}`} onChange={(border) => onUpdate({ ...style, style: { ...style.style, border } })} />; break;
+    case "color": control = <ColorControl id={`linked-style-${style.id}-color`} name={linkedStylePropertyLabel(t, property)} value={style.style?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, color } })} />; break;
+    case "backgroundColor": control = <ColorControl id={`linked-style-${style.id}-background-color`} name={linkedStylePropertyLabel(t, property)} value={style.style?.background?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, color } } })} />; break;
+    case "gradient": control = <ElementGradientControl allowNone={false} gradient={style.style?.background?.gradient} controlPrefix={`linked-style-${style.id}`} onChange={(gradient) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, gradient } } })} />; break;
+    case "pattern": control = <ContainerBackgroundPatternControl allowNone={false} element={{ id: style.id, type: "container", hidden: false, children: [], style: style.style }} controlPrefix={`linked-style-${style.id}`} onChange={(pattern, color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />; break;
+    case "border": control = <ElementBorderControl allowNone={false} border={style.style?.border} controlPrefix={`linked-style-${style.id}`} onChange={(border) => onUpdate({ ...style, style: { ...style.style, border } })} />; break;
     case "borderRadius": control = <LinkedStyleLengthField id={`linked-style-${style.id}-border-radius`} label={t("inspector.roundedCorners")} value={style.style?.borderRadius} onChange={(value) => onUpdate({ ...style, style: { ...style.style, borderRadius: value } })} />; break;
-    case "opacity": control = numeric(style.effect?.opacity, (next) => ({ ...style, effect: { ...style.effect, opacity: next } })); break;
-    case "shadow": control = <ContainerEffectsSection embedded showSourceMeta={false} element={{ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }} onUpdate={(update) => { const next = update({ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }); if (next.type === "container") onUpdate({ ...style, effect: next.effect }); }} />; break;
+    case "opacity": control = <input type="number" min="0" max="100" value={style.effect?.opacity === undefined ? "" : style.effect.opacity * 100} onChange={(event) => onUpdate({ ...style, effect: { ...style.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} />; break;
+    case "shadow": control = <ContainerEffectsSection embedded allowNone={false} showSourceMeta={false} element={{ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }} onUpdate={(update) => { const next = update({ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }); if (next.type === "container") onUpdate({ ...style, effect: next.effect }); }} />; break;
   }
-  return <div className={styles.linkedStylePropertyRow}><label className={styles.field}><span>{propertyLabel(label).replace(/^./, (value) => value.toUpperCase())}</span>{control}</label><button type="button" className={styles.removeColor} disabled={!canRemove} onClick={onRemove} aria-label={`Remove ${label}`}>×</button></div>;
-}
-
-function LinkedStylesWorkspace({
-  presentation,
-  onUpdate: dispatchUpdate,
-  onRename,
-  onRemove,
-  onAttach,
-  onSelectContainer,
-}: {
-  presentation?: Presentation;
-  onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
-  onRename: (id: string, name: string) => void;
-  onRemove: (id: string) => void;
-  onAttach: (id: string) => void;
-  onSelectContainer: (location: LinkedStyleContainerLocation) => void;
-}) {
-  const { t } = useStudioI18n();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const commitUpdate = (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => {
-    if (!presentation || canUpdateLinkedStyle(presentation, id, patch)) { setFeedback(null); dispatchUpdate(id, patch); }
-    else setFeedback(t("customResources.linkedStyleMustNotBeEmpty"));
-  };
-  const onUpdate = commitUpdate;
-  const stylesList = presentation?.linkedStyles ?? [];
-  return <div data-presentation-linked-styles>
-    {stylesList.length === 0 ? <p className={styles.status}>{t("customResources.linkedStyleNoStyles")}</p> : null}
-    {stylesList.map((linkedStyle) => {
-      const linkedLocations = presentation === undefined ? [] : findContainersLinkedToStyle(presentation, linkedStyle.id);
-      const matchingLocations = presentation === undefined ? [] : findMatchingContainersForLinkedStyle(presentation, linkedStyle.id);
-      const count = linkedLocations.length;
-      const matchingCount = matchingLocations.length;
-      const editing = editingId === linkedStyle.id;
-      return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
-        <button type="button" className={styles.resourceAction} aria-expanded={editing} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
-          {linkedStyle.name} · {count}
-        </button>
-        <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count })}</span>
-        <span className={styles.status}>{t(matchingCount === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingCount })}</span>
-        {editing ? <div className={styles.linkedStyleEditor}>
-          <LinkedStyleNameField style={linkedStyle} onRename={onRename} />
-          <div className={styles.linkedStyleSection} data-linked-style-section="layout"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.layout")}</h3>
-          <label className={styles.field}><span>{t("inspector.layoutMode")}</span><select value={linkedStyle.layout?.children?.mode ?? "flow"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, mode: event.target.value as "flow" | "stack" } } })}><option value="flow">{t("inspector.flow")}</option><option value="stack">{t("inspector.stack")}</option></select></label>
-          <label className={styles.field}><span>{t("inspector.direction")}</span><select value={linkedStyle.layout?.children?.direction ?? "column"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, direction: event.target.value as "row" | "column" } } })}><option value="column">{t("inspector.vertical")}</option><option value="row">{t("inspector.horizontal")}</option></select></label>
-          <label className={styles.field}><span>{t("inspector.gap")}</span><input type="number" min="0" value={linkedStyle.layout?.children?.gap ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, gap: event.target.value === "" ? undefined : Number(event.target.value) } } })} /></label>
-          <label className={styles.field}><span>{t("inspector.distribution")}</span><select value={linkedStyle.layout?.children?.distribution ?? "packed"} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, distribution: event.target.value === "packed" ? undefined : event.target.value as "space-between" | "space-around" | "space-evenly" } } })}><option value="packed">{t("inspector.distribution.packed")}</option><option value="space-between">{t("inspector.distribution.spaceBetween")}</option><option value="space-around">{t("inspector.distribution.spaceAround")}</option><option value="space-evenly">{t("inspector.distribution.spaceEvenly")}</option></select></label>
-          <label className={styles.field}><span>{t("inspector.overflow")}</span><select value={linkedStyle.layout?.overflow ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, overflow: event.target.value === "" ? undefined : event.target.value as "visible" | "hidden" | "auto" } })}><option value="">{t("inspector.overflow.default")}</option><option value="visible">{t("inspector.overflow.visible")}</option><option value="hidden">{t("inspector.overflow.hidden")}</option><option value="auto">{t("inspector.overflow.auto")}</option></select></label>
-          <div className={styles.fieldGrid}>{(["horizontalAlign", "verticalAlign"] as const).map((field) => <label className={styles.field} key={field}><span>{field === "horizontalAlign" ? t("inspector.horizontal") : t("inspector.vertical")}</span><select value={linkedStyle.layout?.children?.[field] ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, [field]: event.target.value === "" ? undefined : event.target.value as "start" | "center" | "end" | "stretch" } } })}><option value="">{t("inspector.default")}</option><option value="start">{t("inspector.start")}</option><option value="center">{t("inspector.center")}</option><option value="end">{t("inspector.end")}</option><option value="stretch">{t("inspector.stretch")}</option></select></label>)}</div>
-          {(() => { const fit = linkedStyle.layout?.children?.fit; if (!fit) return null; return <label className={styles.linkedStyleField}><span>{t("inspector.childrenFit")}</span><select value={fit.mode} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, children: { ...linkedStyle.layout?.children, fit: event.target.value === "none" ? undefined : { mode: event.target.value as "contain" | "cover" | "fill", sourceWidth: fit.sourceWidth, sourceHeight: fit.sourceHeight } } } })}><option value="none">{t("inspector.childrenFit.none")}</option><option value="contain">{t("inspector.childrenFit.contain")}</option><option value="cover">{t("inspector.childrenFit.cover")}</option><option value="fill">{t("inspector.childrenFit.fill")}</option></select></label>; })()}</div>
-          <div className={styles.linkedStyleSection} data-linked-style-section="position"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.position")}</h3>
-          <label className={styles.field}><span>{t("inspector.position")}</span><select value={linkedStyle.layout?.position ?? "flow"} onChange={(event) => onUpdate(linkedStyle.id, { layout: event.target.value === "flow" ? (() => { const { position: _p, top: _t, right: _r, bottom: _b, left: _l, ...rest } = linkedStyle.layout ?? {}; return rest; })() : { ...linkedStyle.layout, position: "absolute" } })}><option value="flow">{t("inspector.flow")}</option><option value="absolute">{t("inspector.absolute")}</option></select></label>
-          {(["top", "right", "bottom", "left"] as const).map((edge) => <label className={styles.linkedStyleField} key={edge}><span>{t(`inspector.${edge}`)}</span><input type="number" value={typeof linkedStyle.layout?.[edge] === "number" ? linkedStyle.layout[edge] as number : ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, position: "absolute", [edge]: event.target.value === "" ? undefined : Number(event.target.value) } })} /></label>)} </div>
-          <div className={styles.linkedStyleSection} data-linked-style-section="size"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.size")}</h3>
-          {(["width", "height"] as const).map((field) => <label className={styles.field} key={field}><span>{t(`inspector.${field}`)}</span><div className={styles.unitInput}><input type="number" min="1" max="100" value={typeof linkedStyle.layout?.[field] === "string" && linkedStyle.layout[field].endsWith("%") ? Number(linkedStyle.layout[field].slice(0, -1)) : ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, [field]: event.target.value === "" ? undefined : `${Number(event.target.value)}%` } })} /><span>%</span></div></label>)}
-          <label className={styles.linkedStyleCheckboxRow}><span>{t("inspector.preserveSize")}</span><input type="checkbox" checked={linkedStyle.layout?.flexShrink === 0} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, flexShrink: event.target.checked ? 0 : undefined } })} /></label></div>
-          <div className={styles.linkedStyleSection} data-linked-style-section="spacing"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.spacing")}</h3>
-          {(["padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).map((field) => <label className={styles.field} key={field}><span>{field}</span><input type="number" min="0" value={linkedStyle.layout?.[field] ?? ""} onChange={(event) => onUpdate(linkedStyle.id, { layout: { ...linkedStyle.layout, [field]: event.target.value === "" ? undefined : Number(event.target.value) } })} /></label>)}
-          </div><div className={styles.linkedStyleSection} data-linked-style-section="appearance"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.appearance")}</h3>
-          <label className={styles.linkedStyleField}><span>{t("inspector.color")}</span><ColorControl id={`linked-style-${linkedStyle.id}-color`} name={t("inspector.color")} value={linkedStyle.style?.color} onChange={(color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, color } })} /></label>
-          <label className={styles.field}><span>{t("inspector.background")}</span><ColorControl id={`linked-style-${linkedStyle.id}-background`} name={t("inspector.background")} value={linkedStyle.style?.background?.color} onChange={(color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, color } } })} /></label>
-          <ElementGradientControl gradient={linkedStyle.style?.background?.gradient} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(gradient) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, gradient } } })} />
-          <ContainerBackgroundPatternControl element={{ id: `linked-style-${linkedStyle.id}`, type: "container", hidden: false, children: [], style: linkedStyle.style }} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(pattern, color) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, background: { ...linkedStyle.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />
-          <ElementBorderControl border={linkedStyle.style?.border} controlPrefix={`linked-style-${linkedStyle.id}`} onChange={(border) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, border } })} />
-          <LinkedStyleLengthField id={`linked-style-${linkedStyle.id}-border-radius`} label={t("inspector.roundedCorners")} value={linkedStyle.style?.borderRadius} onChange={(borderRadius) => onUpdate(linkedStyle.id, { style: { ...linkedStyle.style, borderRadius } })} />
-          </div><div className={styles.linkedStyleSection} data-linked-style-section="effects"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.effects")}</h3>
-          <label className={styles.linkedStyleField}><span>{t("inspector.opacity")}</span><input type="number" min="0" max="100" value={linkedStyle.effect?.opacity === undefined ? "" : linkedStyle.effect.opacity * 100} onChange={(event) => onUpdate(linkedStyle.id, { effect: { ...linkedStyle.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} /></label>
-          <ContainerEffectsSection embedded showSourceMeta={false} element={{ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }} onUpdate={(update) => { const next = update({ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }); onUpdate(linkedStyle.id, { effect: next.type === "container" ? next.effect : undefined }); }} />
-          </div>
-          {linkedStyle.typography ? <div className={styles.linkedStyleSection} data-linked-style-section="legacy-typography"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.linkedStyleLegacyTypography")}</h3><p className={styles.status}>{t("customResources.linkedStyleLegacyTypographyDescription")}</p><button type="button" className={styles.resourceAction} disabled={!presentation || !canUpdateLinkedStyle(presentation, linkedStyle.id, { typography: undefined })} onClick={() => onUpdate(linkedStyle.id, { typography: undefined })}>{t("customResources.linkedStyleRemoveLegacyTypography")}</button></div> : null}
-          <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3>
-          {matchingCount > 0 ? <button type="button" className={styles.resourceAction} onClick={() => onAttach(linkedStyle.id)}>{t(matchingCount === 1 ? "customResources.linkedStyleAttachOne" : "customResources.linkedStyleAttachMany", { count: matchingCount })}</button> : null}
-          {count > 0 ? <div className={styles.fieldGrid}>
-            <span className={styles.status}>{t("customResources.linkedStyleLinkedElements")}</span>
-            {linkedLocations.map((location) => {
-              const slide = presentation?.slides[location.slideIndex];
-              const title = slide?.title.trim();
-              return <button key={`${location.slideIndex}:${location.elementId}`} type="button" className={styles.resourceAction} onClick={() => onSelectContainer(location)}>{t(title ? "customResources.linkedStyleLocationWithTitle" : "customResources.linkedStyleLocation", { slide: location.slideIndex + 1, title: title ?? "", id: location.elementId })}</button>;
-            })}
-          </div> : null}
-          <span className={styles.status}>{t(count === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count })}</span>
-          <button type="button" className={styles.resourceAction} disabled={count > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</button>
-          {feedback ? <span className={styles.status} role="status">{feedback}</span> : null}</div>
-        </div> : null}
-      </div>;
-    })}
-  </div>;
+  const displayLabel = linkedStylePropertyLabel(t, property);
+  return <div className={styles.linkedStylePropertyRow}><label className={styles.field}><span>{displayLabel}</span>{control}</label><button type="button" className={styles.removeColor} disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button></div>;
 }
 
 function LinkedStyleNameField({ style, onRename }: { style: LinkedContainerStyle; onRename: (id: string, name: string) => void }) {
