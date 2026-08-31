@@ -6,14 +6,15 @@ vi.mock("firebase/database", () => ({ onChildAdded: mocks.onChildAdded, onChildC
 import { GALLERY_CONTROL_ROOT_PATH, parseLiveGalleryControlState, subscribeLiveGalleryControl } from "../src/live-gallery-control";
 
 function presentation() {
-  return PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "Presentation", description: "", aspectRatio: "16:9", slides: [{ id: "page", title: "", summary: "", speakerNotes: "", elements: [{ id: "container", type: "container", children: [{ id: "a", type: "gallery", items: [{ src: "a", alt: "" }, { src: "b", alt: "" }] }, { id: "b", type: "gallery", items: [{ src: "a", alt: "" }, { src: "b", alt: "" }, { src: "c", alt: "" }] }] }] }] });
+  return PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "Presentation", description: "", aspectRatio: "16:9", slides: [{ id: "page", title: "", summary: "", speakerNotes: "", elements: [{ id: "container", type: "container", children: [{ id: " gallery / #% ", type: "gallery", items: [{ src: "a", alt: "" }, { src: "b", alt: "" }] }, { id: "b", type: "gallery", items: [{ src: "a", alt: "" }, { src: "b", alt: "" }, { src: "c", alt: "" }] }] }] }] });
 }
-function record(overrides: Record<string, unknown> = {}) { return { activationRevision: 2, currentVersionId: "v", revision: 1, pageId: "page", elementId: "a", targetIndex: 1, expanded: true, ...overrides }; }
+function record(overrides: Record<string, unknown> = {}) { return { activationRevision: 2, currentVersionId: "v", revision: 1, pageId: "page", elementId: " gallery / #% ", targetIndex: 1, expanded: true, ...overrides }; }
 
 describe("live Gallery control", () => {
   it("strictly parses while preserving an arbitrary canonical element id", () => {
     expect(parseLiveGalleryControlState(record({ elementId: " gallery / #% " }))).toMatchObject({ elementId: " gallery / #% " });
     expect(parseLiveGalleryControlState({ ...record(), extra: true })).toBeNull();
+    expect(parseLiveGalleryControlState(record({ elementId: " " }))).toMatchObject({ elementId: " " });
   });
   it("applies a valid changed child index-first and cleans up", () => {
     let changed: ((snapshot: { key: string; val(): unknown }) => void) | undefined;
@@ -23,8 +24,8 @@ describe("live Gallery control", () => {
     const controller = { getCurrentIndex: vi.fn(() => 0), setGalleryActiveIndex: vi.fn(), setGalleryExpanded: vi.fn() };
     const cleanup = subscribeLiveGalleryControl({} as never, 2, "v", presentation(), controller as never);
     changed?.({ key: "0", val: () => record() });
-    expect(controller.setGalleryActiveIndex).toHaveBeenCalledWith("a", 1);
-    expect(controller.setGalleryExpanded).toHaveBeenCalledWith("a", true);
+    expect(controller.setGalleryActiveIndex).toHaveBeenCalledWith(" gallery / #% ", 1);
+    expect(controller.setGalleryExpanded).toHaveBeenCalledWith(" gallery / #% ", true);
     expect(controller.setGalleryActiveIndex.mock.invocationCallOrder[0]).toBeLessThan(controller.setGalleryExpanded.mock.invocationCallOrder[0] ?? Infinity);
     controller.setGalleryActiveIndex.mockClear(); changed?.({ key: "1", val: () => record({ targetIndex: 9 }) });
     expect(controller.setGalleryActiveIndex).not.toHaveBeenCalled();
@@ -37,6 +38,16 @@ describe("live Gallery control", () => {
     subscribeLiveGalleryControl({} as never, 2, "v", presentation(), controller as never);
     changed?.({ key: "0", val: () => record({ targetIndex: 0 }) });
     expect(controller.setGalleryActiveIndex).toHaveBeenCalledTimes(1);
-    expect(controller.setGalleryActiveIndex).toHaveBeenCalledWith("a", 0);
+    expect(controller.setGalleryActiveIndex).toHaveBeenCalledWith(" gallery / #% ", 0);
+  });
+
+  it("applies a current-page persisted child-added baseline", () => {
+    let added: ((snapshot: { key: string; val(): unknown }) => void) | undefined;
+    mocks.ref.mockReturnValue({ path: GALLERY_CONTROL_ROOT_PATH }); mocks.onChildAdded.mockImplementation((_ref, callback) => { added = callback; return vi.fn(); }); mocks.onChildChanged.mockReturnValue(vi.fn());
+    const controller = { getCurrentIndex: vi.fn(() => 0), setGalleryActiveIndex: vi.fn(), setGalleryExpanded: vi.fn() };
+    subscribeLiveGalleryControl({} as never, 2, "v", presentation(), controller as never);
+    added?.({ key: "0", val: () => record() });
+    expect(controller.setGalleryActiveIndex).toHaveBeenCalledWith(" gallery / #% ", 1);
+    expect(controller.setGalleryExpanded).toHaveBeenCalledWith(" gallery / #% ", true);
   });
 });

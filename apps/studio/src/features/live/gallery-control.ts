@@ -32,6 +32,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
 
+function isCanonicalElementId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 /** Strictly parses a Gallery record without altering its canonical element id. */
 export function parseLiveGalleryControlState(
   value: unknown,
@@ -44,7 +48,7 @@ export function parseLiveGalleryControlState(
   if (!isNonEmptyString(record.currentVersionId)) return null;
   if (!isNonNegativeInteger(record.revision) || record.revision < 1) return null;
   if (!isNonEmptyString(record.pageId)) return null;
-  if (!isNonEmptyString(record.elementId)) return null;
+  if (!isCanonicalElementId(record.elementId)) return null;
   if (!isNonNegativeInteger(record.targetIndex)) return null;
   if (typeof record.expanded !== "boolean") return null;
 

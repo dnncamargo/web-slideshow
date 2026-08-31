@@ -113,7 +113,7 @@ function requireGalleryControlInput(
   if (!isNonNegativeInteger(targetIndex)) {
     throw new Error("Gallery control requires a non-negative integer targetIndex.");
   }
-  if (typeof elementId !== "string" || elementId.trim() === "") {
+  if (typeof elementId !== "string" || elementId.length === 0) {
     throw new Error("Gallery control requires an elementId.");
   }
 
