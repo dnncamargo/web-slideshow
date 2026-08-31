@@ -48,6 +48,28 @@ describe("renderGallery", () => {
       expect(html).not.toContain(forbidden);
   });
 
+  it("keeps an unsized Gallery measurable through its active item", () => {
+    const html = renderGallery(gallery());
+    const firstStart = html.indexOf('data-powershow-gallery-index="0"');
+    const secondStart = html.indexOf('data-powershow-gallery-index="1"');
+    const first = html.slice(firstStart, secondStart);
+    const second = html.slice(secondStart);
+    expect(first).toContain("position:relative");
+    expect(first).toContain("height:auto");
+    expect(second).toContain("position:absolute");
+    expect(second).toContain("inset:0");
+    expect(second).toContain('aria-hidden="true"');
+  });
+
+  it("fills an authored Gallery height with every stacked item", () => {
+    const html = renderGallery(gallery({ layout: { height: 400 } }));
+    const firstStart = html.indexOf('data-powershow-gallery-index="0"');
+    const secondStart = html.indexOf('data-powershow-gallery-index="1"');
+    expect(html).toContain("height:400px");
+    expect(html.slice(firstStart, secondStart)).toContain("position:absolute");
+    expect(html.slice(secondStart)).toContain("position:absolute");
+  });
+
   it("uses root fit as the fallback and item fit as an override", () => {
     const html = renderGallery(gallery({
       fit: "cover",
@@ -75,7 +97,33 @@ describe("renderGallery", () => {
     expect(html).toContain('data-powershow-image-width-authored="true"');
     expect(html).toContain('data-powershow-image-height-authored="true"');
     expect(html).toContain("powershow-image-crop-viewport");
+    expect(html).toContain('class="powershow-image-crop-viewport" style="position:absolute"');
     expect(html).toContain("powershow-image-media");
+  });
+
+  it("marks an unsized active crop as width-constrained and height-sizing", () => {
+    const html = renderGallery(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", crop: { x: 10, y: 20, width: 60, height: 50 } }],
+    }));
+    const start = html.indexOf('data-powershow-gallery-index="0"');
+    const item = html.slice(start, html.indexOf(">", start));
+    expect(item).toContain('data-powershow-image-width-authored="true"');
+    expect(item).toContain('data-powershow-image-height-authored="false"');
+    expect(item).toContain("position:relative");
+  });
+
+  it("constrains cropped overlay items to the existing Gallery frame", () => {
+    const html = renderGallery(gallery({
+      items: [
+        { src: "/first.png", alt: "First" },
+        { src: "/second.png", alt: "Second", crop: { x: 10, y: 20, width: 60, height: 50 } },
+      ],
+    }));
+    const start = html.indexOf('data-powershow-gallery-index="1"');
+    const item = html.slice(start, html.indexOf(">", start));
+    expect(item).toContain('data-powershow-image-width-authored="true"');
+    expect(item).toContain('data-powershow-image-height-authored="true"');
+    expect(item).toContain("position:absolute");
   });
 
   it("escapes src and alt", () => {

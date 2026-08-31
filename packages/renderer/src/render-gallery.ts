@@ -1,11 +1,11 @@
 import type { GalleryElement } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderCanonicalImageCropMetadata } from "./render-canonical-image";
+import { renderImageCropMetadata } from "./render-canonical-image";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 
 const GALLERY_ROOT_STYLES = ["position:relative", "overflow:hidden"];
-const GALLERY_ITEM_STYLES = [
+const GALLERY_OVERLAY_ITEM_STYLES = [
   "position:absolute",
   "inset:0",
   "width:100%",
@@ -35,6 +35,7 @@ export function renderGallery(element: GalleryElement): string {
   }
 
   const items = element.items.map((item, index) => {
+    const isIntrinsicSizingItem = index === 0 && element.layout?.height === undefined;
     const effectiveFit = item.fit ?? element.fit;
     const imageStyles = [
       ...GALLERY_IMAGE_STYLES,
@@ -44,20 +45,33 @@ export function renderGallery(element: GalleryElement): string {
     const itemAttributes = [
       `class="powershow-gallery-item${index === 0 ? " powershow-gallery-item-active" : ""}"`,
       `data-powershow-gallery-index="${index}"`,
-      `style="${escapeHtml([...GALLERY_ITEM_STYLES, ...(index > 0 ? ["visibility:hidden", "pointer-events:none"] : [])].join(";"))}"`,
+      `style="${escapeHtml((isIntrinsicSizingItem
+        ? ["position:relative", "width:100%", "height:auto", "overflow:hidden"]
+        : GALLERY_OVERLAY_ITEM_STYLES
+      ).concat(index > 0 ? ["visibility:hidden", "pointer-events:none"] : []).join(";"))}"`,
     ];
 
     let image: string;
     if (item.crop) {
-      itemAttributes.push(renderCanonicalImageCropMetadata({
+      itemAttributes.push(renderImageCropMetadata({
         crop: item.crop,
         fit: effectiveFit,
         ...(item.focalPoint ? { focalPoint: item.focalPoint } : {}),
-        ...(element.layout ? { layout: element.layout } : {}),
+        widthConstrained: true,
+        heightConstrained: !isIntrinsicSizingItem,
       }));
-      image = `<div class="powershow-image-crop-viewport"><img class="powershow-gallery-image powershow-image-media" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="display:block;position:absolute;max-width:none"></div>`;
+      image = `<div class="powershow-image-crop-viewport" style="position:absolute"><img class="powershow-gallery-image powershow-image-media" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="display:block;position:absolute;max-width:none"></div>`;
     } else {
-      image = `<img class="powershow-gallery-image" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="${escapeHtml(imageStyles.join(";"))}">`;
+      const sizingImageStyles = isIntrinsicSizingItem
+        ? [
+          "display:block",
+          "width:100%",
+          "height:auto",
+          `object-fit:${effectiveFit}`,
+          `object-position:${item.focalPoint?.x ?? 50}% ${item.focalPoint?.y ?? 50}%`,
+        ]
+        : imageStyles;
+      image = `<img class="powershow-gallery-image" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="${escapeHtml(sizingImageStyles.join(";"))}">`;
     }
 
     if (index > 0) itemAttributes.push('aria-hidden="true"');

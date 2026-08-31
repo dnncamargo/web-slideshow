@@ -61,17 +61,39 @@ type ImageCropMetadataInput = Pick<
   "crop" | "fit" | "focalPoint" | "layout"
 >;
 
+export function renderImageCropMetadata({
+  crop,
+  fit,
+  focalPoint,
+  widthConstrained,
+  heightConstrained,
+}: {
+  crop: NonNullable<ImageElement["crop"]>;
+  fit: ImageElement["fit"];
+  focalPoint?: ImageElement["focalPoint"];
+  widthConstrained: boolean;
+  heightConstrained: boolean;
+}): string {
+  return [
+    `data-powershow-image-crop="${escapeHtml(JSON.stringify(crop))}"`,
+    `data-powershow-image-fit="${fit}"`,
+    `data-powershow-image-focal-x="${focalPoint?.x ?? 50}"`,
+    `data-powershow-image-focal-y="${focalPoint?.y ?? 50}"`,
+    `data-powershow-image-width-authored="${widthConstrained}"`,
+    `data-powershow-image-height-authored="${heightConstrained}"`,
+  ].join(" ");
+}
+
 export function renderCanonicalImageCropMetadata(
   element: ImageCropMetadataInput,
 ): string {
   if (!element.crop) return "";
 
-  return [
-    `data-powershow-image-crop="${escapeHtml(JSON.stringify(element.crop))}"`,
-    `data-powershow-image-fit="${element.fit}"`,
-    `data-powershow-image-focal-x="${element.focalPoint?.x ?? 50}"`,
-    `data-powershow-image-focal-y="${element.focalPoint?.y ?? 50}"`,
-    `data-powershow-image-width-authored="${element.layout?.width !== undefined}"`,
-    `data-powershow-image-height-authored="${element.layout?.height !== undefined}"`,
-  ].join(" ");
+  return renderImageCropMetadata({
+    crop: element.crop,
+    fit: element.fit,
+    focalPoint: element.focalPoint,
+    widthConstrained: element.layout?.width !== undefined,
+    heightConstrained: element.layout?.height !== undefined,
+  });
 }
