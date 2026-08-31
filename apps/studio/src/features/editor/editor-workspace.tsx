@@ -3862,7 +3862,7 @@ export function EditorWorkspace({
                   selectedContentSlotId={selectedElement?.contentSlotId ?? null}
                   selectedGalleryItemIndex={
                     selectedElement?.id === galleryItemSelection?.galleryId
-                      ? galleryItemSelection.itemIndex
+                      ? galleryItemSelection?.itemIndex ?? null
                       : null
                   }
                   onSelectElement={(selection) => {
