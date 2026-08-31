@@ -74,6 +74,7 @@ export async function activateLivePresentation(
         fullscreenRequest: null,
         slideCommand: null,
         slideAck: null,
+        galleryControl: null,
       };
   });
 
@@ -168,6 +169,7 @@ export async function promoteLivePresentationVersion(
         fullscreenRequest: null,
         slideCommand: null,
         slideAck: null,
+        galleryControl: null,
       };
     },
     { applyLocally: false },
@@ -201,5 +203,6 @@ export async function endLivePresentation(): Promise<void> {
     fullscreenRequest: null,
     slideCommand: null,
     slideAck: null,
+    galleryControl: null,
   });
 }

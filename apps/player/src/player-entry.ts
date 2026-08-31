@@ -12,6 +12,7 @@ import {
 import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
+import { subscribeLiveGalleryControl } from "./live-gallery-control";
 import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
@@ -42,6 +43,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let activeController: PlayerController | undefined;
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
+  let cleanupLiveGalleryControl: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let activePresentation: Presentation | undefined;
   let activeLive: LiveCurrent | undefined;
@@ -108,6 +110,13 @@ export function startPlayer(root: HTMLElement): () => void {
         controller,
         root,
       );
+      cleanupLiveGalleryControl = subscribeLiveGalleryControl(
+        database,
+        live.revision,
+        live.currentVersionId,
+        presentation,
+        controller,
+      );
     } catch (error) {
       console.error("Player: live projection state initialization failed", error);
       recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_ERROR", { error });
@@ -124,11 +133,17 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveFullscreenRequest = undefined;
   }
 
+  function detachLiveGalleryControl(): void {
+    cleanupLiveGalleryControl?.();
+    cleanupLiveGalleryControl = undefined;
+  }
+
   function teardownLiveSession(): void {
     loadToken += 1;
     currentSessionKey = null;
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
+    detachLiveGalleryControl();
     activeController?.destroy();
     activeController = undefined;
     activePresentation = undefined;
@@ -170,6 +185,7 @@ export function startPlayer(root: HTMLElement): () => void {
     if (promotion) {
       detachLiveSlideAck();
       detachLiveFullscreenRequest();
+      detachLiveGalleryControl();
       loadToken += 1;
     } else {
       teardownLiveSession();

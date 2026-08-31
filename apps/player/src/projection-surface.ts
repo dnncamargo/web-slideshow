@@ -17,6 +17,7 @@ export interface ProjectionSurfaceOptions {
 export interface ProjectionSurface {
   stage: HTMLElement;
   goTo(index: number): void;
+  setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
   getCurrentIndex(): number;
   destroy(): void;
@@ -250,7 +251,7 @@ export function mountProjectionSurface(
   ): void {
     const items = galleryItems(galleryRoot);
 
-    if (targetIndex < 0 || targetIndex >= items.length) {
+    if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= items.length) {
       return;
     }
 
@@ -349,6 +350,12 @@ export function mountProjectionSurface(
   return {
     stage,
     goTo,
+    setGalleryActiveIndex(galleryId: string, targetIndex: number): void {
+      const galleryRoot = findGalleryById(galleryId);
+      if (galleryRoot) {
+        setGalleryActiveIndex(galleryRoot, targetIndex);
+      }
+    },
     setGalleryExpanded,
     getCurrentIndex(): number {
       return currentIndex;
