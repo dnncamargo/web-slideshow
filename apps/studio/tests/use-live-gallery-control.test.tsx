@@ -25,10 +25,13 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const LIVE = { publicationId: "publication", currentVersionId: "version-1", revision: 2 };
 
-function presentation(elements: unknown[] = []): Presentation {
+function presentation(
+  elements: unknown[] = [],
+  pageBElements: unknown[] = [],
+): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1, id: "presentation", title: "Presentation",
-    slides: [{ id: "page-a", title: "Page A", elements }, { id: "page-b", title: "Page B", elements: [] }],
+    slides: [{ id: "page-a", title: "Page A", elements }, { id: "page-b", title: "Page B", elements: pageBElements }],
   });
 }
 
@@ -48,8 +51,12 @@ describe("useLiveGalleryControl", () => {
   let result: UseLiveGalleryControlResult | null;
   let input: { live: typeof LIVE | null; livePresentation: Presentation | null; desiredPageId: string | null };
 
+  function Harness() {
+    result = useLiveGalleryControl(input);
+    return null;
+  }
+
   const render = async () => {
-    function Harness() { result = useLiveGalleryControl(input); return null; }
     await act(async () => { root.render(<Harness />); });
   };
   const emit = async (value: unknown) => {
@@ -141,5 +148,44 @@ describe("useLiveGalleryControl", () => {
     expect(result?.galleries[0]).toMatchObject({ targetIndex: 0, expanded: false });
     await emit({ 0: record({ activationRevision: 3, currentVersionId: "version-2", targetIndex: 1, expanded: true }) });
     expect(result?.galleries[0]).toMatchObject({ targetIndex: 1, expanded: true });
+  });
+
+  it("does not let committed Page A intent leak into a same-slot Gallery on Page B", async () => {
+    input.livePresentation = presentation([gallery("gallery-a")], [gallery("gallery-b")]); await render();
+    await act(async () => { result?.nextGallery("gallery-a"); await Promise.resolve(); });
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-a", targetIndex: 1 });
+    input.desiredPageId = "page-b"; await render();
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-b", targetIndex: 0, expanded: false, pending: false });
+  });
+
+  it("rehydrates Page B immediately from an existing root snapshot after navigation", async () => {
+    input.livePresentation = presentation([gallery("gallery-a")], [gallery("gallery-b")]); await render();
+    await emit({ 0: record({ pageId: "page-b", elementId: "gallery-b", targetIndex: 2, expanded: true }) });
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-a", targetIndex: 0, expanded: false });
+    input.desiredPageId = "page-b"; await render();
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-b", targetIndex: 2, expanded: true });
+  });
+
+  it("ignores an old Page A command resolution after navigating to Page B", async () => {
+    let resolveA: ((value: ReturnType<typeof record>) => void) | undefined;
+    mocks.writeGalleryControlState.mockImplementationOnce(() => new Promise((resolve) => { resolveA = resolve; }));
+    input.livePresentation = presentation([gallery("gallery-a")], [gallery("gallery-b")]); await render();
+    await act(async () => { result?.nextGallery("gallery-a"); });
+    expect(result?.galleries[0]?.pending).toBe(true);
+    input.desiredPageId = "page-b"; await render();
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-b", targetIndex: 0, pending: false });
+    await act(async () => { resolveA?.(record({ targetIndex: 1 })); await Promise.resolve(); });
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-b", targetIndex: 0, expanded: false, pending: false });
+  });
+
+  it("ignores an old Page A command failure after navigating to Page B", async () => {
+    let rejectA: ((reason?: unknown) => void) | undefined;
+    mocks.writeGalleryControlState.mockImplementationOnce(() => new Promise((_, reject) => { rejectA = reject; }));
+    input.livePresentation = presentation([gallery("gallery-a")], [gallery("gallery-b")]); await render();
+    await act(async () => { result?.nextGallery("gallery-a"); });
+    input.desiredPageId = "page-b"; await render();
+    await act(async () => { rejectA?.(new Error("offline")); await Promise.resolve(); });
+    expect(result?.galleries[0]).toMatchObject({ elementId: "gallery-b", targetIndex: 0, pending: false });
+    expect(result?.sendFailed).toBe(false);
   });
 });

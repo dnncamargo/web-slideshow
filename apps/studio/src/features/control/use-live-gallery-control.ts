@@ -51,6 +51,14 @@ interface LatestState {
   galleries: ControlGalleryView[];
 }
 
+interface GalleryCommandContext {
+  activationRevision: number;
+  currentVersionId: string;
+  pageId: string;
+  slot: number;
+  elementId: string;
+}
+
 function galleryKey(slot: number, elementId: string): string {
   return `${slot}:${elementId}`;
 }
@@ -91,18 +99,26 @@ function recordsForCurrentGalleries(
   const children = value as Record<string, unknown>;
   for (const descriptor of descriptors) {
     const record = parseLiveGalleryControlState(children[String(descriptor.slot)]);
-    if (
-      record !== null &&
-      record.activationRevision === live.revision &&
-      record.currentVersionId === live.currentVersionId &&
-      record.pageId === desiredPageId &&
-      record.elementId === descriptor.elementId &&
-      record.targetIndex < descriptor.itemCount
-    ) {
+    if (record !== null && recordMatchesCurrentGallery(record, live, desiredPageId, descriptor)) {
       records.set(descriptor.slot, record);
     }
   }
   return records;
+}
+
+function recordMatchesCurrentGallery(
+  record: LiveGalleryControlState,
+  live: LiveCurrent | null,
+  desiredPageId: string | null,
+  descriptor: GalleryDescriptor,
+): boolean {
+  return live !== null &&
+    desiredPageId !== null &&
+    record.activationRevision === live.revision &&
+    record.currentVersionId === live.currentVersionId &&
+    record.pageId === desiredPageId &&
+    record.elementId === descriptor.elementId &&
+    record.targetIndex < descriptor.itemCount;
 }
 
 /** Owns the Control-side desired Gallery intent for the active immutable version. */
@@ -115,9 +131,10 @@ export function useLiveGalleryControl({
   const [committed, setCommitted] = useState<Map<number, LiveGalleryControlState>>(
     () => new Map(),
   );
-  const [pending, setPending] = useState<Set<string>>(() => new Set());
+  const [pending, setPending] = useState<Map<string, GalleryCommandContext>>(
+    () => new Map(),
+  );
   const [sendFailed, setSendFailed] = useState(false);
-  const identityRef = useRef(0);
 
   const descriptors = useMemo(
     () => discoverGalleries(livePresentation, desiredPageId),
@@ -128,12 +145,21 @@ export function useLiveGalleryControl({
     [rootSnapshot, live, desiredPageId, descriptors],
   );
   const galleries = useMemo(() => descriptors.map((descriptor) => {
-    const record = committed.get(descriptor.slot) ?? hydrated.get(descriptor.slot);
+    const local = committed.get(descriptor.slot);
+    const record = local !== undefined &&
+        recordMatchesCurrentGallery(local, live, desiredPageId, descriptor)
+      ? local
+      : hydrated.get(descriptor.slot);
     return {
       ...descriptor,
       targetIndex: record?.targetIndex ?? 0,
       expanded: record?.expanded ?? false,
-      pending: pending.has(galleryKey(descriptor.slot, descriptor.elementId)),
+      pending: pendingHasCurrentContext(
+        pending.get(galleryKey(descriptor.slot, descriptor.elementId)),
+        live,
+        desiredPageId,
+        descriptor,
+      ),
     };
   }), [committed, descriptors, hydrated, pending]);
 
@@ -141,10 +167,9 @@ export function useLiveGalleryControl({
   latestRef.current = { live, desiredPageId, galleries };
 
   useEffect(() => {
-    identityRef.current += 1;
     setRootSnapshot(null);
     setCommitted(new Map());
-    setPending(new Set());
+    setPending(new Map());
     setSendFailed(false);
 
     if (live === null) return;
@@ -172,6 +197,12 @@ export function useLiveGalleryControl({
     });
   }, [live?.revision, live?.currentVersionId]);
 
+  useEffect(() => {
+    setCommitted(new Map());
+    setPending(new Map());
+    setSendFailed(false);
+  }, [desiredPageId]);
+
   const send = useCallback((elementId: string, update: (gallery: ControlGalleryView) => { targetIndex: number; expanded: boolean }) => {
     const current = latestRef.current;
     const gallery = current.galleries.find((candidate) => candidate.elementId === elementId);
@@ -179,9 +210,15 @@ export function useLiveGalleryControl({
 
     const next = update(gallery);
     const key = galleryKey(gallery.slot, gallery.elementId);
-    const token = identityRef.current;
     const liveIdentity = current.live;
     const pageId = current.desiredPageId;
+    const command: GalleryCommandContext = {
+      activationRevision: liveIdentity.revision,
+      currentVersionId: liveIdentity.currentVersionId,
+      pageId,
+      slot: gallery.slot,
+      elementId: gallery.elementId,
+    };
     const database = getRealtimeDatabaseOrNull();
     setSendFailed(false);
     if (database === null) {
@@ -189,7 +226,7 @@ export function useLiveGalleryControl({
       return;
     }
 
-    setPending((previous) => new Set(previous).add(key));
+    setPending((previous) => new Map(previous).set(key, command));
     void writeGalleryControlState(
       database,
       liveIdentity.revision,
@@ -200,19 +237,19 @@ export function useLiveGalleryControl({
       next.targetIndex,
       next.expanded,
     ).then((record) => {
-      if (identityRef.current !== token) return;
+      if (!commandMatchesCurrentContext(command, latestRef.current)) return;
       setCommitted((previous) => new Map(previous).set(gallery.slot, record));
       setPending((previous) => {
-        const result = new Set(previous);
+        const result = new Map(previous);
         result.delete(key);
         return result;
       });
       setSendFailed(false);
     }).catch((error: unknown) => {
       console.error("Control: could not write Gallery intent", error);
-      if (identityRef.current !== token) return;
+      if (!commandMatchesCurrentContext(command, latestRef.current)) return;
       setPending((previous) => {
-        const result = new Set(previous);
+        const result = new Map(previous);
         result.delete(key);
         return result;
       });
@@ -242,4 +279,31 @@ export function useLiveGalleryControl({
   }, [nextGallery]);
 
   return { galleries, sendFailed, nextGallery: guardedNextGallery, setGalleryExpanded };
+}
+
+function pendingHasCurrentContext(
+  command: GalleryCommandContext | undefined,
+  live: LiveCurrent | null,
+  desiredPageId: string | null,
+  descriptor: GalleryDescriptor,
+): boolean {
+  return command !== undefined &&
+    command.activationRevision === live?.revision &&
+    command.currentVersionId === live?.currentVersionId &&
+    command.pageId === desiredPageId &&
+    command.slot === descriptor.slot &&
+    command.elementId === descriptor.elementId;
+}
+
+function commandMatchesCurrentContext(
+  command: GalleryCommandContext,
+  current: LatestState,
+): boolean {
+  const gallery = current.galleries.find(
+    (candidate) => candidate.slot === command.slot && candidate.elementId === command.elementId,
+  );
+  return gallery !== undefined &&
+    command.activationRevision === current.live?.revision &&
+    command.currentVersionId === current.live?.currentVersionId &&
+    command.pageId === current.desiredPageId;
 }
