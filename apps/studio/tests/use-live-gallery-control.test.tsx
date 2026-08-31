@@ -110,13 +110,21 @@ describe("useLiveGalleryControl", () => {
 
   it("does not write next for empty or single-item Galleries and expands absolutely without redundant writes", async () => {
     input.livePresentation = presentation([gallery("empty", 0), gallery("single", 1), gallery("gallery-a")]); await render();
-    await act(async () => { result?.nextGallery("empty"); result?.nextGallery("single"); });
+    await act(async () => {
+      result?.nextGallery("empty");
+      result?.nextGallery("single");
+      result?.setGalleryExpanded("empty", true);
+    });
     expect(mocks.writeGalleryControlState).not.toHaveBeenCalled();
+    expect(result?.galleries[0]).toMatchObject({ expanded: false, pending: false });
+    expect(result?.sendFailed).toBe(false);
+    await act(async () => { result?.setGalleryExpanded("single", true); await Promise.resolve(); });
+    expect(mocks.writeGalleryControlState).toHaveBeenLastCalledWith({}, 2, "version-1", "page-a", 1, "single", 0, true);
     await emit({ 2: record({ elementId: "gallery-a", targetIndex: 2 }) });
     await act(async () => { result?.setGalleryExpanded("gallery-a", true); await Promise.resolve(); });
     expect(mocks.writeGalleryControlState).toHaveBeenLastCalledWith({}, 2, "version-1", "page-a", 2, "gallery-a", 2, true);
     await act(async () => { result?.setGalleryExpanded("gallery-a", true); });
-    expect(mocks.writeGalleryControlState).toHaveBeenCalledTimes(1);
+    expect(mocks.writeGalleryControlState).toHaveBeenCalledTimes(2);
   });
 
   it("isolates pending writes per Gallery and immediately uses committed success", async () => {

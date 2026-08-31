@@ -268,7 +268,12 @@ export function useLiveGalleryControl({
 
   const setGalleryExpanded = useCallback((elementId: string, expanded: boolean) => {
     const gallery = latestRef.current.galleries.find((candidate) => candidate.elementId === elementId);
-    if (gallery === undefined || gallery.pending || gallery.expanded === expanded) return;
+    if (
+      gallery === undefined ||
+      gallery.itemCount === 0 ||
+      gallery.pending ||
+      gallery.expanded === expanded
+    ) return;
     send(elementId, (current) => ({ targetIndex: current.targetIndex, expanded }));
   }, [send]);
 
