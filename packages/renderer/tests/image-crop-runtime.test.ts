@@ -154,4 +154,31 @@ describe("hydrateImageCrops", () => {
     hydrateImageCrops(root as unknown as ParentNode);
     expect(true).toBe(true);
   });
+
+  it("does not resize a constrained Gallery overlay crop root", () => {
+    const node = new FakeNode();
+    node.dataset.powershowImageWidthAuthored = "true";
+    node.dataset.powershowImageHeightAuthored = "true";
+    const root = { querySelectorAll: () => [node] };
+    node.image.load(1200, 800);
+    hydrateImageCrops(root as unknown as ParentNode);
+    expect(node.style.width).toBeUndefined();
+    expect(node.style.height).toBeUndefined();
+    expect(node.viewport.style.width).toBe("600px");
+    expect(node.image.style.width).toBe("1000px");
+  });
+
+  it("derives only height for an intrinsic-sizing Gallery crop", () => {
+    const node = new FakeNode();
+    node.dataset.powershowImageWidthAuthored = "true";
+    node.dataset.powershowImageHeightAuthored = "false";
+    node.clientHeight = 0;
+    const root = { querySelectorAll: () => [node] };
+    node.image.load(1200, 800);
+    hydrateImageCrops(root as unknown as ParentNode);
+    expect(node.style.width).toBeUndefined();
+    expect(Number.parseFloat(node.style.height ?? "")).toBeCloseTo(333.333333, 5);
+    expect(node.viewport.style.width).toBe("600px");
+    expect(Number.parseFloat(node.viewport.style.height ?? "")).toBeCloseTo(333.333333, 5);
+  });
 });

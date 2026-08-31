@@ -21,6 +21,7 @@ import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
+import type { ControlGalleryView } from "../use-live-gallery-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
 import { PresenterSlidePreview } from "./presenter-slide-preview";
@@ -83,6 +84,7 @@ export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
   presentationState: PresenterPresentationState;
+  galleries: readonly ControlGalleryView[];
   promotingVersionId: string | null;
   failedPromotionVersionId: string | null;
   previous(): void;
@@ -91,6 +93,8 @@ export interface PresenterViewProps {
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
   requestFullscreen(): void;
+  nextGallery(elementId: string): void;
+  setGalleryExpanded(elementId: string, expanded: boolean): void;
   end(): void;
 }
 
@@ -122,6 +126,7 @@ export function PresenterView({
   view,
   sendFailed,
   presentationState,
+  galleries,
   promotingVersionId,
   failedPromotionVersionId,
   previous,
@@ -130,6 +135,8 @@ export function PresenterView({
   followPlayer,
   updatePlayer,
   requestFullscreen,
+  nextGallery,
+  setGalleryExpanded,
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
@@ -205,6 +212,7 @@ export function PresenterView({
     displayIndex < presentation.slides.length - 1;
 
   const navigationDisabled = pendingVersion !== null || disabled;
+  const showGalleryControls = pendingVersion === null && galleries.length > 0;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -434,6 +442,45 @@ export function PresenterView({
               {t("control.end")}
             </button>
           </div>
+
+          {showGalleryControls && (
+            <div className={presenterStyles.galleryControls} data-gallery-controls>
+              {galleries.map((gallery, index) => {
+                const label = galleries.length === 1
+                  ? t("element.gallery")
+                  : `${t("element.gallery")} ${index + 1}`;
+                const nextDisabled = disabled || gallery.pending || gallery.itemCount <= 1;
+                const expansionDisabled = disabled || gallery.pending || gallery.itemCount === 0;
+                const expansionLabel = t(
+                  gallery.expanded ? "control.galleryCollapse" : "control.galleryExpand",
+                );
+
+                return (
+                  <div className={presenterStyles.galleryGroup} key={gallery.elementId}>
+                    <span className={presenterStyles.galleryLabel}>{label}</span>
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      disabled={nextDisabled}
+                      onClick={() => nextGallery(gallery.elementId)}
+                      aria-label={`${label}: ${t("control.galleryNextImage")}`}
+                    >
+                      {t("control.galleryNextImage")}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="compact"
+                      disabled={expansionDisabled}
+                      onClick={() => setGalleryExpanded(gallery.elementId, !gallery.expanded)}
+                      aria-label={`${label}: ${expansionLabel}`}
+                    >
+                      {expansionLabel}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className={presenterStyles.controlMeta}>
             {/* Future session timer slot. Renders only the desired slide

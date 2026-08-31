@@ -17,32 +17,9 @@ import type { TypedInspectorProps } from "./inspector-types";
 import { ImageSizeSection } from "./sections/image-size-section";
 import { CanonicalImageAppearanceSection } from "./sections/canonical-image-appearance-section";
 import { CanonicalImageEffectsSection } from "./sections/canonical-image-effects-section";
-import {
-  getEffectiveImageFocalPoint,
-  getImageFocalPointPresetIndex,
-  IMAGE_FOCAL_POINT_PRESETS,
-  isImageFocalPointResetAvailable,
-  updateImageFocalPoint,
-} from "./sections/image-focal-point-helpers";
-import {
-  getEffectiveImageCrop,
-  isImageCropResetAvailable,
-  updateImageCropField,
-} from "./sections/image-crop-helpers";
+import { ImageCropControl, ImageFocalPointControl } from "./sections/image-crop-control";
 
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
-
-const FOCAL_PRESET_LABEL_KEYS = [
-  "inspector.anchor.top-left",
-  "inspector.anchor.top",
-  "inspector.anchor.top-right",
-  "inspector.anchor.left",
-  "inspector.anchor.center",
-  "inspector.anchor.right",
-  "inspector.anchor.bottom-left",
-  "inspector.anchor.bottom",
-  "inspector.anchor.bottom-right",
-] as const;
 
 // ============================================================
 // BEGIN: IMAGE INSPECTOR
@@ -86,10 +63,6 @@ export function ImageInspector({
       return { ...current, effect: update(current.effect) };
     });
   };
-  const focalPoint = getEffectiveImageFocalPoint(element.focalPoint);
-  const crop = getEffectiveImageCrop(element.crop);
-  const activeFocalPreset = getImageFocalPointPresetIndex(focalPoint);
-
   return (
     <>
       <div className={styles.inspectorDivider} />
@@ -185,176 +158,8 @@ export function ImageInspector({
           </select>
         </label>
 
-        <div className={styles.field}>
-          <span title={t("image.cropHelp")}>{t("image.crop")}</span>
-
-          <div className={styles.fieldGrid}>
-            {(["x", "y", "width", "height"] as const).map((field) => (
-              <label className={styles.field} key={field}>
-                <span>
-                  {field === "x"
-                    ? "X"
-                    : field === "y"
-                      ? "Y"
-                      : t(`inspector.${field}`)}
-                </span>
-                <div className={styles.unitInput}>
-                  <input
-                    id={`image-crop-${field}`}
-                    name={`imageCrop${field[0]!.toUpperCase()}${field.slice(1)}`}
-                    type="number"
-                    min={field === "x" || field === "y" ? "0" : "1"}
-                    max={
-                      field === "x" || field === "y"
-                        ? "99"
-                        : String(100 - crop[field === "width" ? "x" : "y"])
-                    }
-                    step="1"
-                    value={crop[field]}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-
-                      if (!Number.isFinite(value)) {
-                        return;
-                      }
-
-                      onUpdate((current) =>
-                        current.type === "image"
-                          ? {
-                              ...current,
-                              crop: updateImageCropField(
-                                current.crop,
-                                field,
-                                value,
-                              ),
-                            }
-                          : current,
-                      );
-                    }}
-                  />
-                  <span>%</span>
-                </div>
-              </label>
-            ))}
-          </div>
-
-          <small className={styles.fieldHint}>
-            <span>{t("image.cropHelp")}</span>
-          </small>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            disabled={!isImageCropResetAvailable(element.crop)}
-            onClick={() => {
-              onUpdate((current) =>
-                current.type === "image"
-                  ? { ...current, crop: undefined }
-                  : current,
-              );
-            }}
-          >
-            {t("image.resetCrop")}
-          </button>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => onCropEditingChange(!cropEditing)}
-          >
-            {t(cropEditing ? "image.doneCrop" : "image.editCropOnCanvas")}
-          </button>
-        </div>
-
-        <div className={styles.field}>
-          <span title={t("image.focalPointHelp")}>{t("image.focalPoint")}</span>
-
-          <div className={styles.imageFocalPresetGrid}>
-            {IMAGE_FOCAL_POINT_PRESETS.map((preset, index) => (
-              <button
-                key={`${preset.x}-${preset.y}`}
-                className={
-                  activeFocalPreset === index
-                    ? `${styles.imageFocalPreset} ${styles.imageFocalPresetActive}`
-                    : styles.imageFocalPreset
-                }
-                type="button"
-                aria-label={t(FOCAL_PRESET_LABEL_KEYS[index]!)}
-                aria-pressed={activeFocalPreset === index}
-                onClick={() => {
-                  onUpdate((current) =>
-                    current.type === "image"
-                      ? { ...current, focalPoint: preset }
-                      : current,
-                  );
-                }}
-              />
-            ))}
-          </div>
-
-          <div className={styles.fieldGrid}>
-            {(["x", "y"] as const).map((axis) => (
-              <label className={styles.field} key={axis}>
-                <span>{axis.toUpperCase()}</span>
-                <div className={styles.unitInput}>
-                  <input
-                    id={`image-focal-${axis}`}
-                    name={`imageFocal${axis.toUpperCase()}`}
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={focalPoint[axis]}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-
-                      if (!Number.isFinite(value)) {
-                        return;
-                      }
-
-                      onUpdate((current) =>
-                        current.type === "image"
-                          ? {
-                              ...current,
-                              focalPoint: updateImageFocalPoint(
-                                current.focalPoint,
-                                axis,
-                                value,
-                              ),
-                            }
-                          : current,
-                      );
-                    }}
-                  />
-                  <span>%</span>
-                </div>
-              </label>
-            ))}
-          </div>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            disabled={!isImageFocalPointResetAvailable(element.focalPoint)}
-            onClick={() => {
-              onUpdate((current) =>
-                current.type === "image"
-                  ? { ...current, focalPoint: undefined }
-                  : current,
-              );
-            }}
-          >
-            {t("image.resetFocalPoint")}
-          </button>
-
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => onFocalEditingChange(!focalEditing)}
-          >
-            {t(focalEditing ? "image.doneFocalPoint" : "image.editFocalPointOnCanvas")}
-          </button>
-
-        </div>
+        <ImageCropControl crop={element.crop} idPrefix="image" onCropChange={(crop) => onUpdate((current) => current.type === "image" ? { ...current, crop } : current)} onResetCrop={() => onUpdate((current) => current.type === "image" ? { ...current, crop: undefined } : current)} canvasEdit={{ editing: cropEditing, onEditingChange: onCropEditingChange }} />
+        <ImageFocalPointControl focalPoint={element.focalPoint} idPrefix="image" onFocalPointChange={(focalPoint) => onUpdate((current) => current.type === "image" ? { ...current, focalPoint } : current)} onResetFocalPoint={() => onUpdate((current) => current.type === "image" ? { ...current, focalPoint: undefined } : current)} canvasEdit={{ editing: focalEditing, onEditingChange: onFocalEditingChange }} />
        </InspectorSection>
 
        <ElementInteractionSection

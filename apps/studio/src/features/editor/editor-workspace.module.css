@@ -3001,7 +3001,54 @@
 
   align-items: center;
 
+  flex-wrap: wrap;
+
   gap: 6px;
+
+  margin-bottom: 12px;
+}
+
+.galleryItemSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.galleryItemSelectorButton {
+  white-space: nowrap;
+}
+
+.galleryItemSelectorButtonSelected {
+  border-color: #0e7490;
+  background: #164e63;
+  color: #ecfeff;
+}
+
+.galleryItemSelectorButtonSelected:hover:not(:disabled) {
+  border-color: #22d3ee;
+  background: #155e75;
+  color: #ecfeff;
+}
+
+.galleryItemActionIcon {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.galleryItemActionDanger {
+  border: 1px solid #3c3036;
+  border-radius: 7px;
+  background: #181216;
+  color: #f87171;
+  cursor: pointer;
+}
+
+.galleryItemActionDanger:hover {
+  border-color: #7f1d1d;
+  background: #261317;
 }
 
 

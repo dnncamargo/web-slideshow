@@ -26,6 +26,11 @@ import {
   parseLiveControlState,
   type LiveControlState,
 } from "../live/live-state";
+import {
+  buildGalleryControlSlotPath,
+  parseLiveGalleryControlState,
+  type LiveGalleryControlState,
+} from "../live/gallery-control";
 import type { LiveCurrent } from "./live-current";
 
 function getCurrentUserIdForControl(): string {
@@ -89,6 +94,97 @@ function isNonNegativeInteger(value: unknown): value is number {
     Number.isInteger(value) &&
     value >= 0
   );
+}
+
+function requireGalleryControlInput(
+  activationRevision: number,
+  currentVersionId: string,
+  pageId: string,
+  slot: number,
+  elementId: string,
+  targetIndex: number,
+): { currentVersionId: string; pageId: string } {
+  if (!isNonNegativeInteger(activationRevision)) {
+    throw new Error("Gallery control requires a non-negative activationRevision.");
+  }
+  if (!isNonNegativeInteger(slot)) {
+    throw new Error("Gallery control requires a non-negative integer slot.");
+  }
+  if (!isNonNegativeInteger(targetIndex)) {
+    throw new Error("Gallery control requires a non-negative integer targetIndex.");
+  }
+  if (typeof elementId !== "string" || elementId.length === 0) {
+    throw new Error("Gallery control requires an elementId.");
+  }
+
+  const normalizedVersion = currentVersionId.trim();
+  const normalizedPage = pageId.trim();
+  if (normalizedVersion === "") {
+    throw new Error("Gallery control requires a currentVersionId.");
+  }
+  if (normalizedPage === "") {
+    throw new Error("Gallery control requires a pageId.");
+  }
+
+  return { currentVersionId: normalizedVersion, pageId: normalizedPage };
+}
+
+/** Writes an absolute Gallery intent at its deterministic slide-local slot. */
+export async function writeGalleryControlState(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  pageId: string,
+  slot: number,
+  elementId: string,
+  targetIndex: number,
+  expanded: boolean,
+): Promise<LiveGalleryControlState> {
+  if (!isRealtimeDatabaseConfigured()) {
+    throw new Error("Realtime Database is not configured.");
+  }
+  getCurrentUserIdForControl();
+  if (typeof expanded !== "boolean") {
+    throw new Error("Gallery control requires an expanded boolean.");
+  }
+
+  const normalized = requireGalleryControlInput(
+    activationRevision,
+    currentVersionId,
+    pageId,
+    slot,
+    elementId,
+    targetIndex,
+  );
+  const stateRef = ref(database, buildGalleryControlSlotPath(slot));
+  const result = await runTransaction(stateRef, (current) => {
+    const previous = parseLiveGalleryControlState(current);
+    const sameIdentity = previous !== null &&
+      previous.activationRevision === activationRevision &&
+      previous.currentVersionId === normalized.currentVersionId &&
+      previous.pageId === normalized.pageId &&
+      previous.elementId === elementId;
+
+    return {
+      activationRevision,
+      currentVersionId: normalized.currentVersionId,
+      revision: sameIdentity ? previous.revision + 1 : 1,
+      pageId: normalized.pageId,
+      elementId,
+      targetIndex,
+      expanded,
+    };
+  });
+
+  if (result.committed !== true) {
+    throw new Error("Gallery control transaction did not commit.");
+  }
+
+  const committed = parseLiveGalleryControlState(result.snapshot.val());
+  if (committed === null) {
+    throw new Error("Gallery control transaction committed a malformed value.");
+  }
+  return committed;
 }
 
 function parseSlideCommand(value: unknown): SlideCommand | null {

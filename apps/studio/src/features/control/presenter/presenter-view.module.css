@@ -159,6 +159,33 @@
   gap: 12px;
 }
 
+.galleryControls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: min(100%, 440px);
+  min-width: 0;
+}
+
+.galleryGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.galleryLabel {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .controlMeta {
   display: flex;
   align-items: center;
@@ -547,6 +574,10 @@
 
     gap: 8px;
 
+    width: 100%;
+  }
+
+  .galleryControls {
     width: 100%;
   }
 

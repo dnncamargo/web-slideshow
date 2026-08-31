@@ -67,12 +67,18 @@ describe("GalleryInspector", () => {
   let root: Root;
   let elementState: GalleryElement;
   let updates: GalleryElement[];
+  let selectedItemIndex: number | null = null;
 
   function renderInspector() {
     root.render(
       <StudioI18nProvider>
         <GalleryInspector
           element={elementState}
+          selectedItemIndex={selectedItemIndex}
+          onSelectedItemIndexChange={(index) => {
+            selectedItemIndex = index;
+            renderInspector();
+          }}
           onUpdate={(update) => {
             const next = update(elementState);
             if (next.type !== "gallery") {
@@ -89,6 +95,7 @@ describe("GalleryInspector", () => {
 
   function mount(initial: GalleryElement) {
     elementState = initial;
+    selectedItemIndex = initial.items.length > 0 ? 0 : null;
     updates = [];
     renderInspector();
   }
@@ -149,6 +156,26 @@ describe("GalleryInspector", () => {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function itemInput(field: string): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(
+      `#gallery-gallery-1-item-${selectedItemIndex}-${field}`,
+    );
+    if (!input) throw new Error(`Gallery input not found: ${field}`);
+    return input;
+  }
+
+  function changeInput(input: HTMLInputElement, value: string): void {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function buttonWithText(text: string): HTMLButtonElement {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes(text));
+    if (!button) throw new Error(`Button not found: ${text}`);
+    return button;
+  }
+
   function addButton(): HTMLButtonElement {
     const button =
       container.querySelector<HTMLButtonElement>('[data-powershow-gallery-add]');
@@ -189,12 +216,29 @@ describe("GalleryInspector", () => {
     expect(fitSelect().value).toBe("contain");
   });
 
-  it("displays all items in canonical order", async () => {
+  it("displays Image children in canonical order with the selected child pressed", async () => {
     await act(async () => {
       mount(galleryElement());
     });
-    const rows = container.querySelectorAll("[data-powershow-gallery-item]");
+    const rows = container.querySelectorAll("[data-powershow-gallery-select]");
     expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toBe("Image 1");
+    expect(rows[1]?.textContent).toBe("Image 2");
+    expect(rows[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(rows[1]?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("selects another Image child", async () => {
+    await act(async () => mount(galleryElement({ items: [...DEFAULT_ITEMS, { src: "/three.png", alt: "Three" }] })));
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]')?.click();
+    });
+
+    const selected = container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]');
+    expect(selected?.textContent).toBe("Image 3");
+    expect(selected?.getAttribute("aria-pressed")).toBe("true");
+    expect(itemSrc("#gallery-gallery-1-item-2-src").value).toBe("/three.png");
   });
 
   it("renders item source", async () => {
@@ -207,6 +251,9 @@ describe("GalleryInspector", () => {
   it("renders item alt", async () => {
     await act(async () => {
       mount(galleryElement());
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
     });
     expect(itemAlt("#gallery-gallery-1-item-1-alt").value).toBe("Two");
   });
@@ -227,10 +274,62 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
+    });
+    await act(async () => {
       setTextAreaValue(itemAlt("#gallery-gallery-1-item-1-alt"), "Changed");
     });
     expect(updates[0]?.items[1]?.alt).toBe("Changed");
     expect(updates[0]?.items[0]?.alt).toBe("One");
+  });
+
+  it("shows effective default crop values for an item without crop", async () => {
+    await act(async () => mount(galleryElement()));
+    expect(itemInput("crop-x").value).toBe("0");
+    expect(itemInput("crop-y").value).toBe("0");
+    expect(itemInput("crop-width").value).toBe("100");
+    expect(itemInput("crop-height").value).toBe("100");
+  });
+
+  it("edits and clamps crop only on the selected item", async () => {
+    await act(async () => mount(galleryElement({ items: [
+      { src: "/one.png", alt: "One", fit: "cover" },
+      { src: "/two.png", alt: "Two", focalPoint: { x: 20, y: 30 } },
+    ] })));
+    await act(async () => changeInput(itemInput("crop-x"), "120"));
+    expect(elementState.items[0]).toMatchObject({ src: "/one.png", alt: "One", fit: "cover", crop: { x: 99, y: 0, width: 1, height: 100 } });
+    expect(elementState.items[1]).toEqual({ src: "/two.png", alt: "Two", focalPoint: { x: 20, y: 30 } });
+  });
+
+  it("resets only the selected item crop", async () => {
+    await act(async () => mount(galleryElement({ items: [{ src: "/one.png", alt: "One", fit: "cover", crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 25, y: 70 } }, DEFAULT_ITEMS[1]!] })));
+    await act(async () => buttonWithText("Reset crop").click());
+    expect(elementState.items[0]).toEqual({ src: "/one.png", alt: "One", fit: "cover", crop: undefined, focalPoint: { x: 25, y: 70 } });
+    expect(elementState.items[1]).toEqual(DEFAULT_ITEMS[1]);
+  });
+
+  it("authors focal presets and clamped coordinates only on the selected item", async () => {
+    await act(async () => mount(galleryElement({ items: [DEFAULT_ITEMS[0]!, { src: "/two.png", alt: "Two", crop: { x: 5, y: 6, width: 70, height: 80 } }] })));
+    const presets = Array.from(container.querySelectorAll<HTMLButtonElement>("[aria-pressed]")).slice(-9);
+    await act(async () => presets[8]?.click());
+    expect(elementState.items[0]?.focalPoint).toEqual({ x: 100, y: 100 });
+    await act(async () => changeInput(itemInput("focal-x"), "-10"));
+    expect(elementState.items[0]?.focalPoint).toEqual({ x: 0, y: 100 });
+    expect(elementState.items[1]).toEqual({ src: "/two.png", alt: "Two", crop: { x: 5, y: 6, width: 70, height: 80 } });
+  });
+
+  it("resets focal point, preserves crop, and follows item selection", async () => {
+    await act(async () => mount(galleryElement({ items: [
+      { src: "/one.png", alt: "One", crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 10, y: 20 } },
+      { src: "/two.png", alt: "Two", crop: { x: 2, y: 3, width: 90, height: 80 }, focalPoint: { x: 80, y: 90 } },
+    ] })));
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="1"]')?.click());
+    expect(itemInput("crop-x").value).toBe("2");
+    expect(itemInput("focal-x").value).toBe("80");
+    await act(async () => buttonWithText("Reset to center").click());
+    expect(elementState.items[1]).toEqual({ src: "/two.png", alt: "Two", crop: { x: 2, y: 3, width: 90, height: 80 }, focalPoint: undefined });
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent?.includes("Edit Crop on Canvas"))).toBe(false);
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent?.includes("Edit Focal Point on Canvas"))).toBe(false);
   });
 
   it("changes fit through contain -> cover -> fill", async () => {
@@ -259,6 +358,15 @@ describe("GalleryInspector", () => {
       src: "/powershow-demo.svg",
       alt: "New image",
     });
+    expect(selectedItemIndex).toBe(2);
+  });
+
+  it("places Gallery structural actions before the selected item source field", async () => {
+    await act(async () => mount(galleryElement()));
+
+    const structuralActions = container.querySelector("[data-powershow-gallery-add]")?.parentElement;
+    const source = itemSrc("#gallery-gallery-1-item-0-src");
+    expect(structuralActions?.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("remove image removes the targeted item", async () => {
@@ -270,6 +378,7 @@ describe("GalleryInspector", () => {
     });
     expect(updates[0]?.items).toHaveLength(1);
     expect(updates[0]?.items[0]?.src).toBe("/two.png");
+    expect(selectedItemIndex).toBe(0);
   });
 
   it("removal can produce an empty items array", async () => {
@@ -291,12 +400,16 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     await act(async () => {
-      moveUpButtons()[1]?.click();
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
+    });
+    await act(async () => {
+      moveUpButtons()[0]?.click();
     });
     expect(updates[0]?.items.map((item) => item.src)).toEqual([
       "/two.png",
       "/one.png",
     ]);
+    expect(selectedItemIndex).toBe(0);
   });
 
   it("move down changes canonical order correctly", async () => {
@@ -310,6 +423,7 @@ describe("GalleryInspector", () => {
       "/two.png",
       "/one.png",
     ]);
+    expect(selectedItemIndex).toBe(1);
   });
 
   it("first move up is disabled", async () => {
@@ -317,15 +431,16 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     expect(moveUpButtons()[0]?.disabled).toBe(true);
-    expect(moveUpButtons()[1]?.disabled).toBe(false);
   });
 
   it("last move down is disabled", async () => {
     await act(async () => {
       mount(galleryElement());
     });
-    expect(moveDownButtons()[1]?.disabled).toBe(true);
-    expect(moveDownButtons()[0]?.disabled).toBe(false);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="1"]')?.click();
+    });
+    expect(moveDownButtons()[0]?.disabled).toBe(true);
   });
 
   it("item updates never introduce an id", async () => {

@@ -59,6 +59,15 @@ describe("Gallery element schema", () => {
     }
   });
 
+  it("keeps current Gallery documents with root cover fit valid", () => {
+    const result = GalleryElementSchema.safeParse(gallery({ fit: "cover" }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.fit).toBe("cover");
+      expect(result.data.items[0]).toEqual({ src: "/first.png", alt: "First" });
+    }
+  });
+
   it("defaults item alt to an empty string", () => {
     const result = GalleryElementSchema.safeParse(
       gallery({ items: [{ src: "/only.png" }] }),
@@ -116,6 +125,48 @@ describe("Gallery element schema", () => {
     );
 
     expect(result.success).toBe(false);
+  });
+
+  it.each(["contain", "cover", "fill"] as const)("accepts item %s fit", (fit) => {
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", fit }],
+    })).success).toBe(true);
+  });
+
+  it.each([{ x: 0, y: 100 }, { x: 25, y: 75 }] as const)("accepts item focal point %o", (focalPoint) => {
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", focalPoint }],
+    })).success).toBe(true);
+  });
+
+  it("rejects invalid item focal points and fit", () => {
+    for (const item of [
+      { fit: "crop" },
+      { focalPoint: { x: -1, y: 50 } },
+      { focalPoint: { x: 101, y: 50 } },
+      { focalPoint: { x: 50, y: -1 } },
+      { focalPoint: { x: 50, y: 101 } },
+    ]) {
+      expect(GalleryElementSchema.safeParse(gallery({ items: [{ src: "/photo.png", alt: "Photo", ...item }] })).success).toBe(false);
+    }
+  });
+
+  it("routes item crop validation through ImageCropSchema", () => {
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", crop: { x: 10, y: 20, width: 60, height: 50 } }],
+    })).success).toBe(true);
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", crop: { x: 60, y: 20, width: 60, height: 50 } }],
+    })).success).toBe(false);
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", crop: { x: 0, y: 0, width: 100, height: 100 } }],
+    })).success).toBe(false);
+  });
+
+  it("rejects unknown GalleryItem properties", () => {
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ src: "/photo.png", alt: "Photo", inventedProperty: true }],
+    })).success).toBe(false);
   });
 
   it("accepts a Gallery through PowerShowElementSchema", () => {

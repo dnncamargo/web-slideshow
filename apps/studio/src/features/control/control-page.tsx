@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 
 import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
+import { useLiveGalleryControl } from "./use-live-gallery-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
 import {
@@ -74,6 +75,14 @@ export function ControlPage() {
     liveState,
     view?.enabled === true ? view.desiredPageId : null,
   );
+  const galleryControl = useLiveGalleryControl({
+    live: liveState.kind === "active" ? liveState.live : null,
+    livePresentation:
+      presentationState.kind === "ready"
+        ? presentationState.livePresentation
+        : null,
+    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+  });
   const [available] = useState(() => isRealtimeDatabaseConfigured());
   const lastLiveIdentityRef = useRef<Pick<LiveCurrent, "publicationId" | "currentVersionId"> | null>(null);
   const [reactivationInFlight, setReactivationInFlight] = useState(false);
@@ -206,14 +215,17 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed}
       presentationState={presentationState}
+      galleries={galleryControl.galleries}
       previous={previous}
       next={next}
       goTo={goTo}
       followPlayer={followPlayer}
       updatePlayer={updatePlayer}
       requestFullscreen={requestFullscreen}
+      nextGallery={galleryControl.nextGallery}
+      setGalleryExpanded={galleryControl.setGalleryExpanded}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}
       end={end}

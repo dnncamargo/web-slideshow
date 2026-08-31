@@ -71,6 +71,20 @@ describe("PowerShow Player", () => {
 
     expect(root.innerHTML).toContain("Slide One");
   });
+
+  it("forwards absolute Gallery expansion to the active projection surface", () => {
+    player.destroy();
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "player-gallery", title: "Player Gallery", description: "", aspectRatio: "16:9",
+      slides: [{ id: "slide", elements: [{ type: "gallery", id: "gallery-player", items: [{ src: "/gallery.png", alt: "Gallery" }] }] }],
+    });
+    player = mountPlayer(root, presentation, { transition: "none" });
+
+    player.setGalleryExpanded("gallery-player", true);
+    expect(root.querySelector(".powershow-player-gallery-expanded img")?.getAttribute("src")).toBe("/gallery.png");
+    player.setGalleryExpanded("gallery-player", false);
+    expect(root.querySelector(".powershow-player-gallery-expanded")).toBeNull();
+  });
   it("fits a 16:9 logical surface into a 1920x1080 viewport", () => {
     player.destroy();
     setViewport(1920, 1080);

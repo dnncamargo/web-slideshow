@@ -36,12 +36,14 @@ PowerShow
 - **Public Portal** — public PowerShow root. When no Live session is active it uses the self-contained demo as an ambient full-screen surface; during Live it shows only the active presentation cover and exposes a Watch QR code.
 - **PowerShow Library** — authenticated presentation management, folders, Custom Library resources, import/export, publishing, and lifecycle actions.
 - **PowerShow Editor** — visual authoring of canonical PowerShow presentations.
-- **PowerShow Control** — authenticated live-session control, direct slide navigation, publication promotion, Player-state feedback, and presentation recovery actions.
+- **PowerShow Control** — authenticated live-session control, direct slide navigation, publication promotion, Player-state feedback, Gallery commands, and presentation recovery actions.
 - **PowerShow Player** — public projection runtime optimized for lightweight playback.
 - **PowerShow Watch** — public read-only audience surface following the actual applied Player state.
 - **Legacy Player** — compatibility runtime kept separate from the current Player.
 
 The public root is deliberately **not another Player**. During Live it renders the first slide only through `/cover`; Watch remains the audience follower and Player remains the real projection surface.
+
+A dedicated **Maintenance / Diagnostics** product area is the next planned work area. Its route and final ownership are intentionally not frozen yet: the first checkpoint is an audit of existing Studio, Firestore, RTDB, publication, Live and Player diagnostic boundaries.
 
 ## Repository structure
 
@@ -117,7 +119,9 @@ Within a parent Flow layout, a Container may use Preserve size to resist flex co
 
 PowerShow distinguishes **copy/materialization reuse** from **live Presentation-local reuse**.
 
-Existing Presentation-local systems include Palette references and Text Styles. Text Styles resolve with:
+Presentation-local systems include Palette references, Text Styles, and Linked Styles.
+
+Text Styles resolve with:
 
 ```text
 Theme role baseline
@@ -125,9 +129,7 @@ Theme role baseline
 → local Text override
 ```
 
-The next planned reuse feature is **Linked Styles** under **This Presentation**. Linked Styles are intended to let multiple existing Containers share a live Presentation-local style/layout decision instead of repeatedly copying the same values.
-
-V1 direction:
+Linked Styles provide live Presentation-local reuse for Containers:
 
 ```text
 Theme / defaults
@@ -135,17 +137,18 @@ Theme / defaults
 → local Container override
 ```
 
-Linked Styles are planned as:
+Linked Styles are:
 
 - Presentation-scoped and self-contained;
 - Container-only in V1;
 - one linked style reference per Container;
 - able to provide `layout`, `style`, `typography`, and `effect` values;
 - compatible with local overrides;
-- attachable/detachable without changing the current visual result;
+- attachable/detachable while preserving authored appearance;
+- managed under **This Presentation**;
 - independent from private Custom Library data at Player runtime.
 
-The final persisted shape must be audited against the current canonical schema before implementation.
+Custom Library Styles remain a different mechanism: they copy/materialize reusable values into a Presentation rather than maintaining a live dependency.
 
 ## Import / Export
 
@@ -166,7 +169,7 @@ JSON.parse
 → persist as a new private draft
 ```
 
-The imported copy preserves the complete schema-validated Presentation, including slides, elements, internal IDs, Palette, FontResources, Text Styles, and authored content. Only the root Presentation id is replaced for the new draft; private Studio metadata is not part of transfer.
+The imported copy preserves the complete schema-validated Presentation, including slides, elements, internal IDs, Palette, FontResources, Text Styles, Linked Styles, and authored content. Only the root Presentation id is replaced for the new draft; private Studio metadata is not part of transfer.
 
 Legacy or incompatible documents are not silently migrated during import. Recovery is a separate explicit product flow.
 
@@ -200,15 +203,25 @@ Private slide Notes are also stored outside the canonical Presentation so Notes 
 
 Transient presentation control uses Firebase Realtime Database while published presentation content remains in Firestore.
 
-The live path uses logical slide/page identity and desired/applied state:
+The primary slide path uses logical page identity and desired/applied convergence:
 
 ```text
-Control desired state
+Control desired slide state
 → RTDB
 → Player applies published presentation state
 → Player applied state / ACK
 → Control and Watch observe convergence
 ```
+
+Not every interaction requires that bidirectional contract. Gallery uses an intentionally asymmetric one-way runtime model:
+
+```text
+Control desired Gallery state
+→ RTDB
+→ Player applies absolute target index / expanded state
+```
+
+A physical Gallery interaction on Player remains local and does not update Control. There is no Gallery ACK or Player-to-Control Gallery state.
 
 Current live responsibilities are intentionally separate:
 
@@ -231,7 +244,10 @@ The architecture supports:
 - preservation of logical slide identity across publication promotion;
 - public Watch following actual applied Player state;
 - Player-local fullscreen behavior consistent with browser user-gesture restrictions;
+- one-way absolute Gallery control with independent local Player interaction;
 - bounded production diagnostics for Player troubleshooting.
+
+Realtime Database rules are versioned in `database.rules.json`. A Vercel application deploy does **not** publish those rules; Firebase rules changes must be deliberately deployed to the configured Firebase project.
 
 ## Public Portal and Live Cover
 
@@ -268,21 +284,43 @@ Current reusable Custom Library resource families include:
 - Palettes;
 - Fonts.
 
-Presentation-local resources include:
+Presentation-local resources and relationships include:
 
 - Palette colors and references;
 - FontResources;
-- Text Styles.
-
-Linked Styles are planned as another Presentation-local authoring mechanism, but unlike Custom Library Styles they are intended to preserve a live relationship between multiple elements **inside the same Presentation**.
+- Text Styles;
+- Linked Styles.
 
 There are no live dependency links from a published Presentation back to private Custom Library data.
 
-## Chart and Gallery status
+## Gallery, Blocks and Chart status
 
-`chart` already exists in the canonical element union with semantic `line`, `bar`, `area`, and `scatter` series data, but the current shared renderer still treats it as a placeholder. **Chart V1** is planned to implement real rendering and Studio authoring without redesigning the canonical model around a rendering library.
+### Gallery
 
-`gallery` already has a functional minimum horizontal swipe/scroll carousel based on native CSS scroll snapping. **Gallery V2** is planned as an improvement of that existing element rather than a second Gallery implementation.
+Gallery V1 now represents one semantic media frame containing an ordered array of images rather than a row of independently positioned Image elements.
+
+Current behavior includes:
+
+- per-item `src`, `alt`, optional fit, crop and focal point;
+- Studio Image-child selection and media authoring;
+- Player click/touch advance and wrap;
+- WebP and animated GIF playback;
+- Player-local expanded presentation;
+- one-way absolute Control commands through `live/galleryControl/<slot>`;
+- contextual Control actions for Next image and Expand / Collapse;
+- Inspector and Control layout refinement.
+
+Direct interaction with Gallery inside the Control preview is intentionally **not required**. PowerShow may expose an interactive capability through contextual controls adjacent to a preview instead of making every preview itself interactive.
+
+The current Gallery work is complete in its feature branch; integration/merge status must be checked against the real repository state before starting subsequent implementation work.
+
+### Blocks
+
+Blocks already has canonical semantics, shared rendering and Studio authoring. It is an existing implementation to refine, not a new element to create. After Maintenance / Diagnostics, Blocks is the first planned minimum-element refinement area.
+
+### Chart
+
+`chart` already exists in the canonical element union with semantic `line`, `bar`, `area`, and `scatter` series data, but the shared renderer still treats it as a placeholder. Chart V1 remains planned after Blocks refinement. Its rendering technology should be chosen only after auditing the existing canonical contract; the document model should remain renderer-library-neutral.
 
 ## Recovery
 
@@ -295,6 +333,22 @@ Recovery distinguishes:
 - structurally unrecoverable presentations.
 
 Recovery is explicit and conservative. It may remove incompatible content, but it does not create schema migrations or compatibility aliases.
+
+## Maintenance and diagnostics direction
+
+Maintenance / Diagnostics is the next planned work area.
+
+The first checkpoint is intentionally an audit rather than immediate UI construction. It must identify existing ownership and evidence across:
+
+- Studio authentication;
+- Firestore drafts, publication pointers and immutable versions;
+- RTDB Live state and lifecycle cleanup;
+- Control desired/applied state;
+- Player state and current diagnostics;
+- Watch and Cover resolution;
+- existing recovery and maintenance operations.
+
+The default direction is **read-only observability first**. A maintenance page should not become a generic admin console, expose secrets, invent repair protocols, or silently reconstruct persisted state. Detect inconsistencies deterministically first; add explicit repair actions only where an audited safe operation already exists or a later checkpoint justifies one.
 
 ## Development
 
@@ -342,6 +396,16 @@ Repository execution rules and agent guidance live in:
 
 See [`ROADMAP.md`](./ROADMAP.md) for the complete project chronology and current execution queue.
 
-The current baseline includes the canonical document/renderer foundation, Studio authoring, persistence and immutable publishing, live Control/Player/Watch convergence, import/export, Custom Library resources, Text Styles, runtime surface refinement, and the immersive Public Portal/Live Cover.
+The current baseline includes the canonical document/renderer foundation, Studio authoring, persistence and immutable publishing, live Control/Player/Watch convergence, import/export, Custom Library resources, Text Styles, Linked Styles, runtime surface refinement, the Public Portal/Live Cover, and Gallery V1 through Studio, Player, RTDB and Control.
 
-The next explicit feature checkpoint is **Linked Styles — This Presentation**, followed by the broader authoring/runtime queue recorded in the roadmap, including mobile Control/Library simplification, configurable slide transitions, short Undo/Redo, AI Import, Chart V1, Gallery V2, Player offline recovery, maintenance/diagnostics, and audience expansion.
+Current execution order:
+
+```text
+Gallery integration / final repository gate
+→ Maintenance & Diagnostics
+→ Blocks refinement
+→ Chart V1
+→ other minimum-element improvements as promoted
+```
+
+Production Readiness, Player resilience, mobile simplification, configurable transitions, Undo/Redo, AI Import, and Audience/Watch expansion remain explicit future work recorded in the roadmap.

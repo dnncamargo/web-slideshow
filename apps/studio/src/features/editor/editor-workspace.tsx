@@ -229,6 +229,7 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
+  GalleryElement,
   PowerShowElement,
   Presentation,
   Slide,
@@ -263,6 +264,58 @@ interface SelectedElementInfo {
    * of TopicItem/ContentSlot as PowerShowElements.
    */
   contentSlotId?: string | null;
+}
+
+interface GalleryItemSelection {
+  galleryId: string;
+  itemIndex: number;
+}
+
+type ImageMediaAuthoringTarget =
+  | { kind: "image"; elementId: string }
+  | { kind: "gallery-item"; galleryId: string; itemIndex: number };
+
+type GalleryItem = GalleryElement["items"][number];
+type ImageMediaValue = Extract<PowerShowElement, { type: "image" }> | GalleryItem;
+
+function areImageMediaTargetsEqual(
+  left: ImageMediaAuthoringTarget | null,
+  right: ImageMediaAuthoringTarget | null,
+): boolean {
+  if (left?.kind !== right?.kind) return false;
+  if (!left || !right) return left === right;
+  return left.kind === "image"
+    ? left.elementId === (right.kind === "image" ? right.elementId : "")
+    : right.kind === "gallery-item" && left.galleryId === right.galleryId && left.itemIndex === right.itemIndex;
+}
+
+function imageMediaTargetKey(target: ImageMediaAuthoringTarget): string {
+  return target.kind === "image"
+    ? `image:${target.elementId}`
+    : `gallery-item:${target.galleryId}:${target.itemIndex}`;
+}
+
+function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
+  return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
+    .find((candidate) => candidate.dataset.powershowId === id) ?? null;
+}
+
+function findCanvasGalleryItem(
+  canvas: HTMLElement,
+  galleryId: string,
+  itemIndex: number,
+): HTMLElement | null {
+  const gallery = Array.from(
+    canvas.querySelectorAll<HTMLElement>("[data-powershow-id][data-powershow-type]"),
+  ).find(
+    (candidate) =>
+      candidate.dataset.powershowType === "gallery" &&
+      candidate.dataset.powershowId === galleryId,
+  );
+  if (!gallery) return null;
+  return Array.from(
+    gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]"),
+  ).find((candidate) => Number(candidate.dataset.powershowGalleryIndex) === itemIndex) ?? null;
 }
 
 interface PendingElementDeletion {
@@ -333,7 +386,7 @@ interface CanvasResizeState {
 }
 
 interface CanvasFocalOverlay {
-  elementId: string;
+  target: ImageMediaAuthoringTarget;
   left: number;
   top: number;
   width: number;
@@ -342,13 +395,13 @@ interface CanvasFocalOverlay {
 
 interface CanvasFocalDragState {
   pointerId: number;
-  imageId: string;
+  target: ImageMediaAuthoringTarget;
   handle: HTMLElement;
   bounds: CanvasFocalOverlay;
 }
 
 interface CanvasCropOverlay extends CropCanvasBounds {
-  elementId: string;
+  target: ImageMediaAuthoringTarget;
   source: string;
   crop: CropCanvasBounds;
 }
@@ -361,7 +414,7 @@ interface CanvasCropAppearance extends CropCanvasBounds {
 
 interface CanvasCropDragState {
   pointerId: number;
-  imageId: string;
+  target: ImageMediaAuthoringTarget;
   operation: CropCanvasOperation;
   startClientX: number;
   startClientY: number;
@@ -461,6 +514,8 @@ export function EditorWorkspace({
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
+  const [galleryItemSelection, setGalleryItemSelection] =
+    useState<GalleryItemSelection | null>(null);
   const [pendingElementDeletion, setPendingElementDeletion] =
     useState<PendingElementDeletion | null>(null);
 
@@ -482,12 +537,10 @@ export function EditorWorkspace({
 
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
-  const [focalEditingImageId, setFocalEditingImageId] = useState<string | null>(
-    null,
-  );
-  const [cropEditingImageId, setCropEditingImageId] = useState<string | null>(
-    null,
-  );
+  const [focalEditingTarget, setFocalEditingTarget] =
+    useState<ImageMediaAuthoringTarget | null>(null);
+  const [cropEditingTarget, setCropEditingTarget] =
+    useState<ImageMediaAuthoringTarget | null>(null);
 
   // ==========================================================
   // END: SELEÇÃO
@@ -552,7 +605,6 @@ export function EditorWorkspace({
   >(null);
   const [cropSourceMetrics, setCropSourceMetrics] = useState<{
     key: string;
-    imageId: string;
     src: string;
     width: number;
     height: number;
@@ -561,12 +613,25 @@ export function EditorWorkspace({
     useState<CanvasCropAppearance | null>(null);
   const [cropMeasureVersion, setCropMeasureVersion] = useState(0);
 
-  function setCropEditingMode(id: string | null) {
-    if (id === null) {
+  function setCropEditingMode(target: ImageMediaAuthoringTarget | null) {
+    if (target === null) {
       canvasCropDragRef.current = null;
       setCanvasCropPreview(null);
     }
-    setCropEditingImageId(id);
+    setCropEditingTarget(target);
+  }
+
+  function closeCanvasMediaEditing() {
+    canvasCropDragRef.current = null;
+    canvasFocalDragRef.current = null;
+    setCanvasCropPreview(null);
+    setCanvasFocalPreview(null);
+    setCanvasCropOverlay(null);
+    setCanvasFocalOverlay(null);
+    setCanvasCropAppearance(null);
+    setCropSourceMetrics(null);
+    setCropEditingTarget(null);
+    setFocalEditingTarget(null);
   }
 
   // ==========================================================
@@ -617,6 +682,82 @@ export function EditorWorkspace({
 
     return findElementById(selectedSlide.elements, selectedElement.id);
   }, [selectedSlide, selectedElement]);
+
+  const currentImageMediaTarget = useMemo<ImageMediaAuthoringTarget | null>(() => {
+    if (selectedDocumentElement?.type === "image") {
+      return { kind: "image", elementId: selectedDocumentElement.id };
+    }
+    if (
+      selectedDocumentElement?.type === "gallery" &&
+      galleryItemSelection?.galleryId === selectedDocumentElement.id &&
+      galleryItemSelection.itemIndex >= 0 &&
+      galleryItemSelection.itemIndex < selectedDocumentElement.items.length
+    ) {
+      return {
+        kind: "gallery-item",
+        galleryId: selectedDocumentElement.id,
+        itemIndex: galleryItemSelection.itemIndex,
+      };
+    }
+    return null;
+  }, [galleryItemSelection, selectedDocumentElement]);
+
+  function resolveImageMediaTarget(
+    target: ImageMediaAuthoringTarget,
+    sourcePresentation: Presentation = presentation,
+  ): ImageMediaValue | null {
+    const slide = sourcePresentation.slides[selectedSlideIndex];
+    if (!slide) return null;
+    if (target.kind === "image") {
+      const element = findElementById(slide.elements, target.elementId);
+      return element?.type === "image" ? element : null;
+    }
+    const gallery = findElementById(slide.elements, target.galleryId);
+    return gallery?.type === "gallery" ? gallery.items[target.itemIndex] ?? null : null;
+  }
+
+  function updateImageMediaTarget(
+    target: ImageMediaAuthoringTarget,
+    update: (media: ImageMediaValue) => ImageMediaValue,
+  ) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) return slide;
+        if (target.kind === "image") {
+          return {
+            ...slide,
+            elements: updateElementById(slide.elements, target.elementId, (element) =>
+              element.type === "image" ? update(element) as typeof element : element,
+            ),
+          };
+        }
+        return {
+          ...slide,
+          elements: updateElementById(slide.elements, target.galleryId, (element) => {
+            if (element.type !== "gallery" || !element.items[target.itemIndex]) return element;
+            return {
+              ...element,
+              items: element.items.map((item, itemIndex) =>
+                itemIndex === target.itemIndex ? update(item) as typeof item : item,
+              ),
+            };
+          }),
+        };
+      }),
+    }));
+  }
+
+  useEffect(() => {
+    const gallery = selectedDocumentElement?.type === "gallery"
+      ? selectedDocumentElement
+      : null;
+    setGalleryItemSelection((current) => {
+      if (!gallery || gallery.items.length === 0) return null;
+      if (current?.galleryId !== gallery.id) return { galleryId: gallery.id, itemIndex: 0 };
+      return { galleryId: gallery.id, itemIndex: Math.min(current.itemIndex, gallery.items.length - 1) };
+    });
+  }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined]);
 
   function requestElementDeletion() {
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
@@ -733,9 +874,8 @@ export function EditorWorkspace({
     [presentation.resources?.fonts],
   );
   const displayedCanvasFocalPoint =
-    selectedDocumentElement?.type === "image"
-      ? (canvasFocalPreview ??
-        getEffectiveImageFocalPoint(selectedDocumentElement.focalPoint))
+    currentImageMediaTarget
+      ? (canvasFocalPreview ?? getEffectiveImageFocalPoint(resolveImageMediaTarget(currentImageMediaTarget)?.focalPoint))
       : null;
 
   useEffect(() => {
@@ -882,29 +1022,36 @@ export function EditorWorkspace({
   ]);
 
   useEffect(() => {
-    if (
-      !focalEditingImageId ||
-      selectedDocumentElement?.type !== "image" ||
-      selectedDocumentElement.id !== focalEditingImageId
-    ) {
+    const canvas = slideCanvasRef.current;
+    if (!canvas) return;
+    canvas.querySelectorAll<HTMLElement>("[data-powershow-type=gallery][data-powershow-id]").forEach((gallery) => {
+      const isSelected = gallery.dataset.powershowId === galleryItemSelection?.galleryId;
+      const selectedIndex = isSelected ? galleryItemSelection?.itemIndex ?? 0 : 0;
+      gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]").forEach((item) => {
+        const active = Number(item.dataset.powershowGalleryIndex) === selectedIndex;
+        item.classList.toggle("powershow-gallery-item-active", active);
+        item.style.setProperty("visibility", active ? "visible" : "hidden");
+        item.style.setProperty("pointer-events", active ? "auto" : "none");
+        item.setAttribute("aria-hidden", active ? "false" : "true");
+      });
+    });
+  }, [canvasGeometry, galleryItemSelection, renderedSlide]);
+
+  useEffect(() => {
+    if (!focalEditingTarget || !areImageMediaTargetsEqual(focalEditingTarget, currentImageMediaTarget)) {
       setCanvasFocalOverlay(null);
       setCanvasFocalPreview(null);
-
-      if (focalEditingImageId) {
-        setFocalEditingImageId(null);
-      }
-
+      canvasFocalDragRef.current = null;
+      if (focalEditingTarget) setFocalEditingTarget(null);
       return;
     }
 
     const canvas = slideCanvasRef.current;
     const target = canvas
-      ? Array.from(
-          canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
-        ).find(
-          (candidate) => candidate.dataset.powershowId === focalEditingImageId,
-        )
-      : undefined;
+      ? focalEditingTarget.kind === "image"
+        ? findCanvasElementById(canvas, focalEditingTarget.elementId)
+        : findCanvasGalleryItem(canvas, focalEditingTarget.galleryId, focalEditingTarget.itemIndex)
+      : null;
 
     if (!target) {
       setCanvasFocalOverlay(null);
@@ -914,34 +1061,37 @@ export function EditorWorkspace({
     const bounds = target.getBoundingClientRect();
 
     setCanvasFocalOverlay({
-      elementId: focalEditingImageId,
+      target: focalEditingTarget,
       left: bounds.left,
       top: bounds.top,
       width: bounds.width,
       height: bounds.height,
     });
-  }, [canvasGeometry, focalEditingImageId, renderedSlide, selectedDocumentElement]);
+  }, [canvasGeometry, currentImageMediaTarget, focalEditingTarget, renderedSlide]);
 
   useEffect(() => {
-    if (
-      !cropEditingImageId ||
-      selectedDocumentElement?.type !== "image" ||
-      selectedDocumentElement.id !== cropEditingImageId
-    ) {
+    if (!cropEditingTarget || !areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget)) {
       setCanvasCropOverlay(null);
       setCanvasCropPreview(null);
       setCropSourceMetrics(null);
       setCanvasCropAppearance(null);
-      if (cropEditingImageId) setCropEditingMode(null);
+      canvasCropDragRef.current = null;
+      if (cropEditingTarget) setCropEditingMode(null);
       return;
     }
 
+    const media = resolveImageMediaTarget(cropEditingTarget);
+    if (!media) {
+      setCropEditingMode(null);
+      return;
+    }
     const canvas = slideCanvasRef.current;
     const target = canvas
-      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
-          .find((candidate) => candidate.dataset.powershowId === cropEditingImageId)
-      : undefined;
-    const sourceKey = `${cropEditingImageId}:${selectedDocumentElement.src}`;
+      ? cropEditingTarget.kind === "image"
+        ? findCanvasElementById(canvas, cropEditingTarget.elementId)
+        : findCanvasGalleryItem(canvas, cropEditingTarget.galleryId, cropEditingTarget.itemIndex)
+      : null;
+    const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${media.src}`;
     const preview = cropSourceMetrics?.key === sourceKey && target
       ? resolveSourcePreviewBounds(
           getCanvasBounds(target),
@@ -951,14 +1101,22 @@ export function EditorWorkspace({
       : null;
 
     if (target) {
-      const computed = getComputedStyle(target);
-      const bounds = getCanvasBounds(target);
+      const appearanceTarget = cropEditingTarget.kind === "gallery-item"
+        ? Array.from(canvas?.querySelectorAll<HTMLElement>("[data-powershow-id][data-powershow-type]") ?? [])
+            .find((candidate) => candidate.dataset.powershowType === "gallery" && candidate.dataset.powershowId === cropEditingTarget.galleryId) ?? null
+        : target;
+      if (!appearanceTarget) {
+        setCanvasCropAppearance(null);
+      } else {
+        const computed = getComputedStyle(appearanceTarget);
+        const bounds = getCanvasBounds(appearanceTarget);
       setCanvasCropAppearance({
         ...bounds,
-        border: computed.border || target.style.border || "",
-        borderRadius: computed.borderRadius || target.style.borderRadius || "0px",
-        boxShadow: computed.boxShadow || target.style.boxShadow || "none",
+        border: computed.border || appearanceTarget.style.border || "",
+        borderRadius: computed.borderRadius || appearanceTarget.style.borderRadius || "0px",
+        boxShadow: computed.boxShadow || appearanceTarget.style.boxShadow || "none",
       });
+      }
     } else {
       setCanvasCropAppearance(null);
     }
@@ -968,23 +1126,23 @@ export function EditorWorkspace({
       return;
     }
 
-    const crop = canvasCropPreview ?? getEffectiveImageCrop(selectedDocumentElement.crop);
+    const crop = canvasCropPreview ?? getEffectiveImageCrop(media.crop);
     setCanvasCropOverlay({
       ...preview,
-      elementId: cropEditingImageId,
-      source: selectedDocumentElement.src,
+      target: cropEditingTarget,
+      source: media.src,
       crop: resolveCropCanvasRect(preview, crop),
     });
-  }, [canvasGeometry, cropEditingImageId, cropSourceMetrics, canvasCropPreview, renderedSlide, selectedDocumentElement, cropMeasureVersion]);
+  }, [canvasGeometry, cropEditingTarget, cropSourceMetrics, canvasCropPreview, currentImageMediaTarget, renderedSlide, cropMeasureVersion, presentation]);
 
   useEffect(() => {
-    if (!cropEditingImageId) return;
+    if (!cropEditingTarget) return;
     const handleResize = () => {
       setCropMeasureVersion((current) => current + 1);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [cropEditingImageId]);
+  }, [cropEditingTarget]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -995,7 +1153,7 @@ export function EditorWorkspace({
         }
         setCanvasCropOverlay(null);
         setCropEditingMode(null);
-        setFocalEditingImageId(null);
+        setFocalEditingTarget(null);
         setCanvasFocalPreview(null);
       }
     };
@@ -1219,7 +1377,7 @@ export function EditorWorkspace({
   }
 
   function handleCanvasPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (cropEditingImageId) {
+    if (cropEditingTarget) {
       return;
     }
     const target = event.target;
@@ -1516,15 +1674,16 @@ export function EditorWorkspace({
     operation: "move" | CropCanvasHandle,
   ) {
     const overlay = canvasCropOverlay;
-    const image = selectedDocumentElement;
-    if (!overlay || !image || image.type !== "image" || !cropEditingImageId) return;
+    const target = cropEditingTarget;
+    const image = target ? resolveImageMediaTarget(target) : null;
+    if (!overlay || !image || !target) return;
 
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     canvasCropDragRef.current = {
       pointerId: event.pointerId,
-      imageId: image.id,
+      target,
       operation,
       startClientX: event.clientX,
       startClientY: event.clientY,
@@ -1549,18 +1708,11 @@ export function EditorWorkspace({
     ));
   }
 
-  function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, imageId: string) {
+  function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, target: ImageMediaAuthoringTarget) {
     const normalized = normalizeCropCanvasValue(crop);
-    const authored = presentation.slides[selectedSlideIndex]
-      ? findElementById(presentation.slides[selectedSlideIndex].elements, imageId)
-      : null;
-    if (authored?.type !== "image" || areImageCropsEqual(authored.crop, normalized)) return;
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => index === selectedSlideIndex
-        ? { ...slide, elements: updateElementById(slide.elements, imageId, (element) => element.type === "image" ? { ...element, crop: normalized } : element) }
-        : slide),
-    }));
+    const authored = resolveImageMediaTarget(target);
+    if (!authored || areImageCropsEqual(authored.crop, normalized)) return;
+    updateImageMediaTarget(target, (media) => ({ ...media, crop: normalized }));
   }
 
   function handleCropPointerUp(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
@@ -1579,7 +1731,7 @@ export function EditorWorkspace({
     );
     canvasCropDragRef.current = null;
     setCanvasCropPreview(null);
-    commitCanvasCrop(crop, drag.imageId);
+    commitCanvasCrop(crop, drag.target);
   }
 
   function handleCropPointerCancel(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
@@ -1624,7 +1776,7 @@ export function EditorWorkspace({
     event: ReactPointerEvent<HTMLButtonElement>,
     direction: CanvasResizeDirection,
   ) {
-    if (cropEditingImageId || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+    if (cropEditingTarget || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
       return;
     }
 
@@ -1939,7 +2091,7 @@ export function EditorWorkspace({
   }
 
   function handleFocalPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!canvasFocalOverlay || !focalEditingImageId) {
+    if (!canvasFocalOverlay || !focalEditingTarget) {
       return;
     }
 
@@ -1948,7 +2100,7 @@ export function EditorWorkspace({
     event.currentTarget.setPointerCapture(event.pointerId);
     canvasFocalDragRef.current = {
       pointerId: event.pointerId,
-      imageId: focalEditingImageId,
+      target: focalEditingTarget,
       handle: event.currentTarget,
       bounds: canvasFocalOverlay,
     };
@@ -1970,21 +2122,10 @@ export function EditorWorkspace({
 
   function commitCanvasFocalPoint(
     focalPoint: ImageFocalPoint,
-    imageId: string,
+    target: ImageMediaAuthoringTarget,
   ) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: updateElementById(slide.elements, imageId, (element) =>
-                element.type === "image" ? { ...element, focalPoint } : element,
-              ),
-            }
-          : slide,
-      ),
-    }));
+    if (resolveImageMediaTarget(target)?.src === undefined) return;
+    updateImageMediaTarget(target, (media) => ({ ...media, focalPoint }));
   }
 
   function handleFocalPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
@@ -2004,7 +2145,7 @@ export function EditorWorkspace({
     event.stopPropagation();
     canvasFocalDragRef.current = null;
     setCanvasFocalPreview(null);
-    commitCanvasFocalPoint(focalPoint, drag.imageId);
+    commitCanvasFocalPoint(focalPoint, drag.target);
   }
 
   function handleFocalPointerCancel(
@@ -3454,39 +3595,36 @@ export function EditorWorkspace({
                 }}
               />
             </div>
-            {cropEditingImageId && selectedDocumentElement?.type === "image" && (
+            {cropEditingTarget && currentImageMediaTarget && areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget) && (
               <img
-                key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
+                key={`${imageMediaTargetKey(cropEditingTarget)}:${resolveImageMediaTarget(cropEditingTarget)?.src ?? ""}`}
                 className={styles.canvasCropSourceLoader}
-                src={selectedDocumentElement.src}
+                src={resolveImageMediaTarget(cropEditingTarget)?.src ?? ""}
                 alt=""
                 draggable={false}
-                data-crop-source-key={`${cropEditingImageId}:${selectedDocumentElement.src}`}
+                data-crop-source-key={`${imageMediaTargetKey(cropEditingTarget)}:${resolveImageMediaTarget(cropEditingTarget)?.src ?? ""}`}
                 onLoad={(event) => {
                   const image = event.currentTarget;
+                  const media = resolveImageMediaTarget(cropEditingTarget);
+                  const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${media?.src ?? ""}`;
                   if (
-                    cropEditingImageId !== selectedDocumentElement.id ||
-                    selectedDocumentElement.src !== image.getAttribute("src")
+                    !media || sourceKey !== image.getAttribute("data-crop-source-key")
                   ) return;
                   setCropSourceMetrics({
-                    key: `${selectedDocumentElement.id}:${selectedDocumentElement.src}`,
-                    imageId: selectedDocumentElement.id,
-                    src: selectedDocumentElement.src,
+                    key: sourceKey,
+                    src: media.src,
                     width: image.naturalWidth,
                     height: image.naturalHeight,
                   });
                 }}
                 onError={(event) => {
-                  if (
-                    cropEditingImageId === selectedDocumentElement.id &&
-                    selectedDocumentElement.src === event.currentTarget.getAttribute("src")
-                  ) {
+                  if (cropEditingTarget) {
                     setCropSourceMetrics(null);
                   }
                 }}
               />
             )}
-            {cropEditingImageId && canvasCropAppearance && (
+            {cropEditingTarget && canvasCropAppearance && (
               <div
                 className={styles.canvasCropAppearanceFrame}
                 aria-hidden="true"
@@ -3501,7 +3639,7 @@ export function EditorWorkspace({
                 }}
               />
             )}
-            {cropEditingImageId && selectedDocumentElement?.type === "image" && canvasCropOverlay && (
+            {cropEditingTarget && canvasCropOverlay && (
               <div
                 className={styles.canvasCropSourcePreview}
                 style={{
@@ -3513,7 +3651,7 @@ export function EditorWorkspace({
               >
                 <img
                   className={styles.canvasCropSourceImage}
-                  src={selectedDocumentElement.src}
+                  src={canvasCropOverlay.source}
                   alt=""
                   draggable={false}
                 />
@@ -3553,7 +3691,7 @@ export function EditorWorkspace({
                 )}
               </div>
             )}
-            {canvasResizeOverlay && !cropEditingImageId && (
+            {canvasResizeOverlay && !cropEditingTarget && (
               <div
                 className={styles.canvasResizeOverlay}
                 style={{
@@ -3613,9 +3751,11 @@ export function EditorWorkspace({
                 />
               ))}
             {canvasFocalOverlay &&
-              !cropEditingImageId &&
+              !cropEditingTarget &&
               displayedCanvasFocalPoint &&
-              focalEditingImageId === selectedDocumentElement?.id && (
+              focalEditingTarget &&
+              currentImageMediaTarget &&
+              areImageMediaTargetsEqual(focalEditingTarget, currentImageMediaTarget) && (
                 <button
                   className={styles.canvasFocalMarker}
                   type="button"
@@ -3777,12 +3917,15 @@ export function EditorWorkspace({
                           onPreserveImageProportionChange={
                             setPreserveImageProportion
                           }
-                          focalEditingImageId={focalEditingImageId}
-                          onFocalEditingImageIdChange={setFocalEditingImageId}
-                          cropEditingImageId={cropEditingImageId}
-                          onCropEditingImageIdChange={(id) => {
-                            setCropEditingMode(id);
-                            if (id) setFocalEditingImageId(null);
+                          focalEditing={Boolean(focalEditingTarget && areImageMediaTargetsEqual(focalEditingTarget, currentImageMediaTarget))}
+                          onFocalEditingChange={(editing) => {
+                            setFocalEditingTarget(editing ? currentImageMediaTarget : null);
+                            if (editing) setCropEditingMode(null);
+                          }}
+                          cropEditing={Boolean(cropEditingTarget && areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget))}
+                          onCropEditingChange={(editing) => {
+                            setCropEditingMode(editing ? currentImageMediaTarget : null);
+                            if (editing) setFocalEditingTarget(null);
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
@@ -3798,6 +3941,13 @@ export function EditorWorkspace({
                                 }
                               : null
                           }
+                          galleryItemIndex={galleryItemSelection?.galleryId === selectedDocumentElement.id ? galleryItemSelection.itemIndex : null}
+                          onGalleryItemIndexChange={(index) => {
+                            closeCanvasMediaEditing();
+                            if (selectedDocumentElement.type === "gallery") {
+                              setGalleryItemSelection(index === null ? null : { galleryId: selectedDocumentElement.id, itemIndex: index });
+                            }
+                          }}
                           topicsAuthoringControls={{
                             onAddTopLevelTopic: addTopLevelTopic,
                             onAddChildTopic: addChildTopic,

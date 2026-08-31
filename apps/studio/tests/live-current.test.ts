@@ -163,6 +163,7 @@ describe("live-current activation", () => {
       "controlState",
       "current",
       "fullscreenRequest",
+      "galleryControl",
       "playerState",
       "slideAck",
       "slideCommand",
@@ -207,7 +208,7 @@ describe("live-current activation", () => {
     expect(committed.activationRevision).toBe(5);
   });
 
-  it("end clears current, controlState, playerState, fullscreenRequest, slideCommand and slideAck but preserves activationRevision", async () => {
+  it("end clears current, projection protocol state, and galleryControl but preserves activationRevision", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
@@ -220,6 +221,7 @@ describe("live-current activation", () => {
         controlState: null,
         playerState: null,
         fullscreenRequest: null,
+        galleryControl: null,
         slideCommand: null,
         slideAck: null,
       },
@@ -267,6 +269,7 @@ describe("live-current activation", () => {
       slideCommand: null,
       slideAck: null,
       fullscreenRequest: null,
+      galleryControl: null,
     });
   });
 
@@ -315,6 +318,7 @@ describe("live-current activation", () => {
       slideCommand: null,
       slideAck: null,
       fullscreenRequest: null,
+      galleryControl: null,
     });
   });
 
