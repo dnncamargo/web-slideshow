@@ -2,11 +2,13 @@
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
-import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
+import { PresentationSchema, type LinkedContainerStyle } from "@powershow/document-schema";
+import { createLinkedStylePreviewContainer, CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
+import { paletteColorCssVariableName } from "@powershow/renderer";
 import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
 const repository = { listPalettes: async () => [], listFonts: async () => [] } as never;
+type LinkedStylePatch = { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] };
 const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion: 1, id, title: "P", slides: [{ id: "s", title: "S", elements: [
   { id: "linked", type: "container", hidden: false, linkedStyleId: "gap", children: [] },
   { id: "match-a", type: "container", hidden: false, layout: { children: { gap: 16 } }, children: [] },
@@ -23,9 +25,11 @@ function LocaleSetter({ locale }: { locale: "en" | "pt-BR" }) {
 describe("Linked Styles Resources contract", () => {
   let root: Root | undefined;
   let host: HTMLDivElement;
-  afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); });
+  afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); root = undefined; host = undefined!; });
 
-  async function render(value = makePresentation(), onUpdateLinkedStyle = () => undefined, locale: "en" | "pt-BR" = "en") {
+  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en") {
+    if (root) await act(async () => root?.unmount());
+    host?.remove();
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
     await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} /></StudioI18nProvider>));
   }
@@ -130,6 +134,91 @@ describe("Linked Styles Resources contract", () => {
     expect(update).toHaveBeenLastCalledWith("gap", { layout: { children: { distribution: "space-between" } } });
     await act(async () => { select.value = "packed"; select.dispatchEvent(new Event("change", { bubbles: true })); });
     expect(update).toHaveBeenLastCalledWith("gap", { layout: { children: { distribution: "packed" } } });
+  });
+
+  it("renders the shared Linked Style preview only while expanded", async () => {
+    await render();
+    expect(host.querySelector("[data-linked-style-preview]")).toBeNull();
+    const row = host.querySelector<HTMLElement>("[data-linked-style-id='gap']")!;
+    await act(async () => row.querySelector("button")?.click());
+    expect(host.querySelectorAll("[data-linked-style-preview='gap']")).toHaveLength(1);
+    await act(async () => row.querySelector("button")?.click());
+    expect(host.querySelector("[data-linked-style-preview='gap']")).toBeNull();
+  });
+
+  it("keeps the synthetic preview root linked and delegates layout to the shared renderer", async () => {
+    const preview = createLinkedStylePreviewContainer("gap");
+    expect(preview).toMatchObject({ id: "linked-style-preview-gap", linkedStyleId: "gap", hidden: false, children: expect.any(Array) });
+    expect(preview.layout).toBeUndefined();
+    expect(preview.style).toBeUndefined();
+    expect(preview.effect).toBeUndefined();
+    expect(preview.typography).toBeUndefined();
+
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Layout", layout: { padding: 20, children: { direction: "row", gap: 12 } } }] });
+    await openStyle(value);
+    const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")!;
+    expect(root.dataset.powershowId).toBe("linked-style-preview-gap");
+    expect(root.dataset.powershowType).toBe("container");
+    expect(root.getAttribute("style")).toContain("padding:20px");
+    expect(root.getAttribute("style")).toContain("gap:12px");
+    expect(root.className).toContain("powershow-container");
+    expect(root.querySelectorAll(":scope > .powershow-container")).toHaveLength(3);
+  });
+
+  it("renders Linked Style appearance through the renderer output", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Appearance", style: { background: { color: "#102030", gradient: { type: "linear", stops: [{ color: "#102030", position: 0 }, { color: "#405060", position: 100 }] }, pattern: { image: "linear-gradient(#000, #fff)" } }, border: { width: 1, style: "solid", color: "#fff" }, borderRadius: 8 }, effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000" } } }] });
+    await openStyle(value);
+    const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
+    const root = preview.querySelector<HTMLElement>(".powershow-container")!;
+    expect(preview.querySelector(".powershow-container-background-pattern")).not.toBeNull();
+    expect(root.getAttribute("style")).toContain("border-radius:8px");
+    expect(root.getAttribute("style")).toContain("box-shadow:");
+    expect(root.getAttribute("style")).toContain("opacity:0.5");
+  });
+
+  it("exposes presentation palette variables without resolving palette references locally", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), palette: { colors: [{ id: "accent", name: "Accent", value: "#2563eb" }] }, linkedStyles: [{ id: "gap", name: "Palette", style: { color: { kind: "palette", colorId: "accent" } } }] });
+    await openStyle(value);
+    const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
+    const variable = paletteColorCssVariableName("accent");
+    expect(preview.getAttribute("style")).toContain(`${variable}: #2563eb`);
+    expect(preview.querySelector<HTMLElement>(".powershow-container")?.getAttribute("style")).toContain(`color:var(${variable})`);
+  });
+
+  it("rerenders the preview from the updated Presentation definition", async () => {
+    let value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Live", layout: { padding: 20 } }] });
+    const update = vi.fn((id: string, patch: { layout?: LinkedContainerStyle["layout"] }) => {
+      value = PresentationSchema.parse({ ...value, linkedStyles: value.linkedStyles?.map((style) => style.id === id ? { ...style, ...patch } : style) });
+    });
+    await render(value, update);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")?.getAttribute("style")).toContain("padding:20px");
+    await setInput(host.querySelector<HTMLInputElement>("[data-linked-style-property='padding'] input")!, "40");
+    await render(value, update);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    expect(update).toHaveBeenCalledWith("gap", { layout: { padding: 40 } });
+    expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")?.getAttribute("style")).toContain("padding:40px");
+  });
+
+  it("preserves canonical absolute positioning and Fit data in the preview", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Positioned", layout: { position: "absolute", top: 10, children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
+    await openStyle(value);
+    const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
+    const root = preview.querySelector<HTMLElement>(".powershow-container")!;
+    expect(root.getAttribute("style")).toContain("position:absolute");
+    expect(root.getAttribute("style")).toContain("top:10px");
+    const viewport = preview.querySelector<HTMLElement>("[data-powershow-container-fit='true']")!;
+    expect(viewport.dataset.powershowContainerFitMode).toBe("contain");
+    expect(viewport.dataset.powershowContainerFitSourceWidth).toBe("800");
+    expect(viewport.dataset.powershowContainerFitSourceHeight).toBe("600");
+  });
+
+  it("keeps preview rendering transient and does not mutate the canonical Presentation", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Transient", layout: { padding: 20 } }] });
+    const before = JSON.stringify(value);
+    await openStyle(value);
+    expect(JSON.stringify(value)).toBe(before);
+    expect(JSON.stringify(value)).not.toContain("linked-style-preview");
   });
 
   it("identifies every authored side property and its remove action exactly", async () => {

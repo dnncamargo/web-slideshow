@@ -95,6 +95,23 @@ type FontLoadState =
 
 const PREVIEW_COLOR_LIMIT = 6;
 
+export function createLinkedStylePreviewContainer(linkedStyleId: string): ContainerElement {
+  return {
+    id: `linked-style-preview-${linkedStyleId}`,
+    type: "container",
+    hidden: false,
+    linkedStyleId,
+    children: ["A", "B", "C"].map((label) => ({
+      id: `linked-style-preview-${linkedStyleId}-${label.toLowerCase()}`,
+      type: "container" as const,
+      hidden: false,
+      layout: { width: 28, height: 20 },
+      style: { background: { color: "#334155" }, borderRadius: 3 },
+      children: [],
+    })),
+  };
+}
+
 export function CustomResourcesWorkspace({
   customLibraryRepository,
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
@@ -337,6 +354,13 @@ function LinkedStylesWorkspace({
         <span className={styles.status}>{t(matchingLocations.length === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingLocations.length })}</span>
         {editing ? <div className={styles.linkedStyleEditor}>
           <LinkedStyleNameField style={linkedStyle} onRename={onRename} />
+          <div
+            className={styles.linkedStylePreview}
+            data-linked-style-preview={linkedStyle.id}
+            aria-hidden="true"
+            style={Object.fromEntries((presentation?.palette?.colors ?? []).map((color) => [paletteColorCssVariableName(color.id), color.value]))}
+            dangerouslySetInnerHTML={{ __html: renderElement(createLinkedStylePreviewContainer(linkedStyle.id), presentation ? { presentation } : undefined) }}
+          />
           {(["layout", "position", "size", "spacing", "appearance", "effects"] as const).map((group) => {
             const properties = group === "layout" ? LINKED_STYLE_PROPERTY_GROUPS.layout : group === "position" ? LINKED_STYLE_PROPERTY_GROUPS.position : group === "size" ? LINKED_STYLE_PROPERTY_GROUPS.size : group === "spacing" ? LINKED_STYLE_PROPERTY_GROUPS.spacing : group === "appearance" ? LINKED_STYLE_PROPERTY_GROUPS.appearance : LINKED_STYLE_PROPERTY_GROUPS.effects;
             const visible = properties.filter((property) => hasLinkedStyleProperty(linkedStyle, property));

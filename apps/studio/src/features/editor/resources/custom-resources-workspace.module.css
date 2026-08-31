@@ -46,6 +46,21 @@
   border-left: 1px solid #303847;
 }
 
+.linkedStylePreview {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 94px;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  padding: 8px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #0f141d;
+}
+
 .linkedStyleSection {
   display: flex;
   min-width: 0;
