@@ -1,10 +1,7 @@
-import { useState } from "react";
-
 import type { ContainerElement, Presentation } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
-import { canCreateLinkedStyleFromContainer } from "../../linked-style-authoring";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 
@@ -13,7 +10,6 @@ interface ContainerLinkedStyleSectionProps {
   presentation?: Pick<Presentation, "linkedStyles">;
   onAttach: (linkedStyleId: string) => void;
   onDetach: () => void;
-  onCreate: (name: string) => void;
 }
 
 export function ContainerLinkedStyleSection({
@@ -21,11 +17,8 @@ export function ContainerLinkedStyleSection({
   presentation,
   onAttach,
   onDetach,
-  onCreate,
 }: ContainerLinkedStyleSectionProps) {
   const { t } = useStudioI18n();
-  const [name, setName] = useState("");
-  const canCreate = canCreateLinkedStyleFromContainer(element);
 
   return (
     <InspectorSection title={t("inspector.linkedContainerStyle")} defaultOpen>
@@ -52,30 +45,6 @@ export function ContainerLinkedStyleSection({
         </button>
       ) : null}
 
-      {element.linkedStyleId === undefined ? (
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>{t("inspector.newLinkedContainerStyleName")}</span>
-            <input
-              id="container-linked-style-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className={styles.resourceAction}
-            disabled={!canCreate || !name.trim()}
-            title={canCreate ? undefined : t("inspector.emptyLinkedContainerStyle")}
-            onClick={() => {
-              onCreate(name);
-              setName("");
-            }}
-          >
-            {t("inspector.createLinkedContainerStyle")}
-          </button>
-        </div>
-      ) : null}
     </InspectorSection>
   );
 }

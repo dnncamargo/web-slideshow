@@ -15,21 +15,26 @@ interface ContainerEffectsSectionProps {
   localElement?: ContainerElement;
   presentation?: Pick<Presentation, "linkedStyles">;
   onUpdate: (update: (element: ContainerElement) => ContainerElement) => void;
+  embedded?: boolean;
+  showSourceMeta?: boolean;
+  allowNone?: boolean;
 }
 
-const DEFAULT_SHADOW: Shadow = { x: 0, y: 4, blur: 12, color: "#000000" };
+export function createDefaultShadow(): Shadow {
+  return { x: 0, y: 4, blur: 12, color: "#000000" };
+}
 
-export function ContainerEffectsSection({ element, localElement = element, presentation, onUpdate }: ContainerEffectsSectionProps) {
+export function ContainerEffectsSection({ element, localElement = element, presentation, onUpdate, embedded = false, showSourceMeta = true, allowNone = true }: ContainerEffectsSectionProps) {
   const { t } = useStudioI18n();
   const shadow = element.effect?.shadow;
   const shadowSource = getContainerShareablePropertySource(presentation, localElement, "effect.shadow");
 
   function updateShadow(update: (shadow: Shadow) => Shadow) {
-    onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? shadow ?? DEFAULT_SHADOW) } }));
+    onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? shadow ?? createDefaultShadow()) } }));
   }
 
-  return (
-    <InspectorSection title={t("inspector.effects")}>
+  const content = (
+    <>
       <label className={styles.field}>
         <span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span>
         <select
@@ -46,7 +51,7 @@ export function ContainerEffectsSection({ element, localElement = element, prese
             updateShadow((current) => ({ ...current, inset: event.target.value === "inset" ? true : undefined }));
           }}
         >
-          <option value="none" disabled={shadowSource.linkedValue !== undefined}>{t("inspector.shadow.none")}</option>
+          {allowNone && <option value="none" disabled={shadowSource.linkedValue !== undefined}>{t("inspector.shadow.none")}</option>}
           <option value="outer">{t("inspector.shadow.outer")}</option>
           <option value="inset">{t("inspector.shadow.inset")}</option>
         </select>
@@ -87,7 +92,8 @@ export function ContainerEffectsSection({ element, localElement = element, prese
           </label>
         </>
       )}
-      <ContainerLinkedPropertyMeta source={shadowSource.source} onReset={shadowSource.source === "local" && shadowSource.linkedValue !== undefined ? () => onUpdate((current) => ({ ...current, effect: current.effect === undefined ? undefined : { ...current.effect, shadow: undefined } })) : undefined} />
-    </InspectorSection>
+      {showSourceMeta ? <ContainerLinkedPropertyMeta source={shadowSource.source} onReset={shadowSource.source === "local" && shadowSource.linkedValue !== undefined ? () => onUpdate((current) => ({ ...current, effect: current.effect === undefined ? undefined : { ...current.effect, shadow: undefined } })) : undefined} /> : null}
+    </>
   );
+  return embedded ? content : <InspectorSection title={t("inspector.effects")}>{content}</InspectorSection>;
 }

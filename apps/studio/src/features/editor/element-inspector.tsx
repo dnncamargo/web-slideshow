@@ -46,8 +46,6 @@ interface ElementInspectorProps {
 
   onDetachLinkedStyle?: () => void;
 
-  onCreateLinkedStyle?: (name: string) => void;
-
   preserveImageProportion: boolean;
 
   onPreserveImageProportionChange: (value: boolean) => void;
@@ -91,7 +89,6 @@ function ElementTypeInspector({
   presentation,
   onAttachLinkedStyle = () => {},
   onDetachLinkedStyle = () => {},
-  onCreateLinkedStyle = () => {},
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -115,7 +112,6 @@ function ElementTypeInspector({
           presentation={presentation}
           onAttachLinkedStyle={onAttachLinkedStyle}
           onDetachLinkedStyle={onDetachLinkedStyle}
-          onCreateLinkedStyle={onCreateLinkedStyle}
           parent={parent}
           layerControls={layerControls}
         />
@@ -235,7 +231,6 @@ export function ElementInspector({
   presentation,
   onAttachLinkedStyle,
   onDetachLinkedStyle,
-  onCreateLinkedStyle,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditingImageId,
@@ -282,7 +277,6 @@ export function ElementInspector({
         presentation={presentation}
         onAttachLinkedStyle={onAttachLinkedStyle}
         onDetachLinkedStyle={onDetachLinkedStyle}
-        onCreateLinkedStyle={onCreateLinkedStyle}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditingImageId={focalEditingImageId}

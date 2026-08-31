@@ -35,9 +35,13 @@ type BorderSelection = EnabledBorderStyle | "none";
 
 type BorderPaintSelection = "color" | "gradient";
 
-const DEFAULT_BORDER_COLOR = "#94a3b8";
+export const DEFAULT_BORDER_COLOR = "#94a3b8";
 
-const DEFAULT_BORDER_WIDTH = 1;
+export const DEFAULT_BORDER_WIDTH = 1;
+
+export function createDefaultBorder(): Border {
+  return { width: DEFAULT_BORDER_WIDTH, style: "solid", color: DEFAULT_BORDER_COLOR };
+}
 
 function getBorderSelection(border: Border | undefined): BorderSelection {
   if (border === undefined) {
@@ -119,11 +123,7 @@ export function ElementBorderControl({
 
             onChange(
               border === undefined
-                ? {
-                    width: DEFAULT_BORDER_WIDTH,
-                    style: borderSelection,
-                    color: DEFAULT_BORDER_COLOR,
-                  }
+                ? { ...createDefaultBorder(), style: borderSelection }
                 : { ...border, style: borderSelection },
             );
           }}

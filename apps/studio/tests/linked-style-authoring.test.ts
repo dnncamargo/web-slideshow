@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, resolveLinkedContainerStyle, type Presentation } from "@powershow/document-schema";
 
 import {
   attachLinkedStyle,
@@ -67,14 +67,49 @@ describe("linked container style authoring", () => {
     expect(PresentationSchema.safeParse(result).success).toBe(true);
   });
 
-  it("attaches and switches without removing local overrides", () => {
-    const initial = presentation({ id: "container", type: "container", hidden: false, layout: { children: { gap: 9 } }, style: { color: "#111" }, children: [] }, [
-      { id: "a", name: "A", layout: { children: { gap: 4 } } }, { id: "b", name: "B", style: { color: "#222" } },
+  it("adopts linked ownership for the manual padding and pattern reproduction", () => {
+    const pattern = { image: "radial-gradient(#444 1px, transparent 1px)" };
+    const initial = presentation({ id: "container", type: "container", hidden: false, layout: { padding: 24 }, children: [] }, [
+      { id: "card", name: "Card", layout: { padding: 100 }, style: { background: { pattern } } },
+    ]);
+    const attached = attachLinkedStyle(initial, 0, "container", "card");
+    expect(selected(attached)).not.toHaveProperty("layout.padding");
+    expect(resolveLinkedContainerStyle(attached, selected(attached))).toMatchObject({ layout: { padding: 100 }, style: { background: { pattern } } });
+  });
+
+  it("preserves unrelated local values, including className and zero-like values", () => {
+    const initial = presentation({ id: "container", type: "container", hidden: false, layout: { padding: 0, width: "80%" }, style: { className: "card" }, children: [] }, [
+      { id: "card", name: "Card", layout: { padding: 100 } },
+    ]);
+    const result = attachLinkedStyle(initial, 0, "container", "card");
+    expect(selected(result)).not.toHaveProperty("layout.padding");
+    expect(selected(result)).toMatchObject({ layout: { width: "80%" }, style: { className: "card" } });
+  });
+
+  it("adopts nested properties and atomic values without merging them", () => {
+    const pattern = { image: "linear-gradient(#000, #fff)" };
+    const initial = presentation({ id: "container", type: "container", hidden: false,
+      layout: { children: { gap: 4, direction: "row" } }, style: { background: { pattern: { image: "linear-gradient(#111, #222)" } } }, children: [] }, [
+      { id: "card", name: "Card", layout: { children: { gap: 16 } }, style: { background: { pattern } } },
+    ]);
+    const result = attachLinkedStyle(initial, 0, "container", "card");
+    expect(selected(result)).not.toHaveProperty("layout.children.gap");
+    expect(selected(result)).toMatchObject({ layout: { children: { direction: "row" } } });
+    expect(selected(result)).not.toHaveProperty("style.background.pattern");
+    expect(resolveLinkedContainerStyle(result, selected(result))).toMatchObject({ layout: { children: { gap: 16, direction: "row" } }, style: { background: { pattern } } });
+  });
+
+  it("adopts each switched style while preserving unrelated locals and position validity", () => {
+    const initial = presentation({ id: "container", type: "container", hidden: false, layout: { position: "absolute", top: 20, left: 30, width: "80%" }, style: { color: "#111" }, children: [] }, [
+      { id: "a", name: "A", layout: { position: "absolute", top: 10 }, style: { color: "#222" } },
+      { id: "b", name: "B", layout: { position: "absolute", top: 40 }, style: { borderRadius: 8 } },
     ]);
     const attached = attachLinkedStyle(initial, 0, "container", "a");
+    expect(selected(attached).layout).toEqual({ position: "absolute", left: 30, width: "80%" });
     const switched = attachLinkedStyle(attached, 0, "container", "b");
-    expect(selected(switched)).toMatchObject({ linkedStyleId: "b", layout: { children: { gap: 9 } }, style: { color: "#111111" } });
-    expect(switched.linkedStyles).toEqual(initial.linkedStyles);
+    expect(selected(switched).layout).toEqual({ position: "absolute", left: 30, width: "80%" });
+    expect(selected(switched)).not.toHaveProperty("style.color");
+    expect(PresentationSchema.safeParse(switched).success).toBe(true);
   });
 
   it("detaches by materializing authored linked and local values while preserving palette refs and className", () => {

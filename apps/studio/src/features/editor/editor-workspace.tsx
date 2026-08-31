@@ -150,13 +150,13 @@ import { PickedColorsProvider } from "./inspector/sections/picked-colors-provide
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 import {
   attachLinkedStyle,
-  createLinkedStyleFromContainer,
   detachLinkedStyle,
   updateLinkedStyle,
   renameLinkedStyle,
   removeUnusedLinkedStyle,
 } from "./linked-style-authoring";
 import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
+import { createLinkedStyleWithProperty, type LinkedStyleAuthorableProperty } from "./linked-style-property-authoring";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -2077,16 +2077,6 @@ export function EditorWorkspace({
     ));
   }
 
-  function createLinkedStyleFromSelectedContainer(name: string): void {
-    if (selectedDocumentElement?.type !== "container") return;
-    setPresentation((current) => createLinkedStyleFromContainer(
-      current,
-      selectedSlideIndex,
-      selectedDocumentElement.id,
-      name,
-    ));
-  }
-
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
@@ -2309,6 +2299,9 @@ export function EditorWorkspace({
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
+  function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
+    setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
+  }
   function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
   function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
   function attachLinkedStyleMatches(id: string): void {
@@ -3682,9 +3675,8 @@ export function EditorWorkspace({
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
-             selectedContainer={selectedDocumentElement?.type === "container" ? selectedDocumentElement : null}
-             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedContainer}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
@@ -3796,7 +3788,6 @@ export function EditorWorkspace({
                           presentation={presentation}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
-                          onCreateLinkedStyle={createLinkedStyleFromSelectedContainer}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition
