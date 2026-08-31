@@ -147,22 +147,40 @@ describe("Linked Styles Resources contract", () => {
   });
 
   it("keeps the synthetic preview root linked and delegates layout to the shared renderer", async () => {
-    const preview = createLinkedStylePreviewContainer("gap");
-    expect(preview).toMatchObject({ id: "linked-style-preview-gap", linkedStyleId: "gap", hidden: false, children: expect.any(Array) });
-    expect(preview.layout).toBeUndefined();
-    expect(preview.style).toBeUndefined();
-    expect(preview.effect).toBeUndefined();
-    expect(preview.typography).toBeUndefined();
+    const fixture = createLinkedStylePreviewContainer("gap");
+    expect(fixture).toMatchObject({ id: "linked-style-preview-gap", linkedStyleId: "gap", hidden: false, children: expect.any(Array) });
+    expect(fixture.layout).toBeUndefined();
+    expect(fixture.style).toBeUndefined();
+    expect(fixture.effect).toBeUndefined();
+    expect(fixture.typography).toBeUndefined();
+    expect(fixture.children).toHaveLength(3);
+    expect(fixture.children.map((child) => child.type)).toEqual(["container", "container", "container"]);
+    expect(fixture.children.map((child) => child.type === "container" ? child.children[0] : undefined)).toMatchObject([
+      { type: "text", content: "A", styleDetached: true },
+      { type: "text", content: "B", styleDetached: true },
+      { type: "text", content: "C", styleDetached: true },
+    ]);
 
     const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Layout", layout: { padding: 20, children: { direction: "row", gap: 12 } } }] });
     await openStyle(value);
+    const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
     const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")!;
+    expect(preview.className).toContain("linkedStylePreview");
     expect(root.dataset.powershowId).toBe("linked-style-preview-gap");
     expect(root.dataset.powershowType).toBe("container");
     expect(root.getAttribute("style")).toContain("padding:20px");
     expect(root.getAttribute("style")).toContain("gap:12px");
     expect(root.className).toContain("powershow-container");
     expect(root.querySelectorAll(":scope > .powershow-container")).toHaveLength(3);
+  });
+
+  it("keeps preview text capable of inheriting the Linked Style color", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Color", style: { color: "#ff0000" } }] });
+    await openStyle(value);
+    const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")!;
+    expect(root.getAttribute("style")).toContain("color:#ff0000");
+    expect(Array.from(root.querySelectorAll(".powershow-text")).map((text) => text.textContent)).toEqual(["A", "B", "C"]);
+    expect(Array.from(root.querySelectorAll(".powershow-text")).every((text) => !text.getAttribute("style")?.includes("color:"))).toBe(true);
   });
 
   it("renders Linked Style appearance through the renderer output", async () => {

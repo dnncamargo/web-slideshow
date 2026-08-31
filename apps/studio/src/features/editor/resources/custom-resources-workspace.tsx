@@ -107,7 +107,14 @@ export function createLinkedStylePreviewContainer(linkedStyleId: string): Contai
       hidden: false,
       layout: { width: 28, height: 20 },
       style: { background: { color: "#334155" }, borderRadius: 3 },
-      children: [],
+      children: [{
+        id: `linked-style-preview-${linkedStyleId}-${label.toLowerCase()}-text`,
+        type: "text" as const,
+        hidden: false,
+        variant: "body",
+        styleDetached: true as const,
+        content: label,
+      }],
     })),
   };
 }
