@@ -295,6 +295,29 @@ function imageMediaTargetKey(target: ImageMediaAuthoringTarget): string {
     : `gallery-item:${target.galleryId}:${target.itemIndex}`;
 }
 
+function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
+  return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
+    .find((candidate) => candidate.dataset.powershowId === id) ?? null;
+}
+
+function findCanvasGalleryItem(
+  canvas: HTMLElement,
+  galleryId: string,
+  itemIndex: number,
+): HTMLElement | null {
+  const gallery = Array.from(
+    canvas.querySelectorAll<HTMLElement>("[data-powershow-id][data-powershow-type]"),
+  ).find(
+    (candidate) =>
+      candidate.dataset.powershowType === "gallery" &&
+      candidate.dataset.powershowId === galleryId,
+  );
+  if (!gallery) return null;
+  return Array.from(
+    gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]"),
+  ).find((candidate) => Number(candidate.dataset.powershowGalleryIndex) === itemIndex) ?? null;
+}
+
 interface PendingElementDeletion {
   elementId: string;
   elementType: PowerShowElement["type"];
@@ -596,6 +619,19 @@ export function EditorWorkspace({
       setCanvasCropPreview(null);
     }
     setCropEditingTarget(target);
+  }
+
+  function closeCanvasMediaEditing() {
+    canvasCropDragRef.current = null;
+    canvasFocalDragRef.current = null;
+    setCanvasCropPreview(null);
+    setCanvasFocalPreview(null);
+    setCanvasCropOverlay(null);
+    setCanvasFocalOverlay(null);
+    setCanvasCropAppearance(null);
+    setCropSourceMetrics(null);
+    setCropEditingTarget(null);
+    setFocalEditingTarget(null);
   }
 
   // ==========================================================
@@ -1013,8 +1049,8 @@ export function EditorWorkspace({
     const canvas = slideCanvasRef.current;
     const target = canvas
       ? focalEditingTarget.kind === "image"
-        ? canvas.querySelector<HTMLElement>(`[data-powershow-id="${focalEditingTarget.elementId}"]`)
-        : canvas.querySelector<HTMLElement>(`[data-powershow-type="gallery"][data-powershow-id="${focalEditingTarget.galleryId}"] [data-powershow-gallery-index="${focalEditingTarget.itemIndex}"]`)
+        ? findCanvasElementById(canvas, focalEditingTarget.elementId)
+        : findCanvasGalleryItem(canvas, focalEditingTarget.galleryId, focalEditingTarget.itemIndex)
       : null;
 
     if (!target) {
@@ -1052,8 +1088,8 @@ export function EditorWorkspace({
     const canvas = slideCanvasRef.current;
     const target = canvas
       ? cropEditingTarget.kind === "image"
-        ? canvas.querySelector<HTMLElement>(`[data-powershow-id="${cropEditingTarget.elementId}"]`)
-        : canvas.querySelector<HTMLElement>(`[data-powershow-type="gallery"][data-powershow-id="${cropEditingTarget.galleryId}"] [data-powershow-gallery-index="${cropEditingTarget.itemIndex}"]`)
+        ? findCanvasElementById(canvas, cropEditingTarget.elementId)
+        : findCanvasGalleryItem(canvas, cropEditingTarget.galleryId, cropEditingTarget.itemIndex)
       : null;
     const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${media.src}`;
     const preview = cropSourceMetrics?.key === sourceKey && target
@@ -1066,7 +1102,8 @@ export function EditorWorkspace({
 
     if (target) {
       const appearanceTarget = cropEditingTarget.kind === "gallery-item"
-        ? canvas?.querySelector<HTMLElement>(`[data-powershow-type="gallery"][data-powershow-id="${cropEditingTarget.galleryId}"]`)
+        ? Array.from(canvas?.querySelectorAll<HTMLElement>("[data-powershow-id][data-powershow-type]") ?? [])
+            .find((candidate) => candidate.dataset.powershowType === "gallery" && candidate.dataset.powershowId === cropEditingTarget.galleryId) ?? null
         : target;
       if (!appearanceTarget) {
         setCanvasCropAppearance(null);
@@ -3905,7 +3942,12 @@ export function EditorWorkspace({
                               : null
                           }
                           galleryItemIndex={galleryItemSelection?.galleryId === selectedDocumentElement.id ? galleryItemSelection.itemIndex : null}
-                          onGalleryItemIndexChange={(index) => setGalleryItemSelection(index === null ? null : { galleryId: selectedDocumentElement.id, itemIndex: index })}
+                          onGalleryItemIndexChange={(index) => {
+                            closeCanvasMediaEditing();
+                            if (selectedDocumentElement.type === "gallery") {
+                              setGalleryItemSelection(index === null ? null : { galleryId: selectedDocumentElement.id, itemIndex: index });
+                            }
+                          }}
                           topicsAuthoringControls={{
                             onAddTopLevelTopic: addTopLevelTopic,
                             onAddChildTopic: addChildTopic,

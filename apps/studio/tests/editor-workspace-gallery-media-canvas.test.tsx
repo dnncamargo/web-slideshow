@@ -147,6 +147,19 @@ describe("EditorWorkspace Gallery media canvas editing", () => {
     expect(container.innerHTML).not.toMatch(/cropEditingTarget|focalEditingTarget|galleryItemIndex/);
   });
 
+  it("closes Crop when removing the selected item lets the next item inherit its index", async () => {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => canvasButton().click());
+    expect(container.querySelector("[class*='canvasCropSourceLoader']")).not.toBeNull();
+    const remove = container.querySelector<HTMLButtonElement>("[data-powershow-gallery-remove]");
+    if (!remove) throw new Error("Gallery remove button was not rendered");
+    await act(async () => remove.click());
+    expect(container.querySelector("[class*='canvasCropSourceLoader']")).toBeNull();
+    expect(container.querySelector<HTMLTextAreaElement>("#gallery-gallery-1-item-0-src")?.value).toBe("/two.png");
+    expect(container.querySelector<HTMLInputElement>("#gallery-gallery-1-item-0-crop-width")?.value).toBe("50");
+  });
+
   it("keeps Crop and Focal mutually exclusive and Escape closes Gallery mode", async () => {
     await mount();
     await act(async () => focalCanvasButton().click());
