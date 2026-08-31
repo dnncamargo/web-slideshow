@@ -216,12 +216,29 @@ describe("GalleryInspector", () => {
     expect(fitSelect().value).toBe("contain");
   });
 
-  it("displays all items in canonical order", async () => {
+  it("displays Image children in canonical order with the selected child pressed", async () => {
     await act(async () => {
       mount(galleryElement());
     });
     const rows = container.querySelectorAll("[data-powershow-gallery-select]");
     expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toBe("Image 1");
+    expect(rows[1]?.textContent).toBe("Image 2");
+    expect(rows[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(rows[1]?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("selects another Image child", async () => {
+    await act(async () => mount(galleryElement({ items: [...DEFAULT_ITEMS, { src: "/three.png", alt: "Three" }] })));
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]')?.click();
+    });
+
+    const selected = container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]');
+    expect(selected?.textContent).toBe("Image 3");
+    expect(selected?.getAttribute("aria-pressed")).toBe("true");
+    expect(itemSrc("#gallery-gallery-1-item-2-src").value).toBe("/three.png");
   });
 
   it("renders item source", async () => {
@@ -341,6 +358,15 @@ describe("GalleryInspector", () => {
       src: "/powershow-demo.svg",
       alt: "New image",
     });
+    expect(selectedItemIndex).toBe(2);
+  });
+
+  it("places Gallery structural actions before the selected item source field", async () => {
+    await act(async () => mount(galleryElement()));
+
+    const structuralActions = container.querySelector("[data-powershow-gallery-add]")?.parentElement;
+    const source = itemSrc("#gallery-gallery-1-item-0-src");
+    expect(structuralActions?.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("remove image removes the targeted item", async () => {
@@ -352,6 +378,7 @@ describe("GalleryInspector", () => {
     });
     expect(updates[0]?.items).toHaveLength(1);
     expect(updates[0]?.items[0]?.src).toBe("/two.png");
+    expect(selectedItemIndex).toBe(0);
   });
 
   it("removal can produce an empty items array", async () => {
@@ -382,6 +409,7 @@ describe("GalleryInspector", () => {
       "/two.png",
       "/one.png",
     ]);
+    expect(selectedItemIndex).toBe(0);
   });
 
   it("move down changes canonical order correctly", async () => {
@@ -395,6 +423,7 @@ describe("GalleryInspector", () => {
       "/two.png",
       "/one.png",
     ]);
+    expect(selectedItemIndex).toBe(1);
   });
 
   it("first move up is disabled", async () => {
@@ -408,7 +437,10 @@ describe("GalleryInspector", () => {
     await act(async () => {
       mount(galleryElement());
     });
-    expect(moveDownButtons()[0]?.disabled).toBe(false);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="1"]')?.click();
+    });
+    expect(moveDownButtons()[0]?.disabled).toBe(true);
   });
 
   it("item updates never introduce an id", async () => {

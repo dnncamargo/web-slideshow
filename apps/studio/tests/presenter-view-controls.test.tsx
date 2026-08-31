@@ -251,6 +251,7 @@ describe("PresenterView controls", () => {
     expect(buttons.slice(0, 2).every((button) => button.disabled)).toBe(true);
     expect(buttons[2]?.disabled).toBe(true);
     expect(buttons[3]?.disabled).toBe(false);
+    expect(container.querySelectorAll('[data-gallery-controls] > div')).toHaveLength(2);
 
     act(() => buttons[3]?.click());
     expect(result.setGalleryExpanded).toHaveBeenCalledWith("second", true);
