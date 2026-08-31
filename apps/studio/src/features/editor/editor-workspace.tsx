@@ -156,6 +156,7 @@ import {
   removeUnusedLinkedStyle,
 } from "./linked-style-authoring";
 import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
+import { createLinkedStyleWithProperty, type LinkedStyleAuthorableProperty } from "./linked-style-property-authoring";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -2298,6 +2299,9 @@ export function EditorWorkspace({
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
+  function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
+    setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
+  }
   function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
   function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
   function attachLinkedStyleMatches(id: string): void {
@@ -3672,6 +3676,7 @@ export function EditorWorkspace({
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}

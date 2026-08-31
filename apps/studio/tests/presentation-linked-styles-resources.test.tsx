@@ -53,7 +53,7 @@ describe("Linked Styles Resources contract", () => {
     expect(row?.textContent).toContain("Matching 2 elements");
     await act(async () => row?.querySelector("button")?.click());
     expect(row?.textContent).toContain("Attach 2 matching elements");
-    expect(row?.textContent).toContain("Slide 1 · S · linked");
+    expect(row?.textContent).toContain("Slide 1 · linked");
   });
 
   it("organizes the expanded definition editor into semantic static groups", async () => {
@@ -64,20 +64,21 @@ describe("Linked Styles Resources contract", () => {
     const row = host.querySelector<HTMLElement>("[data-linked-style-id='card']");
     await act(async () => row?.querySelector("button")?.click());
     const sections = Array.from(host.querySelectorAll<HTMLElement>("[data-linked-style-section]"));
-    expect(sections.map((section) => section.dataset.linkedStyleSection)).toEqual(["layout", "position", "size", "spacing", "appearance", "effects", "reuse"]);
+    expect(sections.map((section) => section.dataset.linkedStyleSection)).toEqual(["layout", "spacing", "appearance", "effects", "reuse"]);
     expect(sections[0]?.textContent).toContain("Gap");
-    expect(sections[3]?.textContent).toContain("padding");
-    expect(sections[4]?.textContent).toContain("Pattern");
-    expect(sections[4]?.textContent).toContain("Rounded corners");
-    expect(sections[5]?.textContent).toContain("Opacity");
-    expect(sections[5]?.textContent).toContain("Shadow");
-    expect(sections[5]?.querySelector("details")).toBeNull();
-    expect(sections[5]?.textContent).not.toContain("Local override");
-    expect(sections[6]?.textContent).toContain("Changes affect");
+    expect(sections[1]?.textContent).toContain("Padding");
+    expect(sections[2]?.textContent).toContain("Pattern");
+    expect(sections[2]?.textContent).toContain("Rounded corners");
+    expect(sections[3]?.textContent).toContain("Opacity");
+    expect(sections[3]?.textContent).toContain("Shadow");
+    expect(sections[3]?.querySelector("details")).toBeNull();
+    expect(sections[3]?.textContent).not.toContain("Local override");
+    expect(sections[4]?.textContent).toContain("Changes affect");
     expect(sections.every((section) => section.tagName.toLowerCase() !== "details")).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#linked-style-card-border-radius")?.value).toBe("8");
     expect(sections[0]?.querySelector<HTMLInputElement>("input[type='number']")?.value).toBe("16");
     expect(host.textContent).not.toContain("Create from selected Container");
+    expect(host.querySelector("[data-linked-style-section='typography']")).toBeNull();
   });
 
   it("shows legacy typography as compatibility-only and removes it through the update boundary", async () => {
