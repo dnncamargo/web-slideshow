@@ -130,6 +130,15 @@ export const ImageCropSchema = z
 
 export type ImageCrop = z.infer<typeof ImageCropSchema>;
 
+export const ImageFocalPointSchema = z
+  .object({
+    x: z.number().min(0).max(100),
+    y: z.number().min(0).max(100),
+  })
+  .strict();
+
+export type ImageFocalPoint = z.infer<typeof ImageFocalPointSchema>;
+
 export const ImageElementSchema = z.object({
     id: ElementIdSchema,
     type: z.literal("image"),
@@ -152,12 +161,7 @@ export const ImageElementSchema = z.object({
       "fill",
     ]).default("contain"),
 
-    focalPoint: z
-      .object({
-        x: z.number().min(0).max(100),
-        y: z.number().min(0).max(100),
-      })
-      .optional(),
+    focalPoint: ImageFocalPointSchema.optional(),
 
     crop: ImageCropSchema.optional(),
 
@@ -169,7 +173,10 @@ export type ImageElement = z.infer<typeof ImageElementSchema>;
 export const GalleryItemSchema = z.object({
   src: z.string().min(1),
   alt: z.string().default(""),
-});
+  fit: z.enum(["contain", "cover", "fill"]).optional(),
+  focalPoint: ImageFocalPointSchema.optional(),
+  crop: ImageCropSchema.optional(),
+}).strict();
 
 export type GalleryItem =
   z.infer<typeof GalleryItemSchema>;

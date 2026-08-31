@@ -56,7 +56,14 @@ export function renderCanonicalImageMediaStyle(element: ImageElement): string {
   return output.join(";");
 }
 
-export function renderCanonicalImageCropMetadata(element: ImageElement): string {
+type ImageCropMetadataInput = Pick<
+  ImageElement,
+  "crop" | "fit" | "focalPoint" | "layout"
+>;
+
+export function renderCanonicalImageCropMetadata(
+  element: ImageCropMetadataInput,
+): string {
   if (!element.crop) return "";
 
   return [

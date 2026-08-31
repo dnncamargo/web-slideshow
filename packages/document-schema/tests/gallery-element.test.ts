@@ -59,6 +59,15 @@ describe("Gallery element schema", () => {
     }
   });
 
+  it("keeps current Gallery documents with root cover fit valid", () => {
+    const result = GalleryElementSchema.safeParse(gallery({ fit: "cover" }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.fit).toBe("cover");
+      expect(result.data.items[0]).toEqual({ src: "/first.png", alt: "First" });
+    }
+  });
+
   it("defaults item alt to an empty string", () => {
     const result = GalleryElementSchema.safeParse(
       gallery({ items: [{ src: "/only.png" }] }),
