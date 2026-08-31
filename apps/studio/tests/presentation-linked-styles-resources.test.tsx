@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema } from "@powershow/document-schema";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
-import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
 const repository = { listPalettes: async () => [], listFonts: async () => [] } as never;
 const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion: 1, id, title: "P", slides: [{ id: "s", title: "S", elements: [
@@ -14,14 +14,20 @@ const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion:
   { id: "mismatch", type: "container", hidden: false, layout: { children: { gap: 12 } }, children: [] },
 ] }, { id: "s2", title: "Second", elements: [] }], linkedStyles: [{ id: "gap", name: "Gap", layout: { children: { gap: 16 } } }] });
 
+function LocaleSetter({ locale }: { locale: "en" | "pt-BR" }) {
+  const { setLocale } = useStudioI18n();
+  useEffect(() => setLocale(locale), [locale, setLocale]);
+  return null;
+}
+
 describe("Linked Styles Resources contract", () => {
   let root: Root | undefined;
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); });
 
-  async function render(value = makePresentation(), onUpdateLinkedStyle = () => undefined) {
+  async function render(value = makePresentation(), onUpdateLinkedStyle = () => undefined, locale: "en" | "pt-BR" = "en") {
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-    await act(async () => root?.render(<StudioI18nProvider><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} /></StudioI18nProvider>));
   }
 
   async function openStyle(value: ReturnType<typeof makePresentation>, onUpdate = vi.fn()) {
@@ -124,6 +130,39 @@ describe("Linked Styles Resources contract", () => {
     expect(update).toHaveBeenLastCalledWith("gap", { layout: { children: { distribution: "space-between" } } });
     await act(async () => { select.value = "packed"; select.dispatchEvent(new Event("change", { bubbles: true })); });
     expect(update).toHaveBeenLastCalledWith("gap", { layout: { children: { distribution: "packed" } } });
+  });
+
+  it("identifies every authored side property and its remove action exactly", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Sides", layout: { padding: 1, paddingTop: 2, paddingRight: 3, margin: 4, marginBottom: 5 } }] });
+    await openStyle(value);
+    expect(Array.from(host.querySelectorAll<HTMLElement>("[data-linked-style-property]" )).map((row) => row.dataset.linkedStyleProperty)).toEqual(["padding", "paddingTop", "paddingRight", "margin", "marginBottom"]);
+    expect(host.querySelector("[data-linked-style-property='paddingTop']")?.textContent).toContain("Padding top");
+    expect(host.querySelector("[data-linked-style-property='marginBottom']")?.querySelector("button")?.getAttribute("aria-label")).toBe("Remove Margin bottom");
+  });
+
+  it("localizes property labels and enum options in pt-BR", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Português", layout: { overflow: "visible", children: { mode: "flow", distribution: "packed" } } }] });
+    await render(value, () => undefined, "pt-BR");
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    const layout = host.querySelector("[data-linked-style-section='layout']")!;
+    expect(layout.textContent).toContain("Modo de layout");
+    expect(layout.querySelector("select")?.options[0]?.textContent).toBe("Fluxo");
+    expect(layout.textContent).toContain("Distribuição");
+    expect(Array.from(layout.querySelectorAll("option")).some((option) => option.textContent === "Agrupado")).toBe(true);
+    expect(Array.from(layout.querySelectorAll("option")).some((option) => option.textContent === "Visível")).toBe(true);
+  });
+
+  it("keeps composite property rows valid and independently removable", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Composite", style: { color: "#fff", background: { color: "#000", gradient: { type: "linear", angle: 0, stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] }, pattern: { image: "linear-gradient(#000, #fff)" } }, border: { width: 1, style: "solid", color: "#fff" } }, effect: { shadow: { x: 0, y: 2, blur: 4, color: "#000" } } }] });
+    await openStyle(value);
+    const editor = host.querySelector("[data-linked-style-id='gap']")!;
+    for (const label of editor.querySelectorAll("label")) expect(label.querySelector("label")).toBeNull();
+    for (const property of ["color", "gradient", "pattern", "border", "shadow"]) {
+      const row = editor.querySelector(`[data-linked-style-property='${property}']`);
+      expect(row).not.toBeNull();
+      expect(row?.querySelector("button")).not.toBeNull();
+    }
+    expect(editor.querySelector("[data-linked-style-property='gradient'] select")?.textContent).not.toContain("None");
   });
 
   it("shows legacy typography as compatibility-only and removes it through the update boundary", async () => {
