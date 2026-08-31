@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ContentSlot,
   ImageElement,
+  GalleryElement,
   PowerShowElement,
   Slide,
   TableElement,
@@ -47,6 +48,19 @@ function table(id: string): TableElement {
     hidden: false,
     columns: [{ key: "value", label: "Value" }],
     rows: [{ value: id }],
+  };
+}
+
+function galleryElement(id: string, itemCount: number): GalleryElement {
+  return {
+    type: "gallery",
+    id,
+    hidden: false,
+    fit: "contain",
+    items: Array.from({ length: itemCount }, (_, index) => ({
+      src: `/assets/${index}.png`,
+      alt: `Image ${index + 1}`,
+    })),
   };
 }
 
@@ -248,6 +262,7 @@ describe("ElementTreePanel", () => {
     options: {
       selectedElementId?: string | null;
       selectedContentSlotId?: string | null;
+      selectedGalleryItemIndex?: number | null;
       onSelectElement?: ReturnType<typeof vi.fn>;
       onMoveElement?: ReturnType<typeof vi.fn>;
     } = {},
@@ -262,6 +277,7 @@ describe("ElementTreePanel", () => {
             slide={slide}
             selectedElementId={options.selectedElementId ?? null}
             selectedContentSlotId={options.selectedContentSlotId ?? null}
+            selectedGalleryItemIndex={options.selectedGalleryItemIndex ?? null}
             onSelectElement={onSelectElement}
             onMoveElement={onMoveElement}
             onBrowseElementStyles={vi.fn()}
@@ -324,6 +340,74 @@ describe("ElementTreePanel", () => {
       "B.1",
       "B.2",
     ]);
+  });
+
+  it("renders initially expanded synthetic Gallery Image rows in canonical order", () => {
+    const galleryId = "gallery / legal: id";
+    const slide: Slide = {
+      id: "slide-gallery",
+      title: "Gallery",
+      summary: "",
+      speakerNotes: "",
+      elements: [galleryElement(galleryId, 3)],
+    };
+
+    renderPanel(slide);
+
+    expect(treeItems(container).map(treeItemLabel)).toEqual([
+      "Gallery",
+      "Image 1",
+      "Image 2",
+      "Image 3",
+    ]);
+  });
+
+  it("selects a Gallery Image as a synthetic, non-draggable child row", () => {
+    const galleryId = "gallery / legal: id";
+    const slide: Slide = {
+      id: "slide-gallery",
+      title: "Gallery",
+      summary: "",
+      speakerNotes: "",
+      elements: [galleryElement(galleryId, 3)],
+    };
+    const { onSelectElement } = renderPanel(slide, {
+      selectedElementId: galleryId,
+      selectedGalleryItemIndex: 1,
+    });
+
+    const gallery = findTreeItem(container, "Gallery");
+    const image1 = findTreeItem(container, "Image 1");
+    const image2 = findTreeItem(container, "Image 2");
+    const image3 = findTreeItem(container, "Image 3");
+
+    expect(gallery.getAttribute("aria-selected")).toBe("false");
+    expect(image1.getAttribute("aria-selected")).toBe("false");
+    expect(image2.getAttribute("aria-selected")).toBe("true");
+    expect(image3.getAttribute("aria-selected")).toBe("false");
+    expect(image2.querySelector(':scope > div')?.getAttribute("draggable")).toBeNull();
+
+    clickRow(image2);
+
+    expect(onSelectElement).toHaveBeenCalledWith({
+      id: galleryId,
+      type: "gallery",
+      galleryItemIndex: 1,
+    });
+  });
+
+  it("does not render synthetic Gallery Image rows for an empty Gallery", () => {
+    const slide: Slide = {
+      id: "slide-gallery-empty",
+      title: "Gallery",
+      summary: "",
+      speakerNotes: "",
+      elements: [galleryElement("gallery-empty", 0)],
+    };
+
+    renderPanel(slide);
+
+    expect(treeItems(container).map(treeItemLabel)).toEqual(["Gallery"]);
   });
 
   it("renders recursive Content groups for structural subtopics", () => {

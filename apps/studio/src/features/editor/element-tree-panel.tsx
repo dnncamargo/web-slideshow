@@ -35,6 +35,7 @@ interface ElementTreePanelProps {
   slide: Slide;
   selectedElementId: string | null;
   selectedContentSlotId: string | null;
+  selectedGalleryItemIndex?: number | null;
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
   customLibraryRepository?: CustomLibraryRepository;
@@ -47,6 +48,7 @@ interface ElementTreeSelection {
   id: string;
   type: string;
   contentSlotId?: string | null;
+  galleryItemIndex?: number | null;
 }
 
 interface ElementTreeNodeProps {
@@ -57,6 +59,7 @@ interface ElementTreeNodeProps {
   selectedElementId: string | null;
   onToggle: (id: string) => void;
   onSelectElement: (selection: ElementTreeSelection) => void;
+  selectedGalleryItemIndex: number | null;
   dropTarget: { id: string; intent: TreeDropIntent } | null;
   onDragStart: (
     element: PowerShowElement,
@@ -71,6 +74,13 @@ interface ElementTreeNodeProps {
   selectedContentSlotId: string | null;
 }
 
+interface GalleryItemTreeNodeProps {
+  galleryId: string;
+  itemIndex: number;
+  selected: boolean;
+  onSelectElement: (selection: ElementTreeSelection) => void;
+}
+
 interface TopicItemTreeNodeProps {
   item: TopicItem;
   owningTopicsId: string;
@@ -79,6 +89,7 @@ interface TopicItemTreeNodeProps {
   expandedIds: ReadonlySet<string>;
   selectedElementId: string | null;
   selectedContentSlotId: string | null;
+  selectedGalleryItemIndex: number | null;
   dropTarget: { id: string; intent: TreeDropIntent } | null;
   onToggle: (id: string) => void;
   onSelectElement: (selection: ElementTreeSelection) => void;
@@ -175,7 +186,11 @@ function collectInitiallyExpandedIds(
   ids: Set<string>,
 ): void {
   for (const element of elements) {
-    if (element.type === "container" || element.type === "topics") {
+    if (
+      element.type === "container" ||
+      element.type === "topics" ||
+      (element.type === "gallery" && element.items.length > 0)
+    ) {
       ids.add(element.id);
     }
 
@@ -198,6 +213,7 @@ function ElementTreeNode({
   selectedElementId,
   onToggle,
   onSelectElement,
+  selectedGalleryItemIndex,
   dropTarget,
   onDragStart,
   onDragOver,
@@ -207,13 +223,17 @@ function ElementTreeNode({
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
   const isExpandable =
-    element.type === "container" || element.type === "topics";
+    element.type === "container" ||
+    element.type === "topics" ||
+    (element.type === "gallery" && element.items.length > 0);
   const expanded = isExpandable && expandedIds.has(element.id);
   const treeChildren = getElementTreeChildren(element);
   const selected =
     element.type === "topics"
       ? selectedElementId === element.id && selectedContentSlotId === null
-      : selectedElementId === element.id;
+      : element.type === "gallery"
+        ? selectedElementId === element.id && selectedGalleryItemIndex === null
+        : selectedElementId === element.id;
   const indicator =
     isExpandable && element.type === "container"
       ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
@@ -309,6 +329,7 @@ function ElementTreeNode({
                 expandedIds={expandedIds}
                 selectedElementId={selectedElementId}
                 selectedContentSlotId={selectedContentSlotId}
+                selectedGalleryItemIndex={selectedGalleryItemIndex}
                 onToggle={onToggle}
                 onSelectElement={onSelectElement}
                 dropTarget={dropTarget}
@@ -329,6 +350,7 @@ function ElementTreeNode({
                 expandedIds={expandedIds}
                 selectedElementId={selectedElementId}
                 selectedContentSlotId={selectedContentSlotId}
+                selectedGalleryItemIndex={selectedGalleryItemIndex}
                 dropTarget={dropTarget}
                 onToggle={onToggle}
                 onSelectElement={onSelectElement}
@@ -338,8 +360,61 @@ function ElementTreeNode({
                 onDragEnd={onDragEnd}
               />
             ))}
+          {element.type === "gallery" &&
+            element.items.map((_, itemIndex) => (
+              <GalleryItemTreeNode
+                key={`${element.id}-${itemIndex}`}
+                galleryId={element.id}
+                itemIndex={itemIndex}
+                selected={
+                  selectedElementId === element.id &&
+                  selectedGalleryItemIndex === itemIndex
+                }
+                onSelectElement={onSelectElement}
+              />
+            ))}
         </ul>
       )}
+    </li>
+  );
+}
+
+function GalleryItemTreeNode({
+  galleryId,
+  itemIndex,
+  selected,
+  onSelectElement,
+}: GalleryItemTreeNodeProps) {
+  const { t } = useStudioI18n();
+
+  return (
+    <li
+      className={styles.elementTreeNode}
+      role="treeitem"
+      aria-selected={selected}
+    >
+      <div
+        className={
+          selected
+            ? `${styles.elementTreeRow} ${styles.elementTreeSelected}`
+            : styles.elementTreeRow
+        }
+      >
+        <span className={styles.elementTreeExpand} aria-hidden="true" />
+        <button
+          className={styles.elementTreeSelect}
+          type="button"
+          onClick={() =>
+            onSelectElement({
+              id: galleryId,
+              type: "gallery",
+              galleryItemIndex: itemIndex,
+            })
+          }
+        >
+          {`${t("element.image")} ${itemIndex + 1}`}
+        </button>
+      </div>
     </li>
   );
 }
@@ -355,6 +430,7 @@ function TopicItemTreeNode({
   dropTarget,
   onToggle,
   onSelectElement,
+  selectedGalleryItemIndex,
   onDragStart,
   onDragOver,
   onDrop,
@@ -449,6 +525,7 @@ function TopicItemTreeNode({
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
               selectedContentSlotId={selectedContentSlotId}
+              selectedGalleryItemIndex={selectedGalleryItemIndex}
               dropTarget={dropTarget}
               onToggle={onToggle}
               onSelectElement={onSelectElement}
@@ -468,6 +545,7 @@ export function ElementTreePanel({
   slide,
   selectedElementId,
   selectedContentSlotId,
+  selectedGalleryItemIndex = null,
   onSelectElement,
   onMoveElement,
   customLibraryRepository,
@@ -548,6 +626,7 @@ export function ElementTreePanel({
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
               selectedContentSlotId={selectedContentSlotId}
+              selectedGalleryItemIndex={selectedGalleryItemIndex}
               dropTarget={dropTarget}
               onToggle={(id) => {
                 setExpandedIds((current) => {
