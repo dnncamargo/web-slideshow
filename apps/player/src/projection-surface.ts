@@ -147,7 +147,64 @@ export function mountProjectionSurface(
     updateStageSize();
   }
 
+  function galleryItems(galleryRoot: HTMLElement): HTMLElement[] {
+    return Array.from(galleryRoot.children).filter(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement &&
+        child.classList.contains("powershow-gallery-item"),
+    );
+  }
+
+  function setGalleryActiveIndex(
+    galleryRoot: HTMLElement,
+    targetIndex: number,
+  ): void {
+    const items = galleryItems(galleryRoot);
+
+    if (targetIndex < 0 || targetIndex >= items.length) {
+      return;
+    }
+
+    for (const [index, item] of items.entries()) {
+      const isActive = index === targetIndex;
+
+      item.classList.toggle("powershow-gallery-item-active", isActive);
+      item.style.visibility = isActive ? "" : "hidden";
+      item.style.pointerEvents = isActive ? "" : "none";
+
+      if (isActive) {
+        item.removeAttribute("aria-hidden");
+      } else {
+        item.setAttribute("aria-hidden", "true");
+      }
+    }
+  }
+
+  function handleGalleryClick(event: MouseEvent): void {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const galleryRoot = event.target.closest<HTMLElement>(".powershow-gallery");
+
+    if (!galleryRoot || !slideSurface.contains(galleryRoot)) {
+      return;
+    }
+
+    const items = galleryItems(galleryRoot);
+    const activeIndex = items.findIndex((item) =>
+      item.classList.contains("powershow-gallery-item-active"),
+    );
+
+    if (items.length < 2 || activeIndex < 0) {
+      return;
+    }
+
+    setGalleryActiveIndex(galleryRoot, (activeIndex + 1) % items.length);
+  }
+
   window.addEventListener("resize", handleResize);
+  slideSurface.addEventListener("click", handleGalleryClick);
 
   updateStageSize();
   renderCurrentSlide();
@@ -165,6 +222,7 @@ export function mountProjectionSurface(
 
       destroyed = true;
       window.removeEventListener("resize", handleResize);
+      slideSurface.removeEventListener("click", handleGalleryClick);
       root.innerHTML = "";
     },
   };
