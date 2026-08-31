@@ -156,6 +156,26 @@ describe("GalleryInspector", () => {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function itemInput(field: string): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(
+      `#gallery-gallery-1-item-${selectedItemIndex}-${field}`,
+    );
+    if (!input) throw new Error(`Gallery input not found: ${field}`);
+    return input;
+  }
+
+  function changeInput(input: HTMLInputElement, value: string): void {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function buttonWithText(text: string): HTMLButtonElement {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes(text));
+    if (!button) throw new Error(`Button not found: ${text}`);
+    return button;
+  }
+
   function addButton(): HTMLButtonElement {
     const button =
       container.querySelector<HTMLButtonElement>('[data-powershow-gallery-add]');
@@ -244,6 +264,55 @@ describe("GalleryInspector", () => {
     });
     expect(updates[0]?.items[1]?.alt).toBe("Changed");
     expect(updates[0]?.items[0]?.alt).toBe("One");
+  });
+
+  it("shows effective default crop values for an item without crop", async () => {
+    await act(async () => mount(galleryElement()));
+    expect(itemInput("crop-x").value).toBe("0");
+    expect(itemInput("crop-y").value).toBe("0");
+    expect(itemInput("crop-width").value).toBe("100");
+    expect(itemInput("crop-height").value).toBe("100");
+  });
+
+  it("edits and clamps crop only on the selected item", async () => {
+    await act(async () => mount(galleryElement({ items: [
+      { src: "/one.png", alt: "One", fit: "cover" },
+      { src: "/two.png", alt: "Two", focalPoint: { x: 20, y: 30 } },
+    ] })));
+    await act(async () => changeInput(itemInput("crop-x"), "120"));
+    expect(elementState.items[0]).toMatchObject({ src: "/one.png", alt: "One", fit: "cover", crop: { x: 99, y: 0, width: 1, height: 100 } });
+    expect(elementState.items[1]).toEqual({ src: "/two.png", alt: "Two", focalPoint: { x: 20, y: 30 } });
+  });
+
+  it("resets only the selected item crop", async () => {
+    await act(async () => mount(galleryElement({ items: [{ src: "/one.png", alt: "One", fit: "cover", crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 25, y: 70 } }, DEFAULT_ITEMS[1]!] })));
+    await act(async () => buttonWithText("Reset crop").click());
+    expect(elementState.items[0]).toEqual({ src: "/one.png", alt: "One", fit: "cover", crop: undefined, focalPoint: { x: 25, y: 70 } });
+    expect(elementState.items[1]).toEqual(DEFAULT_ITEMS[1]);
+  });
+
+  it("authors focal presets and clamped coordinates only on the selected item", async () => {
+    await act(async () => mount(galleryElement({ items: [DEFAULT_ITEMS[0]!, { src: "/two.png", alt: "Two", crop: { x: 5, y: 6, width: 70, height: 80 } }] })));
+    const presets = Array.from(container.querySelectorAll<HTMLButtonElement>("[aria-pressed]")).slice(-9);
+    await act(async () => presets[8]?.click());
+    expect(elementState.items[0]?.focalPoint).toEqual({ x: 100, y: 100 });
+    await act(async () => changeInput(itemInput("focal-x"), "-10"));
+    expect(elementState.items[0]?.focalPoint).toEqual({ x: 0, y: 100 });
+    expect(elementState.items[1]).toEqual({ src: "/two.png", alt: "Two", crop: { x: 5, y: 6, width: 70, height: 80 } });
+  });
+
+  it("resets focal point, preserves crop, and follows item selection", async () => {
+    await act(async () => mount(galleryElement({ items: [
+      { src: "/one.png", alt: "One", crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 10, y: 20 } },
+      { src: "/two.png", alt: "Two", crop: { x: 2, y: 3, width: 90, height: 80 }, focalPoint: { x: 80, y: 90 } },
+    ] })));
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="1"]')?.click());
+    expect(itemInput("crop-x").value).toBe("2");
+    expect(itemInput("focal-x").value).toBe("80");
+    await act(async () => buttonWithText("Reset to center").click());
+    expect(elementState.items[1]).toEqual({ src: "/two.png", alt: "Two", crop: { x: 2, y: 3, width: 90, height: 80 }, focalPoint: undefined });
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent?.includes("Edit Crop on Canvas"))).toBe(false);
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent?.includes("Edit Focal Point on Canvas"))).toBe(false);
   });
 
   it("changes fit through contain -> cover -> fill", async () => {
