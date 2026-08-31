@@ -661,6 +661,8 @@ const englishMessages = {
   "gallery.moveUp": "Move image up",
   "gallery.moveDown": "Move image down",
   "gallery.imageNumber": "Image {number}",
+  "gallery.fit": "Gallery fit",
+  "gallery.inheritFit": "Gallery default",
 
   "inspector.topics.kind": "List type",
   "inspector.topics.unordered": "Bulleted",
@@ -1640,6 +1642,8 @@ const portugueseMessages = {
   "gallery.moveUp": "Mover imagem para cima",
   "gallery.moveDown": "Mover imagem para baixo",
   "gallery.imageNumber": "Imagem {number}",
+  "gallery.fit": "Ajuste da galeria",
+  "gallery.inheritFit": "Padrão da galeria",
 
   "inspector.topics.kind": "Tipo de lista",
   "inspector.topics.unordered": "Marcadores",

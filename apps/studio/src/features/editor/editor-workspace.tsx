@@ -265,6 +265,11 @@ interface SelectedElementInfo {
   contentSlotId?: string | null;
 }
 
+interface GalleryItemSelection {
+  galleryId: string;
+  itemIndex: number;
+}
+
 interface PendingElementDeletion {
   elementId: string;
   elementType: PowerShowElement["type"];
@@ -461,6 +466,8 @@ export function EditorWorkspace({
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
+  const [galleryItemSelection, setGalleryItemSelection] =
+    useState<GalleryItemSelection | null>(null);
   const [pendingElementDeletion, setPendingElementDeletion] =
     useState<PendingElementDeletion | null>(null);
 
@@ -617,6 +624,17 @@ export function EditorWorkspace({
 
     return findElementById(selectedSlide.elements, selectedElement.id);
   }, [selectedSlide, selectedElement]);
+
+  useEffect(() => {
+    const gallery = selectedDocumentElement?.type === "gallery"
+      ? selectedDocumentElement
+      : null;
+    setGalleryItemSelection((current) => {
+      if (!gallery || gallery.items.length === 0) return null;
+      if (current?.galleryId !== gallery.id) return { galleryId: gallery.id, itemIndex: 0 };
+      return { galleryId: gallery.id, itemIndex: Math.min(current.itemIndex, gallery.items.length - 1) };
+    });
+  }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined]);
 
   function requestElementDeletion() {
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
@@ -880,6 +898,22 @@ export function EditorWorkspace({
     selectedElement,
     selectedSlide,
   ]);
+
+  useEffect(() => {
+    const canvas = slideCanvasRef.current;
+    if (!canvas) return;
+    canvas.querySelectorAll<HTMLElement>("[data-powershow-type=gallery][data-powershow-id]").forEach((gallery) => {
+      const isSelected = gallery.dataset.powershowId === galleryItemSelection?.galleryId;
+      const selectedIndex = isSelected ? galleryItemSelection?.itemIndex ?? 0 : 0;
+      gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]").forEach((item) => {
+        const active = Number(item.dataset.powershowGalleryIndex) === selectedIndex;
+        item.classList.toggle("powershow-gallery-item-active", active);
+        item.style.setProperty("visibility", active ? "visible" : "hidden");
+        item.style.setProperty("pointer-events", active ? "auto" : "none");
+        item.setAttribute("aria-hidden", active ? "false" : "true");
+      });
+    });
+  }, [canvasGeometry, galleryItemSelection, renderedSlide]);
 
   useEffect(() => {
     if (
@@ -3798,6 +3832,8 @@ export function EditorWorkspace({
                                 }
                               : null
                           }
+                          galleryItemIndex={galleryItemSelection?.galleryId === selectedDocumentElement.id ? galleryItemSelection.itemIndex : null}
+                          onGalleryItemIndexChange={(index) => setGalleryItemSelection(index === null ? null : { galleryId: selectedDocumentElement.id, itemIndex: index })}
                           topicsAuthoringControls={{
                             onAddTopLevelTopic: addTopLevelTopic,
                             onAddChildTopic: addChildTopic,

@@ -3004,6 +3004,13 @@
   gap: 6px;
 }
 
+.galleryItemSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
 
 .tableCells {
   display: flex;

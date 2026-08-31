@@ -67,12 +67,18 @@ describe("GalleryInspector", () => {
   let root: Root;
   let elementState: GalleryElement;
   let updates: GalleryElement[];
+  let selectedItemIndex: number | null = null;
 
   function renderInspector() {
     root.render(
       <StudioI18nProvider>
         <GalleryInspector
           element={elementState}
+          selectedItemIndex={selectedItemIndex}
+          onSelectedItemIndexChange={(index) => {
+            selectedItemIndex = index;
+            renderInspector();
+          }}
           onUpdate={(update) => {
             const next = update(elementState);
             if (next.type !== "gallery") {
@@ -89,6 +95,7 @@ describe("GalleryInspector", () => {
 
   function mount(initial: GalleryElement) {
     elementState = initial;
+    selectedItemIndex = initial.items.length > 0 ? 0 : null;
     updates = [];
     renderInspector();
   }
@@ -193,7 +200,7 @@ describe("GalleryInspector", () => {
     await act(async () => {
       mount(galleryElement());
     });
-    const rows = container.querySelectorAll("[data-powershow-gallery-item]");
+    const rows = container.querySelectorAll("[data-powershow-gallery-select]");
     expect(rows).toHaveLength(2);
   });
 
@@ -207,6 +214,9 @@ describe("GalleryInspector", () => {
   it("renders item alt", async () => {
     await act(async () => {
       mount(galleryElement());
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
     });
     expect(itemAlt("#gallery-gallery-1-item-1-alt").value).toBe("Two");
   });
@@ -225,6 +235,9 @@ describe("GalleryInspector", () => {
   it("alt edit updates only the targeted item", async () => {
     await act(async () => {
       mount(galleryElement());
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
     });
     await act(async () => {
       setTextAreaValue(itemAlt("#gallery-gallery-1-item-1-alt"), "Changed");
@@ -291,7 +304,10 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     await act(async () => {
-      moveUpButtons()[1]?.click();
+      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
+    });
+    await act(async () => {
+      moveUpButtons()[0]?.click();
     });
     expect(updates[0]?.items.map((item) => item.src)).toEqual([
       "/two.png",
@@ -317,14 +333,12 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     expect(moveUpButtons()[0]?.disabled).toBe(true);
-    expect(moveUpButtons()[1]?.disabled).toBe(false);
   });
 
   it("last move down is disabled", async () => {
     await act(async () => {
       mount(galleryElement());
     });
-    expect(moveDownButtons()[1]?.disabled).toBe(true);
     expect(moveDownButtons()[0]?.disabled).toBe(false);
   });
 

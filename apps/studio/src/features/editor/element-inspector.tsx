@@ -71,6 +71,10 @@ interface ElementInspectorProps {
   blocksAuthoringControls: BlocksAuthoringControls;
 
   tableAuthoringControls: TableAuthoringControls;
+
+  galleryItemIndex?: number | null;
+
+  onGalleryItemIndexChange?: (index: number | null) => void;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -101,6 +105,8 @@ function ElementTypeInspector({
   topicsAuthoringControls,
   blocksAuthoringControls: _blocksAuthoringControls,
   tableAuthoringControls,
+  galleryItemIndex,
+  onGalleryItemIndexChange,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -182,7 +188,7 @@ function ElementTypeInspector({
       );
 
     case "gallery":
-      return <GalleryInspector element={element} onUpdate={onUpdate} />;
+      return <GalleryInspector element={element} onUpdate={onUpdate} selectedItemIndex={galleryItemIndex} onSelectedItemIndexChange={onGalleryItemIndexChange} />;
 
     case "topics":
       return (
@@ -242,6 +248,8 @@ export function ElementInspector({
   topicsAuthoringControls,
   blocksAuthoringControls,
   tableAuthoringControls,
+  galleryItemIndex,
+  onGalleryItemIndexChange,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
@@ -289,6 +297,8 @@ export function ElementInspector({
         topicsAuthoringControls={topicsAuthoringControls}
         blocksAuthoringControls={blocksAuthoringControls}
         tableAuthoringControls={tableAuthoringControls}
+        galleryItemIndex={galleryItemIndex}
+        onGalleryItemIndexChange={onGalleryItemIndexChange}
       />
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (
