@@ -64,7 +64,7 @@ describe("Linked Styles Resources contract", () => {
     const row = host.querySelector<HTMLElement>("[data-linked-style-id='card']");
     await act(async () => row?.querySelector("button")?.click());
     const sections = Array.from(host.querySelectorAll<HTMLElement>("[data-linked-style-section]"));
-    expect(sections.map((section) => section.dataset.linkedStyleSection)).toEqual(["layout", "position", "size", "spacing", "appearance", "effects", "typography", "reuse"]);
+    expect(sections.map((section) => section.dataset.linkedStyleSection)).toEqual(["layout", "position", "size", "spacing", "appearance", "effects", "reuse"]);
     expect(sections[0]?.textContent).toContain("Gap");
     expect(sections[3]?.textContent).toContain("padding");
     expect(sections[4]?.textContent).toContain("Pattern");
@@ -73,10 +73,36 @@ describe("Linked Styles Resources contract", () => {
     expect(sections[5]?.textContent).toContain("Shadow");
     expect(sections[5]?.querySelector("details")).toBeNull();
     expect(sections[5]?.textContent).not.toContain("Local override");
-    expect(sections[6]?.textContent).toContain("Typography");
-    expect(sections[7]?.textContent).toContain("Changes affect");
+    expect(sections[6]?.textContent).toContain("Changes affect");
     expect(sections.every((section) => section.tagName.toLowerCase() !== "details")).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#linked-style-card-border-radius")?.value).toBe("8");
     expect(sections[0]?.querySelector<HTMLInputElement>("input[type='number']")?.value).toBe("16");
+    expect(host.textContent).not.toContain("Create from selected Container");
+  });
+
+  it("shows legacy typography as compatibility-only and removes it through the update boundary", async () => {
+    const base = makePresentation();
+    const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "legacy", name: "Legacy", layout: { padding: 12 }, typography: { fontFamily: "Arial", fontSize: 20 } }] });
+    const onUpdate = vi.fn();
+    await render(value, onUpdate);
+    const row = host.querySelector<HTMLElement>("[data-linked-style-id='legacy']");
+    await act(async () => row?.querySelector("button")?.click());
+    const legacy = host.querySelector<HTMLElement>("[data-linked-style-section='legacy-typography']")!;
+    expect(legacy.textContent).toContain("legacy typography");
+    expect(legacy.querySelector("input")).toBeNull();
+    await act(async () => legacy.querySelector("button")?.click());
+    expect(onUpdate).toHaveBeenCalledWith("legacy", { typography: undefined });
+  });
+
+  it("disables removal when legacy typography is the sole authored property", async () => {
+    const base = makePresentation();
+    const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "legacy-only", name: "Legacy only", typography: { fontSize: 20 } }] });
+    const onUpdate = vi.fn();
+    await render(value, onUpdate);
+    const row = host.querySelector<HTMLElement>("[data-linked-style-id='legacy-only']");
+    await act(async () => row?.querySelector("button")?.click());
+    const remove = host.querySelector<HTMLElement>("[data-linked-style-section='legacy-typography'] button") as HTMLButtonElement;
+    expect(remove.disabled).toBe(true);
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 });

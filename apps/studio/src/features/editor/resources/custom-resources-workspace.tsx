@@ -33,7 +33,7 @@ import { ContainerBackgroundPatternControl } from "../inspector/sections/contain
 import { ContainerEffectsSection } from "../inspector/sections/container-effects-section";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
-import { canCreateLinkedStyleFromContainer, canUpdateLinkedStyle } from "../linked-style-authoring";
+import { canUpdateLinkedStyle } from "../linked-style-authoring";
 import { findContainersLinkedToStyle, findMatchingContainersForLinkedStyle, type LinkedStyleContainerLocation } from "../linked-style-bulk-authoring";
 
 import styles from "./custom-resources-workspace.module.css";
@@ -60,8 +60,6 @@ interface CustomResourcesWorkspaceProps {
   onUpdateTextStyle?: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
-  selectedContainer?: ContainerElement | null;
-  onCreateLinkedStyleFromSelected?: (name: string) => void;
   onUpdateLinkedStyle?: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
   onRenameLinkedStyle?: (id: string, name: string) => void;
   onRemoveLinkedStyle?: (id: string) => void;
@@ -117,8 +115,6 @@ export function CustomResourcesWorkspace({
   onUpdateTextStyle = () => undefined,
   onRemoveTextStyle = () => undefined,
   isTextStyleInUse = () => false,
-  selectedContainer = null,
-  onCreateLinkedStyleFromSelected = () => undefined,
   onUpdateLinkedStyle = () => undefined,
   onRenameLinkedStyle = () => undefined,
   onRemoveLinkedStyle = () => undefined,
@@ -231,7 +227,7 @@ export function CustomResourcesWorkspace({
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
           <div className={styles.group}>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
-              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} selectedContainer={selectedContainer} fonts={presentationFonts} onCreate={onCreateLinkedStyleFromSelected} onUpdate={onUpdateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} /></PresentationColorPaletteProvider>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} onUpdate={onUpdateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
             <InspectorSection title={t("customResources.textStyles")} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
@@ -296,9 +292,6 @@ export function CustomResourcesWorkspace({
 
 function LinkedStylesWorkspace({
   presentation,
-  selectedContainer,
-  fonts,
-  onCreate,
   onUpdate: dispatchUpdate,
   onRename,
   onRemove,
@@ -306,9 +299,6 @@ function LinkedStylesWorkspace({
   onSelectContainer,
 }: {
   presentation?: Presentation;
-  selectedContainer: ContainerElement | null;
-  fonts: readonly FontResource[];
-  onCreate: (name: string) => void;
   onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
   onRename: (id: string, name: string) => void;
   onRemove: (id: string) => void;
@@ -316,7 +306,6 @@ function LinkedStylesWorkspace({
   onSelectContainer: (location: LinkedStyleContainerLocation) => void;
 }) {
   const { t } = useStudioI18n();
-  const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const commitUpdate = (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => {
@@ -367,7 +356,8 @@ function LinkedStylesWorkspace({
           </div><div className={styles.linkedStyleSection} data-linked-style-section="effects"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.effects")}</h3>
           <label className={styles.linkedStyleField}><span>{t("inspector.opacity")}</span><input type="number" min="0" max="100" value={linkedStyle.effect?.opacity === undefined ? "" : linkedStyle.effect.opacity * 100} onChange={(event) => onUpdate(linkedStyle.id, { effect: { ...linkedStyle.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} /></label>
           <ContainerEffectsSection embedded showSourceMeta={false} element={{ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }} onUpdate={(update) => { const next = update({ id: `linked-effect-${linkedStyle.id}`, type: "container", hidden: false, children: [], effect: linkedStyle.effect }); onUpdate(linkedStyle.id, { effect: next.type === "container" ? next.effect : undefined }); }} />
-          </div><div className={styles.linkedStyleSection} data-linked-style-section="typography"><h3 className={styles.linkedStyleSectionTitle}>{t("inspector.typography")}</h3><ElementTypographyFields typography={linkedStyle.typography} effectiveDefaults={resolveThemeTextTypographyBaseline("body")} onUpdateTypography={(update) => onUpdate(linkedStyle.id, { typography: update(linkedStyle.typography) })} controlPrefix={`linked-style-${linkedStyle.id}`} fontResources={fonts} /></div>
+          </div>
+          {linkedStyle.typography ? <div className={styles.linkedStyleSection} data-linked-style-section="legacy-typography"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.linkedStyleLegacyTypography")}</h3><p className={styles.status}>{t("customResources.linkedStyleLegacyTypographyDescription")}</p><button type="button" className={styles.resourceAction} disabled={!presentation || !canUpdateLinkedStyle(presentation, linkedStyle.id, { typography: undefined })} onClick={() => onUpdate(linkedStyle.id, { typography: undefined })}>{t("customResources.linkedStyleRemoveLegacyTypography")}</button></div> : null}
           <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3>
           {matchingCount > 0 ? <button type="button" className={styles.resourceAction} onClick={() => onAttach(linkedStyle.id)}>{t(matchingCount === 1 ? "customResources.linkedStyleAttachOne" : "customResources.linkedStyleAttachMany", { count: matchingCount })}</button> : null}
           {count > 0 ? <div className={styles.fieldGrid}>
@@ -384,10 +374,6 @@ function LinkedStylesWorkspace({
         </div> : null}
       </div>;
     })}
-    {selectedContainer && canCreateLinkedStyleFromContainer(selectedContainer) ? <div className={styles.fieldGrid}>
-      <input aria-label={t("customResources.linkedStyleName")} value={newName} onChange={(event) => setNewName(event.target.value)} />
-      <button type="button" className={styles.resourceAction} disabled={!newName.trim()} onClick={() => { onCreate(newName); setNewName(""); }}>{t("customResources.linkedStyleCreate")}</button>
-    </div> : null}
   </div>;
 }
 

@@ -29,7 +29,6 @@ describe("Container linked style Inspector section", () => {
   it("shows, selects, and detaches a linked Container without create controls", async () => {
     const attach = vi.fn();
     const detach = vi.fn();
-    const create = vi.fn();
     const element: ContainerElement = { id: "container", type: "container", hidden: false, linkedStyleId: "card", children: [] };
     await act(async () => root.render(
       <StudioI18nProvider>
@@ -40,7 +39,6 @@ describe("Container linked style Inspector section", () => {
           presentation={{ linkedStyles: [{ id: "card", name: "Card", layout: { children: { gap: 8 } } }, { id: "hero", name: "Hero", style: { borderRadius: 8 } }] }}
           onAttachLinkedStyle={attach}
           onDetachLinkedStyle={detach}
-          onCreateLinkedStyle={create}
         />
       </StudioI18nProvider>,
     ));
@@ -62,33 +60,5 @@ describe("Container linked style Inspector section", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(detach).toHaveBeenCalledOnce();
-    expect(create).not.toHaveBeenCalled();
-  });
-
-  it("uses the inline naming control when creating from an authored container", async () => {
-    const create = vi.fn();
-    const element: ContainerElement = { id: "container", type: "container", hidden: false, layout: { children: { gap: 8 } }, children: [] };
-    await act(async () => root.render(
-      <StudioI18nProvider>
-        <ContainerInspector
-          element={element}
-          onUpdate={() => {}}
-          onContainerFitModeChange={() => true}
-          onCreateLinkedStyle={create}
-        />
-      </StudioI18nProvider>,
-    ));
-    const input = host.querySelector<HTMLInputElement>("#container-linked-style-name")!;
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-    await act(async () => {
-      setter?.call(input, "Card");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    const createButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "Create from container")!;
-    expect(createButton.disabled).toBe(false);
-    await act(async () => createButton.click());
-    expect(create).toHaveBeenCalledWith("Card");
   });
 });

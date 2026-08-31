@@ -150,7 +150,6 @@ import { PickedColorsProvider } from "./inspector/sections/picked-colors-provide
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 import {
   attachLinkedStyle,
-  createLinkedStyleFromContainer,
   detachLinkedStyle,
   updateLinkedStyle,
   renameLinkedStyle,
@@ -2077,16 +2076,6 @@ export function EditorWorkspace({
     ));
   }
 
-  function createLinkedStyleFromSelectedContainer(name: string): void {
-    if (selectedDocumentElement?.type !== "container") return;
-    setPresentation((current) => createLinkedStyleFromContainer(
-      current,
-      selectedSlideIndex,
-      selectedDocumentElement.id,
-      name,
-    ));
-  }
-
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
@@ -3682,8 +3671,6 @@ export function EditorWorkspace({
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
-             selectedContainer={selectedDocumentElement?.type === "container" ? selectedDocumentElement : null}
-             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedContainer}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
@@ -3796,7 +3783,6 @@ export function EditorWorkspace({
                           presentation={presentation}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
-                          onCreateLinkedStyle={createLinkedStyleFromSelectedContainer}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition

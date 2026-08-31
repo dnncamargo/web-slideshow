@@ -36,8 +36,6 @@ interface ContainerInspectorProps {
 
   onDetachLinkedStyle?: () => void;
 
-  onCreateLinkedStyle?: (name: string) => void;
-
   parent?: ContainerElement | null;
 
   layerControls?: {
@@ -58,7 +56,6 @@ export function ContainerInspector({
   presentation,
   onAttachLinkedStyle = () => {},
   onDetachLinkedStyle = () => {},
-  onCreateLinkedStyle = () => {},
   parent = null,
   layerControls = null,
 }: ContainerInspectorProps) {
@@ -86,7 +83,6 @@ export function ContainerInspector({
         presentation={presentation}
         onAttach={onAttachLinkedStyle}
         onDetach={onDetachLinkedStyle}
-        onCreate={onCreateLinkedStyle}
       />
 
       <ContainerLayoutSection
