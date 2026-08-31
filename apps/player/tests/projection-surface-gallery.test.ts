@@ -55,6 +55,14 @@ function activeIndex(items: HTMLElement[]): number {
   );
 }
 
+function expandedOverlay(root: HTMLElement): HTMLElement | null {
+  return root.querySelector<HTMLElement>(".powershow-player-gallery-expanded");
+}
+
+function expandedImage(root: HTMLElement): HTMLImageElement | null {
+  return expandedOverlay(root)?.querySelector<HTMLImageElement>("img") ?? null;
+}
+
 describe("Projection surface Gallery interaction", () => {
   let root: HTMLElement;
 
@@ -140,6 +148,130 @@ describe("Projection surface Gallery interaction", () => {
     const projection = mountProjectionSurface(root, galleryPresentation(), { transition: "none" });
     const image = root.querySelector<HTMLImageElement>("img.powershow-gallery-image");
 
+    projection.destroy();
+    projection.destroy();
+
+    expect(root.children).toHaveLength(0);
+    expect(() => image?.click()).not.toThrow();
+  });
+
+  it("expands the current item as an unscaled physical stage layer and collapses absolutely", () => {
+    const projection = mountProjectionSurface(root, galleryPresentation(), { transition: "none" });
+
+    projection.setGalleryExpanded("gallery-0-0", true);
+    const overlay = expandedOverlay(root);
+    expect(overlay).not.toBeNull();
+    expect(expandedImage(root)?.getAttribute("src")).toBe("/0-first.png");
+    expect(overlay?.parentElement).toBe(projection.stage);
+    expect(overlay?.closest(".powershow-player-slide-host")).toBeNull();
+    expect(overlay?.closest(".powershow-player-slide-surface")).toBeNull();
+
+    projection.setGalleryExpanded("gallery-0-0", false);
+    projection.setGalleryExpanded("gallery-0-0", false);
+    expect(expandedOverlay(root)).toBeNull();
+    projection.destroy();
+  });
+
+  it("keeps one expanded Gallery at a time and ignores missing or empty Galleries", () => {
+    const projection = mountProjectionSurface(root, galleryPresentation({ galleries: 2 }), { transition: "none" });
+    projection.setGalleryExpanded("gallery-0-0", true);
+    projection.setGalleryExpanded("gallery-0-1", true);
+
+    expect(root.querySelectorAll(".powershow-player-gallery-expanded")).toHaveLength(1);
+    expect(expandedOverlay(root)?.dataset.powershowGalleryExpanded).toBe("gallery-0-1");
+    projection.setGalleryExpanded("gallery-0-0", false);
+    expect(expandedOverlay(root)?.dataset.powershowGalleryExpanded).toBe("gallery-0-1");
+    expect(() => projection.setGalleryExpanded("missing", true)).not.toThrow();
+    expect(expandedOverlay(root)?.dataset.powershowGalleryExpanded).toBe("gallery-0-1");
+    projection.destroy();
+
+    const empty = mountProjectionSurface(root, galleryPresentation({ items: [] }), { transition: "none" });
+    expect(() => empty.setGalleryExpanded("gallery-0-0", true)).not.toThrow();
+    expect(expandedOverlay(root)).toBeNull();
+    empty.destroy();
+  });
+
+  it("uses and refreshes the active item when an expanded Gallery advances", () => {
+    const projection = mountProjectionSurface(root, galleryPresentation(), { transition: "none" });
+    const originalItems = galleryItems(root);
+    originalItems[0]?.querySelector<HTMLImageElement>("img")?.click();
+    projection.setGalleryExpanded("gallery-0-0", true);
+
+    expect(expandedImage(root)?.getAttribute("src")).toBe("/0-second.png");
+    expandedImage(root)?.click();
+    expect(activeIndex(originalItems)).toBe(2);
+    expect(expandedImage(root)?.getAttribute("src")).toBe("/0-third.png");
+    expect(root.querySelectorAll(".powershow-player-gallery-expanded")).toHaveLength(1);
+    projection.destroy();
+  });
+
+  it("clones without changing the original Gallery DOM and preserves image fit and focal point", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "gallery-clone", title: "Gallery Clone", description: "", aspectRatio: "16:9",
+      slides: [{ id: "slide", elements: [{ type: "gallery", id: "gallery-fit", fit: "contain", items: [
+        { src: "/focal.png", alt: "Focal", fit: "cover", focalPoint: { x: 25, y: 75 } },
+        { src: "/next.png", alt: "Next" },
+      ] }] }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    const original = galleryItems(root)[0];
+    const originalStyle = original?.getAttribute("style");
+    const originalCount = galleryItems(root).length;
+    projection.setGalleryExpanded("gallery-fit", true);
+
+    const image = expandedImage(root);
+    expect(image?.style.objectFit).toBe("cover");
+    expect(image?.style.objectPosition).toBe("25% 75%");
+    expect(galleryItems(root)).toHaveLength(originalCount);
+    expect(galleryItems(root)[0]).toBe(original);
+    expect(original?.getAttribute("style")).toBe(originalStyle);
+    projection.destroy();
+  });
+
+  it("normalizes cloned crop constraints while retaining renderer crop markup", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "gallery-crop", title: "Gallery Crop", description: "", aspectRatio: "16:9",
+      slides: [{ id: "slide", elements: [{ type: "gallery", id: "gallery-crop", items: [
+        { src: "/crop.png", alt: "Crop", crop: { x: 10, y: 20, width: 60, height: 50 } },
+      ] }] }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    projection.setGalleryExpanded("gallery-crop", true);
+    const clone = expandedOverlay(root)?.querySelector<HTMLElement>("[data-powershow-image-crop]");
+
+    expect(clone?.dataset.powershowImageWidthAuthored).toBe("true");
+    expect(clone?.dataset.powershowImageHeightAuthored).toBe("true");
+    expect(clone?.querySelector(".powershow-image-crop-viewport")).not.toBeNull();
+    expect(clone?.querySelector(".powershow-image-media")).not.toBeNull();
+    projection.destroy();
+  });
+
+  it("keeps an expanded Gallery through resize, resets it on slide navigation, and supports arbitrary ids", () => {
+    const awkwardId = 'gallery[0].a:b"quoted"';
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "gallery-navigation", title: "Gallery Navigation", description: "", aspectRatio: "16:9",
+      slides: [
+        { id: "first", elements: [{ type: "gallery", id: awkwardId, items: [{ src: "/first.png", alt: "First" }] }] },
+        { id: "second", elements: [] },
+      ],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    projection.setGalleryExpanded(awkwardId, true);
+    window.dispatchEvent(new Event("resize"));
+    expect(root.querySelectorAll(".powershow-player-gallery-expanded")).toHaveLength(1);
+    expect(expandedImage(root)?.getAttribute("src")).toBe("/first.png");
+
+    projection.goTo(1);
+    expect(expandedOverlay(root)).toBeNull();
+    projection.goTo(0);
+    expect(expandedOverlay(root)).toBeNull();
+    projection.destroy();
+  });
+
+  it("removes expanded interaction during idempotent destroy", () => {
+    const projection = mountProjectionSurface(root, galleryPresentation(), { transition: "none" });
+    projection.setGalleryExpanded("gallery-0-0", true);
+    const image = expandedImage(root);
     projection.destroy();
     projection.destroy();
 

@@ -73,6 +73,23 @@ button {
   height: 100%;
 }
 
+.powershow-player-gallery-expanded {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+
+  overflow: hidden;
+
+  background: #000;
+}
+
+.powershow-player-gallery-expanded-media {
+  position: absolute;
+  inset: 0;
+
+  overflow: hidden;
+}
+
 .powershow-player-controls {
   position: absolute;
 

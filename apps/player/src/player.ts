@@ -126,6 +126,8 @@ export interface PlayerController {
 
   goTo(index: number): void;
 
+  setGalleryExpanded(galleryId: string, expanded: boolean): void;
+
   fullscreen(): Promise<void>;
 
   getCurrentIndex(): number;
@@ -574,6 +576,10 @@ export function mountPlayer(
     previous,
 
     goTo,
+
+    setGalleryExpanded(galleryId: string, expanded: boolean): void {
+      projection.setGalleryExpanded(galleryId, expanded);
+    },
 
     fullscreen,
 

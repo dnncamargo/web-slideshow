@@ -17,6 +17,7 @@ export interface ProjectionSurfaceOptions {
 export interface ProjectionSurface {
   stage: HTMLElement;
   goTo(index: number): void;
+  setGalleryExpanded(galleryId: string, expanded: boolean): void;
   getCurrentIndex(): number;
   destroy(): void;
 }
@@ -41,6 +42,8 @@ export function mountProjectionSurface(
 ): ProjectionSurface {
   const transition = options.transition ?? "fade";
   let currentIndex = 0;
+  let expandedGalleryId: string | null = null;
+  let expandedOverlay: HTMLElement | null = null;
   let destroyed = false;
 
   root.innerHTML = `
@@ -95,6 +98,9 @@ export function mountProjectionSurface(
     slideSurface.style.transform = `scale(${geometry.scale})`;
 
     hydrateRendererRuntime(slideHost);
+    if (expandedOverlay) {
+      hydrateRendererRuntime(expandedOverlay);
+    }
   }
 
   function animateSlide(): void {
@@ -112,6 +118,7 @@ export function mountProjectionSurface(
   }
 
   function renderCurrentSlide(): void {
+    clearExpandedGallery();
     const slide = presentation.slides[currentIndex];
 
     if (!slide) {
@@ -155,6 +162,88 @@ export function mountProjectionSurface(
     );
   }
 
+  function findGalleryById(galleryId: string): HTMLElement | null {
+    for (const candidate of slideSurface.querySelectorAll<HTMLElement>(
+      "[data-powershow-id][data-powershow-type]",
+    )) {
+      if (
+        candidate.dataset.powershowType === "gallery" &&
+        candidate.dataset.powershowId === galleryId
+      ) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  function activeGalleryItem(galleryRoot: HTMLElement): HTMLElement | null {
+    return galleryItems(galleryRoot).find((item) =>
+      item.classList.contains("powershow-gallery-item-active"),
+    ) ?? null;
+  }
+
+  function clearExpandedGallery(): void {
+    if (expandedOverlay) {
+      expandedOverlay.removeEventListener("click", handleExpandedGalleryClick);
+      expandedOverlay.remove();
+    }
+
+    expandedOverlay = null;
+    expandedGalleryId = null;
+  }
+
+  function refreshExpandedGallery(): void {
+    if (!expandedGalleryId) {
+      return;
+    }
+
+    const galleryRoot = findGalleryById(expandedGalleryId);
+    const activeItem = galleryRoot && activeGalleryItem(galleryRoot);
+
+    if (!activeItem) {
+      clearExpandedGallery();
+      return;
+    }
+
+    if (!expandedOverlay) {
+      expandedOverlay = document.createElement("div");
+      expandedOverlay.className = "powershow-player-gallery-expanded";
+      expandedOverlay.dataset.powershowGalleryExpanded = expandedGalleryId;
+      expandedOverlay.addEventListener("click", handleExpandedGalleryClick);
+      stage.append(expandedOverlay);
+    }
+
+    const frame = document.createElement("div");
+    frame.className = "powershow-player-gallery-expanded-media";
+    const clone = activeItem.cloneNode(true) as HTMLElement;
+
+    clone.style.position = "absolute";
+    clone.style.inset = "0";
+    clone.style.width = "100%";
+    clone.style.height = "100%";
+    clone.style.overflow = "hidden";
+    clone.style.visibility = "visible";
+    clone.style.pointerEvents = "auto";
+    clone.removeAttribute("aria-hidden");
+
+    if (clone.dataset.powershowImageCrop !== undefined) {
+      clone.dataset.powershowImageWidthAuthored = "true";
+      clone.dataset.powershowImageHeightAuthored = "true";
+    } else {
+      const image = clone.querySelector<HTMLImageElement>("img.powershow-gallery-image");
+      if (image) {
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.display = "block";
+      }
+    }
+
+    frame.append(clone);
+    expandedOverlay.replaceChildren(frame);
+    hydrateRendererRuntime(expandedOverlay);
+  }
+
   function setGalleryActiveIndex(
     galleryRoot: HTMLElement,
     targetIndex: number,
@@ -178,6 +267,23 @@ export function mountProjectionSurface(
         item.setAttribute("aria-hidden", "true");
       }
     }
+
+    if (galleryRoot.dataset.powershowId === expandedGalleryId) {
+      refreshExpandedGallery();
+    }
+  }
+
+  function advanceGallery(galleryRoot: HTMLElement): void {
+    const items = galleryItems(galleryRoot);
+    const activeIndex = items.findIndex((item) =>
+      item.classList.contains("powershow-gallery-item-active"),
+    );
+
+    if (items.length < 2 || activeIndex < 0) {
+      return;
+    }
+
+    setGalleryActiveIndex(galleryRoot, (activeIndex + 1) % items.length);
   }
 
   function handleGalleryClick(event: MouseEvent): void {
@@ -191,16 +297,47 @@ export function mountProjectionSurface(
       return;
     }
 
-    const items = galleryItems(galleryRoot);
-    const activeIndex = items.findIndex((item) =>
-      item.classList.contains("powershow-gallery-item-active"),
-    );
+    advanceGallery(galleryRoot);
+  }
 
-    if (items.length < 2 || activeIndex < 0) {
+  function handleExpandedGalleryClick(event: MouseEvent): void {
+    if (!(event.target instanceof Node)) {
       return;
     }
 
-    setGalleryActiveIndex(galleryRoot, (activeIndex + 1) % items.length);
+    const frame = expandedOverlay?.querySelector<HTMLElement>(
+      ".powershow-player-gallery-expanded-media",
+    );
+
+    if (!frame || !frame.contains(event.target) || !expandedGalleryId) {
+      return;
+    }
+
+    const galleryRoot = findGalleryById(expandedGalleryId);
+    if (galleryRoot) {
+      advanceGallery(galleryRoot);
+    }
+  }
+
+  function setGalleryExpanded(galleryId: string, expanded: boolean): void {
+    if (!expanded) {
+      if (expandedGalleryId === galleryId) {
+        clearExpandedGallery();
+      }
+      return;
+    }
+
+    const galleryRoot = findGalleryById(galleryId);
+    if (!galleryRoot || !activeGalleryItem(galleryRoot)) {
+      return;
+    }
+
+    if (expandedGalleryId !== galleryId) {
+      clearExpandedGallery();
+      expandedGalleryId = galleryId;
+    }
+
+    refreshExpandedGallery();
   }
 
   window.addEventListener("resize", handleResize);
@@ -212,6 +349,7 @@ export function mountProjectionSurface(
   return {
     stage,
     goTo,
+    setGalleryExpanded,
     getCurrentIndex(): number {
       return currentIndex;
     },
@@ -223,6 +361,7 @@ export function mountProjectionSurface(
       destroyed = true;
       window.removeEventListener("resize", handleResize);
       slideSurface.removeEventListener("click", handleGalleryClick);
+      clearExpandedGallery();
       root.innerHTML = "";
     },
   };

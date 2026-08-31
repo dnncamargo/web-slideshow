@@ -61,6 +61,7 @@ function controller(initialIndex: number) {
     goTo: vi.fn((nextIndex: number) => {
       index = nextIndex;
     }),
+    setGalleryExpanded: vi.fn(),
     getCurrentIndex: vi.fn(() => index),
   };
 }
