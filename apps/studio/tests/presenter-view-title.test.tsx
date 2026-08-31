@@ -70,6 +70,7 @@ describe("PresenterView published presentation title", () => {
               displayIndex: 0,
               pendingVersion: null,
             }}
+            galleries={[]}
             promotingVersionId={null}
             failedPromotionVersionId={null}
             previous={vi.fn()}
@@ -78,6 +79,8 @@ describe("PresenterView published presentation title", () => {
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
             requestFullscreen={vi.fn()}
+            nextGallery={vi.fn()}
+            setGalleryExpanded={vi.fn()}
             end={vi.fn()}
           />
         </StudioI18nProvider>,

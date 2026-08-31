@@ -159,6 +159,31 @@
   gap: 12px;
 }
 
+.galleryControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.galleryGroup {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.galleryLabel {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .controlMeta {
   display: flex;
   align-items: center;
@@ -547,6 +572,10 @@
 
     gap: 8px;
 
+    width: 100%;
+  }
+
+  .galleryControls {
     width: 100%;
   }
 

@@ -12,6 +12,7 @@ import {
 
 import { PresenterView } from "../src/features/control/presenter/presenter-view";
 import type { LiveControlView } from "../src/features/control/live-control";
+import type { ControlGalleryView } from "../src/features/control/use-live-gallery-control";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 vi.mock("../src/features/control/presenter/use-presenter-notes", () => ({
@@ -46,6 +47,22 @@ function view(index: number, enabled = true): LiveControlView {
     actualPageId: `slide-${index + 1}`,
     actualPageIndex: index,
     status: { kind: "synced" },
+  };
+}
+
+function gallery(
+  elementId: string,
+  itemCount: number,
+  overrides: Partial<ControlGalleryView> = {},
+): ControlGalleryView {
+  return {
+    slot: 0,
+    elementId,
+    itemCount,
+    targetIndex: 0,
+    expanded: false,
+    pending: false,
+    ...overrides,
   };
 }
 
@@ -86,6 +103,9 @@ describe("PresenterView controls", () => {
     next = vi.fn(),
     goTo = vi.fn(),
     requestFullscreen = vi.fn(),
+    galleries = [],
+    nextGallery = vi.fn(),
+    setGalleryExpanded = vi.fn(),
     end = vi.fn(),
   }: {
     controlView?: LiveControlView | null;
@@ -95,6 +115,9 @@ describe("PresenterView controls", () => {
     next?: ReturnType<typeof vi.fn>;
     goTo?: ReturnType<typeof vi.fn>;
     requestFullscreen?: ReturnType<typeof vi.fn>;
+    galleries?: ControlGalleryView[];
+    nextGallery?: ReturnType<typeof vi.fn>;
+    setGalleryExpanded?: ReturnType<typeof vi.fn>;
     end?: ReturnType<typeof vi.fn>;
   } = {}) {
     const publishedPresentation = presentation();
@@ -112,6 +135,7 @@ describe("PresenterView controls", () => {
               displayIndex,
               pendingVersion,
             }}
+            galleries={galleries}
             promotingVersionId={null}
             failedPromotionVersionId={null}
             previous={previous}
@@ -120,13 +144,23 @@ describe("PresenterView controls", () => {
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
             requestFullscreen={requestFullscreen}
+            nextGallery={nextGallery}
+            setGalleryExpanded={setGalleryExpanded}
             end={end}
           />
         </StudioI18nProvider>,
       );
     });
 
-    return { previous, next, goTo, requestFullscreen, end };
+    return {
+      previous,
+      next,
+      goTo,
+      requestFullscreen,
+      nextGallery,
+      setGalleryExpanded,
+      end,
+    };
   }
 
   function dispatchKey(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
@@ -172,6 +206,93 @@ describe("PresenterView controls", () => {
 
     expect(result.requestFullscreen).toHaveBeenCalledTimes(1);
     expect(nativeRequestFullscreen).not.toHaveBeenCalled();
+  });
+
+  it("renders no Gallery controls when the desired slide has no Galleries", () => {
+    render();
+
+    expect(container.querySelector('[data-gallery-controls]')).toBeNull();
+  });
+
+  it("renders Gallery commands and sends exact desired intents without fullscreen", () => {
+    const arbitraryId = "gallery A / #1";
+    const result = render({ galleries: [gallery(arbitraryId, 2)] });
+
+    expect(container.textContent).toContain("Gallery");
+    expect(container.textContent).not.toContain("Gallery 1");
+    const nextButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Gallery: Next image"]',
+    );
+    const expandButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Gallery: Expand"]',
+    );
+
+    act(() => nextButton?.click());
+    act(() => expandButton?.click());
+
+    expect(result.nextGallery).toHaveBeenCalledTimes(1);
+    expect(result.nextGallery).toHaveBeenCalledWith(arbitraryId);
+    expect(result.setGalleryExpanded).toHaveBeenCalledTimes(1);
+    expect(result.setGalleryExpanded).toHaveBeenCalledWith(arbitraryId, true);
+    expect(result.requestFullscreen).not.toHaveBeenCalled();
+  });
+
+  it("labels multiple Galleries deterministically and preserves per-Gallery disabled state", () => {
+    const first = gallery("first", 2, { pending: true });
+    const second = gallery("second", 1);
+    const result = render({ galleries: [first, second] });
+
+    expect(container.textContent).toContain("Gallery 1");
+    expect(container.textContent).toContain("Gallery 2");
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>(
+      '[data-gallery-controls] button',
+    ));
+    expect(buttons).toHaveLength(4);
+    expect(buttons.slice(0, 2).every((button) => button.disabled)).toBe(true);
+    expect(buttons[2]?.disabled).toBe(true);
+    expect(buttons[3]?.disabled).toBe(false);
+
+    act(() => buttons[3]?.click());
+    expect(result.setGalleryExpanded).toHaveBeenCalledWith("second", true);
+  });
+
+  it("uses Collapse for expanded Galleries and disables Gallery actions with empty items or disabled Control", () => {
+    const expanded = gallery("expanded", 2, { expanded: true });
+    const empty = gallery("empty", 0);
+    const result = render({ galleries: [expanded, empty] });
+
+    const collapseButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Gallery 1: Collapse"]',
+    );
+    expect(collapseButton?.textContent).toContain("Collapse");
+    act(() => collapseButton?.click());
+    expect(result.setGalleryExpanded).toHaveBeenCalledWith("expanded", false);
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>(
+      '[data-gallery-controls] button',
+    ));
+    expect(buttons[2]?.disabled).toBe(true);
+    expect(buttons[3]?.disabled).toBe(true);
+
+    act(() => {
+      root.unmount();
+      root = createRoot(container);
+    });
+    render({ controlView: view(1, false), galleries: [gallery("available", 2)] });
+    expect([...container.querySelectorAll<HTMLButtonElement>('[data-gallery-controls] button')]
+      .every((button) => button.disabled)).toBe(true);
+  });
+
+  it("suppresses Gallery controls while a published version is pending", () => {
+    render({
+      galleries: [gallery("live-gallery", 2)],
+      pendingVersion: {
+        targetVersionId: "version-2",
+        structuralChange: true,
+        projectedSlideRemoved: false,
+      },
+    });
+
+    expect(container.querySelector('[data-gallery-controls]')).toBeNull();
   });
 
   it("disables Summary navigation when Control is unavailable or a version is pending", () => {

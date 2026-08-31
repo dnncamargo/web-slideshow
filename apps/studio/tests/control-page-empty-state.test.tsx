@@ -11,6 +11,13 @@ const mocks = vi.hoisted(() => ({
   },
   activateLivePresentation: vi.fn(),
   push: vi.fn(),
+  galleryControl: {
+    galleries: [],
+    sendFailed: false,
+    nextGallery: vi.fn(),
+    setGalleryExpanded: vi.fn(),
+  },
+  presenterProps: null as Record<string, unknown> | null,
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
@@ -35,6 +42,15 @@ vi.mock("../src/features/control/use-live-session-control", () => ({
     updatePlayer: vi.fn(),
   }),
 }));
+vi.mock("../src/features/control/use-live-gallery-control", () => ({
+  useLiveGalleryControl: () => mocks.galleryControl,
+}));
+vi.mock("../src/features/control/presenter/presenter-view", () => ({
+  PresenterView: (props: Record<string, unknown>) => {
+    mocks.presenterProps = props;
+    return <div data-presenter-view />;
+  },
+}));
 vi.mock("../src/features/control/presenter/use-presenter-presentation", () => ({
   usePresenterPresentation: () => ({ kind: "idle" }),
   resolveLivePageId: vi.fn(),
@@ -56,6 +72,8 @@ describe("ControlPage empty state recovery", () => {
     mocks.liveState = { kind: "none" };
     mocks.activateLivePresentation.mockReset();
     mocks.push.mockReset();
+    mocks.presenterProps = null;
+    mocks.galleryControl.sendFailed = false;
   });
 
   afterEach(async () => {
@@ -179,6 +197,17 @@ describe("ControlPage empty state recovery", () => {
       "publication-new",
       "version-new",
     );
+  });
+
+  it("composes Gallery send failure into PresenterView's existing send-failure prop", () => {
+    mocks.liveState = {
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 2 },
+    };
+    mocks.galleryControl.sendFailed = true;
+    render();
+
+    expect(mocks.presenterProps?.sendFailed).toBe(true);
   });
 
   it("prevents duplicate activation and allows retry after failure", async () => {
