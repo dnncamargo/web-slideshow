@@ -77,10 +77,53 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     const row = host.querySelector<HTMLElement>("[data-linked-style-id='gap']");
     expect(row?.textContent).toContain("Used by 1 element");
-    expect(row?.textContent).toContain("Matching 2 elements");
     await act(async () => row?.querySelector("button")?.click());
+    expect(row?.textContent).toContain("Matching 2 elements");
     expect(row?.textContent).toContain("Attach 2 matching elements");
     expect(row?.textContent).toContain("Slide 1 · linked");
+  });
+
+  it("uses the compact shared action grammar and Text Styles disclosure structure", async () => {
+    await render();
+    const row = host.querySelector<HTMLElement>("[data-linked-style-id='gap']")!;
+    const disclosure = row.querySelector<HTMLButtonElement>("button")!;
+    expect(disclosure.className).toContain("typographyStyleDisclosure");
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(disclosure.getAttribute("aria-controls")).toBe("linked-style-gap-editor");
+    const add = host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > .ps-ui-button--primary")!;
+    expect(add.className).toContain("ps-ui-button");
+    expect(add.className).toContain("ps-ui-button--compact");
+    await act(async () => disclosure.click());
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] .ps-ui-button--secondary")).not.toBeNull();
+    expect(host.querySelector("#linked-style-gap-editor .ps-ui-button--danger")).not.toBeNull();
+  });
+
+  it("keeps Preserve size checkbox before its text and preserves authored semantics", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Size", layout: { width: "50%", flexShrink: 0 } }] });
+    const update = vi.fn();
+    await openStyle(value, update);
+    const row = host.querySelector<HTMLElement>("[data-linked-style-property='preserveSize']")!;
+    const checkbox = row.querySelector<HTMLInputElement>("input[type='checkbox']")!;
+    const text = row.querySelector("label span")!;
+    expect(checkbox.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(checkbox.checked).toBe(true);
+    await act(async () => { checkbox.click(); });
+    expect(update).toHaveBeenLastCalledWith("gap", { layout: { width: "50%", flexShrink: undefined } });
+  });
+
+  it("groups the available property chooser without changing availability", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Layout", layout: { children: { direction: "row" } } }] });
+    await openStyle(value);
+    const addProperty = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='gap'] button")).find((button) => button.textContent?.includes("Add property"));
+    expect(addProperty).toBeDefined();
+    await act(async () => addProperty?.click());
+    const chooser = host.querySelector("[data-linked-style-property-chooser]")!;
+    expect(chooser.textContent).toContain("Position");
+    expect(chooser.textContent).toContain("Spacing");
+    expect(chooser.textContent).toContain("Appearance");
+    expect(chooser.textContent).not.toContain("Fit");
+    expect(chooser.querySelectorAll("button").length).toBeGreaterThan(0);
   });
 
   it("organizes the expanded definition editor into semantic static groups", async () => {
@@ -268,6 +311,7 @@ describe("Linked Styles Resources contract", () => {
       const row = editor.querySelector(`[data-linked-style-property='${property}']`);
       expect(row).not.toBeNull();
       expect(row?.querySelector("button")).not.toBeNull();
+      expect(row?.querySelector("label label")).toBeNull();
     }
     expect(editor.querySelector("[data-linked-style-property='gradient'] select")?.textContent).not.toContain("None");
   });
