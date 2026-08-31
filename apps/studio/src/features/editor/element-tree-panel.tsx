@@ -504,6 +504,7 @@ function TopicItemTreeNode({
                   expandedIds={expandedIds}
                   selectedElementId={selectedElementId}
                   selectedContentSlotId={selectedContentSlotId}
+                  selectedGalleryItemIndex={selectedGalleryItemIndex}
                   onToggle={onToggle}
                   onSelectElement={onSelectElement}
                   dropTarget={dropTarget}

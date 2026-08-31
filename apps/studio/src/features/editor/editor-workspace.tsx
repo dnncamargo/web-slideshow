@@ -264,7 +264,6 @@ interface SelectedElementInfo {
    * of TopicItem/ContentSlot as PowerShowElements.
    */
   contentSlotId?: string | null;
-  galleryItemIndex?: number | null;
 }
 
 interface GalleryItemSelection {
@@ -755,22 +754,10 @@ export function EditorWorkspace({
       : null;
     setGalleryItemSelection((current) => {
       if (!gallery || gallery.items.length === 0) return null;
-      const requestedItemIndex =
-        selectedElement?.id === gallery.id
-          ? selectedElement.galleryItemIndex
-          : null;
-      if (
-        requestedItemIndex !== null &&
-        requestedItemIndex !== undefined &&
-        requestedItemIndex >= 0 &&
-        requestedItemIndex < gallery.items.length
-      ) {
-        return { galleryId: gallery.id, itemIndex: requestedItemIndex };
-      }
       if (current?.galleryId !== gallery.id) return { galleryId: gallery.id, itemIndex: 0 };
       return { galleryId: gallery.id, itemIndex: Math.min(current.itemIndex, gallery.items.length - 1) };
     });
-  }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined, selectedElement?.galleryItemIndex]);
+  }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined]);
 
   function requestElementDeletion() {
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
@@ -3874,21 +3861,37 @@ export function EditorWorkspace({
                   selectedElementId={selectedElement?.id ?? null}
                   selectedContentSlotId={selectedElement?.contentSlotId ?? null}
                   selectedGalleryItemIndex={
-                    selectedElement?.galleryItemIndex ?? null
+                    selectedElement?.id === galleryItemSelection?.galleryId
+                      ? galleryItemSelection.itemIndex
+                      : null
                   }
                   onSelectElement={(selection) => {
-                    setSelectedElement(selection);
                     if (selection.type === "gallery") {
                       closeCanvasMediaEditing();
                       setGalleryItemSelection(
                         selection.galleryItemIndex === null ||
                           selection.galleryItemIndex === undefined
-                          ? null
+                          ? selectedDocumentElement?.type === "gallery" &&
+                              selectedDocumentElement.id === selection.id &&
+                              selectedDocumentElement.items.length > 0
+                            ? { galleryId: selection.id, itemIndex: 0 }
+                            : null
                           : {
                               galleryId: selection.id,
                               itemIndex: selection.galleryItemIndex,
-                            },
+                          },
                       );
+                    }
+                    if (
+                      selectedElement?.id !== selection.id ||
+                      selectedElement.type !== selection.type ||
+                      selectedElement.contentSlotId !== selection.contentSlotId
+                    ) {
+                      setSelectedElement({
+                        id: selection.id,
+                        type: selection.type,
+                        contentSlotId: selection.contentSlotId,
+                      });
                     }
                   }}
                   onMoveElement={moveElementInTree}
