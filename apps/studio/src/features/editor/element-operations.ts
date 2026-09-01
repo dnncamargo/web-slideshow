@@ -3336,6 +3336,11 @@ export function moveElementOut(
 type GalleryItemValue = GalleryElement["items"][number];
 type GalleryTreeDropIntent = "before" | "after" | "inside";
 
+interface GalleryDetachDestination {
+  targetParentRef: ElementParentRef;
+  targetIndex?: number;
+}
+
 export interface GalleryStructuralResult {
   elements: PowerShowElement[];
   changed: boolean;
@@ -3405,7 +3410,7 @@ function resolveGalleryDetachDestination(
   elements: PowerShowElement[],
   targetId: string,
   intent: GalleryTreeDropIntent,
-): MoveElementOptions | null {
+): GalleryDetachDestination | null {
   const target = findElementById(elements, targetId);
   const targetPosition = findElementSiblingPosition(elements, targetId);
 
@@ -3413,12 +3418,11 @@ function resolveGalleryDetachDestination(
 
   if (intent === "inside") {
     return target.type === "container"
-      ? { elementId: "", targetParentRef: { kind: "container", id: target.id } }
+      ? { targetParentRef: { kind: "container", id: target.id } }
       : null;
   }
 
   return {
-    elementId: "",
     targetParentRef: targetPosition.parentRef,
     targetIndex: targetPosition.index + (intent === "after" ? 1 : 0),
   };

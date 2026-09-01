@@ -362,7 +362,7 @@ describe("ElementTreePanel", () => {
     ]);
   });
 
-  it("selects a Gallery Image as a synthetic, non-draggable child row", () => {
+  it("selects a Gallery Image as a synthetic, draggable child row", () => {
     const galleryId = "gallery / legal: id";
     const slide: Slide = {
       id: "slide-gallery",
@@ -385,7 +385,7 @@ describe("ElementTreePanel", () => {
     expect(image1.getAttribute("aria-selected")).toBe("false");
     expect(image2.getAttribute("aria-selected")).toBe("true");
     expect(image3.getAttribute("aria-selected")).toBe("false");
-    expect(image2.querySelector(':scope > div')?.getAttribute("draggable")).toBeNull();
+    expect(image2.querySelector(':scope > div')?.getAttribute("draggable")).toBe("true");
 
     clickRow(image2);
 

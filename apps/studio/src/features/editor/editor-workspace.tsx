@@ -3158,7 +3158,7 @@ export function EditorWorkspace({
     }));
   }
 
-  function applyGalleryStructureDrop(options: Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]) {
+  function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
     if (!selectedSlide) return;
 
     const source = options.source;
@@ -3176,7 +3176,9 @@ export function EditorWorkspace({
           ? target.itemIndex - (source.itemIndex < target.itemIndex ? 1 : 0)
           : target.itemIndex + (source.itemIndex < target.itemIndex ? 0 : 1);
         outcome = reorderGalleryItem(selectedSlide.elements, source.galleryId, source.itemIndex, finalIndex);
-      } else if (options.intent !== "inside") {
+      } else if (
+        options.intent !== "inside" || target.element.type === "container"
+      ) {
         outcome = detachGalleryItemToImage(
           selectedSlide.elements,
           presentation.slides,
