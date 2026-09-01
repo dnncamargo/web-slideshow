@@ -443,45 +443,6 @@ export function PresenterView({
             </button>
           </div>
 
-          {showGalleryControls && (
-            <div className={presenterStyles.galleryControls} data-gallery-controls>
-              {galleries.map((gallery, index) => {
-                const label = galleries.length === 1
-                  ? t("element.gallery")
-                  : `${t("element.gallery")} ${index + 1}`;
-                const nextDisabled = disabled || gallery.pending || gallery.itemCount <= 1;
-                const expansionDisabled = disabled || gallery.pending || gallery.itemCount === 0;
-                const expansionLabel = t(
-                  gallery.expanded ? "control.galleryCollapse" : "control.galleryExpand",
-                );
-
-                return (
-                  <div className={presenterStyles.galleryGroup} key={gallery.elementId}>
-                    <span className={presenterStyles.galleryLabel}>{label}</span>
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      disabled={nextDisabled}
-                      onClick={() => nextGallery(gallery.elementId)}
-                      aria-label={`${label}: ${t("control.galleryNextImage")}`}
-                    >
-                      {t("control.galleryNextImage")}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      disabled={expansionDisabled}
-                      onClick={() => setGalleryExpanded(gallery.elementId, !gallery.expanded)}
-                      aria-label={`${label}: ${expansionLabel}`}
-                    >
-                      {expansionLabel}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           <div className={presenterStyles.controlMeta}>
             {/* Future session timer slot. Renders only the desired slide
                 counter until a canonical startedAt exists. */}
@@ -578,6 +539,23 @@ export function PresenterView({
           )}
 
           <div className={presenterStyles.notesRegion}>
+            {showGalleryControls && (
+              <div className={presenterStyles.interactiveElementsControls} data-gallery-controls>
+                {galleries.map((gallery, index) => {
+                  const label = galleries.length === 1
+                    ? t("element.gallery")
+                    : `${t("element.gallery")} ${index + 1}`;
+                  const nextDisabled = disabled || gallery.pending || gallery.itemCount <= 1;
+                  const expansionDisabled = disabled || gallery.pending || gallery.itemCount === 0;
+                  const expansionLabel = t(gallery.expanded ? "control.galleryCollapse" : "control.galleryExpand");
+                  return <div className={presenterStyles.galleryGroup} key={gallery.elementId}>
+                    <span className={presenterStyles.galleryLabel}>{label}</span>
+                    <Button variant="secondary" size="compact" disabled={nextDisabled} onClick={() => nextGallery(gallery.elementId)} aria-label={`${label}: ${t("control.galleryNextImage")}`}>{t("control.galleryNextImage")}</Button>
+                    <Button variant="secondary" size="compact" disabled={expansionDisabled} onClick={() => setGalleryExpanded(gallery.elementId, !gallery.expanded)} aria-label={`${label}: ${expansionLabel}`}>{expansionLabel}</Button>
+                  </div>;
+                })}
+              </div>
+            )}
             {currentSlide && currentSlideNote !== "" && (
               <p className={presenterStyles.note}>{currentSlideNote}</p>
             )}

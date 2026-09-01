@@ -125,6 +125,15 @@
   background: #111620;
 }
 
+.interactiveElementsControls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+}
+
 /* ==========================================================
    CENTER CONTROLS (Previous / Next / Fullscreen)
    Desktop: body grid row 2, column 2
@@ -173,7 +182,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   min-width: 0;
