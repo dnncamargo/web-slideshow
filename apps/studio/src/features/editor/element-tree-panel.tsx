@@ -38,6 +38,7 @@ interface ElementTreePanelProps {
   selectedGalleryItemIndex?: number | null;
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
+  onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
   customLibraryRepository?: CustomLibraryRepository;
   onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
@@ -51,6 +52,20 @@ interface ElementTreeSelection {
   galleryItemIndex?: number | null;
 }
 
+type ElementTreeDragSource =
+  | { kind: "element"; elementId: string }
+  | { kind: "gallery-item"; galleryId: string; itemIndex: number };
+
+interface GalleryStructureDrop {
+  source: ElementTreeDragSource;
+  target: { kind: "element"; element: PowerShowElement } | {
+    kind: "gallery-item";
+    galleryId: string;
+    itemIndex: number;
+  };
+  intent: TreeDropIntent;
+}
+
 interface ElementTreeNodeProps {
   element: PowerShowElement;
   index: number;
@@ -60,7 +75,7 @@ interface ElementTreeNodeProps {
   onToggle: (id: string) => void;
   onSelectElement: (selection: ElementTreeSelection) => void;
   selectedGalleryItemIndex: number | null;
-  dropTarget: { id: string; intent: TreeDropIntent } | null;
+  dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
   onDragStart: (
     element: PowerShowElement,
     event: DragEvent<HTMLDivElement>,
@@ -71,6 +86,9 @@ interface ElementTreeNodeProps {
   ) => void;
   onDrop: (element: PowerShowElement) => void;
   onDragEnd: () => void;
+  onGalleryItemDragStart: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
+  onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
+  onGalleryItemDrop: (galleryId: string, itemIndex: number) => void;
   selectedContentSlotId: string | null;
 }
 
@@ -79,6 +97,11 @@ interface GalleryItemTreeNodeProps {
   itemIndex: number;
   selected: boolean;
   onSelectElement: (selection: ElementTreeSelection) => void;
+  dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
+  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onDragOver: (event: DragEvent<HTMLDivElement>) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 }
 
 interface TopicItemTreeNodeProps {
@@ -90,7 +113,7 @@ interface TopicItemTreeNodeProps {
   selectedElementId: string | null;
   selectedContentSlotId: string | null;
   selectedGalleryItemIndex: number | null;
-  dropTarget: { id: string; intent: TreeDropIntent } | null;
+  dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
   onToggle: (id: string) => void;
   onSelectElement: (selection: ElementTreeSelection) => void;
   onDragStart: (
@@ -103,6 +126,9 @@ interface TopicItemTreeNodeProps {
   ) => void;
   onDrop: (element: PowerShowElement) => void;
   onDragEnd: () => void;
+  onGalleryItemDragStart: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
+  onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
+  onGalleryItemDrop: (galleryId: string, itemIndex: number) => void;
 }
 
 function isStructuralTopicSelection(
@@ -219,6 +245,9 @@ function ElementTreeNode({
   onDragOver,
   onDrop,
   onDragEnd,
+  onGalleryItemDragStart,
+  onGalleryItemDragOver,
+  onGalleryItemDrop,
   selectedContentSlotId,
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
@@ -337,6 +366,9 @@ function ElementTreeNode({
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 onDragEnd={onDragEnd}
+                onGalleryItemDragStart={onGalleryItemDragStart}
+                onGalleryItemDragOver={onGalleryItemDragOver}
+                onGalleryItemDrop={onGalleryItemDrop}
               />
             ))}
           {element.type === "topics" &&
@@ -358,6 +390,9 @@ function ElementTreeNode({
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 onDragEnd={onDragEnd}
+                onGalleryItemDragStart={onGalleryItemDragStart}
+                onGalleryItemDragOver={onGalleryItemDragOver}
+                onGalleryItemDrop={onGalleryItemDrop}
               />
             ))}
           {element.type === "gallery" &&
@@ -371,6 +406,11 @@ function ElementTreeNode({
                   selectedGalleryItemIndex === itemIndex
                 }
                 onSelectElement={onSelectElement}
+                dropTarget={dropTarget}
+                onDragStart={(event) => onGalleryItemDragStart(element.id, itemIndex, event)}
+                onDragOver={(event) => onGalleryItemDragOver(element.id, itemIndex, event)}
+                onDrop={() => onGalleryItemDrop(element.id, itemIndex)}
+                onDragEnd={onDragEnd}
               />
             ))}
         </ul>
@@ -384,8 +424,17 @@ function GalleryItemTreeNode({
   itemIndex,
   selected,
   onSelectElement,
+  dropTarget,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: GalleryItemTreeNodeProps) {
   const { t } = useStudioI18n();
+  const dropIntent =
+    dropTarget?.id === galleryId && dropTarget.itemIndex === itemIndex
+      ? dropTarget.intent
+      : null;
 
   return (
     <li
@@ -393,12 +442,23 @@ function GalleryItemTreeNode({
       role="treeitem"
       aria-selected={selected}
     >
+      {dropIntent === "before" && (
+        <div className={styles.elementTreeDropIndicatorBefore} aria-hidden="true" />
+      )}
       <div
         className={
           selected
             ? `${styles.elementTreeRow} ${styles.elementTreeSelected}`
             : styles.elementTreeRow
         }
+        draggable
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={(event) => {
+          event.preventDefault();
+          onDrop();
+        }}
+        onDragEnd={onDragEnd}
       >
         <span className={styles.elementTreeExpand} aria-hidden="true" />
         <button
@@ -415,6 +475,9 @@ function GalleryItemTreeNode({
           {`${t("element.image")} ${itemIndex + 1}`}
         </button>
       </div>
+      {dropIntent === "after" && (
+        <div className={styles.elementTreeDropIndicatorAfter} aria-hidden="true" />
+      )}
     </li>
   );
 }
@@ -435,6 +498,9 @@ function TopicItemTreeNode({
   onDragOver,
   onDrop,
   onDragEnd,
+  onGalleryItemDragStart,
+  onGalleryItemDragOver,
+  onGalleryItemDrop,
 }: TopicItemTreeNodeProps) {
   const { t } = useStudioI18n();
   const expanded = expandedIds.has(item.id);
@@ -510,8 +576,11 @@ function TopicItemTreeNode({
                   dropTarget={dropTarget}
                   onDragStart={onDragStart}
                   onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  onDragEnd={onDragEnd}
+                onDrop={onDrop}
+                onDragEnd={onDragEnd}
+                onGalleryItemDragStart={onGalleryItemDragStart}
+                onGalleryItemDragOver={onGalleryItemDragOver}
+                onGalleryItemDrop={onGalleryItemDrop}
                 />
               ))}
             </ul>
@@ -532,8 +601,11 @@ function TopicItemTreeNode({
               onSelectElement={onSelectElement}
               onDragStart={onDragStart}
               onDragOver={onDragOver}
-              onDrop={onDrop}
-              onDragEnd={onDragEnd}
+                  onDrop={onDrop}
+                  onDragEnd={onDragEnd}
+                  onGalleryItemDragStart={onGalleryItemDragStart}
+                  onGalleryItemDragOver={onGalleryItemDragOver}
+                  onGalleryItemDrop={onGalleryItemDrop}
             />
           ))}
         </ul>
@@ -549,6 +621,7 @@ export function ElementTreePanel({
   selectedGalleryItemIndex = null,
   onSelectElement,
   onMoveElement,
+  onGalleryStructureDrop,
   customLibraryRepository,
   onBrowseElementStyles,
   palette,
@@ -560,10 +633,11 @@ export function ElementTreePanel({
     collectInitiallyExpandedIds(slide.elements, ids);
     return ids;
   });
-  const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
+  const [dragSource, setDragSource] = useState<ElementTreeDragSource | null>(null);
   const [dropTarget, setDropTarget] = useState<{
     id: string;
     intent: TreeDropIntent;
+    itemIndex?: number;
   } | null>(null);
   const selectedElement =
     selectedElementId === null
@@ -603,7 +677,10 @@ export function ElementTreePanel({
     const relativeY = event.clientY - bounds.top;
 
     if (
-      target.type === "container" &&
+      (target.type === "container" ||
+        (target.type === "gallery" &&
+          dragSource?.kind === "element" &&
+          findElementById(slide.elements, dragSource.elementId)?.type === "image")) &&
       relativeY > bounds.height / 3 &&
       relativeY < (bounds.height * 2) / 3
     ) {
@@ -640,21 +717,40 @@ export function ElementTreePanel({
               onDragStart={(element, event) => {
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", element.id);
-                setDraggedElementId(element.id);
+                setDragSource({ kind: "element", elementId: element.id });
                 onSelectElement({
                   id: element.id,
                   type: element.type,
                 });
               }}
               onDragOver={(target, event) => {
-                if (!draggedElementId) {
+                if (!dragSource) {
                   return;
                 }
 
                 const intent = getDropIntent(target, event);
+                if (dragSource.kind === "gallery-item") {
+                  if (target.type === "gallery" && intent === "inside") {
+                    setDropTarget(null);
+                    return;
+                  }
+                  event.preventDefault();
+                  setDropTarget({ id: target.id, intent });
+                  return;
+                }
+
+                if (target.type === "gallery" && intent === "inside") {
+                  if (findElementById(slide.elements, dragSource.elementId)?.type === "image") {
+                    event.preventDefault();
+                    setDropTarget({ id: target.id, intent });
+                  } else {
+                    setDropTarget(null);
+                  }
+                  return;
+                }
                 const resolved = resolveTreeDrop(
                   slide.elements,
-                  draggedElementId,
+                  dragSource.elementId,
                   target.id,
                   intent,
                 );
@@ -668,22 +764,28 @@ export function ElementTreePanel({
               }}
               onDrop={(target) => {
                 if (
-                  !draggedElementId ||
+                  !dragSource ||
                   !dropTarget ||
                   dropTarget.id !== target.id
                 ) {
                   return;
                 }
 
-                const resolved = resolveTreeDrop(
-                  slide.elements,
-                  draggedElementId,
-                  target.id,
-                  dropTarget.intent,
-                );
-
-                if (resolved) {
-                  onMoveElement(resolved);
+                if (dragSource.kind === "gallery-item") {
+                  onGalleryStructureDrop({
+                    source: dragSource,
+                    target: { kind: "element", element: target },
+                    intent: dropTarget.intent,
+                  });
+                } else if (target.type === "gallery" && dropTarget.intent === "inside") {
+                  onGalleryStructureDrop({
+                    source: dragSource,
+                    target: { kind: "element", element: target },
+                    intent: dropTarget.intent,
+                  });
+                } else {
+                  const resolved = resolveTreeDrop(slide.elements, dragSource.elementId, target.id, dropTarget.intent);
+                  if (resolved) onMoveElement(resolved);
 
                   if (
                     dropTarget.intent === "inside" &&
@@ -695,11 +797,39 @@ export function ElementTreePanel({
                   }
                 }
 
-                setDraggedElementId(null);
+                setDragSource(null);
                 setDropTarget(null);
               }}
               onDragEnd={() => {
-                setDraggedElementId(null);
+                setDragSource(null);
+                setDropTarget(null);
+              }}
+              onGalleryItemDragStart={(galleryId, itemIndex, event) => {
+                event.dataTransfer.effectAllowed = "move";
+                setDragSource({ kind: "gallery-item", galleryId, itemIndex });
+                onSelectElement({ id: galleryId, type: "gallery", galleryItemIndex: itemIndex });
+              }}
+              onGalleryItemDragOver={(galleryId, itemIndex, event) => {
+                if (!dragSource) return;
+                const intent: TreeDropIntent = event.clientY - event.currentTarget.getBoundingClientRect().top < event.currentTarget.getBoundingClientRect().height / 2 ? "before" : "after";
+                const valid =
+                  (dragSource.kind === "gallery-item" && dragSource.galleryId === galleryId && dragSource.itemIndex !== itemIndex) ||
+                  (dragSource.kind === "element" && findElementById(slide.elements, dragSource.elementId)?.type === "image");
+                if (!valid) {
+                  setDropTarget(null);
+                  return;
+                }
+                event.preventDefault();
+                setDropTarget({ id: galleryId, itemIndex, intent });
+              }}
+              onGalleryItemDrop={(galleryId, itemIndex) => {
+                if (!dragSource || !dropTarget || dropTarget.id !== galleryId || dropTarget.itemIndex !== itemIndex) return;
+                onGalleryStructureDrop({
+                  source: dragSource,
+                  target: { kind: "gallery-item", galleryId, itemIndex },
+                  intent: dropTarget.intent,
+                });
+                setDragSource(null);
                 setDropTarget(null);
               }}
             />
