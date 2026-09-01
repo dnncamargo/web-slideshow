@@ -1911,7 +1911,7 @@ export function createElement(
           {
             src: "/powershow-demo.svg",
 
-            alt: "Gallery image",
+            alt: "",
           },
         ],
 

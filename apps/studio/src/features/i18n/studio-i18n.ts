@@ -661,6 +661,8 @@ const englishMessages = {
   "gallery.moveUp": "Move image up",
   "gallery.moveDown": "Move image down",
   "gallery.imageNumber": "Image {number}",
+  "gallery.newImage": "New image",
+  "gallery.name": "Name (alternative text)",
   "gallery.fit": "Gallery fit",
   "gallery.inheritFit": "Gallery default",
 
@@ -1645,6 +1647,8 @@ const portugueseMessages = {
   "gallery.moveUp": "Mover imagem para cima",
   "gallery.moveDown": "Mover imagem para baixo",
   "gallery.imageNumber": "Imagem {number}",
+  "gallery.newImage": "Nova imagem",
+  "gallery.name": "Nome (texto alternativo)",
   "gallery.fit": "Ajuste da galeria",
   "gallery.inheritFit": "Padrão da galeria",
 

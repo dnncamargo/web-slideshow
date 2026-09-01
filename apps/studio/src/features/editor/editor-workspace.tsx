@@ -3224,6 +3224,30 @@ export function EditorWorkspace({
     }
   }
 
+  function moveGalleryItemInTree(
+    galleryId: string,
+    itemIndex: number,
+    offset: -1 | 1,
+  ) {
+    const outcome = reorderGalleryItem(
+      selectedSlide?.elements ?? [],
+      galleryId,
+      itemIndex,
+      itemIndex + offset,
+    );
+    if (!outcome.changed || outcome.galleryItemIndex === undefined) return;
+
+    closeCanvasMediaEditing();
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex ? { ...slide, elements: outcome.elements } : slide,
+      ),
+    }));
+    setSelectedElement({ id: galleryId, type: "gallery" });
+    setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
+  }
+
   // ==========================================================
   // END: MOVE SELECTED ELEMENT
   // ==========================================================
@@ -3964,6 +3988,7 @@ export function EditorWorkspace({
                     }
                   }}
                   onMoveElement={moveElementInTree}
+                  onMoveGalleryItem={moveGalleryItemInTree}
                   onGalleryStructureDrop={applyGalleryStructureDrop}
                   customLibraryRepository={customLibraryRepository}
                   onBrowseElementStyles={() => setRightPanelMode("resources")}

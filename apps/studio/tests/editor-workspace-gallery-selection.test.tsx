@@ -117,7 +117,7 @@ describe("EditorWorkspace Gallery selection", () => {
     await mount();
 
     await act(async () => buttonWithText("Elements").click());
-    await act(async () => treeButtonStartingWith("Image 2").click());
+    await act(async () => treeButtonStartingWith("2. Two").click());
 
     await act(async () => buttonWithText("Inspector").click());
     expect(selector(1).getAttribute("aria-pressed")).toBe("true");
@@ -135,8 +135,8 @@ describe("EditorWorkspace Gallery selection", () => {
     await act(async () => selector(2).click());
     await act(async () => buttonWithText("Elements").click());
 
-    const image2 = treeButtonStartingWith("Image 2").closest('li[role="treeitem"]');
-    const image3 = treeButtonStartingWith("Image 3").closest('li[role="treeitem"]');
+    const image2 = treeButtonStartingWith("2. Two").closest('li[role="treeitem"]');
+    const image3 = treeButtonStartingWith("3. Three").closest('li[role="treeitem"]');
     expect(image2?.getAttribute("aria-selected")).toBe("false");
     expect(image3?.getAttribute("aria-selected")).toBe("true");
   });

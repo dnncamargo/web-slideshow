@@ -3010,12 +3010,35 @@
 
 .galleryItemSelector {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
 }
 
+.galleryItemSelectorRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.galleryItemOrdinal {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
 .galleryItemSelectorButton {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.galleryItemName {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
 }
 
 .galleryItemSelectorButtonSelected {

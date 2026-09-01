@@ -30,6 +30,7 @@ import {
   type TreeDropIntent,
 } from "./element-tree-helpers";
 import { getTextContentPlainText } from "./rich-text-authoring";
+import { getGalleryItemDisplayName } from "./gallery-item-display-name";
 
 interface ElementTreePanelProps {
   slide: Slide;
@@ -38,6 +39,7 @@ interface ElementTreePanelProps {
   selectedGalleryItemIndex?: number | null;
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
+  onMoveGalleryItem: (galleryId: string, itemIndex: number, offset: -1 | 1) => void;
   onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
   customLibraryRepository?: CustomLibraryRepository;
   onBrowseElementStyles: () => void;
@@ -95,6 +97,7 @@ interface ElementTreeNodeProps {
 interface GalleryItemTreeNodeProps {
   galleryId: string;
   itemIndex: number;
+  item: Extract<PowerShowElement, { type: "gallery" }>["items"][number];
   selected: boolean;
   onSelectElement: (selection: ElementTreeSelection) => void;
   dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
@@ -396,11 +399,12 @@ function ElementTreeNode({
               />
             ))}
           {element.type === "gallery" &&
-            element.items.map((_, itemIndex) => (
+            element.items.map((item, itemIndex) => (
               <GalleryItemTreeNode
                 key={`${element.id}-${itemIndex}`}
                 galleryId={element.id}
                 itemIndex={itemIndex}
+                item={item}
                 selected={
                   selectedElementId === element.id &&
                   selectedGalleryItemIndex === itemIndex
@@ -422,6 +426,7 @@ function ElementTreeNode({
 function GalleryItemTreeNode({
   galleryId,
   itemIndex,
+  item,
   selected,
   onSelectElement,
   dropTarget,
@@ -472,7 +477,7 @@ function GalleryItemTreeNode({
             })
           }
         >
-          {`${t("element.image")} ${itemIndex + 1}`}
+          {`${itemIndex + 1}. ${getGalleryItemDisplayName(item, t("gallery.newImage"))}`}
         </button>
       </div>
       {dropIntent === "after" && (
@@ -621,6 +626,7 @@ export function ElementTreePanel({
   selectedGalleryItemIndex = null,
   onSelectElement,
   onMoveElement,
+  onMoveGalleryItem,
   onGalleryStructureDrop,
   customLibraryRepository,
   onBrowseElementStyles,
@@ -655,6 +661,10 @@ export function ElementTreePanel({
   const selectedElementForMovement = isStructuralTopicRow
     ? null
     : selectedElement;
+  const selectedGallery =
+    selectedGalleryItemIndex !== null && selectedElement?.type === "gallery"
+      ? selectedElement
+      : null;
   const selectedPositionForMovement = isStructuralTopicRow
     ? null
     : selectedPosition;
@@ -842,12 +852,14 @@ export function ElementTreePanel({
           aria-label={t("tree.moveUp")}
           title={t("tree.moveUp")}
           disabled={
-            !selectedElementId ||
-            !selectedPositionForMovement ||
-            !selectedActionState?.canMoveUp
+            selectedGallery
+              ? selectedGalleryItemIndex === 0
+              : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp
           }
           onClick={() => {
-            if (selectedElementId && selectedPositionForMovement) {
+            if (selectedGallery && selectedGalleryItemIndex !== null) {
+              onMoveGalleryItem(selectedGallery.id, selectedGalleryItemIndex, -1);
+            } else if (selectedElementId && selectedPositionForMovement) {
               onMoveElement({
                 elementId: selectedElementId,
                 targetParentRef: selectedPositionForMovement.parentRef,
@@ -863,12 +875,14 @@ export function ElementTreePanel({
           aria-label={t("tree.moveDown")}
           title={t("tree.moveDown")}
           disabled={
-            !selectedElementId ||
-            !selectedPositionForMovement ||
-            !selectedActionState?.canMoveDown
+            selectedGallery
+              ? selectedGalleryItemIndex === selectedGallery.items.length - 1
+              : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown
           }
           onClick={() => {
-            if (selectedElementId && selectedPositionForMovement) {
+            if (selectedGallery && selectedGalleryItemIndex !== null) {
+              onMoveGalleryItem(selectedGallery.id, selectedGalleryItemIndex, 1);
+            } else if (selectedElementId && selectedPositionForMovement) {
               onMoveElement({
                 elementId: selectedElementId,
                 targetParentRef: selectedPositionForMovement.parentRef,
@@ -881,7 +895,7 @@ export function ElementTreePanel({
         </button>
         <select
           aria-label={t("tree.moveTo")}
-          disabled={!selectedElementForMovement}
+          disabled={!selectedElementForMovement || selectedGallery !== null}
           value=""
           onChange={(event) => {
             if (selectedElementId && selectedElementForMovement) {

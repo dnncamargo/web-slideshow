@@ -222,8 +222,8 @@ describe("GalleryInspector", () => {
     });
     const rows = container.querySelectorAll("[data-powershow-gallery-select]");
     expect(rows).toHaveLength(2);
-    expect(rows[0]?.textContent).toBe("Image 1");
-    expect(rows[1]?.textContent).toBe("Image 2");
+    expect(rows[0]?.textContent).toBe("One");
+    expect(rows[1]?.textContent).toBe("Two");
     expect(rows[0]?.getAttribute("aria-pressed")).toBe("true");
     expect(rows[1]?.getAttribute("aria-pressed")).toBe("false");
   });
@@ -236,7 +236,7 @@ describe("GalleryInspector", () => {
     });
 
     const selected = container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]');
-    expect(selected?.textContent).toBe("Image 3");
+    expect(selected?.textContent).toBe("Three");
     expect(selected?.getAttribute("aria-pressed")).toBe("true");
     expect(itemSrc("#gallery-gallery-1-item-2-src").value).toBe("/three.png");
   });
@@ -356,7 +356,7 @@ describe("GalleryInspector", () => {
     expect(updates[0]?.items).toHaveLength(3);
     expect(updates[0]?.items[2]).toEqual({
       src: "/powershow-demo.svg",
-      alt: "New image",
+      alt: "",
     });
     expect(selectedItemIndex).toBe(2);
   });
@@ -395,52 +395,12 @@ describe("GalleryInspector", () => {
     expect(updates[1]?.items).toEqual([]);
   });
 
-  it("move up changes canonical order correctly", async () => {
-    await act(async () => {
-      mount(galleryElement());
-    });
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
-    });
-    await act(async () => {
-      moveUpButtons()[0]?.click();
-    });
-    expect(updates[0]?.items.map((item) => item.src)).toEqual([
-      "/two.png",
-      "/one.png",
-    ]);
-    expect(selectedItemIndex).toBe(0);
-  });
-
-  it("move down changes canonical order correctly", async () => {
-    await act(async () => {
-      mount(galleryElement());
-    });
-    await act(async () => {
-      moveDownButtons()[0]?.click();
-    });
-    expect(updates[0]?.items.map((item) => item.src)).toEqual([
-      "/two.png",
-      "/one.png",
-    ]);
-    expect(selectedItemIndex).toBe(1);
-  });
-
-  it("first move up is disabled", async () => {
-    await act(async () => {
-      mount(galleryElement());
-    });
-    expect(moveUpButtons()[0]?.disabled).toBe(true);
-  });
-
-  it("last move down is disabled", async () => {
-    await act(async () => {
-      mount(galleryElement());
-    });
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="1"]')?.click();
-    });
-    expect(moveDownButtons()[0]?.disabled).toBe(true);
+  it("keeps add and remove controls but removes Inspector reorder controls", async () => {
+    await act(async () => mount(galleryElement()));
+    expect(addButton()).toBeTruthy();
+    expect(removeButtons()).toHaveLength(1);
+    expect(moveUpButtons()).toHaveLength(0);
+    expect(moveDownButtons()).toHaveLength(0);
   });
 
   it("item updates never introduce an id", async () => {

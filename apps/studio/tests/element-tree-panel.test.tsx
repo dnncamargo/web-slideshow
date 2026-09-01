@@ -356,9 +356,9 @@ describe("ElementTreePanel", () => {
 
     expect(treeItems(container).map(treeItemLabel)).toEqual([
       "Gallery",
-      "Image 1",
-      "Image 2",
-      "Image 3",
+      "1. Image 1",
+      "2. Image 2",
+      "3. Image 3",
     ]);
   });
 
@@ -377,9 +377,9 @@ describe("ElementTreePanel", () => {
     });
 
     const gallery = findTreeItem(container, "Gallery");
-    const image1 = findTreeItem(container, "Image 1");
-    const image2 = findTreeItem(container, "Image 2");
-    const image3 = findTreeItem(container, "Image 3");
+    const image1 = findTreeItem(container, "1. Image 1");
+    const image2 = findTreeItem(container, "2. Image 2");
+    const image3 = findTreeItem(container, "3. Image 3");
 
     expect(gallery.getAttribute("aria-selected")).toBe("false");
     expect(image1.getAttribute("aria-selected")).toBe("false");
