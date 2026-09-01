@@ -22,6 +22,7 @@ import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
 import type { ControlGalleryView } from "../use-live-gallery-control";
+import type { PlayerOperationalStatus } from "../player-presence";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
 import { PresenterSlidePreview } from "./presenter-slide-preview";
@@ -51,6 +52,14 @@ function describeStatus(
   }
 
   return t("control.synced");
+}
+
+function describePlayerStatus(status: PlayerOperationalStatus | null | undefined): string {
+  if (status === null || status === undefined || status.kind === "no-report") return "No Player report";
+  if (status.kind === "starting") return "Player starting…";
+  if (status.kind === "ready") return "Player ready";
+  if (status.kind === "load-failed") return "Player load failed";
+  return "Player disconnected";
 }
 
 function useLocalClock(): string {
@@ -105,6 +114,7 @@ export interface PresenterViewProps {
   galleries: readonly ControlGalleryView[];
   promotingVersionId: string | null;
   failedPromotionVersionId: string | null;
+  playerStatus?: PlayerOperationalStatus | null;
   previous(): void;
   next(): void;
   goTo(index: number): void;
@@ -147,6 +157,7 @@ export function PresenterView({
   galleries,
   promotingVersionId,
   failedPromotionVersionId,
+  playerStatus,
   previous,
   next,
   goTo,
@@ -328,11 +339,11 @@ export function PresenterView({
             <Status tone="danger">{t("control.sendFailed")}</Status>
           )}
 
-          <Status>
-            {view
-              ? describeStatus(t, view.status)
-              : t("control.awaitingPlayer")}
-          </Status>
+          <Status>{describePlayerStatus(playerStatus)}</Status>
+
+          <Link className={presenterStyles.maintenanceLink} href={STUDIO_ROUTES.controlMaintenance}>
+            Maintenance
+          </Link>
 
           <Button variant="danger" size="compact" onClick={end}>
             {t("control.end")}
@@ -549,11 +560,7 @@ export function PresenterView({
             <span className={styles.error}>{t("control.sendFailed")}</span>
           )}
 
-          <span className={styles.topbarStatus}>
-            {view
-              ? describeStatus(t, view.status)
-              : t("control.awaitingPlayer")}
-          </span>
+          <span className={styles.topbarStatus}>{describePlayerStatus(playerStatus)}</span>
         </div>
 
         <aside className={presenterStyles.nextColumn}>
