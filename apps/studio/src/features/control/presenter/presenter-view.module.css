@@ -134,6 +134,10 @@
   padding: 12px;
 }
 
+.mobileInteractiveElementsControls {
+  display: none;
+}
+
 /* ==========================================================
    CENTER CONTROLS (Previous / Next / Fullscreen)
    Desktop: body grid row 2, column 2
@@ -586,8 +590,16 @@
     width: 100%;
   }
 
-  .galleryControls {
+  .mobileInteractiveElementsControls {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 6px;
+    order: 4;
     width: 100%;
+    padding: 10px 14px;
+    border-bottom: 1px solid #232a36;
+    background: #111620;
   }
 
   .controlMeta {
