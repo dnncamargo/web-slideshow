@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveFullscreenRequest: vi.fn(),
   subscribeLiveGalleryControl: vi.fn(),
   subscribeLiveProjectionState: vi.fn(),
+  subscribePlayerRecoveryRequest: vi.fn(),
 }));
 
 vi.mock("../src/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull }));
@@ -24,6 +25,7 @@ vi.mock("../src/live-player-presence", () => ({ startPlayerPresence: mocks.start
 vi.mock("../src/live-state", () => ({ subscribeLiveProjectionState: mocks.subscribeLiveProjectionState }));
 vi.mock("../src/live-fullscreen-request", () => ({ subscribeLiveFullscreenRequest: mocks.subscribeLiveFullscreenRequest }));
 vi.mock("../src/live-gallery-control", () => ({ subscribeLiveGalleryControl: mocks.subscribeLiveGalleryControl }));
+vi.mock("../src/live-player-recovery-request", () => ({ subscribePlayerRecoveryRequest: mocks.subscribePlayerRecoveryRequest }));
 vi.mock("../src/live-version-mapping", () => ({ mapPromotedSlideIndex: () => 0 }));
 vi.mock("../src/published-presentation-loader", () => ({ loadPublishedVersion: vi.fn() }));
 vi.mock("../src/player-diagnostics", () => ({ configurePlayerDiagnostics: vi.fn(), recordPlayerDiagnostic: mocks.recordPlayerDiagnostic }));
@@ -39,6 +41,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
+    mocks.subscribePlayerRecoveryRequest.mockReturnValue(vi.fn());
     mocks.mountPlayer.mockReturnValue({ destroy: vi.fn(), getCurrentIndex: () => 0, goTo: vi.fn() });
   });
 
@@ -85,6 +88,51 @@ describe("Player presence pagehide cleanup", () => {
     expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
       "PLAYER_PRESENCE_WRITE_ERROR",
       { transition: "starting", error: failure },
+    );
+  });
+
+  it("keeps presence and loading valid when recovery subscription setup fails synchronously", async () => {
+    const ready = vi.fn();
+    const failure = new Error("recovery subscription unavailable");
+    let handleLive!: (event: unknown) => void;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue({
+      bootId: "boot-a",
+      ready,
+      failed: vi.fn(),
+      stop: vi.fn(),
+    });
+    mocks.subscribePlayerRecoveryRequest.mockImplementation(() => {
+      throw failure;
+    });
+    mocks.resolveLiveIdentityMount.mockResolvedValue({
+      kind: "ok",
+      presentation: { slides: [] },
+    });
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({
+      kind: "active",
+      live: {
+        publicationId: "publication-1",
+        currentVersionId: "version-1",
+        revision: 7,
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
+    expect(ready).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveLiveIdentityMount).toHaveBeenCalledTimes(1);
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_RECOVERY_SUBSCRIBE_ERROR",
+      { error: failure },
+    );
+    expect(mocks.recordPlayerDiagnostic).not.toHaveBeenCalledWith(
+      "PLAYER_PRESENCE_WRITE_ERROR",
+      expect.anything(),
     );
   });
 });

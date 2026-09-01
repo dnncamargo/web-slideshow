@@ -22,6 +22,7 @@ import {
   parseLivePlayerState,
 } from "../live/live-state";
 import { PLAYER_PRESENCE_PATH, parsePlayerPresence, resolvePlayerOperationalStatus, type PlayerOperationalStatus } from "./player-presence";
+import { recordControlLatencyMeasurement } from "./control-latency-snapshot";
 
 export interface UseLiveSessionControlResult {
   liveState: LiveState;
@@ -108,6 +109,7 @@ export function useLiveSessionControl({
     const activationRevision = liveState.live.revision;
     const currentVersionId = liveState.live.currentVersionId;
     setView(null);
+    setPlayerStatus(null);
     let sawControlState = false;
     let sawPlayerState = false;
     let hydrated = false;
@@ -148,6 +150,15 @@ export function useLiveSessionControl({
       },
       onViewChange: (nextView) => {
         pendingView = nextView;
+
+        recordControlLatencyMeasurement(
+          {
+            publicationId: liveState.live.publicationId,
+            activationRevision,
+            currentVersionId,
+          },
+          nextView.status,
+        );
 
         if (hydrated) {
           setView(nextView);

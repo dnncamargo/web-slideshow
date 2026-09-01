@@ -188,6 +188,84 @@ describe("PresenterView controls", () => {
     ).toBe("Maintenance");
   });
 
+  it.each([
+    [{ kind: "no-report" }, { kind: "synced" }, "No Player report"],
+    [
+      {
+        kind: "disconnected",
+        presence: {
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          bootId: "boot-1",
+          stage: "ready",
+          transitionedAt: 1,
+        },
+      },
+      { kind: "synced" },
+      "Player disconnected",
+    ],
+    [
+      {
+        kind: "starting",
+        presence: {
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          bootId: "boot-1",
+          stage: "starting",
+          transitionedAt: 1,
+        },
+      },
+      { kind: "synced" },
+      "Player starting…",
+    ],
+    [
+      {
+        kind: "load-failed",
+        presence: {
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          bootId: "boot-1",
+          stage: "load-failed",
+          transitionedAt: 1,
+          errorCode: "presentation-load-failed",
+        },
+      },
+      { kind: "synced" },
+      "Player load failed",
+    ],
+    [undefined, { kind: "awaiting-player" }, "Player ready"],
+    [undefined, { kind: "syncing" }, "Syncing…"],
+    [undefined, { kind: "player-changed" }, "Player changed"],
+    [undefined, { kind: "synced" }, "Synced"],
+    [undefined, { kind: "synced", latencyMs: 45 }, "Synced • 45 ms"],
+  ] as const)(
+    "combines presence and projection status with priority: %s / %s",
+    (playerStatus, projectionStatus, expected) => {
+      const readyStatus: PlayerOperationalStatus = {
+        kind: "ready",
+        presence: {
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          bootId: "boot-1",
+          stage: "ready",
+          transitionedAt: 1,
+        },
+      };
+      const controlView = view(1);
+      controlView.status = projectionStatus;
+
+      render({
+        controlView,
+        playerStatus: playerStatus ?? readyStatus,
+      });
+
+      expect(container.textContent).toContain(expected);
+      if (expected !== "Synced" && expected !== "Synced • 45 ms") {
+        expect(container.textContent).not.toContain("Synced");
+      }
+    },
+  );
+
   function dispatchKey(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
     const event = new KeyboardEvent("keydown", {
       bubbles: true,

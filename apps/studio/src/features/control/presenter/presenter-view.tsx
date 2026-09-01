@@ -54,12 +54,27 @@ function describeStatus(
   return t("control.synced");
 }
 
-function describePlayerStatus(status: PlayerOperationalStatus | null | undefined): string {
-  if (status === null || status === undefined || status.kind === "no-report") return "No Player report";
-  if (status.kind === "starting") return "Player starting…";
-  if (status.kind === "ready") return "Player ready";
-  if (status.kind === "load-failed") return "Player load failed";
-  return "Player disconnected";
+function describeCombinedStatus(
+  t: StudioTranslate,
+  playerStatus: PlayerOperationalStatus | null | undefined,
+  view: LiveControlView | null,
+): string {
+  const status = playerStatus;
+  if (status === null || status === undefined || status.kind === "no-report") {
+    return "No Player report";
+  }
+  if (status.kind === "starting") {
+    return "Player starting…";
+  }
+  if (status.kind === "load-failed") {
+    return "Player load failed";
+  }
+  if (status.kind === "disconnected") {
+    return "Player disconnected";
+  }
+  return view === null || view.status.kind === "awaiting-player"
+    ? "Player ready"
+    : describeStatus(t, view.status);
 }
 
 function useLocalClock(): string {
@@ -339,7 +354,7 @@ export function PresenterView({
             <Status tone="danger">{t("control.sendFailed")}</Status>
           )}
 
-          <Status>{describePlayerStatus(playerStatus)}</Status>
+          <Status>{describeCombinedStatus(t, playerStatus, view)}</Status>
 
           <Link className={presenterStyles.maintenanceLink} href={STUDIO_ROUTES.controlMaintenance}>
             Maintenance
@@ -560,7 +575,9 @@ export function PresenterView({
             <span className={styles.error}>{t("control.sendFailed")}</span>
           )}
 
-          <span className={styles.topbarStatus}>{describePlayerStatus(playerStatus)}</span>
+          <span className={styles.topbarStatus}>
+            {describeCombinedStatus(t, playerStatus, view)}
+          </span>
         </div>
 
         <aside className={presenterStyles.nextColumn}>
