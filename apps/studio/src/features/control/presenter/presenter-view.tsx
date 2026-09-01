@@ -231,6 +231,9 @@ export function PresenterView({
 
   const navigationDisabled = pendingVersion !== null || disabled;
   const showGalleryControls = pendingVersion === null && galleries.length > 0;
+  const currentGalleryTargets = showGalleryControls
+    ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
+    : [];
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -371,6 +374,7 @@ export function PresenterView({
               slide={currentSlide}
               aspectRatio={aspectRatio}
               variant="current"
+              galleryTargets={currentGalleryTargets}
             />
           ) : (
             <p className={styles.status}>{t("control.awaitingPlayer")}</p>
