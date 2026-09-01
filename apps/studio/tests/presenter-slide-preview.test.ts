@@ -41,4 +41,32 @@ describe("Presenter Gallery preview projection", () => {
     expect(projected[0]?.style.visibility).toBe("hidden");
     expect(other.querySelectorAll(".powershow-gallery-item")[0]?.classList.contains("powershow-gallery-item-active")).toBe(true);
   });
+
+  it("resets previous projections before applying the current target set", () => {
+    const root = document.createElement("div");
+    const first = gallery("first");
+    const second = gallery("second");
+    root.append(first, second);
+
+    projectGalleryTargets(root, [
+      { elementId: "first", targetIndex: 2 },
+      { elementId: "second", targetIndex: 1 },
+    ]);
+    projectGalleryTargets(root, [{ elementId: "first", targetIndex: 1 }]);
+
+    const firstItems = first.querySelectorAll<HTMLElement>(".powershow-gallery-item");
+    const secondItems = second.querySelectorAll<HTMLElement>(".powershow-gallery-item");
+    expect(firstItems[1]?.classList.contains("powershow-gallery-item-active")).toBe(true);
+    expect(secondItems[0]?.classList.contains("powershow-gallery-item-active")).toBe(true);
+
+    projectGalleryTargets(root, []);
+    expect(firstItems[0]?.classList.contains("powershow-gallery-item-active")).toBe(true);
+    expect(firstItems[2]?.style.visibility).toBe("hidden");
+
+    projectGalleryTargets(root, [{ elementId: "first", targetIndex: 99 }]);
+    expect(firstItems[0]?.classList.contains("powershow-gallery-item-active")).toBe(true);
+
+    projectGalleryTargets(root, [{ elementId: "unknown", targetIndex: 1 }]);
+    expect(firstItems[0]?.classList.contains("powershow-gallery-item-active")).toBe(true);
+  });
 });

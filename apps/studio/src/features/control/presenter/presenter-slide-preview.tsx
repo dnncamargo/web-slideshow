@@ -19,10 +19,35 @@ export interface PresenterGalleryTarget {
   targetIndex: number;
 }
 
+function getGalleryItems(gallery: HTMLElement): HTMLElement[] {
+  return Array.from(gallery.querySelectorAll<HTMLElement>(
+    ".powershow-gallery-item[data-powershow-gallery-index]",
+  )).filter(
+    (item) => item.closest<HTMLElement>('[data-powershow-type="gallery"]') === gallery,
+  );
+}
+
+function resetGalleryProjection(root: ParentNode): void {
+  for (const gallery of root.querySelectorAll<HTMLElement>(
+    '[data-powershow-type="gallery"][data-powershow-id]',
+  )) {
+    for (const item of getGalleryItems(gallery)) {
+      const isDefault = Number(item.dataset.powershowGalleryIndex) === 0;
+      item.classList.toggle("powershow-gallery-item-active", isDefault);
+      item.style.visibility = isDefault ? "" : "hidden";
+      item.style.pointerEvents = isDefault ? "" : "none";
+      if (isDefault) item.removeAttribute("aria-hidden");
+      else item.setAttribute("aria-hidden", "true");
+    }
+  }
+}
+
 export function projectGalleryTargets(
   root: ParentNode,
   targets: readonly PresenterGalleryTarget[],
 ): void {
+  resetGalleryProjection(root);
+
   for (const target of targets) {
     if (!Number.isInteger(target.targetIndex) || target.targetIndex < 0) continue;
     const gallery = Array.from(root.querySelectorAll<HTMLElement>(
@@ -30,9 +55,7 @@ export function projectGalleryTargets(
     )).find((candidate) => candidate.dataset.powershowId === target.elementId);
     if (!gallery) continue;
 
-    const items = Array.from(gallery.querySelectorAll<HTMLElement>(
-      ".powershow-gallery-item[data-powershow-gallery-index]",
-    ));
+    const items = getGalleryItems(gallery);
     const active = items.find(
       (item) => Number(item.dataset.powershowGalleryIndex) === target.targetIndex,
     );
