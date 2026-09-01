@@ -15,10 +15,21 @@ export type PlayerBootErrorCode =
   | "player-mount-failed";
 
 export interface PlayerPresenceReporter {
-  ready(): Promise<void>;
-  failed(errorCode: PlayerBootErrorCode): Promise<void>;
+  ready(): void;
+  failed(errorCode: PlayerBootErrorCode): void;
   stop(): void;
 }
+
+export type PlayerPresenceTransition =
+  | "starting"
+  | "ready"
+  | "load-failed"
+  | "cancel-disconnect";
+
+export type PlayerPresenceErrorHandler = (
+  transition: PlayerPresenceTransition,
+  error: unknown,
+) => void;
 
 function createBootId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -33,6 +44,7 @@ export async function startPlayerPresence(
   database: Database,
   activationRevision: number,
   currentVersionId: string,
+  onError: PlayerPresenceErrorHandler = () => undefined,
 ): Promise<PlayerPresenceReporter> {
   const presenceRef = ref(database, PLAYER_PRESENCE_PATH);
   const bootId = createBootId();
@@ -59,12 +71,27 @@ export async function startPlayerPresence(
   await write(true, "starting");
 
   let stopped = false;
+
+  const transition = (
+    stage: PlayerBootStage,
+    errorCode?: PlayerBootErrorCode,
+  ): void => {
+    if (stopped) return;
+
+    void write(true, stage, errorCode).catch((error: unknown) => {
+      onError(stage, error);
+    });
+  };
+
   return {
-    ready: () => stopped ? Promise.resolve() : write(true, "ready"),
-    failed: (errorCode) => stopped ? Promise.resolve() : write(true, "load-failed", errorCode),
+    ready: () => transition("ready"),
+    failed: (errorCode) => transition("load-failed", errorCode),
     stop: () => {
+      if (stopped) return;
       stopped = true;
-      void disconnect.cancel();
+      void disconnect.cancel().catch((error: unknown) => {
+        onError("cancel-disconnect", error);
+      });
     },
   };
 }
