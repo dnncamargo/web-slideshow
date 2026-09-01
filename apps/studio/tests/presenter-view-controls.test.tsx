@@ -13,6 +13,7 @@ import {
 import { PresenterView } from "../src/features/control/presenter/presenter-view";
 import type { LiveControlView } from "../src/features/control/live-control";
 import type { ControlGalleryView } from "../src/features/control/use-live-gallery-control";
+import type { PlayerOperationalStatus } from "../src/features/control/player-presence";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 vi.mock("../src/features/control/presenter/use-presenter-notes", () => ({
@@ -107,6 +108,16 @@ describe("PresenterView controls", () => {
     nextGallery = vi.fn(),
     setGalleryExpanded = vi.fn(),
     end = vi.fn(),
+    playerStatus = {
+      kind: "ready",
+      presence: {
+        activationRevision: 1,
+        currentVersionId: "version-1",
+        bootId: "boot-1",
+        stage: "ready",
+        transitionedAt: 1,
+      },
+    },
   }: {
     controlView?: LiveControlView | null;
     displayIndex?: number;
@@ -119,6 +130,7 @@ describe("PresenterView controls", () => {
     nextGallery?: ReturnType<typeof vi.fn>;
     setGalleryExpanded?: ReturnType<typeof vi.fn>;
     end?: ReturnType<typeof vi.fn>;
+    playerStatus?: PlayerOperationalStatus;
   } = {}) {
     const publishedPresentation = presentation();
 
@@ -138,6 +150,7 @@ describe("PresenterView controls", () => {
             galleries={galleries}
             promotingVersionId={null}
             failedPromotionVersionId={null}
+            playerStatus={playerStatus}
             previous={previous}
             next={next}
             goTo={goTo}
@@ -162,6 +175,18 @@ describe("PresenterView controls", () => {
       end,
     };
   }
+
+  it("uses Player presence as primary status and links to Maintenance", () => {
+    render({ playerStatus: { kind: "no-report" } });
+
+    expect(container.textContent).toContain("No Player report");
+    expect(container.textContent).not.toContain("Synced");
+    expect(
+      container.querySelector<HTMLAnchorElement>(
+        'a[href="/studio/control/maintenance"]',
+      )?.textContent,
+    ).toBe("Maintenance");
+  });
 
   function dispatchKey(target: EventTarget, init: KeyboardEventInit): KeyboardEvent {
     const event = new KeyboardEvent("keydown", {

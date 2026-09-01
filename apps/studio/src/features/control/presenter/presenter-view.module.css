@@ -410,6 +410,9 @@
   display: none;
 }
 
+.maintenanceLink { color: #7dd3fc; font-size: 12px; font-weight: 600; text-decoration: none; }
+.maintenanceLink:hover { color: #cffafe; }
+
 .slideList {
   min-height: 0;
 

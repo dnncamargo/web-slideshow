@@ -28,6 +28,7 @@ describe("studio routing structure", () => {
     expect(STUDIO_ROUTES.library).toBe("/studio/library");
     expect(STUDIO_ROUTES.editor).toBe("/studio/editor");
     expect(STUDIO_ROUTES.control).toBe("/studio/control");
+    expect(STUDIO_ROUTES.controlMaintenance).toBe("/studio/control/maintenance");
     expect(STUDIO_ROUTES.studio).toBe("/studio");
     expect(STUDIO_ROUTES.root).toBe("/");
   });

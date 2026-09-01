@@ -14,6 +14,11 @@ import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import { subscribeLiveGalleryControl } from "./live-gallery-control";
 import {
+  startPlayerPresence,
+  type PlayerPresenceReporter,
+  type PlayerPresenceTransition,
+} from "./live-player-presence";
+import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
 } from "./player-diagnostics";
@@ -45,10 +50,21 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
+  let presenceReporter: PlayerPresenceReporter | undefined;
   let activePresentation: Presentation | undefined;
   let activeLive: LiveCurrent | undefined;
   let currentSessionKey: string | null = null;
   let loadToken = 0;
+
+  function recordPresenceWriteError(
+    transition: PlayerPresenceTransition,
+    error: unknown,
+  ): void {
+    recordPlayerDiagnostic("PLAYER_PRESENCE_WRITE_ERROR", {
+      transition,
+      error,
+    });
+  }
 
   function renderLoadState(message: string, loading = false): void {
     root.innerHTML = `
@@ -148,6 +164,8 @@ export function startPlayer(root: HTMLElement): () => void {
     activeController = undefined;
     activePresentation = undefined;
     activeLive = undefined;
+    presenceReporter?.stop();
+    presenceReporter = undefined;
   }
 
   async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
@@ -195,6 +213,20 @@ export function startPlayer(root: HTMLElement): () => void {
     loadToken += 1;
     const token = loadToken;
 
+    try {
+      presenceReporter?.stop();
+      presenceReporter = await startPlayerPresence(
+        database!,
+        event.live.revision,
+        event.live.currentVersionId,
+        recordPresenceWriteError,
+      );
+    } catch (error) {
+      recordPresenceWriteError("starting", error);
+    }
+
+    if (token !== loadToken) return;
+
     if (!promotion) {
       renderLoadState("Loading presentation…", true);
     }
@@ -225,6 +257,7 @@ export function startPlayer(root: HTMLElement): () => void {
         activeController = mountPlayer(root, result.presentation, { controls });
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
+        presenceReporter?.failed("player-mount-failed");
         throw error;
       }
 
@@ -237,6 +270,7 @@ export function startPlayer(root: HTMLElement): () => void {
       activePresentation = result.presentation;
       activeLive = event.live;
       attachLiveProjection(event.live, result.presentation, logsEnabled);
+      presenceReporter?.ready();
       return;
     }
 
@@ -248,10 +282,12 @@ export function startPlayer(root: HTMLElement): () => void {
     }
 
     if (result.kind === "not-found") {
+      presenceReporter?.failed("presentation-not-found");
       renderLoadState("Presentation not found.");
       return;
     }
 
+    presenceReporter?.failed("presentation-load-failed");
     renderLoadState("Could not load presentation.");
   }
 

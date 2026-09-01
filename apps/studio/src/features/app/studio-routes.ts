@@ -5,6 +5,7 @@ export const STUDIO_ROUTES = {
   library: "/studio/library",
   editor: "/studio/editor",
   control: "/studio/control",
+  controlMaintenance: "/studio/control/maintenance",
 } as const;
 
 export function buildStudioEditorHref(presentationId: string): string {

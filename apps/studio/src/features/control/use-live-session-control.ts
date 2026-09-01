@@ -21,6 +21,7 @@ import {
   parseLiveControlState,
   parseLivePlayerState,
 } from "../live/live-state";
+import { PLAYER_PRESENCE_PATH, parsePlayerPresence, resolvePlayerOperationalStatus, type PlayerOperationalStatus } from "./player-presence";
 
 export interface UseLiveSessionControlResult {
   liveState: LiveState;
@@ -28,6 +29,7 @@ export interface UseLiveSessionControlResult {
   sendFailed: boolean;
   promotingVersionId: string | null;
   failedPromotionVersionId: string | null;
+  playerStatus: PlayerOperationalStatus | null;
   previous(): void;
   next(): void;
   goTo(index: number): void;
@@ -75,6 +77,7 @@ export function useLiveSessionControl({
     useState<PromotionAttempt | null>(null);
   const controlRef = useRef<LiveControl | null>(null);
   const promotionTokenRef = useRef(0);
+  const [playerStatus, setPlayerStatus] = useState<PlayerOperationalStatus | null>(null);
 
   useEffect(() => {
     const unsub = subscribeLiveCurrent((nextState) => {
@@ -82,6 +85,7 @@ export function useLiveSessionControl({
 
       if (nextState.kind !== "active") {
         setView(null);
+        setPlayerStatus(null);
       }
     });
 
@@ -92,6 +96,7 @@ export function useLiveSessionControl({
     if (liveState.kind !== "active") {
       controlRef.current?.destroy();
       controlRef.current = null;
+      setPlayerStatus(null);
       return;
     }
 
@@ -189,9 +194,16 @@ export function useLiveSessionControl({
       },
     );
 
+    const playerPresenceUnsub = onValue(
+      ref(db, PLAYER_PRESENCE_PATH),
+      (snapshot) => setPlayerStatus(resolvePlayerOperationalStatus(liveState.live, parsePlayerPresence(snapshot.val()))),
+      () => setPlayerStatus({ kind: "no-report" }),
+    );
+
     return () => {
       controlStateUnsub();
       playerStateUnsub();
+      playerPresenceUnsub();
       control.destroy();
       controlRef.current = null;
     };
@@ -289,6 +301,7 @@ export function useLiveSessionControl({
       attemptMatchesLive && promotionAttempt.status === "failed"
         ? promotionAttempt.targetVersionId
         : null,
+    playerStatus,
     previous,
     next,
     goTo,

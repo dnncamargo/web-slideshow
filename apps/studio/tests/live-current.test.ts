@@ -164,6 +164,7 @@ describe("live-current activation", () => {
       "current",
       "fullscreenRequest",
       "galleryControl",
+      "playerPresence",
       "playerState",
       "slideAck",
       "slideCommand",
@@ -175,6 +176,7 @@ describe("live-current activation", () => {
     expect(committed.slideCommand).toBeNull();
     expect(committed.slideAck).toBeNull();
     expect(committed.fullscreenRequest).toBeNull();
+    expect(committed.playerPresence).toBeNull();
   });
 
   it("rejects when the activation transaction does not commit", async () => {
@@ -208,7 +210,7 @@ describe("live-current activation", () => {
     expect(committed.activationRevision).toBe(5);
   });
 
-  it("end clears current, projection protocol state, and galleryControl but preserves activationRevision", async () => {
+  it("end clears current, presence, projection protocol state, and galleryControl but preserves activationRevision", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
@@ -220,6 +222,7 @@ describe("live-current activation", () => {
         current: null,
         controlState: null,
         playerState: null,
+        playerPresence: null,
         fullscreenRequest: null,
         galleryControl: null,
         slideCommand: null,
@@ -244,6 +247,7 @@ describe("live-current activation", () => {
       },
       controlState: { revision: 4 },
       playerState: { revision: 4 },
+      playerPresence: { bootId: "old-boot" },
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
@@ -266,6 +270,7 @@ describe("live-current activation", () => {
       },
       controlState: null,
       playerState: null,
+      playerPresence: null,
       slideCommand: null,
       slideAck: null,
       fullscreenRequest: null,
@@ -288,6 +293,7 @@ describe("live-current activation", () => {
       },
       controlState: { revision: 4 },
       playerState: { revision: 4 },
+      playerPresence: { bootId: "old-boot" },
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
@@ -315,6 +321,7 @@ describe("live-current activation", () => {
       },
       controlState: null,
       playerState: null,
+      playerPresence: null,
       slideCommand: null,
       slideAck: null,
       fullscreenRequest: null,

@@ -64,6 +64,7 @@ export function ControlPage() {
     sendFailed,
     promotingVersionId,
     failedPromotionVersionId,
+    playerStatus,
     previous,
     next,
     goTo,
@@ -228,6 +229,7 @@ export function ControlPage() {
       setGalleryExpanded={galleryControl.setGalleryExpanded}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}
+      playerStatus={playerStatus}
       end={end}
     />
   );
