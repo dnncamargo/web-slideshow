@@ -14,11 +14,70 @@ import type { Presentation, Slide } from "@powershow/document-schema";
 
 import styles from "./presenter-view.module.css";
 
+export interface PresenterGalleryTarget {
+  elementId: string;
+  targetIndex: number;
+}
+
+function getGalleryItems(gallery: HTMLElement): HTMLElement[] {
+  return Array.from(gallery.querySelectorAll<HTMLElement>(
+    ".powershow-gallery-item[data-powershow-gallery-index]",
+  )).filter(
+    (item) => item.closest<HTMLElement>('[data-powershow-type="gallery"]') === gallery,
+  );
+}
+
+function resetGalleryProjection(root: ParentNode): void {
+  for (const gallery of root.querySelectorAll<HTMLElement>(
+    '[data-powershow-type="gallery"][data-powershow-id]',
+  )) {
+    for (const item of getGalleryItems(gallery)) {
+      const isDefault = Number(item.dataset.powershowGalleryIndex) === 0;
+      item.classList.toggle("powershow-gallery-item-active", isDefault);
+      item.style.visibility = isDefault ? "" : "hidden";
+      item.style.pointerEvents = isDefault ? "" : "none";
+      if (isDefault) item.removeAttribute("aria-hidden");
+      else item.setAttribute("aria-hidden", "true");
+    }
+  }
+}
+
+export function projectGalleryTargets(
+  root: ParentNode,
+  targets: readonly PresenterGalleryTarget[],
+): void {
+  resetGalleryProjection(root);
+
+  for (const target of targets) {
+    if (!Number.isInteger(target.targetIndex) || target.targetIndex < 0) continue;
+    const gallery = Array.from(root.querySelectorAll<HTMLElement>(
+      '[data-powershow-type="gallery"][data-powershow-id]',
+    )).find((candidate) => candidate.dataset.powershowId === target.elementId);
+    if (!gallery) continue;
+
+    const items = getGalleryItems(gallery);
+    const active = items.find(
+      (item) => Number(item.dataset.powershowGalleryIndex) === target.targetIndex,
+    );
+    if (!active) continue;
+
+    for (const item of items) {
+      const isActive = item === active;
+      item.classList.toggle("powershow-gallery-item-active", isActive);
+      item.style.visibility = isActive ? "" : "hidden";
+      item.style.pointerEvents = isActive ? "" : "none";
+      if (isActive) item.removeAttribute("aria-hidden");
+      else item.setAttribute("aria-hidden", "true");
+    }
+  }
+}
+
 export interface PresenterSlidePreviewProps {
   presentation: Presentation;
   slide: Slide;
   aspectRatio: Presentation["aspectRatio"];
   variant: "current" | "next";
+  galleryTargets?: readonly PresenterGalleryTarget[];
 }
 
 /**
@@ -34,6 +93,7 @@ export function PresenterSlidePreview({
   slide,
   aspectRatio,
   variant,
+  galleryTargets = [],
 }: PresenterSlidePreviewProps) {
   const markup = useMemo(
     () => renderSlide(slide, { presentation }),
@@ -82,8 +142,10 @@ export function PresenterSlidePreview({
   }, [aspectRatio]);
 
   useEffect(() => {
-    if (previewSurfaceRef.current) hydrateRendererRuntime(previewSurfaceRef.current);
-  }, [markup]);
+    if (!previewSurfaceRef.current) return;
+    hydrateRendererRuntime(previewSurfaceRef.current);
+    projectGalleryTargets(previewSurfaceRef.current, galleryTargets);
+  }, [galleryTargets, markup]);
 
   return (
     <div

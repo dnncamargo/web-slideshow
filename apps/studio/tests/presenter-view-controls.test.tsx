@@ -237,6 +237,19 @@ describe("PresenterView controls", () => {
     expect(result.requestFullscreen).not.toHaveBeenCalled();
   });
 
+  it("keeps desktop controls in Notes and provides a separate mobile surface", () => {
+    render({ galleries: [gallery("gallery-a", 2)] });
+
+    const desktop = container.querySelector("[data-gallery-controls]");
+    const mobile = container.querySelector("[data-mobile-gallery-controls]");
+    const center = Array.from(container.querySelectorAll("div")).find((element) => element.className.includes("centerControls"));
+
+    expect(desktop?.parentElement?.className).toContain("notesRegion");
+    expect(mobile).not.toBeNull();
+    expect(center?.contains(desktop ?? null)).toBe(false);
+    expect(center?.contains(mobile ?? null)).toBe(false);
+  });
+
   it("labels multiple Galleries deterministically and preserves per-Gallery disabled state", () => {
     const first = gallery("first", 2, { pending: true });
     const second = gallery("second", 1);

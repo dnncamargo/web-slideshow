@@ -77,6 +77,21 @@ describe("EditorWorkspace Gallery selection", () => {
     return result;
   }
 
+  function buttonWithText(text: string): HTMLButtonElement {
+    const result = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === text);
+    if (!result) throw new Error(`Button ${text} was not rendered`);
+    return result;
+  }
+
+  function treeButtonStartingWith(text: string): HTMLButtonElement {
+    const result = Array.from(container.querySelectorAll<HTMLButtonElement>(
+      'li[role="treeitem"] button[type="button"]',
+    )).find((button) => button.textContent?.trim().startsWith(text));
+    if (!result) throw new Error(`Tree button ${text} was not rendered`);
+    return result;
+  }
+
   it("initializes item 0 transiently without canonical selection metadata", async () => {
     await mount();
     expect(selector(0).getAttribute("aria-pressed")).toBe("true");
@@ -96,6 +111,34 @@ describe("EditorWorkspace Gallery selection", () => {
     expect(item(0).style.display).not.toBe("none");
     expect(item(0).style.position).toBe("relative");
     expect(item(0).getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("converges tree Image selection through the existing Gallery selection path", async () => {
+    await mount();
+
+    await act(async () => buttonWithText("Elements").click());
+    await act(async () => treeButtonStartingWith("2. Two").click());
+
+    await act(async () => buttonWithText("Inspector").click());
+    expect(selector(1).getAttribute("aria-pressed")).toBe("true");
+
+    await act(async () => buttonWithText("Elements").click());
+    await act(async () => treeButtonStartingWith("Gallery").click());
+    await act(async () => buttonWithText("Inspector").click());
+    expect(selector(0).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("keeps the Elements tree aligned when the Inspector changes Gallery items", async () => {
+    await mount();
+
+    await act(async () => selector(1).click());
+    await act(async () => selector(2).click());
+    await act(async () => buttonWithText("Elements").click());
+
+    const image2 = treeButtonStartingWith("2. Two").closest('li[role="treeitem"]');
+    const image3 = treeButtonStartingWith("3. Three").closest('li[role="treeitem"]');
+    expect(image2?.getAttribute("aria-selected")).toBe("false");
+    expect(image3?.getAttribute("aria-selected")).toBe("true");
   });
 
   it("clamps the transient selection when Gallery items shrink", async () => {

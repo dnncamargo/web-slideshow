@@ -195,12 +195,15 @@ import {
   addTextPartToPresentation,
   createDefaultTopicItem,
   createElement,
+  attachImageToGallery,
+  detachGalleryItemToImage,
   createSocketValueInPresentation,
   duplicateElement,
   findElementSiblingPosition,
   insertElementAfterId,
   moveElement,
   moveElementToSiblingIndexById,
+  reorderGalleryItem,
   removeColumnFromStructuredTable,
   removeElementById,
   removeRowFromStructuredTable,
@@ -3155,6 +3158,96 @@ export function EditorWorkspace({
     }));
   }
 
+  function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
+    if (!selectedSlide) return;
+
+    const source = options.source;
+    const target = options.target;
+    let outcome:
+      | ReturnType<typeof reorderGalleryItem>
+      | ReturnType<typeof detachGalleryItemToImage>
+      | ReturnType<typeof attachImageToGallery>
+      | null = null;
+
+    if (source.kind === "gallery-item") {
+      if (target.kind === "gallery-item") {
+        if (source.galleryId !== target.galleryId) return;
+        const finalIndex = options.intent === "before"
+          ? target.itemIndex - (source.itemIndex < target.itemIndex ? 1 : 0)
+          : target.itemIndex + (source.itemIndex < target.itemIndex ? 0 : 1);
+        outcome = reorderGalleryItem(selectedSlide.elements, source.galleryId, source.itemIndex, finalIndex);
+      } else if (
+        options.intent !== "inside" || target.element.type === "container"
+      ) {
+        outcome = detachGalleryItemToImage(
+          selectedSlide.elements,
+          presentation.slides,
+          source.galleryId,
+          source.itemIndex,
+          target.element.id,
+          options.intent,
+        );
+      }
+    } else if (target.kind === "gallery-item" && options.intent !== "inside") {
+      outcome = attachImageToGallery(
+        selectedSlide.elements,
+        source.elementId,
+        target.galleryId,
+        target.itemIndex + (options.intent === "after" ? 1 : 0),
+      );
+    } else if (target.kind === "element" && target.element.type === "gallery" && options.intent === "inside") {
+      outcome = attachImageToGallery(
+        selectedSlide.elements,
+        source.elementId,
+        target.element.id,
+        target.element.items.length,
+      );
+    }
+
+    if (!outcome?.changed) return;
+
+    closeCanvasMediaEditing();
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex ? { ...slide, elements: outcome!.elements } : slide,
+      ),
+    }));
+
+    if (outcome.imageId) {
+      setSelectedElement({ id: outcome.imageId, type: "image" });
+      setGalleryItemSelection(null);
+    } else if (outcome.galleryItemIndex !== undefined) {
+      const galleryId = source.kind === "gallery-item" ? source.galleryId : target.kind === "gallery-item" ? target.galleryId : target.element.id;
+      setSelectedElement({ id: galleryId, type: "gallery" });
+      setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
+    }
+  }
+
+  function moveGalleryItemInTree(
+    galleryId: string,
+    itemIndex: number,
+    offset: -1 | 1,
+  ) {
+    const outcome = reorderGalleryItem(
+      selectedSlide?.elements ?? [],
+      galleryId,
+      itemIndex,
+      itemIndex + offset,
+    );
+    if (!outcome.changed || outcome.galleryItemIndex === undefined) return;
+
+    closeCanvasMediaEditing();
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex ? { ...slide, elements: outcome.elements } : slide,
+      ),
+    }));
+    setSelectedElement({ id: galleryId, type: "gallery" });
+    setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
+  }
+
   // ==========================================================
   // END: MOVE SELECTED ELEMENT
   // ==========================================================
@@ -3860,10 +3953,43 @@ export function EditorWorkspace({
                   slide={selectedSlide}
                   selectedElementId={selectedElement?.id ?? null}
                   selectedContentSlotId={selectedElement?.contentSlotId ?? null}
+                  selectedGalleryItemIndex={
+                    selectedElement?.id === galleryItemSelection?.galleryId
+                      ? galleryItemSelection?.itemIndex ?? null
+                      : null
+                  }
                   onSelectElement={(selection) => {
-                    setSelectedElement(selection);
+                    if (selection.type === "gallery") {
+                      closeCanvasMediaEditing();
+                      setGalleryItemSelection(
+                        selection.galleryItemIndex === null ||
+                          selection.galleryItemIndex === undefined
+                          ? selectedDocumentElement?.type === "gallery" &&
+                              selectedDocumentElement.id === selection.id &&
+                              selectedDocumentElement.items.length > 0
+                            ? { galleryId: selection.id, itemIndex: 0 }
+                            : null
+                          : {
+                              galleryId: selection.id,
+                              itemIndex: selection.galleryItemIndex,
+                          },
+                      );
+                    }
+                    if (
+                      selectedElement?.id !== selection.id ||
+                      selectedElement.type !== selection.type ||
+                      selectedElement.contentSlotId !== selection.contentSlotId
+                    ) {
+                      setSelectedElement({
+                        id: selection.id,
+                        type: selection.type,
+                        contentSlotId: selection.contentSlotId,
+                      });
+                    }
                   }}
                   onMoveElement={moveElementInTree}
+                  onMoveGalleryItem={moveGalleryItemInTree}
+                  onGalleryStructureDrop={applyGalleryStructureDrop}
                   customLibraryRepository={customLibraryRepository}
                   onBrowseElementStyles={() => setRightPanelMode("resources")}
                   palette={presentation.palette}

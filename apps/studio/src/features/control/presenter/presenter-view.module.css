@@ -125,6 +125,19 @@
   background: #111620;
 }
 
+.interactiveElementsControls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+}
+
+.mobileInteractiveElementsControls {
+  display: none;
+}
+
 /* ==========================================================
    CENTER CONTROLS (Previous / Next / Fullscreen)
    Desktop: body grid row 2, column 2
@@ -173,7 +186,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   min-width: 0;
@@ -577,8 +590,16 @@
     width: 100%;
   }
 
-  .galleryControls {
+  .mobileInteractiveElementsControls {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 6px;
+    order: 4;
     width: 100%;
+    padding: 10px 14px;
+    border-bottom: 1px solid #232a36;
+    background: #111620;
   }
 
   .controlMeta {

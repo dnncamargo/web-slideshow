@@ -80,6 +80,24 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+function GalleryInteractiveControls({ galleries, disabled, nextGallery, setGalleryExpanded, t }: {
+  galleries: readonly ControlGalleryView[];
+  disabled: boolean;
+  nextGallery(elementId: string): void;
+  setGalleryExpanded(elementId: string, expanded: boolean): void;
+  t: StudioTranslate;
+}) {
+  return galleries.map((gallery, index) => {
+    const label = galleries.length === 1 ? t("element.gallery") : `${t("element.gallery")} ${index + 1}`;
+    const expansionLabel = t(gallery.expanded ? "control.galleryCollapse" : "control.galleryExpand");
+    return <div className={presenterStyles.galleryGroup} key={gallery.elementId}>
+      <span className={presenterStyles.galleryLabel}>{label}</span>
+      <Button variant="secondary" size="compact" disabled={disabled || gallery.pending || gallery.itemCount <= 1} onClick={() => nextGallery(gallery.elementId)} aria-label={`${label}: ${t("control.galleryNextImage")}`}>{t("control.galleryNextImage")}</Button>
+      <Button variant="secondary" size="compact" disabled={disabled || gallery.pending || gallery.itemCount === 0} onClick={() => setGalleryExpanded(gallery.elementId, !gallery.expanded)} aria-label={`${label}: ${expansionLabel}`}>{expansionLabel}</Button>
+    </div>;
+  });
+}
+
 export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
@@ -213,6 +231,9 @@ export function PresenterView({
 
   const navigationDisabled = pendingVersion !== null || disabled;
   const showGalleryControls = pendingVersion === null && galleries.length > 0;
+  const currentGalleryTargets = showGalleryControls
+    ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
+    : [];
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -353,6 +374,7 @@ export function PresenterView({
               slide={currentSlide}
               aspectRatio={aspectRatio}
               variant="current"
+              galleryTargets={currentGalleryTargets}
             />
           ) : (
             <p className={styles.status}>{t("control.awaitingPlayer")}</p>
@@ -443,45 +465,6 @@ export function PresenterView({
             </button>
           </div>
 
-          {showGalleryControls && (
-            <div className={presenterStyles.galleryControls} data-gallery-controls>
-              {galleries.map((gallery, index) => {
-                const label = galleries.length === 1
-                  ? t("element.gallery")
-                  : `${t("element.gallery")} ${index + 1}`;
-                const nextDisabled = disabled || gallery.pending || gallery.itemCount <= 1;
-                const expansionDisabled = disabled || gallery.pending || gallery.itemCount === 0;
-                const expansionLabel = t(
-                  gallery.expanded ? "control.galleryCollapse" : "control.galleryExpand",
-                );
-
-                return (
-                  <div className={presenterStyles.galleryGroup} key={gallery.elementId}>
-                    <span className={presenterStyles.galleryLabel}>{label}</span>
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      disabled={nextDisabled}
-                      onClick={() => nextGallery(gallery.elementId)}
-                      aria-label={`${label}: ${t("control.galleryNextImage")}`}
-                    >
-                      {t("control.galleryNextImage")}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="compact"
-                      disabled={expansionDisabled}
-                      onClick={() => setGalleryExpanded(gallery.elementId, !gallery.expanded)}
-                      aria-label={`${label}: ${expansionLabel}`}
-                    >
-                      {expansionLabel}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           <div className={presenterStyles.controlMeta}>
             {/* Future session timer slot. Renders only the desired slide
                 counter until a canonical startedAt exists. */}
@@ -551,6 +534,12 @@ export function PresenterView({
           </div>
         </div>
 
+        {showGalleryControls && (
+          <div className={presenterStyles.mobileInteractiveElementsControls} data-mobile-gallery-controls>
+            <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />
+          </div>
+        )}
+
         <div className={presenterStyles.mobileLiveStatus}>
           <span className={styles.status}>{clock}</span>
 
@@ -578,6 +567,11 @@ export function PresenterView({
           )}
 
           <div className={presenterStyles.notesRegion}>
+            {showGalleryControls && (
+              <div className={presenterStyles.interactiveElementsControls} data-gallery-controls>
+                <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />
+              </div>
+            )}
             {currentSlide && currentSlideNote !== "" && (
               <p className={presenterStyles.note}>{currentSlideNote}</p>
             )}

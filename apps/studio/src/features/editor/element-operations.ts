@@ -6,6 +6,7 @@ import type {
   BlockTextPart,
   BlocksElement,
   ContentSlot,
+  GalleryElement,
   PowerShowElement,
   Slide,
   StructuredTableColumn,
@@ -1910,7 +1911,7 @@ export function createElement(
           {
             src: "/powershow-demo.svg",
 
-            alt: "Gallery image",
+            alt: "",
           },
         ],
 
@@ -3323,6 +3324,202 @@ export function moveElementOut(
     targetIndex: parent.index + 1,
   });
 }
+
+// ============================================================
+// BEGIN: GALLERY STRUCTURAL CONVERSIONS
+//
+// Gallery items deliberately have no authoring identity. These operations
+// therefore use the owning Gallery id plus the current array index, and keep
+// each conversion atomic at the document-tree level.
+// ============================================================
+
+type GalleryItemValue = GalleryElement["items"][number];
+type GalleryTreeDropIntent = "before" | "after" | "inside";
+
+interface GalleryDetachDestination {
+  targetParentRef: ElementParentRef;
+  targetIndex?: number;
+}
+
+export interface GalleryStructuralResult {
+  elements: PowerShowElement[];
+  changed: boolean;
+  galleryItemIndex?: number;
+  imageId?: string;
+}
+
+function findGallery(
+  elements: readonly PowerShowElement[],
+  galleryId: string,
+): GalleryElement | null {
+  const element = findElementById(elements, galleryId);
+  return element?.type === "gallery" ? element : null;
+}
+
+function updateGalleryItems(
+  elements: PowerShowElement[],
+  galleryId: string,
+  update: (items: readonly GalleryItemValue[]) => GalleryItemValue[],
+): PowerShowElement[] {
+  return updateElementById(elements, galleryId, (element) =>
+    element.type === "gallery" ? { ...element, items: update(element.items) } : element,
+  );
+}
+
+/** Moves an item to its final index after removal. */
+export function reorderGalleryItem(
+  elements: PowerShowElement[],
+  galleryId: string,
+  itemIndex: number,
+  finalIndex: number,
+): GalleryStructuralResult {
+  const gallery = findGallery(elements, galleryId);
+
+  if (
+    !gallery ||
+    itemIndex < 0 ||
+    itemIndex >= gallery.items.length ||
+    finalIndex < 0 ||
+    finalIndex >= gallery.items.length ||
+    itemIndex === finalIndex
+  ) {
+    return { elements, changed: false };
+  }
+
+  const item = gallery.items[itemIndex];
+  if (!item) return { elements, changed: false };
+
+  const withoutItem = [
+    ...gallery.items.slice(0, itemIndex),
+    ...gallery.items.slice(itemIndex + 1),
+  ];
+  const items = [
+    ...withoutItem.slice(0, finalIndex),
+    item,
+    ...withoutItem.slice(finalIndex),
+  ];
+
+  return {
+    elements: updateGalleryItems(elements, galleryId, () => items),
+    changed: true,
+    galleryItemIndex: finalIndex,
+  };
+}
+
+function resolveGalleryDetachDestination(
+  elements: PowerShowElement[],
+  targetId: string,
+  intent: GalleryTreeDropIntent,
+): GalleryDetachDestination | null {
+  const target = findElementById(elements, targetId);
+  const targetPosition = findElementSiblingPosition(elements, targetId);
+
+  if (!target || !targetPosition) return null;
+
+  if (intent === "inside") {
+    return target.type === "container"
+      ? { targetParentRef: { kind: "container", id: target.id } }
+      : null;
+  }
+
+  return {
+    targetParentRef: targetPosition.parentRef,
+    targetIndex: targetPosition.index + (intent === "after" ? 1 : 0),
+  };
+}
+
+export function detachGalleryItemToImage(
+  elements: PowerShowElement[],
+  slides: readonly Slide[],
+  galleryId: string,
+  itemIndex: number,
+  targetId: string,
+  intent: GalleryTreeDropIntent,
+): GalleryStructuralResult {
+  const gallery = findGallery(elements, galleryId);
+  const destination = resolveGalleryDetachDestination(elements, targetId, intent);
+  const item = gallery?.items[itemIndex];
+
+  if (!gallery || !item || !destination) {
+    return { elements, changed: false };
+  }
+
+  const image = createElement("image", slides);
+  if (image.type !== "image") return { elements, changed: false };
+
+  const detachedImage: PowerShowElement = {
+    ...image,
+    src: item.src,
+    alt: item.alt,
+    fit: item.fit ?? gallery.fit,
+    ...(item.focalPoint === undefined ? {} : { focalPoint: item.focalPoint }),
+    ...(item.crop === undefined ? {} : { crop: item.crop }),
+  };
+
+  const targetElements = getTargetElementsForParentRef(elements, destination.targetParentRef);
+  const targetIndex = destination.targetIndex ?? targetElements?.length;
+  if (!targetElements || targetIndex === undefined || targetIndex < 0 || targetIndex > targetElements.length) {
+    return { elements, changed: false };
+  }
+
+  const withoutItem = updateGalleryItems(elements, galleryId, (items) => [
+    ...items.slice(0, itemIndex),
+    ...items.slice(itemIndex + 1),
+  ]);
+
+  return {
+    elements: insertElementIntoParentRef(
+      withoutItem,
+      destination.targetParentRef,
+      targetIndex,
+      detachedImage,
+    ),
+    changed: true,
+    imageId: detachedImage.id,
+  };
+}
+
+export function attachImageToGallery(
+  elements: PowerShowElement[],
+  imageId: string,
+  galleryId: string,
+  itemIndex: number,
+): GalleryStructuralResult {
+  const image = findElementById(elements, imageId);
+  const gallery = findGallery(elements, galleryId);
+
+  if (
+    image?.type !== "image" ||
+    !gallery ||
+    itemIndex < 0 ||
+    itemIndex > gallery.items.length
+  ) {
+    return { elements, changed: false };
+  }
+
+  const item: GalleryItemValue = {
+    src: image.src,
+    alt: image.alt,
+    fit: image.fit,
+    ...(image.focalPoint === undefined ? {} : { focalPoint: image.focalPoint }),
+    ...(image.crop === undefined ? {} : { crop: image.crop }),
+  };
+  const withoutImage = removeElementById(elements, imageId);
+
+  return {
+    elements: updateGalleryItems(withoutImage, galleryId, (items) => [
+      ...items.slice(0, itemIndex),
+      item,
+      ...items.slice(itemIndex),
+    ]),
+    changed: true,
+    galleryItemIndex: itemIndex,
+  };
+}
+
+// ============================================================
+// END: GALLERY STRUCTURAL CONVERSIONS
+// ============================================================
 
 // ============================================================
 // END: MOVE ELEMENT
