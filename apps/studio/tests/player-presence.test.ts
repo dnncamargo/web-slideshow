@@ -2,23 +2,45 @@ import { describe, expect, it } from "vitest";
 import { parsePlayerPresence, resolvePlayerOperationalStatus } from "../src/features/control/player-presence";
 
 const live = { publicationId: "publication", currentVersionId: "version-1", revision: 4 };
-const presence = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", bootId: "boot-new", connected: true, stage: "starting", transitionedAt: 1, ...overrides });
+const current = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", bootId: "boot-b", stage: "starting", transitionedAt: 1, ...overrides });
+const lease = (bootId: string, overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", bootId, connected: true, transitionedAt: 1, ...overrides });
+const presence = (currentOverrides: Record<string, unknown> = {}, leases: Record<string, unknown> = { "boot-b": lease("boot-b") }) => ({ current: current(currentOverrides), leases });
+const status = (value: unknown) => resolvePlayerOperationalStatus(live, parsePlayerPresence(value));
 
 describe("Player operational status", () => {
-  it("never treats slide-state absence or equality as Player readiness", () => expect(resolvePlayerOperationalStatus(live, null)).toEqual({ kind: "no-report" }));
-  it("resolves current connected boot stages", () => {
-    expect(resolvePlayerOperationalStatus(live, parsePlayerPresence(presence()))?.kind).toBe("starting");
-    expect(resolvePlayerOperationalStatus(live, parsePlayerPresence(presence({ stage: "ready" })) )?.kind).toBe("ready");
-    expect(resolvePlayerOperationalStatus(live, parsePlayerPresence(presence({ stage: "load-failed", errorCode: "presentation-load-failed" })) )?.kind).toBe("load-failed");
+  it("never treats absent presence or slide convergence as Player readiness", () => {
+    expect(status(null)).toEqual({ kind: "no-report" });
   });
-  it("ignores stale activations and versions and marks an observed offline boot disconnected", () => {
-    expect(resolvePlayerOperationalStatus(live, parsePlayerPresence(presence({ activationRevision: 3 })) )).toEqual({ kind: "no-report" });
-    expect(resolvePlayerOperationalStatus(live, parsePlayerPresence(presence({ currentVersionId: "old" })) )).toEqual({ kind: "no-report" });
-    expect(resolvePlayerOperationalStatus(live, parsePlayerPresence(presence({ connected: false })) )?.kind).toBe("disconnected");
+
+  it("treats missing or stale current as no report", () => {
+    expect(status({ leases: { "boot-b": lease("boot-b") } })).toEqual({ kind: "no-report" });
+    expect(status(presence({ activationRevision: 3 }))).toEqual({ kind: "no-report" });
+    expect(status(presence({ currentVersionId: "old" }))).toEqual({ kind: "no-report" });
   });
-  it("rejects malformed, unallowlisted, and extra persisted values", () => {
+
+  it("requires the exact matching current lease", () => {
+    expect(status(presence({}, {}))?.kind).toBe("disconnected");
+    expect(status(presence({}, { "boot-b": lease("boot-b", { connected: false }) }))?.kind).toBe("disconnected");
+    expect(status(presence({}, { "boot-a": lease("boot-a") }))?.kind).toBe("disconnected");
+    expect(status(presence({}, {
+      "boot-a": lease("boot-a", { connected: false }),
+      "boot-b": lease("boot-b"),
+    }))?.kind).toBe("starting");
+  });
+
+  it("resolves current stages only while the matching lease is online", () => {
+    expect(status(presence())?.kind).toBe("starting");
+    expect(status(presence({ stage: "ready" }))?.kind).toBe("ready");
+    expect(status(presence({ stage: "load-failed", errorCode: "presentation-load-failed" }))?.kind).toBe("load-failed");
+  });
+
+  it("rejects malformed, unallowlisted, and extra persisted current values", () => {
     expect(parsePlayerPresence(presence({ stage: "anything" }))).toBeNull();
     expect(parsePlayerPresence(presence({ extra: true }))).toBeNull();
     expect(parsePlayerPresence(presence({ stage: "load-failed" }))).toBeNull();
+  });
+
+  it("ignores unrelated malformed leases", () => {
+    expect(status(presence({}, { "boot-a": { malformed: true }, "boot-b": lease("boot-b") }))?.kind).toBe("starting");
   });
 });

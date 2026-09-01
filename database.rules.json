@@ -130,15 +130,30 @@
       },
       "playerPresence": {
         ".read": "auth != null",
-        ".write": "auth != null || (newData.exists() && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && (((!data.exists() || newData.child('bootId').val() !== data.child('bootId').val()) && newData.child('connected').val() === true && newData.child('stage').val() === 'starting' && !newData.hasChild('errorCode')) || (data.exists() && newData.child('bootId').val() === data.child('bootId').val())))",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'connected', 'stage', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val().length > 0 && newData.child('connected').isBoolean() && (newData.child('stage').val() === 'starting' || newData.child('stage').val() === 'ready' || newData.child('stage').val() === 'load-failed') && newData.child('transitionedAt').isNumber() && ((newData.child('stage').val() === 'load-failed' && newData.child('errorCode').isString() && (newData.child('errorCode').val() === 'presentation-not-found' || newData.child('errorCode').val() === 'presentation-load-failed' || newData.child('errorCode').val() === 'player-mount-failed')) || (newData.child('stage').val() !== 'load-failed' && !newData.hasChild('errorCode')))",
-        "activationRevision": { ".validate": "newData.isNumber()" },
-        "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "bootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "connected": { ".validate": "newData.isBoolean()" },
-        "stage": { ".validate": "newData.isString()" },
-        "transitionedAt": { ".validate": "newData.isNumber()" },
-        "errorCode": { ".validate": "newData.isString()" },
+        ".write": "auth != null",
+        "current": {
+          ".write": "auth != null || (newData.exists() && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && (((!data.exists() || newData.child('bootId').val() !== data.child('bootId').val()) && newData.child('stage').val() === 'starting' && !newData.hasChild('errorCode') && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('bootId').val() === newData.child('bootId').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('connected').val() === true) || (data.exists() && newData.child('bootId').val() === data.child('bootId').val())))",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'stage', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val().length > 0 && (newData.child('stage').val() === 'starting' || newData.child('stage').val() === 'ready' || newData.child('stage').val() === 'load-failed') && newData.child('transitionedAt').isNumber() && ((newData.child('stage').val() === 'load-failed' && newData.child('errorCode').isString() && (newData.child('errorCode').val() === 'presentation-not-found' || newData.child('errorCode').val() === 'presentation-load-failed' || newData.child('errorCode').val() === 'player-mount-failed')) || (newData.child('stage').val() !== 'load-failed' && !newData.hasChild('errorCode')))",
+          "activationRevision": { ".validate": "newData.isNumber()" },
+          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
+          "bootId": { ".validate": "newData.isString() && newData.val().length > 0" },
+          "stage": { ".validate": "newData.isString()" },
+          "transitionedAt": { ".validate": "newData.isNumber()" },
+          "errorCode": { ".validate": "newData.isString()" },
+          "$other": { ".validate": false }
+        },
+        "leases": {
+          "$bootId": {
+            ".write": "auth != null || (newData.exists() && $bootId === newData.child('bootId').val() && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val())",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'connected', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val() === $bootId && newData.child('connected').isBoolean() && newData.child('transitionedAt').isNumber()",
+            "activationRevision": { ".validate": "newData.isNumber()" },
+            "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
+            "bootId": { ".validate": "newData.isString() && newData.val().length > 0" },
+            "connected": { ".validate": "newData.isBoolean()" },
+            "transitionedAt": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
         "$other": { ".validate": false }
       },
       "galleryControl": {

@@ -7,6 +7,7 @@ import {
 } from "firebase/database";
 
 export const PLAYER_PRESENCE_PATH = "live/playerPresence";
+export const PLAYER_PRESENCE_CURRENT_PATH = `${PLAYER_PRESENCE_PATH}/current`;
 
 export type PlayerBootStage = "starting" | "ready" | "load-failed";
 export type PlayerBootErrorCode =
@@ -23,8 +24,7 @@ export interface PlayerPresenceReporter {
 export type PlayerPresenceTransition =
   | "starting"
   | "ready"
-  | "load-failed"
-  | "cancel-disconnect";
+  | "load-failed";
 
 export type PlayerPresenceErrorHandler = (
   transition: PlayerPresenceTransition,
@@ -36,9 +36,8 @@ function createBootId(): string {
 }
 
 /**
- * Owns the one current Player's liveness report. onDisconnect is registered
- * before the connected state is published so a dropped connection cannot leave
- * a freshly-created online record behind.
+ * Publishes the current Player report only after its boot-scoped connection
+ * lease is online and protected by an onDisconnect write.
  */
 export async function startPlayerPresence(
   database: Database,
@@ -46,29 +45,38 @@ export async function startPlayerPresence(
   currentVersionId: string,
   onError: PlayerPresenceErrorHandler = () => undefined,
 ): Promise<PlayerPresenceReporter> {
-  const presenceRef = ref(database, PLAYER_PRESENCE_PATH);
   const bootId = createBootId();
-  const write = (connected: boolean, stage: PlayerBootStage, errorCode?: PlayerBootErrorCode) =>
-    set(presenceRef, {
+  const currentRef = ref(database, PLAYER_PRESENCE_CURRENT_PATH);
+  const leaseRef = ref(database, `${PLAYER_PRESENCE_PATH}/leases/${bootId}`);
+  const writeCurrent = (
+    stage: PlayerBootStage,
+    errorCode?: PlayerBootErrorCode,
+  ) =>
+    set(currentRef, {
       activationRevision,
       currentVersionId,
       bootId,
-      connected,
       stage,
       transitionedAt: serverTimestamp(),
       ...(errorCode === undefined ? {} : { errorCode }),
     });
 
-  const disconnect = onDisconnect(presenceRef);
+  const disconnect = onDisconnect(leaseRef);
   await disconnect.set({
     activationRevision,
     currentVersionId,
     bootId,
     connected: false,
-    stage: "starting",
     transitionedAt: serverTimestamp(),
   });
-  await write(true, "starting");
+  await set(leaseRef, {
+    activationRevision,
+    currentVersionId,
+    bootId,
+    connected: true,
+    transitionedAt: serverTimestamp(),
+  });
+  await writeCurrent("starting");
 
   let stopped = false;
 
@@ -78,7 +86,7 @@ export async function startPlayerPresence(
   ): void => {
     if (stopped) return;
 
-    void write(true, stage, errorCode).catch((error: unknown) => {
+    void writeCurrent(stage, errorCode).catch((error: unknown) => {
       onError(stage, error);
     });
   };
@@ -89,9 +97,6 @@ export async function startPlayerPresence(
     stop: () => {
       if (stopped) return;
       stopped = true;
-      void disconnect.cancel().catch((error: unknown) => {
-        onError("cancel-disconnect", error);
-      });
     },
   };
 }

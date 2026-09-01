@@ -114,7 +114,6 @@ describe("PresenterView controls", () => {
         activationRevision: 1,
         currentVersionId: "version-1",
         bootId: "boot-1",
-        connected: true,
         stage: "ready",
         transitionedAt: 1,
       },
