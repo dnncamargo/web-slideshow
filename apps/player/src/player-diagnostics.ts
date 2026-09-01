@@ -52,6 +52,8 @@ export type PlayerDiagnosticCode =
   | "PLAYER_STATE_WRITE_OK"
   | "PLAYER_STATE_WRITE_ERROR"
   | "PLAYER_PRESENCE_WRITE_ERROR"
+  | "PLAYER_RECOVERY_SUBSCRIBE_ERROR"
+  | "PLAYER_RECOVERY_RELOAD"
   | "CONTROL_STATE_SUBSCRIBE_ERROR";
 
 export interface PlayerDiagnosticEvent {

@@ -15,7 +15,10 @@ class Snapshot {
 const rules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { playerRecoveryRequest: { ".write": string; ".read": boolean; ".validate": string; $other: { ".validate": boolean } } } } };
 const recovery = rules.rules.live.playerRecoveryRequest;
 const request = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "version-1", revision: 1, targetBootId: "boot-a", action: "reload", requestedAt: 123, ...overrides });
-const live = (connected = true) => ({ live: { current: { revision: 7, currentVersionId: "version-1" }, playerPresence: { current: { bootId: "boot-a" }, leases: { "boot-a": { bootId: "boot-a", connected } } } } });
+const live = (
+  connected = true,
+  leaseOverrides: Record<string, unknown> = {},
+) => ({ live: { current: { revision: 7, currentVersionId: "version-1" }, playerPresence: { current: { bootId: "boot-a" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 7, currentVersionId: "version-1", connected, ...leaseOverrides } } } } });
 function evaluate(expression: string, current: unknown, next: unknown, root = live(), authenticated = true): boolean {
   // This is an exact-expression harness, not a Firebase Rules emulator.
   const fn = new Function("auth", "data", "newData", "root", `return Boolean(${expression});`) as (auth: object | null, data: Snapshot, newData: Snapshot, root: Snapshot) => boolean;
@@ -32,6 +35,9 @@ describe("live/playerRecoveryRequest repository rules", () => {
     expect(evaluate(recovery[".validate"], request(), request({ revision: 2 }))).toBe(true);
     expect(evaluate(recovery[".validate"], request(), request({ revision: 3 }))).toBe(false);
     expect(evaluate(recovery[".validate"], null, request(), live(false))).toBe(false);
+    expect(evaluate(recovery[".validate"], null, request(), live(true, { activationRevision: 6 }))).toBe(false);
+    expect(evaluate(recovery[".validate"], null, request(), live(true, { currentVersionId: "old" }))).toBe(false);
+    expect(evaluate(recovery[".validate"], null, request(), live(true, { bootId: "boot-b" }))).toBe(false);
     expect(evaluate(recovery[".validate"], null, request({ targetBootId: "boot-b" }))).toBe(false);
   });
   it("rejects stale identities and extra fields while allowing authenticated cleanup", () => {

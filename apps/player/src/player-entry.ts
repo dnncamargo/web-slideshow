@@ -230,15 +230,22 @@ export function startPlayer(root: HTMLElement): () => void {
         event.live.currentVersionId,
         recordPresenceWriteError,
       );
-      cleanupPlayerRecoveryRequest = subscribePlayerRecoveryRequest(
-        database!,
-        event.live.revision,
-        event.live.currentVersionId,
-        presenceReporter.bootId,
-        window.location,
-      );
     } catch (error) {
       recordPresenceWriteError("starting", error);
+    }
+
+    if (presenceReporter !== undefined) {
+      try {
+        cleanupPlayerRecoveryRequest = subscribePlayerRecoveryRequest(
+          database!,
+          event.live.revision,
+          event.live.currentVersionId,
+          presenceReporter.bootId,
+          window.location,
+        );
+      } catch (error) {
+        recordPlayerDiagnostic("PLAYER_RECOVERY_SUBSCRIBE_ERROR", { error });
+      }
     }
 
     if (token !== loadToken) return;

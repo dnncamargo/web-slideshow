@@ -165,6 +165,7 @@ describe("live-current activation", () => {
       "fullscreenRequest",
       "galleryControl",
       "playerPresence",
+      "playerRecoveryRequest",
       "playerState",
       "slideAck",
       "slideCommand",
@@ -176,6 +177,7 @@ describe("live-current activation", () => {
     expect(committed.slideCommand).toBeNull();
     expect(committed.slideAck).toBeNull();
     expect(committed.fullscreenRequest).toBeNull();
+    expect(committed.playerRecoveryRequest).toBeNull();
     expect(committed.playerPresence).toBeNull();
   });
 
@@ -224,6 +226,7 @@ describe("live-current activation", () => {
         playerState: null,
         playerPresence: null,
         fullscreenRequest: null,
+        playerRecoveryRequest: null,
         galleryControl: null,
         slideCommand: null,
         slideAck: null,
@@ -251,6 +254,7 @@ describe("live-current activation", () => {
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
+      playerRecoveryRequest: { revision: 2 },
     };
     let committed: unknown;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -274,6 +278,7 @@ describe("live-current activation", () => {
       slideCommand: null,
       slideAck: null,
       fullscreenRequest: null,
+      playerRecoveryRequest: null,
       galleryControl: null,
     });
   });
@@ -297,6 +302,7 @@ describe("live-current activation", () => {
       slideCommand: { revision: 4 },
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
+      playerRecoveryRequest: { revision: 2 },
     };
     let committed: unknown;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -325,6 +331,7 @@ describe("live-current activation", () => {
       slideCommand: null,
       slideAck: null,
       fullscreenRequest: null,
+      playerRecoveryRequest: null,
       galleryControl: null,
     });
   });
