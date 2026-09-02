@@ -16,6 +16,7 @@ export type PlayerBootErrorCode =
   | "player-mount-failed";
 
 export interface PlayerPresenceReporter {
+  readonly bootId: string;
   ready(): void;
   failed(errorCode: PlayerBootErrorCode): void;
   stop(): void;
@@ -92,6 +93,7 @@ export async function startPlayerPresence(
   };
 
   return {
+    bootId,
     ready: () => transition("ready"),
     failed: (errorCode) => transition("load-failed", errorCode),
     stop: () => {

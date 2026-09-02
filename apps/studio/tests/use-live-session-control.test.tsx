@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(),
   onValue: vi.fn(),
   promoteLivePresentationVersion: vi.fn(),
+  recordControlLatencyMeasurement: vi.fn(),
   ref: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
   writeControlState: vi.fn(),
@@ -31,6 +32,10 @@ vi.mock("../src/features/control/control-command-writer", () => ({
 vi.mock("../src/features/control/live-current", () => ({
   promoteLivePresentationVersion: mocks.promoteLivePresentationVersion,
   subscribeLiveCurrent: mocks.subscribeLiveCurrent,
+}));
+
+vi.mock("../src/features/control/control-latency-snapshot", () => ({
+  recordControlLatencyMeasurement: mocks.recordControlLatencyMeasurement,
 }));
 
 import type { UseLiveSessionControlResult } from "../src/features/control/use-live-session-control";
@@ -271,6 +276,47 @@ describe("useLiveSessionControl hydration", () => {
       1,
       "version-1",
       "page-c",
+    );
+  });
+
+  it("records a measured synced view for the exact active identity", async () => {
+    vi.useFakeTimers();
+    const controlHandler = handlerFor("live/controlState");
+    const playerHandler = handlerFor("live/playerState");
+
+    await act(async () => {
+      controlHandler(snapshot(null));
+      playerHandler(
+        snapshot({
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          appliedControlRevision: 0,
+          pageId: "page-a",
+          pageIndex: 0,
+        }),
+      );
+      result?.next();
+      vi.advanceTimersByTime(75);
+      await Promise.resolve();
+      vi.advanceTimersByTime(45);
+      playerHandler(
+        snapshot({
+          activationRevision: 1,
+          currentVersionId: "version-1",
+          appliedControlRevision: 1,
+          pageId: "page-b",
+          pageIndex: 1,
+        }),
+      );
+    });
+
+    expect(mocks.recordControlLatencyMeasurement).toHaveBeenCalledWith(
+      {
+        publicationId: "publication-1",
+        activationRevision: 1,
+        currentVersionId: "version-1",
+      },
+      { kind: "synced", latencyMs: 45 },
     );
   });
 

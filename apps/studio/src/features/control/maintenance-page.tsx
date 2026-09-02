@@ -1,22 +1,50 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
 import { onValue, ref } from "firebase/database";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
+import {
+  subscribeLiveCurrent,
+  type LiveState,
+} from "../live/live-current-read";
+import {
+  buildControlStatePath,
+  buildPlayerStatePath,
+  parseLiveControlState,
+  parseLivePlayerState,
+  type LiveControlState,
+  type LivePlayerState,
+} from "../live/live-state";
+import {
+  readControlLatencySnapshot,
+  type ControlLatencySnapshot,
+} from "./control-latency-snapshot";
+import {
+  PLAYER_PRESENCE_PATH,
+  parsePlayerPresence,
+  resolvePlayerOperationalStatus,
+  type PlayerOperationalStatus,
+} from "./player-presence";
+import { requestPlayerReload } from "./player-recovery-request";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
-import { subscribeLiveCurrent, type LiveState } from "../live/live-current-read";
-import { PLAYER_PRESENCE_PATH, parsePlayerPresence, resolvePlayerOperationalStatus, type PlayerOperationalStatus } from "./player-presence";
-import { buildControlStatePath, buildPlayerStatePath, parseLiveControlState, parseLivePlayerState, type LiveControlState, type LivePlayerState } from "../live/live-state";
 
 import styles from "./maintenance-page.module.css";
 
 function label(status: PlayerOperationalStatus | null): string {
-  if (status === null || status.kind === "no-report") return "No Player report";
-  if (status.kind === "starting") return "Player starting…";
-  if (status.kind === "ready") return "Player ready";
-  if (status.kind === "load-failed") return "Player load failed";
+  if (status === null || status.kind === "no-report") {
+    return "No Player report";
+  }
+  if (status.kind === "starting") {
+    return "Player starting…";
+  }
+  if (status.kind === "ready") {
+    return "Player ready";
+  }
+  if (status.kind === "load-failed") {
+    return "Player load failed";
+  }
   return "Player disconnected";
 }
 
@@ -25,29 +53,272 @@ export function MaintenancePage() {
   const [status, setStatus] = useState<PlayerOperationalStatus | null>(null);
   const [controlState, setControlState] = useState<LiveControlState | null>(null);
   const [playerState, setPlayerState] = useState<LivePlayerState | null>(null);
+  const [latencySnapshot, setLatencySnapshot] =
+    useState<ControlLatencySnapshot | null>(null);
+  const [reloadPendingBootId, setReloadPendingBootId] = useState<string | null>(
+    null,
+  );
+  const [reloadWriting, setReloadWriting] = useState(false);
+  const [reloadError, setReloadError] = useState<string | null>(null);
+  const recoveryTokenRef = useRef(0);
+  const activePublicationId =
+    liveState.kind === "active" ? liveState.live.publicationId : null;
+  const activeRevision =
+    liveState.kind === "active" ? liveState.live.revision : null;
+  const activeVersionId =
+    liveState.kind === "active" ? liveState.live.currentVersionId : null;
 
-  useEffect(() => subscribeLiveCurrent(setLiveState) ?? undefined, []);
   useEffect(() => {
-    if (liveState.kind !== "active") { setStatus(null); setControlState(null); setPlayerState(null); return; }
-    const db = getRealtimeDatabaseOrNull();
-    if (!db) return;
-    const unsubs = [
-      onValue(ref(db, PLAYER_PRESENCE_PATH), (snapshot) => setStatus(resolvePlayerOperationalStatus(liveState.live, parsePlayerPresence(snapshot.val())))),
-      onValue(ref(db, buildControlStatePath()), (snapshot) => setControlState(parseLiveControlState(snapshot.val()))),
-      onValue(ref(db, buildPlayerStatePath()), (snapshot) => setPlayerState(parseLivePlayerState(snapshot.val()))),
+    let subscribed = true;
+    const unsubscribe = subscribeLiveCurrent((nextState) => {
+      if (subscribed) {
+        setLiveState(nextState);
+      }
+    });
+
+    return () => {
+      subscribed = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    recoveryTokenRef.current += 1;
+    setReloadPendingBootId(null);
+    setReloadWriting(false);
+    setReloadError(null);
+
+    if (
+      activePublicationId !== null &&
+      activeRevision !== null &&
+      activeVersionId !== null
+    ) {
+      setLatencySnapshot(
+        readControlLatencySnapshot({
+          publicationId: activePublicationId,
+          activationRevision: activeRevision,
+          currentVersionId: activeVersionId,
+        }),
+      );
+    } else {
+      setLatencySnapshot(null);
+    }
+
+    return () => {
+      recoveryTokenRef.current += 1;
+    };
+  }, [
+    activePublicationId,
+    activeRevision,
+    activeVersionId,
+    liveState.kind,
+  ]);
+
+  useEffect(() => {
+    if (liveState.kind !== "active") {
+      setStatus(null);
+      setControlState(null);
+      setPlayerState(null);
+      return;
+    }
+
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setStatus(null);
+      setControlState(null);
+      setPlayerState(null);
+      return;
+    }
+
+    setStatus(null);
+    setControlState(null);
+    setPlayerState(null);
+
+    let subscribed = true;
+    const unsubscribes = [
+      onValue(ref(database, PLAYER_PRESENCE_PATH), (snapshot) => {
+        if (subscribed) {
+          setStatus(
+            resolvePlayerOperationalStatus(
+              liveState.live,
+              parsePlayerPresence(snapshot.val()),
+            ),
+          );
+        }
+      }),
+      onValue(ref(database, buildControlStatePath()), (snapshot) => {
+        if (subscribed) {
+          setControlState(parseLiveControlState(snapshot.val()));
+        }
+      }),
+      onValue(ref(database, buildPlayerStatePath()), (snapshot) => {
+        if (subscribed) {
+          setPlayerState(parseLivePlayerState(snapshot.val()));
+        }
+      }),
     ];
-    return () => { unsubs.forEach((unsubscribe) => unsubscribe()); };
+
+    return () => {
+      subscribed = false;
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe();
+      }
+    };
   }, [liveState]);
 
-  const presence = status !== null && status.kind !== "no-report" ? status.presence : null;
-  const slideEvidence = liveState.kind === "active" && controlState !== null && playerState !== null && controlState.activationRevision === liveState.live.revision && playerState.activationRevision === liveState.live.revision && controlState.currentVersionId === liveState.live.currentVersionId && playerState.currentVersionId === liveState.live.currentVersionId && controlState.revision === playerState.appliedControlRevision ? "Slide state synced" : "Slide state pending";
-  return <main className={styles.page}>
-    <header className={styles.header}><Link href={STUDIO_ROUTES.control}>Control</Link><h1>Maintenance &amp; Diagnostics</h1></header>
-    <div className={styles.grid}>
-      <section className={styles.section} aria-labelledby="player-status"><h2 id="player-status">Player status</h2><p className={styles.primary}>{label(status)}</p>
-        <dl><dt>Last transition</dt><dd>{presence ? new Date(presence.transitionedAt).toLocaleString() : "No report"}</dd><dt>Boot stage</dt><dd>{presence?.stage ?? "—"}</dd>{presence?.errorCode && <><dt>Failure code</dt><dd>{presence.errorCode}</dd></>}<dt>Activation/version alignment</dt><dd>{presence ? "Current activation and version" : "No matching report"}</dd><dt>Slide state</dt><dd>{slideEvidence}</dd></dl>
-      </section>
-      <section className={styles.section} aria-labelledby="recovery"><h2 id="recovery">Recovery</h2><p>Recovery commands are not implemented in this release.</p><div className={styles.actions}><button type="button" disabled>Try presentation again</button><button type="button" disabled>Reload Player</button><button type="button" disabled>Clear cache and reload</button></div></section>
-    </div>
-  </main>;
+  const currentStatus =
+    status === null ||
+    status.kind === "no-report" ||
+    (liveState.kind === "active" &&
+      status.presence.activationRevision === liveState.live.revision &&
+      status.presence.currentVersionId === liveState.live.currentVersionId)
+      ? status
+      : null;
+  const presence =
+    currentStatus !== null && currentStatus.kind !== "no-report"
+      ? currentStatus.presence
+      : null;
+
+  useEffect(() => {
+    if (
+      reloadPendingBootId === null ||
+      presence === null ||
+      presence.bootId === reloadPendingBootId
+    ) {
+      return;
+    }
+
+    if (
+      currentStatus?.kind === "ready" ||
+      currentStatus?.kind === "load-failed"
+    ) {
+      setReloadPendingBootId(null);
+    }
+  }, [currentStatus, presence, reloadPendingBootId]);
+
+  const canReload =
+    liveState.kind === "active" &&
+    presence !== null &&
+    currentStatus?.kind !== "disconnected" &&
+    !reloadWriting &&
+    reloadPendingBootId === null;
+
+  async function reloadPlayer(): Promise<void> {
+    if (!canReload || liveState.kind !== "active" || presence === null) {
+      return;
+    }
+
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setReloadError("Player recovery is unavailable.");
+      return;
+    }
+
+    const attemptToken = ++recoveryTokenRef.current;
+    const requestedBootId = presence.bootId;
+    setReloadWriting(true);
+    setReloadError(null);
+
+    try {
+      await requestPlayerReload(
+        database,
+        liveState.live.revision,
+        liveState.live.currentVersionId,
+        requestedBootId,
+      );
+
+      if (recoveryTokenRef.current === attemptToken) {
+        setReloadPendingBootId(requestedBootId);
+      }
+    } catch {
+      if (recoveryTokenRef.current === attemptToken) {
+        setReloadError("Could not request Player reload. Try again.");
+      }
+    } finally {
+      if (recoveryTokenRef.current === attemptToken) {
+        setReloadWriting(false);
+      }
+    }
+  }
+
+  const slideEvidence =
+    liveState.kind === "active" &&
+    controlState !== null &&
+    playerState !== null &&
+    controlState.activationRevision === liveState.live.revision &&
+    playerState.activationRevision === liveState.live.revision &&
+    controlState.currentVersionId === liveState.live.currentVersionId &&
+    playerState.currentVersionId === liveState.live.currentVersionId &&
+    controlState.revision === playerState.appliedControlRevision
+      ? "Slide state synced"
+      : "Slide state pending";
+
+  return (
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <Link href={STUDIO_ROUTES.control}>Control</Link>
+        <h1>Maintenance &amp; Diagnostics</h1>
+      </header>
+      <div className={styles.grid}>
+        <section className={styles.section} aria-labelledby="player-status">
+          <h2 id="player-status">Player status</h2>
+          <p className={styles.primary}>{label(currentStatus)}</p>
+          <dl>
+            <dt>Last transition</dt>
+            <dd>
+              {presence
+                ? new Date(presence.transitionedAt).toLocaleString()
+                : "No report"}
+            </dd>
+            <dt>Boot stage</dt>
+            <dd>{presence?.stage ?? "—"}</dd>
+            {presence?.errorCode && (
+              <>
+                <dt>Failure code</dt>
+                <dd>{presence.errorCode}</dd>
+              </>
+            )}
+            <dt>Activation/version alignment</dt>
+            <dd>
+              {presence
+                ? "Current activation and version"
+                : "No matching report"}
+            </dd>
+            <dt>Slide state</dt>
+            <dd>{slideEvidence}</dd>
+            <dt>Last slide latency</dt>
+            <dd>
+              {latencySnapshot === null
+                ? "Not measured in this Control tab"
+                : `${Math.round(latencySnapshot.latencyMs)} ms`}
+            </dd>
+          </dl>
+        </section>
+        <section className={styles.section} aria-labelledby="recovery">
+          <h2 id="recovery">Recovery</h2>
+          <p>
+            {reloadPendingBootId !== null
+              ? "Waiting for Player…"
+              : "Request a remote Player reload."}
+          </p>
+          {reloadError && <p role="alert">{reloadError}</p>}
+          <div className={styles.actions}>
+            <button type="button" disabled>
+              Try presentation again
+            </button>
+            <button
+              type="button"
+              disabled={!canReload}
+              onClick={() => void reloadPlayer()}
+            >
+              {reloadWriting ? "Requesting reload…" : "Reload Player"}
+            </button>
+            <button type="button" disabled>
+              Clear cache and reload
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }

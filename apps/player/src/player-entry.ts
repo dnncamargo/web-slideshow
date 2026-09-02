@@ -18,6 +18,7 @@ import {
   type PlayerPresenceReporter,
   type PlayerPresenceTransition,
 } from "./live-player-presence";
+import { subscribePlayerRecoveryRequest } from "./live-player-recovery-request";
 import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
@@ -49,6 +50,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
+  let cleanupPlayerRecoveryRequest: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let presenceReporter: PlayerPresenceReporter | undefined;
   let activePresentation: Presentation | undefined;
@@ -154,12 +156,18 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachPlayerRecoveryRequest(): void {
+    cleanupPlayerRecoveryRequest?.();
+    cleanupPlayerRecoveryRequest = undefined;
+  }
+
   function teardownLiveSession(): void {
     loadToken += 1;
     currentSessionKey = null;
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
+    detachPlayerRecoveryRequest();
     activeController?.destroy();
     activeController = undefined;
     activePresentation = undefined;
@@ -204,6 +212,7 @@ export function startPlayer(root: HTMLElement): () => void {
       detachLiveSlideAck();
       detachLiveFullscreenRequest();
       detachLiveGalleryControl();
+      detachPlayerRecoveryRequest();
       loadToken += 1;
     } else {
       teardownLiveSession();
@@ -223,6 +232,20 @@ export function startPlayer(root: HTMLElement): () => void {
       );
     } catch (error) {
       recordPresenceWriteError("starting", error);
+    }
+
+    if (presenceReporter !== undefined) {
+      try {
+        cleanupPlayerRecoveryRequest = subscribePlayerRecoveryRequest(
+          database!,
+          event.live.revision,
+          event.live.currentVersionId,
+          presenceReporter.bootId,
+          window.location,
+        );
+      } catch (error) {
+        recordPlayerDiagnostic("PLAYER_RECOVERY_SUBSCRIBE_ERROR", { error });
+      }
     }
 
     if (token !== loadToken) return;
