@@ -78,6 +78,37 @@ describe("renderBlocks", () => {
     expect(html.match(/data-powershow-block-id="/g)?.length).toBe(3);
   });
 
+  it("lets statement parts wrap instead of forcing a nowrap row", () => {
+    const html = renderBlocks(element([statement("wrap", "motion", [
+      text("t1", "repeat"),
+      literal("l1", "10"),
+      text("t2", "times"),
+      literal("l2", "100"),
+      text("t3", "using long value"),
+    ])]));
+    expect(html).toContain("flex-wrap:wrap");
+    expect(html).toContain("white-space:normal");
+    expect(html).not.toContain("white-space:nowrap");
+    expect(html).not.toContain("overflow:hidden");
+  });
+
+  it("keeps a nested value a socket child and not a stack sibling when parts wrap", () => {
+    const html = renderBlocks(element([statement("parent", "motion", [
+      text("t1", "set"),
+      text("t2", "x"),
+      literal("l1", "to"),
+      { id: "socket", type: "socket", content: { type: "block", block: value("nested", "#22c55e", [text("v1", "long"), text("v2", "expression")]) } },
+      text("t3", "and"),
+      literal("l2", "another"),
+    ]), statement("sibling") ]));
+    expect(html).toContain("flex-wrap:wrap");
+    expect(html).toContain("powershow-block-socket--block");
+    const region = html.match(/powershow-block-socket--block[\s\S]*?data-powershow-block-id="nested"/);
+    expect(region).not.toBeNull();
+    expect(region?.[0]).not.toContain("sibling");
+    expect(html.match(/data-powershow-block-id="/g)?.length).toBe(3);
+  });
+
   it("renders a true open C-scope with rail, nested stack, and fixed footer", () => {
     const html = renderBlocks(element([scope("loop") ]));
     expect(html).toContain("powershow-block--scope");
@@ -92,6 +123,19 @@ describe("renderBlocks", () => {
     expect(html).toContain("powershow-block-connector--bottom");
     expect(html).toContain('data-powershow-block-id="loop-child"');
     expect(html).not.toMatch(/powershow-block--scope[^>]*background-color:/);
+  });
+
+  it("applies the same wrapping contract to scope headers while preserving C-scope geometry", () => {
+    const html = renderBlocks(element([scope("loop") ]));
+    const partsOccurrences = html.match(/flex-wrap:wrap/g)?.length ?? 0;
+    expect(partsOccurrences).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain("white-space:nowrap");
+    expect(html).toContain("powershow-block-scope-body");
+    expect(html).toContain("powershow-block-scope-footer");
+    expect(html).toContain(`margin-inline-start:${SCOPE_INDENT}px`);
+    expect(html).toContain(`width:${SCOPE_CLOSING_WIDTH}px`);
+    expect(html).toContain("powershow-block-connector--top");
+    expect(html).toContain("powershow-block-connector--bottom");
   });
 
   it("marks every BlockItem, including socket values, without scripts or runtime", () => {

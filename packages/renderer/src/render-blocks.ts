@@ -54,9 +54,11 @@ const valueSurfaceStyle = [
 
 const partsStyle = [
   "display:inline-flex",
+  "flex-wrap:wrap",
   "align-items:center",
   `gap:${INLINE_PART_GAP}px`,
-  "white-space:nowrap",
+  "white-space:normal",
+  "overflow-wrap:anywhere",
   "max-width:100%",
 ].join(";");
 
