@@ -366,6 +366,39 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).not.toHaveBeenCalled();
   });
 
+  it("copies the authoritative draft presentationJson bytes exactly", async () => {
+    const presentation = createBlankPresentation("pres-1");
+    const exactJson = `  ${JSON.stringify(presentation)}\n`;
+    const transaction = setupTransaction(
+      draftData({ presentationJson: exactJson }),
+    );
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-exact" })
+      .mockReturnValueOnce({ id: "version-exact" })
+      .mockReturnValueOnce({ id: "pointer-exact" });
+
+    await repository.publishPresentation("pres-1");
+
+    expect(transaction.set.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        presentationId: "pres-1",
+        presentationJson: exactJson,
+      }),
+    );
+  });
+
+  it("rejects publication when the draft canonical id differs from its path", async () => {
+    const transaction = setupTransaction(
+      draftData({ presentation: createBlankPresentation("other-presentation") }),
+    );
+
+    await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
+      /identity mismatch/i,
+    );
+    expect(transaction.set).not.toHaveBeenCalled();
+  });
+
   it("adapts the mount publish callback to repository.publishPresentation(id)", async () => {
     const presentation = createBlankPresentation("pres-mount");
     mocks.doc.mockReturnValue({ id: "private-draft" });

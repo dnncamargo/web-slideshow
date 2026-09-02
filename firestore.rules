@@ -12,6 +12,33 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function publicationMetadataHasValidShape(publication) {
+      return publication.keys().hasAll(['publicationId', 'currentVersionId', 'publishedRevision', 'publishedAt'])
+        && publication.keys().hasOnly(['publicationId', 'currentVersionId', 'publishedRevision', 'publishedAt'])
+        && publication.publicationId is string
+        && publication.publicationId.size() > 0
+        && publication.currentVersionId is string
+        && publication.currentVersionId.size() > 0
+        && publication.publishedRevision is int
+        && publication.publishedRevision >= 0
+        && publication.publishedAt is timestamp;
+    }
+
+    function draftHasValidShape() {
+      let resource = request.resource.data;
+      return resource.keys().hasAll(['presentationJson', 'createdAt', 'updatedAt', 'draftRevision'])
+        && resource.keys().hasOnly(['presentationJson', 'createdAt', 'updatedAt', 'draftRevision', 'folderId', 'archivedAt', 'publication'])
+        && resource.presentationJson is string
+        && resource.presentationJson.size() > 0
+        && resource.createdAt is timestamp
+        && resource.updatedAt is timestamp
+        && resource.draftRevision is int
+        && resource.draftRevision >= 0
+        && (!('folderId' in resource) || (resource.folderId is string && resource.folderId.size() > 0))
+        && (!('archivedAt' in resource) || resource.archivedAt is timestamp)
+        && (!('publication' in resource) || (resource.publication is map && publicationMetadataHasValidShape(resource.publication)));
+    }
+
     // A published version must contain EXACTLY: presentationId, presentationJson,
     // publishedRevision, publishedAt. Reject extra private/persistence fields.
     function publishedVersionHasValidShape() {
@@ -118,8 +145,7 @@ service cloud.firestore {
     match /users/{userId}/presentations/{presentationId} {
       allow read: if isPrivatePresentationOwner(userId);
       allow create, update: if isPrivatePresentationOwner(userId)
-        && request.resource.data.presentationJson is string
-        && request.resource.data.presentationJson.size() > 0;
+        && draftHasValidShape();
       allow delete: if isPrivatePresentationOwner(userId);
     }
 

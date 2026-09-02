@@ -1,5 +1,8 @@
 import type { Presentation } from "@powershow/document-schema";
-import { decodePresentationFromFirestore } from "@powershow/firebase";
+import {
+  assertPresentationId,
+  decodePresentationFromFirestore,
+} from "@powershow/firebase";
 import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import { doc, getDoc, getFirestore } from "firebase/firestore/lite";
 
@@ -152,6 +155,11 @@ export async function loadPublishedVersion(
     let presentation: Presentation;
     try {
       presentation = decodePresentationFromFirestore(versionData);
+      const presentationId = versionData.presentationId;
+      if (typeof presentationId !== "string" || presentationId.trim() === "") {
+        throw new Error("Published version requires a non-empty presentationId.");
+      }
+      assertPresentationId(presentation, presentationId);
     } catch {
       console.error("Player: published presentation failed schema validation.");
 

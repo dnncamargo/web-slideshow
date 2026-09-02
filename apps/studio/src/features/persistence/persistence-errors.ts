@@ -1,4 +1,5 @@
 import type { FirebaseError } from "firebase/app";
+export { PresentationTooLargeError } from "@powershow/firebase";
 
 /**
  * Persistence-layer error model.
@@ -61,21 +62,6 @@ export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);
     this.name = "InvalidFolderNameError";
-  }
-}
-
-export class PresentationTooLargeError extends PersistenceError {
-  readonly actualBytes: number;
-
-  readonly limitBytes: number;
-
-  constructor(actualBytes: number, limitBytes: number) {
-    super(
-      `Presentation is too large to persist safely: ${actualBytes} bytes exceeds the ${limitBytes} byte limit.`,
-    );
-    this.name = "PresentationTooLargeError";
-    this.actualBytes = actualBytes;
-    this.limitBytes = limitBytes;
   }
 }
 

@@ -52,7 +52,6 @@ export type {
 } from "./presentation-persistence";
 export {
   MAX_PRESENTATION_SAFE_BYTES,
-  assertPresentationWithinSizeLimit,
   estimatePresentationBytes,
   extractPresentationSummary,
   assertValidPresentationForPersistence,
@@ -83,5 +82,4 @@ export {
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
   PresentationRecoveryFailedError,
-  PresentationTooLargeError,
 } from "./persistence-errors";

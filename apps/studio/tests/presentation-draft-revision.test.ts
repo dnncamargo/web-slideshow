@@ -369,7 +369,7 @@ describe("draft revision persistence wiring", () => {
       callback(transaction as never),
     );
 
-    await expect(repository.publishPresentation("pres-1")).resolves.toBeDefined();
+    await expect(repository.publishPresentation(presentation.id)).resolves.toBeDefined();
     expect(transaction.set).toHaveBeenCalledTimes(2);
   });
 });

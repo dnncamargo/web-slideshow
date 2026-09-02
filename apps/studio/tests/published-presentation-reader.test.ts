@@ -28,6 +28,10 @@ function versionData(
   overrides: Record<string, unknown> = {},
 ) {
   return {
+    presentationId:
+      typeof presentation === "object" && presentation !== null && "id" in presentation
+        ? (presentation as { id: string }).id
+        : undefined,
     presentationJson: typeof presentation === "string"
       ? presentation
       : JSON.stringify(presentation),
@@ -141,6 +145,18 @@ describe("published presentation reader", () => {
     const result = await reader.getVersion("publication-1", "version-9");
 
     expect(result).toEqual(presentation);
+  });
+
+  it.each([
+    { presentationId: undefined },
+    { presentationId: "other-presentation" },
+  ])("rejects a published version with invalid identity", async (overrides) => {
+    const presentation = createBlankPresentation("pres-1");
+    mocks.getDoc.mockResolvedValue(
+      snapshot(true, versionData(presentation, overrides)),
+    );
+
+    await expect(reader.getVersion("publication-1", "version-9")).rejects.toThrow();
   });
 
   it("returns a canonical Container unchanged from a published version", async () => {

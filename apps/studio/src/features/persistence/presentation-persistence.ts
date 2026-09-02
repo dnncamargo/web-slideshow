@@ -5,10 +5,11 @@ import {
   encodePresentationForFirestore,
 } from "@powershow/firebase";
 
+export { MAX_PRESENTATION_SAFE_BYTES } from "@powershow/firebase";
+
 import {
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
-  PresentationTooLargeError,
 } from "./persistence-errors";
 
 /**
@@ -18,8 +19,6 @@ import {
  * Firestore wire-size calculation. It deliberately leaves comfortable overhead
  * below Firestore's hard document-size limit.
  */
-export const MAX_PRESENTATION_SAFE_BYTES = 800 * 1024;
-
 export interface PresentationPersistenceEnvelope {
   presentationJson: string;
   createdAt: unknown;
@@ -192,20 +191,9 @@ export function assertValidPresentationForPersistence(
 export function estimatePresentationBytes(
   presentation: Presentation,
 ): number {
-  const json = encodePresentationForFirestore(presentation).presentationJson;
-
-  return new TextEncoder().encode(json).byteLength;
-}
-
-export function assertPresentationWithinSizeLimit(
-  presentation: Presentation,
-  limitBytes: number = MAX_PRESENTATION_SAFE_BYTES,
-): void {
-  const actualBytes = estimatePresentationBytes(presentation);
-
-  if (actualBytes > limitBytes) {
-    throw new PresentationTooLargeError(actualBytes, limitBytes);
-  }
+  return new TextEncoder().encode(
+    encodePresentationForFirestore(presentation).presentationJson,
+  ).byteLength;
 }
 
 export function extractPresentationSummary(

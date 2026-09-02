@@ -1,6 +1,7 @@
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 import type { Presentation } from "@powershow/document-schema";
+import { assertPresentationId } from "@powershow/firebase";
 
 import { getFirebaseFirestore } from "./firebase-client";
 import { FirestoreOperationError } from "./persistence-errors";
@@ -139,7 +140,16 @@ export class FirestorePublishedPresentationReader
         return null;
       }
 
-      return parsePersistedPresentation(snapshot.data());
+      const versionData = snapshot.data();
+      const presentationId = versionData.presentationId;
+      if (typeof presentationId !== "string" || presentationId.trim() === "") {
+        throw new Error("Published version requires a non-empty presentationId.");
+      }
+
+      return assertPresentationId(
+        parsePersistedPresentation(versionData),
+        presentationId,
+      );
     } catch (error) {
       console.error(
         `Failed to read published version "${versionId}"`,

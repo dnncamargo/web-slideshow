@@ -4,23 +4,22 @@ import {
   PresentationSchema,
   type Presentation,
 } from "@powershow/document-schema";
-import { encodePresentationForFirestore } from "@powershow/firebase";
+import {
+  encodePresentationForFirestore,
+  MAX_PRESENTATION_SAFE_BYTES,
+  PresentationTooLargeError,
+} from "@powershow/firebase";
 
 import {
-  assertPresentationWithinSizeLimit,
   estimatePresentationBytes,
   extractPresentationSummary,
-  MAX_PRESENTATION_SAFE_BYTES,
   parsePersistedPresentation,
 } from "../src/features/persistence/presentation-persistence";
 import {
   appendElementToContainer,
   createElement,
 } from "../src/features/editor/element-operations";
-import {
-  PresentationTooLargeError,
-  InvalidPersistedPresentationError,
-} from "../src/features/persistence/persistence-errors";
+import { InvalidPersistedPresentationError } from "../src/features/persistence/persistence-errors";
 
 function makeFirestoreSafePresentation(presentation: Presentation): Record<string, unknown> {
   return JSON.parse(
@@ -43,7 +42,7 @@ function buildLargePresentation(byteTarget: number): Presentation {
   const chunk = "x".repeat(1024);
   const presentation = basePresentation();
 
-  while (estimatePresentationBytes(presentation) < byteTarget) {
+  while (presentation.slides.length < Math.ceil(byteTarget / 1024)) {
     presentation.slides.push({
       id: `slide-${presentation.slides.length}`,
       title: "",
@@ -240,31 +239,11 @@ describe("presentation persistence helpers", () => {
     expect(estimatePresentationBytes(a)).toBeGreaterThan(0);
   });
 
-  it("passes presentations below the safety limit", () => {
-    expect(() =>
-      assertPresentationWithinSizeLimit(basePresentation()),
-    ).not.toThrow();
-  });
-
   it("throws PresentationTooLargeError above the safety limit", () => {
     const large = buildLargePresentation(MAX_PRESENTATION_SAFE_BYTES + 100);
 
-    expect(() => assertPresentationWithinSizeLimit(large)).toThrow(
-      PresentationTooLargeError,
-    );
+    expect(() => encodePresentationForFirestore(large)).toThrow(PresentationTooLargeError);
   }, 15000);
-
-  it("is deterministic at the configured safety boundary", () => {
-    const presentation = basePresentation();
-    const exactBytes = estimatePresentationBytes(presentation);
-
-    expect(() =>
-      assertPresentationWithinSizeLimit(presentation, exactBytes),
-    ).not.toThrow();
-    expect(() =>
-      assertPresentationWithinSizeLimit(presentation, exactBytes - 1),
-    ).toThrow(PresentationTooLargeError);
-  });
 
   it("extracts only summary data", () => {
     const summary = extractPresentationSummary({

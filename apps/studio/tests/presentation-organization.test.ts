@@ -177,9 +177,9 @@ describe("listPresentations organization filtering", () => {
 
   it("omits archived documents by default", async () => {
     snapshotWith([
-      { id: "a", data: () => presentationDoc("pres-a") },
+      { id: "pres-a", data: () => presentationDoc("pres-a") },
       {
-        id: "b",
+        id: "pres-b",
         data: () =>
           presentationDoc("pres-b", {
             archivedAt: "archived",
@@ -196,11 +196,11 @@ describe("listPresentations organization filtering", () => {
   it("returns active and archived summaries with includeArchived", async () => {
     snapshotWith([
       {
-        id: "a",
+        id: "pres-a",
         data: () => presentationDoc("pres-a", { folderId: "folder-1" }),
       },
       {
-        id: "b",
+        id: "pres-b",
         data: () =>
           presentationDoc("pres-b", {
             archivedAt: "archived",
@@ -224,12 +224,38 @@ describe("listPresentations organization filtering", () => {
   });
 
   it("reads the collection once regardless of includeArchived", async () => {
-    snapshotWith([{ id: "a", data: () => presentationDoc("pres-a") }]);
+    snapshotWith([{ id: "pres-a", data: () => presentationDoc("pres-a") }]);
 
     await repository.listPresentations({ includeArchived: true });
 
     expect(mockedGetDocs).toHaveBeenCalledTimes(1);
     expect(mockedQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a draft whose canonical id differs from its Firestore document id", async () => {
+    snapshotWith([{ id: "pres-path", data: () => presentationDoc("pres-canonical") }]);
+
+    await expect(repository.listPresentations()).rejects.toThrow(/identity mismatch/i);
+  });
+});
+
+describe("draft identity validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetFirestore.mockReturnValue({} as never);
+    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
+    mockedDoc.mockReturnValue({ id: "pres-path" } as never);
+  });
+
+  it("rejects an individually loaded draft whose canonical id differs from its path", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => presentationDoc("pres-canonical"),
+    } as never);
+
+    await expect(repository.getPresentation("pres-path")).rejects.toThrow(
+      /identity mismatch/i,
+    );
   });
 });
 
