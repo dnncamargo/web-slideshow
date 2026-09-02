@@ -334,6 +334,7 @@ describe("BlocksInspector content shell", () => {
 
     expect(controls.onAddRootBlock).toHaveBeenCalledTimes(1);
     expect(controls.onAddRootBlock).toHaveBeenCalledWith("blocks-1");
+    expect(addBlockButton().textContent?.trim()).toBe("+ Block");
   });
 
   it("CONTENT no longer shows the temporary placeholder", async () => {
@@ -631,6 +632,7 @@ describe("BlocksInspector content shell", () => {
     ).toBe("Escopo");
     expect(socketModeSelect().querySelector('option[value="value"]')?.textContent)
       .toBe("Bloco de valor");
+    expect(addBlockButton().textContent?.trim()).toBe("+ Bloco");
   });
 
   it("keeps Appearance and Effects sections", async () => {

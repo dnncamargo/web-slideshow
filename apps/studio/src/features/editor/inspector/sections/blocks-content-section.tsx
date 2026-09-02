@@ -84,7 +84,7 @@ export function BlocksContentSection({
         data-powershow-block-add="true"
         onClick={addRootBlock}
       >
-        <span>{t("inspector.blocks.add")}</span>
+        <span>+ {t("inspector.blocks.add")}</span>
       </button>
 
       {element.items.length === 0 ? (

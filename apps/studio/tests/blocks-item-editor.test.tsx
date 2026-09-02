@@ -440,6 +440,26 @@ describe("BlocksItemEditor", () => {
     expect(logicSelect).toBeNull();
   });
 
+  it("does not emit an undefined card class and keeps the reporter modifier", () => {
+    mount(
+      blocks(
+        [colorKey("cat")],
+        [
+          statement("s1", "cat", [
+            socketBlockPart("sock", value("v1", "cat")),
+          ]),
+        ],
+      ),
+    );
+
+    const stackRow = row("s1");
+    const reporterRow = row("v1");
+
+    expect(stackRow?.className).not.toContain("undefined");
+    expect(reporterRow?.className).not.toContain("undefined");
+    expect(reporterRow?.className).toContain("blocksReporterCard");
+  });
+
   it("preserves populated scope when Start, Statement, or End is forced", () => {
     const child = statement("child", "cat", []);
     mount(blocks([colorKey("cat")], [scope("sc", "cat", [], [child])]));

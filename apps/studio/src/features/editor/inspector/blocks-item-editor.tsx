@@ -133,7 +133,11 @@ function BlockItemRow({
 
   return (
     <li
-      className={`${styles.blocksRow} ${isReporterBlock ? styles.blocksReporterCard : styles.blocksCard}`}
+      className={
+        isReporterBlock
+          ? `${styles.blocksRow} ${styles.blocksReporterCard}`
+          : styles.blocksRow
+      }
       data-powershow-block-item-id={item.id}
       data-powershow-block-shape={item.shape}
       data-powershow-block-depth={depth}
