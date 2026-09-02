@@ -21,7 +21,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 // FIXTURES
 // ============================================================
 
-const category = (id: string): string => id;
+const colorKey = (id: string): string => id;
 
 const colorFor = (key: string): string =>
   key === "cat-b" ? "#654321" : "#123456";

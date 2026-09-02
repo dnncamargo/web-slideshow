@@ -28,7 +28,7 @@ import type {
 // FIXTURES
 // ============================================================
 
-const category = (id: string): string => id;
+const colorKey = (id: string): string => id;
 
 const colorFor = (key: string): string =>
   key === "cat-b" ? "#654321" : "#123456";

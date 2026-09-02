@@ -407,7 +407,7 @@ export const BlockItemSchema: z.ZodType<BlockItem> = z.lazy(() =>
     shape: BlockShapeSchema,
     parts: z.array(BlockPartSchema),
     children: z.array(BlockItemSchema),
-  }),
+  }).strict(),
 );
 
 export const BlocksElementSchema = CanonicalDataElementBaseSchema.extend({

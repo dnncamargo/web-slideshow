@@ -46,7 +46,7 @@ import { duplicateSlideWithUniqueIds } from "../src/features/editor/slide-operat
 // FIXTURES
 // ============================================================
 
-const category = (id: string): string => id;
+const colorKey = (id: string): string => id;
 
 const colorFor = (key: string): string =>
   key.startsWith("#") ? key : key === "cat-b" || key === "other"
@@ -281,7 +281,7 @@ describe("Blocks lookup and depth", () => {
       color: colorFor("other"),
     }));
     expect(next).not.toBe(source);
-    expect(next.items[0]?.color).toBe("other");
+    expect(next.items[0]?.color).toBe(colorFor("other"));
     expect(updateBlockItemById(source, "missing", (item) => item)).toBe(
       source,
     );

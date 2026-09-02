@@ -128,7 +128,7 @@ describe("composeCustomLibraryElementRecipe", () => {
       { text: "Rich", marks: { color: "#facc15" } },
     ]);
     expect(recipe.children?.[1]?.properties[0]?.value).toEqual([
-      { id: "statement", name: "Statement", color: "#facc15" },
+      { id: "statement", color: "#facc15", shape: "statement", parts: [], children: [] },
     ]);
   });
 
