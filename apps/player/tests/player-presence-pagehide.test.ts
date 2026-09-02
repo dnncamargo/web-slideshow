@@ -203,4 +203,109 @@ describe("Player presence pagehide cleanup", () => {
       expect.anything(),
     );
   });
+
+  it("keeps fatal recovery options collapsed until requested and collapses with See less", async () => {
+    let handleLive!: (event: unknown) => void;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue({
+      bootId: "boot-a",
+      starting: vi.fn(),
+      ready: vi.fn(),
+      failed: vi.fn(),
+      stop: vi.fn(),
+    });
+    mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "error" });
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
+    });
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
+    const more = document.querySelector<HTMLButtonElement>(
+      ".powershow-player-recovery-toggle",
+    );
+    expect(more?.getAttribute("aria-expanded")).toBe("false");
+    expect(document.body.textContent).not.toContain("Try presentation again");
+    expect(document.body.textContent).not.toContain("raw-error");
+
+    more?.click();
+    expect(document.body.textContent).toContain("Try presentation again");
+    expect(document.body.textContent).toContain("Reload Player");
+    expect(document.body.textContent).toContain("Clear cache and reload");
+    expect(document.body.textContent).toContain("Error code: FIRESTORE_LOAD_ERROR");
+    expect(document.body.textContent).toContain("Stage: Published presentation");
+    expect(more?.getAttribute("aria-expanded")).toBe("true");
+
+    more?.click();
+    expect(document.body.textContent).toContain("See more");
+    expect(document.body.textContent).not.toContain("Try presentation again");
+  });
+
+  it("leaves the no-active surface unchanged", () => {
+    let handleLive!: (event: unknown) => void;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({ kind: "no-active" });
+
+    expect(document.body.textContent).toContain("No active presentation.");
+    expect(document.body.textContent).not.toContain("See more");
+    expect(document.body.textContent).not.toContain("Try presentation again");
+  });
+
+  it("performs a local retry in the current boot and suppresses duplicates", async () => {
+    let handleLive!: (event: unknown) => void;
+    let resolveRetry!: (result: unknown) => void;
+    let loadCount = 0;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue({
+      bootId: "boot-a",
+      starting: vi.fn(),
+      ready: vi.fn(),
+      failed: vi.fn(),
+      stop: vi.fn(),
+    });
+    mocks.resolveLiveIdentityMount.mockImplementation(() => {
+      loadCount += 1;
+      if (loadCount === 1) return Promise.resolve({ kind: "error" });
+      return new Promise((resolve) => {
+        resolveRetry = resolve;
+      });
+    });
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
+    });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
+    document.querySelector<HTMLButtonElement>(".powershow-player-recovery-toggle")?.click();
+
+    const retry = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent === "Try presentation again",
+    );
+    retry?.click();
+    retry?.click();
+
+    await vi.waitFor(() => expect(mocks.resolveLiveIdentityMount).toHaveBeenCalledTimes(2));
+    expect(mocks.resolveLiveIdentityMount).toHaveBeenCalledTimes(2);
+    expect(mocks.recordPlayerDiagnostic).not.toHaveBeenCalledWith(
+      "PLAYER_RECOVERY_RETRY_ERROR",
+      expect.anything(),
+    );
+
+    resolveRetry({ kind: "ok", presentation: { slides: [] } });
+    await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
+  });
 });

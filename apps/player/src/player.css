@@ -532,6 +532,44 @@ button {
   animation: powershow-load-indicator 1.1s ease-in-out infinite;
 }
 
+.powershow-player-recovery-toggle,
+.powershow-player-recovery-options button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font: inherit;
+  cursor: pointer;
+}
+
+.powershow-player-recovery-toggle {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.powershow-player-recovery-toggle:hover,
+.powershow-player-recovery-toggle:focus-visible,
+.powershow-player-recovery-options button:hover,
+.powershow-player-recovery-options button:focus-visible {
+  color: #e2e8f0;
+}
+
+.powershow-player-recovery-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  max-width: min(100%, 520px);
+  color: #64748b;
+  font-size: 12px;
+}
+
+.powershow-player-recovery-options button {
+  color: #cbd5e1;
+}
+
 @keyframes powershow-load-indicator {
   0% {
     transform: translateX(-110%);
