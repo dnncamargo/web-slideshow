@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Presentation } from "@powershow/document-schema";
+import { encodePresentationForFirestore } from "@powershow/firebase";
 
 const mocks = vi.hoisted(() => ({
   collection: vi.fn(),
@@ -62,8 +63,9 @@ function validPresentation() {
 }
 
 function validDraft() {
+  const presentation = validPresentation();
   return {
-    presentation: validPresentation(),
+    presentationJson: encodePresentationForFirestore(presentation).presentationJson,
     createdAt: "created",
     updatedAt: "updated",
     draftRevision: 3,
@@ -101,14 +103,14 @@ function recoverableDraft() {
 
   return {
     ...validDraft(),
-    presentation,
+    presentationJson: JSON.stringify(presentation),
   };
 }
 
 /** A draft whose presentation root structure is invalid. */
 function unrecoverableDraft() {
   return {
-    presentation: { schemaVersion: 1, slides: [] },
+    presentationJson: JSON.stringify({ schemaVersion: 1, slides: [] }),
     createdAt: "created",
     updatedAt: "updated",
     draftRevision: 1,
@@ -129,7 +131,7 @@ function recoverableTextStyleDraft() {
 
   return {
     ...validDraft(),
-    presentation,
+    presentationJson: JSON.stringify(presentation),
   };
 }
 
@@ -176,7 +178,7 @@ describe("presentation recovery repository", () => {
 
   it("rethrows InvalidPersistedPresentationError unchanged from getPresentation", async () => {
     setupDirectRead({
-      presentation: { schemaVersion: 999, slides: [] },
+      presentationJson: JSON.stringify({ schemaVersion: 999, slides: [] }),
     });
 
     await expect(repository.getPresentation("pres-1")).rejects.toBeInstanceOf(
@@ -235,7 +237,7 @@ describe("presentation recovery repository", () => {
     const payload = transaction.update.mock.calls[0]?.[1] as Record<string, unknown>;
     setupDirectRead({
       ...draft,
-      presentation: payload.presentation,
+      presentationJson: payload.presentationJson,
     });
 
     await expect(repository.getPresentation("pres-1")).resolves.toMatchObject({
@@ -298,7 +300,8 @@ describe("presentation recovery repository", () => {
     expect(ref).toEqual({
       path: ["users", "user-1", "presentations", "pres-1"],
     });
-    expect(payload.presentation).toMatchObject({ id: "pres-1" });
+    expect(typeof payload.presentationJson).toBe("string");
+    expect(JSON.parse(payload.presentationJson as string)).toMatchObject({ id: "pres-1" });
   });
 
   it("increments draftRevision exactly once on repair", async () => {
@@ -323,7 +326,7 @@ describe("presentation recovery repository", () => {
 
     // Only the canonical draft fields are written.
     expect(Object.keys(payload ?? {})).toEqual([
-      "presentation",
+      "presentationJson",
       "updatedAt",
       "draftRevision",
     ]);

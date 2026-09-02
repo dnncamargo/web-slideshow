@@ -12,15 +12,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // A published version must contain EXACTLY: presentation, publishedRevision,
-    // publishedAt. Reject extra private/persistence fields.
+    // A published version must contain EXACTLY: presentationId, presentationJson,
+    // publishedRevision, publishedAt. Reject extra private/persistence fields.
     function publishedVersionHasValidShape() {
       let resource = request.resource.data;
-      return resource.keys().hasAll(['presentation', 'publishedRevision', 'publishedAt'])
-        && resource.keys().hasOnly(['presentation', 'publishedRevision', 'publishedAt'])
-        && resource.presentation is map
-        && resource.presentation.id is string
-        && resource.presentation.id.size() > 0
+      return resource.keys().hasAll(['presentationId', 'presentationJson', 'publishedRevision', 'publishedAt'])
+        && resource.keys().hasOnly(['presentationId', 'presentationJson', 'publishedRevision', 'publishedAt'])
+        && resource.presentationId is string
+        && resource.presentationId.size() > 0
+        && resource.presentationJson is string
+        && resource.presentationJson.size() > 0
         && resource.publishedRevision is int
         && resource.publishedRevision >= 0
         && resource.publishedAt == request.time;
@@ -54,7 +55,7 @@ service cloud.firestore {
 
     function publishedPointerMatchesExistingVersion(publicationId, userId, version) {
       let resource = request.resource.data;
-      let draftPath = /databases/$(database)/documents/users/$(userId)/presentations/$(version.data.presentation.id);
+      let draftPath = /databases/$(database)/documents/users/$(userId)/presentations/$(version.data.presentationId);
       return existsAfter(draftPath)
         && publishedPointerMatchesValidDraft(publicationId, getAfter(draftPath), version, resource);
     }
@@ -67,7 +68,7 @@ service cloud.firestore {
         && draft.data.draftRevision == resource.publishedRevision
         && version.data.publishedRevision == resource.publishedRevision
         && version.data.publishedAt == resource.publishedAt
-        && version.data.presentation.diff(draft.data.presentation).affectedKeys().size() == 0;
+        && version.data.presentationJson == draft.data.presentationJson;
     }
 
     // The public pointer create/update is authorized when it is valid and
@@ -86,7 +87,7 @@ service cloud.firestore {
     function publishedVersionMatchesAuthoritativeDraft(publicationId, versionId, userId) {
       let resource = request.resource.data;
       let draft = getAfter(
-        /databases/$(database)/documents/users/$(userId)/presentations/$(resource.presentation.id)
+        /databases/$(database)/documents/users/$(userId)/presentations/$(resource.presentationId)
       );
       return draft != null
         && draft.data.publication.publicationId == publicationId
@@ -94,7 +95,7 @@ service cloud.firestore {
         && draft.data.publication.publishedRevision == resource.publishedRevision
         && draft.data.publication.publishedAt == request.time
         && draft.data.draftRevision == resource.publishedRevision
-        && resource.presentation.diff(draft.data.presentation).affectedKeys().size() == 0;
+        && resource.presentationJson == draft.data.presentationJson;
     }
 
     // A newly created version must atomically advance the public pointer so the
@@ -115,7 +116,11 @@ service cloud.firestore {
     // users/{userId}/presentations/{presentationId}
     // ------------------------------------------------------------
     match /users/{userId}/presentations/{presentationId} {
-      allow read, write: if isPrivatePresentationOwner(userId);
+      allow read: if isPrivatePresentationOwner(userId);
+      allow create, update: if isPrivatePresentationOwner(userId)
+        && request.resource.data.presentationJson is string
+        && request.resource.data.presentationJson.size() > 0;
+      allow delete: if isPrivatePresentationOwner(userId);
     }
 
     // ------------------------------------------------------------

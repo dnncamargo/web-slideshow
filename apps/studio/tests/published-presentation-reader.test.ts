@@ -28,7 +28,9 @@ function versionData(
   overrides: Record<string, unknown> = {},
 ) {
   return {
-    presentation,
+    presentationJson: typeof presentation === "string"
+      ? presentation
+      : JSON.stringify(presentation),
     publishedRevision: 3,
     publishedAt: "published",
     ...overrides,

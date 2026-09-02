@@ -29,6 +29,7 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
+import { encodePresentationForFirestore } from "@powershow/firebase";
 import {
   extractPresentationSummary,
   normalizeFolderId,
@@ -65,8 +66,9 @@ const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 const repository = new FirestorePresentationRepository();
 
 function presentationDoc(id: string, overrides: Record<string, unknown> = {}) {
+  const presentation = createBlankPresentation(id);
   return {
-    presentation: createBlankPresentation(id),
+    presentationJson: encodePresentationForFirestore(presentation).presentationJson,
     createdAt: "created",
     updatedAt: "updated",
     draftRevision: 1,
@@ -385,8 +387,10 @@ describe("create presentation in folder", () => {
       unknown
     >;
     expect(payload?.folderId).toBe("folder-1");
-    expect(payload?.presentation).not.toHaveProperty("folderId");
-    expect(payload?.presentation).toEqual(
+    expect(payload?.presentationJson).toEqual(expect.any(String));
+    const persisted = JSON.parse(payload.presentationJson as string) as Record<string, unknown>;
+    expect(persisted).not.toHaveProperty("folderId");
+    expect(persisted).toEqual(
       expect.objectContaining({ id: "pres-1" }),
     );
   });

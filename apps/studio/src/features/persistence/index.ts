@@ -52,13 +52,9 @@ export type {
 } from "./presentation-persistence";
 export {
   MAX_PRESENTATION_SAFE_BYTES,
-  MAX_FIRESTORE_NESTING_DEPTH,
   assertPresentationWithinSizeLimit,
-  assertPresentationWithinFirestoreNestingDepth,
-  estimateFirestoreNestingDepth,
   estimatePresentationBytes,
   extractPresentationSummary,
-  makeFirestoreSafePresentation,
   assertValidPresentationForPersistence,
   normalizeFolderId,
   normalizePersistenceMetadata,
@@ -87,6 +83,5 @@ export {
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
   PresentationRecoveryFailedError,
-  PresentationTooDeepError,
   PresentationTooLargeError,
 } from "./persistence-errors";

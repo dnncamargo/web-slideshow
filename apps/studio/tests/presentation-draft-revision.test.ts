@@ -30,6 +30,7 @@ import type {
   TopicsElement,
 } from "@powershow/document-schema";
 import { PresentationSchema } from "@powershow/document-schema";
+import { encodePresentationForFirestore } from "@powershow/firebase";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
@@ -199,11 +200,8 @@ describe("draft revision persistence wiring", () => {
       (value: unknown) => value,
     );
 
-    expect(error).toMatchObject({
-      name: "FirestoreOperationError",
-      cause: expect.any(InvalidPresentationForPersistenceError),
-    });
-    expect((error as { cause: InvalidPresentationForPersistenceError }).cause.cause).toBeDefined();
+    expect(error).toBeInstanceOf(InvalidPresentationForPersistenceError);
+    expect((error as InvalidPresentationForPersistenceError).cause).toBeDefined();
     expect(mockedUpdateDoc).not.toHaveBeenCalled();
   });
 
@@ -255,14 +253,15 @@ describe("draft revision persistence wiring", () => {
     };
 
     const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as {
-      presentation?: {
-        slides?: Array<{
-          elements?: Array<SavedTopicsElement>;
-        }>;
-      };
+      presentationJson?: string;
+    };
+    const persisted = JSON.parse(payload.presentationJson ?? "{}") as {
+      slides?: Array<{
+        elements?: Array<SavedTopicsElement>;
+      }>;
     };
 
-    const savedTopics = payload?.presentation?.slides?.[0]?.elements?.[0];
+    const savedTopics = persisted.slides?.[0]?.elements?.[0];
     const parent = savedTopics?.items?.[0];
     const child = parent?.children?.[0];
     const grandchild = child?.children?.[0];
@@ -317,35 +316,32 @@ describe("draft revision persistence wiring", () => {
     };
 
     const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as {
-      presentation?: {
+      presentationJson?: string;
+    };
+    const persisted = JSON.parse(payload.presentationJson ?? "{}") as {
         slides?: Array<{
           elements?: Array<SavedTopicsElement>;
         }>;
-      };
     };
 
-    const nestedTopics = payload?.presentation?.slides?.[0]?.elements?.[0]
+    const nestedTopics = persisted.slides?.[0]?.elements?.[0]
       ?.items?.[0]?.content?.children?.[0];
 
     expect(nestedTopics?.items?.[0]?.children).toHaveLength(0);
   });
 
-  it("rejects over-depth nested containers before updateDoc is called", async () => {
-    const presentation = nestedContainerPresentation(9);
+  it("persists deeply nested containers in the JSON payload", async () => {
+    const presentation = nestedContainerPresentation(21);
 
-    await expect(repository.savePresentation(presentation)).rejects.toThrow(
-      /too deeply nested/i,
-    );
-    expect(mockedUpdateDoc).not.toHaveBeenCalled();
+    await expect(repository.savePresentation(presentation)).resolves.toBeUndefined();
+    expect(mockedUpdateDoc).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects over-depth nested containers before setDoc is called", async () => {
-    const presentation = nestedContainerPresentation(9);
+  it("creates deeply nested containers in the JSON payload", async () => {
+    const presentation = nestedContainerPresentation(21);
 
-    await expect(repository.createPresentation(presentation)).rejects.toThrow(
-      /too deeply nested/i,
-    );
-    expect(mockedSetDoc).not.toHaveBeenCalled();
+    await expect(repository.createPresentation(presentation)).resolves.toBeUndefined();
+    expect(mockedSetDoc).toHaveBeenCalledTimes(1);
   });
 
   it("saves valid nested containers normally", async () => {
@@ -355,13 +351,13 @@ describe("draft revision persistence wiring", () => {
     expect(mockedUpdateDoc).toHaveBeenCalled();
   });
 
-  it("does not write a published version for over-depth nested containers", async () => {
-    const presentation = nestedContainerPresentation(9);
+  it("publishes deeply nested containers as encoded JSON", async () => {
+    const presentation = nestedContainerPresentation(21);
     const transaction = {
       get: vi.fn().mockResolvedValue({
         exists: () => true,
         data: () => ({
-          presentation,
+          presentationJson: encodePresentationForFirestore(presentation).presentationJson,
           draftRevision: 1,
         }),
       }),
@@ -373,9 +369,7 @@ describe("draft revision persistence wiring", () => {
       callback(transaction as never),
     );
 
-    await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
-      /too deeply nested/i,
-    );
-    expect(transaction.set).not.toHaveBeenCalled();
+    await expect(repository.publishPresentation("pres-1")).resolves.toBeDefined();
+    expect(transaction.set).toHaveBeenCalledTimes(2);
   });
 });

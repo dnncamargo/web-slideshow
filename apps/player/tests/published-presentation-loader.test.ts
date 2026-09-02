@@ -104,7 +104,12 @@ function pointerDoc(currentVersionId = "version-current") {
 function versionDoc(presentation: unknown) {
   return {
     exists: () => true,
-    data: () => ({ presentation }),
+    data: () => ({
+      presentationJson:
+        typeof presentation === "string"
+          ? presentation
+          : JSON.stringify(presentation),
+    }),
   };
 }
 

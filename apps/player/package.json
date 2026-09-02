@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@powershow/document-schema": "workspace:*",
+    "@powershow/firebase": "workspace:*",
     "@powershow/renderer": "workspace:*",
     "@powershow/theme": "workspace:*",
     "firebase": "12.17.1"

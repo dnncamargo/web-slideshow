@@ -79,21 +79,6 @@ export class PresentationTooLargeError extends PersistenceError {
   }
 }
 
-export class PresentationTooDeepError extends PersistenceError {
-  readonly actualDepth: number;
-
-  readonly limitDepth: number;
-
-  constructor(actualDepth: number, limitDepth: number) {
-    super(
-      `Presentation is too deeply nested for Firestore persistence: ${actualDepth} structural levels exceeds the ${limitDepth} level limit.`,
-    );
-    this.name = "PresentationTooDeepError";
-    this.actualDepth = actualDepth;
-    this.limitDepth = limitDepth;
-  }
-}
-
 export function isFirebaseError(error: unknown): error is FirebaseError {
   return (
     typeof error === "object" &&
