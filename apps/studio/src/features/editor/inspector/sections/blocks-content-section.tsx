@@ -1,17 +1,8 @@
 import type { BlocksElement } from "@powershow/document-schema";
-import { colorToPickerHex } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
-
-import {
-  addBlockCategory,
-  isBlockCategoryUsed,
-  removeBlockCategory,
-  renameBlockCategory,
-  setBlockCategoryColor,
-} from "../../element-operations";
 
 import { BlocksItemEditor } from "../blocks-item-editor";
 import type { BlocksItemEditorLabels } from "../blocks-item-editor-types";
@@ -32,8 +23,8 @@ interface BlocksContentSectionProps {
 // ============================================================
 // BEGIN: BLOCKS CONTENT SECTION
 //
-// The CONTENT section owns local category management, the
-// root-block creation affordance, and the recursive block item
+// The CONTENT section owns the root-block creation affordance and the
+// recursive block item
 // editor. BlocksItemEditor is intentionally i18n-free: this shell
 // resolves every label through Studio i18n and passes a complete
 // BlocksItemEditorLabels object.
@@ -47,7 +38,7 @@ export function BlocksContentSection({
   const { t } = useStudioI18n();
 
   const labels: BlocksItemEditorLabels = {
-    category: t("inspector.blocks.category"),
+    color: t("inspector.blocks.color"),
     shape: t("inspector.blocks.shape"),
     statement: t("inspector.blocks.statement"),
     scope: t("inspector.blocks.scope"),
@@ -68,117 +59,12 @@ export function BlocksContentSection({
     textPartLabel: t("inspector.blocks.text"),
   };
 
-  function updateCurrentBlocks(update: (blocks: BlocksElement) => BlocksElement) {
-    onUpdate((current) => {
-      if (current.type !== "blocks") {
-        return current;
-      }
-
-      const next = update(current);
-
-      return next === current ? current : next;
-    });
-  }
-
-  function addCategory() {
-    updateCurrentBlocks(addBlockCategory);
-  }
-
-  function renameCategory(categoryId: string, name: string) {
-    updateCurrentBlocks((current) =>
-      renameBlockCategory(current, categoryId, name),
-    );
-  }
-
-  function setCategoryColor(categoryId: string, color: string) {
-    updateCurrentBlocks((current) =>
-      setBlockCategoryColor(current, categoryId, color),
-    );
-  }
-
-  function removeCategory(categoryId: string) {
-    updateCurrentBlocks((current) =>
-      removeBlockCategory(current, categoryId),
-    );
-  }
-
   function addRootBlock() {
     blocksAuthoringControls.onAddRootBlock(element.id);
   }
 
   return (
     <div data-powershow-blocks-inspector="true">
-      <span
-        className={styles.appearanceSubheading}
-        data-powershow-blocks-categories={element.categories.length}
-      >
-        {t("inspector.blocks.categories")}
-      </span>
-
-      <ul className={styles.blocksList}>
-        {element.categories.map((category) => {
-          const categoryInUse = isBlockCategoryUsed(element, category.id);
-
-          const removeTitle = categoryInUse
-            ? t("inspector.blocks.categoryInUse")
-            : t("inspector.blocks.removeCategory");
-
-          return (
-            <li
-              key={category.id}
-              className={styles.blocksCategoryRow}
-              data-powershow-block-category-id={category.id}
-            >
-              <input
-                className={styles.blocksInput}
-                data-powershow-block-category-name="true"
-                type="text"
-                value={category.name}
-                aria-label={t("inspector.blocks.categoryName")}
-                onChange={(event) => {
-                  renameCategory(category.id, event.currentTarget.value);
-                }}
-              />
-
-              <input
-                className={styles.blocksColorInput}
-                data-powershow-block-category-color="true"
-                type="color"
-                value={colorToPickerHex(typeof category.color === "string" ? category.color : undefined) ?? "#6366f1"}
-                aria-label={t("inspector.blocks.categoryColor")}
-                title={t("inspector.blocks.categoryColor")}
-                onChange={(event) => {
-                  setCategoryColor(category.id, event.currentTarget.value);
-                }}
-              />
-
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                data-powershow-block-category-remove="true"
-                title={removeTitle}
-                aria-label={removeTitle}
-                disabled={categoryInUse}
-                onClick={() => {
-                  removeCategory(category.id);
-                }}
-              >
-                ×
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      <button
-        type="button"
-        className={styles.secondaryButton}
-        data-powershow-block-add-category="true"
-        onClick={addCategory}
-      >
-        <span>{t("inspector.blocks.addCategory")}</span>
-      </button>
-
       <span
         className={styles.appearanceSubheading}
         data-powershow-blocks-count={element.items.length}

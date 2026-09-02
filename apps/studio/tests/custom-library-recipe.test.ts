@@ -83,7 +83,7 @@ describe("composeCustomLibraryElementRecipe", () => {
         },
         {
           type: "blocks", id: "blocks", hidden: false,
-          categories: [{ id: "statement", name: "Statement", color: accent }], items: [],
+          items: [{ id: "statement", color: accent, shape: "statement", parts: [], children: [] }],
         },
         {
           type: "topics", id: "topics", hidden: false, kind: "unordered", items: [{
@@ -114,7 +114,7 @@ describe("composeCustomLibraryElementRecipe", () => {
     const selections = new Map<string, Set<string>>([
       [root.id, new Set()],
       ["rich", new Set(["content.runs"])],
-      ["blocks", new Set(["categories"])],
+      ["blocks", new Set(["items"])],
       ["topics", new Set(["items"])],
       ["table", new Set(["columns", "rows"])],
       ["nested-text", new Set(["style.color"])],

@@ -15,7 +15,7 @@ import { duplicateSlideWithUniqueIds } from "../src/features/editor/slide-operat
 const text = (id: string, content = id): PowerShowElement => ({ id, type: "text", hidden: false, variant: "body", content });
 
 function value(id = "value"): BlockItem {
-  return { id, categoryId: "cat", shape: "value", parts: [{ id: `${id}-part`, type: "text", text: "value" }], children: [] };
+  return { id, color: "#123456", shape: "value", parts: [{ id: `${id}-part`, type: "text", text: "value" }], children: [] };
 }
 
 function blocks(id = "blocks"): BlocksElement {
@@ -23,16 +23,15 @@ function blocks(id = "blocks"): BlocksElement {
     id,
     type: "blocks",
     hidden: false,
-    categories: [{ id: "cat", name: "Category", color: "#123456" }],
     items: [{
       id: "scope",
-      categoryId: "cat",
+      color: "#123456",
       shape: "scope",
       parts: [
         { id: "scope-part", type: "text", text: "repeat" },
         { id: "scope-socket", type: "socket", content: { type: "block", block: value() } },
       ],
-      children: [{ id: "statement", categoryId: "cat", shape: "statement", parts: [{ id: "statement-part", type: "text", text: "move" }], children: [] }],
+      children: [{ id: "statement", color: "#123456", shape: "statement", parts: [{ id: "statement-part", type: "text", text: "move" }], children: [] }],
     }],
   };
 }
@@ -136,10 +135,10 @@ describe("Blocks B1/B2 slide duplication", () => {
     }
   });
 
-  it("duplicates ordinary Blocks elements without changing category identity", () => {
+  it("duplicates ordinary Blocks elements without changing direct colors", () => {
     const source = blocks();
     const copy = duplicateElement(source, [slide([source])]);
     expect(copy.type).toBe("blocks");
-    if (copy.type === "blocks") expect(copy.categories).toEqual(source.categories);
+    if (copy.type === "blocks") expect(copy.items[0]?.color).toBe(source.items[0]?.color);
   });
 });

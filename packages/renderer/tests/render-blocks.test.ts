@@ -14,10 +14,10 @@ import {
 const text = (id: string, value = id): BlockPart => ({ id, type: "text", text: value });
 const literal = (id: string, value: string): BlockPart => ({ id, type: "socket", content: { type: "literal", value } });
 const empty = (id: string): BlockPart => ({ id, type: "socket", content: { type: "empty" } });
-const value = (id: string, categoryId = "motion", parts: BlockPart[] = [text(`${id}-part`, "value")]): BlockItem => ({ id, categoryId, shape: "value", parts, children: [] });
-const statement = (id: string, categoryId = "motion", parts: BlockPart[] = [text(`${id}-part`, id)]): BlockItem => ({ id, categoryId, shape: "statement", parts, children: [] });
-const scope = (id = "scope"): BlockItem => ({ id, categoryId: "control", shape: "scope", parts: [text(`${id}-part`, "repeat")], children: [statement(`${id}-child`)] });
-const element = (items: BlockItem[] = [statement("one")], style?: BlocksElement["style"]): BlocksElement => ({ id: "blocks", type: "blocks", hidden: false, style, categories: [{ id: "control", name: "Control", color: "#ef4444" }, { id: "motion", name: "Motion", color: "#22c55e" }, { id: "sensing", name: "Sensing", color: "#3b82f6" }], items });
+const value = (id: string, color = "#22c55e", parts: BlockPart[] = [text(`${id}-part`, "value")]): BlockItem => ({ id, color, shape: "value", parts, children: [] });
+const statement = (id: string, color = "#22c55e", parts: BlockPart[] = [text(`${id}-part`, id)]): BlockItem => ({ id, color, shape: "statement", parts, children: [] });
+const scope = (id = "scope"): BlockItem => ({ id, color: "#ef4444", shape: "scope", parts: [text(`${id}-part`, "repeat")], children: [statement(`${id}-child`)] });
+const element = (items: BlockItem[] = [statement("one")], style?: BlocksElement["style"]): BlocksElement => ({ id: "blocks", type: "blocks", hidden: false, style, items });
 
 describe("renderBlocks", () => {
   it("returns empty output for hidden Blocks", () => expect(renderBlocks({ ...element(), hidden: true })).toBe(""));
@@ -31,8 +31,8 @@ describe("renderBlocks", () => {
     expect(html).not.toContain('data-powershow-id="one"');
   });
 
-  it("resolves category colors independently", () => {
-    const html = renderBlocks(element([statement("red", "control"), statement("green", "motion") ]));
+  it("resolves direct block colors independently", () => {
+    const html = renderBlocks(element([statement("red", "#ef4444"), statement("green", "#22c55e") ]));
     expect(html).toContain("background-color:#ef4444");
     expect(html).toContain("background-color:#22c55e");
   });

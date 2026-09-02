@@ -154,7 +154,18 @@ export function visitPresentationColorValues(
       case "blocks":
         visitStyle(element.style, [...path, "style"]);
         visitEffect(element.effect, [...path, "effect"]);
-        element.categories.forEach((category, index) => visitColor({ value: category.color, set: (value) => { category.color = value; } }, [...path, "categories", index, "color"]));
+        {
+          const visitBlockItem = (item: typeof element.items[number], itemPath: (string | number)[]) => {
+            visitColor({ value: item.color, set: (value) => { item.color = value; } }, [...itemPath, "color"]);
+            item.children.forEach((child, index) => visitBlockItem(child, [...itemPath, "children", index]));
+            item.parts.forEach((part, index) => {
+              if (part.type === "socket" && part.content.type === "block") {
+                visitBlockItem(part.content.block, [...itemPath, "parts", index, "content", "block"]);
+              }
+            });
+          };
+          element.items.forEach((item, index) => visitBlockItem(item, [...path, "items", index]));
+        }
         break;
       case "image": case "gallery": case "embed": case "scripted": case "code": case "terminal":
         visitStyle(element.style, [...path, "style"]);

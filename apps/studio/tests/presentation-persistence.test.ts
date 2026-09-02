@@ -349,17 +349,16 @@ describe("persistence round trip with Blocks", () => {
             style: {
               background: { color: "#0f172a" },
             },
-            categories: [{ id: "motion", name: "Motion", color: "#123456" }],
             items: [
               {
                 id: "root-a",
-                categoryId: "motion",
+                color: "#123456",
                 shape: "scope",
                 parts: [{ id: "root-p", type: "text", text: "repeat" }],
                 children: [
                   {
                     id: "child-a1",
-                    categoryId: "motion",
+                    color: "#123456",
                     shape: "statement",
                     parts: [{ id: "child-p", type: "text", text: "move" }],
                     children: [],
@@ -368,7 +367,7 @@ describe("persistence round trip with Blocks", () => {
               },
               {
                 id: "root-b",
-                categoryId: "motion",
+                color: "#654321",
                 shape: "statement",
                 parts: [{ id: "root-b-p", type: "text", text: "turn" }],
                 children: [],
@@ -398,8 +397,9 @@ describe("persistence round trip with Blocks", () => {
         style: { background: { color: "#0f172a" } },
       });
 
-      expect(blocks.categories).toEqual([
-        { id: "motion", name: "Motion", color: "#123456" },
+      expect(blocks.items.map((item) => item.color)).toEqual([
+        "#123456",
+        "#654321",
       ]);
       expect(blocks.items[0]?.parts[0]).toEqual({
         id: "root-p",

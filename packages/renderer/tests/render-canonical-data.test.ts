@@ -28,7 +28,7 @@ describe("canonical data root rendering", () => {
     ["code", createCodeElement({ layout, style: canonicalStyle, effect } as Partial<CodeElement>)],
     ["terminal", createTerminalElement({ layout, style: canonicalStyle, effect } as Partial<TerminalElement>)],
     ["table", createTableElement({ layout, style: canonicalStyle, effect } as Partial<SimpleTableElement>)],
-    ["blocks", { id: "blocks", type: "blocks", hidden: false, layout, style: { color: "#f00", ...canonicalStyle }, effect, categories: [{ id: "cat", name: "Cat", color: "#22c55e" }], items: [{ id: "root", categoryId: "cat", shape: "statement", parts: [], children: [] }] } satisfies BlocksElement],
+    ["blocks", { id: "blocks", type: "blocks", hidden: false, layout, style: { color: "#f00", ...canonicalStyle }, effect, items: [{ id: "root", color: "#22c55e", shape: "statement", parts: [], children: [] }] } satisfies BlocksElement],
   ] as const)("renders canonical root style for %s", (_name, element) => {
     expectRootStyle(renderElement(element));
   });
@@ -55,7 +55,7 @@ describe("canonical data root rendering", () => {
       createCodeElement({ id: "code", layout: { position: "absolute", left: 1 } }),
       createTerminalElement({ id: "terminal", layout: { position: "absolute", left: 1 } }),
       createTableElement({ id: "table", layout: { position: "absolute", left: 1 } }),
-      { id: "blocks", type: "blocks" as const, hidden: false, layout: { position: "absolute" as const, left: 1 }, categories: [], items: [] },
+      { id: "blocks", type: "blocks" as const, hidden: false, layout: { position: "absolute" as const, left: 1 }, items: [] },
     ];
     const html = renderElement({ id: "container", type: "container", hidden: false, children });
     expect(html).toContain("position:relative");

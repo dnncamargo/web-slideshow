@@ -13,8 +13,8 @@ import type {
  * complete English fixture or localized labels through this contract.
  */
 export interface BlocksItemEditorLabels {
-  /** Label for the block category select. */
-  category: string;
+  /** Label for the direct block color control. */
+  color: string;
 
   /** Label for the block shape select. */
   shape: string;

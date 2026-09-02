@@ -8,7 +8,7 @@ const dataElements: (CodeElement | TerminalElement | SimpleTableElement | Blocks
   { id: "code", type: "code", hidden: false, code: "x", language: "text", showLineNumbers: true, highlightedLines: [] },
   { id: "terminal", type: "terminal", hidden: false, lines: [] },
   { id: "table", type: "table", hidden: false, columns: [], rows: [] },
-  { id: "blocks", type: "blocks", hidden: false, categories: [], items: [] },
+  { id: "blocks", type: "blocks", hidden: false, items: [] },
 ];
 
 describe("canonical data canvas routing", () => {

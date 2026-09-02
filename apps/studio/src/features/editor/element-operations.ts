@@ -1,5 +1,4 @@
 import type {
-  BlockCategory,
   BlockItem,
   BlockPart,
   BlockSocketPart,
@@ -442,7 +441,7 @@ export const MAX_BLOCK_AUTHORING_DEPTH = 5;
 
 export function createDefaultStackBlockItem(
   usedIds: Set<string>,
-  categoryId: string,
+  color: BlockItem["color"],
 ): BlockItem {
   const id = createUniqueId("block-item", usedIds);
   usedIds.add(id);
@@ -451,7 +450,7 @@ export function createDefaultStackBlockItem(
 
   return {
     id,
-    categoryId,
+    color,
     shape: "statement",
     parts: [
       {
@@ -466,7 +465,7 @@ export function createDefaultStackBlockItem(
 
 export function createDefaultValueBlockItem(
   usedIds: Set<string>,
-  categoryId: string,
+  color: BlockItem["color"],
 ): BlockItem {
   const id = createUniqueId("block-item", usedIds);
   usedIds.add(id);
@@ -475,7 +474,7 @@ export function createDefaultValueBlockItem(
 
   return {
     id,
-    categoryId,
+    color,
     shape: "value",
     parts: [
       {
@@ -793,160 +792,6 @@ function findBlockItemDepthInSocketParts(
 }
 
 // ------------------------------------------------------------
-// CATEGORY OPERATIONS
-//
-// Category ids are unique locally inside the BlocksElement only:
-// block-category, block-category-2, block-category-3, ...
-// ------------------------------------------------------------
-
-export function addBlockCategory(
-  blocks: BlocksElement,
-  name = "Category",
-  color: BlockCategory["color"] = "#6366f1",
-): BlocksElement {
-  const id = resolveNextBlockCategoryId(blocks.categories);
-
-  return {
-    ...blocks,
-    categories: [...blocks.categories, { id, name, color }],
-  };
-}
-
-function resolveNextBlockCategoryId(
-  categories: readonly BlockCategory[],
-): string {
-  const used = new Set(categories.map((category) => category.id));
-
-  let candidate = "block-category";
-  let suffix = 2;
-
-  while (used.has(candidate)) {
-    candidate = `block-category-${suffix}`;
-    suffix += 1;
-  }
-
-  return candidate;
-}
-
-export function renameBlockCategory(
-  blocks: BlocksElement,
-  categoryId: string,
-  name: string,
-): BlocksElement {
-  const index = blocks.categories.findIndex(
-    (category) => category.id === categoryId,
-  );
-
-  if (index < 0) {
-    return blocks;
-  }
-
-  const category = blocks.categories[index];
-
-  if (!category || category.name === name) {
-    return blocks;
-  }
-
-  const nextCategories = [...blocks.categories];
-
-  nextCategories[index] = { ...category, name };
-
-  return { ...blocks, categories: nextCategories };
-}
-
-export function setBlockCategoryColor(
-  blocks: BlocksElement,
-  categoryId: string,
-  color: BlockCategory["color"],
-): BlocksElement {
-  const index = blocks.categories.findIndex(
-    (category) => category.id === categoryId,
-  );
-
-  if (index < 0) {
-    return blocks;
-  }
-
-  const category = blocks.categories[index];
-
-  if (!category || category.color === color) {
-    return blocks;
-  }
-
-  const nextCategories = [...blocks.categories];
-
-  nextCategories[index] = { ...category, color };
-
-  return { ...blocks, categories: nextCategories };
-}
-
-/**
- * Removes a category ONLY when it is not referenced anywhere. When the
- * category is used by any root item, scope descendant, socket value, or
- * nested value socket, the removal is an exact same-reference no-op.
- */
-export function removeBlockCategory(
-  blocks: BlocksElement,
-  categoryId: string,
-): BlocksElement {
-  if (isBlockCategoryUsed(blocks, categoryId)) {
-    return blocks;
-  }
-
-  if (!blocks.categories.some((category) => category.id === categoryId)) {
-    return blocks;
-  }
-
-  return {
-    ...blocks,
-    categories: blocks.categories.filter(
-      (category) => category.id !== categoryId,
-    ),
-  };
-}
-
-/**
- * Whether a category id is referenced anywhere in the BlocksElement:
- * root items, scope descendants, socket-contained value blocks, and
- * nested value sockets.
- */
-export function isBlockCategoryUsed(
-  blocks: BlocksElement,
-  categoryId: string,
-): boolean {
-  return blocks.items.some((item) =>
-    blockItemUsesCategory(item, categoryId),
-  );
-}
-
-function blockItemUsesCategory(
-  item: BlockItem,
-  categoryId: string,
-): boolean {
-  if (item.categoryId === categoryId) {
-    return true;
-  }
-
-  for (const child of item.children) {
-    if (blockItemUsesCategory(child, categoryId)) {
-      return true;
-    }
-  }
-
-  for (const part of item.parts) {
-    if (
-      part.type === "socket" &&
-      part.content.type === "block" &&
-      blockItemUsesCategory(part.content.block, categoryId)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// ------------------------------------------------------------
 // STACK OPERATIONS
 //
 // A STACK means exactly BlocksElement.items and scope.children.
@@ -957,36 +802,12 @@ function isStackBlockShape(shape: BlockItem["shape"]): boolean {
   return shape === "statement" || shape === "scope";
 }
 
-function isBlockCategoryResolvable(
-  blocks: BlocksElement,
-  categoryId: string,
-): boolean {
-  return blocks.categories.some((category) => category.id === categoryId);
-}
-
-function isBlockItemCategoryResolvable(
-  blocks: BlocksElement,
-  item: BlockItem,
-): boolean {
-  return isBlockCategoryResolvable(blocks, item.categoryId);
-}
-
 export function appendBlockItemToRoot(
   blocks: BlocksElement,
   item: BlockItem,
 ): BlocksElement {
-  // Root stack creation requires a category vocabulary.
-  if (blocks.categories.length === 0) {
-    return blocks;
-  }
-
   // Root stacks may never hold value blocks.
   if (!isStackBlockShape(item.shape)) {
-    return blocks;
-  }
-
-  // Every inserted BlockItem.categoryId must resolve.
-  if (!isBlockItemCategoryResolvable(blocks, item)) {
     return blocks;
   }
 
@@ -1012,11 +833,6 @@ export function appendBlockItemToScope(
 
   // scope.children may only hold statement/scope (never value).
   if (!isStackBlockShape(item.shape)) {
-    return blocks;
-  }
-
-  // Every inserted BlockItem.categoryId must resolve.
-  if (!isBlockItemCategoryResolvable(blocks, item)) {
     return blocks;
   }
 
@@ -1153,26 +969,20 @@ export function moveBlockItemByOffset(
 }
 
 // ------------------------------------------------------------
-// BLOCK CATEGORY ASSIGNMENT
+// BLOCK COLOR
 // ------------------------------------------------------------
 
 /**
- * Reassigns the category of any reachable BlockItem (including socket
- * values). The new categoryId must resolve inside the owning
- * BlocksElement; otherwise the operation is an exact no-op. The
- * canonical document updates immediately.
+ * Updates the direct visual color of any reachable BlockItem, including
+ * socket values. Missing targets and unchanged values are exact no-ops.
  */
-export function setBlockItemCategory(
+export function setBlockItemColor(
   blocks: BlocksElement,
   blockItemId: string,
-  categoryId: string,
+  color: BlockItem["color"],
 ): BlocksElement {
-  if (!blocks.categories.some((category) => category.id === categoryId)) {
-    return blocks;
-  }
-
   return updateBlockItemById(blocks, blockItemId, (item) =>
-    item.categoryId === categoryId ? item : { ...item, categoryId },
+    item.color === color ? item : { ...item, color },
   );
 }
 
@@ -1182,7 +992,7 @@ export function setBlockItemCategory(
 
 /**
  * Stack blocks may switch statement <-> scope only, preserving
- * id/category/parts and never deleting children:
+ * id/color/parts and never deleting children:
  *
  * - statement -> scope: allowed; children stay [].
  * - scope -> statement: allowed ONLY when children.length === 0.
@@ -1412,11 +1222,6 @@ export function setSocketContentBlock(
     return blocks;
   }
 
-  // Every inserted BlockItem.categoryId must resolve.
-  if (!isBlockItemCategoryResolvable(blocks, valueBlock)) {
-    return blocks;
-  }
-
   const depth = findBlockItemDepth(blocks, blockItemId);
 
   if (depth === null || depth >= MAX_BLOCK_AUTHORING_DEPTH) {
@@ -1532,14 +1337,8 @@ export function addRootBlockToPresentation(
     return null;
   }
 
-  const firstCategory = blocks.categories[0];
-
-  if (!firstCategory) {
-    return null;
-  }
-
   const usedIds = collectPresentationElementIds(slides);
-  const item = createDefaultStackBlockItem(usedIds, firstCategory.id);
+  const item = createDefaultStackBlockItem(usedIds, "#6366f1");
 
   if (appendBlockItemToRoot(blocks, item) === blocks) {
     return null;
@@ -1580,7 +1379,7 @@ export function addScopeChildToPresentation(
   }
 
   const usedIds = collectPresentationElementIds(slides);
-  const item = createDefaultStackBlockItem(usedIds, scope.categoryId);
+  const item = createDefaultStackBlockItem(usedIds, scope.color);
 
   if (appendBlockItemToScope(blocks, scopeBlockId, item) === blocks) {
     return null;
@@ -1694,7 +1493,7 @@ export function createSocketValueInPresentation(
   }
 
   const usedIds = collectPresentationElementIds(slides);
-  const value = createDefaultValueBlockItem(usedIds, owner.categoryId);
+  const value = createDefaultValueBlockItem(usedIds, owner.color);
 
   if (setSocketContentBlock(blocks, ownerBlockId, socketPartId, value) === blocks) {
     return null;
@@ -2089,9 +1888,7 @@ export function createElement(
     }
 
     case "blocks": {
-      const categoryId = createUniqueId("block-category", usedIds);
-      usedIds.add(categoryId);
-      const createdItem = createDefaultStackBlockItem(usedIds, categoryId);
+      const createdItem = createDefaultStackBlockItem(usedIds, "#6366f1");
 
       return {
         id: createUniqueId("blocks-element", usedIds),
@@ -2099,12 +1896,6 @@ export function createElement(
         type: "blocks",
 
         hidden: false,
-
-        categories: [{
-          id: categoryId,
-          name: "Block",
-          color: "#6366f1",
-        }],
 
         items: [createdItem],
       } satisfies BlocksElement;

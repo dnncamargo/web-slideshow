@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { BlocksElementSchema } from "@powershow/document-schema";
 
 import type {
-  BlockCategory,
   BlockItem,
   BlockPart,
   BlockSocketPart,
@@ -15,7 +14,6 @@ import type {
 
 import {
   MAX_BLOCK_AUTHORING_DEPTH,
-  addBlockCategory,
   addScopeChildToPresentation,
   appendBlockItemToRoot,
   appendBlockItemToScope,
@@ -29,15 +27,11 @@ import {
   duplicateElement,
   findBlockItemById,
   findBlockItemDepth,
-  isBlockCategoryUsed,
   moveBlockItemByOffset,
   moveBlockPartByOffset,
-  removeBlockCategory,
   removeBlockItemById,
   removeBlockPartById,
-  renameBlockCategory,
-  setBlockCategoryColor,
-  setBlockItemCategory,
+  setBlockItemColor,
   setBlockItemShape,
   setSocketContentBlock,
   setSocketContentEmpty,
@@ -52,11 +46,12 @@ import { duplicateSlideWithUniqueIds } from "../src/features/editor/slide-operat
 // FIXTURES
 // ============================================================
 
-const category = (id: string, name = id): BlockCategory => ({
-  id,
-  name,
-  color: "#123456",
-});
+const category = (id: string): string => id;
+
+const colorFor = (key: string): string =>
+  key.startsWith("#") ? key : key === "cat-b" || key === "other"
+    ? "#654321"
+    : "#123456";
 
 const textPart = (id: string, text = id): BlockTextPart => ({
   id,
@@ -84,12 +79,12 @@ const blockSocket = (id: string, block: BlockItem): BlockSocketPart => ({
 
 const stack = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: BlockPart[],
   children: BlockItem[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "statement",
   parts,
   children,
@@ -97,12 +92,12 @@ const stack = (
 
 const scope = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: BlockPart[],
   children: BlockItem[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "scope",
   parts,
   children,
@@ -110,24 +105,23 @@ const scope = (
 
 const value = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: BlockPart[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "value",
   parts,
   children: [],
 });
 
 const blocks = (
-  categories: BlockCategory[],
+  _colorKeys: string[],
   items: BlockItem[],
 ): BlocksElement => ({
   id: "blocks",
   type: "blocks",
   hidden: false,
-  categories,
   items,
 });
 
@@ -141,7 +135,7 @@ const slide = (element: PowerShowElement): Slide => ({
 
 const makeValue = (id: string): BlockItem => ({
   id,
-  categoryId: "cat",
+  color: "#123456",
   shape: "value",
   parts: [{ id: `${id}-p`, type: "text", text: "value" }],
   children: [],
@@ -151,11 +145,10 @@ const makeBlocks = (id = "blocks"): BlocksElement => ({
   id,
   type: "blocks",
   hidden: false,
-  categories: [{ id: "cat", name: "Category", color: "#123456" }],
   items: [
     {
       id: "scope",
-      categoryId: "cat",
+      color: "#123456",
       shape: "scope",
       parts: [
         { id: "scope-p", type: "text", text: "repeat" },
@@ -164,7 +157,7 @@ const makeBlocks = (id = "blocks"): BlocksElement => ({
       children: [
         {
           id: "child",
-          categoryId: "cat",
+          color: "#123456",
           shape: "statement",
           parts: [{ id: "child-p", type: "text", text: "move" }],
           children: [],
@@ -190,7 +183,7 @@ function stackChain(depth: number): BlockItem[] {
 /** Root scope containing a child whose socket holds a value with its own socket value. */
 function socketDepthFixture(): BlocksElement {
   return blocks(
-    [category("cat")],
+    [colorKey("cat")],
     [
       scope(
         "scope",
@@ -218,11 +211,8 @@ describe("composable Blocks Studio contract", () => {
     const created = createElement("blocks", []);
     expect(created.type).toBe("blocks");
     if (created.type !== "blocks") return;
-    expect(created.categories).toEqual([
-      { id: "block-category", name: "Block", color: "#6366f1" },
-    ]);
     expect(created.items[0]).toMatchObject({
-      categoryId: "block-category",
+      color: "#6366f1",
       shape: "statement",
       children: [],
     });
@@ -251,12 +241,12 @@ describe("composable Blocks Studio contract", () => {
     }
   });
 
-  it("duplicates all block and part ids while preserving category vocabulary", () => {
+  it("duplicates all block and part ids while preserving direct colors", () => {
     const copy = duplicateElement(makeBlocks(), [slide(makeBlocks())]);
     expect(copy.type).toBe("blocks");
     if (copy.type !== "blocks") return;
     expect(copy.id).not.toBe("blocks");
-    expect(copy.categories).toEqual(makeBlocks().categories);
+    expect(copy.items[0]?.color).toBe(makeBlocks().items[0]?.color);
     expect(copy.items[0]?.id).not.toBe("scope");
     const socket = copy.items[0]?.parts[1];
     expect(socket?.id).not.toBe("scope-s");
@@ -276,129 +266,22 @@ describe("composable Blocks Studio contract", () => {
 });
 
 // ============================================================
-// CATEGORY OPERATIONS
-// ============================================================
-
-describe("Blocks category operations", () => {
-  it("adds categories with a locally unique id (block-category, block-category-2, ...)", () => {
-    let current = blocks([category("block-category")], []);
-    current = addBlockCategory(current);
-    expect(current.categories[1]?.id).toBe("block-category-2");
-    current = addBlockCategory(current);
-    expect(current.categories[2]?.id).toBe("block-category-3");
-    expect(current.categories).toEqual([
-      { id: "block-category", name: "block-category", color: "#123456" },
-      { id: "block-category-2", name: "Category", color: "#6366f1" },
-      { id: "block-category-3", name: "Category", color: "#6366f1" },
-    ]);
-    expect(BlocksElementSchema.parse(current)).toBeTruthy();
-  });
-
-  it("starts from block-category when no category exists", () => {
-    const current = addBlockCategory(blocks([], []));
-    expect(current.categories).toEqual([
-      { id: "block-category", name: "Category", color: "#6366f1" },
-    ]);
-  });
-
-  it("renames a category and preserves the others", () => {
-    const source = blocks(
-      [category("a", "Alpha"), category("b", "Beta")],
-      [],
-    );
-    const next = renameBlockCategory(source, "a", "Motion");
-    expect(next.categories[0]).toMatchObject({ id: "a", name: "Motion" });
-    expect(next.categories[1]).toBe(source.categories[1]);
-    // same name: exact no-op
-    expect(renameBlockCategory(source, "a", "Alpha")).toBe(source);
-    // absent category: exact no-op
-    expect(renameBlockCategory(source, "missing", "X")).toBe(source);
-  });
-
-  it("changes the category color and keeps the rest of the category", () => {
-    const source = blocks([category("a", "Alpha")], []);
-    const next = setBlockCategoryColor(source, "a", "#22d3ee");
-    expect(next.categories[0]).toEqual({
-      id: "a",
-      name: "Alpha",
-      color: "#22d3ee",
-    });
-    expect(setBlockCategoryColor(source, "a", "#123456")).toBe(source);
-    expect(setBlockCategoryColor(source, "missing", "#22d3ee")).toBe(source);
-  });
-
-  it("removes an unused category", () => {
-    const source = blocks(
-      [category("used"), category("unused")],
-      [stack("root-a", "used", [textPart("p-a")])],
-    );
-    const next = removeBlockCategory(source, "unused");
-    expect(next.categories).toEqual([source.categories[0]]);
-    expect(next.items).toBe(source.items);
-  });
-
-  it("refuses to remove a category used by a root block", () => {
-    const source = blocks(
-      [category("used"), category("unused")],
-      [stack("root-a", "used", [textPart("p-a")])],
-    );
-    expect(removeBlockCategory(source, "used")).toBe(source);
-  });
-
-  it("refuses to remove a category used by a scope child", () => {
-    const source = blocks(
-      [category("cat"), category("other")],
-      [
-        scope("root", "other", [textPart("p")], [
-          stack("child", "cat", [textPart("cp")]),
-        ]),
-      ],
-    );
-    expect(removeBlockCategory(source, "cat")).toBe(source);
-  });
-
-  it("refuses to remove a category used by a socket value", () => {
-    const source = blocks(
-      [category("cat"), category("other")],
-      [stack("root", "other", [blockSocket("s", value("v", "cat"))])],
-    );
-    expect(removeBlockCategory(source, "cat")).toBe(source);
-    expect(removeBlockCategory(source, "missing")).toBe(source);
-  });
-
-  it("reports category usage through both recursion edges", () => {
-    const source = blocks(
-      [category("cat"), category("other")],
-      [
-        scope("root", "other", [textPart("p")], [
-          stack("child", "other", [blockSocket("s", value("v", "cat"))]),
-        ]),
-      ],
-    );
-    expect(isBlockCategoryUsed(source, "cat")).toBe(true);
-    expect(isBlockCategoryUsed(source, "other")).toBe(true);
-    expect(isBlockCategoryUsed(source, "missing")).toBe(false);
-  });
-});
-
-// ============================================================
 // LOOKUP / DEPTH
 // ============================================================
 
 describe("Blocks lookup and depth", () => {
   it("finds and updates a root block", () => {
     const source = blocks(
-      [category("cat"), category("other")],
+      [colorKey("cat"), colorKey("other")],
       [stack("root", "cat", [textPart("p")])],
     );
     expect(findBlockItemById(source, "root")?.id).toBe("root");
     const next = updateBlockItemById(source, "root", (item) => ({
       ...item,
-      categoryId: "other",
+      color: colorFor("other"),
     }));
     expect(next).not.toBe(source);
-    expect(next.items[0]?.categoryId).toBe("other");
-    expect(next.categories).toBe(source.categories);
+    expect(next.items[0]?.color).toBe("other");
     expect(updateBlockItemById(source, "missing", (item) => item)).toBe(
       source,
     );
@@ -406,7 +289,7 @@ describe("Blocks lookup and depth", () => {
 
   it("finds and updates a scope child", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         scope("root", "cat", [textPart("p")], [
           stack("child", "cat", [textPart("cp")]),
@@ -427,13 +310,13 @@ describe("Blocks lookup and depth", () => {
 
   it("finds and updates a socket value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [blockSocket("s", value("v", "cat", [textPart("v-p")]))])],
     );
     expect(findBlockItemById(source, "v")?.shape).toBe("value");
     const next = updateBlockItemById(source, "v", (item) => ({
       ...item,
-      categoryId: "cat",
+      color: colorFor("cat"),
       parts: [...item.parts, textPart("vp")],
     }));
     const socket = next.items[0]?.parts[0];
@@ -465,7 +348,7 @@ describe("Blocks lookup and depth", () => {
   });
 
   it("computes depth across scope children", () => {
-    const source = blocks([category("cat")], stackChain(5));
+    const source = blocks([colorKey("cat")], stackChain(5));
     for (let level = 1; level <= MAX_BLOCK_AUTHORING_DEPTH; level += 1) {
       expect(findBlockItemDepth(source, `scope-${level}`)).toBe(level);
     }
@@ -488,38 +371,38 @@ describe("Blocks lookup and depth", () => {
 // ============================================================
 
 describe("Blocks stack operations", () => {
-  it("appends a root stack block when categories exist", () => {
+  it("appends a root stack block", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("a", "cat", [textPart("pa")])],
     );
-    const item = createDefaultStackBlockItem(new Set(), "cat");
+    const item = createDefaultStackBlockItem(new Set(), colorFor("cat"));
     const next = appendBlockItemToRoot(source, item);
     expect(next).not.toBe(source);
     expect(next.items).toHaveLength(2);
     expect(next.items[1]).toBe(item);
   });
 
-  it("refuses root add when no category exists", () => {
+  it("does not require a category vocabulary for root creation", () => {
     const source = blocks([], []);
-    const item = createDefaultStackBlockItem(new Set(), "cat");
-    expect(appendBlockItemToRoot(source, item)).toBe(source);
+    const item = createDefaultStackBlockItem(new Set(), "#123456");
+    expect(appendBlockItemToRoot(source, item).items).toEqual([item]);
   });
 
   it("appends a child to a scope", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("root", "cat", [textPart("p")], [stack("a", "cat", [])])],
     );
-    const item = createDefaultStackBlockItem(new Set(), "cat");
+    const item = createDefaultStackBlockItem(new Set(), colorFor("cat"));
     const next = appendBlockItemToScope(source, "root", item);
     expect(next.items[0]?.children).toHaveLength(2);
     expect(next.items[0]?.children[1]).toBe(item);
   });
 
-  it("uses the scope category for a new scope child", () => {
+  it("uses the scope color for a new scope child", () => {
     const source = blocks(
-      [category("cat-a"), category("cat-b")],
+      [colorKey("cat-a"), colorKey("cat-b")],
       [scope("root", "cat-b", [textPart("p")])],
     );
     const outcome = addScopeChildToPresentation(
@@ -530,23 +413,23 @@ describe("Blocks stack operations", () => {
     expect(outcome).not.toBeNull();
     const next = outcome?.slides[0]?.elements[0];
     if (next?.type === "blocks") {
-      expect(next.items[0]?.children[0]?.categoryId).toBe("cat-b");
+      expect(next.items[0]?.children[0]?.color).toBe(colorFor("cat-b"));
     }
     expect(BlocksElementSchema.parse(next)).toBeTruthy();
   });
 
   it("refuses to append a child to a statement", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
-    const item = createDefaultStackBlockItem(new Set(), "cat");
+    const item = createDefaultStackBlockItem(new Set(), colorFor("cat"));
     expect(appendBlockItemToScope(source, "root", item)).toBe(source);
   });
 
   it("refuses scope child creation at depth MAX_BLOCK_AUTHORING_DEPTH", () => {
-    const source = blocks([category("cat")], stackChain(MAX_BLOCK_AUTHORING_DEPTH));
-    const item = createDefaultStackBlockItem(new Set(), "cat");
+    const source = blocks([colorKey("cat")], stackChain(MAX_BLOCK_AUTHORING_DEPTH));
+    const item = createDefaultStackBlockItem(new Set(), colorFor("cat"));
     expect(
       appendBlockItemToScope(source, "scope-5", item),
     ).toBe(source);
@@ -554,7 +437,7 @@ describe("Blocks stack operations", () => {
 
   it("removes a root stack block and its entire graph", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         scope("root", "cat", [textPart("p")], [
           stack("child", "cat", [blockSocket("cs", value("v", "cat"))]),
@@ -563,12 +446,11 @@ describe("Blocks stack operations", () => {
     );
     const next = removeBlockItemById(source, "root");
     expect(next.items).toEqual([]);
-    expect(next.categories).toBe(source.categories);
   });
 
   it("removes a scope child subtree", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         scope("root", "cat", [textPart("p")], [
           stack("child-a", "cat", [blockSocket("cs", value("v", "cat"))]),
@@ -583,7 +465,7 @@ describe("Blocks stack operations", () => {
 
   it("moves a root sibling within the root stack", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("a", "cat", []), stack("b", "cat", []), stack("c", "cat", [])],
     );
     const next = moveBlockItemByOffset(source, "a", 1);
@@ -593,7 +475,7 @@ describe("Blocks stack operations", () => {
 
   it("moves scope siblings within the same scope.children", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         scope("root", "cat", [textPart("p")], [
           stack("a", "cat", []),
@@ -614,7 +496,7 @@ describe("Blocks stack operations", () => {
 
   it("is an exact same-reference no-op at move boundaries", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("a", "cat", []), stack("b", "cat", [])],
     );
     expect(moveBlockItemByOffset(source, "a", -1)).toBe(source);
@@ -624,7 +506,7 @@ describe("Blocks stack operations", () => {
 
   it("never moves a socket value as a stack sibling", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [blockSocket("s", value("v", "cat"))])],
     );
     expect(moveBlockItemByOffset(source, "v", 1)).toBe(source);
@@ -633,39 +515,39 @@ describe("Blocks stack operations", () => {
 });
 
 // ============================================================
-// CATEGORY ASSIGNMENT
+// DIRECT COLOR
 // ============================================================
 
-describe("Blocks category assignment", () => {
-  it("reassigns a root block category", () => {
+describe("Blocks direct color", () => {
+  it("changes a root block color", () => {
     const source = blocks(
-      [category("cat-a"), category("cat-b")],
+      [colorKey("cat-a"), colorKey("cat-b")],
       [stack("root", "cat-a", [textPart("p")])],
     );
-    const next = setBlockItemCategory(source, "root", "cat-b");
-    expect(next.items[0]?.categoryId).toBe("cat-b");
+    const next = setBlockItemColor(source, "root", "#abcdef");
+    expect(next.items[0]?.color).toBe("#abcdef");
     expect(next.items[0]?.parts).toBe(source.items[0]?.parts);
     expect(BlocksElementSchema.parse(next)).toBeTruthy();
   });
 
-  it("reassigns a socket-contained value category", () => {
+  it("changes a socket-contained value color", () => {
     const source = blocks(
-      [category("cat-a"), category("cat-b")],
+      [colorKey("cat-a"), colorKey("cat-b")],
       [stack("root", "cat-a", [blockSocket("s", value("v", "cat-a"))])],
     );
-    const next = setBlockItemCategory(source, "v", "cat-b");
+    const next = setBlockItemColor(source, "v", "#abcdef");
     const socket = next.items[0]?.parts[0];
     if (socket?.type === "socket" && socket.content.type === "block") {
-      expect(socket.content.block.categoryId).toBe("cat-b");
+      expect(socket.content.block.color).toBe("#abcdef");
     }
   });
 
-  it("is an exact no-op for an unresolvable category", () => {
+  it("is an exact no-op for a missing target", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
-    expect(setBlockItemCategory(source, "root", "missing")).toBe(source);
+    expect(setBlockItemColor(source, "missing", "#abcdef")).toBe(source);
   });
 });
 
@@ -674,9 +556,9 @@ describe("Blocks category assignment", () => {
 // ============================================================
 
 describe("Blocks shape editing", () => {
-  it("converts a statement to a scope preserving id/category/parts", () => {
+  it("converts a statement to a scope preserving id/color/parts", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
     const next = setBlockItemShape(source, "root", "scope");
@@ -688,14 +570,14 @@ describe("Blocks shape editing", () => {
     if (item) {
       expect(item.id).toBe("root");
       expect(item.parts).toBe(source.items[0]?.parts);
-      expect(item.categoryId).toBe("cat");
+      expect(item.color).toBe(colorFor("cat"));
     }
     expect(BlocksElementSchema.parse(next)).toBeTruthy();
   });
 
   it("converts an empty scope back to a statement", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("root", "cat", [textPart("p")])],
     );
     const next = setBlockItemShape(source, "root", "statement");
@@ -705,7 +587,7 @@ describe("Blocks shape editing", () => {
 
   it("refuses to flatten a populated scope", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         scope("root", "cat", [textPart("p")], [
           stack("child", "cat", []),
@@ -717,7 +599,7 @@ describe("Blocks shape editing", () => {
 
   it("never converts a stack block to value and never reshapes a socket value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [blockSocket("s", value("v", "cat"))])],
     );
     const next = setBlockItemShape(source, "root", "scope");
@@ -734,7 +616,7 @@ describe("Blocks shape editing", () => {
 describe("Blocks part operations", () => {
   it("appends a Text part", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
     const next = appendBlockPartToItem(
@@ -751,7 +633,7 @@ describe("Blocks part operations", () => {
 
   it("appends a Socket part", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
     const next = appendBlockPartToItem(
@@ -769,7 +651,7 @@ describe("Blocks part operations", () => {
 
   it("edits Text part text immediately", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p", "old")])],
     );
     const next = updateBlockTextPartText(source, "root", "p", "new");
@@ -781,7 +663,7 @@ describe("Blocks part operations", () => {
 
   it("allows empty text", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p", "old")])],
     );
     const next = updateBlockTextPartText(source, "root", "p", "");
@@ -794,7 +676,7 @@ describe("Blocks part operations", () => {
 
   it("removes a part", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("a"), textPart("b")])],
     );
     const next = removeBlockPartById(source, "root", "a");
@@ -804,7 +686,7 @@ describe("Blocks part operations", () => {
 
   it("reorders parts within a BlockItem", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("a"), textPart("b"), textPart("c")])],
     );
     const next = moveBlockPartByOffset(source, "root", "a", 1);
@@ -817,7 +699,7 @@ describe("Blocks part operations", () => {
 
   it("is an exact same-reference no-op at part move boundaries", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("a"), textPart("b")])],
     );
     expect(moveBlockPartByOffset(source, "root", "a", -1)).toBe(source);
@@ -827,7 +709,7 @@ describe("Blocks part operations", () => {
 
   it("applies part operations to a socket-contained value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [blockSocket("s", value("v", "cat", [textPart("v-p")]))])],
     );
     const next = appendBlockPartToItem(
@@ -852,7 +734,7 @@ describe("Blocks part operations", () => {
 describe("Blocks socket content operations", () => {
   it("switches empty -> literal", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const next = setSocketContentLiteral(source, "root", "s", "10");
@@ -863,7 +745,7 @@ describe("Blocks socket content operations", () => {
 
   it("edits a literal value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [literalSocket("s", "10")])],
     );
     const next = setSocketContentLiteral(source, "root", "s", "20");
@@ -876,7 +758,7 @@ describe("Blocks socket content operations", () => {
 
   it("allows an empty literal value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const next = setSocketContentLiteral(source, "root", "s", "");
@@ -888,14 +770,14 @@ describe("Blocks socket content operations", () => {
 
   it("switches literal -> empty", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [literalSocket("s", "10")])],
     );
     const next = setSocketContentEmpty(source, "root", "s");
     expect(next.items[0]?.parts[0]).toEqual(emptySocket("s"));
     // already empty: exact no-op
     const emptySource = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     expect(setSocketContentEmpty(emptySource, "root", "s")).toBe(emptySource);
@@ -903,10 +785,10 @@ describe("Blocks socket content operations", () => {
 
   it("switches empty -> block", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
-    const item = createDefaultValueBlockItem(new Set(), "cat");
+    const item = createDefaultValueBlockItem(new Set(), colorFor("cat"));
     const next = setSocketContentBlock(source, "root", "s", item);
     const part = next.items[0]?.parts[0];
     if (part?.type === "socket") {
@@ -915,9 +797,9 @@ describe("Blocks socket content operations", () => {
     expect(BlocksElementSchema.parse(next)).toBeTruthy();
   });
 
-  it("defaults a new socket value to the owner category", () => {
+  it("defaults a new socket value to the owner color", () => {
     const source = blocks(
-      [category("cat-a"), category("cat-b")],
+      [colorKey("cat-a"), colorKey("cat-b")],
       [stack("root", "cat-b", [emptySocket("s")])],
     );
     const outcome = createSocketValueInPresentation(
@@ -932,14 +814,14 @@ describe("Blocks socket content operations", () => {
       const part = next.items[0]?.parts[0];
       if (part?.type === "socket" && part.content.type === "block") {
         expect(part.content.block.shape).toBe("value");
-        expect(part.content.block.categoryId).toBe("cat-b");
+        expect(part.content.block.color).toBe(colorFor("cat-b"));
       }
     }
   });
 
   it("allocates fresh BlockItem and BlockPart ids for a socket value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const outcome = createSocketValueInPresentation(
@@ -977,7 +859,7 @@ describe("Blocks socket content operations", () => {
         scope(`scope-${level}`, "cat", [textPart(`p-${level}`)], items),
       ];
     }
-    const source = blocks([category("cat")], items);
+    const source = blocks([colorKey("cat")], items);
     const outcome = createSocketValueInPresentation(
       [slide(source)],
       "blocks",
@@ -989,7 +871,7 @@ describe("Blocks socket content operations", () => {
 
   it("removes the nested value graph when switching block -> empty", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         stack("root", "cat", [
           blockSocket("s", value("v", "cat", [blockSocket("nested", value("w", "cat"))])),
@@ -1003,7 +885,7 @@ describe("Blocks socket content operations", () => {
 
   it("switches block -> literal dropping the nested graph", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [blockSocket("s", value("v", "cat"))])],
     );
     const next = setSocketContentLiteral(source, "root", "s", "42");
@@ -1015,10 +897,10 @@ describe("Blocks socket content operations", () => {
 
   it("preserves the existing graph on block -> block (exact no-op)", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [blockSocket("s", value("v", "cat"))])],
     );
-    const fresh = createDefaultValueBlockItem(new Set(), "cat");
+    const fresh = createDefaultValueBlockItem(new Set(), colorFor("cat"));
     expect(setSocketContentBlock(source, "root", "s", fresh)).toBe(source);
     const socket = source.items[0]?.parts[0];
     if (socket?.type === "socket" && socket.content.type === "block") {
@@ -1033,13 +915,13 @@ describe("Blocks socket content operations", () => {
 // The exported semantic authoring operations receive arbitrary
 // BlockItem arguments. They must never silently produce an invalid
 // canonical BlocksElement: contextually invalid shapes and
-// unresolvable category references are exact same-reference no-ops.
+// contextually invalid shapes are exact same-reference no-ops.
 // ============================================================
 
 describe("Blocks authoring invariant guards", () => {
   it("appendBlockItemToRoot accepts a statement", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("a", "cat", [textPart("pa")])],
     );
     const item = stack("b", "cat", [textPart("pb")]);
@@ -1050,7 +932,7 @@ describe("Blocks authoring invariant guards", () => {
   });
 
   it("appendBlockItemToRoot accepts a scope", () => {
-    const source = blocks([category("cat")], []);
+    const source = blocks([colorKey("cat")], []);
     const item = scope("root-scope", "cat", [textPart("p")]);
     const next = appendBlockItemToRoot(source, item);
     expect(next).not.toBe(source);
@@ -1059,26 +941,25 @@ describe("Blocks authoring invariant guards", () => {
   });
 
   it("appendBlockItemToRoot rejects a value with an exact same reference", () => {
-    const source = blocks([category("cat")], []);
+    const source = blocks([colorKey("cat")], []);
     const item = value("root-value", "cat");
     expect(appendBlockItemToRoot(source, item)).toBe(source);
     expect(source.items).toEqual([]);
     expect(item.shape).toBe("value");
   });
 
-  it("appendBlockItemToRoot rejects an unknown category with an exact same reference", () => {
+  it("appendBlockItemToRoot accepts any canonical direct color", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("a", "cat", [textPart("pa")])],
     );
-    const item = stack("b", "missing", [textPart("pb")]);
-    expect(appendBlockItemToRoot(source, item)).toBe(source);
-    expect(source.items).toHaveLength(1);
+    const item = stack("b", "#abcdef", [textPart("pb")]);
+    expect(appendBlockItemToRoot(source, item).items[1]).toBe(item);
   });
 
   it("appendBlockItemToScope accepts a statement", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("root", "cat", [textPart("p")])],
     );
     const item = stack("child", "cat", [textPart("cp")]);
@@ -1089,7 +970,7 @@ describe("Blocks authoring invariant guards", () => {
 
   it("appendBlockItemToScope accepts a scope when otherwise valid", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("root", "cat", [textPart("p")])],
     );
     const item = scope("nested", "cat", [textPart("np")]);
@@ -1100,7 +981,7 @@ describe("Blocks authoring invariant guards", () => {
 
   it("appendBlockItemToScope rejects a value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("root", "cat", [textPart("p")])],
     );
     const item = value("scope-value", "cat");
@@ -1108,19 +989,18 @@ describe("Blocks authoring invariant guards", () => {
     expect(source.items[0]?.children).toEqual([]);
   });
 
-  it("appendBlockItemToScope rejects an unknown category", () => {
+  it("appendBlockItemToScope accepts a distinct child color", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("root", "cat", [textPart("p")])],
     );
-    const item = stack("child", "missing", [textPart("cp")]);
-    expect(appendBlockItemToScope(source, "root", item)).toBe(source);
-    expect(source.items[0]?.children).toEqual([]);
+    const item = stack("child", "#abcdef", [textPart("cp")]);
+    expect(appendBlockItemToScope(source, "root", item).items[0]?.children[0]).toBe(item);
   });
 
   it("setSocketContentBlock accepts a valid value", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const item = value("v", "cat", [textPart("vp")]);
@@ -1134,7 +1014,7 @@ describe("Blocks authoring invariant guards", () => {
 
   it("setSocketContentBlock rejects a statement", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const item = stack("st", "cat", [textPart("sp")]);
@@ -1147,7 +1027,7 @@ describe("Blocks authoring invariant guards", () => {
 
   it("setSocketContentBlock rejects a scope", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const item = scope("sc", "cat", [textPart("scp")]);
@@ -1160,12 +1040,12 @@ describe("Blocks authoring invariant guards", () => {
 
   it("setSocketContentBlock rejects a value with children", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
     const item: BlockItem = {
       id: "bad-value",
-      categoryId: "cat",
+      color: colorFor("cat"),
       shape: "value",
       parts: [textPart("bp")],
       children: [stack("bad-child", "cat", [])],
@@ -1174,22 +1054,22 @@ describe("Blocks authoring invariant guards", () => {
     expect(item.children).toHaveLength(1);
   });
 
-  it("setSocketContentBlock rejects an unknown category", () => {
+  it("setSocketContentBlock accepts a distinct value color", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
-    const item = value("v", "missing");
-    expect(setSocketContentBlock(source, "root", "s", item)).toBe(source);
-    const part = source.items[0]?.parts[0];
+    const item = value("v", "#abcdef");
+    const next = setSocketContentBlock(source, "root", "s", item);
+    const part = next.items[0]?.parts[0];
     if (part?.type === "socket") {
-      expect(part.content.type).toBe("empty");
+      expect(part.content).toEqual({ type: "block", block: item });
     }
   });
 
   it("rejected cases never mutate the source or the supplied BlockItem", () => {
     const base = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [emptySocket("s")])],
     );
 
@@ -1212,7 +1092,7 @@ describe("Blocks authoring invariant guards", () => {
     expect(socketStatement).toEqual(socketSnapshot);
 
     expect(base).toEqual(
-      blocks([category("cat")], [stack("root", "cat", [emptySocket("s")])]),
+      blocks([colorKey("cat")], [stack("root", "cat", [emptySocket("s")])]),
     );
   });
 });
@@ -1224,21 +1104,20 @@ describe("Blocks authoring invariant guards", () => {
 describe("Blocks immutability", () => {
   it("preserves exact references on no-op where specified", () => {
     const source = blocks(
-      [category("cat"), category("unused")],
+      [colorKey("cat"), colorKey("unused")],
       [stack("root", "cat", [textPart("p")])],
     );
 
     expect(moveBlockItemByOffset(source, "root", -1)).toBe(source);
     expect(removeBlockItemById(source, "missing")).toBe(source);
-    expect(setBlockItemCategory(source, "root", "missing")).toBe(source);
+    expect(setBlockItemColor(source, "missing", "#abcdef")).toBe(source);
     expect(updateBlockTextPartText(source, "root", "p", "p")).toBe(source);
-    expect(removeBlockCategory(source, "cat")).toBe(source);
-    expect(appendBlockItemToScope(source, "root", createDefaultStackBlockItem(new Set(), "cat"))).toBe(source);
+    expect(appendBlockItemToScope(source, "root", createDefaultStackBlockItem(new Set(), colorFor("cat")))).toBe(source);
   });
 
   it("never mutates the source across a full operation batch", () => {
     const source = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         scope("root", "cat", [textPart("p"), emptySocket("s")], [
           stack("child", "cat", [blockSocket("cs", value("v", "cat"))]),
@@ -1255,7 +1134,7 @@ describe("Blocks immutability", () => {
       "child",
       createDefaultTextPart(new Set()),
     );
-    current = setBlockItemCategory(current, "v", "cat");
+    current = setBlockItemColor(current, "v", "#abcdef");
     current = removeBlockPartById(current, "child", "cs");
     current = moveBlockItemByOffset(current, "child", 1);
 

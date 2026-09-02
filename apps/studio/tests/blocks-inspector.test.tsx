@@ -27,17 +27,20 @@ const textPart = (id: string): BlockPart => ({
   text: id,
 });
 
-const socketValue = (id: string, categoryId: string): BlockItem => ({
+const colorFor = (key: string): string =>
+  key === "cat-2" ? "#22d3ee" : "#6366f1";
+
+const socketValue = (id: string, color: string): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "value",
   parts: [textPart(`${id}-p`)],
   children: [],
 });
 
-const statement = (id: string, categoryId: string): BlockItem => ({
+const statement = (id: string, color: string): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "statement",
   parts: [textPart(`${id}-text`)],
   children: [],
@@ -57,7 +60,7 @@ function scopeChain(depth: number): BlockItem[] {
     items = [
       {
         id: `scope-${level}`,
-        categoryId: "cat",
+        color: colorFor("cat"),
         shape: "scope",
         parts: [textPart(`p-${level}`)],
         children: items,
@@ -70,7 +73,6 @@ function scopeChain(depth: number): BlockItem[] {
 
 function fixturesBlocks(
   overrides: {
-    categories?: { id: string; name: string; color: string }[];
     items?: BlockItem[];
   } = {},
 ): BlocksElement {
@@ -78,13 +80,10 @@ function fixturesBlocks(
     type: "blocks",
     id: "blocks-1",
     hidden: false,
-    categories: [
-      { id: "cat", name: "Category", color: "#6366f1" },
-    ],
     items: [
       {
         id: "scope-a",
-        categoryId: "cat",
+        color: colorFor("cat"),
         shape: "scope",
         parts: [
           textPart("scope-a-text"),
@@ -97,7 +96,7 @@ function fixturesBlocks(
         children: [
           {
             id: "child-a",
-            categoryId: "cat",
+            color: colorFor("cat"),
             shape: "statement",
             parts: [textPart("child-a-text")],
             children: [],
@@ -187,66 +186,6 @@ describe("BlocksInspector content shell", () => {
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  function categoryRow(categoryId: string): HTMLLIElement {
-    const row = container.querySelector<HTMLLIElement>(
-      `li[data-powershow-block-category-id="${categoryId}"]`,
-    );
-
-    if (!row) {
-      throw new Error(`Category row not found: ${categoryId}`);
-    }
-
-    return row;
-  }
-
-  function categoryNameInput(categoryId: string): HTMLInputElement {
-    const input = categoryRow(categoryId).querySelector<HTMLInputElement>(
-      'input[data-powershow-block-category-name="true"]',
-    );
-
-    if (!input) {
-      throw new Error(`Category name input not found: ${categoryId}`);
-    }
-
-    return input;
-  }
-
-  function categoryColorInput(categoryId: string): HTMLInputElement {
-    const input = categoryRow(categoryId).querySelector<HTMLInputElement>(
-      'input[data-powershow-block-category-color="true"]',
-    );
-
-    if (!input) {
-      throw new Error(`Category color input not found: ${categoryId}`);
-    }
-
-    return input;
-  }
-
-  function categoryRemoveButton(categoryId: string): HTMLButtonElement {
-    const button = categoryRow(categoryId).querySelector<HTMLButtonElement>(
-      'button[data-powershow-block-category-remove="true"]',
-    );
-
-    if (!button) {
-      throw new Error(`Category remove button not found: ${categoryId}`);
-    }
-
-    return button;
-  }
-
-  function addCategoryButton(): HTMLButtonElement {
-    const button = container.querySelector<HTMLButtonElement>(
-      'button[data-powershow-block-add-category="true"]',
-    );
-
-    if (!button) {
-      throw new Error("Add category button not found");
-    }
-
-    return button;
-  }
-
   function addBlockButton(): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
       'button[data-powershow-block-add="true"]',
@@ -291,16 +230,16 @@ describe("BlocksInspector content shell", () => {
     return button;
   }
 
-  function blockCategorySelect(itemId: string): HTMLSelectElement {
-    const select = itemRow(itemId).querySelector<HTMLSelectElement>(
-      'select[data-powershow-block-category="true"]',
+  function blockColorInput(itemId: string): HTMLInputElement {
+    const input = itemRow(itemId).querySelector<HTMLInputElement>(
+      'input[data-powershow-block-color="true"]',
     );
 
-    if (!select) {
-      throw new Error(`Category select not found on block: ${itemId}`);
+    if (!input) {
+      throw new Error(`Color input not found on block: ${itemId}`);
     }
 
-    return select;
+    return input;
   }
 
   function blockShapeSelect(itemId: string): HTMLSelectElement {
@@ -352,17 +291,13 @@ describe("BlocksInspector content shell", () => {
       .not.toBeNull();
   });
 
-  it("reports categories and root blocks on the shell markers", async () => {
+  it("reports root blocks without category management controls", async () => {
     await act(async () => {
       mount(
         fixturesBlocks({
-          categories: [
-            { id: "cat", name: "Category", color: "#6366f1" },
-            { id: "cat-2", name: "Events", color: "#22d3ee" },
-          ],
           items: [
             statement("root-a", "cat"),
-            statement("root-b", "cat"),
+            statement("root-b", "cat-2"),
           ],
         }),
       );
@@ -371,12 +306,9 @@ describe("BlocksInspector content shell", () => {
     const count = container.querySelector(
       "[data-powershow-blocks-count]",
     )?.getAttribute("data-powershow-blocks-count");
-    const categories = container.querySelector(
-      "[data-powershow-blocks-categories]",
-    )?.getAttribute("data-powershow-blocks-categories");
-
     expect(count).toBe("2");
-    expect(categories).toBe("2");
+    expect(container.querySelector("[data-powershow-blocks-categories]")).toBeNull();
+    expect(container.querySelector('[data-powershow-block-add-category="true"]')).toBeNull();
   });
 
   it("does not invoke authoring controls on mount", async () => {
@@ -402,97 +334,6 @@ describe("BlocksInspector content shell", () => {
 
     expect(controls.onAddRootBlock).toHaveBeenCalledTimes(1);
     expect(controls.onAddRootBlock).toHaveBeenCalledWith("blocks-1");
-  });
-
-  it("Add category appends a provider-neutral local category", async () => {
-    await act(async () => {
-      mount();
-    });
-
-    await act(async () => {
-      addCategoryButton().click();
-    });
-
-    expect(updates).toHaveLength(1);
-    expect(updates[0]?.type).toBe("blocks");
-    if (updates[0]?.type === "blocks") {
-      expect(updates[0].categories).toHaveLength(2);
-      expect(updates[0].categories[1]).toEqual({
-        id: "block-category",
-        name: "Category",
-        color: "#6366f1",
-      });
-    }
-  });
-
-  it("renames an editable category through the canonical operation", async () => {
-    await act(async () => {
-      mount();
-    });
-
-    await act(async () => {
-      setInputValue(categoryNameInput("cat"), "Loops");
-    });
-
-    expect(updates).toHaveLength(1);
-    if (updates[0]?.type === "blocks") {
-      expect(updates[0].categories[0]?.name).toBe("Loops");
-      expect(updates[0].categories[0]?.id).toBe("cat");
-    }
-  });
-
-  it("updates the category color through the canonical operation", async () => {
-    await act(async () => {
-      mount();
-    });
-
-    await act(async () => {
-      setInputValue(categoryColorInput("cat"), "#ff00ff");
-    });
-
-    expect(updates).toHaveLength(1);
-    if (updates[0]?.type === "blocks") {
-      expect(updates[0].categories[0]?.color).toBe("#ff00ff");
-    }
-  });
-
-  it("removes an unused category while keeping used ones", async () => {
-    await act(async () => {
-      mount(
-        fixturesBlocks({
-          categories: [
-            { id: "cat", name: "Category", color: "#6366f1" },
-            { id: "unused", name: "Unused", color: "#22d3ee" },
-          ],
-        }),
-      );
-    });
-
-    await act(async () => {
-      categoryRemoveButton("unused").click();
-    });
-
-    expect(updates).toHaveLength(1);
-    if (updates[0]?.type === "blocks") {
-      expect(updates[0].categories.map((c) => c.id)).toEqual(["cat"]);
-    }
-  });
-
-  it("cannot remove a category that is referenced anywhere", async () => {
-    await act(async () => {
-      mount();
-    });
-
-    const removeButton = categoryRemoveButton("cat");
-
-    expect(removeButton.disabled).toBe(true);
-    expect(removeButton.getAttribute("aria-label")).toBe("Category in use");
-
-    await act(async () => {
-      removeButton.click();
-    });
-
-    expect(updates).toHaveLength(0);
   });
 
   it("CONTENT no longer shows the temporary placeholder", async () => {
@@ -537,12 +378,12 @@ describe("BlocksInspector content shell", () => {
     expect(container.textContent ?? "").toContain("No blocks");
   });
 
-  it("shows the category selector for an existing block", async () => {
+  it("shows the direct color control for an existing block", async () => {
     await act(async () => {
       mount();
     });
 
-    expect(blockCategorySelect("scope-a").value).toBe("cat");
+    expect(blockColorInput("scope-a").value).toBe("#6366f1");
   });
 
   it("shows the shape selector for an existing block", async () => {
@@ -586,7 +427,7 @@ describe("BlocksInspector content shell", () => {
           items: [
             {
               id: "lit-root",
-              categoryId: "cat",
+              color: "#6366f1",
               shape: "statement",
               parts: [textPart("lit-root-text"), socketLiteral("lit-sock", "42")],
               children: [],
@@ -747,8 +588,8 @@ describe("BlocksInspector content shell", () => {
       mount();
     });
 
-    expect(blockCategorySelect("scope-a").getAttribute("aria-label")).toBe(
-      "Category",
+    expect(blockColorInput("scope-a").getAttribute("aria-label")).toBe(
+      "Block color",
     );
     expect(blockShapeSelect("scope-a").getAttribute("aria-label")).toBe(
       "Shape",
@@ -777,8 +618,8 @@ describe("BlocksInspector content shell", () => {
       switchButton.click();
     });
 
-    expect(blockCategorySelect("scope-a").getAttribute("aria-label")).toBe(
-      "Categoria",
+    expect(blockColorInput("scope-a").getAttribute("aria-label")).toBe(
+      "Cor do bloco",
     );
     expect(blockShapeSelect("scope-a").getAttribute("aria-label")).toBe(
       "Forma",

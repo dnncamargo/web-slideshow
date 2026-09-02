@@ -346,12 +346,6 @@ export type EmbedElement =
 
 export type BlockShape = "statement" | "value" | "scope";
 
-export type BlockCategory = {
-  id: string;
-  name: string;
-  color: z.infer<typeof ColorValueSchema>;
-};
-
 export type BlockTextPart = {
   id: string;
   type: "text";
@@ -373,19 +367,13 @@ export type BlockPart = BlockTextPart | BlockSocketPart;
 
 export type BlockItem = {
   id: string;
-  categoryId: string;
+  color: z.infer<typeof ColorValueSchema>;
   shape: BlockShape;
   parts: BlockPart[];
   children: BlockItem[];
 };
 
 export const BlockShapeSchema = z.enum(["statement", "value", "scope"]);
-
-export const BlockCategorySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  color: ColorValueSchema,
-});
 
 const BlockTextPartSchema = z.object({
   id: ElementIdSchema,
@@ -415,7 +403,7 @@ export const BlockPartSchema: z.ZodType<BlockPart> = z.union([
 export const BlockItemSchema: z.ZodType<BlockItem> = z.lazy(() =>
   z.object({
     id: ElementIdSchema,
-    categoryId: z.string(),
+    color: ColorValueSchema,
     shape: BlockShapeSchema,
     parts: z.array(BlockPartSchema),
     children: z.array(BlockItemSchema),
@@ -425,25 +413,9 @@ export const BlockItemSchema: z.ZodType<BlockItem> = z.lazy(() =>
 export const BlocksElementSchema = CanonicalDataElementBaseSchema.extend({
   type: z.literal("blocks"),
   style: BlocksVisualStyleSchema.optional(),
-  categories: z.array(BlockCategorySchema),
   items: z.array(BlockItemSchema),
 }).strict().superRefine((element, context) => {
-  const categoryIds = new Set<string>();
-  element.categories.forEach((category, index) => {
-    if (categoryIds.has(category.id)) {
-      context.addIssue({
-        code: "custom",
-        path: ["categories", index, "id"],
-        message: "Block category ids must be unique within a BlocksElement.",
-      });
-    }
-    categoryIds.add(category.id);
-  });
-
   const visit = (item: BlockItem, path: (string | number)[], root: boolean, scopeChild: boolean) => {
-    if (!categoryIds.has(item.categoryId)) {
-      context.addIssue({ code: "custom", path: [...path, "categoryId"], message: "Block category reference does not resolve." });
-    }
     if (root && item.shape === "value") {
       context.addIssue({ code: "custom", path: [...path, "shape"], message: "A root block cannot have value shape." });
     }

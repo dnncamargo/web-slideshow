@@ -21,10 +21,10 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 // FIXTURES
 // ============================================================
 
-const category = (
-  id: string,
-  name = "Category",
-): BlocksElement["categories"][number] => ({ id, name, color: "#123456" });
+const category = (id: string): string => id;
+
+const colorFor = (key: string): string =>
+  key === "cat-b" ? "#654321" : "#123456";
 
 const textPart = (id: string, text = id): BlockPart => ({
   id,
@@ -52,11 +52,11 @@ const socketBlockPart = (id: string, block: BlockItem): BlockPart => ({
 
 const value = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: BlockPart[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "value",
   parts,
   children: [],
@@ -64,12 +64,12 @@ const value = (
 
 const statement = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: BlockPart[] = [],
   children: BlockItem[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "statement",
   parts,
   children,
@@ -77,25 +77,24 @@ const statement = (
 
 const scope = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: BlockPart[] = [],
   children: BlockItem[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "scope",
   parts,
   children,
 });
 
 const blocks = (
-  categories: BlocksElement["categories"],
+  _colorKeys: string[],
   items: BlockItem[],
 ): BlocksElement => ({
   id: "blocks-1",
   type: "blocks",
   hidden: false,
-  categories,
   items,
 });
 
@@ -133,7 +132,7 @@ function deepScopeChainWithSockets(depth: number): BlockItem[] {
 // ============================================================
 
 const LABELS: BlocksItemEditorLabels = {
-  category: "Category",
+  color: "Block color",
   shape: "Shape",
   statement: "Statement",
   scope: "Scope",
@@ -248,8 +247,8 @@ describe("BlocksItemEditor", () => {
   const rowLine = (id: string): HTMLDivElement | null =>
     row(id)?.querySelector(":scope > div") ?? null;
 
-  const categorySelect = (id: string): HTMLSelectElement | null =>
-    rowLine(id)?.querySelector('[data-powershow-block-category="true"]') ??
+  const colorInput = (id: string): HTMLInputElement | null =>
+    rowLine(id)?.querySelector('[data-powershow-block-color="true"]') ??
     null;
 
   const shapeSelect = (id: string): HTMLSelectElement | null =>
@@ -319,32 +318,32 @@ describe("BlocksItemEditor", () => {
   }
 
   // ============================================================
-  // BLOCK ITEM: CATEGORY / SHAPE / STACK
+  // BLOCK ITEM: COLOR / SHAPE / STACK
   // ============================================================
 
-  it("changes the category of a statement block through the canonical path", () => {
+  it("changes the direct color of a statement block through the canonical path", () => {
     mount(
       blocks(
-        [category("cat-a"), category("cat-b", "Secondary")],
+        [colorKey("cat-a"), colorKey("cat-b")],
         [statement("s1", "cat-a", [textPart("p1")])],
       ),
     );
 
-    const select = categorySelect("s1");
-    if (!select) {
-      throw new Error("Category select not found");
+    const input = colorInput("s1");
+    if (!input) {
+      throw new Error("Block color input not found");
     }
 
-    changeSelect(select, "cat-b");
+    changeTextInput(input, "#abcdef");
 
-    expect(firstItem()?.categoryId).toBe("cat-b");
+    expect(firstItem()?.color).toBe("#abcdef");
     expect(updates.length).toBeGreaterThan(0);
   });
 
   it("converts a statement into a scope", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [textPart("p1")])],
       ),
     );
@@ -362,7 +361,7 @@ describe("BlocksItemEditor", () => {
   it("never lets a populated scope flatten to a statement", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [scope("sc1", "cat", [textPart("p1")], [statement("c1", "cat", [])])],
       ),
     );
@@ -386,7 +385,7 @@ describe("BlocksItemEditor", () => {
   it("exposes only statement/scope shape choices for stack rows", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [scope("sc1", "cat", [], [statement("c1", "cat", [])])],
       ),
     );
@@ -402,7 +401,7 @@ describe("BlocksItemEditor", () => {
   it("moves root blocks earlier/later and honors stack boundaries", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("r1", "cat", []), statement("r2", "cat", [])],
       ),
     );
@@ -424,7 +423,7 @@ describe("BlocksItemEditor", () => {
   it("removes a root block", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("r1", "cat", [textPart("p1")])],
       ),
     );
@@ -441,7 +440,7 @@ describe("BlocksItemEditor", () => {
   it("edits a text part in place", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [textPart("p1", "Hello")])],
       ),
     );
@@ -462,7 +461,7 @@ describe("BlocksItemEditor", () => {
 
   it("edits a text part with a deferred updater after the event finishes", () => {
     elementState = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [statement("s1", "cat", [textPart("p1", "New block")])],
     );
     updates = [];
@@ -519,7 +518,7 @@ describe("BlocksItemEditor", () => {
   it("reorders text and socket parts within a block", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [textPart("p1"), socketEmptyPart("s1")])],
       ),
     );
@@ -536,7 +535,7 @@ describe("BlocksItemEditor", () => {
   it("removes a part", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [textPart("p1"), socketEmptyPart("p1b")])],
       ),
     );
@@ -551,7 +550,7 @@ describe("BlocksItemEditor", () => {
   // ============================================================
 
   it("delegates text part creation to the controls", () => {
-    mount(blocks([category("cat")], [statement("s1", "cat", [])]));
+    mount(blocks([colorKey("cat")], [statement("s1", "cat", [])]));
 
     click(addTextPartButton("s1"));
 
@@ -560,7 +559,7 @@ describe("BlocksItemEditor", () => {
   });
 
   it("delegates socket part creation to the controls", () => {
-    mount(blocks([category("cat")], [statement("s1", "cat", [])]));
+    mount(blocks([colorKey("cat")], [statement("s1", "cat", [])]));
 
     click(addSocketPartButton("s1"));
 
@@ -575,7 +574,7 @@ describe("BlocksItemEditor", () => {
   it("switches an empty socket to a literal", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [socketEmptyPart("sock1")])],
       ),
     );
@@ -598,7 +597,7 @@ describe("BlocksItemEditor", () => {
   it("edits a literal in place", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [socketLiteralPart("sock1", "5")])],
       ),
     );
@@ -619,7 +618,7 @@ describe("BlocksItemEditor", () => {
 
   it("edits a literal with a deferred updater after the event finishes", () => {
     elementState = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [statement("s1", "cat", [socketLiteralPart("sock1", "5")])],
     );
     updates = [];
@@ -676,7 +675,7 @@ describe("BlocksItemEditor", () => {
   it("delegates value creation exactly once from an empty mode", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [socketEmptyPart("sock1")])],
       ),
     );
@@ -699,7 +698,7 @@ describe("BlocksItemEditor", () => {
   it("delegates value creation exactly once from a literal mode", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [statement("s1", "cat", [socketLiteralPart("sock1", "7")])],
       ),
     );
@@ -722,7 +721,7 @@ describe("BlocksItemEditor", () => {
   it("removes a value subtree when switching its socket back to empty", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart(
@@ -752,7 +751,7 @@ describe("BlocksItemEditor", () => {
   it("renders an existing canonical block socket as UI mode value", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart(
@@ -775,7 +774,7 @@ describe("BlocksItemEditor", () => {
   it("marks the Value option as the currently selected option for an existing socket block", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart(
@@ -804,7 +803,7 @@ describe("BlocksItemEditor", () => {
   it("replaces an existing value subtree with a literal", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart(
@@ -839,7 +838,7 @@ describe("BlocksItemEditor", () => {
   it("edits a socket-contained value block recursively", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart("sock1", value("v1", "cat", [textPart("v1p")])),
@@ -869,7 +868,7 @@ describe("BlocksItemEditor", () => {
   it("keeps value blocks recursively creatable (parts delegate to controls)", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart("sock1", value("v1", "cat", [])),
@@ -888,7 +887,7 @@ describe("BlocksItemEditor", () => {
   it("never exposes stack shape/move/remove controls for a value block", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           statement("s1", "cat", [
             socketBlockPart("sock1", value("v1", "cat", [textPart("v1p")])),
@@ -916,7 +915,7 @@ describe("BlocksItemEditor", () => {
   // ============================================================
 
   it("delegates scope child creation to the controls", () => {
-    mount(blocks([category("cat")], [scope("sc1", "cat", [])]));
+    mount(blocks([colorKey("cat")], [scope("sc1", "cat", [])]));
 
     click(addChildButton("sc1"));
 
@@ -927,7 +926,7 @@ describe("BlocksItemEditor", () => {
   it("reorders and removes scope children", () => {
     mount(
       blocks(
-        [category("cat")],
+        [colorKey("cat")],
         [
           scope("sc1", "cat", [], [
             statement("c1", "cat", []),
@@ -953,7 +952,7 @@ describe("BlocksItemEditor", () => {
   // ============================================================
 
   it("disables adding a scope child at MAX_BLOCK_AUTHORING_DEPTH", () => {
-    mount(blocks([category("cat")], deepScopeChain(5)));
+    mount(blocks([colorKey("cat")], deepScopeChain(5)));
 
     expect(row("scope-5")?.getAttribute("data-powershow-block-depth")).toBe(
       "5",
@@ -964,7 +963,7 @@ describe("BlocksItemEditor", () => {
   });
 
   it("disables creating a socket value block at MAX_BLOCK_AUTHORING_DEPTH", () => {
-    mount(blocks([category("cat")], deepScopeChainWithSockets(5)));
+    mount(blocks([colorKey("cat")], deepScopeChainWithSockets(5)));
 
     const deepSocket = socketModeSelect("sock-5");
     const deepValueOption = deepSocket?.querySelector(
@@ -980,7 +979,7 @@ describe("BlocksItemEditor", () => {
   });
 
   it("keeps imported content deeper than 5 editable and removable", () => {
-    mount(blocks([category("cat")], deepScopeChain(6)));
+    mount(blocks([colorKey("cat")], deepScopeChain(6)));
 
     const deepest = row("scope-6");
     expect(deepest).not.toBeNull();

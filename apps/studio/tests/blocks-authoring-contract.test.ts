@@ -28,11 +28,10 @@ import type {
 // FIXTURES
 // ============================================================
 
-const category = (id: string): { id: string; name: string; color: string } => ({
-  id,
-  name: id,
-  color: "#123456",
-});
+const category = (id: string): string => id;
+
+const colorFor = (key: string): string =>
+  key === "cat-b" ? "#654321" : "#123456";
 
 const textPart = (id: string): BlockTextPart => ({
   id,
@@ -48,12 +47,12 @@ const socketEmpty = (id: string): BlockTextPart | { id: string; type: "socket"; 
 
 const stack = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: readonly { id: string }[],
   children: BlockItem[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "statement",
   parts: parts as BlockItem["parts"],
   children,
@@ -61,25 +60,24 @@ const stack = (
 
 const scope = (
   id: string,
-  categoryId: string,
+  color: string,
   parts: readonly { id: string }[],
   children: BlockItem[] = [],
 ): BlockItem => ({
   id,
-  categoryId,
+  color: colorFor(color),
   shape: "scope",
   parts: parts as BlockItem["parts"],
   children,
 });
 
 const blocks = (
-  categories: readonly { id: string; name: string; color: string }[],
+  _colorKeys: readonly string[],
   items: BlockItem[],
 ): BlocksElement => ({
   id: "blocks",
   type: "blocks",
   hidden: false,
-  categories: categories as BlocksElement["categories"],
   items,
 });
 
@@ -141,7 +139,7 @@ describe("BlocksAuthoringControls contract", () => {
 
   it("type-checks as a full ElementInspectorUpdate control surface", () => {
     // The controls sit beside the element update flow; text/literal/
-    // category/shape/remove/reorder deliberately stay on onUpdate.
+    // color/shape/remove/reorder deliberately stay on onUpdate.
     const controls = (): BlocksAuthoringControls => ({
       onAddRootBlock: () => null,
       onAddScopeChild: () => null,
@@ -160,7 +158,7 @@ describe("BlocksAuthoringControls contract", () => {
     // Seed the presentation with ids that collide with the default
     // block-item vocabulary so the next allocation must skip them.
     const seed = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [
         stack("block-item", "cat", [textPart("block-part")]),
         stack("block-item-2", "cat", [textPart("block-part-2")]),
@@ -182,7 +180,7 @@ describe("BlocksAuthoringControls contract", () => {
   });
 
   it("exposes a presentation-wide collision-safe BlockPart allocation", () => {
-    const seed = blocks([category("cat")], [
+    const seed = blocks([colorKey("cat")], [
       stack("root", "cat", [
         textPart("block-part"),
         textPart("block-part-2"),
@@ -200,7 +198,7 @@ describe("BlocksAuthoringControls contract", () => {
   });
 
   it("returns the created id for a new root block", () => {
-    const seed = blocks([category("cat")], []);
+    const seed = blocks([colorKey("cat")], []);
     const outcome = addRootBlockToPresentation([slide(seed)], "blocks");
 
     expect(outcome).not.toBeNull();
@@ -220,7 +218,7 @@ describe("BlocksAuthoringControls contract", () => {
 
   it("returns the created id for a new scope child", () => {
     const seed = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [scope("scope-a", "cat", [textPart("sp")])],
     );
     const outcome = addScopeChildToPresentation(
@@ -235,14 +233,14 @@ describe("BlocksAuthoringControls contract", () => {
     const next = outcome?.slides[0]?.elements[0];
     if (next?.type === "blocks") {
       expect(next.items[0]?.children[0]?.id).toBe("block-item");
-      expect(next.items[0]?.children[0]?.categoryId).toBe("cat");
+      expect(next.items[0]?.children[0]?.color).toBe(colorFor("cat"));
     }
     expect(BlocksElementSchema.parse(next)).toBeTruthy();
   });
 
   it("returns the created id for a new text part", () => {
     const seed = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
     const outcome = addTextPartToPresentation([slide(seed)], "blocks", "root");
@@ -259,7 +257,7 @@ describe("BlocksAuthoringControls contract", () => {
 
   it("returns the created id for a new socket part", () => {
     const seed = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [textPart("p")])],
     );
     const outcome = addSocketPartToPresentation([slide(seed)], "blocks", "root");
@@ -280,7 +278,7 @@ describe("BlocksAuthoringControls contract", () => {
 
   it("returns the created id for a new socket value", () => {
     const seed = blocks(
-      [category("cat")],
+      [colorKey("cat")],
       [stack("root", "cat", [socketEmpty("s") as BlockItem["parts"][number]])],
     );
     const outcome = createSocketValueInPresentation(
@@ -309,7 +307,7 @@ describe("BlocksAuthoringControls contract", () => {
   });
 
   it("returns null with no write for a stale blocks owner", () => {
-    const seed = blocks([category("cat")], [stack("root", "cat", [])]);
+    const seed = blocks([colorKey("cat")], [stack("root", "cat", [])]);
     const slides = [slide(seed)];
 
     expect(addRootBlockToPresentation(slides, "missing")).toBeNull();
@@ -319,7 +317,7 @@ describe("BlocksAuthoringControls contract", () => {
   });
 
   it("returns null with no write for a stale block item target", () => {
-    const seed = blocks([category("cat")], [stack("root", "cat", [])]);
+    const seed = blocks([colorKey("cat")], [stack("root", "cat", [])]);
     const slides = [slide(seed)];
 
     expect(addTextPartToPresentation(slides, "blocks", "missing")).toBeNull();
@@ -328,16 +326,17 @@ describe("BlocksAuthoringControls contract", () => {
     expect(slides[0]?.elements[0]).toBe(seed);
   });
 
-  it("refuses root creation with no category (null, no write)", () => {
+  it("creates a root with the default color without category setup", () => {
     const seed = blocks([], []);
     const slides = [slide(seed)];
 
-    expect(addRootBlockToPresentation(slides, "blocks")).toBeNull();
+    const outcome = addRootBlockToPresentation(slides, "blocks");
+    expect(outcome?.slides[0]?.elements[0]?.type === "blocks" && outcome.slides[0].elements[0].items[0]?.color).toBe("#6366f1");
     expect(slides[0]?.elements[0]).toBe(seed);
   });
 
   it("refuses scope child creation at depth MAX_BLOCK_AUTHORING_DEPTH", () => {
-    const seed = blocks([category("cat")], stackChain(MAX_BLOCK_AUTHORING_DEPTH));
+    const seed = blocks([colorKey("cat")], stackChain(MAX_BLOCK_AUTHORING_DEPTH));
     const slides = [slide(seed)];
 
     const outcome = addScopeChildToPresentation(slides, "blocks", "scope-5");
@@ -354,7 +353,7 @@ describe("BlocksAuthoringControls contract", () => {
         scope(`scope-${level}`, "cat", [textPart(`p-${level}`)] as BlockItem["parts"], deep),
       ];
     }
-    const seed = blocks([category("cat")], deep);
+    const seed = blocks([colorKey("cat")], deep);
     const slides = [slide(seed)];
 
     const outcome = createSocketValueInPresentation(

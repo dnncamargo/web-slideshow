@@ -66,7 +66,7 @@ export interface TopicsAuthoringControls {
  * Blocks authoring controls for the composable Blocks model.
  *
  * Only operations that allocate presentation-wide authoring IDs live
- * here: text/literal edits, category assignment, shape editing, remove,
+ * here: text/literal edits, direct color, shape editing, remove,
  * and reorder require no ID allocation and use the Inspector onUpdate
  * path. Each handler returns the freshly created block/part id or null
  * when the target is stale/invalid or creation is refused.

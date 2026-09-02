@@ -162,7 +162,7 @@ describe("Custom Library apply core", () => {
   it("remaps coherent Blocks intrinsic ids", () => {
     const items = [{
       id: "block-item-source",
-      categoryId: "category-source",
+      color: "#6366f1",
       shape: "statement" as const,
       parts: [
         { id: "block-text-part-source", type: "text" as const, text: "when" },
@@ -173,7 +173,7 @@ describe("Custom Library apply core", () => {
             type: "block" as const,
             block: {
               id: "nested-block-source",
-              categoryId: "category-source",
+              color: "#6366f1",
               shape: "value" as const,
               parts: [{ id: "nested-part-source", type: "text" as const, text: "true" }],
               children: [],
@@ -184,7 +184,6 @@ describe("Custom Library apply core", () => {
       children: [],
     }];
     const result = materializeCustomLibraryElementRecipe(recipe("blocks", [
-      { path: "categories", value: [{ id: "category-source", name: "Logic", color: "#6366f1" }] },
       { path: "items", value: items },
     ]), slides);
 

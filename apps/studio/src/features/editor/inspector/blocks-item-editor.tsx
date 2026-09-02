@@ -1,10 +1,10 @@
 import type {
-  BlockCategory,
   BlockItem,
   BlockPart,
   BlockSocketContent,
   BlocksElement,
 } from "@powershow/document-schema";
+import { colorToPickerHex } from "@powershow/document-schema";
 
 import styles from "../editor-workspace.module.css";
 
@@ -14,7 +14,7 @@ import {
   moveBlockPartByOffset,
   removeBlockItemById,
   removeBlockPartById,
-  setBlockItemCategory,
+  setBlockItemColor,
   setBlockItemShape,
   setSocketContentEmpty,
   setSocketContentLiteral,
@@ -62,7 +62,7 @@ function toBlockSocketUIMode(
 // in the global Studio selection.
 //
 // Canonical writes go exclusively through the ElementInspectorUpdate
-// path (onUpdate): category, shape, text/literal edits, reorder and
+// path (onUpdate): color, shape, text/literal edits, reorder and
 // remove reuse the R2-A element-operations helpers. Creation calls
 // that allocate presentation-wide ids delegate to the
 // BlocksAuthoringControls callbacks; no id is ever allocated here.
@@ -81,8 +81,6 @@ interface BlockItemRowProps {
   depth: number;
 
   blocksId: string;
-
-  categories: readonly BlockCategory[];
 
   isFirstSibling: boolean;
 
@@ -110,8 +108,6 @@ interface BlockPartRowProps {
 
   blocksId: string;
 
-  categories: readonly BlockCategory[];
-
   labels: BlocksItemEditorLabels;
 
   controls: BlocksAuthoringControls;
@@ -123,7 +119,6 @@ function BlockItemRow({
   item,
   depth,
   blocksId,
-  categories,
   isFirstSibling,
   isLastSibling,
   labels,
@@ -144,24 +139,22 @@ function BlockItemRow({
       style={{ paddingInlineStart: (depth - 1) * 18 }}
     >
       <div className={styles.blocksRowLine}>
-        <select
-          className={styles.blocksInput}
-          aria-label={labels.category}
-          data-powershow-block-category="true"
-          value={item.categoryId}
+        <input
+          className={styles.blocksColorInput}
+          type="color"
+          aria-label={labels.color}
+          title={labels.color}
+          data-powershow-block-color="true"
+          value={colorToPickerHex(
+            typeof item.color === "string" ? item.color : undefined,
+          ) ?? "#6366f1"}
           onChange={(event) => {
-            const categoryId = event.currentTarget.value;
+            const color = event.currentTarget.value;
             updateBlocks((current) =>
-              setBlockItemCategory(current, item.id, categoryId),
+              setBlockItemColor(current, item.id, color),
             );
           }}
-        >
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+        />
 
         {isValueBlock ? (
           <select
@@ -258,7 +251,6 @@ function BlockItemRow({
               partCount={item.parts.length}
               ownerDepth={depth}
               blocksId={blocksId}
-              categories={categories}
               labels={labels}
               controls={controls}
               updateBlocks={updateBlocks}
@@ -299,7 +291,6 @@ function BlockItemRow({
               item={child}
               depth={depth + 1}
               blocksId={blocksId}
-              categories={categories}
               isFirstSibling={childIndex === 0}
               isLastSibling={childIndex === item.children.length - 1}
               labels={labels}
@@ -338,7 +329,6 @@ function BlockPartRow({
   partCount,
   ownerDepth,
   blocksId,
-  categories,
   labels,
   controls,
   updateBlocks,
@@ -519,7 +509,6 @@ function BlockPartRow({
             item={part.content.block}
             depth={ownerDepth + 1}
             blocksId={blocksId}
-            categories={categories}
             isFirstSibling
             isLastSibling
             labels={labels}
@@ -567,7 +556,6 @@ export function BlocksItemEditor({
           item={item}
           depth={1}
           blocksId={element.id}
-          categories={element.categories}
           isFirstSibling={index === 0}
           isLastSibling={index === element.items.length - 1}
           labels={labels}

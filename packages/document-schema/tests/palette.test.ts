@@ -139,7 +139,6 @@ describe("palette color resolution", () => {
         id: "blocks",
         type: "blocks" as const,
         hidden: false,
-        categories: [{ id: "statement", name: "Statement", color: "#facc15" }],
         items: [],
         effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
       },
@@ -172,7 +171,6 @@ describe("palette color resolution", () => {
       : {
           id: "blocks",
           type: "blocks" as const,
-          categories: [{ id: "statement", name: "Statement", color: "#facc15" }],
           items: [],
           effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
         };
@@ -182,6 +180,64 @@ describe("palette color resolution", () => {
       palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
       slides: [{ id: "slide", elements: [element] }],
     }).success).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "scope child",
+      item: {
+        id: "scope",
+        color: "#facc15",
+        shape: "scope" as const,
+        parts: [],
+        children: [{
+          id: "child",
+          color: { kind: "palette" as const, colorId: "missing" },
+          shape: "statement" as const,
+          parts: [],
+          children: [],
+        }],
+      },
+      path: ["slides", 0, "elements", 0, "items", 0, "children", 0, "color", "colorId"],
+    },
+    {
+      name: "socket value",
+      item: {
+        id: "statement",
+        color: "#facc15",
+        shape: "statement" as const,
+        parts: [{
+          id: "socket",
+          type: "socket" as const,
+          content: {
+            type: "block" as const,
+            block: {
+              id: "value",
+              color: { kind: "palette" as const, colorId: "missing" },
+              shape: "value" as const,
+              parts: [],
+              children: [],
+            },
+          },
+        }],
+        children: [],
+      },
+      path: ["slides", 0, "elements", 0, "items", 0, "parts", 0, "content", "block", "color", "colorId"],
+    },
+  ])("validates direct BlockItem colors through the $name recursion edge", ({ item, path }) => {
+    const result = PresentationSchema.safeParse({
+      ...defaultsInput,
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+      slides: [{
+        id: "slide",
+        elements: [{ id: "blocks", type: "blocks", items: [item] }],
+      }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => JSON.stringify(issue.path) === JSON.stringify(path))).toBe(true);
+    }
   });
 });
 
