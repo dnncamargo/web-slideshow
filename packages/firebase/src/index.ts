@@ -45,8 +45,12 @@ export function assertPresentationId(
 }
 
 function toFirestoreSafeValue(value: unknown): unknown {
-  if (value === null || value === undefined) {
+  if (value === undefined) {
     return undefined;
+  }
+
+  if (value === null) {
+    return null;
   }
 
   if (Array.isArray(value)) {

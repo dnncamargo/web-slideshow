@@ -124,6 +124,34 @@ function completeDeepPresentation() {
   });
 }
 
+function nullableTablePresentation() {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "pres-nullable-table",
+    title: "Nullable Table",
+    slides: [{
+      id: "slide-table",
+      elements: [{
+        id: "table-container",
+        type: "container",
+        children: [{
+          id: "nullable-table",
+          type: "table",
+          columns: [
+            { key: "label", label: "Label" },
+            { key: "value", label: "Value" },
+          ],
+          rows: [
+            { label: "first", value: "alpha" },
+            { label: "middle", value: null },
+            { label: "last", value: "omega" },
+          ],
+        }],
+      }],
+    }],
+  });
+}
+
 describe("Firestore Presentation codec", () => {
   it("round-trips the canonical document without changing schemaVersion or palette refs", () => {
     const source = presentation();
@@ -194,6 +222,31 @@ describe("Firestore Presentation codec", () => {
     expect(decoded).toEqual(source);
     expect(record).not.toHaveProperty("presentation");
     expect(record.presentationJson).toContain('"kind":"palette"');
+  });
+
+  it("preserves nullable Table cells, positions, and omitted optional values", () => {
+    const source = nullableTablePresentation();
+    expect(PresentationSchema.safeParse(source).success).toBe(true);
+
+    const record = encodePresentationForFirestore(source);
+    const encoded = JSON.parse(record.presentationJson) as {
+      slides: Array<{
+        elements: Array<{
+          children: Array<{
+            rows: Array<Record<string, string | null>>;
+          }>;
+        }>;
+      }>;
+    };
+    const rows = encoded.slides[0]?.elements[0]?.children[0]?.rows;
+
+    expect(rows).toEqual([
+      { label: "first", value: "alpha" },
+      { label: "middle", value: null },
+      { label: "last", value: "omega" },
+    ]);
+    expect(record.presentationJson).not.toContain("undefined");
+    expect(decodePresentationFromFirestore(record)).toEqual(source);
   });
 });
 
