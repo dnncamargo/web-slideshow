@@ -39,6 +39,46 @@ describe("Projection surface", () => {
     projection.destroy();
   });
 
+  it("renders the representative Blocks composition through the Player projection", () => {
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "blocks-projection",
+      slides: [{
+        id: "blocks-slide",
+        elements: [{
+          type: "blocks",
+          id: "projection-blocks",
+          hidden: false,
+          items: [
+            { id: "projection-start", color: "#f97316", shape: "start", parts: [{ id: "projection-start-text", type: "text", text: "When flag clicked" }], children: [] },
+            { id: "projection-statement", color: "#3b82f6", shape: "statement", parts: [{ id: "projection-move-text", type: "text", text: "move" }, { id: "projection-move-count", type: "socket", content: { type: "literal", value: "10" } }, { id: "projection-move-steps", type: "text", text: "steps" }], children: [] },
+            { id: "projection-scope", color: "#ef4444", shape: "scope", parts: [{ id: "projection-repeat-text", type: "text", text: "repeat" }, { id: "projection-repeat-count", type: "socket", content: { type: "literal", value: "10" } }], children: [{ id: "projection-turn", color: "#3b82f6", shape: "statement", parts: [{ id: "projection-turn-text", type: "text", text: "turn" }, { id: "projection-turn-count", type: "socket", content: { type: "literal", value: "15" } }], children: [] }, { id: "projection-set-x", color: "#8b5cf6", shape: "statement", parts: [{ id: "projection-set-x-text", type: "text", text: "set x to" }, { id: "projection-value-socket", type: "socket", content: { type: "block", block: { id: "projection-value", color: "#22c55e", shape: "value", parts: [{ id: "projection-value-text", type: "text", text: "x position" }], children: [] } } }], children: [] }] },
+            { id: "projection-until", color: "#ef4444", shape: "scope", parts: [{ id: "projection-until-text", type: "text", text: "repeat until" }, { id: "projection-logic-socket", type: "socket", content: { type: "block", block: { id: "projection-logic", color: "#f59e0b", shape: "logic", parts: [{ id: "projection-touching", type: "text", text: "touching" }, { id: "projection-target", type: "socket", content: { type: "literal", value: "Sprite2" } }], children: [] } } }], children: [{ id: "projection-loop-move", color: "#3b82f6", shape: "statement", parts: [{ id: "projection-loop-move-text", type: "text", text: "move" }, { id: "projection-loop-move-count", type: "socket", content: { type: "literal", value: "10" } }], children: [] }] },
+            { id: "projection-end", color: "#64748b", shape: "end", parts: [{ id: "projection-end-text", type: "text", text: "stop all" }], children: [] },
+          ],
+        }],
+      }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    const blocksRoot = root.querySelector<HTMLElement>('[data-powershow-type="blocks"]');
+    const stack = blocksRoot?.querySelector<HTMLElement>(":scope > .powershow-blocks-stack");
+    if (!blocksRoot || !stack) throw new Error("Player Blocks projection was not rendered");
+
+    expect(Array.from(stack.children).map((child) => child.getAttribute("data-powershow-block-id"))).toEqual([
+      "projection-start", "projection-statement", "projection-scope", "projection-until", "projection-end",
+    ]);
+    for (const shape of ["start", "statement", "scope", "value", "logic", "end"]) {
+      expect(blocksRoot.querySelector(`.powershow-block--${shape}`)).not.toBeNull();
+    }
+    expect(blocksRoot.textContent).toContain("When flag clicked");
+    expect(blocksRoot.textContent).toContain("Sprite2");
+    expect(blocksRoot.querySelector('[data-powershow-part-id="projection-value-socket"] > [data-powershow-block-id="projection-value"]')).not.toBeNull();
+    expect(blocksRoot.querySelector('[data-powershow-part-id="projection-logic-socket"] > [data-powershow-block-id="projection-logic"]')).not.toBeNull();
+    expect(blocksRoot.querySelectorAll("[onclick]")).toHaveLength(0);
+
+    projection.destroy();
+  });
+
   it("navigates to valid indexes and fails closed for invalid indexes", () => {
     const projection = mountProjectionSurface(root, playerTestPresentation, {
       transition: "none",
