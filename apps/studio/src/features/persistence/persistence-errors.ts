@@ -1,4 +1,5 @@
 import type { FirebaseError } from "firebase/app";
+export { PresentationTooLargeError } from "@powershow/firebase";
 
 /**
  * Persistence-layer error model.
@@ -61,36 +62,6 @@ export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);
     this.name = "InvalidFolderNameError";
-  }
-}
-
-export class PresentationTooLargeError extends PersistenceError {
-  readonly actualBytes: number;
-
-  readonly limitBytes: number;
-
-  constructor(actualBytes: number, limitBytes: number) {
-    super(
-      `Presentation is too large to persist safely: ${actualBytes} bytes exceeds the ${limitBytes} byte limit.`,
-    );
-    this.name = "PresentationTooLargeError";
-    this.actualBytes = actualBytes;
-    this.limitBytes = limitBytes;
-  }
-}
-
-export class PresentationTooDeepError extends PersistenceError {
-  readonly actualDepth: number;
-
-  readonly limitDepth: number;
-
-  constructor(actualDepth: number, limitDepth: number) {
-    super(
-      `Presentation is too deeply nested for Firestore persistence: ${actualDepth} structural levels exceeds the ${limitDepth} level limit.`,
-    );
-    this.name = "PresentationTooDeepError";
-    this.actualDepth = actualDepth;
-    this.limitDepth = limitDepth;
   }
 }
 

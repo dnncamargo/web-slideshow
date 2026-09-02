@@ -4,27 +4,28 @@ import {
   PresentationSchema,
   type Presentation,
 } from "@powershow/document-schema";
+import {
+  encodePresentationForFirestore,
+  MAX_PRESENTATION_SAFE_BYTES,
+  PresentationTooLargeError,
+} from "@powershow/firebase";
 
 import {
-  assertPresentationWithinFirestoreNestingDepth,
-  assertPresentationWithinSizeLimit,
-  estimateFirestoreNestingDepth,
   estimatePresentationBytes,
   extractPresentationSummary,
-  makeFirestoreSafePresentation,
-  MAX_PRESENTATION_SAFE_BYTES,
-  MAX_FIRESTORE_NESTING_DEPTH,
   parsePersistedPresentation,
 } from "../src/features/persistence/presentation-persistence";
 import {
   appendElementToContainer,
   createElement,
 } from "../src/features/editor/element-operations";
-import {
-  PresentationTooDeepError,
-  PresentationTooLargeError,
-  InvalidPersistedPresentationError,
-} from "../src/features/persistence/persistence-errors";
+import { InvalidPersistedPresentationError } from "../src/features/persistence/persistence-errors";
+
+function makeFirestoreSafePresentation(presentation: Presentation): Record<string, unknown> {
+  return JSON.parse(
+    encodePresentationForFirestore(presentation).presentationJson,
+  ) as Record<string, unknown>;
+}
 
 function basePresentation(): Presentation {
   return PresentationSchema.parse({
@@ -41,7 +42,7 @@ function buildLargePresentation(byteTarget: number): Presentation {
   const chunk = "x".repeat(1024);
   const presentation = basePresentation();
 
-  while (estimatePresentationBytes(presentation) < byteTarget) {
+  while (presentation.slides.length < Math.ceil(byteTarget / 1024)) {
     presentation.slides.push({
       id: `slide-${presentation.slides.length}`,
       title: "",
@@ -62,83 +63,7 @@ function buildLargePresentation(byteTarget: number): Presentation {
   return presentation;
 }
 
-function buildNestedObject(depth: number): unknown {
-  let value: unknown = "leaf";
-
-  for (let index = 0; index < depth; index += 1) {
-    value = { child: value };
-  }
-
-  return value;
-}
-
 describe("presentation persistence helpers", () => {
-  it("treats scalars as depth 0", () => {
-    expect(estimateFirestoreNestingDepth("leaf")).toBe(0);
-  });
-
-  it("treats a root object as depth 1", () => {
-    expect(estimateFirestoreNestingDepth({ title: "Leaf" })).toBe(1);
-  });
-
-  it("increments depth for nested objects", () => {
-    expect(estimateFirestoreNestingDepth({ child: { grandchild: true } })).toBe(
-      2,
-    );
-  });
-
-  it("increments depth for arrays", () => {
-    expect(estimateFirestoreNestingDepth([["leaf"]])).toBe(2);
-  });
-
-  it("counts object nesting inside arrays correctly", () => {
-    expect(estimateFirestoreNestingDepth([{ child: "leaf" }])).toBe(2);
-  });
-
-  it("uses the deepest path rather than sibling count", () => {
-    expect(
-      estimateFirestoreNestingDepth({
-        shallowA: { label: "a" },
-        shallowB: { label: "b" },
-        deep: { child: { grandchild: { leaf: true } } },
-      }),
-    ).toBe(4);
-  });
-
-  it("accepts the configured nesting depth of 20", () => {
-    const value = buildNestedObject(MAX_FIRESTORE_NESTING_DEPTH);
-
-    expect(() =>
-      assertPresentationWithinFirestoreNestingDepth(value),
-    ).not.toThrow();
-    expect(estimateFirestoreNestingDepth(value)).toBe(
-      MAX_FIRESTORE_NESTING_DEPTH,
-    );
-  });
-
-  it("throws PresentationTooDeepError above the configured depth", () => {
-    const value = buildNestedObject(MAX_FIRESTORE_NESTING_DEPTH + 1);
-
-    expect(() => assertPresentationWithinFirestoreNestingDepth(value)).toThrow(
-      PresentationTooDeepError,
-    );
-  });
-
-  it("does not mutate the measured value", () => {
-    const value = {
-      slides: [
-        {
-          id: "slide-1",
-          elements: [{ children: [{ nested: "value" }] }],
-        },
-      ],
-    };
-    const original = structuredClone(value);
-
-    expect(estimateFirestoreNestingDepth(value)).toBe(7);
-    expect(value).toEqual(original);
-  });
-
   it("preserves a complete presentation through safe serialization", () => {
     const source = PresentationSchema.parse({
       schemaVersion: 1,
@@ -283,7 +208,7 @@ describe("presentation persistence helpers", () => {
 
   it("parses a valid persisted presentation", () => {
     const parsed = parsePersistedPresentation({
-      presentation: basePresentation(),
+      presentationJson: JSON.stringify(basePresentation()),
       createdAt: null,
       updatedAt: null,
     });
@@ -294,7 +219,7 @@ describe("presentation persistence helpers", () => {
   it("rejects an invalid persisted presentation", () => {
     try {
       parsePersistedPresentation({
-        presentation: { schemaVersion: 999, slides: [] },
+        presentationJson: JSON.stringify({ schemaVersion: 999, slides: [] }),
       });
       throw new Error("expected persisted presentation parsing to fail");
     } catch (error) {
@@ -314,31 +239,11 @@ describe("presentation persistence helpers", () => {
     expect(estimatePresentationBytes(a)).toBeGreaterThan(0);
   });
 
-  it("passes presentations below the safety limit", () => {
-    expect(() =>
-      assertPresentationWithinSizeLimit(basePresentation()),
-    ).not.toThrow();
-  });
-
   it("throws PresentationTooLargeError above the safety limit", () => {
     const large = buildLargePresentation(MAX_PRESENTATION_SAFE_BYTES + 100);
 
-    expect(() => assertPresentationWithinSizeLimit(large)).toThrow(
-      PresentationTooLargeError,
-    );
+    expect(() => encodePresentationForFirestore(large)).toThrow(PresentationTooLargeError);
   }, 15000);
-
-  it("is deterministic at the configured safety boundary", () => {
-    const presentation = basePresentation();
-    const exactBytes = estimatePresentationBytes(presentation);
-
-    expect(() =>
-      assertPresentationWithinSizeLimit(presentation, exactBytes),
-    ).not.toThrow();
-    expect(() =>
-      assertPresentationWithinSizeLimit(presentation, exactBytes - 1),
-    ).toThrow(PresentationTooLargeError);
-  });
 
   it("extracts only summary data", () => {
     const summary = extractPresentationSummary({
@@ -399,7 +304,7 @@ describe("persistence round trip with an Embed", () => {
 
     const safe = makeFirestoreSafePresentation(parsed);
 
-    const recovered = parsePersistedPresentation({ presentation: safe });
+    const recovered = parsePersistedPresentation({ presentationJson: JSON.stringify(safe) });
 
     const recoveredContainer = recovered.slides[0]?.elements[0];
 
@@ -478,7 +383,7 @@ describe("persistence round trip with Blocks", () => {
 
     const safe = makeFirestoreSafePresentation(parsed);
 
-    const recovered = parsePersistedPresentation({ presentation: safe });
+    const recovered = parsePersistedPresentation({ presentationJson: JSON.stringify(safe) });
 
     const blocks = recovered.slides[0]?.elements[0];
 
@@ -557,7 +462,7 @@ describe("persistence round trip with Scripted", () => {
     });
 
     const recovered = parsePersistedPresentation({
-      presentation: makeFirestoreSafePresentation(presentation),
+      presentationJson: JSON.stringify(makeFirestoreSafePresentation(presentation)),
     });
     const container = recovered.slides[0]?.elements[0];
 

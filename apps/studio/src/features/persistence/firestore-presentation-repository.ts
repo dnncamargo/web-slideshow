@@ -1,4 +1,11 @@
 import type { Presentation } from "@powershow/document-schema";
+import {
+  assertPresentationId,
+  encodePresentationForFirestore,
+  parsePresentationJsonForRecovery,
+  PresentationIdentityError,
+  PresentationTooLargeError,
+} from "@powershow/firebase";
 
 import {
   collection,
@@ -25,12 +32,9 @@ import {
   PresentationRecoveryFailedError,
 } from "./persistence-errors";
 import {
-  assertPresentationWithinSizeLimit,
-  assertPresentationWithinFirestoreNestingDepth,
   assertValidPresentationForPersistence,
   deriveThumbnailPreview,
   extractPresentationSummary,
-  makeFirestoreSafePresentation,
   normalizePersistenceMetadata,
   parsePersistedPresentation,
   type PresentationSummary,
@@ -93,16 +97,13 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
       for (const document of snapshot.docs) {
         const data = document.data();
-        const presentation = data.presentation;
-
-        if (
-          typeof presentation !== "object" ||
-          presentation === null ||
-          typeof (presentation as { id?: unknown }).id !== "string" ||
-          typeof (presentation as { title?: unknown }).title !== "string"
-        ) {
+        let presentation: Presentation;
+        try {
+          presentation = parsePersistedPresentation(data);
+        } catch {
           continue;
         }
+        assertPresentationId(presentation, document.id);
 
         const archivedAt = data.archivedAt;
 
@@ -135,6 +136,9 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
       return summaries;
     } catch (error) {
+      if (error instanceof PresentationIdentityError) {
+        throw error;
+      }
       console.error("Failed to list presentations", error);
 
       throw new FirestoreOperationError("Failed to list presentations.", error);
@@ -152,12 +156,19 @@ export class FirestorePresentationRepository implements PresentationRepository {
         return null;
       }
 
-      return parsePersistedPresentation(snapshot.data());
+      return assertPresentationId(
+        parsePersistedPresentation(snapshot.data()),
+        id,
+      );
     } catch (error) {
       // Domain errors (e.g. InvalidPersistedPresentationError) must
       // reach callers unchanged: only raw Firestore/Firebase failures
       // are translated into FirestoreOperationError.
-      if (error instanceof PersistenceError) {
+      if (
+        error instanceof PersistenceError ||
+        error instanceof PresentationIdentityError ||
+        error instanceof PresentationTooLargeError
+      ) {
         throw error;
       }
 
@@ -176,16 +187,15 @@ export class FirestorePresentationRepository implements PresentationRepository {
   ): Promise<void> {
     const user = this.requireAuthenticatedUser();
 
-    assertPresentationWithinSizeLimit(presentation);
-    const safePresentation = makeFirestoreSafePresentation(presentation);
-    assertPresentationWithinFirestoreNestingDepth(safePresentation);
+    assertValidPresentationForPersistence(presentation);
+    assertPresentationId(presentation, presentation.id);
+    const presentationJson = encodePresentationForFirestore(presentation).presentationJson;
 
     const documentRef = presentationDocumentRef(user.uid, presentation.id);
 
     try {
-      assertValidPresentationForPersistence(presentation);
       await setDoc(documentRef, {
-        presentation: safePresentation,
+        presentationJson,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         draftRevision: 1,
@@ -204,16 +214,15 @@ export class FirestorePresentationRepository implements PresentationRepository {
   async savePresentation(presentation: Presentation): Promise<void> {
     const user = this.requireAuthenticatedUser();
 
-    assertPresentationWithinSizeLimit(presentation);
-    const safePresentation = makeFirestoreSafePresentation(presentation);
-    assertPresentationWithinFirestoreNestingDepth(safePresentation);
+    assertValidPresentationForPersistence(presentation);
+    assertPresentationId(presentation, presentation.id);
+    const presentationJson = encodePresentationForFirestore(presentation).presentationJson;
 
     const documentRef = presentationDocumentRef(user.uid, presentation.id);
 
     try {
-      assertValidPresentationForPersistence(presentation);
       await updateDoc(documentRef, {
-        presentation: safePresentation,
+        presentationJson,
         updatedAt: serverTimestamp(),
         draftRevision: increment(1),
       });
@@ -383,8 +392,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
           );
         }
 
-        const presentation = parsePersistedPresentation(draftData);
-        assertPresentationWithinSizeLimit(presentation);
+        const presentation = assertPresentationId(
+          parsePersistedPresentation(draftData),
+          id,
+        );
         const metadata = normalizePersistenceMetadata(
           draftData.draftRevision,
           draftData.publication,
@@ -402,8 +413,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
             createdVersion: false,
           };
         }
-        const safePresentation = makeFirestoreSafePresentation(presentation);
-        assertPresentationWithinFirestoreNestingDepth(safePresentation);
+        const presentationJson = draftData.presentationJson;
 
         const publicationId =
           metadata.publication?.publicationId ??
@@ -427,7 +437,8 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
         // The private draft is read above before either transaction write.
         transaction.set(versionRef, {
-          presentation: safePresentation,
+          presentationId: presentation.id,
+          presentationJson,
           publishedRevision: metadata.draftRevision,
           publishedAt,
         });
@@ -455,7 +466,11 @@ export class FirestorePresentationRepository implements PresentationRepository {
     } catch (error) {
       console.error(`Failed to publish presentation "${id}"`, error);
 
-      if (error instanceof PersistenceError) {
+      if (
+        error instanceof PersistenceError ||
+        error instanceof PresentationIdentityError ||
+        error instanceof PresentationTooLargeError
+      ) {
         throw error;
       }
 
@@ -488,7 +503,13 @@ export class FirestorePresentationRepository implements PresentationRepository {
       }
 
       const data = snapshot.data();
-      const analysis = analyzePresentationRecovery(data.presentation);
+      let rawPresentation: unknown;
+      try {
+        rawPresentation = parsePresentationJsonForRecovery(data.presentationJson);
+      } catch {
+        rawPresentation = undefined;
+      }
+      const analysis = analyzePresentationRecovery(rawPresentation);
 
       return { status: analysis.status, issues: analysis.issues };
     } catch (error) {
@@ -516,7 +537,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
    * - valid current presentation -> returned unchanged with
    *   repaired:false and ZERO writes;
    * - unrecoverable -> PresentationRecoveryFailedError, zero writes;
-   * - recoverable -> validates size and depth, then writes ONLY the
+   * - recoverable -> validates size, then writes ONLY the
    *   canonical draft presentation (updatedAt + draftRevision bump),
    *   preserving createdAt/folderId/publication and never touching the
    *   public publication pointer or immutable published versions.
@@ -549,9 +570,15 @@ export class FirestorePresentationRepository implements PresentationRepository {
           // Fall through to recovery analysis.
         }
 
-        const analysis = analyzePresentationRecovery(
-          draftData.presentation,
-        );
+        let rawPresentation: unknown;
+        try {
+          rawPresentation = parsePresentationJsonForRecovery(
+            draftData.presentationJson,
+          );
+        } catch {
+          rawPresentation = undefined;
+        }
+        const analysis = analyzePresentationRecovery(rawPresentation);
 
         if (
           analysis.status !== "recoverable" ||
@@ -564,12 +591,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
 
         const repaired = analysis.presentation;
 
-        assertPresentationWithinSizeLimit(repaired);
-        const safePresentation = makeFirestoreSafePresentation(repaired);
-        assertPresentationWithinFirestoreNestingDepth(safePresentation);
+        const presentationJson = encodePresentationForFirestore(repaired).presentationJson;
 
         transaction.update(draftRef, {
-          presentation: safePresentation,
+          presentationJson,
           updatedAt: serverTimestamp(),
           draftRevision: increment(1),
         });
@@ -577,7 +602,10 @@ export class FirestorePresentationRepository implements PresentationRepository {
         return { presentation: repaired, repaired: true };
       });
     } catch (error) {
-      if (error instanceof PersistenceError) {
+      if (
+        error instanceof PersistenceError ||
+        error instanceof PresentationTooLargeError
+      ) {
         throw error;
       }
 

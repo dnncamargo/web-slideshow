@@ -36,17 +36,21 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { encodePresentationForFirestore } from "@powershow/firebase";
 
 const repository = new FirestorePresentationRepository();
 
 function draftData(overrides: Record<string, unknown> = {}) {
+  const presentation = (overrides.presentation as Presentation | undefined) ?? createBlankPresentation("pres-1");
+  const { presentation: _ignored, ...metadata } = overrides;
+
   return {
-    presentation: createBlankPresentation("pres-1"),
+    ...encodePresentationForFirestore(presentation),
     draftRevision: 3,
     createdAt: "created",
     updatedAt: "updated",
-    ...overrides,
+    ...metadata,
   };
 }
 
@@ -154,7 +158,8 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).toHaveBeenCalledWith(
       { id: "version-auto" },
       expect.objectContaining({
-        presentation: expect.objectContaining({ id: "pres-1" }),
+        presentationId: "pres-1",
+        presentationJson: expect.any(String),
         publishedRevision: 3,
         publishedAt: "server-ts",
       }),
@@ -163,16 +168,15 @@ describe("transactional presentation publishing", () => {
       string,
       unknown
     >;
-    expect(versionPayload?.presentation).toEqual(
-      expect.objectContaining({ id: "pres-1" }),
-    );
+    expect(versionPayload?.presentationId).toBe("pres-1");
+    expect(typeof versionPayload?.presentationJson).toBe("string");
     expect(versionPayload).not.toHaveProperty("draftRevision");
     expect(versionPayload).not.toHaveProperty("createdAt");
     expect(versionPayload).not.toHaveProperty("updatedAt");
     expect(versionPayload).not.toHaveProperty("archivedAt");
     expect(versionPayload).not.toHaveProperty("publication");
-    expect(versionPayload.presentation).not.toHaveProperty("publicationId");
-    expect(versionPayload.presentation).not.toHaveProperty("publishedRevision");
+    expect(versionPayload).not.toHaveProperty("publicationId");
+    expect(versionPayload).not.toHaveProperty("presentation");
     // Public pointer is written with the same version/revision/timestamp.
     expect(transaction.set).toHaveBeenCalledWith(
       { id: "pointer-auto" },
@@ -318,9 +322,10 @@ describe("transactional presentation publishing", () => {
     await repository.publishPresentation("pres-1");
 
     const versionPayload = transaction.set.mock.calls[0]?.[1] as {
-      presentation: { slides: Array<{ elements: unknown[] }> };
+      presentationJson: string;
     };
-    expect(versionPayload.presentation.slides[0]?.elements[0]).toEqual({
+    const decoded = JSON.parse(versionPayload.presentationJson) as { slides: Array<{ elements: unknown[] }> };
+    expect(decoded.slides[0]?.elements[0]).toEqual({
       id: "scripted-publish",
       type: "scripted",
       hidden: true,
@@ -357,6 +362,39 @@ describe("transactional presentation publishing", () => {
     mocks.doc.mockReturnValueOnce({ id: "private-draft" });
     await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
       "Persisted presentation is not a valid PowerShow document",
+    );
+    expect(transaction.set).not.toHaveBeenCalled();
+  });
+
+  it("copies the authoritative draft presentationJson bytes exactly", async () => {
+    const presentation = createBlankPresentation("pres-1");
+    const exactJson = `  ${JSON.stringify(presentation)}\n`;
+    const transaction = setupTransaction(
+      draftData({ presentationJson: exactJson }),
+    );
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-exact" })
+      .mockReturnValueOnce({ id: "version-exact" })
+      .mockReturnValueOnce({ id: "pointer-exact" });
+
+    await repository.publishPresentation("pres-1");
+
+    expect(transaction.set.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        presentationId: "pres-1",
+        presentationJson: exactJson,
+      }),
+    );
+  });
+
+  it("rejects publication when the draft canonical id differs from its path", async () => {
+    const transaction = setupTransaction(
+      draftData({ presentation: createBlankPresentation("other-presentation") }),
+    );
+
+    await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
+      /identity mismatch/i,
     );
     expect(transaction.set).not.toHaveBeenCalled();
   });
@@ -423,23 +461,23 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).toHaveBeenCalledWith(
       { id: "version-auto" },
       expect.objectContaining({
-        presentation,
+        presentationId: presentation.id,
+        presentationJson: JSON.stringify(presentation),
         publishedRevision: 3,
         publishedAt: "server-ts",
       }),
     );
 
     const versionPayload = transaction.set.mock.calls[0]?.[1] as {
-      presentation?: {
-        slides?: Array<{
-          elements?: unknown[];
-        }>;
-      };
+      presentationJson?: string;
       publishedRevision?: number;
       publishedAt?: unknown;
     };
 
-    const container = versionPayload.presentation?.slides?.[0]?.elements?.[0];
+    const decoded = versionPayload.presentationJson === undefined
+      ? undefined
+      : JSON.parse(versionPayload.presentationJson) as { slides?: Array<{ elements?: unknown[] }> };
+    const container = decoded?.slides?.[0]?.elements?.[0];
 
     expect(container).toMatchObject({
       id: "container-canonical",

@@ -104,7 +104,16 @@ function pointerDoc(currentVersionId = "version-current") {
 function versionDoc(presentation: unknown) {
   return {
     exists: () => true,
-    data: () => ({ presentation }),
+    data: () => ({
+      presentationId:
+        typeof presentation === "object" && presentation !== null && "id" in presentation
+          ? (presentation as { id: string }).id
+          : undefined,
+      presentationJson:
+        typeof presentation === "string"
+          ? presentation
+          : JSON.stringify(presentation),
+    }),
   };
 }
 
@@ -447,6 +456,25 @@ describe("published presentation loader by exact version", () => {
     const result = await loadPublishedVersion("publication-1", "version-bad");
 
     expect(result).toEqual({ kind: "error" });
+  });
+
+  it("returns error when the published version identity mismatches its canonical payload", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+    mocks.doc.mockReturnValueOnce({ id: "version-ref" });
+    const presentation = validPresentation();
+    mocks.getDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        presentationId: "other-presentation",
+        presentationJson: JSON.stringify(presentation),
+      }),
+    });
+
+    const { loadPublishedVersion } =
+      await import("../src/published-presentation-loader");
+    await expect(loadPublishedVersion("publication-1", "version-exact"))
+      .resolves.toEqual({ kind: "error" });
   });
 
   it("returns error without rejecting when the exact version read fails", async () => {

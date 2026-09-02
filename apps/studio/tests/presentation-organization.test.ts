@@ -29,6 +29,7 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
+import { encodePresentationForFirestore } from "@powershow/firebase";
 import {
   extractPresentationSummary,
   normalizeFolderId,
@@ -65,8 +66,9 @@ const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 const repository = new FirestorePresentationRepository();
 
 function presentationDoc(id: string, overrides: Record<string, unknown> = {}) {
+  const presentation = createBlankPresentation(id);
   return {
-    presentation: createBlankPresentation(id),
+    presentationJson: encodePresentationForFirestore(presentation).presentationJson,
     createdAt: "created",
     updatedAt: "updated",
     draftRevision: 1,
@@ -175,9 +177,9 @@ describe("listPresentations organization filtering", () => {
 
   it("omits archived documents by default", async () => {
     snapshotWith([
-      { id: "a", data: () => presentationDoc("pres-a") },
+      { id: "pres-a", data: () => presentationDoc("pres-a") },
       {
-        id: "b",
+        id: "pres-b",
         data: () =>
           presentationDoc("pres-b", {
             archivedAt: "archived",
@@ -194,11 +196,11 @@ describe("listPresentations organization filtering", () => {
   it("returns active and archived summaries with includeArchived", async () => {
     snapshotWith([
       {
-        id: "a",
+        id: "pres-a",
         data: () => presentationDoc("pres-a", { folderId: "folder-1" }),
       },
       {
-        id: "b",
+        id: "pres-b",
         data: () =>
           presentationDoc("pres-b", {
             archivedAt: "archived",
@@ -222,12 +224,38 @@ describe("listPresentations organization filtering", () => {
   });
 
   it("reads the collection once regardless of includeArchived", async () => {
-    snapshotWith([{ id: "a", data: () => presentationDoc("pres-a") }]);
+    snapshotWith([{ id: "pres-a", data: () => presentationDoc("pres-a") }]);
 
     await repository.listPresentations({ includeArchived: true });
 
     expect(mockedGetDocs).toHaveBeenCalledTimes(1);
     expect(mockedQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a draft whose canonical id differs from its Firestore document id", async () => {
+    snapshotWith([{ id: "pres-path", data: () => presentationDoc("pres-canonical") }]);
+
+    await expect(repository.listPresentations()).rejects.toThrow(/identity mismatch/i);
+  });
+});
+
+describe("draft identity validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetFirestore.mockReturnValue({} as never);
+    mockedGetCurrentUser.mockReturnValue({ uid: "user-1", isAnonymous: false } as never);
+    mockedDoc.mockReturnValue({ id: "pres-path" } as never);
+  });
+
+  it("rejects an individually loaded draft whose canonical id differs from its path", async () => {
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => presentationDoc("pres-canonical"),
+    } as never);
+
+    await expect(repository.getPresentation("pres-path")).rejects.toThrow(
+      /identity mismatch/i,
+    );
   });
 });
 
@@ -385,8 +413,10 @@ describe("create presentation in folder", () => {
       unknown
     >;
     expect(payload?.folderId).toBe("folder-1");
-    expect(payload?.presentation).not.toHaveProperty("folderId");
-    expect(payload?.presentation).toEqual(
+    expect(payload?.presentationJson).toEqual(expect.any(String));
+    const persisted = JSON.parse(payload.presentationJson as string) as Record<string, unknown>;
+    expect(persisted).not.toHaveProperty("folderId");
+    expect(persisted).toEqual(
       expect.objectContaining({ id: "pres-1" }),
     );
   });

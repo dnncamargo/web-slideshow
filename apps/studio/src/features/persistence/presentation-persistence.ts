@@ -1,11 +1,15 @@
 import type { Presentation, Slide } from "@powershow/document-schema";
 import { PresentationSchema } from "@powershow/document-schema";
+import {
+  decodePresentationFromFirestore,
+  encodePresentationForFirestore,
+} from "@powershow/firebase";
+
+export { MAX_PRESENTATION_SAFE_BYTES } from "@powershow/firebase";
 
 import {
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
-  PresentationTooDeepError,
-  PresentationTooLargeError,
 } from "./persistence-errors";
 
 /**
@@ -15,11 +19,8 @@ import {
  * Firestore wire-size calculation. It deliberately leaves comfortable overhead
  * below Firestore's hard document-size limit.
  */
-export const MAX_PRESENTATION_SAFE_BYTES = 800 * 1024;
-export const MAX_FIRESTORE_NESTING_DEPTH = 20;
-
 export interface PresentationPersistenceEnvelope {
-  presentation: Presentation;
+  presentationJson: string;
   createdAt: unknown;
   updatedAt: unknown;
   archivedAt?: unknown;
@@ -77,7 +78,8 @@ export interface PresentationPublicationMetadata {
 }
 
 export interface PublishedPresentationVersion {
-  presentation: Presentation;
+  presentationId: string;
+  presentationJson: string;
   publishedRevision: number;
   publishedAt: unknown;
 }
@@ -164,53 +166,6 @@ export function resolvePublicationState(
   return "unpublished-changes";
 }
 
-function toFirestoreSafeValue(value: unknown): unknown {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .map(toFirestoreSafeValue)
-      .filter((entry) => entry !== undefined);
-  }
-
-  if (typeof value === "object") {
-    const output: Record<string, unknown> = {};
-
-    for (const [key, entryValue] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
-      const sanitized = toFirestoreSafeValue(entryValue);
-
-      if (sanitized !== undefined) {
-        output[key] = sanitized;
-      }
-    }
-
-    return output;
-  }
-
-  return value;
-}
-
-function isStructuralValue(value: unknown): value is Record<string, unknown> | unknown[] {
-  return typeof value === "object" && value !== null;
-}
-
-/**
- * Convert a canonical Presentation to a Firestore-safe structured plain value.
- *
- * Firestore rejects arbitrary undefined property values on nested objects, so
- * undefined object properties are omitted while the source object is never
- * mutated. Order within arrays is preserved.
- */
-export function makeFirestoreSafePresentation(
-  presentation: Presentation,
-): Record<string, unknown> {
-  return toFirestoreSafeValue(presentation) as Record<string, unknown>;
-}
-
 /**
  * Validate runtime Studio state immediately before it crosses the Firestore
  * write boundary. The TypeScript Presentation type cannot protect this path
@@ -230,59 +185,15 @@ export function assertValidPresentationForPersistence(
 }
 
 /**
- * Estimate the maximum Firestore structural nesting depth of a plain value.
- *
- * Scalars do not add structural depth. Objects and arrays each add one level.
- * The returned depth is measured from the root value, so a root object or
- * array with only scalar descendants has depth 1.
- */
-export function estimateFirestoreNestingDepth(value: unknown): number {
-  if (!isStructuralValue(value)) {
-    return 0;
-  }
-
-  const entries = Array.isArray(value) ? value : Object.values(value);
-  let maxDepth = 1;
-
-  for (const entry of entries) {
-    maxDepth = Math.max(maxDepth, 1 + estimateFirestoreNestingDepth(entry));
-  }
-
-  return maxDepth;
-}
-
-export function assertPresentationWithinFirestoreNestingDepth(
-  value: unknown,
-  limitDepth: number = MAX_FIRESTORE_NESTING_DEPTH,
-): void {
-  const actualDepth = estimateFirestoreNestingDepth(value);
-
-  if (actualDepth > limitDepth) {
-    throw new PresentationTooDeepError(actualDepth, limitDepth);
-  }
-}
-
-/**
  * Deterministic UTF-8 byte estimate of the serialized Presentation.
  * See MAX_PRESENTATION_SAFE_BYTES for the documented caveat.
  */
 export function estimatePresentationBytes(
   presentation: Presentation,
 ): number {
-  const json = JSON.stringify(makeFirestoreSafePresentation(presentation));
-
-  return new TextEncoder().encode(json).byteLength;
-}
-
-export function assertPresentationWithinSizeLimit(
-  presentation: Presentation,
-  limitBytes: number = MAX_PRESENTATION_SAFE_BYTES,
-): void {
-  const actualBytes = estimatePresentationBytes(presentation);
-
-  if (actualBytes > limitBytes) {
-    throw new PresentationTooLargeError(actualBytes, limitBytes);
-  }
+  return new TextEncoder().encode(
+    encodePresentationForFirestore(presentation).presentationJson,
+  ).byteLength;
 }
 
 export function extractPresentationSummary(
@@ -318,26 +229,19 @@ export function extractPresentationSummary(
 export function parsePersistedPresentation(
   persisted: unknown,
 ): Presentation {
-  const candidate =
-    typeof persisted === "object" && persisted !== null
-      ? (persisted as { presentation?: unknown }).presentation
-      : undefined;
-  const result = PresentationSchema.safeParse(candidate);
-
-  if (!result.success) {
+  try {
+    return decodePresentationFromFirestore(persisted);
+  } catch (error) {
     throw new InvalidPersistedPresentationError(
       "Persisted presentation is not a valid PowerShow document.",
-      result.error,
+      error,
     );
   }
-
-  return result.data;
 }
 
 /**
- * Safely derive a Library thumbnail preview from the already-read persisted
- * presentation raw value (the object stored under `presentation` in the
- * Firestore document).
+ * Safely derive a Library thumbnail preview from the already-decoded canonical
+ * presentation value.
  *
  * Returns undefined when the first slide has no authored elements OR when the
  * data cannot be safely projected — the caller falls back to the decorative

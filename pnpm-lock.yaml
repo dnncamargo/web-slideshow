@@ -13,6 +13,9 @@ importers:
       '@powershow/document-schema':
         specifier: workspace:*
         version: link:../../packages/document-schema
+      '@powershow/firebase':
+        specifier: workspace:*
+        version: link:../../packages/firebase
       '@powershow/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer
@@ -41,6 +44,9 @@ importers:
       '@powershow/document-schema':
         specifier: workspace:*
         version: link:../../packages/document-schema
+      '@powershow/firebase':
+        specifier: workspace:*
+        version: link:../../packages/firebase
       '@powershow/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer
@@ -96,6 +102,19 @@ importers:
       zod:
         specifier: ^4.0.0
         version: 4.4.3
+    devDependencies:
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@20.19.43)(jsdom@26.1.0)(lightningcss@1.33.0)
+
+  packages/firebase:
+    dependencies:
+      '@powershow/document-schema':
+        specifier: workspace:*
+        version: link:../document-schema
     devDependencies:
       typescript:
         specifier: ^5.9.0
