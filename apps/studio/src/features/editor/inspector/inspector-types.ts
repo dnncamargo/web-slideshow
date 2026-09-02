@@ -93,6 +93,7 @@ export interface BlocksAuthoringControls {
     blocksId: string,
     ownerBlockId: string,
     socketPartId: string,
+    shape?: "value" | "logic",
   ) => string | null;
 }
 

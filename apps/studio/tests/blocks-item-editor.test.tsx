@@ -395,7 +395,7 @@ describe("BlocksItemEditor", () => {
       childSelect?.querySelectorAll("option") ?? [],
     ).map((option) => option.value);
 
-    expect(options).toEqual(["statement", "scope"]);
+    expect(options).toEqual(["start", "statement", "scope", "end"]);
   });
 
   it("moves root blocks earlier/later and honors stack boundaries", () => {

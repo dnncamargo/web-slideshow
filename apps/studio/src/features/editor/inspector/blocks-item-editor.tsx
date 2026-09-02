@@ -16,6 +16,7 @@ import {
   removeBlockPartById,
   setBlockItemColor,
   setBlockItemShape,
+  setSocketContentBlockShape,
   setSocketContentEmpty,
   setSocketContentLiteral,
   updateBlockTextPartText,
@@ -39,7 +40,7 @@ type UpdateBlocks = (
  * while the UI intentionally presents "Empty" | "Literal" | "Value
  * block". A canonical "block" therefore maps to the UI "value" mode.
  */
-type BlockSocketUIMode = "empty" | "literal" | "value";
+type BlockSocketUIMode = "empty" | "literal" | "value" | "logic";
 
 function toBlockSocketUIMode(
   canonicalType: BlockSocketContent["type"],
@@ -125,7 +126,7 @@ function BlockItemRow({
   controls,
   updateBlocks,
 }: BlockItemRowProps) {
-  const isValueBlock = item.shape === "value";
+  const isReporterBlock = item.shape === "value" || item.shape === "logic";
   const isScopeBlock = item.shape === "scope";
   const canAddScopeChild = depth < MAX_BLOCK_AUTHORING_DEPTH;
   const hasChildren = item.children.length > 0;
@@ -156,7 +157,7 @@ function BlockItemRow({
           }}
         />
 
-        {isValueBlock ? (
+        {isReporterBlock ? (
           <select
             className={styles.blocksInput}
             aria-label={labels.shape}
@@ -164,7 +165,7 @@ function BlockItemRow({
             value="value"
             disabled
           >
-            <option value="value">{labels.value}</option>
+            <option value={item.shape}>{item.shape === "logic" ? labels.logic : labels.value}</option>
           </select>
         ) : (
           <select
@@ -175,20 +176,24 @@ function BlockItemRow({
             onChange={(event) => {
               const shape = event.currentTarget.value as
                 | "statement"
-                | "scope";
+                | "scope"
+                | "start"
+                | "end";
               updateBlocks((current) =>
                 setBlockItemShape(current, item.id, shape),
               );
             }}
           >
+            <option value="start" disabled={isScopeBlock && hasChildren}>{labels.start}</option>
             <option value="statement" disabled={isScopeBlock && hasChildren}>
               {labels.statement}
             </option>
             <option value="scope">{labels.scope}</option>
+            <option value="end" disabled={isScopeBlock && hasChildren}>{labels.end}</option>
           </select>
         )}
 
-        {!isValueBlock && (
+        {!isReporterBlock && (
           <>
             <button
               type="button"
@@ -425,6 +430,7 @@ function BlockPartRow({
   }
 
   const canCreateValueBlock = ownerDepth < MAX_BLOCK_AUTHORING_DEPTH;
+  const reporterShape = part.content.type === "block" ? part.content.block.shape : null;
 
   return (
     <li
@@ -437,7 +443,7 @@ function BlockPartRow({
           className={styles.blocksInput}
           aria-label={labels.socketContent}
           data-powershow-part-socket-mode="true"
-          value={toBlockSocketUIMode(part.content.type)}
+          value={part.content.type === "block" ? (reporterShape ?? "value") : toBlockSocketUIMode(part.content.type)}
           title={canCreateValueBlock ? undefined : labels.valueAtMaxDepth}
           onChange={(event) => {
             const mode = event.currentTarget.value as BlockSocketUIMode;
@@ -463,9 +469,21 @@ function BlockPartRow({
               return;
             }
 
-            // mode === "value": creation delegates id allocation to the
+            if (mode === "logic" && part.content.type === "block") {
+              updateBlocks((current) => setSocketContentBlockShape(current, owner.id, part.id, "logic"));
+              return;
+            }
+            if (mode === "value" && part.content.type === "block") {
+              updateBlocks((current) => setSocketContentBlockShape(current, owner.id, part.id, "value"));
+              return;
+            }
+            // reporter creation delegates id allocation to the
             // workspace-level control; never allocate ids locally.
-            void controls.onCreateSocketValue(blocksId, owner.id, part.id);
+            if (mode === "logic") {
+              void controls.onCreateSocketValue(blocksId, owner.id, part.id, "logic");
+            } else {
+              void controls.onCreateSocketValue(blocksId, owner.id, part.id);
+            }
           }}
         >
           <option value="empty">{labels.socketEmpty}</option>
@@ -473,6 +491,7 @@ function BlockPartRow({
           <option value="value" disabled={!canCreateValueBlock}>
             {labels.socketValue}
           </option>
+          <option value="logic" disabled={!canCreateValueBlock}>{labels.socketLogic}</option>
         </select>
 
         {moveEarlierButton}

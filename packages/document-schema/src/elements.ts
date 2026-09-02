@@ -344,7 +344,7 @@ export const EmbedElementSchema = z.object({
 export type EmbedElement =
   z.infer<typeof EmbedElementSchema>;
 
-export type BlockShape = "statement" | "value" | "scope";
+export type BlockShape = "start" | "statement" | "scope" | "value" | "logic" | "end";
 
 export type BlockTextPart = {
   id: string;
@@ -373,7 +373,7 @@ export type BlockItem = {
   children: BlockItem[];
 };
 
-export const BlockShapeSchema = z.enum(["statement", "value", "scope"]);
+export const BlockShapeSchema = z.enum(["start", "statement", "scope", "value", "logic", "end"]);
 
 const BlockTextPartSchema = z.object({
   id: ElementIdSchema,
@@ -416,20 +416,20 @@ export const BlocksElementSchema = CanonicalDataElementBaseSchema.extend({
   items: z.array(BlockItemSchema),
 }).strict().superRefine((element, context) => {
   const visit = (item: BlockItem, path: (string | number)[], root: boolean, scopeChild: boolean) => {
-    if (root && item.shape === "value") {
-      context.addIssue({ code: "custom", path: [...path, "shape"], message: "A root block cannot have value shape." });
+    if (root && (item.shape === "value" || item.shape === "logic")) {
+      context.addIssue({ code: "custom", path: [...path, "shape"], message: "A root block cannot have reporter shape." });
     }
-    if (scopeChild && item.shape === "value") {
-      context.addIssue({ code: "custom", path: [...path, "shape"], message: "A scope child cannot have value shape." });
+    if (scopeChild && (item.shape === "value" || item.shape === "logic")) {
+      context.addIssue({ code: "custom", path: [...path, "shape"], message: "A scope child cannot have reporter shape." });
     }
-    if ((item.shape === "statement" || item.shape === "value") && item.children.length > 0) {
+    if (item.shape !== "scope" && item.children.length > 0) {
       context.addIssue({ code: "custom", path: [...path, "children"], message: `${item.shape} blocks cannot have children.` });
     }
     item.parts.forEach((part, partIndex) => {
       if (part.type === "socket" && part.content.type === "block") {
         visit(part.content.block, [...path, "parts", partIndex, "content", "block"], false, false);
-        if (part.content.block.shape !== "value") {
-          context.addIssue({ code: "custom", path: [...path, "parts", partIndex, "content", "block", "shape"], message: "Socket blocks must have value shape." });
+        if (part.content.block.shape !== "value" && part.content.block.shape !== "logic") {
+          context.addIssue({ code: "custom", path: [...path, "parts", partIndex, "content", "block", "shape"], message: "Socket blocks must have value or logic shape." });
         }
       }
     });

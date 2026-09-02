@@ -6,6 +6,7 @@ const text = (id: string, value: string) => ({ id, type: "text" as const, text: 
 const literal = (id: string, value: string) => ({ id, type: "socket" as const, content: { type: "literal" as const, value } });
 const empty = (id: string) => ({ id, type: "socket" as const, content: { type: "empty" as const } });
 const value = (id: string, parts: BlockPart[] = [text(`${id}-part`, "value")]) => ({ id, color: "#22c55e", shape: "value" as const, parts, children: [] });
+const block = (id: string, shape: "start" | "statement" | "scope" | "value" | "logic" | "end", parts: BlockPart[] = []) => ({ id, color: "#22c55e", shape, parts, children: [] });
 const base = (items: unknown[] = [{ id: "root", color: "#22c55e", shape: "statement", parts: [text("p", "move")], children: [] }]) => ({ id: "blocks", type: "blocks", hidden: false, items });
 
 describe("BlocksElementSchema", () => {
@@ -17,6 +18,28 @@ describe("BlocksElementSchema", () => {
 
   it("accepts a statement root with empty parts", () => {
     expect(BlocksElementSchema.parse(base([{ id: "s", color: "#22c55e", shape: "statement", parts: [], children: [] }])).items).toHaveLength(1);
+  });
+
+  it("accepts every B3 shape in its valid family", () => {
+    for (const shape of ["start", "statement", "scope", "end"] as const) {
+      expect(BlocksElementSchema.parse(base([block(shape, shape)])).items[0]?.shape).toBe(shape);
+    }
+    for (const shape of ["value", "logic"] as const) {
+      const nested = block(shape, shape);
+      expect(BlocksElementSchema.parse(base([block("owner", "statement", [{ id: "socket", type: "socket", content: { type: "block", block: nested } }])]))).toBeTruthy();
+    }
+  });
+
+  it("rejects reporter roots/scope children, stack socket blocks, and childless-shape children", () => {
+    for (const shape of ["value", "logic"] as const) {
+      expect(() => BlocksElementSchema.parse(base([block("root", shape)]))).toThrow();
+      expect(() => BlocksElementSchema.parse(base([{ ...block("scope", "scope"), children: [block("child", shape)] }]))).toThrow();
+    }
+    for (const shape of ["start", "statement", "scope", "end"] as const) {
+      const nested = block(shape, shape);
+      expect(() => BlocksElementSchema.parse(base([block("owner", "statement", [{ id: "socket", type: "socket", content: { type: "block", block: nested } }])]))).toThrow();
+      if (shape !== "scope") expect(() => BlocksElementSchema.parse(base([{ ...block(shape, shape), children: [block("child", "statement")] }]))).toThrow();
+    }
   });
 
   it("accepts a scope root with statement children", () => {

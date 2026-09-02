@@ -15,6 +15,7 @@ const text = (id: string, value = id): BlockPart => ({ id, type: "text", text: v
 const literal = (id: string, value: string): BlockPart => ({ id, type: "socket", content: { type: "literal", value } });
 const empty = (id: string): BlockPart => ({ id, type: "socket", content: { type: "empty" } });
 const value = (id: string, color = "#22c55e", parts: BlockPart[] = [text(`${id}-part`, "value")]): BlockItem => ({ id, color, shape: "value", parts, children: [] });
+const reporter = (id: string, shape: "value" | "logic", parts: BlockPart[] = [text(`${id}-part`, "x > 10")]): BlockItem => ({ id, color: "#22c55e", shape, parts, children: [] });
 const statement = (id: string, color = "#22c55e", parts: BlockPart[] = [text(`${id}-part`, id)]): BlockItem => ({ id, color, shape: "statement", parts, children: [] });
 const scope = (id = "scope"): BlockItem => ({ id, color: "#ef4444", shape: "scope", parts: [text(`${id}-part`, "repeat")], children: [statement(`${id}-child`)] });
 const element = (items: BlockItem[] = [statement("one")], style?: BlocksElement["style"]): BlocksElement => ({ id: "blocks", type: "blocks", hidden: false, style, items });
@@ -68,6 +69,24 @@ describe("renderBlocks", () => {
     expect(html).toContain("display:inline-flex");
     expect(html).toContain("border-radius:999px");
     expect(html).not.toContain("powershow-block-connector");
+  });
+
+  it("renders start/end topology and logic hexagon semantics", () => {
+    const html = renderBlocks(element([
+      { id: "start", color: "#f00", shape: "start", parts: [text("st", "When flag clicked")], children: [] },
+      { id: "end", color: "#f00", shape: "end", parts: [text("en", "stop all")], children: [] },
+      reporter("logic", "logic"),
+    ]));
+    expect(html).toContain("powershow-block--start");
+    expect(html).toContain("powershow-block--end");
+    expect(html).toContain("powershow-block--logic");
+    expect(html).toContain("clip-path:polygon(8% 0,92% 0,100% 50%,92% 100%,8% 100%,0 50%)");
+    const start = html.match(/powershow-block--start[\s\S]*?powershow-block--end/)?.[0] ?? "";
+    const end = html.match(/powershow-block--end[\s\S]*?powershow-block--logic/)?.[0] ?? "";
+    expect(start).not.toContain("powershow-block-connector--top");
+    expect(start).toContain("powershow-block-connector--bottom");
+    expect(end).toContain("powershow-block-connector--top");
+    expect(end).not.toContain("powershow-block-connector--bottom");
   });
 
   it("keeps nested value blocks inline inside sockets, not stack siblings", () => {

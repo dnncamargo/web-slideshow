@@ -52,6 +52,13 @@ const valueSurfaceStyle = [
   "box-shadow:inset 0 1px rgba(255,255,255,.24),inset 0 -1px rgba(0,0,0,.18)",
 ].join(";");
 
+const logicSurfaceStyle = [
+  ...valueSurfaceStyle.split(";"),
+  "border-radius:0",
+  "clip-path:polygon(8% 0,92% 0,100% 50%,92% 100%,8% 100%,0 50%)",
+  "padding-inline:14px",
+].join(";");
+
 const partsStyle = [
   "display:inline-flex",
   "flex-wrap:wrap",
@@ -120,11 +127,14 @@ function renderBlock(item: BlockItem): string {
   const color = renderColorValue(item.color);
   const parts = renderParts(item);
 
-  if (item.shape === "value") {
-    return `<span class="powershow-block powershow-block--value" data-powershow-block-id="${escapeHtml(item.id)}" style="${valueSurfaceStyle};background-color:${escapeHtml(color)}">${parts}</span>`;
+  if (item.shape === "value" || item.shape === "logic") {
+    const reporterClass = item.shape === "logic" ? "logic" : "value";
+    const reporterStyle = item.shape === "logic" ? logicSurfaceStyle : valueSurfaceStyle;
+    return `<span class="powershow-block powershow-block--${reporterClass}" data-powershow-block-id="${escapeHtml(item.id)}" style="${reporterStyle};background-color:${escapeHtml(color)}">${parts}</span>`;
   }
 
-  const header = `<div class="powershow-block-header" style="position:relative;background-color:${escapeHtml(color)};${statementSurfaceStyle}">${renderConnector("top", color)}<div class="powershow-block-parts" style="${partsStyle}">${parts}</div></div>`;
+  const isStart = item.shape === "start";
+  const header = `<div class="powershow-block-header" style="position:relative;background-color:${escapeHtml(color)};${statementSurfaceStyle}${isStart ? ";border-radius:12px 12px 6px 6px" : ""}">${isStart ? "" : renderConnector("top", color)}<div class="powershow-block-parts" style="${partsStyle}">${parts}</div></div>`;
 
   if (item.shape === "scope") {
     const body = `<div class="powershow-block-scope-body" style="margin-inline-start:${SCOPE_INDENT}px;border-inline-start:4px solid ${escapeHtml(color)};padding-inline-start:10px;background:transparent"><div class="powershow-block-scope-stack" style="${stackStyle}">${item.children.map((child) => renderBlock(child)).join("")}</div></div>`;
@@ -132,7 +142,9 @@ function renderBlock(item: BlockItem): string {
     return `<div class="powershow-block powershow-block--scope" data-powershow-block-id="${escapeHtml(item.id)}" style="position:relative;display:block;max-width:100%;background:transparent;box-shadow:none;margin-bottom:-${BLOCK_STACK_OVERLAP}px">${header}${body}${footer}</div>`;
   }
 
-  return `<div class="powershow-block powershow-block--statement" data-powershow-block-id="${escapeHtml(item.id)}" style="position:relative;display:block;max-width:100%;background:transparent;margin-bottom:-${BLOCK_STACK_OVERLAP}px">${header}<div style="position:relative;height:${BLOCK_CONNECTOR_HEIGHT}px">${renderConnector("bottom", color)}</div></div>`;
+  const blockClass = item.shape === "start" ? "start" : item.shape === "end" ? "end" : "statement";
+  const bottom = item.shape === "end" ? "" : `<div style="position:relative;height:${BLOCK_CONNECTOR_HEIGHT}px">${renderConnector("bottom", color)}</div>`;
+  return `<div class="powershow-block powershow-block--${blockClass}" data-powershow-block-id="${escapeHtml(item.id)}" style="position:relative;display:block;max-width:100%;background:transparent;margin-bottom:-${BLOCK_STACK_OVERLAP}px">${header}${bottom}</div>`;
 }
 
 export function renderBlocks(element: BlocksElement): string {

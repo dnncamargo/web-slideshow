@@ -466,6 +466,7 @@ export function createDefaultStackBlockItem(
 export function createDefaultValueBlockItem(
   usedIds: Set<string>,
   color: BlockItem["color"],
+  shape: "value" | "logic" = "value",
 ): BlockItem {
   const id = createUniqueId("block-item", usedIds);
   usedIds.add(id);
@@ -475,7 +476,7 @@ export function createDefaultValueBlockItem(
   return {
     id,
     color,
-    shape: "value",
+    shape,
     parts: [
       {
         id: partId,
@@ -799,7 +800,7 @@ function findBlockItemDepthInSocketParts(
 // ------------------------------------------------------------
 
 function isStackBlockShape(shape: BlockItem["shape"]): boolean {
-  return shape === "statement" || shape === "scope";
+  return shape === "start" || shape === "statement" || shape === "scope" || shape === "end";
 }
 
 export function appendBlockItemToRoot(
@@ -1001,7 +1002,7 @@ export function setBlockItemColor(
 export function setBlockItemShape(
   blocks: BlocksElement,
   blockItemId: string,
-  shape: "statement" | "scope",
+  shape: "start" | "statement" | "scope" | "end",
 ): BlocksElement {
   return updateBlockItemById(blocks, blockItemId, (item) => {
     if (item.shape === shape) {
@@ -1009,7 +1010,7 @@ export function setBlockItemShape(
     }
 
     // A socket value has no shape-changing operation.
-    if (item.shape === "value") {
+    if (item.shape === "value" || item.shape === "logic") {
       return item;
     }
 
@@ -1216,7 +1217,7 @@ export function setSocketContentBlock(
   // Sockets may only hold value blocks: never statement/scope, and a
   // value block's children must be empty. No silent shape conversion.
   if (
-    valueBlock.shape !== "value" ||
+    (valueBlock.shape !== "value" && valueBlock.shape !== "logic") ||
     valueBlock.children.length > 0
   ) {
     return blocks;
@@ -1269,6 +1270,26 @@ export function setSocketContentBlock(
     };
 
     return { ...item, parts: nextParts };
+  });
+}
+
+export function setSocketContentBlockShape(
+  blocks: BlocksElement,
+  blockItemId: string,
+  partId: string,
+  shape: "value" | "logic",
+): BlocksElement {
+  return updateBlockItemById(blocks, blockItemId, (item) => {
+    const part = item.parts.find((candidate) => candidate.type === "socket" && candidate.id === partId);
+    if (!part || part.type !== "socket" || part.content.type !== "block") return item;
+    const block = part.content.block;
+    if (block.shape === shape) return item;
+    return {
+      ...item,
+      parts: item.parts.map((candidate) => candidate.type === "socket" && candidate.id === partId
+        ? { ...candidate, content: { type: "block" as const, block: { ...block, shape } } }
+        : candidate),
+    };
   });
 }
 
@@ -1465,6 +1486,7 @@ export function createSocketValueInPresentation(
   blocksId: string,
   ownerBlockId: string,
   socketPartId: string,
+  shape: "value" | "logic" = "value",
 ): BlocksCreationOutcome | null {
   const blocks = findBlocksElementInSlides(slides, blocksId);
 
@@ -1493,7 +1515,7 @@ export function createSocketValueInPresentation(
   }
 
   const usedIds = collectPresentationElementIds(slides);
-  const value = createDefaultValueBlockItem(usedIds, owner.color);
+  const value = createDefaultValueBlockItem(usedIds, owner.color, shape);
 
   if (setSocketContentBlock(blocks, ownerBlockId, socketPartId, value) === blocks) {
     return null;

@@ -2809,12 +2809,14 @@ export function EditorWorkspace({
     blocksId: string,
     ownerBlockId: string,
     socketPartId: string,
+    shape: "value" | "logic" = "value",
   ): string | null {
     const outcome = createSocketValueInPresentation(
       presentation.slides,
       blocksId,
       ownerBlockId,
       socketPartId,
+      shape,
     );
 
     if (!outcome) {
