@@ -1834,6 +1834,8 @@
 .blocksList {
   display: grid;
 
+  min-width: 0;
+
   gap: 8px;
 
   margin: 0;
@@ -1844,26 +1846,82 @@
 }
 
 .blocksRow {
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
+  padding: 7px;
+  border: 1px solid #263244;
+  border-radius: 7px;
+  background: #111925;
+  box-sizing: border-box;
+}
+
+.blocksReporterCard {
+  margin-inline-start: 6px;
+  padding: 5px;
+  border-color: #334155;
+  background: #0c111a;
 }
 
 .blocksRowLine {
   display: grid;
 
-  grid-template-columns:
-    minmax(0, 1fr)
-    auto
-    auto
-    auto
-    auto;
+  min-width: 0;
+
+  grid-template-columns: auto minmax(0, 1fr) auto;
 
   align-items: center;
 
   gap: 6px;
 }
 
+.blocksActions {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+}
+
+.blocksGroup {
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  border-inline-start: 2px solid #263244;
+  background: rgba(15, 23, 42, 0.28);
+  box-sizing: border-box;
+}
+
+.blocksGroupLabel,
+.blocksFieldLabel {
+  display: block;
+  min-width: 0;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.blocksGroupLabelItem {
+  min-width: 0;
+  list-style: none;
+}
+
+.blocksFieldLabel input {
+  margin-top: 3px;
+}
+
+.blocksActionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 5px;
+  margin-top: 7px;
+}
+
 .blocksChildren {
   display: grid;
+
+  min-width: 0;
+  max-width: 100%;
 
   gap: 8px;
 

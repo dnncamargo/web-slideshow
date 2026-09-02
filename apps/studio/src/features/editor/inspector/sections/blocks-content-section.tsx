@@ -61,6 +61,8 @@ export function BlocksContentSection({
     literalValue: t("inspector.blocks.literalValue"),
     valueAtMaxDepth: t("inspector.blocks.maxDepth"),
     textPartLabel: t("inspector.blocks.text"),
+    content: t("inspector.blocks.parts"),
+    inside: t("inspector.blocks.scopeChildren"),
   };
 
   function addRootBlock() {

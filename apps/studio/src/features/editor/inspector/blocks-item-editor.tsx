@@ -133,7 +133,7 @@ function BlockItemRow({
 
   return (
     <li
-      className={styles.blocksRow}
+      className={`${styles.blocksRow} ${isReporterBlock ? styles.blocksReporterCard : styles.blocksCard}`}
       data-powershow-block-item-id={item.id}
       data-powershow-block-shape={item.shape}
       data-powershow-block-depth={depth}
@@ -157,17 +157,7 @@ function BlockItemRow({
           }}
         />
 
-        {isReporterBlock ? (
-          <select
-            className={styles.blocksInput}
-            aria-label={labels.shape}
-            data-powershow-block-shape="true"
-            value={item.shape}
-            disabled
-          >
-            <option value={item.shape}>{item.shape === "logic" ? labels.logic : labels.value}</option>
-          </select>
-        ) : (
+        {!isReporterBlock && (
           <select
             className={styles.blocksInput}
             aria-label={labels.shape}
@@ -194,7 +184,7 @@ function BlockItemRow({
         )}
 
         {!isReporterBlock && (
-          <>
+          <div className={styles.blocksActions}>
             <button
               type="button"
               className={styles.secondaryButton}
@@ -241,12 +231,13 @@ function BlockItemRow({
             >
               ×
             </button>
-          </>
+          </div>
         )}
       </div>
 
       {item.parts.length > 0 && (
-        <ul className={styles.blocksChildren} data-powershow-block-parts="true">
+        <ul className={`${styles.blocksChildren} ${styles.blocksGroup}`} data-powershow-block-parts="true">
+          <li className={styles.blocksGroupLabelItem}><span className={styles.blocksGroupLabel}>{labels.content}</span></li>
           {item.parts.map((part, partIndex) => (
             <BlockPartRow
               key={part.id}
@@ -264,7 +255,7 @@ function BlockItemRow({
         </ul>
       )}
 
-      <div data-powershow-block-add-part-actions="true">
+      <div className={styles.blocksActionsRow} data-powershow-block-add-part-actions="true">
         <button
           type="button"
           className={styles.secondaryButton}
@@ -289,7 +280,8 @@ function BlockItemRow({
       </div>
 
       {isScopeBlock && hasChildren && (
-        <ul className={styles.blocksChildren}>
+        <ul className={`${styles.blocksChildren} ${styles.blocksGroup}`}>
+          <li className={styles.blocksGroupLabelItem}><span className={styles.blocksGroupLabel}>{labels.inside}</span></li>
           {item.children.map((child, childIndex) => (
             <BlockItemRow
               key={child.id}
@@ -303,7 +295,7 @@ function BlockItemRow({
               updateBlocks={updateBlocks}
             />
           ))}
-        </ul>
+          </ul>
       )}
 
       {isScopeBlock && (
@@ -501,6 +493,8 @@ function BlockPartRow({
 
       {part.content.type === "literal" && (
         <div data-powershow-part-socket-literal="true">
+          <label className={styles.blocksFieldLabel}>
+            {labels.literalValue}
           <input
             type="text"
             className={styles.blocksInput}
@@ -519,6 +513,7 @@ function BlockPartRow({
               );
             }}
           />
+          </label>
         </div>
       )}
 

@@ -598,7 +598,7 @@ describe("BlocksInspector content shell", () => {
       .toBe("Value block");
     expect(
       socketModeSelect().querySelector('option[value="literal"]')?.textContent,
-    ).toBe("Literal");
+    ).toBe("Written value");
   });
 
   it("resolves pt-BR editor labels after a locale switch", async () => {

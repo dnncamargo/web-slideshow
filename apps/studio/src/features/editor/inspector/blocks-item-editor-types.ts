@@ -77,6 +77,12 @@ export interface BlocksItemEditorLabels {
 
   /** Accessible label for a text-part input. */
   textPartLabel: string;
+
+  /** Label for the ordered parts group. */
+  content: string;
+
+  /** Label for the nested scope-child group. */
+  inside: string;
 }
 
 export interface BlocksItemEditorProps {

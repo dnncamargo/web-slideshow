@@ -167,6 +167,8 @@ const LABELS: BlocksItemEditorLabels = {
   literalValue: "Literal value",
   valueAtMaxDepth: "Maximum block depth reached",
   textPartLabel: "Block text",
+  content: "Content",
+  inside: "Inside",
 };
 
 // ============================================================
@@ -427,19 +429,15 @@ describe("BlocksItemEditor", () => {
     expect(firstItem()?.shape).toBe("statement");
   });
 
-  it("shows the canonical shape for value and logic reporter rows", () => {
+  it("does not duplicate the parent reporter selector inside value and logic rows", () => {
     mount(blocks([colorKey("cat")], [statement("owner", "cat", [
       socketBlockPart("value-socket", value("v", "cat")),
       socketBlockPart("logic-socket", logic("l", "cat")),
    ])]));
     const valueSelect = shapeSelect("v");
     const logicSelect = shapeSelect("l");
-    expect(valueSelect?.disabled).toBe(true);
-    expect(valueSelect?.value).toBe("value");
-    expect(valueSelect?.selectedOptions[0]?.textContent).toBe("Value");
-    expect(logicSelect?.disabled).toBe(true);
-    expect(logicSelect?.value).toBe("logic");
-    expect(logicSelect?.selectedOptions[0]?.textContent).toBe("Logic");
+    expect(valueSelect).toBeNull();
+    expect(logicSelect).toBeNull();
   });
 
   it("preserves populated scope when Start, Statement, or End is forced", () => {
@@ -989,11 +987,7 @@ describe("BlocksItemEditor", () => {
     expect(moveDownButton("v1")).toBeNull();
     expect(removeBlockButton("v1")).toBeNull();
 
-    const select = shapeSelect("v1");
-    expect(select?.disabled).toBe(true);
-    const options = Array.from(select?.querySelectorAll("option") ?? []);
-    expect(options).toHaveLength(1);
-    expect(options[0]?.value).toBe("value");
+    expect(shapeSelect("v1")).toBeNull();
   });
 
   // ============================================================
