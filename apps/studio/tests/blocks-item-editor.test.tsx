@@ -62,6 +62,18 @@ const value = (
   children: [],
 });
 
+const logic = (
+  id: string,
+  color: string,
+  parts: BlockPart[] = [],
+): BlockItem => ({
+  id,
+  color: colorFor(color),
+  shape: "logic",
+  parts,
+  children: [],
+});
+
 const statement = (
   id: string,
   color: string,
@@ -135,8 +147,11 @@ const LABELS: BlocksItemEditorLabels = {
   color: "Block color",
   shape: "Shape",
   statement: "Statement",
+  start: "Start",
   scope: "Scope",
+  end: "End",
   value: "Value",
+  logic: "Logic",
   moveEarlier: "Move earlier",
   moveLater: "Move later",
   remove: "Remove",
@@ -148,6 +163,7 @@ const LABELS: BlocksItemEditorLabels = {
   socketEmpty: "Empty",
   socketLiteral: "Literal",
   socketValue: "Value",
+  socketLogic: "Logic",
   literalValue: "Literal value",
   valueAtMaxDepth: "Maximum block depth reached",
   textPartLabel: "Block text",
@@ -212,7 +228,8 @@ describe("BlocksItemEditor", () => {
     vi.clearAllMocks();
   });
 
-  function changeSelect(select: HTMLSelectElement, value: string) {
+  function changeSelect(select: HTMLSelectElement | null, value: string) {
+    if (!select) throw new Error("Expected select not found");
     act(() => {
       select.value = value;
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -396,6 +413,48 @@ describe("BlocksItemEditor", () => {
     ).map((option) => option.value);
 
     expect(options).toEqual(["start", "statement", "scope", "end"]);
+  });
+
+  it("writes Start and End stack shape selections", () => {
+    mount(blocks([colorKey("cat")], [statement("s1", "cat", [])]));
+    const select = shapeSelect("s1");
+    if (!select) throw new Error("Shape select not found");
+    changeSelect(select, "start");
+    expect(firstItem()?.shape).toBe("start");
+    changeSelect(shapeSelect("s1"), "end");
+    expect(firstItem()?.shape).toBe("end");
+    changeSelect(shapeSelect("s1"), "statement");
+    expect(firstItem()?.shape).toBe("statement");
+  });
+
+  it("shows the canonical shape for value and logic reporter rows", () => {
+    mount(blocks([colorKey("cat")], [statement("owner", "cat", [
+      socketBlockPart("value-socket", value("v", "cat")),
+      socketBlockPart("logic-socket", logic("l", "cat")),
+   ])]));
+    const valueSelect = shapeSelect("v");
+    const logicSelect = shapeSelect("l");
+    expect(valueSelect?.disabled).toBe(true);
+    expect(valueSelect?.value).toBe("value");
+    expect(valueSelect?.selectedOptions[0]?.textContent).toBe("Value");
+    expect(logicSelect?.disabled).toBe(true);
+    expect(logicSelect?.value).toBe("logic");
+    expect(logicSelect?.selectedOptions[0]?.textContent).toBe("Logic");
+  });
+
+  it("preserves populated scope when Start, Statement, or End is forced", () => {
+    const child = statement("child", "cat", []);
+    mount(blocks([colorKey("cat")], [scope("sc", "cat", [], [child])]));
+    const select = shapeSelect("sc");
+    if (!select) throw new Error("Shape select not found");
+    expect((select.querySelector('option[value="start"]') as HTMLOptionElement | null)?.disabled).toBe(true);
+    expect((select.querySelector('option[value="statement"]') as HTMLOptionElement | null)?.disabled).toBe(true);
+    expect((select.querySelector('option[value="end"]') as HTMLOptionElement | null)?.disabled).toBe(true);
+    for (const shape of ["start", "statement", "end"]) {
+      changeSelect(select, shape);
+      expect(firstItem()?.shape).toBe("scope");
+      expect(firstItem()?.children[0]).toBe(child);
+    }
   });
 
   it("moves root blocks earlier/later and honors stack boundaries", () => {
@@ -798,6 +857,33 @@ describe("BlocksItemEditor", () => {
       'option[value="value"]',
     ) as HTMLOptionElement | null;
     expect(valueOption?.selected).toBe(true);
+  });
+
+  it("converts an existing socket reporter between Value and Logic in place", () => {
+    const reporter = value("reporter", "cat", [textPart("part", "x")]);
+    mount(blocks([colorKey("cat")], [statement("s1", "cat", [socketBlockPart("sock", reporter)])]));
+    const select = socketModeSelect("sock");
+    if (!select) throw new Error("Socket mode select not found");
+    changeSelect(select, "logic");
+    const converted = firstItem()?.parts[0];
+    expect(converted?.type).toBe("socket");
+    if (converted?.type === "socket" && converted.content.type === "block") {
+      expect(converted.content.block).toMatchObject({ id: "reporter", color: "#123456", shape: "logic", parts: reporter.parts, children: [] });
+      expect(converted.content.block.parts).toBe(reporter.parts);
+    }
+    changeSelect(socketModeSelect("sock"), "value");
+    const reverted = firstItem()?.parts[0];
+    if (reverted?.type === "socket" && reverted.content.type === "block") expect(reverted.content.block.shape).toBe("value");
+  });
+
+  it("delegates Value and Logic reporter creation without Inspector ids", () => {
+    mount(blocks([colorKey("cat")], [statement("s1", "cat", [socketEmptyPart("sock")])]));
+    changeSelect(socketModeSelect("sock"), "value");
+    expect(controls.onCreateSocketValue).toHaveBeenCalledWith("blocks-1", "s1", "sock");
+    vi.clearAllMocks();
+    mount(blocks([colorKey("cat")], [statement("s1", "cat", [socketEmptyPart("sock")])]));
+    changeSelect(socketModeSelect("sock"), "logic");
+    expect(controls.onCreateSocketValue).toHaveBeenCalledWith("blocks-1", "s1", "sock", "logic");
   });
 
   it("replaces an existing value subtree with a literal", () => {

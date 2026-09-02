@@ -162,7 +162,7 @@ function BlockItemRow({
             className={styles.blocksInput}
             aria-label={labels.shape}
             data-powershow-block-shape="true"
-            value="value"
+            value={item.shape}
             disabled
           >
             <option value={item.shape}>{item.shape === "logic" ? labels.logic : labels.value}</option>

@@ -22,17 +22,17 @@ export interface BlocksItemEditorLabels {
   /** Shape option for statement blocks. */
   statement: string;
 
-  start?: string;
+  start: string;
 
   /** Shape option for scope blocks. */
   scope: string;
 
-  end?: string;
+  end: string;
 
   /** Fixed shape label for socket-contained value blocks. */
   value: string;
 
-  logic?: string;
+  logic: string;
 
   /** Move a block/part earlier (up) in its stack. */
   moveEarlier: string;
@@ -67,7 +67,7 @@ export interface BlocksItemEditorLabels {
   /** Socket content mode: value block. */
   socketValue: string;
 
-  socketLogic?: string;
+  socketLogic: string;
 
   /** Label for the literal value input of a literal socket. */
   literalValue: string;

@@ -34,6 +34,7 @@ import {
   setBlockItemColor,
   setBlockItemShape,
   setSocketContentBlock,
+  setSocketContentBlockShape,
   setSocketContentEmpty,
   setSocketContentLiteral,
   updateBlockItemById,
@@ -112,6 +113,22 @@ const value = (
   color: colorFor(color),
   shape: "value",
   parts,
+  children: [],
+});
+
+const reporter = (id: string, shape: "value" | "logic"): BlockItem => ({
+  id,
+  color: colorFor("cat"),
+  shape,
+  parts: [textPart(`${id}-part`, id)],
+  children: [],
+});
+
+const shapedStack = (id: string, shape: "start" | "statement" | "scope" | "end"): BlockItem => ({
+  id,
+  color: colorFor("cat"),
+  shape,
+  parts: [textPart(`${id}-part`)],
   children: [],
 });
 
@@ -919,6 +936,53 @@ describe("Blocks socket content operations", () => {
 // ============================================================
 
 describe("Blocks authoring invariant guards", () => {
+  it("accepts exactly the B3 stack family at root and in scope children", () => {
+    for (const shape of ["start", "statement", "scope", "end"] as const) {
+      const root = appendBlockItemToRoot(blocks([], []), shapedStack(`root-${shape}`, shape));
+      expect(root.items[0]?.shape).toBe(shape);
+      const child = appendBlockItemToScope(blocks([], [scope("scope", "cat", [])]), "scope", shapedStack(`child-${shape}`, shape));
+      expect(child.items[0]?.children[0]?.shape).toBe(shape);
+    }
+    for (const shape of ["value", "logic"] as const) {
+      expect(appendBlockItemToRoot(blocks([], []), reporter(`root-${shape}`, shape))).toBeTypeOf("object");
+      expect(appendBlockItemToRoot(blocks([], []), reporter(`root-${shape}`, shape)).items).toHaveLength(0);
+      expect(appendBlockItemToScope(blocks([], [scope("scope", "cat", [])]), "scope", reporter(`child-${shape}`, shape)).items[0]?.children).toHaveLength(0);
+    }
+  });
+
+  it("supports B3 stack shape editing and protects populated scopes", () => {
+    let source = blocks([], [shapedStack("root", "statement")]);
+    source = setBlockItemShape(source, "root", "start");
+    expect(source.items[0]?.shape).toBe("start");
+    source = setBlockItemShape(source, "root", "end");
+    expect(source.items[0]?.shape).toBe("end");
+    source = setBlockItemShape(source, "root", "statement");
+    expect(source.items[0]?.shape).toBe("statement");
+    const child = shapedStack("child", "statement");
+    const populated = blocks([], [{ ...shapedStack("scope", "scope"), children: [child] }]);
+    for (const shape of ["start", "statement", "end"] as const) {
+      expect(setBlockItemShape(populated, "scope", shape)).toBe(populated);
+      expect(populated.items[0]?.children[0]).toBe(child);
+    }
+  });
+
+  it("accepts only value/logic reporters in sockets and converts them in place", () => {
+    const source = blocks([], [stack("root", "cat", [emptySocket("socket")])]);
+    for (const shape of ["value", "logic"] as const) {
+      const next = setSocketContentBlock(source, "root", "socket", reporter(shape, shape));
+      expect(next.items[0]?.parts[0]).toMatchObject({ content: { block: { shape } } });
+    }
+    for (const shape of ["start", "statement", "scope", "end"] as const) {
+      expect(setSocketContentBlock(source, "root", "socket", shapedStack(shape, shape))).toBe(source);
+    }
+    const original = reporter("reporter", "value");
+    const withReporter = setSocketContentBlock(source, "root", "socket", original);
+    const logic = setSocketContentBlockShape(withReporter, "root", "socket", "logic");
+    expect(logic.items[0]?.parts[0]).toMatchObject({ content: { block: { id: "reporter", color: original.color, shape: "logic", parts: original.parts, children: [] } } });
+    const valueAgain = setSocketContentBlockShape(logic, "root", "socket", "value");
+    expect(valueAgain.items[0]?.parts[0]).toMatchObject({ content: { block: { id: "reporter", shape: "value" } } });
+    expect(setSocketContentBlockShape(source, "root", "missing", "logic")).toBe(source);
+  });
   it("appendBlockItemToRoot accepts a statement", () => {
     const source = blocks(
       [colorKey("cat")],
