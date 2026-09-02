@@ -28,6 +28,7 @@ import {
   type PlayerOperationalStatus,
 } from "./player-presence";
 import {
+  requestPlayerClearCache,
   requestPlayerReload,
   requestPlayerRetry,
 } from "./player-recovery-request";
@@ -62,6 +63,7 @@ export function MaintenancePage() {
     null,
   );
   const [reloadWriting, setReloadWriting] = useState(false);
+  const [clearCacheWriting, setClearCacheWriting] = useState(false);
   const [reloadError, setReloadError] = useState<string | null>(null);
   const [retryPending, setRetryPending] = useState<{
     bootId: string;
@@ -94,6 +96,7 @@ export function MaintenancePage() {
     recoveryTokenRef.current += 1;
     setReloadPendingBootId(null);
     setReloadWriting(false);
+    setClearCacheWriting(false);
     setReloadError(null);
     setRetryPending(null);
     setRetryWriting(false);
@@ -228,6 +231,7 @@ export function MaintenancePage() {
     presence !== null &&
     currentStatus?.kind !== "disconnected" &&
     !reloadWriting &&
+    !clearCacheWriting &&
     reloadPendingBootId === null &&
     retryPending === null &&
     !retryWriting;
@@ -240,9 +244,20 @@ export function MaintenancePage() {
     currentStatus.presence.activationRevision === liveState.live.revision &&
     currentStatus.presence.currentVersionId === liveState.live.currentVersionId &&
     !reloadWriting &&
+    !clearCacheWriting &&
     reloadPendingBootId === null &&
     retryWriting === false &&
     retryPending === null;
+
+  const canClearCache =
+    liveState.kind === "active" &&
+    presence !== null &&
+    (currentStatus?.kind === "ready" || currentStatus?.kind === "load-failed") &&
+    !reloadWriting &&
+    !clearCacheWriting &&
+    reloadPendingBootId === null &&
+    retryPending === null &&
+    !retryWriting;
 
   async function reloadPlayer(): Promise<void> {
     if (!canReload || liveState.kind !== "active" || presence === null) {
@@ -315,6 +330,48 @@ export function MaintenancePage() {
     } finally {
       if (recoveryTokenRef.current === attemptToken) {
         setRetryWriting(false);
+      }
+    }
+  }
+
+  async function clearCacheAndReload(): Promise<void> {
+    if (
+      !canClearCache ||
+      liveState.kind !== "active" ||
+      presence === null ||
+      !window.confirm("Clear the Player browser cache and reload?")
+    ) {
+      return;
+    }
+
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setReloadError("Player recovery is unavailable.");
+      return;
+    }
+
+    const attemptToken = ++recoveryTokenRef.current;
+    const requestedBootId = presence.bootId;
+    setClearCacheWriting(true);
+    setReloadError(null);
+
+    try {
+      await requestPlayerClearCache(
+        database,
+        liveState.live.revision,
+        liveState.live.currentVersionId,
+        requestedBootId,
+      );
+      if (recoveryTokenRef.current === attemptToken) {
+        setReloadPendingBootId(requestedBootId);
+      }
+    } catch {
+      if (recoveryTokenRef.current === attemptToken) {
+        setReloadError("Could not request Player cache clearing. Try again.");
+      }
+    } finally {
+      if (recoveryTokenRef.current === attemptToken) {
+        setClearCacheWriting(false);
       }
     }
   }
@@ -397,8 +454,12 @@ export function MaintenancePage() {
             >
               {reloadWriting ? "Requesting reload…" : "Reload Player"}
             </button>
-            <button type="button" disabled>
-              Clear cache and reload
+            <button
+              type="button"
+              disabled={!canClearCache}
+              onClick={() => void clearCacheAndReload()}
+            >
+              {clearCacheWriting ? "Clearing cache…" : "Clear cache and reload"}
             </button>
           </div>
         </section>

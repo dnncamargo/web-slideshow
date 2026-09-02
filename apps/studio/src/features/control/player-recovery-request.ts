@@ -9,7 +9,7 @@ export interface PlayerRecoveryRequest {
   currentVersionId: string;
   revision: number;
   targetBootId: string;
-  action: "reload" | "retry";
+  action: "reload" | "retry" | "clear-cache";
   requestedAt: number;
 }
 
@@ -39,7 +39,9 @@ export function parsePlayerRecoveryRequest(
     !text(record.currentVersionId) ||
     !positiveInteger(record.revision) ||
     !text(record.targetBootId) ||
-    (record.action !== "reload" && record.action !== "retry") ||
+    (record.action !== "reload" &&
+      record.action !== "retry" &&
+      record.action !== "clear-cache") ||
     !nonNegativeInteger(record.requestedAt)
   ) {
     return null;
@@ -82,6 +84,21 @@ export async function requestPlayerRetry(
     currentVersionId,
     targetBootId,
     "retry",
+  );
+}
+
+export async function requestPlayerClearCache(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  targetBootId: string,
+): Promise<PlayerRecoveryRequest> {
+  return requestPlayerRecovery(
+    database,
+    activationRevision,
+    currentVersionId,
+    targetBootId,
+    "clear-cache",
   );
 }
 

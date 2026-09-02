@@ -18,6 +18,7 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import {
   PLAYER_RECOVERY_REQUEST_PATH,
+  requestPlayerClearCache,
   requestPlayerReload,
   requestPlayerRetry,
 } from "../src/features/control/player-recovery-request";
@@ -191,6 +192,28 @@ describe("Player recovery writer", () => {
       revision: 4,
       targetBootId: "boot-a",
       action: "retry",
+      requestedAt: 99,
+    });
+  });
+
+  it("writes clear-cache with the same exact request shape and next revision", async () => {
+    let proposed: unknown;
+    mocks.runTransaction.mockImplementation(
+      async (_reference: unknown, update: (value: unknown) => unknown) => {
+        proposed = update(existingRequest());
+        return { committed: true, snapshot: { val: () => proposed } };
+      },
+    );
+
+    await expect(
+      requestPlayerClearCache({} as never, 7, "version-1", "boot-a"),
+    ).resolves.toMatchObject({ action: "clear-cache", revision: 4, targetBootId: "boot-a" });
+    expect(proposed).toEqual({
+      activationRevision: 7,
+      currentVersionId: "version-1",
+      revision: 4,
+      targetBootId: "boot-a",
+      action: "clear-cache",
       requestedAt: 99,
     });
   });

@@ -34,6 +34,7 @@ describe("live/playerRecoveryRequest repository rules", () => {
   it("accepts only a connected exact current target and sequential revisions", () => {
     expect(evaluate(recovery[".validate"], null, request())).toBe(true);
     expect(evaluate(recovery[".validate"], null, request({ action: "retry" }))).toBe(true);
+    expect(evaluate(recovery[".validate"], null, request({ action: "clear-cache" }))).toBe(true);
     expect(evaluate(recovery[".validate"], request(), request({ revision: 2 }))).toBe(true);
     expect(evaluate(recovery[".validate"], request(), request({ revision: 3 }))).toBe(false);
     expect(evaluate(recovery[".validate"], null, request(), live(false))).toBe(false);

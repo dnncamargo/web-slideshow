@@ -3,13 +3,14 @@ import { onValue, ref, type Database } from "firebase/database";
 import { recordPlayerDiagnostic } from "./player-diagnostics";
 
 export const PLAYER_RECOVERY_REQUEST_PATH = "live/playerRecoveryRequest";
+export const PLAYER_CACHE_CLEAR_ROUTE = "/__powershow/clear-cache";
 
 export interface PlayerRecoveryRequest {
   activationRevision: number;
   currentVersionId: string;
   revision: number;
   targetBootId: string;
-  action: "reload" | "retry";
+  action: "reload" | "retry" | "clear-cache";
   requestedAt: number;
 }
 
@@ -35,7 +36,9 @@ export function parsePlayerRecoveryRequest(
     !isText(record.currentVersionId) ||
     !isPositiveInteger(record.revision) ||
     !isText(record.targetBootId) ||
-    (record.action !== "reload" && record.action !== "retry") ||
+    (record.action !== "reload" &&
+      record.action !== "retry" &&
+      record.action !== "clear-cache") ||
     !isNonNegativeInteger(record.requestedAt)
   ) {
     return null;
@@ -59,6 +62,25 @@ export function buildPlayerReloadUrl(
   const url = new URL(currentHref);
   url.searchParams.set("_psreload", `${activationRevision}-${requestRevision}`);
   return url.toString();
+}
+
+/** Routes through the cache-clearing technical response, preserving the Player URL. */
+export function buildPlayerCacheClearUrl(
+  currentHref: string,
+  activationRevision: number,
+  requestRevision: number,
+): string {
+  const returnUrl = new URL(currentHref);
+  returnUrl.searchParams.set(
+    "_psreload",
+    `${activationRevision}-${requestRevision}`,
+  );
+  const technicalUrl = new URL(PLAYER_CACHE_CLEAR_ROUTE, returnUrl.origin);
+  technicalUrl.searchParams.set(
+    "return",
+    `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`,
+  );
+  return technicalUrl.toString();
 }
 
 export interface PlayerRecoveryNavigation {
@@ -100,6 +122,21 @@ export function subscribePlayerRecoveryRequest(
           revision: request.revision,
         });
         navigation.replace(buildPlayerReloadUrl(location.href, activationRevision, request.revision));
+        return;
+      }
+
+      if (request.action === "clear-cache") {
+        recordPlayerDiagnostic("PLAYER_RECOVERY_CLEAR_CACHE", {
+          activationRevision,
+          revision: request.revision,
+        });
+        navigation.replace(
+          buildPlayerCacheClearUrl(
+            location.href,
+            activationRevision,
+            request.revision,
+          ),
+        );
         return;
       }
 
