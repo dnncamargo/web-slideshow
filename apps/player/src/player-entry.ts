@@ -19,7 +19,11 @@ import {
   type PlayerPresenceReporter,
   type PlayerPresenceTransition,
 } from "./live-player-presence";
-import { subscribePlayerRecoveryRequest } from "./live-player-recovery-request";
+import {
+  buildPlayerCacheClearUrl,
+  buildPlayerReloadUrl,
+  subscribePlayerRecoveryRequest,
+} from "./live-player-recovery-request";
 import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
@@ -58,6 +62,16 @@ export function startPlayer(root: HTMLElement): () => void {
   let activeLive: LiveCurrent | undefined;
   let currentSessionKey: string | null = null;
   let loadToken = 0;
+  let localRecoveryRevision = 0;
+  let localRecoveryInFlight = false;
+
+  interface LoadFailureEvidence {
+    code?: "FIRESTORE_LOAD_ERROR";
+    stage?: "Published presentation";
+    lastAttempt?: string;
+  }
+
+  let loadFailureEvidence: LoadFailureEvidence = {};
 
   function recordPresenceWriteError(
     transition: PlayerPresenceTransition,
@@ -69,13 +83,132 @@ export function startPlayer(root: HTMLElement): () => void {
     });
   }
 
-  function renderLoadState(message: string, loading = false): void {
+  function renderLoadState(
+    message: string,
+    loading = false,
+    recoverable = false,
+  ): void {
     root.innerHTML = `
       <div class="powershow-player-load-state" data-loading="${loading}">
         <span>${message}</span>
         <span class="powershow-player-load-indicator" aria-hidden="true"></span>
       </div>
     `;
+
+    if (!recoverable) return;
+
+    const state = root.querySelector<HTMLElement>(".powershow-player-load-state");
+    if (!state) return;
+
+    const moreButton = document.createElement("button");
+    moreButton.className = "powershow-player-recovery-toggle";
+    moreButton.type = "button";
+    moreButton.textContent = "See more";
+    moreButton.setAttribute("aria-expanded", "false");
+    state.appendChild(moreButton);
+
+    moreButton.addEventListener("click", () => {
+      if (moreButton.getAttribute("aria-expanded") === "true") {
+        renderLoadFailure();
+      } else {
+        renderRecoveryExpanded();
+      }
+    });
+  }
+
+  function renderRecoveryExpanded(): void {
+    const state = root.querySelector<HTMLElement>(".powershow-player-load-state");
+    if (!state) return;
+
+    const moreButton = state.querySelector<HTMLButtonElement>(
+      ".powershow-player-recovery-toggle",
+    );
+    if (moreButton) {
+      moreButton.setAttribute("aria-expanded", "true");
+      moreButton.textContent = "See less";
+    }
+
+    const options = document.createElement("div");
+    options.className = "powershow-player-recovery-options";
+    options.setAttribute("role", "group");
+    options.setAttribute("aria-label", "Local recovery options");
+
+    const retryButton = document.createElement("button");
+    retryButton.type = "button";
+    retryButton.textContent = "Try presentation again";
+    retryButton.addEventListener("click", () => {
+      void retryPresentation();
+    });
+
+    const reloadButton = document.createElement("button");
+    reloadButton.type = "button";
+    reloadButton.textContent = "Reload Player";
+    reloadButton.addEventListener("click", () => {
+      navigateLocalReload();
+    });
+
+    const clearCacheButton = document.createElement("button");
+    clearCacheButton.type = "button";
+    clearCacheButton.textContent = "Clear cache and reload";
+    clearCacheButton.addEventListener("click", () => {
+      navigateLocalCacheClear();
+    });
+
+    options.append(retryButton, reloadButton, clearCacheButton);
+
+    for (const [label, value] of [
+      ["Error code", loadFailureEvidence.code],
+      ["Stage", loadFailureEvidence.stage],
+      ["Last attempt", loadFailureEvidence.lastAttempt],
+    ] as const) {
+      if (value === undefined) continue;
+      const row = document.createElement("span");
+      row.textContent = `${label}: ${value}`;
+      options.appendChild(row);
+    }
+
+    state.appendChild(options);
+  }
+
+  function renderLoadFailure(): void {
+    renderLoadState("Could not load presentation.", false, activeLive !== undefined);
+  }
+
+  function markLoadFailure(): void {
+    loadFailureEvidence = {
+      code: "FIRESTORE_LOAD_ERROR",
+      stage: "Published presentation",
+      lastAttempt: new Date().toTimeString().slice(0, 8),
+    };
+  }
+
+  function nextLocalRecoveryRevision(): number {
+    localRecoveryRevision += 1;
+    return localRecoveryRevision;
+  }
+
+  function navigateLocalReload(): void {
+    const activationRevision = activeLive?.revision ?? 0;
+    window.location.replace(
+      buildPlayerReloadUrl(
+        window.location.href,
+        activationRevision,
+        nextLocalRecoveryRevision(),
+      ),
+    );
+  }
+
+  function navigateLocalCacheClear(): void {
+    if (!window.confirm("Clear the Player cache and reload?")) return;
+
+    const activationRevision = activeLive?.revision ?? 0;
+    window.location.replace(
+      buildPlayerCacheClearUrl(
+        window.location.href,
+        activationRevision,
+        nextLocalRecoveryRevision(),
+      ),
+    );
   }
 
   function renderNoActive(): void {
@@ -238,11 +371,12 @@ export function startPlayer(root: HTMLElement): () => void {
     }
 
     presenceReporter?.failed("presentation-load-failed");
-    renderLoadState("Could not load presentation.");
+    markLoadFailure();
+    renderLoadFailure();
   }
 
   async function retryPresentation(): Promise<void> {
-    if (presenceReporter === undefined || database === null) return;
+    if (localRecoveryInFlight || database === null) return;
 
     loadToken += 1;
     const token = loadToken;
@@ -252,12 +386,13 @@ export function startPlayer(root: HTMLElement): () => void {
       return;
     }
 
+    localRecoveryInFlight = true;
+
     detachLiveProjectionSubscriptions();
     activeController?.destroy();
     activeController = undefined;
     activePresentation = undefined;
-    activeLive = undefined;
-    presenceReporter.starting();
+    presenceReporter?.starting();
     renderLoadState("Loading presentation…", true);
 
     try {
@@ -269,8 +404,9 @@ export function startPlayer(root: HTMLElement): () => void {
         liveResult.live.currentVersionId !== retryingLive.currentVersionId ||
         liveResult.live.publicationId !== retryingLive.publicationId
       ) {
-        presenceReporter.failed("presentation-load-failed");
-        renderLoadState("Could not load presentation.");
+        presenceReporter?.failed("presentation-load-failed");
+        markLoadFailure();
+        renderLoadFailure();
         return;
       }
 
@@ -283,8 +419,11 @@ export function startPlayer(root: HTMLElement): () => void {
     } catch (error) {
       if (token !== loadToken) return;
       recordPlayerDiagnostic("PLAYER_RECOVERY_RETRY_ERROR", { error });
-      presenceReporter.failed("presentation-load-failed");
-      renderLoadState("Could not load presentation.");
+      presenceReporter?.failed("presentation-load-failed");
+      markLoadFailure();
+      renderLoadFailure();
+    } finally {
+      localRecoveryInFlight = false;
     }
   }
 
@@ -299,7 +438,8 @@ export function startPlayer(root: HTMLElement): () => void {
     if (event.kind === "error") {
       recordPlayerDiagnostic("LIVE_EVENT_ERROR");
       if (activeController === undefined) {
-        renderLoadState("Could not load presentation.");
+        markLoadFailure();
+        renderLoadFailure();
       }
       return;
     }
