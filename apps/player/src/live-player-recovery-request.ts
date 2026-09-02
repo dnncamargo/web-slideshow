@@ -9,7 +9,7 @@ export interface PlayerRecoveryRequest {
   currentVersionId: string;
   revision: number;
   targetBootId: string;
-  action: "reload";
+  action: "reload" | "retry";
   requestedAt: number;
 }
 
@@ -35,7 +35,7 @@ export function parsePlayerRecoveryRequest(
     !isText(record.currentVersionId) ||
     !isPositiveInteger(record.revision) ||
     !isText(record.targetBootId) ||
-    record.action !== "reload" ||
+    (record.action !== "reload" && record.action !== "retry") ||
     !isNonNegativeInteger(record.requestedAt)
   ) {
     return null;
@@ -45,7 +45,7 @@ export function parsePlayerRecoveryRequest(
     currentVersionId: record.currentVersionId.trim(),
     revision: record.revision,
     targetBootId: record.targetBootId.trim(),
-    action: "reload",
+    action: record.action,
     requestedAt: record.requestedAt,
   };
 }
@@ -65,6 +65,10 @@ export interface PlayerRecoveryNavigation {
   replace(url: string): void;
 }
 
+export type PlayerRecoveryRetryHandler = (
+  request: PlayerRecoveryRequest,
+) => void | Promise<void>;
+
 /** Observes only commands addressed to this specific Player boot. */
 export function subscribePlayerRecoveryRequest(
   database: Database,
@@ -73,6 +77,7 @@ export function subscribePlayerRecoveryRequest(
   bootId: string,
   location: { href: string },
   navigation: PlayerRecoveryNavigation = window.location,
+  onRetry: PlayerRecoveryRetryHandler = () => undefined,
 ): () => void {
   let highestHandledRevision = 0;
   let tornDown = false;
@@ -89,11 +94,26 @@ export function subscribePlayerRecoveryRequest(
         request.revision <= highestHandledRevision
       ) return;
       highestHandledRevision = request.revision;
-      recordPlayerDiagnostic("PLAYER_RECOVERY_RELOAD", {
+      if (request.action === "reload") {
+        recordPlayerDiagnostic("PLAYER_RECOVERY_RELOAD", {
+          activationRevision,
+          revision: request.revision,
+        });
+        navigation.replace(buildPlayerReloadUrl(location.href, activationRevision, request.revision));
+        return;
+      }
+
+      recordPlayerDiagnostic("PLAYER_RECOVERY_RETRY", {
         activationRevision,
         revision: request.revision,
       });
-      navigation.replace(buildPlayerReloadUrl(location.href, activationRevision, request.revision));
+      try {
+        void Promise.resolve(onRetry(request)).catch((error: unknown) => {
+          recordPlayerDiagnostic("PLAYER_RECOVERY_RETRY_ERROR", { error });
+        });
+      } catch (error) {
+        recordPlayerDiagnostic("PLAYER_RECOVERY_RETRY_ERROR", { error });
+      }
     },
     (error) => {
       recordPlayerDiagnostic("PLAYER_RECOVERY_SUBSCRIBE_ERROR", { error });

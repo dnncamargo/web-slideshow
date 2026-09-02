@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(),
   mountPlayer: vi.fn(),
   recordPlayerDiagnostic: vi.fn(),
+  readLiveCurrent: vi.fn(),
   resolveLiveIdentityMount: vi.fn(),
   startPlayerPresence: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../src/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull }));
 vi.mock("../src/live-entry", () => ({
   parseEntrySearch: () => ({ logsEnabled: false }),
+  readLiveCurrent: mocks.readLiveCurrent,
   resolveLiveIdentityMount: mocks.resolveLiveIdentityMount,
   subscribeLiveCurrent: mocks.subscribeLiveCurrent,
 }));
@@ -42,6 +44,10 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
     mocks.subscribePlayerRecoveryRequest.mockReturnValue(vi.fn());
+    mocks.readLiveCurrent.mockResolvedValue({
+      kind: "ok",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
+    });
     mocks.mountPlayer.mockReturnValue({ destroy: vi.fn(), getCurrentIndex: () => 0, goTo: vi.fn() });
   });
 
@@ -53,7 +59,7 @@ describe("Player presence pagehide cleanup", () => {
       handleLive = handler;
       return vi.fn();
     });
-    mocks.startPlayerPresence.mockResolvedValue({ ready, failed: vi.fn(), stop });
+    mocks.startPlayerPresence.mockResolvedValue({ starting: vi.fn(), ready, failed: vi.fn(), stop });
     mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
 
     startPlayer(document.querySelector("#app")!);
@@ -101,6 +107,7 @@ describe("Player presence pagehide cleanup", () => {
     });
     mocks.startPlayerPresence.mockResolvedValue({
       bootId: "boot-a",
+      starting: vi.fn(),
       ready,
       failed: vi.fn(),
       stop: vi.fn(),
@@ -132,6 +139,67 @@ describe("Player presence pagehide cleanup", () => {
     );
     expect(mocks.recordPlayerDiagnostic).not.toHaveBeenCalledWith(
       "PLAYER_PRESENCE_WRITE_ERROR",
+      expect.anything(),
+    );
+  });
+
+  it("retries the shared loading path in the same boot and restores projections", async () => {
+    const starting = vi.fn();
+    const ready = vi.fn();
+    const failed = vi.fn();
+    const projectionCleanups = [vi.fn(), vi.fn()];
+    let recoveryHandler!: (request: unknown) => void;
+    let loadCount = 0;
+    let handleLive!: (event: unknown) => void;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue({
+      bootId: "boot-a",
+      starting,
+      ready,
+      failed,
+      stop: vi.fn(),
+    });
+    mocks.resolveLiveIdentityMount.mockImplementation(async () => {
+      loadCount += 1;
+      return loadCount === 1
+        ? { kind: "error" }
+        : { kind: "ok", presentation: { slides: [] } };
+    });
+    mocks.subscribePlayerRecoveryRequest.mockImplementation(
+      (_db, _revision, _version, _boot, _location, _navigation, onRetry) => {
+        recoveryHandler = () => void onRetry();
+        return vi.fn();
+      },
+    );
+    mocks.subscribeLiveProjectionState
+      .mockReturnValueOnce(projectionCleanups[0])
+      .mockReturnValueOnce(projectionCleanups[1]);
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
+    });
+    await vi.waitFor(() => expect(failed).toHaveBeenCalledWith("presentation-load-failed"));
+
+    recoveryHandler({ action: "retry" });
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
+
+    expect(starting).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveLiveIdentityMount).toHaveBeenCalledTimes(2);
+    expect(mocks.mountPlayer).toHaveBeenCalledTimes(1);
+
+    recoveryHandler({ action: "retry" });
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(2));
+    expect(starting).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveLiveIdentityMount).toHaveBeenCalledTimes(3);
+    expect(mocks.mountPlayer).toHaveBeenCalledTimes(2);
+    expect(projectionCleanups[0]).toHaveBeenCalledTimes(1);
+    expect(mocks.recordPlayerDiagnostic).not.toHaveBeenCalledWith(
+      "PLAYER_RECOVERY_RETRY_ERROR",
       expect.anything(),
     );
   });

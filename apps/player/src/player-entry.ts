@@ -4,6 +4,7 @@ import { loadPublishedVersion } from "./published-presentation-loader";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 import {
   parseEntrySearch,
+  readLiveCurrent,
   resolveLiveIdentityMount,
   subscribeLiveCurrent,
   type LiveCurrent,
@@ -156,6 +157,12 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachLiveProjectionSubscriptions(): void {
+    detachLiveSlideAck();
+    detachLiveFullscreenRequest();
+    detachLiveGalleryControl();
+  }
+
   function detachPlayerRecoveryRequest(): void {
     cleanupPlayerRecoveryRequest?.();
     cleanupPlayerRecoveryRequest = undefined;
@@ -164,9 +171,7 @@ export function startPlayer(root: HTMLElement): () => void {
   function teardownLiveSession(): void {
     loadToken += 1;
     currentSessionKey = null;
-    detachLiveSlideAck();
-    detachLiveFullscreenRequest();
-    detachLiveGalleryControl();
+    detachLiveProjectionSubscriptions();
     detachPlayerRecoveryRequest();
     activeController?.destroy();
     activeController = undefined;
@@ -174,6 +179,113 @@ export function startPlayer(root: HTMLElement): () => void {
     activeLive = undefined;
     presenceReporter?.stop();
     presenceReporter = undefined;
+  }
+
+  async function loadAndMount(
+    requestedLive: LiveCurrent,
+    token: number,
+    load: () => Promise<Awaited<ReturnType<typeof resolveLiveIdentityMount>>>,
+    promotion: boolean,
+  ): Promise<void> {
+    const result = await load();
+
+    if (token !== loadToken) return;
+
+    if (result.kind === "ok") {
+      const promotedIndex =
+        promotion && activePresentation && activeController
+          ? mapPromotedSlideIndex(
+              activePresentation,
+              result.presentation,
+              activeController.getCurrentIndex(),
+            )
+          : 0;
+
+      activeController?.destroy();
+      activeController = undefined;
+
+      recordPlayerDiagnostic("PLAYER_MOUNT_START", {
+        revision: requestedLive.revision,
+      });
+
+      try {
+        activeController = mountPlayer(root, result.presentation, { controls });
+      } catch (error) {
+        recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
+        presenceReporter?.failed("player-mount-failed");
+        throw error;
+      }
+
+      recordPlayerDiagnostic("PLAYER_MOUNT_OK", {
+        revision: requestedLive.revision,
+      });
+
+      if (promotion) activeController.goTo(promotedIndex);
+
+      activePresentation = result.presentation;
+      activeLive = requestedLive;
+      attachLiveProjection(requestedLive, result.presentation, logsEnabled);
+      presenceReporter?.ready();
+      return;
+    }
+
+    currentSessionKey = null;
+
+    if (result.kind === "not-found") {
+      presenceReporter?.failed("presentation-not-found");
+      renderLoadState("Presentation not found.");
+      return;
+    }
+
+    presenceReporter?.failed("presentation-load-failed");
+    renderLoadState("Could not load presentation.");
+  }
+
+  async function retryPresentation(): Promise<void> {
+    if (presenceReporter === undefined || database === null) return;
+
+    loadToken += 1;
+    const token = loadToken;
+    const retryingLive = activeLive;
+
+    if (retryingLive === undefined) {
+      return;
+    }
+
+    detachLiveProjectionSubscriptions();
+    activeController?.destroy();
+    activeController = undefined;
+    activePresentation = undefined;
+    activeLive = undefined;
+    presenceReporter.starting();
+    renderLoadState("Loading presentation…", true);
+
+    try {
+      const liveResult = await readLiveCurrent(database);
+      if (token !== loadToken) return;
+      if (
+        liveResult.kind !== "ok" ||
+        liveResult.live.revision !== retryingLive.revision ||
+        liveResult.live.currentVersionId !== retryingLive.currentVersionId ||
+        liveResult.live.publicationId !== retryingLive.publicationId
+      ) {
+        presenceReporter.failed("presentation-load-failed");
+        renderLoadState("Could not load presentation.");
+        return;
+      }
+
+      await loadAndMount(
+        liveResult.live,
+        token,
+        () => resolveLiveIdentityMount(liveResult.live, loadPublishedVersion),
+        false,
+      );
+    } catch (error) {
+      if (token !== loadToken) return;
+      recordPlayerDiagnostic("PLAYER_RECOVERY_RETRY_ERROR", { error });
+      presenceReporter.failed("presentation-load-failed");
+      renderLoadState("Could not load presentation.");
+    }
   }
 
   async function handleLiveEvent(event: LiveCurrentEvent): Promise<void> {
@@ -209,9 +321,7 @@ export function startPlayer(root: HTMLElement): () => void {
       isVersionPromotion(activeLive, event.live);
 
     if (promotion) {
-      detachLiveSlideAck();
-      detachLiveFullscreenRequest();
-      detachLiveGalleryControl();
+      detachLiveProjectionSubscriptions();
       detachPlayerRecoveryRequest();
       loadToken += 1;
     } else {
@@ -219,6 +329,7 @@ export function startPlayer(root: HTMLElement): () => void {
     }
 
     currentSessionKey = key;
+    activeLive = event.live;
     loadToken += 1;
     const token = loadToken;
 
@@ -242,6 +353,8 @@ export function startPlayer(root: HTMLElement): () => void {
           event.live.currentVersionId,
           presenceReporter.bootId,
           window.location,
+          window.location,
+          () => retryPresentation(),
         );
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_RECOVERY_SUBSCRIBE_ERROR", { error });
@@ -254,64 +367,18 @@ export function startPlayer(root: HTMLElement): () => void {
       renderLoadState("Loading presentation…", true);
     }
 
-    const result = await resolveLiveIdentityMount(event.live, loadPublishedVersion);
-
-    if (token !== loadToken) {
-      return;
-    }
-
-    if (result.kind === "ok") {
-      const promotedIndex =
-        promotion && activePresentation && activeController
-          ? mapPromotedSlideIndex(
-              activePresentation,
-              result.presentation,
-              activeController.getCurrentIndex(),
-            )
-          : 0;
-
-      activeController?.destroy();
-
-      recordPlayerDiagnostic("PLAYER_MOUNT_START", {
-        revision: event.live.revision,
-      });
-
-      try {
-        activeController = mountPlayer(root, result.presentation, { controls });
-      } catch (error) {
-        recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
-        presenceReporter?.failed("player-mount-failed");
-        throw error;
+    try {
+      await loadAndMount(
+        event.live,
+        token,
+        () => resolveLiveIdentityMount(event.live, loadPublishedVersion),
+        promotion,
+      );
+    } catch (error) {
+      if (promotion) {
+        console.error("Player: could not load promoted live version.");
       }
-
-      recordPlayerDiagnostic("PLAYER_MOUNT_OK", {
-        revision: event.live.revision,
-      });
-
-      if (promotion) activeController.goTo(promotedIndex);
-
-      activePresentation = result.presentation;
-      activeLive = event.live;
-      attachLiveProjection(event.live, result.presentation, logsEnabled);
-      presenceReporter?.ready();
-      return;
     }
-
-    currentSessionKey = null;
-
-    if (promotion) {
-      console.error("Player: could not load promoted live version.");
-      return;
-    }
-
-    if (result.kind === "not-found") {
-      presenceReporter?.failed("presentation-not-found");
-      renderLoadState("Presentation not found.");
-      return;
-    }
-
-    presenceReporter?.failed("presentation-load-failed");
-    renderLoadState("Could not load presentation.");
   }
 
   const { logsEnabled } = parseEntrySearch(window.location.search);

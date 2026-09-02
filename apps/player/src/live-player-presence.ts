@@ -17,6 +17,7 @@ export type PlayerBootErrorCode =
 
 export interface PlayerPresenceReporter {
   readonly bootId: string;
+  starting(): void;
   ready(): void;
   failed(errorCode: PlayerBootErrorCode): void;
   stop(): void;
@@ -94,6 +95,7 @@ export async function startPlayerPresence(
 
   return {
     bootId,
+    starting: () => transition("starting"),
     ready: () => transition("ready"),
     failed: (errorCode) => transition("load-failed", errorCode),
     stop: () => {

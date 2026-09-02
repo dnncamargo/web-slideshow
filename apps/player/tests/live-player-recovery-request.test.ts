@@ -50,6 +50,30 @@ describe("Player recovery request", () => {
     expect(mocks.onValue.mock.results[0]?.value).toHaveBeenCalledTimes(1);
   });
 
+  it("dispatches retry without navigation and ignores duplicate revisions", async () => {
+    const navigation = { replace: vi.fn() };
+    const retry = vi.fn();
+    subscribePlayerRecoveryRequest(
+      {} as never,
+      7,
+      "version-1",
+      "boot-a",
+      { href: "https://player.example/live" },
+      navigation,
+      retry,
+    );
+    const handler = mocks.onValue.mock.calls[0]?.[1] as (value: ReturnType<typeof snapshot>) => void;
+    handler(snapshot(request({ action: "retry" })));
+    handler(snapshot(request({ action: "retry" })));
+    await Promise.resolve();
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(diagnostics.record).toHaveBeenCalledWith("PLAYER_RECOVERY_RETRY", {
+      activationRevision: 7,
+      revision: 1,
+    });
+  });
+
   it("records a sanitized subscription failure without navigating", () => {
     const navigation = { replace: vi.fn() };
     subscribePlayerRecoveryRequest(

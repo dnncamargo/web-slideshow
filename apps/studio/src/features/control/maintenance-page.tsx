@@ -27,7 +27,10 @@ import {
   resolvePlayerOperationalStatus,
   type PlayerOperationalStatus,
 } from "./player-presence";
-import { requestPlayerReload } from "./player-recovery-request";
+import {
+  requestPlayerReload,
+  requestPlayerRetry,
+} from "./player-recovery-request";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 
 import styles from "./maintenance-page.module.css";
@@ -60,6 +63,11 @@ export function MaintenancePage() {
   );
   const [reloadWriting, setReloadWriting] = useState(false);
   const [reloadError, setReloadError] = useState<string | null>(null);
+  const [retryPending, setRetryPending] = useState<{
+    bootId: string;
+    sawStarting: boolean;
+  } | null>(null);
+  const [retryWriting, setRetryWriting] = useState(false);
   const recoveryTokenRef = useRef(0);
   const activePublicationId =
     liveState.kind === "active" ? liveState.live.publicationId : null;
@@ -87,6 +95,8 @@ export function MaintenancePage() {
     setReloadPendingBootId(null);
     setReloadWriting(false);
     setReloadError(null);
+    setRetryPending(null);
+    setRetryWriting(false);
 
     if (
       activePublicationId !== null &&
@@ -196,12 +206,43 @@ export function MaintenancePage() {
     }
   }, [currentStatus, presence, reloadPendingBootId]);
 
+  useEffect(() => {
+    if (retryPending === null || presence === null) return;
+    if (presence.bootId !== retryPending.bootId) {
+      return;
+    }
+    if (!retryPending.sawStarting && presence.stage === "starting") {
+      setRetryPending({ ...retryPending, sawStarting: true });
+      return;
+    }
+    if (
+      retryPending.sawStarting &&
+      (presence.stage === "ready" || presence.stage === "load-failed")
+    ) {
+      setRetryPending(null);
+    }
+  }, [presence, retryPending]);
+
   const canReload =
     liveState.kind === "active" &&
     presence !== null &&
     currentStatus?.kind !== "disconnected" &&
     !reloadWriting &&
-    reloadPendingBootId === null;
+    reloadPendingBootId === null &&
+    retryPending === null &&
+    !retryWriting;
+
+  const canRetry =
+    liveState.kind === "active" &&
+    presence !== null &&
+    currentStatus?.kind === "load-failed" &&
+    currentStatus.presence.bootId === presence.bootId &&
+    currentStatus.presence.activationRevision === liveState.live.revision &&
+    currentStatus.presence.currentVersionId === liveState.live.currentVersionId &&
+    !reloadWriting &&
+    reloadPendingBootId === null &&
+    retryWriting === false &&
+    retryPending === null;
 
   async function reloadPlayer(): Promise<void> {
     if (!canReload || liveState.kind !== "active" || presence === null) {
@@ -237,6 +278,43 @@ export function MaintenancePage() {
     } finally {
       if (recoveryTokenRef.current === attemptToken) {
         setReloadWriting(false);
+      }
+    }
+  }
+
+  async function retryPlayer(): Promise<void> {
+    if (!canRetry || liveState.kind !== "active" || presence === null) {
+      return;
+    }
+
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setReloadError("Player recovery is unavailable.");
+      return;
+    }
+
+    const attemptToken = ++recoveryTokenRef.current;
+    const requestedBootId = presence.bootId;
+    setRetryWriting(true);
+    setReloadError(null);
+
+    try {
+      await requestPlayerRetry(
+        database,
+        liveState.live.revision,
+        liveState.live.currentVersionId,
+        requestedBootId,
+      );
+      if (recoveryTokenRef.current === attemptToken) {
+        setRetryPending({ bootId: requestedBootId, sawStarting: false });
+      }
+    } catch {
+      if (recoveryTokenRef.current === attemptToken) {
+        setReloadError("Could not request Player retry. Try again.");
+      }
+    } finally {
+      if (recoveryTokenRef.current === attemptToken) {
+        setRetryWriting(false);
       }
     }
   }
@@ -297,14 +375,20 @@ export function MaintenancePage() {
         <section className={styles.section} aria-labelledby="recovery">
           <h2 id="recovery">Recovery</h2>
           <p>
-            {reloadPendingBootId !== null
+            {retryPending !== null
+              ? "Trying again…"
+              : reloadPendingBootId !== null
               ? "Waiting for Player…"
               : "Request a remote Player reload."}
           </p>
           {reloadError && <p role="alert">{reloadError}</p>}
           <div className={styles.actions}>
-            <button type="button" disabled>
-              Try presentation again
+            <button
+              type="button"
+              disabled={!canRetry}
+              onClick={() => void retryPlayer()}
+            >
+              {retryWriting ? "Trying again…" : "Try presentation again"}
             </button>
             <button
               type="button"

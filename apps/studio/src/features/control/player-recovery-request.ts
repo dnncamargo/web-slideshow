@@ -9,7 +9,7 @@ export interface PlayerRecoveryRequest {
   currentVersionId: string;
   revision: number;
   targetBootId: string;
-  action: "reload";
+  action: "reload" | "retry";
   requestedAt: number;
 }
 
@@ -39,7 +39,7 @@ export function parsePlayerRecoveryRequest(
     !text(record.currentVersionId) ||
     !positiveInteger(record.revision) ||
     !text(record.targetBootId) ||
-    record.action !== "reload" ||
+    (record.action !== "reload" && record.action !== "retry") ||
     !nonNegativeInteger(record.requestedAt)
   ) {
     return null;
@@ -50,7 +50,7 @@ export function parsePlayerRecoveryRequest(
     currentVersionId: record.currentVersionId.trim(),
     revision: record.revision,
     targetBootId: record.targetBootId.trim(),
-    action: "reload",
+    action: record.action,
     requestedAt: record.requestedAt,
   };
 }
@@ -61,10 +61,43 @@ export async function requestPlayerReload(
   currentVersionId: string,
   targetBootId: string,
 ): Promise<PlayerRecoveryRequest> {
+  return requestPlayerRecovery(
+    database,
+    activationRevision,
+    currentVersionId,
+    targetBootId,
+    "reload",
+  );
+}
+
+export async function requestPlayerRetry(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  targetBootId: string,
+): Promise<PlayerRecoveryRequest> {
+  return requestPlayerRecovery(
+    database,
+    activationRevision,
+    currentVersionId,
+    targetBootId,
+    "retry",
+  );
+}
+
+async function requestPlayerRecovery(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  targetBootId: string,
+  action: PlayerRecoveryRequest["action"],
+): Promise<PlayerRecoveryRequest> {
   const version = currentVersionId.trim();
   const bootId = targetBootId.trim();
   if (!nonNegativeInteger(activationRevision) || version === "" || bootId === "") {
-    throw new Error("Player reload requires an active matching Player.");
+    throw new Error(
+      `Player ${action} requires an active matching Player.`,
+    );
   }
   if (getCurrentNonAnonymousUser() === null) {
     throw new Error("Control requires an authenticated user.");
@@ -83,13 +116,13 @@ export async function requestPlayerReload(
       currentVersionId: version,
       revision,
       targetBootId: bootId,
-      action: "reload",
+      action,
       requestedAt: serverTimestamp(),
     };
   });
   const request = parsePlayerRecoveryRequest(outcome.snapshot.val());
-  if (!outcome.committed || request === null) {
-    throw new Error("Could not request Player reload.");
+  if (!outcome.committed || request === null || request.action !== action) {
+    throw new Error(`Could not request Player ${action}.`);
   }
   return request;
 }
