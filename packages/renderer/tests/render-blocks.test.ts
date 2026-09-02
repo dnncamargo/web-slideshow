@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { BlockItem, BlockPart, BlocksElement } from "@powershow/document-schema";
+import {
+  BlocksElementSchema,
+  type BlockItem,
+  type BlockPart,
+  type BlocksElement,
+} from "@powershow/document-schema";
 
 import {
   BLOCK_CONNECTOR_HEIGHT,
@@ -10,6 +15,7 @@ import {
   SCOPE_INDENT,
   renderBlocks,
 } from "../src/render-blocks";
+import { createDidacticBlocksElement } from "./fixtures/render-fixtures";
 
 const text = (id: string, value = id): BlockPart => ({ id, type: "text", text: value });
 const literal = (id: string, value: string): BlockPart => ({ id, type: "socket", content: { type: "literal", value } });
@@ -166,6 +172,65 @@ describe("renderBlocks", () => {
     expect(html).not.toContain("eval(");
     expect(html).not.toContain("Function(");
     expect(html).not.toContain("Blockly");
+    expect(html).not.toContain("runtime");
+  });
+
+  it("accepts the representative didactic Blocks fixture as canonical data", () => {
+    expect(() => BlocksElementSchema.parse(createDidacticBlocksElement())).not.toThrow();
+  });
+
+  it("renders the didactic fixture with authored composition and semantic regions", () => {
+    const fixture = createDidacticBlocksElement();
+    const html = renderBlocks(fixture);
+    const blockIndex = (id: string): number =>
+      html.indexOf(`data-powershow-block-id="${id}"`);
+
+    expect(html).toContain('data-powershow-block-id="event-start"');
+    expect(html).toContain('data-powershow-block-id="move-steps"');
+    expect(html).toContain('data-powershow-block-id="repeat-loop"');
+    expect(html).toContain('data-powershow-block-id="repeat-until-loop"');
+    expect(html).toContain('data-powershow-block-id="x-position-value"');
+    expect(html).toContain('data-powershow-block-id="touching-logic"');
+    expect(html).toContain('data-powershow-block-id="stop-all"');
+
+    expect(blockIndex("event-start")).toBeLessThan(blockIndex("set-score"));
+    expect(blockIndex("set-score")).toBeLessThan(blockIndex("repeat-loop"));
+    expect(blockIndex("repeat-loop")).toBeLessThan(blockIndex("repeat-until-loop"));
+    expect(blockIndex("repeat-until-loop")).toBeLessThan(blockIndex("stop-all"));
+    expect(blockIndex("move-steps")).toBeLessThan(blockIndex("turn-degrees"));
+    expect(blockIndex("turn-degrees")).toBeLessThan(blockIndex("set-x-position"));
+
+    const moveStart = blockIndex("move-steps");
+    const moveEnd = blockIndex("turn-degrees");
+    const moveRegion = html.slice(moveStart, moveEnd);
+    expect(moveRegion.indexOf('class="powershow-block-text">move')).toBeLessThan(
+      moveRegion.indexOf('data-powershow-part-id="move-count"'),
+    );
+    expect(moveRegion.indexOf('data-powershow-part-id="move-count"')).toBeLessThan(
+      moveRegion.indexOf('class="powershow-block-text">steps'),
+    );
+
+    const logicStart = blockIndex("touching-logic");
+    const logicRegion = html.slice(logicStart);
+    expect(logicRegion.indexOf('class="powershow-block-text">touching')).toBeLessThan(
+      logicRegion.indexOf('data-powershow-part-id="touching-target"'),
+    );
+    expect(logicRegion.indexOf('data-powershow-part-id="touching-target"')).toBeLessThan(
+      logicRegion.indexOf('class="powershow-block-text">?'),
+    );
+
+    expect(html).toContain("powershow-block--value");
+    expect(html).toContain("powershow-block--logic");
+    expect(html).toContain("clip-path:polygon(8% 0,92% 0,100% 50%,92% 100%,8% 100%,0 50%)");
+    expect(html).toContain("background-color:#f97316");
+    expect(html).toContain("background-color:#3b82f6");
+    expect(html).toContain("background-color:#22c55e");
+    expect(html).toContain("powershow-block-socket--block");
+    expect(html).toContain("flex-wrap:wrap");
+    expect(html).toContain("white-space:normal");
+    expect(html).toContain("overflow-wrap:anywhere");
+    expect(html).not.toContain("<script");
+    expect(html).not.toMatch(/on[a-z]+=/i);
     expect(html).not.toContain("runtime");
   });
 });
