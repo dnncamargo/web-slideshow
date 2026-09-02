@@ -27,7 +27,10 @@ vi.mock("../src/live-player-presence", () => ({ startPlayerPresence: mocks.start
 vi.mock("../src/live-state", () => ({ subscribeLiveProjectionState: mocks.subscribeLiveProjectionState }));
 vi.mock("../src/live-fullscreen-request", () => ({ subscribeLiveFullscreenRequest: mocks.subscribeLiveFullscreenRequest }));
 vi.mock("../src/live-gallery-control", () => ({ subscribeLiveGalleryControl: mocks.subscribeLiveGalleryControl }));
-vi.mock("../src/live-player-recovery-request", () => ({ subscribePlayerRecoveryRequest: mocks.subscribePlayerRecoveryRequest }));
+vi.mock("../src/live-player-recovery-request", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/live-player-recovery-request")>()),
+  subscribePlayerRecoveryRequest: mocks.subscribePlayerRecoveryRequest,
+}));
 vi.mock("../src/live-version-mapping", () => ({ mapPromotedSlideIndex: () => 0 }));
 vi.mock("../src/published-presentation-loader", () => ({ loadPublishedVersion: vi.fn() }));
 vi.mock("../src/player-diagnostics", () => ({ configurePlayerDiagnostics: vi.fn(), recordPlayerDiagnostic: mocks.recordPlayerDiagnostic }));
@@ -307,5 +310,168 @@ describe("Player presence pagehide cleanup", () => {
 
     resolveRetry({ kind: "ok", presentation: { slides: [] } });
     await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
+  });
+
+  async function showRecoveryOptions(options: {
+    resolveMount?: () => Promise<unknown>;
+    presence?: unknown;
+  } = {}): Promise<void> {
+    let handleLive!: (event: unknown) => void;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue(options.presence ?? {
+      bootId: "boot-a",
+      starting: vi.fn(),
+      ready: vi.fn(),
+      failed: vi.fn(),
+      stop: vi.fn(),
+    });
+    mocks.resolveLiveIdentityMount.mockImplementation(
+      options.resolveMount ?? (() => Promise.resolve({ kind: "error" })),
+    );
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({
+      kind: "active",
+      live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
+    });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
+    document.querySelector<HTMLButtonElement>(".powershow-player-recovery-toggle")?.click();
+  }
+
+  function recoveryButton(label: string): HTMLButtonElement {
+    const button = [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === label,
+    );
+    expect(button).toBeInstanceOf(HTMLButtonElement);
+    return button as HTMLButtonElement;
+  }
+
+  function stubPlayerWindow(href: string): {
+    replace: ReturnType<typeof vi.fn>;
+    confirm: ReturnType<typeof vi.fn>;
+  } {
+    const navigation = { replace: vi.fn() };
+    const confirm = vi.fn();
+    const location = new URL(href);
+    const playerWindow = Object.create(window) as Window & typeof globalThis;
+    Object.defineProperties(playerWindow, {
+      location: { configurable: true, value: location },
+      confirm: { configurable: true, value: confirm },
+      addEventListener: { configurable: true, value: window.addEventListener.bind(window) },
+    });
+    Object.defineProperty(playerWindow.location, "replace", {
+      configurable: true,
+      value: navigation.replace,
+    });
+    vi.stubGlobal("window", playerWindow);
+    return { replace: navigation.replace, confirm };
+  }
+
+  it("uses the local reload contract and preserves the current URL", async () => {
+    const { replace } = stubPlayerWindow(
+      "https://player.example/live?logs=true&mode=preview&_psreload=old#slide-2",
+    );
+
+    try {
+      await showRecoveryOptions();
+      recoveryButton("Reload Player").click();
+
+      expect(replace).toHaveBeenCalledTimes(1);
+      const destination = new URL(replace.mock.calls[0]?.[0] as string);
+      expect(destination.origin).toBe("https://player.example");
+      expect(destination.pathname).toBe("/live");
+      expect(destination.searchParams.get("logs")).toBe("true");
+      expect(destination.searchParams.get("mode")).toBe("preview");
+      expect(destination.searchParams.get("_psreload")).toBe("7-1");
+      expect(destination.hash).toBe("#slide-2");
+      expect(mocks.subscribePlayerRecoveryRequest).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("cancels cache clearing without navigation and keeps recovery usable", async () => {
+    const { replace, confirm } = stubPlayerWindow("https://player.example/live?logs=true#slide-2");
+    confirm.mockReturnValue(false);
+
+    try {
+      await showRecoveryOptions();
+      recoveryButton("Clear cache and reload").click();
+
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(replace).not.toHaveBeenCalled();
+      expect(document.body.textContent).toContain("Try presentation again");
+      expect(mocks.subscribePlayerRecoveryRequest).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses the accepted cache route and preserves the safe return URL", async () => {
+    const { replace, confirm } = stubPlayerWindow(
+      "https://player.example/watch?logs=true&mode=preview&_psreload=old#slide-2",
+    );
+    confirm.mockReturnValue(true);
+
+    try {
+      await showRecoveryOptions();
+      recoveryButton("Clear cache and reload").click();
+
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(replace).toHaveBeenCalledTimes(1);
+      const destination = new URL(replace.mock.calls[0]?.[0] as string);
+      expect(destination.origin).toBe("https://player.example");
+      expect(destination.pathname).toBe("/__powershow/clear-cache");
+      expect(destination.searchParams.get("return")).toBe(
+        "/watch?logs=true&mode=preview&_psreload=7-1#slide-2",
+      );
+      expect(mocks.subscribePlayerRecoveryRequest).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("returns a failed local retry to the sanitized recoverable surface", async () => {
+    const rawFailure = new Error(
+      "raw-error stack-token secret-token /firestore/presentations/presentation-99",
+    );
+    const starting = vi.fn();
+    const failed = vi.fn();
+    let loadCount = 0;
+    await showRecoveryOptions({
+      resolveMount: () => {
+        loadCount += 1;
+        return loadCount === 1
+          ? Promise.resolve({ kind: "error" })
+          : Promise.reject(rawFailure);
+      },
+      presence: {
+        bootId: "boot-a",
+        starting,
+        ready: vi.fn(),
+        failed,
+        stop: vi.fn(),
+      },
+    });
+    recoveryButton("Try presentation again").click();
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
+    expect(starting).toHaveBeenCalledTimes(1);
+    expect(failed).toHaveBeenCalledWith("presentation-load-failed");
+    expect(document.body.textContent).toContain("Could not load presentation.");
+    document.querySelector<HTMLButtonElement>(".powershow-player-recovery-toggle")?.click();
+    expect(document.body.textContent).toContain("Error code: FIRESTORE_LOAD_ERROR");
+    expect(document.body.textContent).toContain("Stage: Published presentation");
+    expect(document.body.textContent).not.toContain("raw-error");
+    expect(document.body.textContent).not.toContain("stack-token");
+    expect(document.body.textContent).not.toContain("secret-token");
+    expect(document.body.textContent).not.toContain("/firestore/presentations/presentation-99");
+    expect(document.body.textContent).not.toContain("publication-1");
+    expect(document.body.textContent).not.toContain("version-1");
+    expect(recoveryButton("Try presentation again").disabled).toBe(false);
+    expect(recoveryButton("See less")).toBeTruthy();
   });
 });
