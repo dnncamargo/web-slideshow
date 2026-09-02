@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   readControlLatencySnapshot: vi.fn(),
   ref: vi.fn(),
   requestPlayerReload: vi.fn(),
+  requestPlayerRetry: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
 }));
 
@@ -30,6 +31,7 @@ vi.mock("../src/features/live/live-current-read", () => ({
 }));
 vi.mock("../src/features/control/player-recovery-request", () => ({
   requestPlayerReload: mocks.requestPlayerReload,
+  requestPlayerRetry: mocks.requestPlayerRetry,
 }));
 vi.mock("../src/features/control/control-latency-snapshot", () => ({
   readControlLatencySnapshot: mocks.readControlLatencySnapshot,
@@ -140,6 +142,7 @@ describe("Maintenance page", () => {
     });
     mocks.readControlLatencySnapshot.mockReturnValue(null);
     mocks.requestPlayerReload.mockResolvedValue({});
+    mocks.requestPlayerRetry.mockResolvedValue({});
   });
 
   afterEach(async () => {
@@ -224,6 +227,50 @@ describe("Maintenance page", () => {
     expect(button("Try presentation again").disabled).toBe(true);
     expect(button("Reload Player").disabled).toBe(false);
     expect(button("Clear cache and reload").disabled).toBe(true);
+  });
+
+  it("enables Try presentation again only for a connected load failure", () => {
+    render();
+    emitPresence(presence("boot-a", "load-failed"));
+
+    expect(button("Try presentation again").disabled).toBe(false);
+    expect(button("Reload Player").disabled).toBe(false);
+
+    emitPresence(presence("boot-a", "starting"));
+    expect(button("Try presentation again").disabled).toBe(true);
+    emitPresence(presence("boot-a", "ready"));
+    expect(button("Try presentation again").disabled).toBe(true);
+  });
+
+  it("writes retry and completes only after the same boot reports starting then ready", async () => {
+    render();
+    emitPresence(presence("boot-a", "load-failed"));
+
+    await act(async () => button("Try presentation again").click());
+
+    expect(mocks.requestPlayerRetry).toHaveBeenCalledWith(
+      database,
+      7,
+      "version-1",
+      "boot-a",
+    );
+    expect(container.textContent).toContain("Trying again…");
+
+    emitPresence(presence("boot-a", "starting"));
+    expect(container.textContent).toContain("Trying again…");
+    emitPresence(presence("boot-a", "ready"));
+    expect(container.textContent).not.toContain("Trying again…");
+  });
+
+  it("keeps retry pending through failure and allows another explicit retry", async () => {
+    render();
+    emitPresence(presence("boot-a", "load-failed"));
+    await act(async () => button("Try presentation again").click());
+    emitPresence(presence("boot-a", "starting"));
+    emitPresence(presence("boot-a", "load-failed"));
+
+    expect(container.textContent).not.toContain("Trying again…");
+    expect(button("Try presentation again").disabled).toBe(false);
   });
 
   it("writes the exact reload target and waits for a different ready boot", async () => {

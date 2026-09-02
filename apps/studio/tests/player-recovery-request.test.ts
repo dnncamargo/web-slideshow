@@ -19,6 +19,7 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 import {
   PLAYER_RECOVERY_REQUEST_PATH,
   requestPlayerReload,
+  requestPlayerRetry,
 } from "../src/features/control/player-recovery-request";
 
 const existingRequest = (overrides: Record<string, unknown> = {}) => ({
@@ -168,6 +169,28 @@ describe("Player recovery writer", () => {
       revision: 1,
       targetBootId: "boot-a",
       action: "reload",
+      requestedAt: 99,
+    });
+  });
+
+  it("writes retry with the same exact request shape and next revision", async () => {
+    let proposed: unknown;
+    mocks.runTransaction.mockImplementation(
+      async (_reference: unknown, update: (value: unknown) => unknown) => {
+        proposed = update(existingRequest());
+        return { committed: true, snapshot: { val: () => proposed } };
+      },
+    );
+
+    await expect(
+      requestPlayerRetry({} as never, 7, "version-1", "boot-a"),
+    ).resolves.toMatchObject({ action: "retry", revision: 4, targetBootId: "boot-a" });
+    expect(proposed).toEqual({
+      activationRevision: 7,
+      currentVersionId: "version-1",
+      revision: 4,
+      targetBootId: "boot-a",
+      action: "retry",
       requestedAt: 99,
     });
   });

@@ -29,9 +29,11 @@ describe("live/playerRecoveryRequest repository rules", () => {
   it("preserves public reads and requires authenticated writes", () => {
     expect(recovery[".read"]).toBe(true);
     expect(evaluate(recovery[".write"], null, request(), live(), false)).toBe(false);
+    expect(evaluate(recovery[".write"], null, request({ action: "retry" }), live(), false)).toBe(false);
   });
   it("accepts only a connected exact current target and sequential revisions", () => {
     expect(evaluate(recovery[".validate"], null, request())).toBe(true);
+    expect(evaluate(recovery[".validate"], null, request({ action: "retry" }))).toBe(true);
     expect(evaluate(recovery[".validate"], request(), request({ revision: 2 }))).toBe(true);
     expect(evaluate(recovery[".validate"], request(), request({ revision: 3 }))).toBe(false);
     expect(evaluate(recovery[".validate"], null, request(), live(false))).toBe(false);
@@ -43,6 +45,9 @@ describe("live/playerRecoveryRequest repository rules", () => {
   it("rejects stale identities and extra fields while allowing authenticated cleanup", () => {
     expect(evaluate(recovery[".validate"], null, request({ activationRevision: 6 }))).toBe(false);
     expect(evaluate(recovery[".validate"], null, request({ currentVersionId: "old" }))).toBe(false);
+    expect(evaluate(recovery[".validate"], null, request({ action: "unknown" }))).toBe(false);
+    expect(evaluate(recovery[".validate"], null, request({ revision: 0 }))).toBe(false);
+    expect(evaluate(recovery[".validate"], null, { ...request(), requestedAt: undefined })).toBe(false);
     expect(recovery.$other[".validate"]).toBe(false);
     expect(evaluate(recovery[".write"], request(), null)).toBe(true);
   });
