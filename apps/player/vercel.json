@@ -1,6 +1,13 @@
 {
   "headers": [
     {
+      "source": "/__powershow/clear-cache",
+      "headers": [
+        { "key": "Clear-Site-Data", "value": "\"cache\"" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/",
       "headers": [
         {
@@ -121,6 +128,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/__powershow/clear-cache",
+      "destination": "/__powershow/clear-cache.html"
+    },
     {
       "source": "/watch",
       "destination": "/"

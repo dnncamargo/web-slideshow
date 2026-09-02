@@ -16,6 +16,7 @@ const database = { name: "maintenance-db" };
 const mocks = vi.hoisted(() => ({
   onValue: vi.fn(),
   readControlLatencySnapshot: vi.fn(),
+  requestPlayerClearCache: vi.fn(),
   ref: vi.fn(),
   requestPlayerReload: vi.fn(),
   requestPlayerRetry: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("../src/features/live/live-current-read", () => ({
   subscribeLiveCurrent: mocks.subscribeLiveCurrent,
 }));
 vi.mock("../src/features/control/player-recovery-request", () => ({
+  requestPlayerClearCache: mocks.requestPlayerClearCache,
   requestPlayerReload: mocks.requestPlayerReload,
   requestPlayerRetry: mocks.requestPlayerRetry,
 }));
@@ -142,6 +144,7 @@ describe("Maintenance page", () => {
     });
     mocks.readControlLatencySnapshot.mockReturnValue(null);
     mocks.requestPlayerReload.mockResolvedValue({});
+    mocks.requestPlayerClearCache.mockResolvedValue({});
     mocks.requestPlayerRetry.mockResolvedValue({});
   });
 
@@ -226,7 +229,35 @@ describe("Maintenance page", () => {
 
     expect(button("Try presentation again").disabled).toBe(true);
     expect(button("Reload Player").disabled).toBe(false);
-    expect(button("Clear cache and reload").disabled).toBe(true);
+    expect(button("Clear cache and reload").disabled).toBe(false);
+  });
+
+  it("requires confirmation, writes clear-cache exactly, and waits for a replacement boot", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render();
+    emitPresence(presence("boot-a", "ready"));
+
+    await act(async () => button("Clear cache and reload").click());
+
+    expect(confirm).toHaveBeenCalledWith("Clear the Player browser cache and reload?");
+    expect(mocks.requestPlayerClearCache).toHaveBeenCalledWith(database, 7, "version-1", "boot-a");
+    expect(container.textContent).toContain("Waiting for Player…");
+
+    emitPresence(presence("boot-a", "ready"));
+    expect(container.textContent).toContain("Waiting for Player…");
+    emitPresence(presence("boot-b", "load-failed"));
+    expect(container.textContent).not.toContain("Waiting for Player…");
+    confirm.mockRestore();
+  });
+
+  it("does not write when clear-cache confirmation is cancelled", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render();
+    emitPresence(presence("boot-a", "load-failed"));
+    await act(async () => button("Clear cache and reload").click());
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(mocks.requestPlayerClearCache).not.toHaveBeenCalled();
+    confirm.mockRestore();
   });
 
   it("enables Try presentation again only for a connected load failure", () => {
