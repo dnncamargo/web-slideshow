@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Button } from "@powershow/ui";
 
@@ -13,6 +13,7 @@ interface DangerConfirmDialogProps {
   confirmLabel: ReactNode;
   cancelLabel: ReactNode;
   busy?: boolean;
+  initialFocus?: "dialog" | "confirm";
   busyConfirmLabel?: ReactNode;
   error?: ReactNode;
   onCancel: () => void;
@@ -25,6 +26,7 @@ export function DangerConfirmDialog({
   confirmLabel,
   cancelLabel,
   busy = false,
+  initialFocus = "dialog",
   busyConfirmLabel,
   error,
   onCancel,
@@ -35,15 +37,10 @@ export function DangerConfirmDialog({
   const messageId = useId();
 
   useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
-
-  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape" && !busy) {
-      event.preventDefault();
-      onCancel();
+    if (initialFocus === "dialog") {
+      dialogRef.current?.focus();
     }
-  };
+  }, [initialFocus]);
 
   return (
     <div className={styles.backdrop} data-studio-danger-confirm-dialog>
@@ -55,7 +52,12 @@ export function DangerConfirmDialog({
         aria-labelledby={titleId}
         aria-describedby={messageId}
         tabIndex={-1}
-        onKeyDown={handleKeyDown}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !busy) {
+            event.preventDefault();
+            onCancel();
+          }
+        }}
       >
         <h2 id={titleId} className={styles.title}>{title}</h2>
         <p id={messageId} className={styles.message}>{message}</p>
@@ -66,7 +68,13 @@ export function DangerConfirmDialog({
           <Button size="compact" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant="danger" size="compact" disabled={busy} onClick={onConfirm}>
+          <Button
+            variant="danger"
+            size="compact"
+            disabled={busy}
+            autoFocus={initialFocus === "confirm"}
+            onClick={onConfirm}
+          >
             {busy && busyConfirmLabel !== undefined ? busyConfirmLabel : confirmLabel}
           </Button>
         </div>

@@ -162,12 +162,6 @@ export function ImageInspector({
         <ImageFocalPointControl focalPoint={element.focalPoint} idPrefix="image" onFocalPointChange={(focalPoint) => onUpdate((current) => current.type === "image" ? { ...current, focalPoint } : current)} onResetFocalPoint={() => onUpdate((current) => current.type === "image" ? { ...current, focalPoint: undefined } : current)} canvasEdit={{ editing: focalEditing, onEditingChange: onFocalEditingChange }} />
        </InspectorSection>
 
-       <ElementInteractionSection
-         element={element}
-         onUpdate={onUpdate}
-         controlPrefix="image"
-       />
-
        <ImageSizeSection
          element={element}
          onUpdateLayout={(update) => {
@@ -191,6 +185,12 @@ export function ImageInspector({
       <CanonicalImageEffectsSection
         effect={element.effect}
         onUpdateEffect={updateEffect}
+      />
+
+      <ElementInteractionSection
+        element={element}
+        onUpdate={onUpdate}
+        controlPrefix="image"
       />
     </>
   );
