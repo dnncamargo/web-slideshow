@@ -186,6 +186,9 @@ describe("PresenterView controls", () => {
         'a[href="/studio/control/maintenance"]',
       )?.textContent,
     ).toBe("Maintenance");
+    expect(
+      container.querySelector<HTMLAnchorElement>('a[href="/studio/library"]')?.textContent,
+    ).toBe("<<< Library");
   });
 
   it.each([

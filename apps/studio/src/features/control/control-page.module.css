@@ -155,34 +155,15 @@
 
 .mobileLibraryLink {
   display: none;
-
-  align-items: center;
-
-  flex: none;
-
-  height: 28px;
-
-  padding: 0 12px;
-
-  border: 1px solid #303847;
-  border-radius: 6px;
-
-  background: #151b26;
-
-  color: #cbd5e1;
-
+  color: #7dd3fc;
   font-size: 12px;
   font-weight: 600;
-
   text-decoration: none;
-
-  cursor: pointer;
+  white-space: nowrap;
 }
 
 .mobileLibraryLink:hover {
-  border-color: #475569;
-
-  background: #1b2330;
+  color: #cffafe;
 }
 
 /* ==========================================================
@@ -197,7 +178,7 @@
   }
 
   .mobileLibraryLink {
-    display: inline-flex;
+    display: inline;
   }
 
   .body {

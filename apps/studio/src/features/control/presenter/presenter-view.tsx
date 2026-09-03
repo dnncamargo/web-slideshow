@@ -352,7 +352,7 @@ export function PresenterView({
           </div>
 
           <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
-            {t("control.library")}
+            &lt;&lt;&lt; Library
           </Link>
 
           <Link className={presenterStyles.maintenanceLink} href={STUDIO_ROUTES.controlMaintenance}>
