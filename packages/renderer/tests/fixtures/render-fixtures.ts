@@ -12,7 +12,7 @@ import type {
 
 /**
  * A static, renderer-only educational source used to exercise the current
- * opaque Blocks source contract.
+ * grammar-based Blocks source contract.
  */
 export function createDidacticBlocksElement(): BlocksElement {
   return {
