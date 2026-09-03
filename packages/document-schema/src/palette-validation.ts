@@ -156,15 +156,16 @@ export function visitPresentationColorValues(
         visitEffect(element.effect, [...path, "effect"]);
         if (element.style) {
           const style = element.style;
-          visitColor({ value: style.statementColor, set: (value) => { element.style = { ...style, statementColor: value }; } }, [...path, "style", "statementColor"]);
-          visitColor({ value: style.scopeColor, set: (value) => { element.style = { ...style, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
-          visitColor({ value: style.logicColor, set: (value) => { element.style = { ...style, logicColor: value }; } }, [...path, "style", "logicColor"]);
+          visitColor({ value: style.statementColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, statementColor: value }; } }, [...path, "style", "statementColor"]);
+          visitColor({ value: style.scopeColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
+          visitColor({ value: style.logicColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, logicColor: value }; } }, [...path, "style", "logicColor"]);
           for (const category of ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"] as const) {
-            visitColor({ value: element.style.categoryColors?.[category], set: (value) => {
-              element.style = { ...style, categoryColors: { ...style.categoryColors, [category]: value } };
+            visitColor({ value: style.categoryColors?.[category], set: (value) => {
+              const currentStyle = element.style;
+              if (currentStyle) element.style = { ...currentStyle, categoryColors: { ...currentStyle.categoryColors, [category]: value } };
             } }, [...path, "style", "categoryColors", category]);
           }
-          visitColor({ value: style.textColor, set: (value) => { element.style = { ...style, textColor: value }; } }, [...path, "style", "textColor"]);
+          visitColor({ value: style.textColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, textColor: value }; } }, [...path, "style", "textColor"]);
           visitBorder(style.blockBorder, [...path, "style", "blockBorder"]);
         }
         break;
