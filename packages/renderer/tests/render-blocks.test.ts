@@ -57,6 +57,24 @@ describe("renderBlocks", () => {
     expect(html.indexOf("Move ")).toBeLessThan(html.indexOf("Turn "));
   });
 
+  it("renders nested scopes inside the authored parent scope", () => {
+    const html = renderBlocks({
+      ...createDidacticBlocksElement(),
+      source: String.raw`\scope(Outer){\statement(Before)\scope(Inner){\statement(Inside)}\statement(After)}`,
+    });
+    const outerStart = html.indexOf('class="powershow-block powershow-block--scope"');
+    const outerBody = html.indexOf('class="powershow-block-scope-body"', outerStart);
+    const innerStart = html.indexOf('class="powershow-block powershow-block--scope"', outerBody);
+
+    expect(html.match(/powershow-block--scope/g)).toHaveLength(2);
+    expect(outerStart).toBeGreaterThanOrEqual(0);
+    expect(outerBody).toBeGreaterThan(outerStart);
+    expect(innerStart).toBeGreaterThan(outerBody);
+    expect(html.indexOf("Before")).toBeLessThan(innerStart);
+    expect(innerStart).toBeLessThan(html.indexOf("Inside"));
+    expect(html.indexOf("Inside")).toBeLessThan(html.indexOf("After"));
+  });
+
   it("uses defaults and direct/palette color overrides", () => {
     const defaults = renderBlocks({ ...createDidacticBlocksElement(), style: undefined });
     expect(defaults).toContain("#4C97FF");
