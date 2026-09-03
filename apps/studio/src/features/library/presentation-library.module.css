@@ -1048,5 +1048,15 @@
     display: none;
   }
   .row { grid-template-columns: 86px minmax(0, 1fr); }
-  .rowState { grid-column: 2; justify-content: flex-start; }
+  .rowMetadata {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.35;
+  }
+  .rowState {
+    grid-column: 2;
+    justify-content: flex-start;
+    margin-top: 2px;
+  }
 }
