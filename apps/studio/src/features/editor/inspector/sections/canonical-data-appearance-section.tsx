@@ -39,6 +39,12 @@ function updateCanonicalBackground(
   return { ...style, background };
 }
 
+const BLOCK_DEFAULT_COLORS = {
+  statement: "#4C97FF",
+  scope: "#FFAB19",
+  logic: "#59C059",
+} as const;
+
 interface Props {
   element: DataElement;
   style: CanonicalDataStyle | undefined;
@@ -53,6 +59,12 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
   const { t } = useStudioI18n();
   const radius = resolveEffectiveElementStyleDefaults(element).borderRadius;
   return <InspectorSection title={t("inspector.appearance")}>
+    {element.type === "blocks" && <div className={styles.colorControl} data-powershow-blocks-colors="true">
+      <div className={styles.field}><span>{t("inspector.blocks.colorGroup")}</span></div>
+      <label className={styles.field}><span>{t("inspector.blocks.statement")}</span><ColorControl id="blocks-statement-color" name={getControlName(controlPrefix, "StatementColor")} value={element.style?.statementColor} effectiveValue={BLOCK_DEFAULT_COLORS.statement} onChange={(color) => onUpdateStyle((current) => ({ ...current, statementColor: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.statementColor; return next as CanonicalDataStyle; }) }} /></label>
+      <label className={styles.field}><span>{t("inspector.blocks.scope")}</span><ColorControl id="blocks-scope-color" name={getControlName(controlPrefix, "ScopeColor")} value={element.style?.scopeColor} effectiveValue={BLOCK_DEFAULT_COLORS.scope} onChange={(color) => onUpdateStyle((current) => ({ ...current, scopeColor: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.scopeColor; return next as CanonicalDataStyle; }) }} /></label>
+      <label className={styles.field}><span>{t("inspector.blocks.logic")}</span><ColorControl id="blocks-logic-color" name={getControlName(controlPrefix, "LogicColor")} value={element.style?.logicColor} effectiveValue={BLOCK_DEFAULT_COLORS.logic} onChange={(color) => onUpdateStyle((current) => ({ ...current, logicColor: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.logicColor; return next as CanonicalDataStyle; }) }} /></label>
+    </div>}
     {showColor && <div className={styles.colorControl}>
       <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={(style as LegacyColorStyle | undefined)?.color} onChange={(color) => onUpdateStyle((current) => ({ ...current, color } as unknown as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.color; return next as CanonicalDataStyle; }) }} /></label>
     </div>}
