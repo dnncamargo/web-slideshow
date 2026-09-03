@@ -39,7 +39,7 @@ describe("Blocks source Inspector", () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => root.render(<StudioI18nProvider><BlocksContentSection element={element()} onUpdate={() => {}} /></StudioI18nProvider>));
-    expect(host.querySelectorAll("button, select")).toHaveLength(0);
+    expect(host.querySelectorAll("[data-powershow-blocks-toolbar] button")).toHaveLength(7);
     expect(host.textContent).toContain("Blocks source");
     expect(host.querySelector('[data-powershow-blocks-syntax="valid"]')).not.toBeNull();
     await act(async () => root.unmount());
@@ -106,20 +106,18 @@ describe("Blocks source Inspector", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     const root = createRoot(host);
-    let current = element(String.raw`\start[events](When)\statement[motion](Move)\scope[control](Repeat){\statement[sensing](Sense \logic[variables](x))}`, { className: "keep" });
+    let current = element(String.raw`\start[events](When)\statement[output](Move)\scope[control](Repeat){\statement[input](Sense \logic[variables](x))}`, { className: "keep" });
     const render = async () => act(async () => root.render(<StudioI18nProvider><BlocksInspector element={current} onUpdate={(update) => { current = update(current) as BlocksElement; void render(); }} /></StudioI18nProvider>));
     await render();
 
     expect(host.querySelector("#blocks-category-events-color")).not.toBeNull();
-    expect(host.querySelector("#blocks-category-motion-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-output-color")).not.toBeNull();
     expect(host.querySelector("#blocks-category-control-color")).not.toBeNull();
-    expect(host.querySelector("#blocks-category-sensing-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-input-color")).not.toBeNull();
     expect(host.querySelector("#blocks-category-variables-color")).not.toBeNull();
     expect(host.querySelector("#blocks-category-looks-color")).toBeNull();
-    expect(host.querySelector("#blocks-category-sound-color")).toBeNull();
-    expect(host.querySelector("#blocks-category-operators-color")).toBeNull();
     expect(host.textContent).toContain("Category colors");
-    expect(host.textContent).toContain("Motion");
+    expect(host.textContent).toContain("Output");
     expect(host.textContent).toContain("Text color");
     expect(host.textContent).toContain("Block stroke");
 
@@ -135,6 +133,35 @@ describe("Blocks source Inspector", () => {
     await act(async () => strokeStyle.dispatchEvent(new Event("change", { bubbles: true })));
     expect(current.style?.blockBorder?.style).toBe("solid");
     expect(current.style?.className).toBe("keep");
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  it("provides the seven literal syntax buttons with caret-safe insertion", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    let current = element("");
+    const render = async () => act(async () => root.render(<StudioI18nProvider><BlocksContentSection element={current} onUpdate={(update) => { current = update(current) as BlocksElement; void render(); }} /></StudioI18nProvider>));
+    await render();
+    const toolbar = host.querySelector('[data-powershow-blocks-toolbar="true"]');
+    expect(Array.from(toolbar?.querySelectorAll("button") ?? [], (button) => button.textContent)).toEqual(["EV", "STM", "SCO", "END", "VAL", "VAR", "01"]);
+
+    await act(async () => (toolbar?.querySelector("button:nth-child(2)") as HTMLButtonElement).click());
+    expect(current.source).toBe("\\statement()");
+    await act(async () => (host.querySelector('[data-powershow-blocks-toolbar] button:nth-child(5)') as HTMLButtonElement).click());
+    expect(current.source).toBe("\\statement(\\value())");
+    const textarea = host.querySelector<HTMLTextAreaElement>("textarea");
+    if (!textarea) throw new Error("source textarea missing");
+    expect(document.activeElement).toBe(textarea);
+
+    current = element("Mover 10 passos");
+    await render();
+    const selectedTextarea = host.querySelector<HTMLTextAreaElement>("textarea");
+    if (!selectedTextarea) throw new Error("source textarea missing");
+    selectedTextarea.focus(); selectedTextarea.setSelectionRange(0, selectedTextarea.value.length);
+    await act(async () => (host.querySelector('[data-powershow-blocks-toolbar] button:nth-child(2)') as HTMLButtonElement).click());
+    expect(current.source).toBe("\\statement(Mover 10 passos)");
     await act(async () => root.unmount());
     host.remove();
   });

@@ -24,13 +24,13 @@ export function createDidacticBlocksElement(): BlocksElement {
 \statement[variables](Set \variable(score) to \value(0))
 
 \scope[control](Repeat \value(10) times){
-  \statement[motion](Move \value(10) steps)
-  \statement[motion](Turn \value(15) degrees)
+\statement[output](Move \value(10) steps)
+  \statement[output](Turn \value(15) degrees)
   \statement[variables](Set x to \value(x position))
 }
 
-\scope[control](Repeat until \logic[sensing](Touching \value(Sprite2)?)){
-  \statement[motion](Move \value(10) steps)
+\scope[control](Repeat until \logic[input](Touching \value(Sprite2)?)){
+  \statement[output](Move \value(10) steps)
 }
 
 \end[control](Stop all)`,

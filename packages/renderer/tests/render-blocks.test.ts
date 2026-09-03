@@ -34,11 +34,11 @@ describe("renderBlocks", () => {
   it("renders the fixed category palette and semantic markers without changing shape", () => {
     const html = renderBlocks({
       ...createDidacticBlocksElement(),
-      source: String.raw`\start[events](Start)\statement[motion](Move)\scope[looks](Look){\statement[sound](Sound)}\end[control](End)\statement[sensing](Sense)\statement[operators](Operate)\statement[variables](Set)\statement(Check \logic[control](Check))`,
+      source: String.raw`\start[events](Start)\statement[output](Move)\scope[input](Look){\statement[control](Sound)}\end[variables](End)\statement[input](Sense)\statement[math](Operate)\statement[variables](Set)\statement(Check \logic[control](Check))`,
     });
     const expected = {
-      events: "#FFBF00", motion: "#4C97FF", looks: "#9966FF", sound: "#CF63CF",
-      control: "#FFAB19", sensing: "#5CB1D6", operators: "#59C059", variables: "#FF8C1A",
+      events: "#FFBF00", output: "#4C97FF", control: "#FFAB19",
+      input: "#5CB1D6", math: "#59C059", variables: "#FF8C1A",
     };
     for (const [category, color] of Object.entries(expected)) {
       expect(html).toContain(`data-powershow-block-category="${category}"`);
@@ -62,9 +62,10 @@ describe("renderBlocks", () => {
 
   it("uses intrinsic nowrap sizing and simple connector topology", () => {
     const html = renderBlocks(createDidacticBlocksElement());
-    expect(html).toContain("width:max-content");
+    expect(html).toContain("width:100%;min-width:max-content");
     expect(html).toContain("white-space:nowrap");
     expect(html).not.toContain("flex-wrap:wrap");
+    expect(html).toContain("grid-template-columns:max-content");
     expect(html).not.toContain("overflow-wrap:anywhere");
     expect(html).not.toContain("white-space:pre-wrap");
     expect(region(html, "start")).toContain("powershow-block-connector--bottom");
@@ -81,8 +82,8 @@ describe("renderBlocks", () => {
     const scopeBody = html.indexOf('class="powershow-block-scope-body"', scopeStart);
     expect(scopeStart).toBeGreaterThanOrEqual(0);
     expect(scopeBody).toBeGreaterThan(scopeStart);
-    expect(html.slice(scopeStart, scopeBody)).toContain("display:inline-flex;align-items:center;width:max-content;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative;flex-direction:column;align-items:flex-start");
-    expect(html.slice(scopeBody, html.indexOf('class="powershow-block-scope-stack"', scopeBody))).toContain("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 8px 14px;position:relative;z-index:1");
+    expect(html.slice(scopeStart, scopeBody)).toContain("display:inline-flex;align-items:center;width:100%;min-width:max-content;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative;flex-direction:column;align-items:flex-start");
+    expect(html.slice(scopeBody, html.indexOf('class="powershow-block-scope-stack"', scopeBody))).toContain("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 2px 14px;position:relative;z-index:1");
     expect(html.indexOf("Turn ")).toBeLessThan(html.indexOf("Set x to"));
     expect(html.indexOf("Move ")).toBeLessThan(html.indexOf("Turn "));
   });
@@ -120,7 +121,7 @@ describe("renderBlocks", () => {
   it("applies category overrides, authored text color, and block strokes independently", () => {
     const html = renderBlocks({
       ...createDidacticBlocksElement(),
-      source: String.raw`\start[events](When flag clicked)\statement[motion](Move \value(10) steps)\scope[control](Repeat){\statement(Turn)}`,
+      source: String.raw`\start[events](When flag clicked)\statement[output](Move \value(10) steps)\scope[control](Repeat){\statement(Turn)}`,
       style: {
         border: { width: 5, style: "dashed", color: "#f97316" },
         categoryColors: { events: "#abcdef" },
@@ -134,6 +135,22 @@ describe("renderBlocks", () => {
     expect(region(html, "value")).toContain("background:#f8fafc;color:#1e293b");
     expect(html).toContain("border-width:5px;border-style:dashed;border-color:#f97316");
     expect(html.match(/border-width:2px/g)?.length).toBeGreaterThan(2);
+  });
+
+  it("renders local colors and options without changing command geometry", () => {
+    const html = renderBlocks({
+      ...createDidacticBlocksElement(),
+      source: String.raw`\statement[output,color=#e11d48](Set \value[input,color=#0891b2](Pino \[13\]) \variable[variables](x) \logic[math,color=#22c55e](x = \value(1)))`,
+    });
+    expect(html).toContain("powershow-block--statement");
+    expect(html).toContain("powershow-block--value");
+    expect(html).toContain("powershow-block--logic");
+    expect(html).toContain("powershow-block--option");
+    expect(html).toContain("background:#e11d48");
+    expect(html).toContain("background:#0891b2");
+    expect(html).toContain("background:#22c55e");
+    expect(html).toContain("clip-path:polygon(7px 0,calc(100% - 7px) 0");
+    expect(html).not.toContain("<select");
   });
 
   it("escapes authored text and inline values without executable markup", () => {
