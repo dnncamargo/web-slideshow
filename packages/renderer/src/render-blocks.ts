@@ -21,7 +21,7 @@ const CATEGORY_COLORS: Record<BlocksCategory, string> = {
 const stackStyle = "display:inline-flex;flex-direction:column;align-items:flex-start;width:max-content;white-space:nowrap";
 const blockStyle = "display:inline-flex;align-items:center;width:max-content;min-width:0;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative;border:1px solid rgba(15,23,42,0.22)";
 const scopeStyle = `${blockStyle};flex-direction:column;align-items:flex-start;padding:7px 12px 2px`;
-const contentStyle = "display:inline-flex;align-items:center;width:max-content;white-space:nowrap";
+const contentStyle = "display:inline-flex;align-items:center;width:max-content;white-space:nowrap;min-width:calc(2ch + 20px);justify-content:center";
 const connectorStyle = "position:absolute;width:20px;height:4px;left:11px;bottom:-4px;border-radius:0 0 4px 4px";
 
 interface BlocksRenderOptions {
@@ -60,18 +60,18 @@ function renderInline(nodes: BlocksInlineNode[], logicColor: string, textColor: 
       const colored = node.category !== undefined || node.color !== undefined;
       const fill = nodeColor(node.category, node.color, "#f8fafc", categoryColors);
       const foreground = colored ? textColor : "#1e293b";
-      return `<span class="powershow-block powershow-block--value"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${foreground};border-radius:999px;padding:2px 8px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${node.content.map((child) => child.type === "text" ? escapeHtml(child.value) : renderInline([child], nodeColor(node.category, node.color, logicColor, categoryColors), textColor, blockBorder, categoryColors)).join("")}</span>`;
+      return `<span class="powershow-block powershow-block--value"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${foreground};border-radius:999px;padding:4px 18px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${node.content.map((child) => child.type === "text" ? escapeHtml(child.value) : renderInline([child], nodeColor(node.category, node.color, logicColor, categoryColors), textColor, blockBorder, categoryColors)).join("")}</span>`;
     }
     if (node.type === "variable") {
       const fill = nodeColor(node.category, node.color, "#ff8c1a", categoryColors);
-      return `<span class="powershow-block powershow-block--variable"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};border-radius:999px;padding:2px 8px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${escapeHtml(node.value)}</span>`;
+      return `<span class="powershow-block powershow-block--variable"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};border-radius:999px;padding:8px 18px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${escapeHtml(node.value)}</span>`;
     }
     if (node.type === "option") {
       return `<span class="powershow-block powershow-block--option"${styleAttribute(`${contentStyle};margin-inline:5px;background:#f8fafc;color:#1e293b;border:1px solid #94a3b8;border-radius:4px;padding:2px 7px`)}>${escapeHtml(node.value)}</span>`;
     }
     if (node.type === "logic") {
       const fill = nodeColor(node.category, node.color, logicColor, categoryColors);
-      return `<span class="powershow-block powershow-block--logic"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};padding:5px 12px;border:1px solid rgba(15,23,42,0.22);clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,7px 100%,0 50%)${borderStyle(blockBorder)}`)}>${renderInline(node.content, fill, textColor, blockBorder, categoryColors)}</span>`;
+      return `<span class="powershow-block powershow-block--logic"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};padding:4px 18px;border:1px solid rgba(15,23,42,0.22);clip-path:polygon(20px 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,20px 100%,0 50%)${borderStyle(blockBorder)}`)}>${renderInline(node.content, fill, textColor, blockBorder, categoryColors)}</span>`;
     }
     return "";
   }).join("");

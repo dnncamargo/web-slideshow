@@ -182,7 +182,7 @@ describe("renderBlocks", () => {
     expect(html).toContain("background:#e11d48");
     expect(html).toContain("background:#0891b2");
     expect(html).toContain("background:#22c55e");
-    expect(html).toContain("clip-path:polygon(7px 0,calc(100% - 7px) 0");
+    expect(html).toContain("clip-path:polygon(20px 0,calc(100% - 20px) 0");
     expect(html).not.toContain("<select");
   });
 
