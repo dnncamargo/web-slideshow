@@ -314,16 +314,12 @@ export function PresenterView({
 
   return (
     <main className={styles.shell}>
-      <Topbar mobileLayout="stack-title">
+        <Topbar className={presenterStyles.controlTopbar}>
         {/* ========================================================
       BEGIN: BRAND
       ======================================================== */}
 
-        <ProductSurfaceBrand surface="control">
-          <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
-            {t("control.library")}
-          </Link>
-        </ProductSurfaceBrand>
+        <ProductSurfaceBrand surface="control" />
 
         {/* ========================================================
       END: BRAND
@@ -333,7 +329,7 @@ export function PresenterView({
       BEGIN: PRESENTATION TITLE
       ======================================================== */}
 
-        <TopbarTitle title={presentation?.title ?? ""}>
+        <TopbarTitle className={presenterStyles.presentationTitle} title={presentation?.title ?? ""}>
           <span>{presentation?.title ?? ""}</span>
         </TopbarTitle>
 
@@ -345,22 +341,25 @@ export function PresenterView({
       BEGIN: TOPBAR CONTROLS
       ======================================================== */}
 
-        <TopbarActions>
-          <Status>{clock}</Status>
+        <TopbarActions className={presenterStyles.topbarActions}>
+          <div className={presenterStyles.desktopTopbarControls}>
+            <Status>{clock}</Status>
+            <Separator />
+            {sendFailed && (
+              <Status tone="danger">{t("control.sendFailed")}</Status>
+            )}
+            <Status>{describeCombinedStatus(t, playerStatus, view)}</Status>
+          </div>
 
-          <Separator />
-
-          {sendFailed && (
-            <Status tone="danger">{t("control.sendFailed")}</Status>
-          )}
-
-          <Status>{describeCombinedStatus(t, playerStatus, view)}</Status>
+          <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
+            {t("control.library")}
+          </Link>
 
           <Link className={presenterStyles.maintenanceLink} href={STUDIO_ROUTES.controlMaintenance}>
             Maintenance
           </Link>
 
-          <Button variant="danger" size="compact" onClick={end}>
+          <Button className={presenterStyles.topbarEndButton} variant="danger" size="compact" onClick={end}>
             {t("control.end")}
           </Button>
         </TopbarActions>
@@ -369,7 +368,7 @@ export function PresenterView({
       END: TOPBAR CONTROLS
       ======================================================== */}
 
-        <TopbarLocale>
+        <TopbarLocale className={presenterStyles.mobileTopbarLocale}>
           <LocaleSelector />
         </TopbarLocale>
       </Topbar>
@@ -489,11 +488,7 @@ export function PresenterView({
             >
               {t("control.end")}
             </button>
-          </div>
 
-          <div className={presenterStyles.controlMeta}>
-            {/* Future session timer slot. Renders only the desired slide
-                counter until a canonical startedAt exists. */}
             <div className={styles.controlDivider} aria-hidden="true" />
 
             {showCounter && (
@@ -501,7 +496,9 @@ export function PresenterView({
                 {displayIndex + 1} / {slideCount}
               </span>
             )}
+          </div>
 
+          <div className={presenterStyles.controlMeta}>
             {isPlayerChanged && (
               <div
                 className={presenterStyles.playerChanged}
@@ -566,8 +563,8 @@ export function PresenterView({
           </div>
         )}
 
-        <div className={presenterStyles.mobileLiveStatus}>
-          <span className={styles.status}>{clock}</span>
+        <div className={presenterStyles.mobilePlayerStatus}>
+          <span className={styles.clockStatus}>{clock}</span>
 
           <div className={styles.controlDivider} aria-hidden="true" />
 
@@ -575,7 +572,7 @@ export function PresenterView({
             <span className={styles.error}>{t("control.sendFailed")}</span>
           )}
 
-          <span className={styles.topbarStatus}>
+          <span className={styles.playerStatus}>
             {describeCombinedStatus(t, playerStatus, view)}
           </span>
         </div>
