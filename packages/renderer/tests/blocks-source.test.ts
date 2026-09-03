@@ -32,31 +32,31 @@ describe("parseBlocksSource", () => {
   it("parses mixed text, values, variables, and logic", () => {
     expect(ok("\\statement(Move \\value(10) steps \\variable(x) \\logic(> \\value(5)))")).toEqual([
       { type: "statement", content: [
-        { type: "text", value: "Move " }, { type: "value", value: "10" },
+        { type: "text", value: "Move " }, { type: "value", content: [{ type: "text", value: "10" }] },
         { type: "text", value: " steps " }, { type: "variable", value: "x" },
         { type: "text", value: " " }, { type: "logic", content: [
-          { type: "text", value: "> " }, { type: "value", value: "5" },
+          { type: "text", value: "> " }, { type: "value", content: [{ type: "text", value: "5" }] },
         ] },
       ] },
     ]);
   });
 
   it("parses the eight optional categories on colorable commands", () => {
-    const categories = ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"] as const;
+    const categories = ["events", "output", "control", "input", "math", "variables"] as const;
     for (const category of categories) {
       expect(ok(`\\statement[${category}](Text)`)[0]).toMatchObject({ type: "statement", category });
     }
   });
 
   it("keeps categories transient and supports categorized scopes, ends, and logic", () => {
-    expect(ok(String.raw`\start[events](Start)\scope[control](Repeat){\end[looks](End)}\statement(Check \logic[sensing](Touching))`)).toEqual([
+    expect(ok(String.raw`\start[events](Start)\scope[control](Repeat){\end[output](End)}\statement(Check \logic[input](Touching))`)).toEqual([
       { type: "start", category: "events", content: [{ type: "text", value: "Start" }] },
       { type: "scope", category: "control", content: [{ type: "text", value: "Repeat" }], children: [
-        { type: "end", category: "looks", content: [{ type: "text", value: "End" }] },
+        { type: "end", category: "output", content: [{ type: "text", value: "End" }] },
       ] },
       { type: "statement", content: [
         { type: "text", value: "Check " },
-        { type: "logic", category: "sensing", content: [{ type: "text", value: "Touching" }] },
+        { type: "logic", category: "input", content: [{ type: "text", value: "Touching" }] },
       ] },
     ]);
     expect(ok("\\statement(Text)")[0]).toEqual({ type: "statement", content: [{ type: "text", value: "Text" }] });
@@ -67,7 +67,7 @@ describe("parseBlocksSource", () => {
     expect(blocks[0]).toEqual({ type: "statement", content: [
       { type: "text", value: "outer " },
       { type: "logic", content: [
-        { type: "variable", value: "x" }, { type: "text", value: " > " }, { type: "value", value: "10" },
+        { type: "variable", value: "x" }, { type: "text", value: " > " }, { type: "value", content: [{ type: "text", value: "10" }] },
     ] }, { type: "text", value: " and inner" },
     ] });
     expect(ok("\\statement(\n  Define\n  \\variable(x)\n)")[0]).toEqual({ type: "statement", content: [
@@ -94,7 +94,7 @@ describe("parseBlocksSource", () => {
   it("decodes and coalesces the five supported escapes", () => {
     expect(ok("\\statement(Use \\(A\\) \\{x\\} C:\\\\Temp \\value(90°))")).toEqual([
       { type: "statement", content: [
-        { type: "text", value: "Use (A) {x} C:\\Temp " }, { type: "value", value: "90°" },
+        { type: "text", value: "Use (A) {x} C:\\Temp " }, { type: "value", content: [{ type: "text", value: "90°" }] },
       ] },
     ]);
   });
@@ -117,7 +117,6 @@ describe("parseBlocksSource", () => {
     ["\\scope(A){\\value(5)}", 'Inline command "\\value" is not allowed here.'],
     ["\\statement(\\statement(x))", 'Vertical command "\\statement" is not allowed in inline content.'],
     ["\\statement(\\scope(x){})", 'Vertical command "\\scope" is not allowed in inline content.'],
-    ["\\statement(\\value(\\variable(x)))", 'Commands are not allowed inside "\\value".'],
     ["\\statement(\\variable(\\value(x)))", 'Commands are not allowed inside "\\variable".'],
     ["\\statement(A", 'Expected ")" to close "\\statement".'],
     ["\\scope(A)", 'Expected "{" after "\\scope(...)".'],
@@ -125,15 +124,18 @@ describe("parseBlocksSource", () => {
     ["}", "Unexpected delimiter."], ["{", "Unexpected delimiter."], [")", "Unexpected delimiter."], ["(", "Unexpected delimiter."],
     ["\\statement(\\!)", 'Invalid escape "\\!".'],
     ["\\statement(\\statement123(x))", 'Vertical command "\\statement" is not allowed in inline content.'],
-    ["\\statement[](x)", "Unknown Blocks category \"\"."],
+    ["\\statement[](x)", "Invalid Blocks annotation."],
     ["\\statement[foo](x)", "Unknown Blocks category \"foo\"."],
     ["\\statement[Motion](x)", "Unknown Blocks category \"Motion\"."],
-    ["\\statement[motion(x)", 'Expected "]" after category for "\\statement".'],
-    ["\\statement[motion] (x)", 'Expected "(" after "\\statement".'],
-    ["\\statement(\\value[motion](x))", 'Category annotation is not allowed on "\\value".'],
-    ["\\statement(\\variable[variables](x))", 'Category annotation is not allowed on "\\variable".'],
-    ["\\statement [motion](x)", 'Expected "(" after "\\statement".'],
-    ["\\statement[motion][control](x)", 'Expected "(" after "\\statement".'],
+    ["\\statement[output(x)", 'Expected "]" after annotation for "\\statement".'],
+    ["\\statement[output] (x)", 'Expected "(" after "\\statement".'],
+    ["\\statement[output,color=#e11d48] (x)", 'Expected "(" after "\\statement".'],
+    ["\\statement[output,color=#e11d48,foo](x)", "Invalid Blocks annotation."],
+    ["\\statement[color=#e11d48,output](x)", "Blocks category must precede color."],
+    ["\\statement[output,color=#12](x)", "Invalid Blocks color annotation."],
+    ["\\statement[output, color=#fff](x)", "Whitespace is not allowed in annotations."],
+    ["\\statement[output,color =#fff](x)", "Whitespace is not allowed in annotations."],
+    ["\\statement[output,color=#fff,color=#000](x)", "Invalid Blocks annotation."],
   ])("reports the stable diagnostic for invalid source: %s", (source, message) => {
     expect(error(source).message).toBe(message);
   });
@@ -154,5 +156,26 @@ describe("parseBlocksSource", () => {
     expect(ok("\\statement(Use array[0] and Text [example])")).toEqual([
       { type: "statement", content: [{ type: "text", value: "Use array[0] and Text [example]" }] },
     ]);
+  });
+
+  it("parses all categories, local colors, composed values, and options", () => {
+    const blocks = ok(String.raw`\statement[output,color=#e11d48](Set \value[input](Pino \[13\] \value[math](2)) \variable[variables,color=#ff0](x) \logic[math,color=#22c55e](x = \value(1)))`);
+    expect(blocks[0]).toMatchObject({ type: "statement", category: "output", color: "#e11d48" });
+    expect(blocks[0]?.content).toEqual([
+      { type: "text", value: "Set " },
+      { type: "value", category: "input", content: [
+        { type: "text", value: "Pino " }, { type: "option", value: "13" }, { type: "text", value: " " },
+        { type: "value", category: "math", content: [{ type: "text", value: "2" }] },
+      ] },
+      { type: "text", value: " " }, { type: "variable", category: "variables", color: "#ff0", value: "x" },
+      { type: "text", value: " " }, { type: "logic", category: "math", color: "#22c55e", content: [{ type: "text", value: "x = " }, { type: "value", content: [{ type: "text", value: "1" }] }] },
+    ]);
+  });
+
+  it("rejects removed categories and malformed option/color annotations", () => {
+    expect(error("\\statement[motion](x)").message).toBe('Unknown Blocks category "motion".');
+    expect(error(String.raw`\statement[color=#12](x)`).message).toBe("Invalid Blocks color annotation.");
+    expect(error(String.raw`\statement[output,color=#gg0000](x)`).message).toBe("Invalid Blocks color annotation.");
+    expect(error(String.raw`\statement(Choose \[13)`).message).toBe('Expected "\\]" to close option.');
   });
 });

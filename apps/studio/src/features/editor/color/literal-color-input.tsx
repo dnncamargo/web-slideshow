@@ -8,7 +8,7 @@ import {
   type Color,
   type ColorFormat,
 } from "@powershow/document-schema";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import styles from "./literal-color-input.module.css";
 
@@ -20,6 +20,7 @@ export interface LiteralColorInputProps {
   value: Color;
   disabled?: boolean;
   onChange: (color: Color, source: LiteralColorChangeSource) => void;
+  onCommit?: (color: Color, source: "picker") => void;
 }
 
 function getColorFormat(value: string): ColorFormat {
@@ -42,10 +43,15 @@ export function LiteralColorInput({
   value,
   disabled = false,
   onChange,
+  onCommit,
 }: LiteralColorInputProps) {
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const lastPickerPreviewRef = useRef<Color | undefined>(undefined);
   const [draft, setDraft] = useState<Color>(value);
   const [format, setFormat] = useState<ColorFormat>(() => getColorFormat(value));
   const [lastValue, setLastValue] = useState(value);
+  const pickerStateRef = useRef({ draft, value, format, onChange, onCommit });
+  pickerStateRef.current = { draft, value, format, onChange, onCommit };
 
   if (value !== lastValue) {
     setLastValue(value);
@@ -55,24 +61,47 @@ export function LiteralColorInput({
 
   const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(value);
 
+  const updatePickerColor = (pickerValue: string, preview: boolean) => {
+    const current = pickerStateRef.current;
+    const pickerBase = parseColor(current.draft) ? current.draft : current.value;
+    const next = replaceColorRgb(pickerBase, pickerValue, current.format);
+
+    if (next) {
+      setDraft(next);
+      if (preview || lastPickerPreviewRef.current !== next) {
+        current.onChange(next, "picker");
+      }
+      if (preview) lastPickerPreviewRef.current = next;
+      return next;
+    }
+
+    return undefined;
+  };
+
+  useEffect(() => {
+    const picker = pickerRef.current;
+    if (!picker) return;
+    const handleCommit = () => {
+      const next = updatePickerColor(picker.value, false);
+      lastPickerPreviewRef.current = undefined;
+      const commit = pickerStateRef.current.onCommit;
+      if (next && commit) commit(next, "picker");
+    };
+    picker.addEventListener("change", handleCommit);
+    return () => picker.removeEventListener("change", handleCommit);
+  }, []);
+
   return (
     <div className={styles.control}>
       <input
         id={id}
         name={name}
+        ref={pickerRef}
         className={styles.input}
         type="color"
         value={pickerColor ?? "#f8fafc"}
         disabled={disabled}
-        onChange={(event) => {
-          const pickerBase = parseColor(draft) ? draft : value;
-          const next = replaceColorRgb(pickerBase, event.target.value, format);
-
-          if (next) {
-            setDraft(next);
-            onChange(next, "picker");
-          }
-        }}
+        onInput={(event) => { updatePickerColor(event.currentTarget.value, true); }}
       />
 
       <input

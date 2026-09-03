@@ -197,14 +197,14 @@ describe("presentation palette reference integrity", () => {
         statementColor: reference("statement"),
         scopeColor: reference("scope"),
         logicColor: reference("logic"),
-        categoryColors: { events: reference("events"), motion: reference("motion") },
+        categoryColors: { events: reference("events"), output: reference("output") },
         textColor: reference("text"),
         blockBorder: { width: 1, color: reference("border") },
       },
     }, (value) => {
       const colors: Record<string, string> = {
         statement: "#110001", scope: "#220002", logic: "#330003",
-        events: "#440004", motion: "#550005", text: "#660006", border: "#770007",
+        events: "#440004", output: "#550005", text: "#660006", border: "#770007",
       };
       return isPaletteColorReference(value) ? colors[value.colorId] ?? value : value;
     });
@@ -214,7 +214,7 @@ describe("presentation palette reference integrity", () => {
       statementColor: "#110001",
       scopeColor: "#220002",
       logicColor: "#330003",
-      categoryColors: { events: "#440004", motion: "#550005" },
+        categoryColors: { events: "#440004", output: "#550005" },
       textColor: "#660006",
       blockBorder: { color: "#770007" },
     });

@@ -2293,6 +2293,12 @@
   gap: 5px;
 }
 
+.colorPalettePickedActions {
+  display: grid;
+  grid-template-columns: repeat(8, 24px);
+  gap: 5px;
+}
+
 
 .colorPaletteLabel {
   color: #94a3b8;

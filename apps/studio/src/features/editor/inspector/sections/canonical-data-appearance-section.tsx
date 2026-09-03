@@ -46,14 +46,14 @@ const BLOCK_DEFAULT_COLORS = {
   logic: "#59C059",
 } as const;
 
-const BLOCK_CATEGORY_ORDER: readonly BlocksCategory[] = ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"];
+const BLOCK_CATEGORY_ORDER: readonly BlocksCategory[] = ["events", "output", "control", "input", "math", "variables"];
 const BLOCK_CATEGORY_DEFAULTS: Record<BlocksCategory, string> = {
-  events: "#FFBF00", motion: "#4C97FF", looks: "#9966FF", sound: "#CF63CF",
-  control: "#FFAB19", sensing: "#5CB1D6", operators: "#59C059", variables: "#FF8C1A",
+  events: "#FFBF00", output: "#4C97FF", control: "#FFAB19",
+  input: "#5CB1D6", math: "#59C059", variables: "#FF8C1A",
 };
-const BLOCK_CATEGORY_LABEL_KEYS: Record<BlocksCategory, "inspector.blocks.events" | "inspector.blocks.motion" | "inspector.blocks.looks" | "inspector.blocks.sound" | "inspector.blocks.control" | "inspector.blocks.sensing" | "inspector.blocks.operators" | "inspector.blocks.variables"> = {
-  events: "inspector.blocks.events", motion: "inspector.blocks.motion", looks: "inspector.blocks.looks", sound: "inspector.blocks.sound",
-  control: "inspector.blocks.control", sensing: "inspector.blocks.sensing", operators: "inspector.blocks.operators", variables: "inspector.blocks.variables",
+const BLOCK_CATEGORY_LABEL_KEYS: Record<BlocksCategory, "inspector.blocks.events" | "inspector.blocks.output" | "inspector.blocks.control" | "inspector.blocks.input" | "inspector.blocks.math" | "inspector.blocks.variables"> = {
+  events: "inspector.blocks.events", output: "inspector.blocks.output", control: "inspector.blocks.control",
+  input: "inspector.blocks.input", math: "inspector.blocks.math", variables: "inspector.blocks.variables",
 };
 
 type FallbackKind = "statement" | "scope" | "logic";
@@ -66,10 +66,10 @@ function blockUsage(source: string): { categories: Set<BlocksCategory>; fallback
   const fallbacks = new Set<FallbackKind>();
   const visitInline = (nodes: BlocksInlineNode[]): void => {
     for (const node of nodes) {
-      if (node.type === "logic") {
-        node.category === undefined ? fallbacks.add("logic") : categories.add(node.category);
-        visitInline(node.content ?? []);
-      }
+      if (node.type === "text" || node.type === "option") continue;
+      if (node.category !== undefined) categories.add(node.category);
+      else if (node.type === "logic") fallbacks.add("logic");
+      if (node.type === "logic" || node.type === "value") visitInline(node.content);
     }
   };
   const result = parseBlocksSource(source);
@@ -105,7 +105,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
   const fallbackControls = usage === undefined ? [] : (["statement", "scope", "logic"] as const).filter((kind) => usage.fallbacks.has(kind) || blocksStyle?.[`${kind}Color`] !== undefined);
   return <InspectorSection title={t("inspector.appearance")}>
     {element.type === "blocks" && <div className={styles.colorControl} data-powershow-blocks-colors="true">
-      {categoryControls.length > 0 && <><div className={styles.field}><span>{t("inspector.blocks.categoryColors")}</span></div>{categoryControls.map((category) => <label className={styles.field} key={category}><span>{t(BLOCK_CATEGORY_LABEL_KEYS[category])}</span><ColorControl id={`blocks-category-${category}-color`} name={getControlName(controlPrefix, `Category-${category}`)} value={blocksStyle?.categoryColors?.[category]} effectiveValue={BLOCK_CATEGORY_DEFAULTS[category]} onChange={(color) => onUpdateStyle((current) => { const next = current as BlocksVisualStyle; return { ...next, categoryColors: { ...next.categoryColors, [category]: color } }; })} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current as BlocksVisualStyle) } as Record<string, unknown>; const categoryColors = { ...((next.categoryColors ?? {}) as Record<string, unknown>) }; delete categoryColors[category]; if (Object.keys(categoryColors).length === 0) delete next.categoryColors; else next.categoryColors = categoryColors; return next as CanonicalDataStyle; }) }} /></label>)}</>}
+      {categoryControls.length > 0 && <><div className={styles.field}><span>{t("inspector.blocks.categoryColors")}</span></div>{categoryControls.map((category) => <label className={styles.field} key={category}><span>{t(BLOCK_CATEGORY_LABEL_KEYS[category])}</span><ColorControl id={`blocks-category-${category}-color`} name={getControlName(controlPrefix, `Category-${category}`)} value={blocksStyle?.categoryColors?.[category]} effectiveValue={BLOCK_CATEGORY_DEFAULTS[category]} onChange={(color) => onUpdateStyle((current) => { const next = current as BlocksVisualStyle | undefined; return { ...(next ?? {}), categoryColors: { ...(next?.categoryColors ?? {}), [category]: color } }; })} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current as BlocksVisualStyle) } as Record<string, unknown>; const categoryColors = { ...((next.categoryColors ?? {}) as Record<string, unknown>) }; delete categoryColors[category]; if (Object.keys(categoryColors).length === 0) delete next.categoryColors; else next.categoryColors = categoryColors; return next as CanonicalDataStyle; }) }} /></label>)}</>}
       {fallbackControls.length > 0 && <><div className={styles.field}><span>{t("inspector.blocks.uncategorized")}</span></div>{fallbackControls.map((kind) => <label className={styles.field} key={kind}><span>{t(BLOCK_FALLBACK_LABELS[kind])}</span><ColorControl id={`blocks-${kind}-color`} name={getControlName(controlPrefix, `${kind}Color`)} value={blocksStyle?.[`${kind}Color`]} effectiveValue={BLOCK_DEFAULT_COLORS[kind]} onChange={(color) => onUpdateStyle((current) => ({ ...(current as BlocksVisualStyle), [`${kind}Color`]: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current as BlocksVisualStyle) } as Record<string, unknown>; delete next[`${kind}Color`]; return next as CanonicalDataStyle; }) }} /></label>)}</>}
       <label className={styles.field}><span>{t("inspector.blocks.textColor")}</span><ColorControl id="blocks-text-color" name={getControlName(controlPrefix, "TextColor")} value={blocksStyle?.textColor} effectiveValue="#FFFFFF" onChange={(color) => onUpdateStyle((current) => ({ ...current, textColor: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.textColor; return next as CanonicalDataStyle; }) }} /></label>
       <ElementBorderControl border={blocksStyle?.blockBorder} onChange={(blockBorder) => onUpdateStyle((current) => ({ ...current, blockBorder }))} controlPrefix={`${controlPrefix}-block`} allowGradient={false} label={t("inspector.blocks.blockStroke")} />

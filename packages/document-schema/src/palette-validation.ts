@@ -159,7 +159,7 @@ export function visitPresentationColorValues(
           visitColor({ value: style.statementColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, statementColor: value }; } }, [...path, "style", "statementColor"]);
           visitColor({ value: style.scopeColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
           visitColor({ value: style.logicColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, logicColor: value }; } }, [...path, "style", "logicColor"]);
-          for (const category of ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"] as const) {
+          for (const category of ["events", "output", "control", "input", "math", "variables"] as const) {
             visitColor({ value: style.categoryColors?.[category], set: (value) => {
               const currentStyle = element.style;
               if (currentStyle) element.style = { ...currentStyle, categoryColors: { ...currentStyle.categoryColors, [category]: value } };
