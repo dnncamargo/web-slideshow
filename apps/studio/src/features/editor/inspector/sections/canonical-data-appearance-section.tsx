@@ -3,6 +3,7 @@ import type {
   ElementEffect,
   GradientSurfaceBackground,
   GradientSurfaceVisualStyle,
+  ColorValue,
   PowerShowElement,
 } from "@powershow/document-schema";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
@@ -16,6 +17,7 @@ import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | BlocksVisualStyle;
+type LegacyColorStyle = { color?: ColorValue };
 type DataElement = Extract<PowerShowElement, { type: "code" | "terminal" | "table" | "blocks" }>;
 
 type BackgroundKey = "color" | "gradient";
@@ -52,7 +54,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
   const radius = resolveEffectiveElementStyleDefaults(element).borderRadius;
   return <InspectorSection title={t("inspector.appearance")}>
     {showColor && <div className={styles.colorControl}>
-      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={style && "color" in style ? style.color : undefined} onChange={(color) => onUpdateStyle((current) => ({ ...current, color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.color; return next as CanonicalDataStyle; }) }} /></label>
+      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={(style as LegacyColorStyle | undefined)?.color} onChange={(color) => onUpdateStyle((current) => ({ ...current, color } as unknown as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.color; return next as CanonicalDataStyle; }) }} /></label>
     </div>}
     <div className={styles.colorControl}>
       <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => updateCanonicalBackground(current, "color", color))} secondaryAction={{ label: t("inspector.remove"), onClick: () => onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined)) }} /></label>

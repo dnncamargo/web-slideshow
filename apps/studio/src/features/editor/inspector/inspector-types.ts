@@ -62,41 +62,6 @@ export interface TopicsAuthoringControls {
   ) => string | null;
 }
 
-/**
- * Blocks authoring controls for the composable Blocks model.
- *
- * Only operations that allocate presentation-wide authoring IDs live
- * here: text/literal edits, direct color, shape editing, remove,
- * and reorder require no ID allocation and use the Inspector onUpdate
- * path. Each handler returns the freshly created block/part id or null
- * when the target is stale/invalid or creation is refused.
- */
-export interface BlocksAuthoringControls {
-  onAddRootBlock: (blocksId: string) => string | null;
-
-  onAddScopeChild: (
-    blocksId: string,
-    scopeBlockId: string,
-  ) => string | null;
-
-  onAddTextPart: (
-    blocksId: string,
-    blockItemId: string,
-  ) => string | null;
-
-  onAddSocketPart: (
-    blocksId: string,
-    blockItemId: string,
-  ) => string | null;
-
-  onCreateSocketValue: (
-    blocksId: string,
-    ownerBlockId: string,
-    socketPartId: string,
-    shape?: "value" | "logic",
-  ) => string | null;
-}
-
 export interface TableAuthoringControls {
   onAddColumn: (tableId: string) => void;
 

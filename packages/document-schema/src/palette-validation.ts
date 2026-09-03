@@ -154,17 +154,10 @@ export function visitPresentationColorValues(
       case "blocks":
         visitStyle(element.style, [...path, "style"]);
         visitEffect(element.effect, [...path, "effect"]);
-        {
-          const visitBlockItem = (item: typeof element.items[number], itemPath: (string | number)[]) => {
-            visitColor({ value: item.color, set: (value) => { item.color = value; } }, [...itemPath, "color"]);
-            item.children.forEach((child, index) => visitBlockItem(child, [...itemPath, "children", index]));
-            item.parts.forEach((part, index) => {
-              if (part.type === "socket" && part.content.type === "block") {
-                visitBlockItem(part.content.block, [...itemPath, "parts", index, "content", "block"]);
-              }
-            });
-          };
-          element.items.forEach((item, index) => visitBlockItem(item, [...path, "items", index]));
+        if (element.style) {
+          visitColor({ value: element.style.statementColor, set: (value) => { element.style = { ...element.style, statementColor: value }; } }, [...path, "style", "statementColor"]);
+          visitColor({ value: element.style.scopeColor, set: (value) => { element.style = { ...element.style, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
+          visitColor({ value: element.style.logicColor, set: (value) => { element.style = { ...element.style, logicColor: value }; } }, [...path, "style", "logicColor"]);
         }
         break;
       case "image": case "gallery": case "embed": case "scripted": case "code": case "terminal":

@@ -36,9 +36,10 @@ describe("canonical data element contracts", () => {
     expect(parsed.columns[0]?.header.typography?.fontSize).toBe(16);
   });
 
-  it("accepts Blocks root color and preserves graph validation", () => {
-    const parsed = BlocksElementSchema.parse({ id: "blocks-1", type: "blocks", hidden: false, layout, style: { color: "#ff0000", ...visual }, effect, items: [{ id: "item", color: "#0000ff", shape: "statement", parts: [], children: [] }] });
-    expect(parsed.style?.color).toBe("#ff0000");
+  it("accepts Blocks source and direct palette fields", () => {
+    const parsed = BlocksElementSchema.parse({ id: "blocks-1", type: "blocks", hidden: false, layout, style: { statementColor: "#ff0000", scopeColor: "#00ff00", logicColor: "#0000ff" }, effect, source: "move [10] steps" });
+    expect(parsed.source).toBe("move [10] steps");
+    expect(parsed.style?.logicColor).toBe("#0000ff");
   });
 
   it.each(["width", "height", "position", "top", "right", "bottom", "left", "opacity", "shadow"] as const)("rejects legacy aggregate style.%s", (field) => {
@@ -48,6 +49,6 @@ describe("canonical data element contracts", () => {
 
   it("rejects unsupported typography and pattern fields", () => {
     expect(CodeElementSchema.safeParse({ id: "code-1", hidden: false, code: "x", typography: {}, style: { background: { pattern: { type: "grid", color: "#000", size: 8 } } } }).success).toBe(false);
-    expect(BlocksElementSchema.safeParse({ id: "blocks-1", hidden: false, items: [], style: { background: { pattern: { type: "grid", color: "#000", size: 8 } } } }).success).toBe(false);
+    expect(BlocksElementSchema.safeParse({ id: "blocks-1", hidden: false, source: "", style: { background: { pattern: { type: "grid", color: "#000", size: 8 } } } }).success).toBe(false);
   });
 });

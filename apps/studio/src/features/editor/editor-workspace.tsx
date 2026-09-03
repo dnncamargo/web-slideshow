@@ -188,16 +188,11 @@ import {
   appendElementToContainer,
   appendElementToContentSlot,
   addColumnToStructuredTable,
-  addRootBlockToPresentation,
   addRowToStructuredTable,
-  addScopeChildToPresentation,
-  addSocketPartToPresentation,
-  addTextPartToPresentation,
   createDefaultTopicItem,
   createElement,
   attachImageToGallery,
   detachGalleryItemToImage,
-  createSocketValueInPresentation,
   duplicateElement,
   findElementSiblingPosition,
   insertElementAfterId,
@@ -2714,124 +2709,6 @@ export function EditorWorkspace({
   // END: ADD TOP LEVEL TOPIC
   // ==========================================================
 
-  // ==========================================================
-  // BEGIN: BLOCKS AUTHORING CONTROLS
-  //
-  // Each creation allocates presentation-wide authoring ids from the
-  // full slide inventory, validates the target through the pure
-  // operations, and writes a canonical update. The returned id is the
-  // freshly created BlockItem/BlockPart id; null means the target is
-  // stale/invalid or the creation was refused.
-  // ==========================================================
-
-  function addRootBlock(blocksId: string): string | null {
-    const outcome = addRootBlockToPresentation(presentation.slides, blocksId);
-
-    if (!outcome) {
-      return null;
-    }
-
-    setPresentation((current) => ({
-      ...current,
-      slides: outcome.slides,
-    }));
-
-    return outcome.createdId;
-  }
-
-  function addScopeChild(
-    blocksId: string,
-    scopeBlockId: string,
-  ): string | null {
-    const outcome = addScopeChildToPresentation(
-      presentation.slides,
-      blocksId,
-      scopeBlockId,
-    );
-
-    if (!outcome) {
-      return null;
-    }
-
-    setPresentation((current) => ({
-      ...current,
-      slides: outcome.slides,
-    }));
-
-    return outcome.createdId;
-  }
-
-  function addBlocksTextPart(
-    blocksId: string,
-    blockItemId: string,
-  ): string | null {
-    const outcome = addTextPartToPresentation(
-      presentation.slides,
-      blocksId,
-      blockItemId,
-    );
-
-    if (!outcome) {
-      return null;
-    }
-
-    setPresentation((current) => ({
-      ...current,
-      slides: outcome.slides,
-    }));
-
-    return outcome.createdId;
-  }
-
-  function addBlocksSocketPart(
-    blocksId: string,
-    blockItemId: string,
-  ): string | null {
-    const outcome = addSocketPartToPresentation(
-      presentation.slides,
-      blocksId,
-      blockItemId,
-    );
-
-    if (!outcome) {
-      return null;
-    }
-
-    setPresentation((current) => ({
-      ...current,
-      slides: outcome.slides,
-    }));
-
-    return outcome.createdId;
-  }
-
-  function createBlocksSocketValue(
-    blocksId: string,
-    ownerBlockId: string,
-    socketPartId: string,
-    shape: "value" | "logic" = "value",
-  ): string | null {
-    const outcome = createSocketValueInPresentation(
-      presentation.slides,
-      blocksId,
-      ownerBlockId,
-      socketPartId,
-      shape,
-    );
-
-    if (!outcome) {
-      return null;
-    }
-
-    setPresentation((current) => ({
-      ...current,
-      slides: outcome.slides,
-    }));
-
-    return outcome.createdId;
-  }
-
-  // ==========================================================
   // END: BLOCKS AUTHORING CONTROLS
   // ==========================================================
 
@@ -4079,13 +3956,6 @@ export function EditorWorkspace({
                           topicsAuthoringControls={{
                             onAddTopLevelTopic: addTopLevelTopic,
                             onAddChildTopic: addChildTopic,
-                          }}
-                          blocksAuthoringControls={{
-                            onAddRootBlock: addRootBlock,
-                            onAddScopeChild: addScopeChild,
-                            onAddTextPart: addBlocksTextPart,
-                            onAddSocketPart: addBlocksSocketPart,
-                            onCreateSocketValue: createBlocksSocketValue,
                           }}
                           tableAuthoringControls={tableAuthoringControls}
                         />

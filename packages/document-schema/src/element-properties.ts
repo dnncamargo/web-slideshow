@@ -179,11 +179,13 @@ export type GradientSurfaceVisualStyle = z.infer<
 >;
 
 export const BlocksVisualStyleSchema = z.object({
-  color: ColorValueSchema.optional(),
   background: GradientSurfaceBackgroundSchema.optional(),
   border: BorderSchema.optional(),
   borderRadius: LengthSchema.optional(),
   className: z.string().optional(),
+  statementColor: ColorValueSchema.optional(),
+  scopeColor: ColorValueSchema.optional(),
+  logicColor: ColorValueSchema.optional(),
 }).strict();
 
 export type BlocksVisualStyle = z.infer<typeof BlocksVisualStyleSchema>;

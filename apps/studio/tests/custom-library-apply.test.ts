@@ -159,44 +159,15 @@ describe("Custom Library apply core", () => {
     expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
   });
 
-  it("remaps coherent Blocks intrinsic ids", () => {
-    const items = [{
-      id: "block-item-source",
-      color: "#6366f1",
-      shape: "statement" as const,
-      parts: [
-        { id: "block-text-part-source", type: "text" as const, text: "when" },
-        {
-          id: "block-socket-part-source",
-          type: "socket" as const,
-          content: {
-            type: "block" as const,
-            block: {
-              id: "nested-block-source",
-              color: "#6366f1",
-              shape: "value" as const,
-              parts: [{ id: "nested-part-source", type: "text" as const, text: "true" }],
-              children: [],
-            },
-          },
-        },
-      ],
-      children: [],
-    }];
+  it("preserves opaque Blocks source when materializing a recipe", () => {
+    const source = "move [10] steps";
     const result = materializeCustomLibraryElementRecipe(recipe("blocks", [
-      { path: "items", value: items },
+      { path: "source", value: source },
     ]), slides);
 
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "blocks") return;
-    const created = result.element.items[0];
-    expect(created?.id).not.toBe("block-item-source");
-    expect(created?.parts[0]?.id).not.toBe("block-text-part-source");
-    expect(created?.parts[1]?.id).not.toBe("block-socket-part-source");
-    if (created?.parts[1]?.type === "socket" && created.parts[1].content.type === "block") {
-      expect(created.parts[1].content.block.id).not.toBe("nested-block-source");
-      expect(created.parts[1].content.block.parts[0]?.id).not.toBe("nested-part-source");
-    }
+    expect(result.element.source).toBe(source);
     expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
   });
 

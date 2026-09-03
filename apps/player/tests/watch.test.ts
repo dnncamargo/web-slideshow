@@ -85,13 +85,7 @@ function didacticWatchPresentation(): Presentation {
         type: "blocks",
         id: "watch-blocks-element",
         hidden: false,
-        items: [
-          { id: "watch-start", color: "#f97316", shape: "start", parts: [{ id: "watch-start-text", type: "text", text: "When flag clicked" }], children: [] },
-          { id: "watch-statement", color: "#3b82f6", shape: "statement", parts: [{ id: "watch-move-text", type: "text", text: "move" }, { id: "watch-move-count", type: "socket", content: { type: "literal", value: "10" } }], children: [] },
-          { id: "watch-scope", color: "#ef4444", shape: "scope", parts: [{ id: "watch-repeat-text", type: "text", text: "repeat" }], children: [{ id: "watch-child", color: "#3b82f6", shape: "statement", parts: [{ id: "watch-child-text", type: "text", text: "turn" }], children: [] }, { id: "watch-set-x", color: "#3b82f6", shape: "statement", parts: [{ id: "watch-set-x-text", type: "text", text: "set x to" }, { id: "watch-value-socket", type: "socket", content: { type: "block", block: { id: "watch-value", color: "#22c55e", shape: "value", parts: [{ id: "watch-value-text", type: "text", text: "x position" }], children: [] } } }], children: [] }] },
-          { id: "watch-until", color: "#ef4444", shape: "scope", parts: [{ id: "watch-until-text", type: "text", text: "repeat until" }, { id: "watch-logic-socket", type: "socket", content: { type: "block", block: { id: "watch-logic", color: "#f59e0b", shape: "logic", parts: [{ id: "watch-logic-text", type: "text", text: "touching" }, { id: "watch-logic-target", type: "socket", content: { type: "literal", value: "Sprite2" } }], children: [] } } }], children: [] },
-          { id: "watch-end", color: "#64748b", shape: "end", parts: [{ id: "watch-end-text", type: "text", text: "stop all" }], children: [] },
-        ],
+        source: "When flag clicked\\nmove [10] steps\\nstop all",
       }],
     }],
   });
@@ -195,17 +189,10 @@ describe("Player Watch runtime", () => {
     await vi.waitFor(() => expect(renderedSlideId()).toBe("watch-blocks-slide"));
 
     const blocksRoot = root.querySelector<HTMLElement>('[data-powershow-type="blocks"]');
-    const stack = blocksRoot?.querySelector<HTMLElement>(":scope > .powershow-blocks-stack");
-    if (!blocksRoot || !stack) throw new Error("Watch Blocks projection was not rendered");
-    expect(Array.from(stack.children).map((child) => child.getAttribute("data-powershow-block-id"))).toEqual([
-      "watch-start", "watch-statement", "watch-scope", "watch-until", "watch-end",
-    ]);
-    for (const shape of ["start", "statement", "scope", "value", "logic", "end"]) {
-      expect(blocksRoot.querySelector(`.powershow-block--${shape}`)).not.toBeNull();
-    }
-    expect(blocksRoot.textContent).toContain("Sprite2");
-    expect(blocksRoot.querySelector('[data-powershow-part-id="watch-value-socket"] > [data-powershow-block-id="watch-value"]')).not.toBeNull();
-    expect(blocksRoot.querySelector('[data-powershow-part-id="watch-logic-socket"] > [data-powershow-block-id="watch-logic"]')).not.toBeNull();
+    if (!blocksRoot) throw new Error("Watch Blocks projection was not rendered");
+    expect(blocksRoot.textContent).toContain("When flag clicked");
+    expect(blocksRoot.textContent).toContain("move [10] steps");
+    expect(blocksRoot.textContent).toContain("stop all");
     expect(root.querySelectorAll("[onclick]")).toHaveLength(0);
   });
 
