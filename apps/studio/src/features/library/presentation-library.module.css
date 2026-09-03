@@ -1058,6 +1058,7 @@
     justify-content: space-between;
     gap: 8px;
     overflow: hidden;
+    padding: 8px;
   }
   .toolbarSelection {
     min-width: 0;
@@ -1070,6 +1071,7 @@
     justify-content: center;
     flex-wrap: wrap;
     white-space: normal;
+    padding: 8px;
   }
   .toolbarLocalActions {
     flex: 0 1 auto;
