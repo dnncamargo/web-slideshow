@@ -186,6 +186,18 @@ export const BlocksVisualStyleSchema = z.object({
   statementColor: ColorValueSchema.optional(),
   scopeColor: ColorValueSchema.optional(),
   logicColor: ColorValueSchema.optional(),
+  categoryColors: z.object({
+    events: ColorValueSchema.optional(),
+    motion: ColorValueSchema.optional(),
+    looks: ColorValueSchema.optional(),
+    sound: ColorValueSchema.optional(),
+    control: ColorValueSchema.optional(),
+    sensing: ColorValueSchema.optional(),
+    operators: ColorValueSchema.optional(),
+    variables: ColorValueSchema.optional(),
+  }).strict().optional(),
+  textColor: ColorValueSchema.optional(),
+  blockBorder: BorderSchema.optional(),
 }).strict();
 
 export type BlocksVisualStyle = z.infer<typeof BlocksVisualStyleSchema>;

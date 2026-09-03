@@ -101,4 +101,41 @@ describe("Blocks source Inspector", () => {
     await act(async () => root.unmount());
     host.remove();
   });
+
+  it("exposes used category colors plus text and block stroke controls", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    let current = element(String.raw`\start[events](When)\statement[motion](Move)\scope[control](Repeat){\statement[sensing](Sense \logic[variables](x))}`, { className: "keep" });
+    const render = async () => act(async () => root.render(<StudioI18nProvider><BlocksInspector element={current} onUpdate={(update) => { current = update(current) as BlocksElement; void render(); }} /></StudioI18nProvider>));
+    await render();
+
+    expect(host.querySelector("#blocks-category-events-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-motion-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-control-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-sensing-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-variables-color")).not.toBeNull();
+    expect(host.querySelector("#blocks-category-looks-color")).toBeNull();
+    expect(host.querySelector("#blocks-category-sound-color")).toBeNull();
+    expect(host.querySelector("#blocks-category-operators-color")).toBeNull();
+    expect(host.textContent).toContain("Category colors");
+    expect(host.textContent).toContain("Motion");
+    expect(host.textContent).toContain("Text color");
+    expect(host.textContent).toContain("Block stroke");
+
+    const textValue = host.querySelector<HTMLInputElement>("#blocks-text-color-value");
+    if (!textValue) throw new Error("text color input missing");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(textValue, "#123456");
+    await act(async () => textValue.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(current.style?.textColor).toBe("#123456");
+
+    const strokeStyle = host.querySelector<HTMLSelectElement>("#blocks-block-border-style");
+    if (!strokeStyle) throw new Error("block stroke style selector missing");
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(strokeStyle, "solid");
+    await act(async () => strokeStyle.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(current.style?.blockBorder?.style).toBe("solid");
+    expect(current.style?.className).toBe("keep");
+    await act(async () => root.unmount());
+    host.remove();
+  });
 });

@@ -10,6 +10,7 @@ import {
   PresentationPaletteSchema,
   PresentationSchema,
   isPaletteColorReference,
+  mapPowerShowElementColorValues,
   resolveColorValue,
 } from "../src";
 
@@ -185,6 +186,30 @@ describe("palette color resolution", () => {
 });
 
 describe("presentation palette reference integrity", () => {
+  it("visits Blocks category colors, text color, and block border gradients", () => {
+    const reference = { kind: "palette" as const, colorId: "accent" };
+    const paths: string[] = [];
+    mapPowerShowElementColorValues({
+      id: "blocks",
+      type: "blocks",
+      hidden: false,
+      source: "",
+      style: {
+        categoryColors: { events: reference },
+        textColor: reference,
+        blockBorder: { width: 1, gradient: { type: "linear", stops: [{ color: reference, position: 0 }] } },
+      },
+    }, (value, path) => {
+      if (isPaletteColorReference(value)) paths.push(path.join("."));
+      return value;
+    });
+    expect(paths).toEqual(expect.arrayContaining([
+      "slides.0.elements.0.style.categoryColors.events",
+      "slides.0.elements.0.style.textColor",
+      "slides.0.elements.0.style.blockBorder.gradient.stops.0.color",
+    ]));
+  });
+
   it.each([
     ["style.color", { style: { color: { kind: "palette", colorId: "missing" } } }, ["textStyles", 0, "style", "color", "colorId"]],
     ["decoration color", { typography: { textDecorationColor: { kind: "palette", colorId: "missing" } } }, ["textStyles", 0, "typography", "textDecorationColor", "colorId"]],

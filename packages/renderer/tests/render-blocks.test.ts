@@ -55,9 +55,9 @@ describe("renderBlocks", () => {
     });
 
     for (const shape of ["value", "variable", "logic"]) {
-      expect(region(html, shape)).toContain("margin-inline:3px");
+      expect(region(html, shape)).toContain("margin-inline:5px");
     }
-    expect(region(html, "statement")).not.toContain("margin-inline:3px");
+    expect(region(html, "statement")).not.toContain("margin-inline:5px");
   });
 
   it("uses intrinsic nowrap sizing and simple connector topology", () => {
@@ -115,6 +115,25 @@ describe("renderBlocks", () => {
     expect(overridden).toContain("#123456");
     expect(overridden).toContain("#234567");
     expect(overridden).toContain("#345678");
+  });
+
+  it("applies category overrides, authored text color, and block strokes independently", () => {
+    const html = renderBlocks({
+      ...createDidacticBlocksElement(),
+      source: String.raw`\start[events](When flag clicked)\statement[motion](Move \value(10) steps)\scope[control](Repeat){\statement(Turn)}`,
+      style: {
+        border: { width: 5, style: "dashed", color: "#f97316" },
+        categoryColors: { events: "#abcdef" },
+        textColor: "#123456",
+        blockBorder: { width: 2, style: "solid", color: "#111827" },
+      },
+    });
+    expect(html).toContain('data-powershow-block-category="events"');
+    expect(region(html, "start")).toContain("background:#abcdef");
+    expect(region(html, "start")).toContain("color:#123456");
+    expect(region(html, "value")).toContain("background:#f8fafc;color:#1e293b");
+    expect(html).toContain("border-width:5px;border-style:dashed;border-color:#f97316");
+    expect(html.match(/border-width:2px/g)?.length).toBeGreaterThan(2);
   });
 
   it("escapes authored text and inline values without executable markup", () => {

@@ -155,9 +155,17 @@ export function visitPresentationColorValues(
         visitStyle(element.style, [...path, "style"]);
         visitEffect(element.effect, [...path, "effect"]);
         if (element.style) {
-          visitColor({ value: element.style.statementColor, set: (value) => { element.style = { ...element.style, statementColor: value }; } }, [...path, "style", "statementColor"]);
-          visitColor({ value: element.style.scopeColor, set: (value) => { element.style = { ...element.style, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
-          visitColor({ value: element.style.logicColor, set: (value) => { element.style = { ...element.style, logicColor: value }; } }, [...path, "style", "logicColor"]);
+          const style = element.style;
+          visitColor({ value: style.statementColor, set: (value) => { element.style = { ...style, statementColor: value }; } }, [...path, "style", "statementColor"]);
+          visitColor({ value: style.scopeColor, set: (value) => { element.style = { ...style, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
+          visitColor({ value: style.logicColor, set: (value) => { element.style = { ...style, logicColor: value }; } }, [...path, "style", "logicColor"]);
+          for (const category of ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"] as const) {
+            visitColor({ value: element.style.categoryColors?.[category], set: (value) => {
+              element.style = { ...style, categoryColors: { ...style.categoryColors, [category]: value } };
+            } }, [...path, "style", "categoryColors", category]);
+          }
+          visitColor({ value: style.textColor, set: (value) => { element.style = { ...style, textColor: value }; } }, [...path, "style", "textColor"]);
+          visitBorder(style.blockBorder, [...path, "style", "blockBorder"]);
         }
         break;
       case "image": case "gallery": case "embed": case "scripted": case "code": case "terminal":

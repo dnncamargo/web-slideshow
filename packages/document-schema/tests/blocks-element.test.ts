@@ -27,6 +27,21 @@ describe("BlocksElementSchema", () => {
     expect(parsed.effect?.opacity).toBe(0.8);
   });
 
+  it("accepts strict Blocks appearance controls", () => {
+    const parsed = BlocksElementSchema.parse(base({
+      style: {
+        categoryColors: { events: "#FFBF00", motion: { kind: "palette", colorId: "accent" } },
+        textColor: "#FFFFFF",
+        blockBorder: { width: 2, style: "solid", color: "#111827" },
+      },
+    }));
+    expect(parsed.style?.categoryColors?.events).toBe("#ffbf00");
+    expect(parsed.style?.categoryColors?.motion).toEqual({ kind: "palette", colorId: "accent" });
+    expect(parsed.style?.textColor).toBe("#ffffff");
+    expect(parsed.style?.blockBorder?.width).toBe(2);
+    expect(() => BlocksElementSchema.parse(base({ style: { categoryColors: { unknown: "#fff" } } }))).toThrow();
+  });
+
   it.each(["items", "categories", "categoryId", "workspace", "unknown"])(
     "rejects removed or unknown field %s",
     (field) => expect(() => BlocksElementSchema.parse(base({ [field]: [] }))).toThrow(),
