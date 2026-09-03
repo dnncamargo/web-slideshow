@@ -1,10 +1,7 @@
 import type { BlocksElement, ElementEffect } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
-import type {
-  BlocksAuthoringControls,
-  ElementInspectorUpdate,
-} from "./inspector-types";
+import type { ElementInspectorUpdate } from "./inspector-types";
 import { InspectorSection } from "./inspector-section";
 import { BlocksContentSection } from "./sections/blocks-content-section";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
@@ -13,13 +10,11 @@ import { CanonicalElementEffectsSection } from "./sections/canonical-element-eff
 interface BlocksInspectorProps {
   element: BlocksElement;
   onUpdate: ElementInspectorUpdate;
-  blocksAuthoringControls: BlocksAuthoringControls;
 }
 
 export function BlocksInspector({
   element,
   onUpdate,
-  blocksAuthoringControls,
 }: BlocksInspectorProps) {
   const { t } = useStudioI18n();
   const updateBlocksStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => onUpdate((current) => {
@@ -35,10 +30,9 @@ export function BlocksInspector({
       <BlocksContentSection
         element={element}
         onUpdate={onUpdate}
-        blocksAuthoringControls={blocksAuthoringControls}
       />
     </InspectorSection>
-    <CanonicalDataAppearanceSection element={element} style={element.style} effect={element.effect} onUpdateStyle={updateBlocksStyle} onUpdateEffect={updateBlocksEffect} controlPrefix="blocks" showColor />
+    <CanonicalDataAppearanceSection element={element} style={element.style} effect={element.effect} onUpdateStyle={updateBlocksStyle} onUpdateEffect={updateBlocksEffect} controlPrefix="blocks" />
     <CanonicalElementEffectsSection effect={element.effect} onUpdateEffect={updateBlocksEffect} controlPrefix="blocks" />
   </>;
 }

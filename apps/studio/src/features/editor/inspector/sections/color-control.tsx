@@ -21,6 +21,7 @@ interface ColorControlProps {
   id: string;
   name: string;
   value: ColorValue | undefined;
+  effectiveValue?: ColorValue;
   onChange: (color: ColorValue) => void;
   secondaryAction?: {
     label: string;
@@ -34,6 +35,7 @@ export function ColorControl({
   id,
   name,
   value,
+  effectiveValue,
   onChange,
   secondaryAction,
   disabled = false,
@@ -41,9 +43,10 @@ export function ColorControl({
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
   const picked = usePickedColors();
-  const sourceValue = value === undefined
+  const displayedValue = value ?? effectiveValue;
+  const sourceValue = displayedValue === undefined
     ? DEFAULT_PICKER_COLOR
-    : resolveColorValue(value, palette ? { colors: palette.colors } : undefined) ?? DEFAULT_PICKER_COLOR;
+    : resolveColorValue(displayedValue, palette ? { colors: palette.colors } : undefined) ?? DEFAULT_PICKER_COLOR;
   const [literalValue, setLiteralValue] = useState(sourceValue);
   const [isPaletteChooserOpen, setIsPaletteChooserOpen] = useState(false);
   const [lastSourceValue, setLastSourceValue] = useState(sourceValue);

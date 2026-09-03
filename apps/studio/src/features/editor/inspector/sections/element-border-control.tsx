@@ -27,6 +27,8 @@ interface ElementBorderControlProps {
   allowGradient?: boolean;
 
   allowNone?: boolean;
+
+  label?: string;
 }
 
 type EnabledBorderStyle = NonNullable<Border["style"]>;
@@ -79,6 +81,7 @@ export function ElementBorderControl({
   controlPrefix,
   allowGradient = true,
   allowNone = true,
+  label,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
 
@@ -94,7 +97,7 @@ export function ElementBorderControl({
     <>
       <label className={styles.field}>
         <span title={t("inspector.borderHelp")}>
-          {t("inspector.border")}
+          {label ?? t("inspector.border")}
         </span>
 
         <select

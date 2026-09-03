@@ -37,7 +37,7 @@ const atomicPaths = new Set([
 const normallyUnselectedRoots = new Set([
   "hidden", "content", "src", "alt", "link", "code",
   "highlightedLines", "lines", "series", "config", "items",
-  "categories", "rows", "columns", "html", "css", "script", "title",
+  "rows", "columns", "html", "css", "script", "title",
 ]);
 
 function getValueAtPath(element: PowerShowElement, path: string): unknown {

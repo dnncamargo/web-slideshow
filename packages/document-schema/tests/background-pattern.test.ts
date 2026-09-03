@@ -135,8 +135,7 @@ describe("canonical visual schemas", () => {
         id: "blocks",
         type: "blocks",
         hidden: false,
-        categories: [],
-        items: [],
+        source: "",
       }).success,
     ).toBe(true);
     expect(

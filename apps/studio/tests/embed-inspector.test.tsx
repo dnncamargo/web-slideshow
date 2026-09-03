@@ -9,7 +9,6 @@ import type { EmbedElement, PowerShowElement } from "@powershow/document-schema"
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { EmbedInspector } from "../src/features/editor/inspector/embed-inspector";
 import type {
-  BlocksAuthoringControls,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "../src/features/editor/inspector/inspector-types";
@@ -24,13 +23,6 @@ const TOPICS_AUTHORING_CONTROLS: TopicsAuthoringControls = {
   onAddChildTopic: () => null,
 };
 
-const BLOCKS_AUTHORING_CONTROLS: BlocksAuthoringControls = {
-  onAddRootBlock: () => null,
-  onAddScopeChild: () => null,
-  onAddTextPart: () => null,
-  onAddSocketPart: () => null,
-  onCreateSocketValue: () => null,
-};
 
 const TABLE_AUTHORING_CONTROLS: TableAuthoringControls = {
   onAddColumn: () => {},
@@ -498,7 +490,6 @@ describe("ElementInspector dispatcher for Embed", () => {
             parent={null}
             layerControls={null}
             topicsAuthoringControls={TOPICS_AUTHORING_CONTROLS}
-            blocksAuthoringControls={BLOCKS_AUTHORING_CONTROLS}
             tableAuthoringControls={TABLE_AUTHORING_CONTROLS}
           />
         </StudioI18nProvider>,

@@ -1,4 +1,5 @@
 import type {
+  BlocksElement,
   CodeElement,
   ContainerElement,
   ImageElement,
@@ -8,6 +9,38 @@ import type {
   TerminalElement,
   TextElement,
 } from "@powershow/document-schema";
+
+/**
+ * A static, renderer-only educational source used to exercise the current
+ * grammar-based Blocks source contract.
+ */
+export function createDidacticBlocksElement(): BlocksElement {
+  return {
+    type: "blocks",
+    id: "didactic-blocks",
+    hidden: false,
+    source: String.raw`\start[events](When flag clicked)
+
+\statement[variables](Set \variable(score) to \value(0))
+
+\scope[control](Repeat \value(10) times){
+  \statement[motion](Move \value(10) steps)
+  \statement[motion](Turn \value(15) degrees)
+  \statement[variables](Set x to \value(x position))
+}
+
+\scope[control](Repeat until \logic[sensing](Touching \value(Sprite2)?)){
+  \statement[motion](Move \value(10) steps)
+}
+
+\end[control](Stop all)`,
+    style: {
+      statementColor: "#3b82f6",
+      scopeColor: "#ef4444",
+      logicColor: "#f59e0b",
+    },
+  };
+}
 
 export function createCodeElement(
   overrides: Partial<CodeElement> = {},

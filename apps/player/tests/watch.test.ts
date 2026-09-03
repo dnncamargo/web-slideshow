@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@powershow/document-schema";
 
 import { playerTestPresentation } from "./fixtures/player-presentation";
 
@@ -73,6 +73,24 @@ function presentation(ids: string[]): Presentation {
     ...playerTestPresentation,
     slides: ids.map((id) => ({ ...firstSlide, id })),
   };
+}
+
+function didacticWatchPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...playerTestPresentation,
+    id: "watch-blocks",
+    slides: [{
+      id: "watch-blocks-slide",
+      elements: [{
+        type: "blocks",
+        id: "watch-blocks-element",
+        hidden: false,
+        source: String.raw`\start(When flag clicked)
+\statement(Move \value(10) steps)
+\end(Stop all)`,
+      }],
+    }],
+  });
 }
 
 describe("Player Watch runtime", () => {
@@ -161,6 +179,24 @@ describe("Player Watch runtime", () => {
     await emitPlayer(playerState());
     await vi.waitFor(() => expect(renderedSlideId()).toBe("slide-1"));
     expect(root.querySelector(".powershow-player-controls")).toBeNull();
+  });
+
+  it("delegates Watch Blocks rendering to the shared projection surface", async () => {
+    const loaded = didacticWatchPresentation();
+    mocks.loadPublishedVersion.mockResolvedValue({ kind: "ok", presentation: loaded });
+
+    mount();
+    await emitLive(live());
+    await emitPlayer(playerState({ pageId: "watch-blocks-slide" }));
+    await vi.waitFor(() => expect(renderedSlideId()).toBe("watch-blocks-slide"));
+
+    const blocksRoot = root.querySelector<HTMLElement>('[data-powershow-type="blocks"]');
+    if (!blocksRoot) throw new Error("Watch Blocks projection was not rendered");
+    expect(blocksRoot.querySelector(".powershow-block--start")).not.toBeNull();
+    expect(blocksRoot.textContent).toContain("When flag clicked");
+    expect(blocksRoot.textContent).toContain("Move 10 steps");
+    expect(blocksRoot.querySelector(".powershow-block--end")).not.toBeNull();
+    expect(root.querySelectorAll("[onclick]")).toHaveLength(0);
   });
 
   it("uses pageId as authority, never pageIndex, and never observes controlState or writes RTDB", async () => {

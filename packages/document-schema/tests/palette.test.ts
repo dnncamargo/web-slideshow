@@ -10,6 +10,7 @@ import {
   PresentationPaletteSchema,
   PresentationSchema,
   isPaletteColorReference,
+  mapPowerShowElementColorValues,
   resolveColorValue,
 } from "../src";
 
@@ -139,8 +140,7 @@ describe("palette color resolution", () => {
         id: "blocks",
         type: "blocks" as const,
         hidden: false,
-        categories: [{ id: "statement", name: "Statement", color: "#facc15" }],
-        items: [],
+        source: "",
         effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
       },
       path: ["slides", 0, "elements", 0, "effect", "shadow", "color", "colorId"],
@@ -172,8 +172,7 @@ describe("palette color resolution", () => {
       : {
           id: "blocks",
           type: "blocks" as const,
-          categories: [{ id: "statement", name: "Statement", color: "#facc15" }],
-          items: [],
+          source: "",
           effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
         };
 
@@ -183,9 +182,68 @@ describe("palette color resolution", () => {
       slides: [{ id: "slide", elements: [element] }],
     }).success).toBe(true);
   });
+
 });
 
 describe("presentation palette reference integrity", () => {
+  it("preserves simultaneous Blocks style transformations", () => {
+    const reference = (colorId: string) => ({ kind: "palette" as const, colorId });
+    const mapped = mapPowerShowElementColorValues({
+      id: "blocks",
+      type: "blocks",
+      hidden: false,
+      source: "",
+      style: {
+        statementColor: reference("statement"),
+        scopeColor: reference("scope"),
+        logicColor: reference("logic"),
+        categoryColors: { events: reference("events"), motion: reference("motion") },
+        textColor: reference("text"),
+        blockBorder: { width: 1, color: reference("border") },
+      },
+    }, (value) => {
+      const colors: Record<string, string> = {
+        statement: "#110001", scope: "#220002", logic: "#330003",
+        events: "#440004", motion: "#550005", text: "#660006", border: "#770007",
+      };
+      return isPaletteColorReference(value) ? colors[value.colorId] ?? value : value;
+    });
+    expect(mapped.type).toBe("blocks");
+    if (mapped.type !== "blocks") return;
+    expect(mapped.style).toMatchObject({
+      statementColor: "#110001",
+      scopeColor: "#220002",
+      logicColor: "#330003",
+      categoryColors: { events: "#440004", motion: "#550005" },
+      textColor: "#660006",
+      blockBorder: { color: "#770007" },
+    });
+  });
+
+  it("visits Blocks category colors, text color, and block border gradients", () => {
+    const reference = { kind: "palette" as const, colorId: "accent" };
+    const paths: string[] = [];
+    mapPowerShowElementColorValues({
+      id: "blocks",
+      type: "blocks",
+      hidden: false,
+      source: "",
+      style: {
+        categoryColors: { events: reference },
+        textColor: reference,
+        blockBorder: { width: 1, gradient: { type: "linear", stops: [{ color: reference, position: 0 }] } },
+      },
+    }, (value, path) => {
+      if (isPaletteColorReference(value)) paths.push(path.join("."));
+      return value;
+    });
+    expect(paths).toEqual(expect.arrayContaining([
+      "slides.0.elements.0.style.categoryColors.events",
+      "slides.0.elements.0.style.textColor",
+      "slides.0.elements.0.style.blockBorder.gradient.stops.0.color",
+    ]));
+  });
+
   it.each([
     ["style.color", { style: { color: { kind: "palette", colorId: "missing" } } }, ["textStyles", 0, "style", "color", "colorId"]],
     ["decoration color", { typography: { textDecorationColor: { kind: "palette", colorId: "missing" } } }, ["textStyles", 0, "typography", "textDecorationColor", "colorId"]],

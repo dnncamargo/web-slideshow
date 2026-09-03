@@ -39,6 +39,34 @@ describe("Projection surface", () => {
     projection.destroy();
   });
 
+  it("renders the representative Blocks composition through the Player projection", () => {
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "blocks-projection",
+      slides: [{
+        id: "blocks-slide",
+        elements: [{
+          type: "blocks",
+          id: "projection-blocks",
+          hidden: false,
+          source: String.raw`\start(When flag clicked)
+\statement(Move \value(10) steps)
+\end(Stop all)`,
+        }],
+      }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    const blocksRoot = root.querySelector<HTMLElement>('[data-powershow-type="blocks"]');
+    if (!blocksRoot) throw new Error("Player Blocks projection was not rendered");
+    expect(blocksRoot.querySelector(".powershow-block--start")).not.toBeNull();
+    expect(blocksRoot.textContent).toContain("When flag clicked");
+    expect(blocksRoot.textContent).toContain("Move 10 steps");
+    expect(blocksRoot.querySelector(".powershow-block--end")).not.toBeNull();
+    expect(blocksRoot.querySelectorAll("[onclick]")).toHaveLength(0);
+
+    projection.destroy();
+  });
+
   it("navigates to valid indexes and fails closed for invalid indexes", () => {
     const projection = mountProjectionSurface(root, playerTestPresentation, {
       transition: "none",

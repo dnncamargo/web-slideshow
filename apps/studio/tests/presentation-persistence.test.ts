@@ -349,31 +349,7 @@ describe("persistence round trip with Blocks", () => {
             style: {
               background: { color: "#0f172a" },
             },
-            categories: [{ id: "motion", name: "Motion", color: "#123456" }],
-            items: [
-              {
-                id: "root-a",
-                categoryId: "motion",
-                shape: "scope",
-                parts: [{ id: "root-p", type: "text", text: "repeat" }],
-                children: [
-                  {
-                    id: "child-a1",
-                    categoryId: "motion",
-                    shape: "statement",
-                    parts: [{ id: "child-p", type: "text", text: "move" }],
-                    children: [],
-                  },
-                ],
-              },
-              {
-                id: "root-b",
-                categoryId: "motion",
-                shape: "statement",
-                parts: [{ id: "root-b-p", type: "text", text: "turn" }],
-                children: [],
-              },
-            ],
+            source: "repeat [10] times\\nmove [10] steps",
           },
         ],
       },
@@ -396,17 +372,9 @@ describe("persistence round trip with Blocks", () => {
         hidden: false,
         layout: { width: "60%" },
         style: { background: { color: "#0f172a" } },
+        source: "repeat [10] times\\nmove [10] steps",
       });
-
-      expect(blocks.categories).toEqual([
-        { id: "motion", name: "Motion", color: "#123456" },
-      ]);
-      expect(blocks.items[0]?.parts[0]).toEqual({
-        id: "root-p",
-        type: "text",
-        text: "repeat",
-      });
-      expect(blocks.items[0]?.children[0]?.id).toBe("child-a1");
+      expect(blocks.source).toBe("repeat [10] times\\nmove [10] steps");
     }
   });
 });

@@ -83,7 +83,7 @@ describe("composeCustomLibraryElementRecipe", () => {
         },
         {
           type: "blocks", id: "blocks", hidden: false,
-          categories: [{ id: "statement", name: "Statement", color: accent }], items: [],
+          source: "move [10] steps",
         },
         {
           type: "topics", id: "topics", hidden: false, kind: "unordered", items: [{
@@ -114,7 +114,7 @@ describe("composeCustomLibraryElementRecipe", () => {
     const selections = new Map<string, Set<string>>([
       [root.id, new Set()],
       ["rich", new Set(["content.runs"])],
-      ["blocks", new Set(["categories"])],
+      ["blocks", new Set(["source"])],
       ["topics", new Set(["items"])],
       ["table", new Set(["columns", "rows"])],
       ["nested-text", new Set(["style.color"])],
@@ -127,9 +127,7 @@ describe("composeCustomLibraryElementRecipe", () => {
     expect(recipe.children?.[0]?.properties[0]?.value).toEqual([
       { text: "Rich", marks: { color: "#facc15" } },
     ]);
-    expect(recipe.children?.[1]?.properties[0]?.value).toEqual([
-      { id: "statement", name: "Statement", color: "#facc15" },
-    ]);
+    expect(recipe.children?.[1]?.properties[0]?.value).toBe("move [10] steps");
   });
 
   it("leaves selected opaque interactive and scripted payloads unchanged", () => {

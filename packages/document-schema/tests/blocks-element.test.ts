@@ -1,73 +1,49 @@
 import { describe, expect, it } from "vitest";
 import { BlocksElementSchema } from "../src/elements";
-import type { BlockPart } from "../src/elements";
 
-const category = { id: "motion", name: "Motion", color: "#22c55e" };
-const text = (id: string, value: string) => ({ id, type: "text" as const, text: value });
-const literal = (id: string, value: string) => ({ id, type: "socket" as const, content: { type: "literal" as const, value } });
-const empty = (id: string) => ({ id, type: "socket" as const, content: { type: "empty" as const } });
-const value = (id: string, parts: BlockPart[] = [text(`${id}-part`, "value")]) => ({ id, categoryId: "motion", shape: "value" as const, parts, children: [] });
-const base = (items: unknown[] = [{ id: "root", categoryId: "motion", shape: "statement", parts: [text("p", "move")], children: [] }], categories = [category]) => ({ id: "blocks", type: "blocks", hidden: false, categories, items });
+const base = (overrides: Record<string, unknown> = {}) => ({
+  id: "blocks", type: "blocks", hidden: false, source: "", ...overrides,
+});
 
 describe("BlocksElementSchema", () => {
-  it("accepts composable statements, scopes, values, empty parts and sockets", () => {
-    const nested = value("nested", [text("np", "inner"), { id: "ns", type: "socket" as const, content: { type: "block" as const, block: value("deep") } }]);
-    const result = BlocksElementSchema.parse(base([{ id: "scope", categoryId: "motion", shape: "scope", parts: [text("a", "repeat"), literal("n", "10"), empty("e")], children: [{ id: "child", categoryId: "motion", shape: "statement", parts: [{ id: "v", type: "socket" as const, content: { type: "block" as const, block: nested } }], children: [] }] }]));
-    expect(result.items[0]?.shape).toBe("scope");
+  it("accepts a minimal source-only Blocks element", () => {
+    expect(BlocksElementSchema.parse(base())).toEqual(base());
   });
 
-  it("accepts a statement root with empty parts", () => {
-    expect(BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [], children: [] }])).items).toHaveLength(1);
+  it("stores arbitrary source opaquely without interpreting grammar", () => {
+    const source = String.raw`\\scope(Repita [10] vezes)
+  \\statement move [10] steps`;
+    expect(BlocksElementSchema.parse(base({ source })).source).toBe(source);
   });
 
-  it("accepts a scope root with statement children", () => {
-    expect(BlocksElementSchema.parse(base([{ id: "scope", categoryId: "motion", shape: "scope", parts: [], children: [{ id: "child", categoryId: "motion", shape: "statement", parts: [], children: [] }] }])).items[0]?.shape).toBe("scope");
+  it("preserves supported layout, style, and effect fields", () => {
+    const parsed = BlocksElementSchema.parse(base({
+      layout: { position: "absolute", left: 10, top: 20, width: 300, height: 120 },
+      style: { statementColor: "#123456", scopeColor: "#234567", logicColor: "#345678" },
+      effect: { opacity: 0.8, shadow: { x: 0, y: 1, blur: 2, color: "#000000" } },
+    }));
+    expect(parsed.style?.statementColor).toBe("#123456");
+    expect(parsed.layout?.left).toBe(10);
+    expect(parsed.effect?.opacity).toBe(0.8);
   });
 
-  it("accepts an empty socket and empty literal", () => {
-    expect(BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [empty("e"), literal("l", "")], children: [] }]))).toBeTruthy();
+  it("accepts strict Blocks appearance controls", () => {
+    const parsed = BlocksElementSchema.parse(base({
+      style: {
+        categoryColors: { events: "#FFBF00", motion: { kind: "palette", colorId: "accent" } },
+        textColor: "#FFFFFF",
+        blockBorder: { width: 2, style: "solid", color: "#111827" },
+      },
+    }));
+    expect(parsed.style?.categoryColors?.events).toBe("#ffbf00");
+    expect(parsed.style?.categoryColors?.motion).toEqual({ kind: "palette", colorId: "accent" });
+    expect(parsed.style?.textColor).toBe("#ffffff");
+    expect(parsed.style?.blockBorder?.width).toBe(2);
+    expect(() => BlocksElementSchema.parse(base({ style: { categoryColors: { unknown: "#fff" } } }))).toThrow();
   });
 
-  it("accepts recursively nested value sockets", () => {
-    const inner = value("inner");
-    const outer = value("outer", [{ id: "socket", type: "socket", content: { type: "block", block: inner } }]);
-    expect(BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [{ id: "socket", type: "socket", content: { type: "block", block: outer } }], children: [] }]))).toBeTruthy();
-  });
-
-  it("rejects statement/value children and root value", () => {
-    const child = { id: "x", categoryId: "motion", shape: "statement" as const, parts: [], children: [] };
-    expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "motion", shape: "statement", parts: [], children: [child] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "motion", shape: "value", parts: [], children: [child] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "motion", shape: "value", parts: [], children: [] }]))).toThrow();
-  });
-
-  it("rejects value scope children and statement/scope sockets", () => {
-    const child = { id: "x", categoryId: "motion", shape: "value" as const, parts: [], children: [] };
-    expect(() => BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "scope", parts: [], children: [child] }]))).toThrow();
-    for (const shape of ["statement", "scope"] as const) expect(() => BlocksElementSchema.parse(base([{ id: "s", categoryId: "motion", shape: "statement", parts: [{ id: "p", type: "socket" as const, content: { type: "block" as const, block: { id: "x", categoryId: "motion", shape, parts: [], children: [] } } }], children: [] }]))).toThrow();
-  });
-
-  it("validates category references and uniqueness on both recursion edges", () => {
-    expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "missing", shape: "statement", parts: [], children: [] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "motion", shape: "scope", parts: [], children: [{ id: "y", categoryId: "missing", shape: "statement", parts: [], children: [] }] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([{ id: "x", categoryId: "motion", shape: "statement", parts: [literal("a", ""), { id: "b", type: "socket" as const, content: { type: "block" as const, block: { ...value("v"), categoryId: "missing" } } }], children: [] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([], [category, category]))).toThrow();
-  });
-
-  it("rejects provider fields without synthesizing", () => {
-    expect(() => BlocksElementSchema.parse({ id: "b", type: "blocks", hidden: false, categories: [], items: [], workspace: {}, generatedCode: "x", runtime: true })).toThrow();
-  });
-
-  it("does not synthesize canonical arrays or nodes", () => {
-    const parsed = BlocksElementSchema.parse({ id: "b", type: "blocks", hidden: false, categories: [], items: [] });
-    expect(parsed.categories).toEqual([]);
-    expect(parsed.items).toEqual([]);
-    expect(Object.hasOwn(parsed, "parts")).toBe(false);
-  });
-
-  it("rejects a missing category at each contextual location independently", () => {
-    expect(() => BlocksElementSchema.parse(base([{ id: "root", categoryId: "missing", shape: "statement", parts: [], children: [] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([{ id: "scope", categoryId: "motion", shape: "scope", parts: [], children: [{ id: "child", categoryId: "missing", shape: "statement", parts: [], children: [] }] }]))).toThrow();
-    expect(() => BlocksElementSchema.parse(base([{ id: "root", categoryId: "motion", shape: "statement", parts: [{ id: "socket", type: "socket", content: { type: "block", block: { ...value("nested"), categoryId: "missing" } } }], children: [] }]))).toThrow();
-  });
+  it.each(["items", "categories", "categoryId", "workspace", "unknown"])(
+    "rejects removed or unknown field %s",
+    (field) => expect(() => BlocksElementSchema.parse(base({ [field]: [] }))).toThrow(),
+  );
 });

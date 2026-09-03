@@ -22,7 +22,6 @@ import {
 } from "./inspector";
 
 import type {
-  BlocksAuthoringControls,
   ElementInspectorUpdate,
   TableAuthoringControls,
   TopicsAuthoringControls,
@@ -74,8 +73,6 @@ interface ElementInspectorProps {
 
   topicsAuthoringControls: TopicsAuthoringControls;
 
-  blocksAuthoringControls: BlocksAuthoringControls;
-
   tableAuthoringControls: TableAuthoringControls;
 
   galleryItemIndex?: number | null;
@@ -113,7 +110,6 @@ function ElementTypeInspector({
   parent,
   layerControls,
   topicsAuthoringControls,
-  blocksAuthoringControls: _blocksAuthoringControls,
   tableAuthoringControls,
   galleryItemIndex,
   onGalleryItemIndexChange,
@@ -217,7 +213,6 @@ function ElementTypeInspector({
         <BlocksInspector
           element={element}
           onUpdate={onUpdate}
-          blocksAuthoringControls={_blocksAuthoringControls}
         />
       );
 
@@ -262,7 +257,6 @@ export function ElementInspector({
   parent,
   layerControls,
   topicsAuthoringControls,
-  blocksAuthoringControls,
   tableAuthoringControls,
   galleryItemIndex,
   onGalleryItemIndexChange,
@@ -315,7 +309,6 @@ export function ElementInspector({
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
         topicsAuthoringControls={topicsAuthoringControls}
-        blocksAuthoringControls={blocksAuthoringControls}
         tableAuthoringControls={tableAuthoringControls}
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}

@@ -568,7 +568,7 @@ describe("presentation recovery analysis", () => {
           id: "blocks-old",
           type: "blocks",
           hidden: false,
-          // Legacy representation: no categories/items.
+          // Incompatible legacy representation: no canonical items.
           blocks: [{ id: "b1", text: "old block" }],
         },
       ]),

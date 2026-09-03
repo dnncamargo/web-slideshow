@@ -154,7 +154,20 @@ export function visitPresentationColorValues(
       case "blocks":
         visitStyle(element.style, [...path, "style"]);
         visitEffect(element.effect, [...path, "effect"]);
-        element.categories.forEach((category, index) => visitColor({ value: category.color, set: (value) => { category.color = value; } }, [...path, "categories", index, "color"]));
+        if (element.style) {
+          const style = element.style;
+          visitColor({ value: style.statementColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, statementColor: value }; } }, [...path, "style", "statementColor"]);
+          visitColor({ value: style.scopeColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, scopeColor: value }; } }, [...path, "style", "scopeColor"]);
+          visitColor({ value: style.logicColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, logicColor: value }; } }, [...path, "style", "logicColor"]);
+          for (const category of ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"] as const) {
+            visitColor({ value: style.categoryColors?.[category], set: (value) => {
+              const currentStyle = element.style;
+              if (currentStyle) element.style = { ...currentStyle, categoryColors: { ...currentStyle.categoryColors, [category]: value } };
+            } }, [...path, "style", "categoryColors", category]);
+          }
+          visitColor({ value: style.textColor, set: (value) => { const currentStyle = element.style; if (currentStyle) element.style = { ...currentStyle, textColor: value }; } }, [...path, "style", "textColor"]);
+          visitBorder(style.blockBorder, [...path, "style", "blockBorder"]);
+        }
         break;
       case "image": case "gallery": case "embed": case "scripted": case "code": case "terminal":
         visitStyle(element.style, [...path, "style"]);

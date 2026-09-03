@@ -59,8 +59,8 @@ describe("canonical palette color rendering", () => {
           {
             id: "blocks",
             type: "blocks",
-            categories: [{ id: "statement", name: "Statement", color: reference }],
-            items: [],
+            source: "move [10] steps",
+            style: { statementColor: reference, scopeColor: reference, logicColor: reference },
             effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
           },
           {

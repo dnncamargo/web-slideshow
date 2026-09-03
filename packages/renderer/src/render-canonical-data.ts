@@ -59,10 +59,6 @@ export function renderCanonicalDataStyle(
     }));
   }
 
-  if (style && "color" in style && style.color !== undefined) {
-    output.push(`color:${renderColorValue(style.color)}`);
-  }
-
   if (style?.background?.color !== undefined) {
     output.push(`background:${renderColorValue(style.background.color)}`);
   }

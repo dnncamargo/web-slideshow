@@ -1,5 +1,4 @@
 import type {
-  BlockItem,
   ContainerElement,
   PowerShowElement,
   Slide,
@@ -35,16 +34,6 @@ function collectElementIds(
     ) {
       collectElementIds(
         element.children,
-        ids,
-      );
-    }
-
-    if (
-      element.type ===
-      "blocks"
-    ) {
-      collectBlockItemIds(
-        element.items,
         ids,
       );
     }
@@ -129,34 +118,6 @@ function collectStructuredTableSlotElementIds(
   }
 }
 
-
-/**
- * Slide duplication runs on its own ID inventory path. BlockItem ids
- * must participate so duplicated slides containing Blocks never
- * collide with existing BlockItem ids.
- */
-function collectBlockItemIds(
-  items: readonly BlockItem[],
-  ids: Set<string>,
-): void {
-  for (const item of items) {
-    ids.add(
-      item.id,
-    );
-
-    collectBlockItemIds(
-      item.children,
-      ids,
-    );
-
-    for (const part of item.parts) {
-      ids.add(part.id);
-      if (part.type === "socket" && part.content.type === "block") {
-        collectBlockItemIds([part.content.block], ids);
-      }
-    }
-  }
-}
 
 
 function collectPresentationIds(
@@ -285,26 +246,6 @@ function cloneElementWithUniqueIds(
   }
 
 
-  if (
-    clone.type ===
-    "blocks"
-  ) {
-    return {
-      ...clone,
-
-      id,
-
-      items:
-        clone.items.map(
-          (item) =>
-            cloneBlockItemWithUniqueIds(
-              item,
-              usedIds,
-            ),
-        ),
-    };
-  }
-
 
   if (
     clone.type ===
@@ -392,8 +333,8 @@ function cloneElementWithUniqueIds(
  *
  * The Topics PowerShowElement id follows the normal -copy convention,
  * and the TopicItem/ContentSlot structural ids are preserved. The
- * PowerShowElements inside each ContentSlot only get Blocks roots and
- * BlockItems renewed; every other inner element id is preserved.
+ * PowerShowElements inside each ContentSlot keep their historical identity
+ * rules while remaining independently cloned.
  */
 function cloneTopicItemRenewingBlocks(
   item: TopicItem,
@@ -428,9 +369,8 @@ function cloneTopicItemRenewingBlocks(
  * Blocks-only traversal for PowerShowElements inside a ContentSlot
  * (TopicItem ContentSlot, Structured Table header/cell ContentSlot).
  *
- * Blocks roots are renewed (with all BlockItems), while every other
- * PowerShowElement keeps its own id exactly and is only recursed into
- * where Blocks may live (Containers, Topics, Structured Tables). This
+ * Blocks roots are renewed, while every other PowerShowElement keeps its own
+ * id exactly and is only recursed into where nested content may live. This
  * preserves the historical duplicate-slide semantics for unrelated
  * ContentSlot elements while extending reachability to nested Blocks.
  *
@@ -560,59 +500,6 @@ function cloneContentSlotElementsRenewingBlocksOnly(
   );
 }
 
-
-/**
- * Recursively renews every BlockItem id inside a duplicated Blocks
- * element, preserving text, tree shape, and order exactly.
- */
-function cloneBlockItemWithUniqueIds(
-  item: BlockItem,
-  usedIds: Set<string>,
-): BlockItem {
-  const id =
-    createUniqueId(
-      `${item.id}-copy`,
-      usedIds,
-    );
-
-
-  usedIds.add(
-    id,
-  );
-
-  const parts = item.parts.map((part) => {
-    const partId = createUniqueId(`${part.id}-copy`, usedIds);
-    usedIds.add(partId);
-    if (part.type !== "socket" || part.content.type !== "block") {
-      return { ...part, id: partId };
-    }
-    return {
-      ...part,
-      id: partId,
-      content: {
-        type: "block" as const,
-        block: cloneBlockItemWithUniqueIds(part.content.block, usedIds),
-      },
-    };
-  });
-
-
-  return {
-    ...item,
-
-    id,
-
-    parts,
-    children:
-      item.children.map(
-        (child) =>
-          cloneBlockItemWithUniqueIds(
-            child,
-            usedIds,
-          ),
-      ),
-  };
-}
 
 // ============================================================
 // END: CLONE RECURSIVO DE ELEMENTO
