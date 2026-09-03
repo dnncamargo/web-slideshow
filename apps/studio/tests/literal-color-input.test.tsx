@@ -23,11 +23,11 @@ describe("LiteralColorInput", () => {
     document.body.innerHTML = "";
   });
 
-  function render(value = "#facc15", onChange = vi.fn()) {
+  function render(value = "#facc15", onChange = vi.fn(), onCommit = vi.fn()) {
     act(() => root.render(
-      <LiteralColorInput id="color" name="Color" value={value} onChange={onChange} />,
+      <LiteralColorInput id="color" name="Color" value={value} onChange={onChange} onCommit={onCommit} />,
     ));
-    return onChange;
+    return { onChange, onCommit };
   }
 
   it("renders picker, text, and format controls", () => {
@@ -46,19 +46,22 @@ describe("LiteralColorInput", () => {
   });
 
   it("reports normalized picker changes with source picker", () => {
-    const onChange = render("#facc15");
+    const { onChange, onCommit } = render("#facc15");
     const picker = container.querySelector<HTMLInputElement>("input[type=color]");
     act(() => {
       if (picker) {
         setInputValue(picker, "#2563eb");
-        picker.dispatchEvent(new Event("change", { bubbles: true }));
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
     expect(onChange).toHaveBeenCalledWith("#2563eb", "picker");
+    expect(onCommit).not.toHaveBeenCalled();
+    act(() => picker?.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(onCommit).toHaveBeenCalledOnce();
   });
 
   it("reports valid HEX and RGBA text changes with source text", () => {
-    const onChange = render();
+    const { onChange } = render();
     const input = container.querySelector<HTMLInputElement>("#color-value");
     act(() => {
       if (input) {
@@ -78,7 +81,7 @@ describe("LiteralColorInput", () => {
   });
 
   it("keeps invalid text as a draft without emitting", () => {
-    const onChange = render();
+    const { onChange } = render();
     const input = container.querySelector<HTMLInputElement>("#color-value");
     act(() => {
       if (input) {
@@ -91,7 +94,7 @@ describe("LiteralColorInput", () => {
   });
 
   it("uses the valid value as the picker fallback after an invalid HEX draft", () => {
-    const onChange = render("#facc15");
+    const { onChange } = render("#facc15");
     const input = container.querySelector<HTMLInputElement>("#color-value");
     const picker = container.querySelector<HTMLInputElement>("input[type=color]");
     act(() => {
@@ -106,7 +109,7 @@ describe("LiteralColorInput", () => {
     act(() => {
       if (picker) {
         setInputValue(picker, "#2563eb");
-        picker.dispatchEvent(new Event("change", { bubbles: true }));
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
     expect(onChange).toHaveBeenCalledWith("#2563eb", "picker");
@@ -114,7 +117,7 @@ describe("LiteralColorInput", () => {
   });
 
   it("preserves RGBA alpha through the picker fallback after an invalid draft", () => {
-    const onChange = render("rgba(10, 20, 30, 0.4)");
+    const { onChange } = render("rgba(10, 20, 30, 0.4)");
     const input = container.querySelector<HTMLInputElement>("#color-value");
     const picker = container.querySelector<HTMLInputElement>("input[type=color]");
     act(() => {
@@ -129,7 +132,7 @@ describe("LiteralColorInput", () => {
     act(() => {
       if (picker) {
         setInputValue(picker, "#facc15");
-        picker.dispatchEvent(new Event("change", { bubbles: true }));
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
     expect(onChange).toHaveBeenCalledWith("rgba(250, 204, 21, 0.4)", "picker");
@@ -137,7 +140,7 @@ describe("LiteralColorInput", () => {
   });
 
   it("converts HEX to RGBA and reports source format", () => {
-    const onChange = render("#facc15");
+    const { onChange } = render("#facc15");
     const select = container.querySelector<HTMLSelectElement>("#color-format");
     act(() => {
       if (select) {
@@ -150,7 +153,7 @@ describe("LiteralColorInput", () => {
   });
 
   it("converts RGBA to HEX according to formatter semantics", () => {
-    const onChange = render("rgba(250, 204, 21, 0.4)");
+    const { onChange } = render("rgba(250, 204, 21, 0.4)");
     const select = container.querySelector<HTMLSelectElement>("#color-format");
     act(() => {
       if (select) {
@@ -163,19 +166,19 @@ describe("LiteralColorInput", () => {
   });
 
   it("preserves RGBA alpha when the picker changes RGB", () => {
-    const onChange = render("rgba(250, 204, 21, 0.4)");
+    const { onChange } = render("rgba(250, 204, 21, 0.4)");
     const picker = container.querySelector<HTMLInputElement>("input[type=color]");
     act(() => {
       if (picker) {
         setInputValue(picker, "#2563eb");
-        picker.dispatchEvent(new Event("change", { bubbles: true }));
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
     expect(onChange).toHaveBeenCalledWith("rgba(37, 99, 235, 0.4)", "picker");
   });
 
   it("synchronizes draft and format when value changes externally", () => {
-    const onChange = render("#facc15");
+    const { onChange } = render("#facc15");
     act(() => root.render(<LiteralColorInput id="color" name="Color" value="#2563eb" onChange={onChange} />));
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("#2563eb");
     expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");

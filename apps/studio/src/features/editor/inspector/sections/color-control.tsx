@@ -74,6 +74,7 @@ export function ColorControl({
         name={name}
         value={literalValue}
         disabled={disabled}
+        onCommit={(color) => picked?.onPickColor(color)}
         onChange={(color, source) => {
           setLiteralValue(color);
           setIsPaletteChooserOpen(false);
@@ -83,7 +84,6 @@ export function ColorControl({
           }
 
           emitLiteralColor(color);
-          if (source === "picker") picked?.onPickColor(color);
         }}
       />
 
@@ -163,7 +163,7 @@ export function ColorControl({
           {picked && picked.colors.length > 0 ? (
             <>
               <span className={styles.colorPaletteLabel}>{t("inspector.picked")}</span>
-              <div className={styles.colorPaletteActions}>
+              <div className={`${styles.colorPaletteActions} ${styles.colorPalettePickedActions}`} data-powershow-picked-colors="true">
                 {picked.colors.map((color, index) => (
                   <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
                     <button

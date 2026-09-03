@@ -165,17 +165,35 @@ describe("ColorControl linked palette UX", () => {
     expect(container.querySelector("#color-palette-chooser")).toBeNull();
   });
 
-  it("emits a literal Color for native picker edits", () => {
+  it("previews picker edits live and records only the committed color", () => {
     const onChange = renderControl("#facc15");
     const picker = container.querySelector<HTMLInputElement>("input[type=color]");
     act(() => {
       if (picker) {
-        setInputValue(picker, "#2563eb");
-        picker.dispatchEvent(new Event("change", { bubbles: true }));
+        setInputValue(picker, "#00ff00");
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
+        setInputValue(picker, "#00dd44");
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
+        setInputValue(picker, "#0099aa");
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
+        setInputValue(picker, "#0066ff");
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    expect(onChange).toHaveBeenCalledWith("#2563eb");
-    expect(pickedSpy).toHaveBeenCalledWith("#2563eb");
+    expect(onChange).toHaveBeenCalledWith("#0066ff");
+    expect(pickedSpy).not.toHaveBeenCalled();
+    act(() => picker?.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(pickedSpy).toHaveBeenCalledOnce();
+    expect(pickedSpy).toHaveBeenCalledWith("#0066ff");
+  });
+
+  it("keeps Picked history in a dedicated eight-column grid", () => {
+    renderControl("#000000", vi.fn(), Array.from({ length: 16 }, (_, index) => `#${String(index + 1).padStart(6, "0")}`));
+    act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    const pickedGrid = container.querySelector('[data-powershow-picked-colors="true"]');
+    expect(pickedGrid).toBeTruthy();
+    expect(pickedGrid?.className).toContain("colorPalettePickedActions");
+    expect(pickedGrid?.children).toHaveLength(16);
   });
 
   it("applies typed literals without adding picked shortcuts", () => {
