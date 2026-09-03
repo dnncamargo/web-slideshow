@@ -31,6 +31,23 @@ describe("renderBlocks", () => {
     expect(html).toContain(">10</span>");
   });
 
+  it("renders the fixed category palette and semantic markers without changing shape", () => {
+    const html = renderBlocks({
+      ...createDidacticBlocksElement(),
+      source: String.raw`\start[events](Start)\statement[motion](Move)\scope[looks](Look){\statement[sound](Sound)}\end[control](End)\statement[sensing](Sense)\statement[operators](Operate)\statement[variables](Set)\statement(Check \logic[control](Check))`,
+    });
+    const expected = {
+      events: "#FFBF00", motion: "#4C97FF", looks: "#9966FF", sound: "#CF63CF",
+      control: "#FFAB19", sensing: "#5CB1D6", operators: "#59C059", variables: "#FF8C1A",
+    };
+    for (const [category, color] of Object.entries(expected)) {
+      expect(html).toContain(`data-powershow-block-category="${category}"`);
+      expect(html).toContain(`background:${color}`);
+    }
+    expect(html).toContain("powershow-block--statement");
+    expect(html).toContain("powershow-block--logic");
+  });
+
   it("separates inline visual tokens without changing stack block geometry", () => {
     const html = renderBlocks({
       ...createDidacticBlocksElement(),
@@ -89,11 +106,12 @@ describe("renderBlocks", () => {
   });
 
   it("uses defaults and direct/palette color overrides", () => {
-    const defaults = renderBlocks({ ...createDidacticBlocksElement(), style: undefined });
+    const uncategorizedSource = String.raw`\start(Start)\statement(Statement)\scope(Scope){\statement(Child)}\statement(\logic(Logic))`;
+    const defaults = renderBlocks({ ...createDidacticBlocksElement(), source: uncategorizedSource, style: undefined });
     expect(defaults).toContain("#4C97FF");
     expect(defaults).toContain("#FFAB19");
     expect(defaults).toContain("#59C059");
-    const overridden = renderBlocks({ ...createDidacticBlocksElement(), style: { statementColor: "#123456", scopeColor: "#234567", logicColor: "#345678" } });
+    const overridden = renderBlocks({ ...createDidacticBlocksElement(), source: uncategorizedSource, style: { statementColor: "#123456", scopeColor: "#234567", logicColor: "#345678" } });
     expect(overridden).toContain("#123456");
     expect(overridden).toContain("#234567");
     expect(overridden).toContain("#345678");

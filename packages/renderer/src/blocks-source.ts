@@ -1,11 +1,21 @@
+export type BlocksCategory =
+  | "events"
+  | "motion"
+  | "looks"
+  | "sound"
+  | "control"
+  | "sensing"
+  | "operators"
+  | "variables";
+
 export type BlocksAstNode =
-  | { type: "start" | "statement" | "end"; content: BlocksInlineNode[] }
-  | { type: "scope"; content: BlocksInlineNode[]; children: BlocksAstNode[] };
+  | { type: "start" | "statement" | "end"; category?: BlocksCategory; content: BlocksInlineNode[] }
+  | { type: "scope"; category?: BlocksCategory; content: BlocksInlineNode[]; children: BlocksAstNode[] };
 
 export type BlocksInlineNode =
   | { type: "text"; value: string }
   | { type: "value" | "variable"; value: string }
-  | { type: "logic"; content: BlocksInlineNode[] };
+  | { type: "logic"; category?: BlocksCategory; content: BlocksInlineNode[] };
 
 export interface BlocksSourceSyntaxError {
   message: string;
@@ -21,6 +31,9 @@ export type BlocksSourceParseResult =
 type VerticalCommand = "start" | "statement" | "scope" | "end";
 type InlineCommand = "value" | "variable" | "logic";
 type Command = VerticalCommand | InlineCommand;
+const BLOCKS_CATEGORIES: readonly BlocksCategory[] = [
+  "events", "motion", "looks", "sound", "control", "sensing", "operators", "variables",
+];
 
 class BlocksSourceParser {
   private index = 0;
@@ -53,10 +66,11 @@ class BlocksSourceParser {
   private parseBlock(): BlocksAstNode {
     const command = this.readCommand();
     if (!this.isVertical(command)) this.fail(`Inline command "\\${command}" is not allowed here.`);
+    const category = this.parseCategory(command);
     this.expectOpenParenthesis(command);
     const content = this.parseInlineSequence(command);
     this.expect(")", `Expected ")" to close "\\${command}".`);
-    if (command !== "scope") return { type: command, content };
+    if (command !== "scope") return category === undefined ? { type: command, content } : { type: command, category, content };
 
     this.skipWhitespace();
     if (this.peek() !== "{") this.fail(`Expected "{" after "\\scope(...)".`);
@@ -73,7 +87,7 @@ class BlocksSourceParser {
     }
     if (this.atEnd()) this.fail('Expected "}" to close "\\scope".');
     this.index += 1;
-    return { type: "scope", content, children };
+    return category === undefined ? { type: "scope", content, children } : { type: "scope", category, content, children };
   }
 
   private parseInlineSequence(owner: Command): BlocksInlineNode[] {
@@ -95,6 +109,7 @@ class BlocksSourceParser {
         }
         flushText();
         const command = this.readCommand();
+        const category = this.parseCategory(command);
         if (this.isVertical(command)) {
           this.fail(`Vertical command "\\${command}" is not allowed in inline content.`);
         }
@@ -106,7 +121,7 @@ class BlocksSourceParser {
         } else {
           const content = this.parseInlineSequence(command);
           this.expect(")", `Expected ")" to close "\\${command}".`);
-          nodes.push({ type: "logic", content });
+          nodes.push(category === undefined ? { type: "logic", content } : { type: "logic", category, content });
         }
         continue;
       }
@@ -164,6 +179,23 @@ class BlocksSourceParser {
   private expectOpenParenthesis(command: Command): void {
     if (this.peek() !== "(") this.fail(`Expected "(" after "\\${command}".`);
     this.index += 1;
+  }
+
+  private parseCategory(command: Command): BlocksCategory | undefined {
+    if (this.peek() !== "[") return undefined;
+    this.index += 1;
+    const start = this.index;
+    while (!this.atEnd() && /[A-Za-z]/.test(this.peek())) this.index += 1;
+    const name = this.source.slice(start, this.index);
+    if (this.peek() !== "]") this.fail(`Expected "]" after category for "\\${command}".`);
+    this.index += 1;
+    if (command === "value" || command === "variable") {
+      this.fail(`Category annotation is not allowed on "\\${command}".`, start - 1);
+    }
+    if (!BLOCKS_CATEGORIES.includes(name as BlocksCategory)) {
+      this.fail(`Unknown Blocks category "${name}".`, start);
+    }
+    return name as BlocksCategory;
   }
 
   private expect(character: string, message: string): void {

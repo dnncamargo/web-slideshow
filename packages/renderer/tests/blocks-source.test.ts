@@ -41,6 +41,27 @@ describe("parseBlocksSource", () => {
     ]);
   });
 
+  it("parses the eight optional categories on colorable commands", () => {
+    const categories = ["events", "motion", "looks", "sound", "control", "sensing", "operators", "variables"] as const;
+    for (const category of categories) {
+      expect(ok(`\\statement[${category}](Text)`)[0]).toMatchObject({ type: "statement", category });
+    }
+  });
+
+  it("keeps categories transient and supports categorized scopes, ends, and logic", () => {
+    expect(ok(String.raw`\start[events](Start)\scope[control](Repeat){\end[looks](End)}\statement(Check \logic[sensing](Touching))`)).toEqual([
+      { type: "start", category: "events", content: [{ type: "text", value: "Start" }] },
+      { type: "scope", category: "control", content: [{ type: "text", value: "Repeat" }], children: [
+        { type: "end", category: "looks", content: [{ type: "text", value: "End" }] },
+      ] },
+      { type: "statement", content: [
+        { type: "text", value: "Check " },
+        { type: "logic", category: "sensing", content: [{ type: "text", value: "Touching" }] },
+      ] },
+    ]);
+    expect(ok("\\statement(Text)")[0]).toEqual({ type: "statement", content: [{ type: "text", value: "Text" }] });
+  });
+
   it("supports nested logic and preserves multiline authored text", () => {
     const blocks = ok("\\statement(outer \\logic(\\variable(x) > \\value(10)) and inner)");
     expect(blocks[0]).toEqual({ type: "statement", content: [
@@ -104,6 +125,15 @@ describe("parseBlocksSource", () => {
     ["}", "Unexpected delimiter."], ["{", "Unexpected delimiter."], [")", "Unexpected delimiter."], ["(", "Unexpected delimiter."],
     ["\\statement(\\!)", 'Invalid escape "\\!".'],
     ["\\statement(\\statement123(x))", 'Vertical command "\\statement" is not allowed in inline content.'],
+    ["\\statement[](x)", "Unknown Blocks category \"\"."],
+    ["\\statement[foo](x)", "Unknown Blocks category \"foo\"."],
+    ["\\statement[Motion](x)", "Unknown Blocks category \"Motion\"."],
+    ["\\statement[motion(x)", 'Expected "]" after category for "\\statement".'],
+    ["\\statement[motion] (x)", 'Expected "(" after "\\statement".'],
+    ["\\statement(\\value[motion](x))", 'Category annotation is not allowed on "\\value".'],
+    ["\\statement(\\variable[variables](x))", 'Category annotation is not allowed on "\\variable".'],
+    ["\\statement [motion](x)", 'Expected "(" after "\\statement".'],
+    ["\\statement[motion][control](x)", 'Expected "(" after "\\statement".'],
   ])("reports the stable diagnostic for invalid source: %s", (source, message) => {
     expect(error(source).message).toBe(message);
   });
@@ -118,5 +148,11 @@ describe("parseBlocksSource", () => {
     const source = "\\statement(hello)";
     expect(parseBlocksSource(source)).toEqual(parseBlocksSource(source));
     expect(source).toBe("\\statement(hello)");
+  });
+
+  it("keeps square brackets in authored text ordinary", () => {
+    expect(ok("\\statement(Use array[0] and Text [example])")).toEqual([
+      { type: "statement", content: [{ type: "text", value: "Use array[0] and Text [example]" }] },
+    ]);
   });
 });
