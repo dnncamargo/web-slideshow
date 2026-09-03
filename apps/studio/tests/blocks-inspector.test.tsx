@@ -146,14 +146,17 @@ describe("Blocks source Inspector", () => {
     await render();
     const toolbar = host.querySelector('[data-powershow-blocks-toolbar="true"]');
     expect(Array.from(toolbar?.querySelectorAll("button") ?? [], (button) => button.textContent)).toEqual(["EV", "STM", "SCO", "END", "VAL", "VAR", "01"]);
+    const textarea = host.querySelector("textarea");
+    if (!textarea || !toolbar) throw new Error("Blocks source controls missing");
+    expect(toolbar.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     await act(async () => (toolbar?.querySelector("button:nth-child(2)") as HTMLButtonElement).click());
     expect(current.source).toBe("\\statement()");
     await act(async () => (host.querySelector('[data-powershow-blocks-toolbar] button:nth-child(5)') as HTMLButtonElement).click());
     expect(current.source).toBe("\\statement(\\value())");
-    const textarea = host.querySelector<HTMLTextAreaElement>("textarea");
-    if (!textarea) throw new Error("source textarea missing");
-    expect(document.activeElement).toBe(textarea);
+    const sourceTextarea = host.querySelector<HTMLTextAreaElement>("textarea");
+    if (!sourceTextarea) throw new Error("source textarea missing");
+    expect(document.activeElement).toBe(sourceTextarea);
 
     current = element("Mover 10 passos");
     await render();
@@ -162,6 +165,21 @@ describe("Blocks source Inspector", () => {
     selectedTextarea.focus(); selectedTextarea.setSelectionRange(0, selectedTextarea.value.length);
     await act(async () => (host.querySelector('[data-powershow-blocks-toolbar] button:nth-child(2)') as HTMLButtonElement).click());
     expect(current.source).toBe("\\statement(Mover 10 passos)");
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  it("updates a category color when Blocks has no authored style", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    let current = element(String.raw`\statement[output](Move)`);
+    const render = async () => act(async () => root.render(<StudioI18nProvider><PresentationColorPaletteProvider colors={[{ id: "accent", name: "Accent", value: "#abcdef" }]}><BlocksInspector element={current} onUpdate={(update) => { current = update(current) as BlocksElement; void render(); }} /></PresentationColorPaletteProvider></StudioI18nProvider>));
+    await render();
+    const outputControl = host.querySelector("#blocks-category-output-color")?.parentElement?.parentElement;
+    await act(async () => outputControl?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    await act(async () => outputControl?.querySelector<HTMLButtonElement>('button[aria-label*="Accent"]')?.click());
+    expect(current.style).toEqual({ categoryColors: { output: { kind: "palette", colorId: "accent" } } });
     await act(async () => root.unmount());
     host.remove();
   });

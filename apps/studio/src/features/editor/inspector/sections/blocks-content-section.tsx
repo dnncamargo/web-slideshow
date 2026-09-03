@@ -56,33 +56,36 @@ export function BlocksContentSection({
     <div data-powershow-blocks-inspector="true">
       <label className={styles.field}>
         <span>{t("inspector.blocks.source")}</span>
-        <textarea
-          ref={textareaRef}
-          value={element.source}
-          onChange={(event) => onUpdate((current) => (
-            current.type === "blocks" && current.source !== event.target.value
-              ? { ...current, source: event.target.value }
-              : current
-          ))}
-          rows={8}
-          data-powershow-blocks-source="true"
-        />
+        <div className={styles.textEditor}>
+          <div className={styles.textEditorToolbar} data-powershow-blocks-toolbar="true">
+            {tools.map(([label, prefix, suffix, translationKey, accessibleLabel]) => (
+              <button
+                key={label}
+                type="button"
+                className={styles.textEditorToolbarButton}
+                aria-label={t(translationKey)}
+                title={accessibleLabel}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => insert(prefix, suffix)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            ref={textareaRef}
+            className={styles.textArea}
+            value={element.source}
+            onChange={(event) => onUpdate((current) => (
+              current.type === "blocks" && current.source !== event.target.value
+                ? { ...current, source: event.target.value }
+                : current
+            ))}
+            rows={8}
+            data-powershow-blocks-source="true"
+          />
+        </div>
       </label>
-      <div className={styles.textEditorToolbar} data-powershow-blocks-toolbar="true">
-        {tools.map(([label, prefix, suffix, translationKey, accessibleLabel]) => (
-          <button
-            key={label}
-            type="button"
-            className={styles.textEditorToolbarButton}
-            aria-label={t(translationKey)}
-            title={accessibleLabel}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => insert(prefix, suffix)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
       {parsed.ok ? (
         <div role="status" data-powershow-blocks-syntax="valid" className={styles.fieldHint}>
           {t("inspector.blocks.syntaxValid")}
