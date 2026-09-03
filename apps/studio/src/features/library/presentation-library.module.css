@@ -1027,22 +1027,59 @@
 
   .sidebarItem { white-space: nowrap; }
 
-  .main { padding: 22px 18px 0; }
-  .workspaceHeading { align-items: stretch; flex-direction: column; }
-  .toolbar {
-    flex: none;
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    align-items: stretch;
-    gap: 8px;
+  .main {
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    padding: 22px 18px 0;
   }
-  .toolbarCenter { justify-content: flex-start; }
-  .toolbarContext { justify-content: flex-start; flex-wrap: wrap; }
-  .toolbarRight { justify-content: flex-start; }
+  .workspaceHeading {
+    display: contents;
+  }
+  .workspaceHeading > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ps-ui-border-subtle);
+  }
+  .toolbar {
+    display: contents;
+  }
+  .toolbarCenter,
+  .toolbarContext {
+    display: contents;
+  }
+  .toolbarSelection {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+    max-width: min(45%, 240px);
+  }
+  .toolbarRight {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+  .toolbarLocalActions {
+    grid-column: 1;
+    grid-row: 5;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 0 12px;
+    white-space: normal;
+  }
+  .toolbarLocalActions :global(.ps-ui-separator) { display: none; }
   .workspaceBody {
+    grid-column: 1;
+    grid-row: 4;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
   }
   .detailsPane {
     display: none;
