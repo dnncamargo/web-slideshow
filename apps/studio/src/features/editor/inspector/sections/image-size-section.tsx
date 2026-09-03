@@ -56,10 +56,6 @@ export function ImageSizeSection({
   return (
     <InspectorSection title={t("inspector.size")}>
       <label className={styles.checkboxRow}>
-        <span title={t("image.preserveProportionHelp")}>
-          {t("image.preserveProportion")}
-        </span>
-
         <input
           id="image-preserve-proportion"
           name="imagePreserveProportion"
@@ -69,6 +65,10 @@ export function ImageSizeSection({
             onPreserveImageProportionChange(event.target.checked);
           }}
         />
+
+        <span title={t("image.preserveProportionHelp")}>
+          {t("image.preserveProportion")}
+        </span>
       </label>
 
       <div className={styles.fieldGrid}>

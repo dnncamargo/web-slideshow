@@ -4059,6 +4059,7 @@ export function EditorWorkspace({
           }
           confirmLabel={t("elementCrud.delete")}
           cancelLabel={t("elementCrud.cancel")}
+          initialFocus="confirm"
           onCancel={() => setPendingElementDeletion(null)}
           onConfirm={confirmElementDeletion}
         />
