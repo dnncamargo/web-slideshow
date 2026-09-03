@@ -19,14 +19,21 @@ export function createDidacticBlocksElement(): BlocksElement {
     type: "blocks",
     id: "didactic-blocks",
     hidden: false,
-    source: String.raw`[start] When flag clicked
-[statement] move [10] steps
-[scope] repeat [10] times
-  [statement] turn [15] degrees
-  [statement] set x to [value: x position]
-[scope] repeat until [logic: touching [Sprite2]?]
-  [statement] move [10] steps
-[end] stop all`,
+    source: String.raw`\start(When flag clicked)
+
+\statement(Set \variable(score) to \value(0))
+
+\scope(Repeat \value(10) times){
+  \statement(Move \value(10) steps)
+  \statement(Turn \value(15) degrees)
+  \statement(Set x to \value(x position))
+}
+
+\scope(Repeat until \logic(Touching \value(Sprite2)?)){
+  \statement(Move \value(10) steps)
+}
+
+\end(Stop all)`,
     style: {
       statementColor: "#3b82f6",
       scopeColor: "#ef4444",
