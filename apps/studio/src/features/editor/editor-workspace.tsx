@@ -143,7 +143,7 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 import { findElementById, updateElementById } from "./element-tree";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "./text-style-helpers";
+import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -2455,6 +2455,15 @@ export function EditorWorkspace({
     setSelectedElement({ id: element.id, type: "container" });
   }
 
+  function selectTextStyleElement(location: TextStyleUsageLocation): void {
+    const slide = presentation.slides[location.slideIndex];
+    if (slide === undefined) return;
+    const element = findElementById(slide.elements, location.elementId);
+    if (element?.type !== "text" || element.variant === undefined) return;
+    setSelectedSlideIndex(location.slideIndex);
+    setSelectedElement({ id: element.id, type: "text" });
+  }
+
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -3793,6 +3802,7 @@ export function EditorWorkspace({
              onRemoveLinkedStyle={removePresentationLinkedStyle}
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
+             onSelectTextStyleElement={selectTextStyleElement}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />

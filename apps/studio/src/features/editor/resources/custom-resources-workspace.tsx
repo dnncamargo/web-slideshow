@@ -33,7 +33,7 @@ import { ElementGradientControl } from "../inspector/sections/element-gradient-c
 import { ContainerBackgroundPatternControl } from "../inspector/sections/container-background-pattern-control";
 import { ContainerEffectsSection } from "../inspector/sections/container-effects-section";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
-import { listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties } from "../text-style-helpers";
+import { findTextStyleUsageLocations, listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties, type TextStyleUsageLocation } from "../text-style-helpers";
 import { canUpdateLinkedStyle } from "../linked-style-authoring";
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
 import { findContainersLinkedToStyle, findMatchingContainersForLinkedStyle, type LinkedStyleContainerLocation } from "../linked-style-bulk-authoring";
@@ -68,6 +68,7 @@ interface CustomResourcesWorkspaceProps {
   onRemoveLinkedStyle?: (id: string) => void;
   onAttachLinkedStyleMatches?: (id: string) => void;
   onSelectLinkedStyleContainer?: (location: LinkedStyleContainerLocation) => void;
+  onSelectTextStyleElement?: (location: TextStyleUsageLocation) => void;
   resourceSections?: Record<string, boolean>;
   onResourceSectionChange?: (id: string, open: boolean) => void;
 }
@@ -148,6 +149,7 @@ export function CustomResourcesWorkspace({
   onRemoveLinkedStyle = () => undefined,
   onAttachLinkedStyleMatches = () => undefined,
   onSelectLinkedStyleContainer = () => undefined,
+  onSelectTextStyleElement = () => undefined,
   resourceSections = {},
   onResourceSectionChange = () => undefined,
 }: CustomResourcesWorkspaceProps) {
@@ -274,6 +276,7 @@ export function CustomResourcesWorkspace({
                 onUpdate={onUpdateTextStyle}
                 onRemove={onRemoveTextStyle}
                 isInUse={isTextStyleInUse}
+                onSelectElement={onSelectTextStyleElement}
               />
             </InspectorSection>
             </PresentationColorPaletteProvider>
@@ -379,7 +382,7 @@ function LinkedStylesWorkspace({
           })}
           {linkedStyle.typography ? <div className={styles.linkedStyleSection} data-linked-style-section="legacy-typography"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.linkedStyleLegacyTypography")}</h3><p className={styles.status}>{t("customResources.linkedStyleLegacyTypographyDescription")}</p><Button variant="danger" size="compact" disabled={!presentation || !canUpdateLinkedStyle(presentation, linkedStyle.id, { typography: undefined })} onClick={() => commit(linkedStyle.id, { typography: undefined })}>{t("customResources.linkedStyleRemoveLegacyTypography")}</Button></div> : null}
           {listAvailableLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><Button variant="secondary" size="compact" onClick={() => setChooserId(chooserId === linkedStyle.id ? null : linkedStyle.id)}>{t("customResources.addProperty")}</Button>{chooserId === linkedStyle.id ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties(linkedStyle)} onChoose={(property) => { const next = addLinkedStyleProperty(linkedStyle, property); commit(linkedStyle.id, patch(next, property)); setChooserId(null); }} /> : null}</div> : null}
-          <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><span className={styles.status}>{t(matchingLocations.length === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingLocations.length })}</span>{matchingLocations.length > 0 ? <Button variant="secondary" size="compact" onClick={() => onAttach(linkedStyle.id)}>{t("customResources.linkedStyleAttachMany", { count: matchingLocations.length })}</Button> : null}<div className={styles.linkedStyleLocations}><span className={styles.status}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: linkedLocations.length })}</span>{linkedLocations.map((location) => <button key={`${location.slideIndex}:${location.elementId}`} type="button" className={styles.resourceAction} onClick={() => onSelectContainer(location)}>{t("customResources.linkedStyleLocation", { slide: location.slideIndex + 1, id: location.elementId })}</button>)}</div><span className={styles.status}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count: linkedLocations.length })}</span><Button variant="danger" size="compact" disabled={linkedLocations.length > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</Button></div>
+          <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><span className={styles.status}>{t(matchingLocations.length === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingLocations.length })}</span>{matchingLocations.length > 0 ? <Button variant="secondary" size="compact" onClick={() => onAttach(linkedStyle.id)}>{t("customResources.linkedStyleAttachMany", { count: matchingLocations.length })}</Button> : null}<ResourceUsageLocations locations={linkedLocations} onSelect={onSelectContainer} /><span className={styles.status}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count: linkedLocations.length })}</span><Button variant="danger" size="compact" disabled={linkedLocations.length > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</Button></div>
         </div> : null}
       </div>;
     })}
@@ -499,9 +502,14 @@ function LinkedStyleLengthField({ id, label, value, onChange }: { id: string; la
   </label>;
 }
 
+function ResourceUsageLocations({ locations, onSelect }: { locations: readonly { slideIndex: number; elementId: string }[]; onSelect: (location: { slideIndex: number; elementId: string }) => void }) {
+  const { t } = useStudioI18n();
+  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <button key={`${location.slideIndex}:${location.elementId}`} type="button" className={styles.resourceAction} onClick={() => onSelect(location)}>{t("customResources.linkedStyleLocation", { slide: location.slideIndex + 1, id: location.elementId })}</button>)}</div>;
+}
+
 function TextStylesWorkspace({
   presentationStyles, presentation, presentationFonts, editingStyleId, onEdit, onUpdateFundamental, onResetFundamental,
-  onAdd, adding, onCancelAdd, onCreate, onUpdate, onRemove, isInUse,
+  onAdd, adding, onCancelAdd, onCreate, onUpdate, onRemove, isInUse, onSelectElement,
 }: {
   presentationStyles: readonly TextStyle[];
   presentation?: Presentation;
@@ -516,6 +524,7 @@ function TextStylesWorkspace({
   onCreate: (name: string, role: TextStyleRole) => void;
   onUpdate: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemove: (id: string) => void;
+  onSelectElement: (location: TextStyleUsageLocation) => void;
   isInUse: (id: string) => boolean;
 }) {
   const { t } = useStudioI18n();
@@ -531,16 +540,18 @@ function TextStylesWorkspace({
     <div className={styles.typographyStyleList}>
       {FUNDAMENTAL_TEXT_STYLE_IDS.map((id) => {
         const style = byId.get(id);
-        return <TextStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={style ? t("customResources.customized") : t("customResources.builtIn")} editing={editingStyleId === id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdateFundamental(id, patch)} onReset={() => onResetFundamental(id)} />;
+        const locations = presentation ? findTextStyleUsageLocations(presentation, id) : [];
+        return <TextStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={`${style ? t("customResources.customized") : t("customResources.builtIn")} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} editing={editingStyleId === id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdateFundamental(id, patch)} onReset={() => onResetFundamental(id)} />;
       })}
-      {customStyles.map((style) => <TextStyleRow key={style.id} id={style.id} label={"name" in style ? style.name : style.id} status={isInUse(style.id) ? t("customResources.inUse") : ("role" in style ? t(`customResources.role.${style.role}`) : "")} editing={editingStyleId === style.id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdate(style.id, patch)} onRemove={() => onRemove(style.id)} removeDisabled={isInUse(style.id)} />)}
+      {customStyles.map((style) => { const locations = presentation ? findTextStyleUsageLocations(presentation, style.id) : []; return <TextStyleRow key={style.id} id={style.id} label={"name" in style ? style.name : style.id} status={`${"role" in style ? t(`customResources.role.${style.role}`) : ""} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} editing={editingStyleId === style.id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdate(style.id, patch)} onRemove={() => onRemove(style.id)} removeDisabled={presentation ? locations.length > 0 : isInUse(style.id)} />; })}
     </div>
     {adding ? <NewTextStyleForm fonts={presentationFonts} onCancel={onCancelAdd} onCreate={onCreate} /> : <button type="button" className={styles.resourceAction} onClick={onAdd}>{t("customResources.addStyle")}</button>}
   </section>;
 }
 
-function TextStyleRow({ id, label, status, editing, style, presentation, fonts, onEdit, onUpdate, onReset, onRemove, removeDisabled }: {
+function TextStyleRow({ id, label, status, locations, onSelectElement, editing, style, presentation, fonts, onEdit, onUpdate, onReset, onRemove, removeDisabled }: {
   id: string; label: string; status: string; editing: boolean; style?: TextStyle; presentation?: Presentation; fonts: readonly FontResource[];
+  locations: readonly TextStyleUsageLocation[]; onSelectElement: (location: TextStyleUsageLocation) => void;
   onEdit: (id: string) => void; onUpdate?: (value: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onReset?: () => void; onRemove?: () => void; removeDisabled?: boolean;
 }) {
@@ -666,6 +677,7 @@ function TextStyleRow({ id, label, status, editing, style, presentation, fonts, 
         </div>)}
       </div>
       {availableProperties.length > 0 || availableAppearance.length > 0 ? <PropertyChooser properties={availableProperties} appearanceProperties={availableAppearance} fontsAvailable={fonts.length > 0} onAdd={addProperty} onAddAppearance={addAppearance} /> : null}
+      <div className={styles.linkedStyleSection} data-text-style-usage><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.usage")}</h3><ResourceUsageLocations locations={locations} onSelect={onSelectElement} /></div>
       {fundamental && style && onReset ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
       {!fundamental && onRemove ? <div className={styles.typographyStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
     </div> : null}

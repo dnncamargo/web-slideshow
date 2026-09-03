@@ -341,7 +341,7 @@
   text-transform: uppercase;
 }
 
-.linkedStyleLocations {
+.resourceUsageLocations {
   display: flex;
   min-width: 0;
   flex-direction: column;
