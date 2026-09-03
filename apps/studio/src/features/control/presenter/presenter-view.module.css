@@ -406,8 +406,31 @@
   outline-offset: 2px;
 }
 
-.mobileLiveStatus {
+.mobilePlayerStatus {
   display: none;
+}
+
+.topbarActions {
+  min-width: 0;
+}
+
+.desktopTopbarControls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbarEndButton {
+  flex: none;
+}
+
+.mobileTopbarLocale {
+  min-width: 0;
+}
+
+.presentationTitle {
+  min-width: 0;
 }
 
 .maintenanceLink { color: #7dd3fc; font-size: 12px; font-weight: 600; text-decoration: none; }
@@ -588,9 +611,10 @@
     align-items: center;
     justify-content: center;
 
-    gap: 8px;
+    gap: 6px;
 
     width: 100%;
+    flex-wrap: nowrap;
   }
 
   .mobileInteractiveElementsControls {
@@ -603,6 +627,11 @@
     padding: 10px 14px;
     border-bottom: 1px solid #232a36;
     background: #111620;
+    align-items: center;
+  }
+
+  .mobileInteractiveElementsControls .galleryGroup {
+    justify-content: center;
   }
 
   .controlMeta {
@@ -656,8 +685,8 @@
     gap: 4px;
   }
 
-  .mobileLiveStatus {
-    order: 4;
+  .mobilePlayerStatus {
+    order: 5;
 
     display: flex;
     align-items: center;
