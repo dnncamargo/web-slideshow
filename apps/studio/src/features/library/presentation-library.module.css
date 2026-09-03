@@ -1029,7 +1029,7 @@
 
   .main {
     display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     padding: 22px 18px 0;
   }
   .workspaceHeading {
@@ -1045,38 +1045,44 @@
   .toolbar {
     display: contents;
   }
-  .toolbarCenter,
-  .toolbarContext {
+  .toolbarCenter {
     display: contents;
   }
-  .toolbarSelection {
+  .toolbarContext {
     grid-column: 1;
     grid-row: 2;
-    align-self: center;
-    max-width: min(45%, 240px);
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .toolbarSelection {
+    min-width: 0;
+    flex: 1 1 auto;
   }
   .toolbarRight {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
     justify-self: center;
     justify-content: center;
     flex-wrap: wrap;
     white-space: normal;
   }
   .toolbarLocalActions {
-    grid-column: 1;
-    grid-row: 5;
+    flex: 0 1 auto;
     justify-content: center;
     flex-wrap: wrap;
-    width: 100%;
     min-width: 0;
-    padding: 10px 0 12px;
+    max-width: 100%;
     white-space: normal;
   }
   .toolbarLocalActions :global(.ps-ui-separator) { display: none; }
   .workspaceBody {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 3;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     min-height: 0;
