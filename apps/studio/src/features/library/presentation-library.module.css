@@ -935,19 +935,28 @@
 @media (max-width: 760px) {
   /* ==========================================================
      STUDIO MOBILE TOPBAR
-     row 1: PowerShow Library + Locale
-     row 2: user + Sign out
+     single row: PowerShow Library + user + Sign out
      ========================================================== */
   .libraryTopbar {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    row-gap: var(--ps-ui-space-8);
+    grid-template-rows: auto;
     padding: var(--ps-ui-space-12) var(--ps-ui-space-16);
   }
 
   .libraryTopbar :global(.ps-ui-topbar__brand) { grid-column: 1; grid-row: 1; }
-  .libraryTopbar :global(.ps-ui-topbar__locale) { grid-column: 2; grid-row: 1; margin-left: 0; }
-  .libraryTopbar :global(.ps-ui-topbar__actions) { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+  .libraryTopbar :global(.ps-ui-topbar__actions) {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    gap: var(--ps-ui-space-8);
+    justify-content: flex-end;
+  }
+  .libraryTopbar :global(.ps-ui-topbar__actions) .headerUser {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .mobileHidden { display: none; }
 
   /* ==========================================================
      STUDIO MOBILE WORKSPACE
@@ -1033,13 +1042,10 @@
   .toolbarRight { justify-content: flex-start; }
   .workspaceBody {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
   }
   .detailsPane {
-    max-height: 40dvh;
-    padding-left: 0;
-    border-left: 0;
-    border-top: 1px solid var(--ps-ui-border-subtle);
+    display: none;
   }
   .row { grid-template-columns: 86px minmax(0, 1fr); }
   .rowState { grid-column: 2; justify-content: flex-start; }
