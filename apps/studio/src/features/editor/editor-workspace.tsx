@@ -143,7 +143,7 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 import { findElementById, updateElementById } from "./element-tree";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -516,6 +516,7 @@ export function EditorWorkspace({
     useState<GalleryItemSelection | null>(null);
   const [pendingElementDeletion, setPendingElementDeletion] =
     useState<PendingElementDeletion | null>(null);
+  const [pendingTextStyleReset, setPendingTextStyleReset] = useState<"title" | "subtitle" | "body" | "caption" | null>(null);
 
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
@@ -2434,6 +2435,7 @@ export function EditorWorkspace({
 
   function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, patch)); }
   function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
+  function requestResetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPendingTextStyleReset(id); }
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
@@ -3791,7 +3793,7 @@ export function EditorWorkspace({
             presentationTextStyles={presentation.textStyles ?? []}
             presentation={presentation}
             onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
-            onResetFundamentalTextStyle={resetFundamentalTextStyle}
+            onResetFundamentalTextStyle={requestResetFundamentalTextStyle}
             onAddTextStyle={addTextStyle}
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
@@ -4061,6 +4063,19 @@ export function EditorWorkspace({
           onConfirm={confirmElementDeletion}
         />
       ) : null}
+
+      {pendingTextStyleReset ? (() => {
+        const styleName = t(`customResources.role.${pendingTextStyleReset}`);
+        const count = findTextStyleUsageLocations(presentation, pendingTextStyleReset).length;
+        return <DangerConfirmDialog
+          title={t("customResources.resetTextStyleTitle", { style: styleName })}
+          message={t(count === 0 ? "customResources.resetTextStyleNone" : count === 1 ? "customResources.resetTextStyleOne" : "customResources.resetTextStyleMany", { style: styleName, count })}
+          confirmLabel={t("customResources.confirmResetTextStyle", { style: styleName })}
+          cancelLabel={t("elementCrud.cancel")}
+          onCancel={() => setPendingTextStyleReset(null)}
+          onConfirm={() => { resetFundamentalTextStyle(pendingTextStyleReset); setPendingTextStyleReset(null); }}
+        />;
+      })() : null}
 
       {/* =====================================================
           END: WORKSPACE

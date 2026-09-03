@@ -47,7 +47,8 @@ describe("Container linked style Inspector section", () => {
     expect(select.value).toBe("card");
     expect(Array.from(select.options).map((option) => option.text)).toContain("Card");
     expect(host.querySelector("#container-linked-style-name")).toBeNull();
-    expect(host.textContent).toContain("Detach linked style");
+    expect(host.textContent).toContain("Attached to Linked Style · Card");
+    expect(host.textContent).toContain("Detach from Card");
 
     await act(async () => {
       select.value = "hero";

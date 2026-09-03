@@ -147,8 +147,8 @@ describe("Text Inspector typography style attachment", () => {
       presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]),
     );
 
-    expect(host.textContent).toContain("Linked style · Body");
-    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach");
+    expect(host.textContent).toContain("Attached to Typography Style · Body");
+    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach from Body");
     expect(detach).not.toBeUndefined();
 
     await act(async () => detach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -158,8 +158,8 @@ describe("Text Inspector typography style attachment", () => {
       styleDetached: true,
       typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500 },
     });
-    expect(host.textContent).toContain("Local typography · Body");
-    expect(host.textContent).toContain("Attach");
+    expect(host.textContent).toContain("Local · detached from Body");
+    expect(host.textContent).toContain("Attach to Body");
   });
 
   it("detaches a custom style to its fundamental role without inheriting that role's override", async () => {
@@ -168,8 +168,8 @@ describe("Text Inspector typography style attachment", () => {
       { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic", fontFamily: "Fira Code" } },
     ]));
 
-    expect(host.textContent).toContain("Linked style · Quote");
-    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach");
+    expect(host.textContent).toContain("Attached to Typography Style · Quote");
+    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach from Quote");
     await act(async () => detach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
     expect(current).toMatchObject({
@@ -185,7 +185,7 @@ describe("Text Inspector typography style attachment", () => {
     await mount(text({ typography: { fontSize: 22 } }), presentation([
       { id: "body", typography: { fontFamily: "Inter", fontWeight: 400 } },
     ]));
-    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach");
+    const detach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Detach from Body");
     await act(async () => detach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
     await mount(current, presentation([
@@ -231,8 +231,8 @@ describe("Text Inspector typography style attachment", () => {
   it("keeps Style identity separate from detached status and supports explicit Attach", async () => {
     await mount(text({ styleDetached: true, typography: { fontSize: 22 } }));
     expect(host.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("body");
-    expect(host.textContent).toContain("Local typography");
-    const attach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach");
+    expect(host.textContent).toContain("Local · detached from Body");
+    const attach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach to Body");
     expect(attach).not.toBeUndefined();
 
     await act(async () => attach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -252,7 +252,7 @@ describe("Text Inspector typography style attachment", () => {
       },
     }));
 
-    const attach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach");
+    const attach = [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach to Body");
     await act(async () => attach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
     expect(current).toMatchObject({ variant: "body" });

@@ -70,6 +70,23 @@ describe("presentation typography style authoring", () => {
     expect(isTextStyleUsed(presentation, "quote")).toBe(true);
   });
 
+  it("excludes detached root and Topics text while retaining attached usage", () => {
+    const detachedTopicText = { ...textElement(), id: "detached-topic", variant: "body", styleDetached: true as const };
+    const attachedTopicText = { ...textElement(), id: "attached-topic", variant: "body" };
+    const presentation = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      slides: [{ id: "s", title: "", elements: [
+        { id: "detached-root", type: "text", hidden: false, variant: "body", styleDetached: true, content: "local" },
+        { id: "topics", type: "topics", hidden: false, kind: "unordered", items: [{ id: "item", content: { id: "slot", children: [detachedTopicText, attachedTopicText] }, children: [] }] },
+      ] }],
+    });
+    expect(findTextStyleUsageLocations(presentation, "body")).toEqual([{ slideIndex: 0, elementId: "attached-topic" }]);
+    expect(isTextStyleUsed(presentation, "body")).toBe(true);
+    const onlyDetached = PresentationSchema.parse({ ...presentation, slides: [{ ...presentation.slides[0]!, elements: [detachedTopicText] }] });
+    expect(findTextStyleUsageLocations(onlyDetached, "body")).toEqual([]);
+    expect(isTextStyleUsed(onlyDetached, "body")).toBe(false);
+  });
+
   it("blocks fundamentals from removal and removes unused custom styles", () => {
     const created = addCustomTextStyle(base(), "Quote", "body");
     expect(removeUnusedCustomTextStyle(upsertFundamentalTextStyleOverride(created, "body", { fontFamily: "Inter" }), "body")).toBeNull();

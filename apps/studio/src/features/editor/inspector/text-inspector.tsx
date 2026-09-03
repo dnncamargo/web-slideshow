@@ -515,12 +515,12 @@ export function TextInspector({
         <div className={styles.colorLinkedStatus} role="status">
           <span>
             {element.styleDetached
-              ? `${t("inspector.localTypography")} · ${selectedStyleName}`
-              : `${t("inspector.linkedTypography")} · ${selectedStyleName}`}
+              ? t("inspector.localTypographyDetached", { style: selectedStyleName })
+              : t("inspector.linkedTypographyNamed", { style: selectedStyleName })}
           </span>
           {element.styleDetached && (
             <button type="button" onClick={() => attachTextStyle(element.variant)}>
-              {t("inspector.attachTypography")}
+              {t("inspector.attachTypographyNamed", { style: selectedStyleName })}
             </button>
           )}
           {!element.styleDetached && presentation && (
@@ -530,7 +530,7 @@ export function TextInspector({
                 ? detachTextStyle(presentation, current)
                 : current)}
             >
-              {t("inspector.detachTypography")}
+              {t("inspector.detachTypographyNamed", { style: selectedStyleName })}
             </button>
           )}
         </div>

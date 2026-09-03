@@ -161,7 +161,7 @@ export function findTextStyleUsageLocations(
   const locations: TextStyleUsageLocation[] = [];
   presentation.slides.forEach((slide, slideIndex) => {
     visitElements(slide.elements, (element) => {
-      if (element.type === "text" && element.variant === textStyleId) {
+      if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
         locations.push({ slideIndex, elementId: element.id });
       }
     });
