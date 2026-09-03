@@ -48,6 +48,11 @@ describe("renderBlocks", () => {
     const html = renderBlocks(createDidacticBlocksElement());
     expect(html).toContain("powershow-block-scope-body");
     expect(html).toContain("powershow-block-scope-stack");
+    const scopeStart = html.indexOf('class="powershow-block powershow-block--scope"');
+    const scopeBody = html.indexOf('class="powershow-block-scope-body"', scopeStart);
+    expect(scopeStart).toBeGreaterThanOrEqual(0);
+    expect(scopeBody).toBeGreaterThan(scopeStart);
+    expect(html.slice(scopeStart, scopeBody)).toContain("display:inline-flex;align-items:center;width:max-content;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative;flex-direction:column;align-items:flex-start");
     expect(html.indexOf("Turn ")).toBeLessThan(html.indexOf("Set x to"));
     expect(html.indexOf("Move ")).toBeLessThan(html.indexOf("Turn "));
   });

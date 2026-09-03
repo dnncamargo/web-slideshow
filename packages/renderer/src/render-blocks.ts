@@ -10,6 +10,7 @@ const DEFAULT_SCOPE_COLOR = "#FFAB19";
 const DEFAULT_LOGIC_COLOR = "#59C059";
 const stackStyle = "display:flex;flex-direction:column;align-items:flex-start;width:max-content;white-space:nowrap";
 const blockStyle = "display:inline-flex;align-items:center;width:max-content;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative";
+const scopeStyle = `${blockStyle};flex-direction:column;align-items:flex-start`;
 const contentStyle = "display:inline-flex;align-items:center;width:max-content;white-space:nowrap";
 const connectorStyle = "position:absolute;width:20px;height:6px;left:11px;bottom:-5px;border-radius:0 0 4px 4px";
 
@@ -46,7 +47,7 @@ function renderBlock(block: BlocksAstNode, statementColor: string, scopeColor: s
     const header = `<div class="powershow-block-content"${styleAttribute(contentStyle)}>${renderInline(block.content, logicColor)}</div>`;
     const children = block.children.map((child) => renderBlock(child, statementColor, scopeColor, logicColor)).join("");
     const body = `<div class="powershow-block-scope-body"${styleAttribute("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:8px 12px 10px 22px;position:relative;z-index:1")}><div class="powershow-block-scope-stack"${styleAttribute(stackStyle)}>${children}</div></div>`;
-    return `<div class="powershow-block powershow-block--scope"${styleAttribute(`${blockStyle};background:${scopeColor}`)}>${header}${body}${renderConnector(scopeColor)}</div>`;
+    return `<div class="powershow-block powershow-block--scope"${styleAttribute(`${scopeStyle};background:${scopeColor}`)}>${header}${body}${renderConnector(scopeColor)}</div>`;
   }
   const content = `<div class="powershow-block-content"${styleAttribute(contentStyle)}>${renderInline(block.content, logicColor)}</div>`;
   if (block.type === "start") {
