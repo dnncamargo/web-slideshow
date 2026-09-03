@@ -12,7 +12,12 @@ import {
   PresentationSchema,
 } from "@powershow/document-schema";
 
-import { someElement } from "./element-tree";
+import { visitElements } from "./element-hierarchy";
+
+export type TextStyleUsageLocation = {
+  slideIndex: number;
+  elementId: string;
+};
 
 export function normalizeTextStyleTypographyProperties(
   typography: TextStyleTypographyProperties | undefined,
@@ -146,7 +151,22 @@ export function updateCustomTextStyle(
 }
 
 export function isTextStyleUsed(presentation: Presentation, id: string): boolean {
-  return presentation.slides.some((slide) => someElement(slide.elements, (element) => element.type === "text" && element.variant === id));
+  return findTextStyleUsageLocations(presentation, id).length > 0;
+}
+
+export function findTextStyleUsageLocations(
+  presentation: Presentation,
+  textStyleId: string,
+): TextStyleUsageLocation[] {
+  const locations: TextStyleUsageLocation[] = [];
+  presentation.slides.forEach((slide, slideIndex) => {
+    visitElements(slide.elements, (element) => {
+      if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
+        locations.push({ slideIndex, elementId: element.id });
+      }
+    });
+  });
+  return locations;
 }
 
 export function removeUnusedCustomTextStyle(presentation: Presentation, id: string): Presentation | null {

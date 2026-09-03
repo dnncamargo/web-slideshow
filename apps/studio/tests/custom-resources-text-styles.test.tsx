@@ -328,12 +328,12 @@ describe("Custom Resources Text Styles", () => {
       slides: [{ id: "s", title: "", elements: [{ id: "text", type: "text", hidden: false, variant: "quote", content: "unchanged" }] }],
     });
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
-    await render(usedPresentation, presentationRef);
+    await render(usedPresentation, presentationRef, []);
 
     expect(row("quote").textContent).not.toContain("Remove");
     await act(async () => disclosure("quote").click());
     const removeButton = rowButton("quote", "Remove");
-    expect(row("quote").textContent).toContain("In use");
+    expect(row("quote").textContent).toContain("Used by 1 element");
     expect(removeButton.disabled).toBe(true);
     await act(async () => removeButton.click());
     expect(presentationRef.current?.textStyles).toEqual(usedPresentation.textStyles);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PresentationSchema } from "@powershow/document-schema";
-import { addCustomTextStyle, createTextStyleId, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
+import { addCustomTextStyle, createTextStyleId, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 
 const base = () => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "", elements: [] }] });
 
@@ -70,6 +70,23 @@ describe("presentation typography style authoring", () => {
     expect(isTextStyleUsed(presentation, "quote")).toBe(true);
   });
 
+  it("excludes detached root and Topics text while retaining attached usage", () => {
+    const detachedTopicText = { ...textElement(), id: "detached-topic", variant: "body", styleDetached: true as const };
+    const attachedTopicText = { ...textElement(), id: "attached-topic", variant: "body" };
+    const presentation = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      slides: [{ id: "s", title: "", elements: [
+        { id: "detached-root", type: "text", hidden: false, variant: "body", styleDetached: true, content: "local" },
+        { id: "topics", type: "topics", hidden: false, kind: "unordered", items: [{ id: "item", content: { id: "slot", children: [detachedTopicText, attachedTopicText] }, children: [] }] },
+      ] }],
+    });
+    expect(findTextStyleUsageLocations(presentation, "body")).toEqual([{ slideIndex: 0, elementId: "attached-topic" }]);
+    expect(isTextStyleUsed(presentation, "body")).toBe(true);
+    const onlyDetached = PresentationSchema.parse({ ...presentation, slides: [{ ...presentation.slides[0]!, elements: [detachedTopicText] }] });
+    expect(findTextStyleUsageLocations(onlyDetached, "body")).toEqual([]);
+    expect(isTextStyleUsed(onlyDetached, "body")).toBe(false);
+  });
+
   it("blocks fundamentals from removal and removes unused custom styles", () => {
     const created = addCustomTextStyle(base(), "Quote", "body");
     expect(removeUnusedCustomTextStyle(upsertFundamentalTextStyleOverride(created, "body", { fontFamily: "Inter" }), "body")).toBeNull();
@@ -82,5 +99,23 @@ describe("presentation typography style authoring", () => {
     expect(isTextStyleUsed(used, "quote")).toBe(true);
     expect(removeUnusedCustomTextStyle(used, "quote")).toBeNull();
     expect(used.slides[0]?.elements[0]).toMatchObject({ type: "text", variant: "quote", content: "x" });
+  });
+
+  it("projects every matching text element in canonical slide and hierarchy order", () => {
+    const first = textElement();
+    const second = { ...textElement(), id: "nested-quote" };
+    const presentation = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      slides: [
+        { id: "s1", title: "", elements: [first, { id: "container", type: "container", hidden: false, children: [second] }] },
+        { id: "s2", title: "", elements: [{ id: "other", type: "text", hidden: false, variant: "body", content: "other" }] },
+      ],
+    });
+    expect(findTextStyleUsageLocations(presentation, "quote")).toEqual([
+      { slideIndex: 0, elementId: "quote-text" },
+      { slideIndex: 0, elementId: "nested-quote" },
+    ]);
+    expect(isTextStyleUsed(presentation, "quote")).toBe(true);
+    expect(findTextStyleUsageLocations(presentation, "caption")).toEqual([]);
   });
 });

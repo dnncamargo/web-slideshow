@@ -874,6 +874,44 @@ export function visitContainers(
   }
 }
 
+/** Visits every authored element in canonical order, including slot content. */
+export function visitElements(
+  elements: readonly PowerShowElement[],
+  visit: (element: PowerShowElement) => void,
+): void {
+  for (const element of elements) {
+    visit(element);
+
+    if (isContainer(element)) {
+      visitElements(element.children, visit);
+    }
+
+    if (isStructuredTable(element)) {
+      for (const column of element.columns) visitElements(column.header.children, visit);
+      for (const row of element.rows) {
+        for (const cell of row.cells) visitElements(cell.children, visit);
+      }
+    }
+
+    if (isTopics(element)) {
+      for (const item of element.items) {
+        visitElements(item.content.children, visit);
+        visitTopicItemElements(item.children, visit);
+      }
+    }
+  }
+}
+
+function visitTopicItemElements(
+  items: readonly TopicItem[],
+  visit: (element: PowerShowElement) => void,
+): void {
+  for (const item of items) {
+    visitElements(item.content.children, visit);
+    visitTopicItemElements(item.children, visit);
+  }
+}
+
 function visitContainersInTopicItems(
   items: readonly TopicItem[],
   visit: (container: ContainerElement) => void,

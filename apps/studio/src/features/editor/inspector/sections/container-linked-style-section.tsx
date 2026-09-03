@@ -19,6 +19,7 @@ export function ContainerLinkedStyleSection({
   onDetach,
 }: ContainerLinkedStyleSectionProps) {
   const { t } = useStudioI18n();
+  const linkedStyleName = (presentation?.linkedStyles ?? []).find((style) => style.id === element.linkedStyleId)?.name;
 
   return (
     <InspectorSection title={t("inspector.linkedContainerStyle")} defaultOpen>
@@ -40,10 +41,13 @@ export function ContainerLinkedStyleSection({
       </label>
 
       {element.linkedStyleId !== undefined ? (
-        <button type="button" className={styles.resourceAction} onClick={onDetach}>
-          {t("inspector.detachLinkedContainerStyle")}
-        </button>
-      ) : null}
+        <>
+          <div className={styles.colorLinkedStatus} role="status">{t("inspector.linkedContainerStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}</div>
+          <button type="button" className={styles.resourceAction} onClick={onDetach}>
+            {t("inspector.detachLinkedContainerStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}
+          </button>
+        </>
+      ) : <div className={styles.colorLinkedStatus} role="status">{t("inspector.noLinkedContainerStyleAttached")}</div>}
 
     </InspectorSection>
   );
