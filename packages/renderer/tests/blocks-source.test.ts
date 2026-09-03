@@ -89,13 +89,23 @@ describe("parseBlocksSource", () => {
   });
 
   it.each([
-    "\\foo(A)", "\\Start(A)", "hello", "\\value(5)", "\\variable(x)", "\\logic(x)",
-    "\\scope(A){hello}", "\\scope(A){\\value(5)}", "\\statement(\\statement(x))",
-    "\\statement(\\scope(x){})", "\\value(\\variable(x))", "\\variable(\\value(x))",
-    "\\statement(A", "\\logic(A", "\\value(A", "\\scope(A)", "\\scope(A){",
-    "}", "{", "\\statement(\\q)", "\\statement(\\statement123(x))",
-  ])("reports invalid source: %s", (source) => {
-    expect(error(source).message.length).toBeGreaterThan(0);
+    ["\\foo(A)", 'Unknown command "\\foo".'],
+    ["\\Start(A)", 'Unknown command "\\Start".'],
+    ["hello", "Unexpected text outside a Blocks command."],
+    ["\\value(5)", 'Inline command "\\value" is not allowed here.'],
+    ["\\scope(A){\\value(5)}", 'Inline command "\\value" is not allowed here.'],
+    ["\\statement(\\statement(x))", 'Vertical command "\\statement" is not allowed in inline content.'],
+    ["\\statement(\\scope(x){})", 'Vertical command "\\scope" is not allowed in inline content.'],
+    ["\\statement(\\value(\\variable(x)))", 'Commands are not allowed inside "\\value".'],
+    ["\\statement(\\variable(\\value(x)))", 'Commands are not allowed inside "\\variable".'],
+    ["\\statement(A", 'Expected ")" to close "\\statement".'],
+    ["\\scope(A)", 'Expected "{" after "\\scope(...)".'],
+    ["\\scope(A){", 'Expected "}" to close "\\scope".'],
+    ["}", "Unexpected delimiter."], ["{", "Unexpected delimiter."], [")", "Unexpected delimiter."], ["(", "Unexpected delimiter."],
+    ["\\statement(\\!)", 'Invalid escape "\\!".'],
+    ["\\statement(\\statement123(x))", 'Vertical command "\\statement" is not allowed in inline content.'],
+  ])("reports the stable diagnostic for invalid source: %s", (source, message) => {
+    expect(error(source).message).toBe(message);
   });
 
   it("returns the first error with zero-based UTF-16 offset and one-based line/column", () => {

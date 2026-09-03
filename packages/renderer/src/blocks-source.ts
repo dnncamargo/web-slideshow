@@ -40,7 +40,10 @@ class BlocksSourceParser {
     const blocks: BlocksAstNode[] = [];
     this.skipWhitespace();
     while (!this.atEnd()) {
-      if (this.peek() !== "\\") this.fail("Unexpected text outside a Blocks command.");
+      if (this.peek() !== "\\") {
+        if (this.isDelimiter(this.peek())) this.fail("Unexpected delimiter.");
+        this.fail("Unexpected text outside a Blocks command.");
+      }
       blocks.push(this.parseBlock());
       this.skipWhitespace();
     }
@@ -49,9 +52,7 @@ class BlocksSourceParser {
 
   private parseBlock(): BlocksAstNode {
     const command = this.readCommand();
-    if (!this.isVertical(command)) {
-      this.fail(`Inline command "\\${command}" is not allowed at root.`);
-    }
+    if (!this.isVertical(command)) this.fail(`Inline command "\\${command}" is not allowed here.`);
     this.expectOpenParenthesis(command);
     const content = this.parseInlineSequence(command);
     this.expect(")", `Expected ")" to close "\\${command}".`);
@@ -63,7 +64,10 @@ class BlocksSourceParser {
     const children: BlocksAstNode[] = [];
     this.skipWhitespace();
     while (!this.atEnd() && this.peek() !== "}") {
-      if (this.peek() !== "\\") this.fail("Unexpected text inside a scope body.");
+      if (this.peek() !== "\\") {
+        if (this.isDelimiter(this.peek())) this.fail("Unexpected delimiter.");
+        this.fail("Unexpected text inside a scope body.");
+      }
       children.push(this.parseBlock());
       this.skipWhitespace();
     }
@@ -197,6 +201,10 @@ class BlocksSourceParser {
 
   private isCommand(value: string): value is Command {
     return value === "start" || value === "statement" || value === "scope" || value === "end" || value === "value" || value === "variable" || value === "logic";
+  }
+
+  private isDelimiter(value: string): boolean {
+    return value === "(" || value === ")" || value === "{" || value === "}";
   }
 }
 
