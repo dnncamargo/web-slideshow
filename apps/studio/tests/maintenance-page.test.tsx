@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -182,6 +180,15 @@ describe("Maintenance page", () => {
   it("renders one semantic tree with Player status before Recovery", () => {
     render();
 
+    expect(container.querySelector(".ps-ui-topbar__brand")?.textContent).toContain(
+      "PowerShowControl",
+    );
+    expect(
+      container.querySelector<HTMLAnchorElement>('a[href="/studio/control"]')?.textContent,
+    ).toBe("<<< Back to presentation");
+    expect(container.querySelector("header.header")).toBeNull();
+    expect(container.textContent).toContain("Maintenance & Diagnostics");
+
     const sections = container.querySelectorAll("main section");
     expect(sections).toHaveLength(2);
     expect(sections[0]?.querySelector("h2")?.textContent).toBe("Player status");
@@ -189,20 +196,6 @@ describe("Maintenance page", () => {
     expect(container.querySelectorAll("main")).toHaveLength(1);
     expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(
       3,
-    );
-  });
-
-  it("keeps desktop/mobile layout CSS-driven on the same grid", () => {
-    const css = readFileSync(
-      resolve(process.cwd(), "src/features/control/maintenance-page.module.css"),
-      "utf8",
-    );
-
-    expect(css).toContain(
-      "grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr)",
-    );
-    expect(css).toMatch(
-      /@media \(max-width: 700px\)[\s\S]*\.grid \{ grid-template-columns: 1fr; \}/,
     );
   });
 
