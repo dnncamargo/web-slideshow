@@ -31,6 +31,18 @@ describe("renderBlocks", () => {
     expect(html).toContain(">10</span>");
   });
 
+  it("separates inline visual tokens without changing stack block geometry", () => {
+    const html = renderBlocks({
+      ...createDidacticBlocksElement(),
+      source: String.raw`\statement(Repeat \value(10) \variable(score) \logic(> \value(5)))`,
+    });
+
+    for (const shape of ["value", "variable", "logic"]) {
+      expect(region(html, shape)).toContain("margin-inline:3px");
+    }
+    expect(region(html, "statement")).not.toContain("margin-inline:3px");
+  });
+
   it("uses intrinsic nowrap sizing and simple connector topology", () => {
     const html = renderBlocks(createDidacticBlocksElement());
     expect(html).toContain("width:max-content");
@@ -53,6 +65,7 @@ describe("renderBlocks", () => {
     expect(scopeStart).toBeGreaterThanOrEqual(0);
     expect(scopeBody).toBeGreaterThan(scopeStart);
     expect(html.slice(scopeStart, scopeBody)).toContain("display:inline-flex;align-items:center;width:max-content;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative;flex-direction:column;align-items:flex-start");
+    expect(html.slice(scopeBody, html.indexOf('class="powershow-block-scope-stack"', scopeBody))).toContain("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 8px 14px;position:relative;z-index:1");
     expect(html.indexOf("Turn ")).toBeLessThan(html.indexOf("Set x to"));
     expect(html.indexOf("Move ")).toBeLessThan(html.indexOf("Turn "));
   });

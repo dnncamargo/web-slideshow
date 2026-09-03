@@ -26,13 +26,13 @@ function renderInline(nodes: BlocksInlineNode[], logicColor: string): string {
   return nodes.map((node) => {
     if (node.type === "text") return escapeHtml(node.value);
     if (node.type === "value") {
-      return `<span class="powershow-block powershow-block--value"${styleAttribute(`${contentStyle};background:#f8fafc;color:#1e293b;border-radius:999px;padding:2px 8px`)}>${escapeHtml(node.value)}</span>`;
+      return `<span class="powershow-block powershow-block--value"${styleAttribute(`${contentStyle};margin-inline:3px;background:#f8fafc;color:#1e293b;border-radius:999px;padding:2px 8px`)}>${escapeHtml(node.value)}</span>`;
     }
     if (node.type === "variable") {
-      return `<span class="powershow-block powershow-block--variable"${styleAttribute(`${contentStyle};background:#ff8c1a;color:#fff;border-radius:999px;padding:2px 8px`)}>${escapeHtml(node.value)}</span>`;
+      return `<span class="powershow-block powershow-block--variable"${styleAttribute(`${contentStyle};margin-inline:3px;background:#ff8c1a;color:#fff;border-radius:999px;padding:2px 8px`)}>${escapeHtml(node.value)}</span>`;
     }
     if (node.type === "logic") {
-      return `<span class="powershow-block powershow-block--logic"${styleAttribute(`${contentStyle};background:${logicColor};color:#fff;padding:5px 12px;clip-path:polygon(7% 0,93% 0,100% 50%,93% 100%,7% 100%,0 50%)`)}>${renderInline(node.content, logicColor)}</span>`;
+      return `<span class="powershow-block powershow-block--logic"${styleAttribute(`${contentStyle};margin-inline:3px;background:${logicColor};color:#fff;padding:5px 12px;clip-path:polygon(7% 0,93% 0,100% 50%,93% 100%,7% 100%,0 50%)`)}>${renderInline(node.content, logicColor)}</span>`;
     }
     return "";
   }).join("");
@@ -46,7 +46,7 @@ function renderBlock(block: BlocksAstNode, statementColor: string, scopeColor: s
   if (block.type === "scope") {
     const header = `<div class="powershow-block-content"${styleAttribute(contentStyle)}>${renderInline(block.content, logicColor)}</div>`;
     const children = block.children.map((child) => renderBlock(child, statementColor, scopeColor, logicColor)).join("");
-    const body = `<div class="powershow-block-scope-body"${styleAttribute("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:8px 12px 10px 22px;position:relative;z-index:1")}><div class="powershow-block-scope-stack"${styleAttribute(stackStyle)}>${children}</div></div>`;
+    const body = `<div class="powershow-block-scope-body"${styleAttribute("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 8px 14px;position:relative;z-index:1")}><div class="powershow-block-scope-stack"${styleAttribute(stackStyle)}>${children}</div></div>`;
     return `<div class="powershow-block powershow-block--scope"${styleAttribute(`${scopeStyle};background:${scopeColor}`)}>${header}${body}${renderConnector(scopeColor)}</div>`;
   }
   const content = `<div class="powershow-block-content"${styleAttribute(contentStyle)}>${renderInline(block.content, logicColor)}</div>`;
