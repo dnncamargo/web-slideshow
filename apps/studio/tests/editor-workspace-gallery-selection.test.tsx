@@ -165,4 +165,34 @@ describe("EditorWorkspace Gallery selection", () => {
     await act(async () => pointerDown(galleryAgain));
     expect(selector(0).getAttribute("aria-pressed")).toBe("true");
   });
+
+  it("confirms selected element deletion with Enter and cancels with Escape", async () => {
+    await mount();
+
+    const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!;
+    await act(async () => pointerDown(image));
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }));
+    });
+
+    const dialog = container.querySelector<HTMLDivElement>('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    await act(async () => {
+      dialog!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+    expect(container.querySelector('[data-powershow-id="image-1"]')).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+
+    const remainingImage = container.querySelector<HTMLElement>('[data-powershow-id="gallery-1"]')!;
+    await act(async () => pointerDown(remainingImage));
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }));
+    });
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    await act(async () => {
+      container.querySelector<HTMLDivElement>('[role="dialog"]')!
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(container.querySelector('[data-powershow-id="gallery-1"]')).not.toBeNull();
+  });
 });

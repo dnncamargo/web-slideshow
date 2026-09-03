@@ -13,6 +13,7 @@ interface DangerConfirmDialogProps {
   confirmLabel: ReactNode;
   cancelLabel: ReactNode;
   busy?: boolean;
+  confirmOnEnter?: boolean;
   busyConfirmLabel?: ReactNode;
   error?: ReactNode;
   onCancel: () => void;
@@ -25,6 +26,7 @@ export function DangerConfirmDialog({
   confirmLabel,
   cancelLabel,
   busy = false,
+  confirmOnEnter = false,
   busyConfirmLabel,
   error,
   onCancel,
@@ -39,6 +41,17 @@ export function DangerConfirmDialog({
   }, []);
 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (
+      event.key === "Enter" &&
+      confirmOnEnter &&
+      !busy &&
+      event.target === event.currentTarget
+    ) {
+      event.preventDefault();
+      onConfirm();
+      return;
+    }
+
     if (event.key === "Escape" && !busy) {
       event.preventDefault();
       onCancel();

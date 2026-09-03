@@ -137,6 +137,16 @@ describe("ImageInspector crop authoring", () => {
     expect(elementState.crop).toBeUndefined();
   });
 
+  it("keeps Preserve proportion checkbox before its visible label", async () => {
+    await mount();
+
+    const checkbox = container.querySelector<HTMLInputElement>("#image-preserve-proportion");
+    expect(checkbox).not.toBeNull();
+    const label = checkbox!.closest("label");
+    expect(label?.firstElementChild).toBe(checkbox);
+    expect(label?.lastElementChild?.textContent).toContain("Preserve proportion");
+  });
+
   it("localizes Width and Height labels in Portuguese", async () => {
     await mount(imageElement(), "pt-BR");
 
