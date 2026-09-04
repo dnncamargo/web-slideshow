@@ -14,6 +14,8 @@ import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import { subscribeLiveGalleryControl } from "./live-gallery-control";
+import { subscribeLiveSlideTransition } from "./live-slide-transition";
+import { subscribeLivePlayerControls } from "./live-player-controls";
 import {
   createLiveScriptedActionTracker,
   subscribeLiveScriptedAction,
@@ -61,6 +63,8 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
+  let cleanupLiveSlideTransition: (() => void) | undefined;
+  let cleanupLivePlayerControls: (() => void) | undefined;
   let cleanupLiveScriptedAction: (() => void) | undefined;
   let cleanupLiveScriptedInput: (() => void) | undefined;
   let cleanupPlayerRecoveryRequest: (() => void) | undefined;
@@ -282,6 +286,17 @@ export function startPlayer(root: HTMLElement): () => void {
         presentation,
         controller,
       );
+      cleanupLiveSlideTransition = subscribeLiveSlideTransition(
+        database,
+        live.revision,
+        controller,
+      );
+      cleanupLivePlayerControls = subscribeLivePlayerControls(
+        database,
+        live.revision,
+        controller,
+        controls,
+      );
       if (presenceReporter?.bootId) {
         cleanupLiveScriptedAction = subscribeLiveScriptedAction(
           database,
@@ -318,6 +333,16 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachLiveSlideTransition(): void {
+    cleanupLiveSlideTransition?.();
+    cleanupLiveSlideTransition = undefined;
+  }
+
+  function detachLivePlayerControls(): void {
+    cleanupLivePlayerControls?.();
+    cleanupLivePlayerControls = undefined;
+  }
+
   function detachLiveScriptedAction(): void {
     cleanupLiveScriptedAction?.();
     cleanupLiveScriptedAction = undefined;
@@ -328,6 +353,8 @@ export function startPlayer(root: HTMLElement): () => void {
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
+    detachLiveSlideTransition();
+    detachLivePlayerControls();
     detachLiveScriptedAction();
     detachLiveScriptedInput();
   }

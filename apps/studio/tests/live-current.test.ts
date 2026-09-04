@@ -164,12 +164,14 @@ describe("live-current activation", () => {
       "current",
       "fullscreenRequest",
       "galleryControl",
+      "playerControls",
       "playerPresence",
       "playerRecoveryRequest",
       "playerState",
       "scriptedAction",
       "slideAck",
       "slideCommand",
+      "slideTransition",
     ]);
     expect(committed.activationRevision).toBe(4);
     expect(current.revision).toBe(4);
@@ -181,6 +183,8 @@ describe("live-current activation", () => {
     expect(committed.playerRecoveryRequest).toBeNull();
     expect(committed.playerPresence).toBeNull();
     expect(committed.scriptedAction).toBeNull();
+    expect(committed.slideTransition).toBeNull();
+    expect(committed.playerControls).toBeNull();
   });
 
   it("rejects when the activation transaction does not commit", async () => {
@@ -214,7 +218,7 @@ describe("live-current activation", () => {
     expect(committed.activationRevision).toBe(5);
   });
 
-  it("end clears current, presence, projection protocol state, Gallery, and Scripted actions but preserves activationRevision", async () => {
+  it("end clears current, presence, projection protocol state, Gallery, Scripted actions, and Player options but preserves activationRevision", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
@@ -233,6 +237,8 @@ describe("live-current activation", () => {
         scriptedAction: null,
         slideCommand: null,
         slideAck: null,
+        slideTransition: null,
+        playerControls: null,
       },
     );
     expect(mocks.runTransaction).not.toHaveBeenCalled();
@@ -285,6 +291,58 @@ describe("live-current activation", () => {
       galleryControl: null,
       scriptedAction: null,
     });
+  });
+
+  it("promotion preserves the Player option records for the same activation", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({
+      uid: "u1",
+      isAnonymous: false,
+    });
+    const previous = {
+      activationRevision: 7,
+      current: {
+        publicationId: "pub-1",
+        currentVersionId: "ver-1",
+        revision: 7,
+      },
+      controlState: { revision: 4 },
+      playerState: { revision: 4 },
+      playerPresence: { bootId: "old-boot" },
+      slideCommand: { revision: 4 },
+      slideAck: { revision: 4 },
+      fullscreenRequest: { revision: 4 },
+      playerRecoveryRequest: { revision: 2 },
+      slideTransition: { activationRevision: 7, transition: "slide" },
+      playerControls: {
+        activationRevision: 7,
+        position: "top-left",
+        style: "minimal",
+        showCounter: false,
+        animation: "slide",
+      },
+    };
+    let committed: unknown;
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      committed = updater(previous);
+      return { committed: true, snapshot: { val: () => committed } };
+    });
+
+    await promoteLivePresentationVersion(previous.current, "ver-2");
+
+    const result = committed as Record<string, unknown>;
+    expect((result.current as Record<string, unknown>).currentVersionId).toBe("ver-2");
+    expect((result.current as Record<string, unknown>).revision).toBe(7);
+    expect(result.slideTransition).toEqual({ activationRevision: 7, transition: "slide" });
+    expect(result.playerControls).toEqual({
+      activationRevision: 7,
+      position: "top-left",
+      style: "minimal",
+      showCounter: false,
+      animation: "slide",
+    });
+    expect((result as Record<string, unknown>).controlState).toBeNull();
+    expect((result as Record<string, unknown>).playerPresence).toBeNull();
   });
 
   it("continues an uncached transaction after the initial local null", async () => {

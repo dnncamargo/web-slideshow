@@ -2,7 +2,7 @@
   "rules": {
     "live": {
       ".read": "auth != null",
-      ".write": "auth != null && ((newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0) || (!newData.child('current').exists() && !newData.child('controlState').exists() && !newData.child('playerState').exists() && !newData.child('fullscreenRequest').exists() && !newData.child('playerRecoveryRequest').exists() && !newData.child('slideCommand').exists() && !newData.child('slideAck').exists() && !newData.child('galleryControl').exists() && !newData.child('scriptedAction').exists() && !newData.child('scriptedRuntime').exists() && !newData.child('scriptedReport').exists() && !newData.child('scriptedInput').exists()))",
+      ".write": "auth != null && ((newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0) || (!newData.child('current').exists() && !newData.child('controlState').exists() && !newData.child('playerState').exists() && !newData.child('slideTransition').exists() && !newData.child('playerControls').exists() && !newData.child('fullscreenRequest').exists() && !newData.child('playerRecoveryRequest').exists() && !newData.child('slideCommand').exists() && !newData.child('slideAck').exists() && !newData.child('galleryControl').exists() && !newData.child('scriptedAction').exists() && !newData.child('scriptedRuntime').exists() && !newData.child('scriptedReport').exists() && !newData.child('scriptedInput').exists()))",
       "current": {
         ".read": true,
         ".write": "auth != null",
@@ -24,6 +24,25 @@
         ".read": "auth != null",
         ".write": "auth != null",
         ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+      },
+      "slideTransition": {
+        ".read": true,
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['activationRevision', 'transition']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && (newData.child('transition').val() === 'fade' || newData.child('transition').val() === 'slide' || newData.child('transition').val() === 'none')",
+        "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
+        "transition": { ".validate": "newData.val() === 'fade' || newData.val() === 'slide' || newData.val() === 'none'" },
+        "$other": { ".validate": false }
+      },
+      "playerControls": {
+        ".read": true,
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['activationRevision', 'position', 'style', 'showCounter', 'animation']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && (newData.child('position').val() === 'bottom-center' || newData.child('position').val() === 'bottom-left' || newData.child('position').val() === 'bottom-right' || newData.child('position').val() === 'top-center' || newData.child('position').val() === 'top-left' || newData.child('position').val() === 'top-right') && (newData.child('style').val() === 'floating' || newData.child('style').val() === 'minimal' || newData.child('style').val() === 'compact') && newData.child('showCounter').isBoolean() && (newData.child('animation').val() === 'fade' || newData.child('animation').val() === 'slide' || newData.child('animation').val() === 'none')",
+        "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
+        "position": { ".validate": "newData.val() === 'bottom-center' || newData.val() === 'bottom-left' || newData.val() === 'bottom-right' || newData.val() === 'top-center' || newData.val() === 'top-left' || newData.val() === 'top-right'" },
+        "style": { ".validate": "newData.val() === 'floating' || newData.val() === 'minimal' || newData.val() === 'compact'" },
+        "showCounter": { ".validate": "newData.isBoolean()" },
+        "animation": { ".validate": "newData.val() === 'fade' || newData.val() === 'slide' || newData.val() === 'none'" },
+        "$other": { ".validate": false }
       },
       "fullscreenRequest": {
         ".read": true,
