@@ -1333,6 +1333,7 @@ export function PresentationLibrary({
             ) : null}
             {palettesDestination && customLibraryPaletteStatus === "ready" ? (
               <Button
+                className={styles.mobileHidden}
                 size="compact"
                 disabled={paletteMutationPending || paletteAuthoring !== null}
                 onClick={() => beginPaletteAuthoring({ kind: "create" })}
@@ -1342,6 +1343,7 @@ export function PresentationLibrary({
             ) : null}
             {fontsDestination && customLibraryFontStatus === "ready" ? (
               <Button
+                className={styles.mobileHidden}
                 size="compact"
                 disabled={fontMutationPending || customLibraryFontAuthoring}
                 onClick={() => {

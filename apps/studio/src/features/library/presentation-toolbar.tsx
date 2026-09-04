@@ -114,6 +114,7 @@ export function PresentationToolbar({
 
               {state.actions.includes("edit") && selected ? (
                 <Button
+                  className={styles.mobileHidden}
                   size="compact"
                   disabled={openingId !== null}
                   onClick={() => onEdit(selected.id)}

@@ -65,13 +65,21 @@
   white-space: nowrap;
 }
 
-.topbarStatus {
+.playerStatus {
   min-width: 0;
 
   color: #87909f;
 
   font-size: 13px;
 
+  white-space: nowrap;
+}
+
+.clockStatus {
+  min-width: 0;
+  color: #87909f;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

@@ -783,6 +783,7 @@ describe("presentation library workspace controls", () => {
     const contextGroup = container.querySelector<HTMLElement>('[role="group"]');
     const title = contextGroup?.querySelector('[title="Title published"]');
     expect(title).toBeTruthy();
+    expect(Array.from(contextGroup?.querySelectorAll("button") ?? []).find((button) => button.textContent === "Edit")?.className).toContain("mobileHidden");
   });
 
   it("keeps row controls out of the presentation list and selects one row at a time", () => {

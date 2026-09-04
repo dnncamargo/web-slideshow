@@ -396,6 +396,30 @@ describe("PresenterView controls", () => {
     expect(container.querySelector('#presenter-player-settings')).not.toBeNull();
   });
 
+  it("keeps desktop Settings separate while the mobile primary row retains navigation and status hooks", () => {
+    render({ galleries: [gallery("gallery-a", 2)] });
+
+    const settings = container.querySelector<HTMLButtonElement>('button[aria-label="Player settings"]');
+    const previous = container.querySelector<HTMLButtonElement>('button[aria-label="Previous"]');
+    const next = container.querySelector<HTMLButtonElement>('button[aria-label="Next"]');
+    const fullscreen = container.querySelector<HTMLButtonElement>('button[aria-label="Fullscreen"]');
+    const primary = settings?.parentElement?.parentElement;
+    const counter = Array.from(primary?.children ?? []).find((element) => element.className.includes("counter"));
+
+    expect(settings?.parentElement?.className).toContain("settingsAnchor");
+    expect(previous).not.toBeNull();
+    expect(next).not.toBeNull();
+    expect(fullscreen).not.toBeNull();
+    expect(previous?.parentElement).toBe(primary);
+    expect(next?.parentElement).toBe(primary);
+    expect(fullscreen?.parentElement).toBe(primary);
+    expect(counter?.textContent).toBe("2 / 3");
+    expect(Array.from(primary?.querySelectorAll("button") ?? []).some((button) => button.className.includes("mobileEndButton"))).toBe(true);
+    expect(container.querySelector('[data-mobile-gallery-controls]')).not.toBeNull();
+    expect(Array.from(container.querySelectorAll("div")).some((element) => element.className.includes("mobilePlayerStatus"))).toBe(true);
+    expect(Array.from(container.querySelectorAll("*")).some((element) => element.className.includes("controlTopbar"))).toBe(true);
+  });
+
   it("closes Player settings with Escape and isolates pending disabled states", () => {
     render({ transitionWriteInFlight: true });
     const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Player settings"]');
