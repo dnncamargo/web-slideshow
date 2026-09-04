@@ -36,7 +36,7 @@ Core rules:
 
 - `schemaVersion` stays literally `1`;
 - no migration, dual schema, compatibility layer or generic abstraction without a concrete requirement;
-- current code in `main` outranks stale planning documents;
+- current code in `main` is the first authority for implementation details;
 - tests are contractual evidence but do not replace manual visual/runtime acceptance;
 - search/reuse existing ownership before creating another state, protocol or abstraction;
 - branch names and historical SHAs are evidence only — always fetch and revalidate;
