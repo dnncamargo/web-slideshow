@@ -22,6 +22,7 @@ import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
 import type { ControlGalleryView } from "../use-live-gallery-control";
+import type { ControlScriptedActionGroup } from "../use-live-scripted-action-control";
 import type { PlayerOperationalStatus } from "../player-presence";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
@@ -122,11 +123,37 @@ function GalleryInteractiveControls({ galleries, disabled, nextGallery, setGalle
   });
 }
 
+function ScriptedActionControls({ groups, disabled, triggerAction }: {
+  groups: readonly ControlScriptedActionGroup[];
+  disabled: boolean;
+  triggerAction(scriptedSlot: number, portIndex: number): void;
+}) {
+  return groups.map((group) => (
+    <div className={presenterStyles.scriptedActionGroup} key={group.elementId}>
+      <span className={presenterStyles.scriptedActionLabel}>{group.title}</span>
+      {group.actions.map((action) => (
+        <Button
+          key={action.portIndex}
+          variant="secondary"
+          size="compact"
+          disabled={disabled}
+          onClick={() => triggerAction(group.scriptedSlot, action.portIndex)}
+          aria-label={`${group.title}: ${action.label}`}
+        >
+          {action.label}
+        </Button>
+      ))}
+    </div>
+ ));
+}
+
 export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
   presentationState: PresenterPresentationState;
   galleries: readonly ControlGalleryView[];
+  scriptedActionGroups: readonly ControlScriptedActionGroup[];
+  scriptedActionsEnabled: boolean;
   promotingVersionId: string | null;
   failedPromotionVersionId: string | null;
   playerStatus?: PlayerOperationalStatus | null;
@@ -138,6 +165,7 @@ export interface PresenterViewProps {
   requestFullscreen(): void;
   nextGallery(elementId: string): void;
   setGalleryExpanded(elementId: string, expanded: boolean): void;
+  triggerScriptedAction(scriptedSlot: number, portIndex: number): void;
   end(): void;
 }
 
@@ -170,6 +198,8 @@ export function PresenterView({
   sendFailed,
   presentationState,
   galleries,
+  scriptedActionGroups,
+  scriptedActionsEnabled,
   promotingVersionId,
   failedPromotionVersionId,
   playerStatus,
@@ -181,6 +211,7 @@ export function PresenterView({
   requestFullscreen,
   nextGallery,
   setGalleryExpanded,
+  triggerScriptedAction,
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
@@ -257,6 +288,7 @@ export function PresenterView({
 
   const navigationDisabled = pendingVersion !== null || disabled;
   const showGalleryControls = pendingVersion === null && galleries.length > 0;
+  const showScriptedActionControls = scriptedActionGroups.length > 0;
   const currentGalleryTargets = showGalleryControls
     ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
     : [];
@@ -560,9 +592,10 @@ export function PresenterView({
           </div>
         </div>
 
-        {showGalleryControls && (
+        {(showGalleryControls || showScriptedActionControls) && (
           <div className={presenterStyles.mobileInteractiveElementsControls} data-mobile-gallery-controls>
-            <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />
+            {showGalleryControls && <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />}
+            {showScriptedActionControls && <ScriptedActionControls groups={scriptedActionGroups} disabled={!scriptedActionsEnabled} triggerAction={triggerScriptedAction} />}
           </div>
         )}
 
@@ -594,6 +627,11 @@ export function PresenterView({
             {showGalleryControls && (
               <div className={presenterStyles.interactiveElementsControls} data-gallery-controls>
                 <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />
+              </div>
+            )}
+            {showScriptedActionControls && (
+              <div className={presenterStyles.interactiveElementsControls} data-scripted-action-controls>
+                <ScriptedActionControls groups={scriptedActionGroups} disabled={!scriptedActionsEnabled} triggerAction={triggerScriptedAction} />
               </div>
             )}
             {currentSlide && currentSlideNote !== "" && (

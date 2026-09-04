@@ -50,6 +50,7 @@ function scripted(
     script: "",
     hidden: false,
     ...overrides,
+    ports: overrides.ports ?? [],
   };
 }
 
@@ -760,6 +761,180 @@ describe("ScriptedInspector", () => {
     expect(elementState.effect?.shadow?.blur).toBe(12);
     await act(async () => { changeInput(container.querySelector<HTMLInputElement>("#scripted-shadow-spread")!, ""); });
     expect(elementState.effect?.shadow?.spread).toBeUndefined();
+  });
+});
+
+describe("ScriptedInspector port drafts", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let elementState: ScriptedElement;
+  let updates: ScriptedElement[];
+
+  function renderInspector(): void {
+    root.render(<StudioI18nProvider><ScriptedInspector element={elementState} onUpdate={(update) => {
+      const next = update(elementState);
+      if (next.type === "scripted") {
+        elementState = next;
+        updates.push(next);
+        renderInspector();
+      }
+    }} /></StudioI18nProvider>);
+  }
+
+  function mount(initial: ScriptedElement): void {
+    elementState = initial;
+    updates = [];
+    renderInspector();
+  }
+
+  function click(selector: string): void {
+    const control = container.querySelector<HTMLElement>(selector);
+    if (!control) throw new Error(`Missing control: ${selector}`);
+    control.click();
+  }
+
+  function change(selector: string, value: string): void {
+    const control = container.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(selector);
+    if (!control) throw new Error(`Missing control: ${selector}`);
+    const prototype = control instanceof HTMLSelectElement
+      ? window.HTMLSelectElement.prototype
+      : control instanceof HTMLTextAreaElement
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value);
+    control.dispatchEvent(new Event("change", { bubbles: true }));
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    document.body.innerHTML = "";
+  });
+
+  it("renders canonical ports in order and keeps selection, add, remove, and reset local", async () => {
+    await act(async () => mount(scripted({ ports: [
+      { id: "first", label: "First", kind: "action" },
+      { id: "second", label: "Second", kind: "boolean", direction: "input" },
+    ] })));
+    expect(Array.from(container.querySelectorAll("[data-powershow-scripted-port-select]")).map((node) => node.textContent)).toEqual(["First", "Second"]);
+    await act(async () => click('[data-powershow-scripted-port-select][data-powershow-scripted-port-index="1"]'));
+    await act(async () => click('[data-powershow-scripted-port-add]'));
+    expect(updates).toHaveLength(0);
+    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("port");
+    await act(async () => click('[data-powershow-scripted-port-remove]'));
+    await act(async () => click("#scripted-reset"));
+    expect(updates).toHaveLength(0);
+    expect(container.querySelectorAll("[data-powershow-scripted-port-select]")).toHaveLength(2);
+  });
+
+  it("converts local port shapes and applies ports with source in one update", async () => {
+    await act(async () => mount(scripted({ ports: [{ id: "go", label: "Go", kind: "action" }] })));
+    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
+    expect(container.querySelector("[data-powershow-scripted-port-direction]")).not.toBeNull();
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).not.toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-direction]', "output"));
+    await act(async () => change("#scripted-html", "<p>source</p>"));
+    await act(async () => click("#scripted-apply-run"));
+    expect(updates).toHaveLength(1);
+    expect(elementState.html).toBe("<p>source</p>");
+    expect(elementState.ports).toEqual([{ id: "go", label: "Go", kind: "number", direction: "output" }]);
+  });
+
+  it("blocks invalid local ports without canonical writes", async () => {
+    await act(async () => mount(scripted({ ports: [{ id: "existing", label: "Existing", kind: "action" }] })));
+    await act(async () => click('[data-powershow-scripted-port-add]'));
+    await act(async () => change('[data-powershow-scripted-port-id]', "existing"));
+    await act(async () => click("#scripted-apply-run"));
+    expect(updates).toHaveLength(0);
+    expect(container.textContent).toContain("Correct the selected port");
+  });
+
+  it("generates the next deterministic port id and makes port drafts dirty without writing", async () => {
+    await act(async () => mount(scripted({ ports: [
+      { id: "port", label: "One", kind: "action" },
+      { id: "port-2", label: "Two", kind: "action" },
+    ] })));
+    await act(async () => click('[data-powershow-scripted-port-select][data-powershow-scripted-port-index="1"]'));
+    expect(updates).toHaveLength(0);
+    expect(container.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(true);
+    await act(async () => click('[data-powershow-scripted-port-add]'));
+    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("port-3");
+    expect(updates).toHaveLength(0);
+    expect(container.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(false);
+    await act(async () => change('[data-powershow-scripted-port-label]', "Draft only"));
+    expect(updates).toHaveLength(0);
+  });
+
+  it("uses the exact local shapes for every supported type conversion", async () => {
+    await act(async () => mount(scripted({ ports: [{ id: "p", label: "Port", kind: "action" }] })));
+    expect(container.querySelector("[data-powershow-scripted-port-direction]")).toBeNull();
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
+    expect(container.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-direction]")?.value).toBe("input");
+    await act(async () => change('[data-powershow-scripted-port-type]', "action"));
+    expect(container.querySelector("[data-powershow-scripted-port-direction]")).toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
+    expect(container.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-direction]")?.value).toBe("input");
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).not.toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-direction]', "output"));
+    await act(async () => change('[data-powershow-scripted-port-min]', "1.5"));
+    await act(async () => change('[data-powershow-scripted-port-max]', "4.5"));
+    await act(async () => change('[data-powershow-scripted-port-step]', "0.25"));
+    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
+    expect(container.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-direction]")?.value).toBe("output");
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
+    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-min]")?.value).toBe("");
+    await act(async () => click("#scripted-apply-run"));
+    expect(elementState.ports).toEqual([{ id: "p", label: "Port", kind: "number", direction: "output" }]);
+  });
+
+  it("rejects blank fields and invalid numeric constraints without writes", async () => {
+    await act(async () => mount(scripted({ ports: [{ id: "n", label: "Number", kind: "number", direction: "input" }] })));
+    for (const [selector, value] of [
+      ['[data-powershow-scripted-port-id]', ""],
+      ['[data-powershow-scripted-port-id]', "n"],
+      ['[data-powershow-scripted-port-label]', ""],
+      ['[data-powershow-scripted-port-label]', "Number"],
+      ['[data-powershow-scripted-port-min]', "not-a-number"],
+      ['[data-powershow-scripted-port-min]', ""],
+      ['[data-powershow-scripted-port-step]', "0"],
+      ['[data-powershow-scripted-port-step]', "-1"],
+    ]) {
+      await act(async () => change(selector, value));
+      await act(async () => click("#scripted-apply-run"));
+      expect(updates).toHaveLength(0);
+    }
+    await act(async () => change('[data-powershow-scripted-port-step]', "0.5"));
+    await act(async () => change('[data-powershow-scripted-port-min]', "5"));
+    await act(async () => change('[data-powershow-scripted-port-max]', "2"));
+    await act(async () => click("#scripted-apply-run"));
+    expect(updates).toHaveLength(0);
+  });
+
+  it("reset and canonical rehydration restore source and ports without rewriting JavaScript", async () => {
+    await act(async () => mount(scripted({ html: "<p>one</p>", script: "window.__sentinel = 1", ports: [{ id: "one", label: "One", kind: "action" }] })));
+    await act(async () => change("#scripted-html", "<p>draft</p>"));
+    await act(async () => change('[data-powershow-scripted-port-id]', "draft-id"));
+    expect(container.querySelector<HTMLTextAreaElement>("#scripted-script")?.value).toBe("window.__sentinel = 1");
+    await act(async () => click("#scripted-reset"));
+    expect(container.querySelector<HTMLTextAreaElement>("#scripted-html")?.value).toBe("<p>one</p>");
+    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("one");
+    expect(updates).toHaveLength(0);
+    await act(async () => {
+      elementState = scripted({ id: "other", ports: [{ id: "other-port", label: "Other", kind: "boolean", direction: "input" }] });
+      renderInspector();
+    });
+    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("other-port");
+    expect(updates).toHaveLength(0);
   });
 });
 

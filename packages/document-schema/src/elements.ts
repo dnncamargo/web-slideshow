@@ -353,6 +353,89 @@ export const BlocksElementSchema = CanonicalDataElementBaseSchema.extend({
 export type BlocksElement =
   z.infer<typeof BlocksElementSchema>;
 
+const ScriptedPortIdSchema = z.string().refine(
+  (value) => value.trim().length > 0,
+  { message: "port id must not be blank" },
+);
+
+const ScriptedPortLabelSchema = z.string().refine(
+  (value) => value.trim().length > 0,
+  { message: "port label must not be blank" },
+);
+
+export const ScriptedPortDirectionSchema = z.enum([
+  "input",
+  "output",
+  "input-output",
+]);
+
+export type ScriptedPortDirection =
+  z.infer<typeof ScriptedPortDirectionSchema>;
+
+export const ScriptedActionPortSchema = z.object({
+  id: ScriptedPortIdSchema,
+  label: ScriptedPortLabelSchema,
+  kind: z.literal("action"),
+}).strict();
+
+export type ScriptedActionPort =
+  z.infer<typeof ScriptedActionPortSchema>;
+
+export const ScriptedBooleanPortSchema = z.object({
+  id: ScriptedPortIdSchema,
+  label: ScriptedPortLabelSchema,
+  kind: z.literal("boolean"),
+  direction: ScriptedPortDirectionSchema,
+}).strict();
+
+export type ScriptedBooleanPort =
+  z.infer<typeof ScriptedBooleanPortSchema>;
+
+export const ScriptedNumberPortSchema = z.object({
+  id: ScriptedPortIdSchema,
+  label: ScriptedPortLabelSchema,
+  kind: z.literal("number"),
+  direction: ScriptedPortDirectionSchema,
+  min: z.number().finite().optional(),
+  max: z.number().finite().optional(),
+  step: z.number().finite().positive().optional(),
+}).strict().refine(
+  (port) => port.min === undefined || port.max === undefined || port.min <= port.max,
+  {
+    message: "number port min must be less than or equal to max",
+    path: ["max"],
+  },
+);
+
+export type ScriptedNumberPort =
+  z.infer<typeof ScriptedNumberPortSchema>;
+
+export const ScriptedPortSchema = z.discriminatedUnion("kind", [
+  ScriptedActionPortSchema,
+  ScriptedBooleanPortSchema,
+  ScriptedNumberPortSchema,
+]);
+
+export type ScriptedPort = z.infer<typeof ScriptedPortSchema>;
+
+const ScriptedPortsSchema = z.array(ScriptedPortSchema).superRefine(
+  (ports, context) => {
+    const firstIndexesById = new Map<string, number>();
+
+    ports.forEach((port, index) => {
+      if (firstIndexesById.has(port.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "port ids must be unique within a Scripted element",
+          path: [index, "id"],
+        });
+      } else {
+        firstIndexesById.set(port.id, index);
+      }
+    });
+  },
+);
+
 export const ScriptedElementSchema = z.object({
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
@@ -371,6 +454,8 @@ export const ScriptedElementSchema = z.object({
     css: z.string().default(""),
 
     script: z.string().default(""),
+
+    ports: ScriptedPortsSchema.default([]),
   }).strict();
 
 export type ScriptedElement =

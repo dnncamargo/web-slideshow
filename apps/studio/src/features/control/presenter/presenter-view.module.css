@@ -199,6 +199,23 @@
   white-space: nowrap;
 }
 
+.scriptedActionGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.scriptedActionLabel {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .controlMeta {
   display: flex;
   align-items: center;

@@ -28,6 +28,8 @@ function scripted(
     hidden: false,
 
     ...overrides,
+
+    ports: overrides.ports ?? [],
   };
 }
 
@@ -107,6 +109,14 @@ describe("Scripted element authoring", () => {
 
     if (created.type === "scripted") {
       expect(created.script).toBe("");
+    }
+  });
+
+  it("defaults ports to an empty array", () => {
+    const created = createElement("scripted", []);
+
+    if (created.type === "scripted") {
+      expect(created.ports).toEqual([]);
     }
   });
 

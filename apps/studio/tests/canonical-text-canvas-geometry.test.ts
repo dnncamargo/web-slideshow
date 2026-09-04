@@ -34,7 +34,7 @@ function image(layout?: ImageElement["layout"]): ImageElement {
 function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedElement["type"], layout?: GalleryElement["layout"]): GalleryElement | EmbedElement | ScriptedElement {
   if (type === "gallery") return { type, id: "gallery-1", hidden: false, items: [], fit: "contain", layout };
   if (type === "embed") return { type, id: "embed-1", hidden: false, src: "https://example.com/", title: "Embed", layout };
-  return { type, id: "scripted-1", hidden: false, title: "Scripted", html: "", css: "", script: "", layout };
+  return { type, id: "scripted-1", hidden: false, title: "Scripted", html: "", css: "", script: "", ports: [], layout };
 }
 
 describe("canonical text canvas drag", () => {

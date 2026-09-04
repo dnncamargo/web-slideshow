@@ -2,7 +2,9 @@ import { useState } from "react";
 
 import type {
   ScriptedElement,
+  ScriptedPort,
 } from "@powershow/document-schema";
+import { ScriptedElementSchema } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -19,6 +21,56 @@ import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 
 // ============================================================
+
+type ScriptedPortDraft =
+  | { id: string; label: string; kind: "action" }
+  | { id: string; label: string; kind: "boolean" | "number"; direction: "input" | "output" | "input-output"; min: string; max: string; step: string };
+
+function portDrafts(ports: ScriptedPort[]): ScriptedPortDraft[] {
+  return ports.map((port) => port.kind === "action"
+    ? { id: port.id, label: port.label, kind: "action" }
+    : {
+      id: port.id,
+      label: port.label,
+      kind: port.kind,
+      direction: port.direction,
+      min: port.kind === "number" && port.min !== undefined ? String(port.min) : "",
+      max: port.kind === "number" && port.max !== undefined ? String(port.max) : "",
+      step: port.kind === "number" && port.step !== undefined ? String(port.step) : "",
+    });
+}
+
+function portsDraftIdentity(ports: ScriptedPort[]): string {
+  return JSON.stringify(ports);
+}
+
+function portDraftToCanonical(port: ScriptedPortDraft): unknown {
+  if (port.kind === "action") return port;
+
+  if (port.kind === "boolean") {
+    return { id: port.id, label: port.label, kind: port.kind, direction: port.direction };
+  }
+
+  function optionalNumber(value: string): number | undefined | null {
+    if (value === "") return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const min = optionalNumber(port.min);
+  const max = optionalNumber(port.max);
+  const step = optionalNumber(port.step);
+  if (min === null || max === null || step === null) return null;
+  return { id: port.id, label: port.label, kind: "number", direction: port.direction, ...(min === undefined ? {} : { min }), ...(max === undefined ? {} : { max }), ...(step === undefined ? {} : { step }) };
+}
+
+function nextPortId(ports: ScriptedPortDraft[]): string {
+  const ids = new Set(ports.map((port) => port.id));
+  if (!ids.has("port")) return "port";
+  let suffix = 2;
+  while (ids.has(`port-${suffix}`)) suffix += 1;
+  return `port-${suffix}`;
+}
 // BEGIN: SCRIPTED INSPECTOR
 //
 // Scripted is authored HTML/CSS/JavaScript executed by the shared
@@ -49,6 +101,14 @@ export function ScriptedInspector({
 
   const [scriptDraft, setScriptDraft] = useState<string>(element.script);
 
+  const [portsDraft, setPortsDraft] = useState<ScriptedPortDraft[]>(
+    portDrafts(element.ports),
+  );
+  const [selectedPortIndex, setSelectedPortIndex] = useState<number | null>(
+    element.ports.length > 0 ? 0 : null,
+  );
+  const [portsMessage, setPortsMessage] = useState<string | null>(null);
+
   const [titleRequiredMessage, setTitleRequiredMessage] = useState<
     string | null
   >(null);
@@ -65,12 +125,14 @@ export function ScriptedInspector({
     html: string;
     css: string;
     script: string;
+    ports: string;
   }>({
     id: element.id,
     title: element.title,
     html: element.html,
     css: element.css,
     script: element.script,
+    ports: portsDraftIdentity(element.ports),
   });
 
   if (
@@ -79,6 +141,7 @@ export function ScriptedInspector({
     hydratedFor.html !== element.html ||
     hydratedFor.css !== element.css ||
     hydratedFor.script !== element.script
+    || hydratedFor.ports !== portsDraftIdentity(element.ports)
   ) {
     setHydratedFor({
       id: element.id,
@@ -86,13 +149,17 @@ export function ScriptedInspector({
       html: element.html,
       css: element.css,
       script: element.script,
+      ports: portsDraftIdentity(element.ports),
     });
 
     setTitleDraft(element.title);
     setHtmlDraft(element.html);
     setCssDraft(element.css);
     setScriptDraft(element.script);
+    setPortsDraft(portDrafts(element.ports));
+    setSelectedPortIndex(element.ports.length > 0 ? 0 : null);
     setTitleRequiredMessage(null);
+    setPortsMessage(null);
   }
 
   // Dirty state is local UI state derived from the drafts. It is
@@ -101,7 +168,8 @@ export function ScriptedInspector({
     titleDraft !== element.title ||
     htmlDraft !== element.html ||
     cssDraft !== element.css ||
-    scriptDraft !== element.script;
+    scriptDraft !== element.script ||
+    JSON.stringify(portsDraft) !== JSON.stringify(portDrafts(element.ports));
 
   const updateStyle: UpdateSurfaceStyle = (update) => {
     onUpdate((current) => {
@@ -124,6 +192,24 @@ export function ScriptedInspector({
     if (titleDraft.length < 1) {
       setTitleRequiredMessage(t("scripted.titleRequired"));
 
+      return;
+    }
+
+    const candidatePorts = portsDraft.map(portDraftToCanonical);
+    if (candidatePorts.some((port) => port === null)) {
+      setPortsMessage(t("scripted.invalidPort"));
+      return;
+    }
+    const parsed = ScriptedElementSchema.safeParse({
+      ...element,
+      title: titleDraft,
+      html: htmlDraft,
+      css: cssDraft,
+      script: scriptDraft,
+      ports: candidatePorts,
+    });
+    if (!parsed.success) {
+      setPortsMessage(t("scripted.invalidPort"));
       return;
     }
 
@@ -152,6 +238,8 @@ export function ScriptedInspector({
         css: cssDraft,
 
         script: scriptDraft,
+
+        ports: parsed.data.ports,
       };
     });
   }
@@ -163,7 +251,39 @@ export function ScriptedInspector({
     setHtmlDraft(element.html);
     setCssDraft(element.css);
     setScriptDraft(element.script);
+    setPortsDraft(portDrafts(element.ports));
+    setSelectedPortIndex(element.ports.length > 0 ? 0 : null);
     setTitleRequiredMessage(null);
+    setPortsMessage(null);
+  }
+
+  const selectedPort = selectedPortIndex === null ? null : portsDraft[selectedPortIndex] ?? null;
+  function updateSelectedPort(update: (port: ScriptedPortDraft) => ScriptedPortDraft): void {
+    if (selectedPortIndex === null) return;
+    setPortsDraft((current) => current.map((port, index) => index === selectedPortIndex ? update(port) : port));
+    setPortsMessage(null);
+  }
+
+  function addPort(): void {
+    setPortsDraft((current) => [...current, { id: nextPortId(current), label: "Port", kind: "action" }]);
+    setSelectedPortIndex(portsDraft.length);
+    setPortsMessage(null);
+  }
+
+  function removeSelectedPort(): void {
+    if (selectedPortIndex === null) return;
+    setPortsDraft((current) => current.filter((_port, index) => index !== selectedPortIndex));
+    const nextLength = portsDraft.length - 1;
+    setSelectedPortIndex(nextLength === 0 ? null : Math.min(selectedPortIndex, nextLength - 1));
+    setPortsMessage(null);
+  }
+
+  function changeSelectedPortKind(kind: ScriptedPortDraft["kind"]): void {
+    updateSelectedPort((port) => {
+      if (kind === "action") return { id: port.id, label: port.label, kind };
+      const direction = port.kind === "action" ? "input" : port.direction;
+      return { id: port.id, label: port.label, kind, direction, min: "", max: "", step: "" };
+    });
   }
 
   return (
@@ -241,12 +361,26 @@ export function ScriptedInspector({
           />
         </label>
 
+        <div className={styles.inspectorDivider} />
+        <span>{t("scripted.ports")}</span>
+        <small className={styles.fieldHint}><span>{t("scripted.portsHelp")}</span></small>
+        <div className={styles.galleryItemSelector}>{portsDraft.map((port, index) => <div key={index} className={styles.galleryItemSelectorRow}><button type="button" className={`${styles.secondaryButton} ${styles.galleryItemSelectorButton} ${index === selectedPortIndex ? styles.galleryItemSelectorButtonSelected : ""}`} data-powershow-scripted-port-select="true" data-powershow-scripted-port-index={index} aria-pressed={index === selectedPortIndex} onClick={() => setSelectedPortIndex(index)}><span className={styles.galleryItemName}>{port.label || t("scripted.port")}</span></button></div>)}</div>
+        <div className={styles.elementCrudActions}><button type="button" className={styles.secondaryButton} data-powershow-scripted-port-add="true" onClick={addPort}>{t("scripted.addPort")}</button>{selectedPort && <button type="button" className={styles.secondaryButton} data-powershow-scripted-port-remove="true" aria-label={t("scripted.removePort")} onClick={removeSelectedPort}>×</button>}</div>
+        {selectedPort && <>
+          <label className={styles.field}><span>{t("scripted.portLabel")}</span><input data-powershow-scripted-port-label="true" value={selectedPort.label} onChange={(event) => updateSelectedPort((port) => ({ ...port, label: event.target.value }))} /></label>
+          <label className={styles.field}><span>{t("scripted.portId")}</span><input data-powershow-scripted-port-id="true" value={selectedPort.id} onChange={(event) => updateSelectedPort((port) => ({ ...port, id: event.target.value }))} /></label>
+          <label className={styles.field}><span>{t("scripted.portType")}</span><select data-powershow-scripted-port-type="true" value={selectedPort.kind} onChange={(event) => changeSelectedPortKind(event.target.value as ScriptedPortDraft["kind"])}><option value="action">{t("scripted.action")}</option><option value="boolean">{t("scripted.boolean")}</option><option value="number">{t("scripted.number")}</option></select></label>
+          {selectedPort.kind !== "action" && <label className={styles.field}><span>{t("scripted.direction")}</span><select data-powershow-scripted-port-direction="true" value={selectedPort.direction} onChange={(event) => updateSelectedPort((port) => port.kind === "action" ? port : { ...port, direction: event.target.value as "input" | "output" | "input-output" })}><option value="input">{t("scripted.input")}</option><option value="output">{t("scripted.output")}</option><option value="input-output">{t("scripted.inputOutput")}</option></select></label>}
+          {selectedPort.kind === "number" && <><label className={styles.field}><span>{t("scripted.min")}</span><input type="text" inputMode="decimal" data-powershow-scripted-port-min="true" value={selectedPort.min} onChange={(event) => updateSelectedPort((port) => port.kind === "number" ? { ...port, min: event.target.value } : port)} /></label><label className={styles.field}><span>{t("scripted.max")}</span><input type="text" inputMode="decimal" data-powershow-scripted-port-max="true" value={selectedPort.max} onChange={(event) => updateSelectedPort((port) => port.kind === "number" ? { ...port, max: event.target.value } : port)} /></label><label className={styles.field}><span>{t("scripted.step")}</span><input type="text" inputMode="decimal" data-powershow-scripted-port-step="true" value={selectedPort.step} onChange={(event) => updateSelectedPort((port) => port.kind === "number" ? { ...port, step: event.target.value } : port)} /></label></>}
+        </>}
+        {portsMessage && <small className={styles.fieldHint}><span>{portsMessage}</span></small>}
+
         <div className={styles.elementCrudActions}>
           <button
             id="scripted-apply-run"
             type="button"
 
-            className={`${styles.secondaryButton} ${styles.elementCrudPrimary}`}
+            className={styles.secondaryButton}
 
             disabled={!dirty}
 

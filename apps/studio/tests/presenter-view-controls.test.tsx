@@ -13,6 +13,7 @@ import {
 import { PresenterView } from "../src/features/control/presenter/presenter-view";
 import type { LiveControlView } from "../src/features/control/live-control";
 import type { ControlGalleryView } from "../src/features/control/use-live-gallery-control";
+import type { ControlScriptedActionGroup } from "../src/features/control/use-live-scripted-action-control";
 import type { PlayerOperationalStatus } from "../src/features/control/player-presence";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -105,6 +106,9 @@ describe("PresenterView controls", () => {
     goTo = vi.fn(),
     requestFullscreen = vi.fn(),
     galleries = [],
+    scriptedActionGroups = [],
+    scriptedActionsEnabled = true,
+    triggerScriptedAction = vi.fn(),
     nextGallery = vi.fn(),
     setGalleryExpanded = vi.fn(),
     end = vi.fn(),
@@ -127,6 +131,9 @@ describe("PresenterView controls", () => {
     goTo?: ReturnType<typeof vi.fn>;
     requestFullscreen?: ReturnType<typeof vi.fn>;
     galleries?: ControlGalleryView[];
+    scriptedActionGroups?: ControlScriptedActionGroup[];
+    scriptedActionsEnabled?: boolean;
+    triggerScriptedAction?: ReturnType<typeof vi.fn>;
     nextGallery?: ReturnType<typeof vi.fn>;
     setGalleryExpanded?: ReturnType<typeof vi.fn>;
     end?: ReturnType<typeof vi.fn>;
@@ -148,6 +155,8 @@ describe("PresenterView controls", () => {
               pendingVersion,
             }}
             galleries={galleries}
+            scriptedActionGroups={scriptedActionGroups}
+            scriptedActionsEnabled={scriptedActionsEnabled}
             promotingVersionId={null}
             failedPromotionVersionId={null}
             playerStatus={playerStatus}
@@ -159,6 +168,7 @@ describe("PresenterView controls", () => {
             requestFullscreen={requestFullscreen}
             nextGallery={nextGallery}
             setGalleryExpanded={setGalleryExpanded}
+            triggerScriptedAction={triggerScriptedAction}
             end={end}
           />
         </StudioI18nProvider>,
@@ -172,6 +182,7 @@ describe("PresenterView controls", () => {
       requestFullscreen,
       nextGallery,
       setGalleryExpanded,
+      triggerScriptedAction,
       end,
     };
   }
@@ -410,6 +421,38 @@ describe("PresenterView controls", () => {
     });
 
     expect(container.querySelector('[data-gallery-controls]')).toBeNull();
+  });
+
+  it("renders authored Scripted action groups before Notes and keeps them enabled without a pending lock", () => {
+    const triggerScriptedAction = vi.fn();
+    render({
+      galleries: [gallery("gallery-a", 2)],
+      scriptedActionGroups: [{ scriptedSlot: 1, elementId: "scripted-a", title: "Scroller", actions: [{ portIndex: 0, portId: "up", label: "Scroll up" }, { portIndex: 2, portId: "down", label: "Scroll down" }] }],
+      triggerScriptedAction,
+    });
+
+    const desktop = container.querySelector("[data-scripted-action-controls]");
+    const buttons = Array.from(desktop?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+    expect(desktop?.parentElement?.className).toContain("notesRegion");
+    expect(desktop?.previousElementSibling?.getAttribute("data-gallery-controls")).not.toBeNull();
+    expect(desktop?.textContent).toContain("Scroller");
+    expect(buttons.map((button) => button.textContent)).toEqual(["Scroll up", "Scroll down"]);
+    expect(buttons.every((button) => !button.disabled)).toBe(true);
+    act(() => { buttons[1]?.click(); buttons[1]?.click(); });
+    expect(triggerScriptedAction).toHaveBeenCalledTimes(2);
+    expect(triggerScriptedAction).toHaveBeenLastCalledWith(1, 2);
+    expect(container.querySelector("[data-mobile-gallery-controls]")?.textContent).toContain("Scroll down");
+  });
+
+  it("keeps declared Scripted actions visible but disabled while transport or promotion is unsafe", () => {
+    render({
+      scriptedActionGroups: [{ scriptedSlot: 0, elementId: "scripted-a", title: "Circuit", actions: [{ portIndex: 0, portId: "reset", label: "Reset" }] }],
+      scriptedActionsEnabled: false,
+      pendingVersion: { targetVersionId: "version-2", structuralChange: true, projectedSlideRemoved: false },
+    });
+    const button = container.querySelector<HTMLButtonElement>("[data-scripted-action-controls] button");
+    expect(button?.textContent).toBe("Reset");
+    expect(button?.disabled).toBe(true);
   });
 
   it("disables Summary navigation when Control is unavailable or a version is pending", () => {

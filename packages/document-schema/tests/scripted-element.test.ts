@@ -77,6 +77,114 @@ describe("Scripted element schema", () => {
     }
   });
 
+  it("defaults ports to an empty array for existing Scripted elements", () => {
+    const result = ScriptedElementSchema.safeParse(scripted());
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data.ports).toEqual([]);
+    }
+  });
+
+  it("accepts an explicit empty ports array", () => {
+    const result = ScriptedElementSchema.safeParse(scripted({ ports: [] }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts action ports without a direction", () => {
+    const result = ScriptedElementSchema.safeParse(scripted({
+      ports: [{ id: "scroll-up", label: "Scroll up", kind: "action" }],
+    }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a direction on action ports", () => {
+    const result = ScriptedElementSchema.safeParse(scripted({
+      ports: [{ id: "scroll-up", label: "Scroll up", kind: "action", direction: "input" }],
+    }));
+
+    expect(result.success).toBe(false);
+  });
+
+  it.each(["input", "output", "input-output"])(
+    "accepts boolean %s ports",
+    (direction) => {
+      const result = ScriptedElementSchema.safeParse(scripted({
+        ports: [{ id: "switch", label: "Switch", kind: "boolean", direction }],
+      }));
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it.each(["input", "output", "input-output"])(
+    "accepts number %s ports",
+    (direction) => {
+      const result = ScriptedElementSchema.safeParse(scripted({
+        ports: [{ id: "voltage", label: "Voltage", kind: "number", direction }],
+      }));
+
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it("accepts optional finite number constraints", () => {
+    const result = ScriptedElementSchema.safeParse(scripted({
+      ports: [{
+        id: "voltage",
+        label: "Voltage",
+        kind: "number",
+        direction: "input",
+        min: 0,
+        max: 12,
+        step: 0.1,
+      }],
+    }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid number constraints", () => {
+    for (const port of [
+      { id: "voltage", label: "Voltage", kind: "number", direction: "input", step: 0 },
+      { id: "voltage", label: "Voltage", kind: "number", direction: "input", step: -1 },
+      { id: "voltage", label: "Voltage", kind: "number", direction: "input", min: 10, max: 5 },
+      { id: "voltage", label: "Voltage", kind: "number", direction: "input", min: Number.NaN },
+      { id: "voltage", label: "Voltage", kind: "number", direction: "input", max: Number.POSITIVE_INFINITY },
+    ]) {
+      expect(ScriptedElementSchema.safeParse(scripted({ ports: [port] })).success).toBe(false);
+    }
+  });
+
+  it("rejects duplicate, blank, and unknown port declarations", () => {
+    const duplicateResult = ScriptedElementSchema.safeParse(scripted({
+      ports: [
+        { id: "switch", label: "Switch", kind: "boolean", direction: "input" },
+        { id: "switch", label: "Switch report", kind: "boolean", direction: "output" },
+      ],
+    }));
+
+    expect(duplicateResult.success).toBe(false);
+
+    if (!duplicateResult.success) {
+      expect(duplicateResult.error.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: ["ports", 1, "id"] }),
+      ]));
+    }
+
+    for (const port of [
+      { id: "   ", label: "Switch", kind: "boolean", direction: "input" },
+      { id: "switch", label: "   ", kind: "boolean", direction: "input" },
+      { id: "switch", label: "Switch", kind: "boolean", direction: "input", runtime: true },
+      { id: "voltage", label: "Voltage", kind: "boolean", direction: "input", min: 0 },
+    ]) {
+      expect(ScriptedElementSchema.safeParse(scripted({ ports: [port] })).success).toBe(false);
+    }
+  });
+
   it("preserves explicit html, css, and script exactly", () => {
     const html =
       '<div class="demo" data-count="1">\n  <span>Hello</span>\n</div>';

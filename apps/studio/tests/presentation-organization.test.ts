@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Presentation } from "@powershow/document-schema";
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
@@ -43,6 +44,7 @@ import {
   getDocs,
   increment,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -57,6 +59,7 @@ const mockedGetDoc = vi.mocked(getDoc);
 const mockedGetDocs = vi.mocked(getDocs);
 const mockedIncrement = vi.mocked(increment);
 const mockedQuery = vi.mocked(query);
+const mockedRunTransaction = vi.mocked(runTransaction);
 const mockedServerTimestamp = vi.mocked(serverTimestamp);
 const mockedSetDoc = vi.mocked(setDoc);
 const mockedUpdateDoc = vi.mocked(updateDoc);
@@ -69,6 +72,41 @@ function presentationDoc(id: string, overrides: Record<string, unknown> = {}) {
   const presentation = createBlankPresentation(id);
   return {
     presentationJson: encodePresentationForFirestore(presentation).presentationJson,
+    createdAt: "created",
+    updatedAt: "updated",
+    draftRevision: 1,
+    ...overrides,
+  };
+}
+
+function recoverableScriptedDocument(id: string, overrides: Record<string, unknown> = {}) {
+  const presentation = createBlankPresentation(id);
+  presentation.slides = [{
+    id: "slide-1",
+    title: "",
+    summary: "",
+    speakerNotes: "",
+    elements: [{
+      id: "scripted-1",
+      type: "scripted",
+      title: "Counter",
+      html: "",
+      css: "",
+      script: "",
+      ports: [{ id: "increment", label: "Incrementar", kind: "action" }],
+      futurePortContract: true,
+    } as unknown as Presentation["slides"][number]["elements"][number]],
+  }];
+
+  return {
+    ...presentationDoc(id, overrides),
+    presentationJson: JSON.stringify(presentation),
+  };
+}
+
+function unrecoverableDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    presentationJson: JSON.stringify({ schemaVersion: 1, slides: "invalid" }),
     createdAt: "created",
     updatedAt: "updated",
     draftRevision: 1,
@@ -236,6 +274,61 @@ describe("listPresentations organization filtering", () => {
     snapshotWith([{ id: "pres-path", data: () => presentationDoc("pres-canonical") }]);
 
     await expect(repository.listPresentations()).rejects.toThrow(/identity mismatch/i);
+  });
+
+  it("surfaces a recoverable non-canonical draft using only document-owned summary metadata", async () => {
+    snapshotWith([{
+      id: "pres-recoverable",
+      data: () => recoverableScriptedDocument("pres-recoverable", {
+        folderId: "folder-1",
+        draftRevision: 4,
+        publication: {
+          publicationId: "publication-1",
+          currentVersionId: "version-1",
+          publishedRevision: 3,
+          publishedAt: "published",
+        },
+      }),
+    }]);
+
+    const summaries = await repository.listPresentations();
+
+    expect(summaries).toEqual([expect.objectContaining({
+      id: "pres-recoverable",
+      title: "Untitled presentation",
+      archived: false,
+      archivedAt: null,
+      folderId: "folder-1",
+      draftRevision: 4,
+      publicationState: "unpublished-changes",
+    })]);
+    expect(summaries[0]?.thumbnailPreview).toBeUndefined();
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+    expect(mockedUpdateDoc).not.toHaveBeenCalled();
+    expect(mockedRunTransaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps recoverable drafts in the same active, archived, and folder destinations", async () => {
+    snapshotWith([
+      { id: "active", data: () => recoverableScriptedDocument("active", { folderId: "folder-1" }) },
+      { id: "archived", data: () => recoverableScriptedDocument("archived", { archivedAt: "archived", folderId: "folder-2" }) },
+    ]);
+
+    await expect(repository.listPresentations()).resolves.toMatchObject([
+      { id: "active", archived: false, folderId: "folder-1" },
+    ]);
+    await expect(repository.listPresentations({ includeArchived: true })).resolves.toMatchObject([
+      { id: "active", archived: false, folderId: "folder-1" },
+      { id: "archived", archived: true, archivedAt: "archived", folderId: "folder-2" },
+    ]);
+  });
+
+  it("surfaces an unrecoverable draft with the existing neutral Library title", async () => {
+    snapshotWith([{ id: "pres-unrecoverable", data: () => unrecoverableDocument() }]);
+
+    await expect(repository.listPresentations()).resolves.toEqual([
+      expect.objectContaining({ id: "pres-unrecoverable", title: "", archived: false }),
+    ]);
   });
 });
 

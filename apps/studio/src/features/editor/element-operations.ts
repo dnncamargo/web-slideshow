@@ -656,6 +656,8 @@ export function createElement(
 
         script: "",
 
+        ports: [],
+
         layout: {
           width: "60%",
 

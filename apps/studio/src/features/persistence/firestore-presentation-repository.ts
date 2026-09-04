@@ -72,6 +72,42 @@ function folderDocumentRef(userId: string, folderId: string) {
 }
 
 /**
+ * Produces a Library-only projection for a draft that cannot be decoded as a
+ * canonical Presentation but can still enter the existing Editor recovery
+ * route. The document id and all organization metadata remain Firestore-owned;
+ * no invalid presentation data is exposed as canonical content.
+ */
+function extractRecoverySummary(
+  documentId: string,
+  data: Record<string, unknown>,
+): PresentationSummary | null {
+  let rawPresentation: unknown;
+  try {
+    rawPresentation = parsePresentationJsonForRecovery(data.presentationJson);
+  } catch {
+    rawPresentation = undefined;
+  }
+
+  const analysis = analyzePresentationRecovery(rawPresentation);
+  if (analysis.status === "valid") {
+    return null;
+  }
+
+  return extractPresentationSummary({
+    id: documentId,
+    title:
+      analysis.status === "recoverable" && analysis.presentation !== null
+        ? analysis.presentation.title
+        : "",
+    updatedAt: data.updatedAt,
+    archivedAt: data.archivedAt ?? undefined,
+    folderId: data.folderId,
+    draftRevision: data.draftRevision,
+    publication: data.publication,
+  });
+}
+
+/**
  * Firestore-backed Presentation repository.
  *
  * One Firestore document stores the complete canonical Presentation for a
@@ -98,9 +134,20 @@ export class FirestorePresentationRepository implements PresentationRepository {
       for (const document of snapshot.docs) {
         const data = document.data();
         let presentation: Presentation;
+        let summary: PresentationSummary;
         try {
           presentation = parsePersistedPresentation(data);
         } catch {
+          const recoverySummary = extractRecoverySummary(document.id, data);
+          if (recoverySummary === null) {
+            continue;
+          }
+
+          if (!includeArchived && recoverySummary.archived) {
+            continue;
+          }
+
+          summaries.push(recoverySummary);
           continue;
         }
         assertPresentationId(presentation, document.id);
@@ -115,7 +162,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
           continue;
         }
 
-        const summary = extractPresentationSummary({
+        summary = extractPresentationSummary({
           id: (presentation as { id: string }).id,
           title: (presentation as { title: string }).title,
           updatedAt: data.updatedAt,

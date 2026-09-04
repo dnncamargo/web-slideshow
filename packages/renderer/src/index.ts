@@ -11,6 +11,7 @@ export * from "./render-embed";
 export * from "./render-blocks";
 export * from "./blocks-source";
 export * from "./render-scripted";
+export * from "./scripted-port-protocol";
 export * from "./render-slide";
 export * from "./slide-geometry";
 export * from "./render-presentation";

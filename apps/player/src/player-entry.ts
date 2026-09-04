@@ -15,6 +15,10 @@ import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import { subscribeLiveGalleryControl } from "./live-gallery-control";
 import {
+  createLiveScriptedActionTracker,
+  subscribeLiveScriptedAction,
+} from "./live-scripted-action";
+import {
   startPlayerPresence,
   type PlayerPresenceReporter,
   type PlayerPresenceTransition,
@@ -55,6 +59,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
+  let cleanupLiveScriptedAction: (() => void) | undefined;
   let cleanupPlayerRecoveryRequest: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let presenceReporter: PlayerPresenceReporter | undefined;
@@ -64,6 +69,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let loadToken = 0;
   let localRecoveryRevision = 0;
   let localRecoveryInFlight = false;
+  const liveScriptedActionTracker = createLiveScriptedActionTracker();
 
   interface LoadFailureEvidence {
     code?: "FIRESTORE_LOAD_ERROR";
@@ -269,6 +275,17 @@ export function startPlayer(root: HTMLElement): () => void {
         presentation,
         controller,
       );
+      if (presenceReporter?.bootId) {
+        cleanupLiveScriptedAction = subscribeLiveScriptedAction(
+          database,
+          live.revision,
+          live.currentVersionId,
+          presenceReporter.bootId,
+          presentation,
+          controller,
+          liveScriptedActionTracker,
+        );
+      }
     } catch (error) {
       console.error("Player: live projection state initialization failed", error);
       recordPlayerDiagnostic("LIVE_PROJECTION_ATTACH_ERROR", { error });
@@ -290,10 +307,16 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachLiveScriptedAction(): void {
+    cleanupLiveScriptedAction?.();
+    cleanupLiveScriptedAction = undefined;
+  }
+
   function detachLiveProjectionSubscriptions(): void {
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
+    detachLiveScriptedAction();
   }
 
   function detachPlayerRecoveryRequest(): void {

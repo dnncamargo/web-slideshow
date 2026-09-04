@@ -31,6 +31,11 @@ import {
   parseLiveGalleryControlState,
   type LiveGalleryControlState,
 } from "../live/gallery-control";
+import {
+  buildScriptedActionPath,
+  parseLiveScriptedActionRecord,
+  type LiveScriptedActionRecord,
+} from "../live/scripted-action";
 import type { LiveCurrent } from "./live-current";
 
 function getCurrentUserIdForControl(): string {
@@ -127,6 +132,101 @@ function requireGalleryControlInput(
   }
 
   return { currentVersionId: normalizedVersion, pageId: normalizedPage };
+}
+
+export interface ScriptedActionRequest {
+  activationRevision: number;
+  currentVersionId: string;
+  pageId: string;
+  scriptedSlot: number;
+  elementId: string;
+  portIndex: number;
+  portId: string;
+  targetBootId: string;
+}
+
+function requireScriptedActionInput(request: ScriptedActionRequest): {
+  currentVersionId: string;
+  pageId: string;
+  targetBootId: string;
+} {
+  if (!isNonNegativeInteger(request.activationRevision)) {
+    throw new Error("Scripted action requires a non-negative activationRevision.");
+  }
+  if (!isNonNegativeInteger(request.scriptedSlot)) {
+    throw new Error("Scripted action requires a non-negative integer scriptedSlot.");
+  }
+  if (!isNonNegativeInteger(request.portIndex)) {
+    throw new Error("Scripted action requires a non-negative integer portIndex.");
+  }
+  if (typeof request.elementId !== "string" || request.elementId.length === 0) {
+    throw new Error("Scripted action requires an elementId.");
+  }
+  if (typeof request.portId !== "string" || request.portId.length === 0) {
+    throw new Error("Scripted action requires a portId.");
+  }
+
+  const currentVersionId = request.currentVersionId.trim();
+  const pageId = request.pageId.trim();
+  const targetBootId = request.targetBootId.trim();
+  if (currentVersionId === "") {
+    throw new Error("Scripted action requires a currentVersionId.");
+  }
+  if (pageId === "") {
+    throw new Error("Scripted action requires a pageId.");
+  }
+  if (targetBootId === "") {
+    throw new Error("Scripted action requires a targetBootId.");
+  }
+
+  return { currentVersionId, pageId, targetBootId };
+}
+
+/** Writes one Scripted action occurrence at its deterministic element/port path. */
+export async function writeScriptedAction(
+  database: Database,
+  request: ScriptedActionRequest,
+): Promise<LiveScriptedActionRecord> {
+  if (!isRealtimeDatabaseConfigured()) {
+    throw new Error("Realtime Database is not configured.");
+  }
+  getCurrentUserIdForControl();
+
+  const normalized = requireScriptedActionInput(request);
+  const actionRef = ref(
+    database,
+    buildScriptedActionPath(request.scriptedSlot, request.portIndex),
+  );
+  const result = await runTransaction(actionRef, (current) => {
+    const previous = parseLiveScriptedActionRecord(current);
+    const sameIdentity = previous !== null &&
+      previous.activationRevision === request.activationRevision &&
+      previous.currentVersionId === normalized.currentVersionId &&
+      previous.pageId === normalized.pageId &&
+      previous.elementId === request.elementId &&
+      previous.portId === request.portId &&
+      previous.targetBootId === normalized.targetBootId;
+
+    return {
+      activationRevision: request.activationRevision,
+      currentVersionId: normalized.currentVersionId,
+      revision: sameIdentity ? previous.revision + 1 : 1,
+      pageId: normalized.pageId,
+      elementId: request.elementId,
+      portId: request.portId,
+      targetBootId: normalized.targetBootId,
+    };
+  });
+
+  if (result.committed !== true) {
+    throw new Error("Scripted action transaction did not commit.");
+  }
+
+  const committed = parseLiveScriptedActionRecord(result.snapshot.val());
+  if (committed === null) {
+    throw new Error("Scripted action transaction committed a malformed value.");
+  }
+  return committed;
 }
 
 /** Writes an absolute Gallery intent at its deterministic slide-local slot. */
