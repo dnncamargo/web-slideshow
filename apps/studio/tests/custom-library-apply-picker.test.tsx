@@ -65,6 +65,7 @@ describe("CustomLibraryApplyPicker", () => {
     onApply: ReturnType<typeof vi.fn<() => CustomLibraryApplyOutcome>> = vi.fn(() => ({ ok: true as const })),
     strictMode = false,
     embedded = false,
+    actionClassName?: string,
   ) {
     act(() => {
       root.render(
@@ -74,6 +75,7 @@ describe("CustomLibraryApplyPicker", () => {
               <CustomLibraryApplyPicker
                 repository={repository(listItems)}
                 onApply={onApply}
+                actionClassName={actionClassName}
                 embedded={embedded}
               />
             </StrictMode>
@@ -81,6 +83,7 @@ describe("CustomLibraryApplyPicker", () => {
             <CustomLibraryApplyPicker
               repository={repository(listItems)}
               onApply={onApply}
+              actionClassName={actionClassName}
               embedded={embedded}
             />
           )}
@@ -203,17 +206,44 @@ describe("CustomLibraryApplyPicker", () => {
     expect(container.textContent).toContain("Title style");
   });
 
-  it("emits exactly the selected item when Apply is pressed", async () => {
+  it("shows the localized Apply to selected label and emits exactly the selected item", async () => {
     const onApply = render(async () => [item]);
     open();
     await act(async () => undefined);
     const itemButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("Title style"));
     act(() => itemButton?.click());
     act(() => {
-      Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply")?.click();
+      Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected")?.click();
     });
     expect(onApply).toHaveBeenCalledTimes(1);
     expect(onApply).toHaveBeenCalledWith(item.item);
+  });
+
+  it("accepts the embedded compact action presentation hook", async () => {
+    render(async () => [item], undefined, false, true, "resource-action");
+    await act(async () => undefined);
+    const apply = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected");
+    expect(apply?.className).toContain("resource-action");
+    expect(apply?.className).not.toContain("customLibraryApplyPanelAction");
+  });
+
+  it("uses the picker-local action fallback and keeps Retry local", async () => {
+    render(async () => [item]);
+    open();
+    await act(async () => undefined);
+    const apply = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected");
+    expect(apply?.className).toBeTruthy();
+
+    const listItems = vi.fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce([item]);
+    render(listItems, undefined, false, true);
+    await act(async () => undefined);
+    const retry = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+    expect(retry?.className).toBeTruthy();
+    act(() => retry?.click());
+    await act(async () => undefined);
+    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected")?.className).toBe(retry?.className);
   });
 
   it("shows generic failure feedback for font dependency conflicts", async () => {
@@ -227,7 +257,7 @@ describe("CustomLibraryApplyPicker", () => {
     act(() => Array.from(container.querySelectorAll("button"))
       .find((button) => button.textContent?.includes("Title style"))?.click());
     act(() => Array.from(container.querySelectorAll("button"))
-      .find((button) => button.textContent === "Apply")?.click());
+      .find((button) => button.textContent === "Apply to selected")?.click());
 
     expect(onApply).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("Could not apply Custom Library item.");
@@ -245,7 +275,7 @@ describe("CustomLibraryApplyPicker", () => {
     act(() => Array.from(container.querySelectorAll("button"))
       .find((button) => button.textContent?.includes("Title style"))?.click());
     act(() => Array.from(container.querySelectorAll("button"))
-      .find((button) => button.textContent === "Apply")?.click());
+      .find((button) => button.textContent === "Apply to selected")?.click());
 
     expect(container.textContent).toContain("This item cannot be created in the Editor yet.");
     expect(container.textContent).not.toContain("Could not apply Custom Library item.");

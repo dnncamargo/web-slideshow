@@ -90,9 +90,9 @@ describe("Linked Styles Resources contract", () => {
     expect(disclosure.className).toContain("typographyStyleDisclosure");
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     expect(disclosure.getAttribute("aria-controls")).toBe("linked-style-gap-editor");
-    const add = host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > .ps-ui-button--primary")!;
-    expect(add.className).toContain("ps-ui-button");
-    expect(add.className).toContain("ps-ui-button--compact");
+    const add = host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button")!;
+    expect(add.className).toContain("resourceAction");
+    expect(add.textContent).toBe("+ Add Linked Style");
     await act(async () => disclosure.click());
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] .ps-ui-button--secondary")).not.toBeNull();

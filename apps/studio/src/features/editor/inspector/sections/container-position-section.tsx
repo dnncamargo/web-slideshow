@@ -130,10 +130,6 @@ export function ContainerPositionSection({
 
       {showPreserveSize && (
         <label className={styles.checkboxRow}>
-          <span title={t("inspector.preserveSizeHelp")}>
-            {t("inspector.preserveSize")}
-          </span>
-
           <input
             id="container-preserve-size"
             name="containerPreserveSize"
@@ -147,6 +143,9 @@ export function ContainerPositionSection({
               );
             }}
           />
+          <span title={t("inspector.preserveSizeHelp")}>
+            {t("inspector.preserveSize")}
+          </span>
           <ContainerLinkedPropertyMeta source={source("layout.flexShrink").source} />
         </label>
       )}

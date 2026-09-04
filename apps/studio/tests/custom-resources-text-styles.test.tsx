@@ -126,6 +126,8 @@ describe("Custom Resources Text Styles", () => {
     expect(textStyles.tagName).toBe("SECTION");
     expect(textStyles.getAttribute("aria-labelledby")).toBe("presentation-text-styles-title");
     expect(textStyles.querySelector("#presentation-text-styles-title")?.textContent).toBe("Text Styles");
+    const textStylesSection = Array.from(thisPresentation.querySelectorAll("details")).find((detail) => detail.querySelector("summary")?.textContent?.includes("Text Styles"));
+    expect(textStylesSection?.querySelector("summary")?.textContent).toContain("4");
     expect(thisPresentation.contains(textStyles)).toBe(true);
     expect(fromLibrary.querySelector("[data-presentation-text-styles]")).toBeNull();
     expect(fromLibrary.textContent).not.toContain("Text Styles");
@@ -135,6 +137,13 @@ describe("Custom Resources Text Styles", () => {
       expect(disclosure(id).getAttribute("aria-expanded")).toBe("false");
       expect(row(id).querySelector("#text-style-" + id + "-editor")).toBeNull();
     }
+  });
+
+  it("counts projected fundamental and custom styles, not only persisted overrides", async () => {
+    const value = PresentationSchema.parse({ ...base(), textStyles: [{ id: "quote", name: "Quote", role: "body" }] });
+    await render(value);
+    const section = Array.from(requiredElement<HTMLElement>("[aria-labelledby='custom-resources-this-presentation']").querySelectorAll("details")).find((detail) => detail.querySelector("summary")?.textContent?.includes("Text Styles"));
+    expect(section?.querySelector("summary")?.textContent).toContain("5");
   });
 
   it("edits a fundamental through the real typography control and resets the last override", async () => {

@@ -905,7 +905,7 @@
   white-space: nowrap;
 }
 
-.customLibraryApplyPanel > button {
+.customLibraryApplyPanelAction {
   align-self: flex-end;
   padding: 4px 7px;
   border: 1px solid #334155;
