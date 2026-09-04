@@ -104,18 +104,17 @@ interface ScriptedActionTracker {
 /** Keeps occurrence cursors for one Player browser runtime, not one subscription. */
 export function createLiveScriptedActionTracker(): ScriptedActionTracker {
   let bootId: string | undefined;
-  const highWater = new Map<string, number>();
+  const cursors = new Map<string, { identityKey: string; revision: number }>();
 
   return {
     prepareBoot(targetBootId): void {
       if (bootId === targetBootId) return;
       bootId = targetBootId;
-      highWater.clear();
+      cursors.clear();
     },
     takeDelta(scriptedSlot, portIndex, record): number {
-      const identity = JSON.stringify([
-        scriptedSlot,
-        portIndex,
+      const addressKey = JSON.stringify([scriptedSlot, portIndex]);
+      const identityKey = JSON.stringify([
         record.activationRevision,
         record.currentVersionId,
         record.pageId,
@@ -123,10 +122,17 @@ export function createLiveScriptedActionTracker(): ScriptedActionTracker {
         record.portId,
         record.targetBootId,
       ]);
-      const lastSeen = highWater.get(identity) ?? 0;
-      if (record.revision <= lastSeen) return 0;
-      highWater.set(identity, record.revision);
-      return record.revision - lastSeen;
+      const cursor = cursors.get(addressKey);
+
+      if (!cursor || cursor.identityKey !== identityKey) {
+        cursors.set(addressKey, { identityKey, revision: record.revision });
+        return record.revision;
+      }
+
+      if (record.revision <= cursor.revision) return 0;
+      const delta = record.revision - cursor.revision;
+      cursor.revision = record.revision;
+      return delta;
     },
   };
 }

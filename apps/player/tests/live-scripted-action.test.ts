@@ -45,7 +45,10 @@ const presentation = PresentationSchema.parse({
         }] },
       ],
     },
-    { id: "page-b", elements: [] },
+    { id: "page-b", elements: [{
+      id: "scripted-page-b", type: "scripted", title: "B", html: "", css: "", script: "",
+      ports: [{ id: "same", label: "Reset", kind: "action" }],
+    }] },
   ],
 });
 
@@ -147,6 +150,31 @@ describe("live Scripted action subscriber", () => {
 
     expect(first.sendScriptedAction).toHaveBeenCalledTimes(3);
     expect(sendScriptedAction).toHaveBeenCalledExactlyOnceWith("scripted-a", "same");
+  });
+
+  it("starts a new cursor epoch when a generated address changes identity and returns", () => {
+    const tracker = createLiveScriptedActionTracker();
+    let currentIndex = 0;
+    const sendScriptedAction = vi.fn();
+    firebase.ref.mockReturnValue({});
+    firebase.onValue.mockImplementation((_ref, callback) => {
+      firebase.callback = callback;
+      return vi.fn();
+    });
+    subscribeLiveScriptedAction({} as never, 7, "version-a", "boot-a", presentation, {
+      getCurrentIndex: () => currentIndex,
+      sendScriptedAction,
+    } as never, tracker);
+
+    emit({ 0: { 0: record({ revision: 3 }) } });
+    currentIndex = 1;
+    emit({ 0: { 0: record({ revision: 1, pageId: "page-b", elementId: "scripted-page-b" }) } });
+    currentIndex = 0;
+    emit({ 0: { 0: record({ revision: 1 }) } });
+
+    expect(sendScriptedAction).toHaveBeenCalledTimes(5);
+    expect(sendScriptedAction).toHaveBeenNthCalledWith(4, "scripted-page-b", "same");
+    expect(sendScriptedAction).toHaveBeenNthCalledWith(5, "scripted-a", "same");
   });
 
   it("consumes wrong-page and invalid canonical targets without later replay", () => {
