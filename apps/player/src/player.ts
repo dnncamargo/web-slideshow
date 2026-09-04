@@ -131,9 +131,9 @@ export interface PlayerController {
 
   goTo(index: number): void;
 
-  setTransition?(transition: PlayerTransition): void;
+  setTransition(transition: PlayerTransition): void;
 
-  setControlsOptions?(options: PlayerControlsOptions): void;
+  setControlsOptions(options: PlayerControlsOptions): void;
 
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
 

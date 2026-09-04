@@ -1188,7 +1188,7 @@ describe("PowerShow Player", () => {
       ".powershow-player-controls",
     );
 
-    player.setControlsOptions?.({ position: "top-left" });
+    player.setControlsOptions({ position: "top-left" });
 
     expect(
       controls?.classList.contains("powershow-player-controls-bottom-center"),
@@ -1203,7 +1203,7 @@ describe("PowerShow Player", () => {
       ".powershow-player-controls",
     );
 
-    player.setControlsOptions?.({ style: "minimal" });
+    player.setControlsOptions({ style: "minimal" });
 
     expect(
       controls?.classList.contains("powershow-player-controls-floating"),
@@ -1218,7 +1218,7 @@ describe("PowerShow Player", () => {
       ".powershow-player-controls",
     );
 
-    player.setControlsOptions?.({ animation: "slide" });
+    player.setControlsOptions({ animation: "slide" });
 
     expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
       false,
@@ -1233,7 +1233,7 @@ describe("PowerShow Player", () => {
       ".powershow-player-controls",
     );
 
-    player.setControlsOptions?.({ animation: "none" });
+    player.setControlsOptions({ animation: "none" });
 
     expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
       false,
@@ -1250,7 +1250,7 @@ describe("PowerShow Player", () => {
 
     expect(counter?.hidden).toBe(false);
 
-    player.setControlsOptions?.({ showCounter: false });
+    player.setControlsOptions({ showCounter: false });
 
     expect(counter?.hidden).toBe(true);
   });
@@ -1260,8 +1260,8 @@ describe("PowerShow Player", () => {
       ".powershow-player-counter",
     );
 
-    player.setControlsOptions?.({ showCounter: false });
-    player.setControlsOptions?.({ showCounter: true });
+    player.setControlsOptions({ showCounter: false });
+    player.setControlsOptions({ showCounter: true });
 
     expect(counter?.hidden).toBe(false);
   });
@@ -1274,7 +1274,7 @@ describe("PowerShow Player", () => {
       ".powershow-player-counter",
     );
 
-    player.setControlsOptions?.({ position: "top-right" });
+    player.setControlsOptions({ position: "top-right" });
 
     expect(
       controls?.classList.contains("powershow-player-controls-top-right"),
@@ -1293,10 +1293,10 @@ describe("PowerShow Player", () => {
       ".powershow-player-controls",
     );
 
-    player.setControlsOptions?.({ position: "top-left" });
-    player.setControlsOptions?.({ position: "bottom-right" });
-    player.setControlsOptions?.({ style: "compact" });
-    player.setControlsOptions?.({ style: "minimal" });
+    player.setControlsOptions({ position: "top-left" });
+    player.setControlsOptions({ position: "bottom-right" });
+    player.setControlsOptions({ style: "compact" });
+    player.setControlsOptions({ style: "minimal" });
 
     expect(
       controls?.classList.contains("powershow-player-controls-bottom-center"),
@@ -1320,7 +1320,7 @@ describe("PowerShow Player", () => {
       ".powershow-player-controls",
     );
 
-    player.setControlsOptions?.({
+    player.setControlsOptions({
       position: "top-left",
       style: "minimal",
       animation: "none",
@@ -1333,15 +1333,15 @@ describe("PowerShow Player", () => {
   it("keeps the current slide index after controls updates", () => {
     player.goTo(1);
 
-    player.setControlsOptions?.({ position: "top-left" });
-    player.setControlsOptions?.({ showCounter: false });
+    player.setControlsOptions({ position: "top-left" });
+    player.setControlsOptions({ showCounter: false });
 
     expect(player.getCurrentIndex()).toBe(1);
     expect(root.innerHTML).toContain("Slide Two");
   });
 
   it("keeps navigation working after controls updates", () => {
-    player.setControlsOptions?.({ position: "top-left", animation: "none" });
+    player.setControlsOptions({ position: "top-left", animation: "none" });
 
     player.next();
     player.previous();
