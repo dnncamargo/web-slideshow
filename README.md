@@ -313,7 +313,7 @@ AUDIT
 → PR / merge
 ```
 
-Current code in `main` outranks tests, which outrank contracts/documentation/handoffs when evidence conflicts. Search and reuse existing ownership before creating new states, abstractions or protocols.
+Current code in `main` is the first authority for implementation details, followed by tests, canonical contracts, documentation/handoffs, and historical evidence. Search and reuse existing ownership before creating new states, abstractions or protocols.
 
 Repository execution rules live in `AGENTS.md`. Operational handoffs are provided explicitly between work areas and must always be revalidated against the real current `main`.
 
