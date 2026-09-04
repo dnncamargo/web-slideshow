@@ -147,7 +147,7 @@ function ElementTypeInspector({
       );
 
     case "terminal":
-      return <TerminalInspector element={element} onUpdate={onUpdate} />;
+      return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
 
     case "image":
       return (

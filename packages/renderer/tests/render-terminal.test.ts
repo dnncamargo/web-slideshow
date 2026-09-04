@@ -12,6 +12,58 @@ describe("renderTerminal", () => {
 
     expect(html).not.toContain("powershow-terminal-title");
     expect(html).toContain('class="powershow-terminal-body"');
+    expect(html).not.toContain("--powershow-terminal-");
+    expect(html).not.toContain("font-family:");
+  });
+
+  it("renders authored body typography without styling the titlebar", () => {
+    const html = renderTerminal(createTerminalElement({
+      title: "Terminal title",
+      typography: {
+        fontFamily: "Fira Code",
+        fontSize: 18,
+        lineHeight: 1.25,
+        letterSpacing: "0.02em",
+      },
+    }));
+
+    expect(html).toContain('class="powershow-terminal-title">Terminal title</div>');
+    expect(html).toContain('class="powershow-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px;line-height:1.25;--powershow-terminal-line-height:1.25em;letter-spacing:0.02em"');
+    expect(html).not.toContain('powershow-terminal-title" style=');
+  });
+
+  it("publishes authored semantic colors as root custom properties", () => {
+    const html = renderTerminal(createTerminalElement({
+      style: {
+        commandColor: "#ffffff",
+        promptColor: { kind: "palette", colorId: "accent" },
+        outputColor: "#cbd5e1",
+        commentColor: "#64748b",
+        errorColor: "#fca5a5",
+      },
+    }));
+
+    expect(html).toContain("--powershow-terminal-command-color:#ffffff");
+    expect(html).toContain("--powershow-terminal-prompt-color:var(--ps-palette-");
+    expect(html).toContain("--powershow-terminal-output-color:#cbd5e1");
+    expect(html).toContain("--powershow-terminal-comment-color:#64748b");
+    expect(html).toContain("--powershow-terminal-error-color:#fca5a5");
+    expect(html).not.toContain("powershow-terminal-body\" style=\"--powershow-terminal");
+  });
+
+  it("keeps canonical root styles alongside body typography and semantic colors", () => {
+    const html = renderTerminal(createTerminalElement({
+      layout: { position: "absolute", left: 12 },
+      style: {
+        background: { color: "#080b0a" },
+        commandColor: "#ffffff",
+      },
+      typography: { lineHeight: 2 },
+      effect: { opacity: 0.8 },
+    }));
+
+    expect(html).toContain("position:absolute;left:12px;background:#080b0a;opacity:0.8;--powershow-terminal-command-color:#ffffff");
+    expect(html).toContain("line-height:2;--powershow-terminal-line-height:2em");
   });
 
   it("renders an empty terminal body for no lines", () => {

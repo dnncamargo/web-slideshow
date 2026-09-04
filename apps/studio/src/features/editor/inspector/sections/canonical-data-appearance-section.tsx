@@ -5,8 +5,9 @@ import type {
   GradientSurfaceBackground,
   GradientSurfaceVisualStyle,
   PowerShowElement,
+  TerminalVisualStyle,
 } from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+import { resolveEffectiveElementStyleDefaults, TERMINAL_SEMANTIC_COLORS } from "@powershow/theme/element-style-defaults";
 import { parseBlocksSource, type BlocksAstNode, type BlocksCategory, type BlocksInlineNode } from "@powershow/renderer";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
@@ -17,7 +18,7 @@ import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 
-export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | BlocksVisualStyle;
+export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle;
 type DataElement = Extract<PowerShowElement, { type: "code" | "terminal" | "table" | "blocks" }>;
 
 type BackgroundKey = "color" | "gradient";
@@ -111,6 +112,34 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     </div>}
     {showColor && element.type === "code" && <div className={styles.colorControl}>
       <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={element.style?.color} onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), color } as CodeVisualStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as CodeVisualStyle; delete next.color; return next; }) }} /></label>
+    </div>}
+    {element.type === "terminal" && <div className={styles.colorControl}>
+      {([
+        ["commandColor", t("inspector.command"), TERMINAL_SEMANTIC_COLORS.command],
+        ["promptColor", t("inspector.prompt"), TERMINAL_SEMANTIC_COLORS.prompt],
+        ["outputColor", t("inspector.output"), TERMINAL_SEMANTIC_COLORS.output],
+        ["commentColor", t("inspector.comment"), TERMINAL_SEMANTIC_COLORS.comment],
+        ["errorColor", t("inspector.error"), TERMINAL_SEMANTIC_COLORS.error],
+      ] as const).map(([property, label, effectiveValue]) => (
+        <label className={styles.field} key={property}>
+          <span>{label}</span>
+          <ColorControl
+            id={`${controlPrefix}-${property}`}
+            name={getControlName(controlPrefix, property)}
+            value={element.style?.[property]}
+            effectiveValue={effectiveValue}
+            onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), [property]: color } as TerminalVisualStyle))}
+            secondaryAction={{
+              label: t("inspector.useThemeDefault"),
+              onClick: () => onUpdateStyle((current) => {
+                const next = { ...(current ?? {}) } as TerminalVisualStyle;
+                delete next[property];
+                return next;
+              }),
+            }}
+          />
+        </label>
+      ))}
     </div>}
     <div className={styles.colorControl}>
       <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => updateCanonicalBackground(current, "color", color))} secondaryAction={{ label: t("inspector.remove"), onClick: () => onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined)) }} /></label>

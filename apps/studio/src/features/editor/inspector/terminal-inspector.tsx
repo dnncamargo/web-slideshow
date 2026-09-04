@@ -1,4 +1,5 @@
-import type { ElementEffect, PowerShowElement } from "@powershow/document-schema";
+import type { ElementEffect, FontResource, PowerShowElement, TerminalTypography } from "@powershow/document-schema";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -10,6 +11,7 @@ import type { TypedInspectorProps } from "./inspector-types";
 
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { ElementTypographyFields } from "./sections/element-typography-control";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -22,7 +24,8 @@ type TerminalLine = TerminalElement["lines"][number];
 export function TerminalInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<TerminalElement>) {
+  fontResources = [],
+}: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
 
   const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
@@ -116,6 +119,14 @@ export function TerminalInspector({
   const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
     onUpdate((current) => current.type === "terminal" ? { ...current, effect: update(current.effect) } : current);
   };
+
+  const updateTypography = (update: (typography: TerminalTypography | undefined) => TerminalTypography) => {
+    onUpdate((current) => current.type === "terminal"
+      ? { ...current, typography: update(current.typography) }
+      : current);
+  };
+
+  const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
 
   return (
     <>
@@ -243,6 +254,25 @@ export function TerminalInspector({
         >
           <span>{t("inspector.addLine")}</span>
         </button>
+      </InspectorSection>
+
+      <InspectorSection title={t("inspector.typography")}>
+        <ElementTypographyFields
+          typography={element.typography}
+          effectiveDefaults={typographyDefaults!}
+          onUpdateTypography={(update) => updateTypography((current) => {
+            const next = update(current);
+            return {
+              fontFamily: next.fontFamily,
+              fontSize: next.fontSize,
+              lineHeight: next.lineHeight,
+              letterSpacing: next.letterSpacing,
+            };
+          })}
+          controlPrefix="terminal"
+          fontResources={fontResources}
+          visibleProperties={["fontFamily", "fontSize", "lineHeight", "letterSpacing"]}
+        />
       </InspectorSection>
 
       <CanonicalDataAppearanceSection
