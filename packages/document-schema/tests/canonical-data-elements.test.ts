@@ -42,6 +42,152 @@ describe("canonical data element contracts", () => {
     expect(parsed.style?.logicColor).toBe("#0000ff");
   });
 
+  it("accepts the scoped Code typography and color contract", () => {
+    const parsed = CodeElementSchema.parse({
+      id: "code-1",
+      type: "code",
+      hidden: false,
+      code: "const x = 1",
+      typography: {
+        fontFamily: "monospace",
+        fontSize: 16,
+        lineHeight: 1.5,
+        letterSpacing: 0.25,
+      },
+      style: { color: "#ffffff" },
+    });
+
+    expect(parsed.typography?.fontFamily).toBe("monospace");
+    expect(parsed.style?.color).toBe("#ffffff");
+  });
+
+  it.each(["fontWeight", "textAlign", "whiteSpace"] as const)(
+    "rejects Code typography.%s",
+    (field) => {
+      expect(
+        CodeElementSchema.safeParse({
+          id: "code-1",
+          hidden: false,
+          code: "x",
+          typography: { [field]: field === "fontWeight" ? 700 : "center" },
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("rejects Code style.textColor", () => {
+    expect(
+      CodeElementSchema.safeParse({
+        id: "code-1",
+        hidden: false,
+        code: "x",
+        style: { textColor: "#ffffff" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts the scoped Terminal typography and semantic colors", () => {
+    const parsed = TerminalElementSchema.parse({
+      id: "terminal-1",
+      type: "terminal",
+      hidden: false,
+      lines: [{ type: "command", content: "pnpm test" }],
+      typography: {
+        fontFamily: "monospace",
+        fontSize: 14,
+        lineHeight: 1.4,
+        letterSpacing: 0.1,
+      },
+      style: {
+        commandColor: "#ffffff",
+        promptColor: "#00ff00",
+        outputColor: "#cccccc",
+        commentColor: "#888888",
+        errorColor: "#ff0000",
+      },
+    });
+
+    expect(parsed.typography?.letterSpacing).toBe(0.1);
+    expect(parsed.style?.promptColor).toBe("#00ff00");
+  });
+
+  it.each([
+    { typography: { fontWeight: 700 } },
+    { typography: { textAlign: "center" } },
+    { typography: { whiteSpace: "pre" } },
+    { style: { color: "#ffffff" } },
+    { style: { titleColor: "#ffffff" } },
+    { style: { controlDotColor: "#ffffff" } },
+    { unknown: true },
+  ])("rejects unsupported Terminal fields %j", (extra) => {
+    expect(
+      TerminalElementSchema.safeParse({
+        id: "terminal-1",
+        hidden: false,
+        lines: [],
+        ...extra,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts the scoped Simple Table typography and color contract", () => {
+    const parsed = SimpleTableElementSchema.parse({
+      id: "table-1",
+      type: "table",
+      hidden: false,
+      columns: [{ key: "name", label: "Name" }],
+      rows: [{ name: "PowerShow" }],
+      typography: { fontFamily: "sans-serif", fontSize: 16, lineHeight: 1.5 },
+      style: { color: "#ffffff" },
+    });
+
+    expect(parsed.typography?.lineHeight).toBe(1.5);
+    expect(parsed.style?.color).toBe("#ffffff");
+  });
+
+  it.each([
+    { typography: { letterSpacing: 0.1 } },
+    { typography: { fontWeight: 700 } },
+    { typography: { textAlign: "center" } },
+    { style: { textColor: "#ffffff" } },
+    { unknown: true },
+  ])("rejects unsupported Simple Table fields %j", (extra) => {
+    expect(
+      SimpleTableElementSchema.safeParse({
+        id: "table-1",
+        hidden: false,
+        columns: [{ key: "name", label: "Name" }],
+        rows: [],
+        ...extra,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps Structured Table root styling frozen", () => {
+    const base = {
+      id: "table-1",
+      type: "table",
+      hidden: false,
+      mode: "structured" as const,
+      columns: [{ id: "column-1", header: { id: "header-1", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
+    };
+
+    expect(StructuredTableElementSchema.safeParse(base).success).toBe(true);
+    expect(
+      StructuredTableElementSchema.safeParse({ ...base, typography: { fontSize: 16 } }).success,
+    ).toBe(false);
+    expect(
+      StructuredTableElementSchema.safeParse({ ...base, style: { color: "#ffffff" } }).success,
+    ).toBe(false);
+    expect(
+      StructuredTableElementSchema.safeParse({
+        ...base,
+        columns: [{ id: "column-1", header: { id: "header-1", children: [], style: { color: "#ffffff" }, typography: { fontSize: 16 } } }],
+      }).success,
+    ).toBe(true);
+  });
+
   it.each(["width", "height", "position", "top", "right", "bottom", "left", "opacity", "shadow"] as const)("rejects legacy aggregate style.%s", (field) => {
     const result = CodeElementSchema.safeParse({ id: "code-1", hidden: false, code: "x", style: { [field]: field === "opacity" ? 0.5 : 1 } });
     expect(result.success).toBe(false);

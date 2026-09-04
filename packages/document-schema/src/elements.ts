@@ -14,6 +14,9 @@ import {
   ContainerLayoutSchema,
   ElementEffectSchema,
   ElementTypographySchema,
+  CodeTypographySchema,
+  TerminalTypographySchema,
+  SimpleTableTypographySchema,
   ElementVisualStyleSchema,
   TextLayoutSchema,
   TextVisualStyleSchema,
@@ -22,6 +25,9 @@ import {
   ResizablePositionedLayoutSchema,
   SurfaceVisualStyleSchema,
   GradientSurfaceVisualStyleSchema,
+  CodeVisualStyleSchema,
+  TerminalVisualStyleSchema,
+  SimpleTableVisualStyleSchema,
   BlocksVisualStyleSchema,
   DividerLayoutSchema,
   DividerVisualStyleSchema,
@@ -205,7 +211,9 @@ export const CodeElementSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("code"),
 
-    style: GradientSurfaceVisualStyleSchema.optional(),
+    style: CodeVisualStyleSchema.optional(),
+
+    typography: CodeTypographySchema.optional(),
 
     code: z.string(),
 
@@ -225,7 +233,9 @@ export const TerminalElementSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("terminal"),
 
-    style: GradientSurfaceVisualStyleSchema.optional(),
+    style: TerminalVisualStyleSchema.optional(),
+
+    typography: TerminalTypographySchema.optional(),
 
     title: z.string().optional(),
 
@@ -513,7 +523,9 @@ export const SimpleTableElementSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
 
-    style: GradientSurfaceVisualStyleSchema.optional(),
+    style: SimpleTableVisualStyleSchema.optional(),
+
+    typography: SimpleTableTypographySchema.optional(),
 
     mode: z.literal("simple").optional(),
 
