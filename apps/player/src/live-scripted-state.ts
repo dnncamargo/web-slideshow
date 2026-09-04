@@ -45,6 +45,7 @@ export interface LiveScriptedStatePublisherOptions {
   presentation: Presentation;
   allocateMountRevision(): number;
   isCurrent(): boolean;
+  getCurrentPageId(): string | null;
   onRuntimeWriteError?(): void;
   onReportWriteError?(): void;
 }
@@ -134,22 +135,22 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
 
   function onScriptedReport(report: ScriptedReportMessage): void {
     const context = contexts.get(report.elementId);
-    if (!context || !options.isCurrent()) return;
+    if (!context || !options.isCurrent() || options.getCurrentPageId() !== context.pageId) return;
     const scripteds = scriptedsOnPage(options.presentation, context.pageId);
     const scripted = scripteds?.[context.scriptedSlot];
     const portIndex = scripted?.ports.findIndex((port) => port.id === report.portId) ?? -1;
     const port = portIndex >= 0 ? scripted?.ports[portIndex] : undefined;
     if (!scripted || scripted.id !== context.elementId || !port || !validOutputValue(port, report.value)) return;
     void context.runtimeWrite.then(() => {
-      if (!options.isCurrent() || contexts.get(report.elementId) !== context) return;
+      if (!options.isCurrent() || options.getCurrentPageId() !== context.pageId || contexts.get(report.elementId) !== context) return;
       const reportRef = ref(options.database, `${SCRIPTED_REPORT_ROOT_PATH}/${context.scriptedSlot}/${portIndex}`);
       return runTransaction(reportRef, (existing: unknown) => {
-        if (!options.isCurrent() || contexts.get(report.elementId) !== context) return;
+        if (!options.isCurrent() || options.getCurrentPageId() !== context.pageId || contexts.get(report.elementId) !== context) return;
         const previous = parseLiveScriptedReportRecord(existing);
         const sameRuntime = previous && previous.activationRevision === context.activationRevision && previous.currentVersionId === context.currentVersionId && previous.pageId === context.pageId && previous.elementId === context.elementId && previous.portId === report.portId && previous.sourceBootId === context.bootId && previous.mountRevision === context.mountRevision;
         return { activationRevision: context.activationRevision, currentVersionId: context.currentVersionId, revision: sameRuntime ? previous.revision + 1 : 1, pageId: context.pageId, elementId: context.elementId, portId: report.portId, sourceBootId: context.bootId, mountRevision: context.mountRevision, appliedInputRevision: 0, value: report.value };
-      });
-    }).catch(() => { options.onReportWriteError?.(); });
+      }).catch(() => { options.onReportWriteError?.(); });
+    }, () => undefined);
   }
   return { onScriptedMount, onScriptedReport };
 }

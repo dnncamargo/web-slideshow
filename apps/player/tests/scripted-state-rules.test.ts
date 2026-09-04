@@ -38,8 +38,13 @@ describe("live Scripted state repository rules", () => {
   it("requires the exact mounted runtime for unauthenticated reports and preserves S7A zero input revision", () => {
     expect(evaluate(report[".write"], null, reportRecord(), root(), false)).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord())).toBe(true);
+    expect(evaluate(report[".validate"], null, reportRecord({ currentVersionId: "stale" }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ sourceBootId: "wrong-boot" }))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord({ mountRevision: 2 }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ revision: 1.5 }))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord(), root(true, "load-failed"))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord(), root(false))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ currentVersionId: "stale" }), root(), true)).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord({ revision: 2 }))).toBe(false);
     expect(evaluate(report[".validate"], reportRecord({ revision: 4 }), reportRecord({ revision: 5 }))).toBe(true);

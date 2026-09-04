@@ -377,6 +377,13 @@ export function startPlayer(root: HTMLElement): () => void {
               allocateMountRevision: () => ++mountRevision,
               isCurrent: () => activePresentation === result.presentation &&
                 activeLive === requestedLive,
+              getCurrentPageId: () => {
+                const controller = activeController;
+                const presentation = activePresentation;
+                return controller && presentation
+                  ? presentation.slides[controller.getCurrentIndex()]?.id ?? null
+                  : null;
+              },
               onRuntimeWriteError: () => recordPlayerDiagnostic("SCRIPTED_RUNTIME_WRITE_ERROR"),
               onReportWriteError: () => recordPlayerDiagnostic("SCRIPTED_REPORT_WRITE_ERROR"),
             })

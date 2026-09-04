@@ -16,17 +16,17 @@ const presentation = PresentationSchema.parse({
   schemaVersion: 1, id: "p", title: "P", description: "", aspectRatio: "16:9", slides: [{
     id: "page", elements: [{ id: "outer", type: "container", children: [
       { id: "input", type: "scripted", title: "Input", html: "", css: "", script: "", ports: [{ id: "in", label: "In", kind: "boolean", direction: "input" }] },
-      { id: "output", type: "scripted", title: "Output", html: "", css: "", script: "", ports: [{ id: "n", label: "N", kind: "number", direction: "output", step: 0.5 }] },
+      { id: "output", type: "scripted", title: "Output", html: "", css: "", script: "", ports: [{ id: "n", label: "N", kind: "number", direction: "output", step: 0.5 }, { id: "ready", label: "Ready", kind: "boolean", direction: "output" }, { id: "both", label: "Both", kind: "boolean", direction: "input-output" }] },
     ] }],
-  }],
+  }, { id: "page-b", elements: [] }],
 });
 
-function publisher() {
+function publisher(getCurrentPageId: () => string | null = () => "page") {
   let revision = 0;
   firebase.ref.mockImplementation((_db, path) => ({ path }));
   firebase.set.mockResolvedValue(undefined);
   firebase.runTransaction.mockImplementation(async (_ref, update) => update(null));
-  return createLiveScriptedStatePublisher({ database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => ++revision, isCurrent: () => true });
+  return createLiveScriptedStatePublisher({ database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => ++revision, isCurrent: () => true, getCurrentPageId });
 }
 
 describe("live Scripted state publisher", () => {
@@ -57,12 +57,62 @@ describe("live Scripted state publisher", () => {
     expect(update(null)).toMatchObject({ revision: 1, mountRevision: 1, appliedInputRevision: 0, value: 0.12 });
   });
 
+  it("publishes boolean output and input-output reports", async () => {
+    const state = publisher();
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "ready", value: true });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "both", value: false });
+    await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
+    expect(firebase.runTransaction.mock.calls.map(([target]) => target.path)).toEqual([
+      `${SCRIPTED_REPORT_ROOT_PATH}/1/1`, `${SCRIPTED_REPORT_ROOT_PATH}/1/2`,
+    ]);
+  });
+
+  it("increments reports in one runtime", async () => {
+    const state = publisher();
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 2 });
+    await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
+    const update = firebase.runTransaction.mock.calls[1]?.[1] as (value: unknown) => unknown;
+    expect(update({ activationRevision: 7, currentVersionId: "v", revision: 1, pageId: "page", elementId: "output", portId: "n", sourceBootId: "boot", mountRevision: 1, appliedInputRevision: 0, value: 1 })).toMatchObject({ revision: 2, value: 2 });
+  });
+
   it("does not publish input-only reports", async () => {
     const state = publisher();
     state.onScriptedMount({ pageId: "page", elementId: "input" });
     state.onScriptedReport({ type: "powershow:scripted:report", elementId: "input", portId: "in", value: true });
     await Promise.resolve();
     expect(firebase.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it("does not start a report transaction when the page changes before runtime publication", async () => {
+    let resolveRuntime!: () => void;
+    let page = "page";
+    const state = publisher(() => page);
+    firebase.set.mockReturnValue(new Promise<void>((resolve) => { resolveRuntime = resolve; }));
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    page = "page-b";
+    resolveRuntime();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(firebase.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it("aborts a transaction updater when the page changes after runtime publication", async () => {
+    let page = "page";
+    let updater: ((value: unknown) => unknown) | undefined;
+    const state = publisher(() => page);
+    firebase.runTransaction.mockImplementation((_ref, update) => {
+      updater = update;
+      return Promise.resolve();
+    });
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledOnce());
+    page = "page-b";
+    expect(updater?.(null)).toBeUndefined();
   });
 
   it("resets occurrence revision when a replacement mount reports", async () => {
@@ -75,5 +125,25 @@ describe("live Scripted state publisher", () => {
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     const update = firebase.runTransaction.mock.calls[1]?.[1] as (value: unknown) => unknown;
     expect(update({ activationRevision: 7, currentVersionId: "v", revision: 8, pageId: "page", elementId: "output", portId: "n", sourceBootId: "boot", mountRevision: 1, appliedInputRevision: 0, value: 1 })).toMatchObject({ revision: 1, mountRevision: 2 });
+  });
+
+  it("allocates a new mount revision after navigating away and back in one boot", () => {
+    const state = publisher();
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    // page-b has no Scripted frame; returning to page mounts output again.
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    expect(firebase.set.mock.calls.map(([, record]) => (record as { mountRevision: number }).mountRevision)).toEqual([1, 2]);
+  });
+
+  it("does not publish after a runtime write failure and emits only the runtime diagnostic", async () => {
+    const onRuntimeWriteError = vi.fn();
+    const onReportWriteError = vi.fn();
+    firebase.set.mockRejectedValue(new Error("denied"));
+    const state = createLiveScriptedStatePublisher({ database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => 1, isCurrent: () => true, getCurrentPageId: () => "page", onRuntimeWriteError, onReportWriteError });
+    state.onScriptedMount({ pageId: "page", elementId: "output" });
+    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    await vi.waitFor(() => expect(onRuntimeWriteError).toHaveBeenCalledOnce());
+    expect(firebase.runTransaction).not.toHaveBeenCalled();
+    expect(onReportWriteError).not.toHaveBeenCalled();
   });
 });
