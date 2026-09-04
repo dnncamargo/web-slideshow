@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +9,7 @@ import {
   buildPlayerStatePath,
 } from "../src/features/live/live-state";
 import { PLAYER_PRESENCE_PATH } from "../src/features/control/player-presence";
+import { STUDIO_ROUTES } from "../src/features/app/studio-routes";
 
 const database = { name: "maintenance-db" };
 const mocks = vi.hoisted(() => ({
@@ -192,18 +191,24 @@ describe("Maintenance page", () => {
     );
   });
 
-  it("keeps desktop/mobile layout CSS-driven on the same grid", () => {
-    const css = readFileSync(
-      resolve(process.cwd(), "src/features/control/maintenance-page.module.css"),
-      "utf8",
-    );
+  it("uses the canonical Control suite chrome and one Back to presentation navigation action", () => {
+    render();
 
-    expect(css).toContain(
-      "grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr)",
+    const topbar = container.querySelector("main > header");
+    expect(topbar).not.toBeNull();
+    expect(topbar?.textContent).toContain("PowerShow");
+    expect(topbar?.textContent).toContain("Control");
+    expect(container.querySelector("main h1")?.textContent).toBe(
+      "Maintenance & Diagnostics",
     );
-    expect(css).toMatch(
-      /@media \(max-width: 700px\)[\s\S]*\.grid \{ grid-template-columns: 1fr; \}/,
+    expect(container.querySelectorAll("main > header a")).toHaveLength(1);
+    const back = container.querySelector<HTMLAnchorElement>("main > header a");
+    expect(back?.textContent).toBe("Back to presentation");
+    expect(back?.getAttribute("href")).toBe(STUDIO_ROUTES.control);
+    expect(topbar?.nextElementSibling?.querySelector("h1")?.textContent).toBe(
+      "Maintenance & Diagnostics",
     );
+    expect(container.textContent).not.toContain("<<<");
   });
 
   it("disables every recovery action with no report and reload while disconnected", () => {
