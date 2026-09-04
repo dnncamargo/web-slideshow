@@ -2,16 +2,16 @@
 
 PowerShow is a cloud-first slide authoring and presentation system built around a strict canonical document model, shared rendering, immutable publication snapshots, and live presentation control.
 
-The project separates authoring, projection, audience viewing, presenter control, and the public entry surface so the same Presentation can move safely through its complete lifecycle:
+The same canonical Presentation moves through the complete lifecycle:
 
 ```text
-Library / Editor
+PowerShow Library / PowerShow Editor
 → save / reload
 → publish
 → immutable version
-→ Control
-→ Player
-→ Watch
+→ PowerShow Control
+→ PowerShow Player
+→ PowerShow Watch
 ```
 
 ## Product surfaces
@@ -25,6 +25,7 @@ PowerShow
 │   ├── Library          /studio/library
 │   ├── Editor           /studio/editor
 │   └── Control          /studio/control
+│       └── Maintenance  /studio/control/maintenance
 │
 └── Live Runtime         public
     ├── Player
@@ -33,17 +34,15 @@ PowerShow
     └── Cover            /cover  (technical route)
 ```
 
-- **Public Portal** — public PowerShow root. When no Live session is active it uses the self-contained demo as an ambient full-screen surface; during Live it shows only the active presentation cover and exposes a Watch QR code.
-- **PowerShow Library** — authenticated presentation management, folders, Custom Library resources, import/export, publishing, and lifecycle actions.
-- **PowerShow Editor** — visual authoring of canonical PowerShow presentations.
-- **PowerShow Control** — authenticated live-session control, direct slide navigation, publication promotion, Player-state feedback, Gallery commands, and presentation recovery actions.
-- **PowerShow Player** — public projection runtime optimized for lightweight playback.
-- **PowerShow Watch** — public read-only audience surface following the actual applied Player state.
-- **Legacy Player** — compatibility runtime kept separate from the current Player.
+- **Public Portal** — public PowerShow root. Without Live it exposes the self-contained demo; during Live it shows the active presentation cover and Watch entry.
+- **PowerShow Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
+- **PowerShow Editor** — visual authoring of the canonical Presentation.
+- **PowerShow Control** — authenticated live-session control, direct navigation, publication promotion, Player-state feedback, Gallery commands and bounded recovery.
+- **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence and explicit recovery actions.
+- **PowerShow Player** — public projection runtime.
+- **PowerShow Watch** — public read-only audience surface following the actual Player-applied state.
 
-The public root is deliberately **not another Player**. During Live it renders the first slide only through `/cover`; Watch remains the audience follower and Player remains the real projection surface.
-
-A dedicated **Maintenance / Diagnostics** product area is the next planned work area. Its route and final ownership are intentionally not frozen yet: the first checkpoint is an audit of existing Studio, Firestore, RTDB, publication, Live and Player diagnostic boundaries.
+The public root is deliberately not another Player. During Live, Cover remains static/read-only while Watch follows the real Player state.
 
 ## Repository structure
 
@@ -51,44 +50,38 @@ PowerShow is a pnpm monorepo.
 
 ```text
 apps/
-  studio/         public root + authenticated Library, Editor and Control
-  player/         Player, Watch, Demo and Cover public runtime routes
-  player-legacy/  compatibility projection runtime
+  studio/         Public Portal + authenticated Library, Editor and Control
+  player/         Player, Watch, Demo and Cover runtimes
+  player-legacy/  separated compatibility runtime
 
 packages/
   document-schema/  canonical Presentation contract and validation
   renderer/         shared semantic rendering pipeline
-  theme/            shared presentation theme/defaults
-  ui/               application UI tokens and primitives
+  theme/            shared presentation defaults
+  ui/               PowerShow Suite UI tokens and primitives
   firebase/         shared Firebase support
 ```
 
-The canonical document contract lives in:
-
-```text
-packages/document-schema
-```
-
-The renderer is shared across authoring previews and presentation runtime rather than maintaining separate visual contracts for Studio and Player.
+The canonical document contract lives in `packages/document-schema`. Studio previews and runtime surfaces reuse the shared renderer rather than maintaining separate presentation contracts.
 
 ## Canonical document principles
 
-PowerShow stores a semantic Presentation document rather than raw HTML/CSS application state.
+PowerShow stores a semantic Presentation instead of serialized Editor DOM/application state.
 
 Current invariants:
 
 - `schemaVersion` is literally `1`;
-- schemas are strict;
+- schemas are strict and responsibility-specific;
 - one canonical representation is preferred for each authored intention;
 - published versions are self-contained immutable snapshots;
-- Studio-private organization metadata does not enter the published Presentation;
-- Player never depends on Custom Library records or private Studio metadata;
-- `textbox` is no longer a canonical element — boxed text is represented with `Container + Text`;
-- hierarchical composition is represented by the document tree, not by separate `parentId` or numeric `zIndex` fields;
+- Studio-private metadata and transient UI state do not enter the canonical Presentation;
+- Player never depends on private Custom Library records;
+- `textbox` is not canonical — boxed text is `Container + Text`;
+- hierarchy is the nested document tree, not `parentId` or numeric `zIndex`;
 - Flow is the absence of absolute positioning; authored edges require `layout.position: "absolute"`;
-- canonical changes are driven by concrete product needs rather than speculative compatibility layers.
+- canonical changes are driven by concrete product requirements, not speculative compatibility layers.
 
-The current canonical PowerShow element union includes:
+The current element union includes:
 
 ```text
 text
@@ -107,21 +100,19 @@ topics
 container
 ```
 
-## Container authoring
+## Authoring and Presentation-local reuse
 
-Containers provide the reusable layout structure for presentation content. They support Flow / Stack child composition, authored absolute positioning where needed, canonical overflow behavior, typography/effects, and nested composition.
+PowerShow distinguishes private reusable masters from Presentation-local live relationships.
 
-A Container can also scale its child composition with Children Fit (`Contain`, `Cover`, or `Fill`) while its own visual box remains unchanged.
+```text
+Custom Library resource
+→ copy/materialize values into Presentation
+→ Presentation owns the resulting canonical data
+```
 
-Within a parent Flow layout, a Container may use Preserve size to resist flex compression without leaving normal flow. This is not an absolute-positioning or fill-remaining-space contract.
+Presentation-local systems include Palette references, Text Styles and Linked Styles.
 
-## Presentation-local reuse
-
-PowerShow distinguishes **copy/materialization reuse** from **live Presentation-local reuse**.
-
-Presentation-local systems include Palette references, Text Styles, and Linked Styles.
-
-Text Styles resolve with:
+Text Style precedence:
 
 ```text
 Theme role baseline
@@ -129,7 +120,9 @@ Theme role baseline
 → local Text override
 ```
 
-Linked Styles provide live Presentation-local reuse for Containers:
+A detached Text materializes its effective typography locally and no longer counts as linked usage even when it retains a fundamental `variant` role.
+
+Linked Style precedence:
 
 ```text
 Theme / defaults
@@ -137,18 +130,7 @@ Theme / defaults
 → local Container override
 ```
 
-Linked Styles are:
-
-- Presentation-scoped and self-contained;
-- Container-only in V1;
-- one linked style reference per Container;
-- able to provide `layout`, `style`, `typography`, and `effect` values;
-- compatible with local overrides;
-- attachable/detachable while preserving authored appearance;
-- managed under **This Presentation**;
-- independent from private Custom Library data at Player runtime.
-
-Custom Library Styles remain a different mechanism: they copy/materialize reusable values into a Presentation rather than maintaining a live dependency.
+Linked Styles are Presentation-scoped, self-contained and Container-only in the current contract. Custom Library Styles remain copy/materialization resources rather than runtime dependencies.
 
 ## Import / Export
 
@@ -157,8 +139,6 @@ PowerShow exports the canonical Presentation directly as readable JSON:
 ```text
 *.powershow.json
 ```
-
-There is deliberately no transfer envelope.
 
 Import performs:
 
@@ -169,17 +149,11 @@ JSON.parse
 → persist as a new private draft
 ```
 
-The imported copy preserves the complete schema-validated Presentation, including slides, elements, internal IDs, Palette, FontResources, Text Styles, Linked Styles, and authored content. Only the root Presentation id is replaced for the new draft; private Studio metadata is not part of transfer.
-
-Legacy or incompatible documents are not silently migrated during import. Recovery is a separate explicit product flow.
-
-A future **AI Import** path is expected to produce the same canonical Presentation contract rather than introducing a second persisted document language.
+Slides, nested elements, Palette references, FontResources, Text Styles, Linked Styles and authored content remain canonical and editable. There is no transfer envelope, hidden compatibility schema or automatic migration layer.
 
 ## Persistence and publishing
 
-Private drafts are stored in Firestore under the authenticated user.
-
-Publishing creates immutable public versions and maintains a public publication pointer:
+Private drafts are stored in Firestore. Publishing creates immutable versions and a public publication pointer:
 
 ```text
 private draft
@@ -193,162 +167,117 @@ publishedPresentations/{publicationId}
 publishedPresentations/{publicationId}/versions/{versionId}
 ```
 
-Republishing does not mutate an existing published version.
+Republishing never mutates an existing published version. The canonical Presentation is serialized as `presentationJson` at the persistence boundary and validated again on read.
 
-Studio organization such as folders and archived state remains private persistence metadata outside the canonical Presentation.
-
-Private slide Notes are also stored outside the canonical Presentation so Notes writes do not change `draftRevision` or publication content.
+Private organization metadata and slide Notes remain outside the canonical Presentation.
 
 ## Live presentation model
 
-Transient presentation control uses Firebase Realtime Database while published presentation content remains in Firestore.
+Transient live control uses Firebase Realtime Database while published content remains in immutable Firestore versions.
 
-The primary slide path uses logical page identity and desired/applied convergence:
+Primary slide flow:
 
 ```text
 Control desired slide state
 → RTDB
-→ Player applies published presentation state
+→ Player applies immutable published state
 → Player applied state / ACK
-→ Control and Watch observe convergence
+→ Control + Watch observe convergence
 ```
 
-Not every interaction requires that bidirectional contract. Gallery uses an intentionally asymmetric one-way runtime model:
+Gallery deliberately uses a narrower one-way contract:
 
 ```text
 Control desired Gallery state
-→ RTDB
-→ Player applies absolute target index / expanded state
+→ live/galleryControl/<slot>
+→ Player
 ```
 
-A physical Gallery interaction on Player remains local and does not update Control. There is no Gallery ACK or Player-to-Control Gallery state.
+A physical Gallery interaction on Player remains local and does not update Control.
 
-Current live responsibilities are intentionally separate:
+Maintenance / Diagnostics adds bounded operational evidence and explicit retry, reload and cache-clear recovery without becoming a generic administration console.
+
+## Blocks
+
+Blocks is a static didactic visual element inspired by mBlock/Tinkercad. Canonical state is a single `source` string; a handwritten parser produces a transient AST for shared static rendering.
+
+Current grammar includes:
 
 ```text
-Player      = real projection
-Watch       = real audience follower
-Root        = portal / showcase
-Control     = operator intent
-Diagnostics = technical observability
+\start(...)
+\statement(...)
+\scope(...){...}
+\end(...)
+\value(...)
+\variable(...)
+\logic(...)
 ```
 
-The architecture supports:
+Blocks is intentionally not an executable programming environment.
 
-- authenticated activation and termination;
-- public Player live entry;
-- logical `pageId` navigation;
-- command/state convergence across reloads;
-- staged publication updates while a Player remains live;
-- explicit promotion to a newer immutable version;
-- preservation of logical slide identity across publication promotion;
-- public Watch following actual applied Player state;
-- Player-local fullscreen behavior consistent with browser user-gesture restrictions;
-- one-way absolute Gallery control with independent local Player interaction;
-- bounded production diagnostics for Player troubleshooting.
+## Scripted
 
-Realtime Database rules are versioned in `database.rules.json`. A Vercel application deploy does **not** publish those rules; Firebase rules changes must be deliberately deployed to the configured Firebase project.
+`scripted` already exists as a canonical, authored and rendered element. It is the next active refinement area, not a new element to create.
 
-## Public Portal and Live Cover
-
-The public root has two modes:
+Current canonical authored fields are:
 
 ```text
-No Live
-→ /demo
-→ full-screen ambient demo
-
-Live
-→ /cover
-→ static first slide of the active immutable version
+title
+html
+css
+script
 ```
 
-The Live cover does not follow `live/playerState`, Control preview, navigation, autoplay, fullscreen requests, or ACK state.
+The Editor keeps these source fields in local drafts and commits them together only through **Apply / Run**, preventing JavaScript from being re-executed on every keystroke.
 
-The root Watch QR points to `/watch`, is generated locally, and can be dragged with Pointer Events on touchscreen devices while remaining clamped to the viewport. The current operational compatibility target includes Firefox 116 on Android touchscreen hardware.
-
-## Authoring resources
-
-PowerShow distinguishes Presentation-local resources from reusable private Custom Library masters.
+The shared renderer executes authored content only inside a renderer-owned sandboxed iframe:
 
 ```text
-Custom Library master
-→ copy/materialize into Presentation
-→ canonical Presentation resource/data
-→ publish as self-contained snapshot
+sandbox="allow-scripts"
+referrerpolicy="no-referrer"
+fixed CSP
 ```
 
-Current reusable Custom Library resource families include:
+The sandbox deliberately denies same-origin access, forms, popups, downloads, top navigation, storage and network connections. Authored JavaScript does not execute in the PowerShow application context. The renderer does not use `eval`, `Function`, `document.write` or string timers.
 
-- Styles;
-- Palettes;
-- Fonts.
+The next Scripted work must begin with an audit of the real current code and tests. The planned direction is to improve controlled interactivity without weakening this isolation boundary. A dedicated PowerShow/Control bridge, if implemented, must use explicit declared controls and validated messages rather than exposing application/Firebase/session access to authored code.
 
-Presentation-local resources and relationships include:
+## Embed
 
-- Palette colors and references;
-- FontResources;
-- Text Styles;
-- Linked Styles.
+`embed` also already exists canonically and in the shared renderer. The current Editor authors:
 
-There are no live dependency links from a published Presentation back to private Custom Library data.
+```text
+src     absolute http/https URL
+title   required accessibility title
+```
 
-## Gallery, Blocks and Chart status
+The renderer owns the iframe policy. Current runtime uses scripts/forms/same-origin for practical external embeds, grants fullscreen only, uses `strict-origin-when-cross-origin`, lazy loads the iframe, and does not expose sandbox policy as authored Presentation state.
 
-### Gallery
+Embed refinement follows Scripted. The first checkpoint must audit concrete provider/runtime problems before changing sandbox, permissions, URL normalization or authoring UX. Security-sensitive changes must stay renderer-owned unless a separately justified canonical requirement exists.
 
-Gallery V1 now represents one semantic media frame containing an ordered array of images rather than a row of independently positioned Image elements.
+## Current completed refinement line
 
-Current behavior includes:
+The recent merged baseline includes:
 
-- per-item `src`, `alt`, optional fit, crop and focal point;
-- Studio Image-child selection and media authoring;
-- Player click/touch advance and wrap;
-- WebP and animated GIF playback;
-- Player-local expanded presentation;
-- one-way absolute Control commands through `live/galleryControl/<slot>`;
-- contextual Control actions for Next image and Expand / Collapse;
-- Inspector and Control layout refinement.
+- Gallery V1 across Studio, Player, RTDB and Control;
+- Maintenance & Diagnostics D0–D2 with Player presence and bounded recovery;
+- Firestore serialization hardening for deep canonical Presentations;
+- grammar-based Blocks visual authoring;
+- Typography/Text Style usage locations and target-aware association behavior;
+- Image Inspector and Delete→Enter ergonomics;
+- PowerShow Suite chrome for Maintenance, including `<<< Back to presentation` and square diagnostic cards.
 
-Direct interaction with Gallery inside the Control preview is intentionally **not required**. PowerShow may expose an interactive capability through contextual controls adjacent to a preview instead of making every preview itself interactive.
+A separate Editor resource-control polish branch exists but is not merged into `main`; always revalidate branch state before integrating it.
 
-The current Gallery work is complete in its feature branch; integration/merge status must be checked against the real repository state before starting subsequent implementation work.
+## Deferred work
 
-### Blocks
+These items are intentionally not active:
 
-Blocks already has canonical semantics, shared rendering and Studio authoring. It is an existing implementation to refine, not a new element to create. After Maintenance / Diagnostics, Blocks is the first planned minimum-element refinement area.
-
-### Chart
-
-`chart` already exists in the canonical element union with semantic `line`, `bar`, `area`, and `scatter` series data, but the shared renderer still treats it as a placeholder. Chart V1 remains planned after Blocks refinement. Its rendering technology should be chosen only after auditing the existing canonical contract; the document model should remain renderer-library-neutral.
-
-## Recovery
-
-Persisted drafts that no longer satisfy the strict canonical contract are inspected before the Editor opens.
-
-Recovery distinguishes:
-
-- valid presentations;
-- presentations with removable incompatible semantic content;
-- structurally unrecoverable presentations.
-
-Recovery is explicit and conservative. It may remove incompatible content, but it does not create schema migrations or compatibility aliases.
-
-## Maintenance and diagnostics direction
-
-Maintenance / Diagnostics is the next planned work area.
-
-The first checkpoint is intentionally an audit rather than immediate UI construction. It must identify existing ownership and evidence across:
-
-- Studio authentication;
-- Firestore drafts, publication pointers and immutable versions;
-- RTDB Live state and lifecycle cleanup;
-- Control desired/applied state;
-- Player state and current diagnostics;
-- Watch and Cover resolution;
-- existing recovery and maintenance operations.
-
-The default direction is **read-only observability first**. A maintenance page should not become a generic admin console, expose secrets, invent repair protocols, or silently reconstruct persisted state. Detect inconsistencies deterministically first; add explicit repair actions only where an audited safe operation already exists or a later checkpoint justifies one.
+- `publishNow` Editor mode;
+- Chart V1;
+- making Topics itself a consumer of Typography Styles;
+- broader Diagnostics D3 expansion;
+- Production Readiness and Audience/Watch expansion until promoted by concrete need.
 
 ## Development
 
@@ -357,7 +286,7 @@ Requirements:
 - Node.js `>=24 <25`;
 - pnpm `10.28.0`.
 
-Install and validate the monorepo:
+Typical validation:
 
 ```bash
 pnpm install
@@ -366,46 +295,37 @@ pnpm test
 pnpm build
 ```
 
-Firebase Web configuration is documented in `.env.example`.
-
-Copy it to `.env.local` and provide the project-specific values required by the Studio environment.
+Firebase Web configuration is documented in `.env.example`. RTDB rule changes live in `database.rules.json` and require an explicit Firebase rules deployment; a Vercel application deploy does not deploy Firebase rules.
 
 ## Project workflow
 
-PowerShow development is checkpoint-driven and audit-first.
-
-The normal implementation loop is:
+PowerShow development is audit-first and checkpoint-driven:
 
 ```text
-inspect current code
-→ verify whether the capability already exists
-→ identify the existing boundary to reuse
-→ freeze the smallest correct architecture
-→ implement narrowly
-→ test
-→ review the real remote commit / diff
-→ advance
+AUDIT
+→ EVIDENCE
+→ DECISION
+→ IMPLEMENT
+→ TEST
+→ review the real remote SHA/diff
+→ manual acceptance where visual/runtime behavior requires it
+→ PR / merge
 ```
 
-Repository execution rules and agent guidance live in:
+Current code in `main` outranks tests, which outrank contracts/documentation/handoffs when evidence conflicts. Search and reuse existing ownership before creating new states, abstractions or protocols.
 
-- `AGENTS.md`;
-- `DS.RULES.md` for DeepSeek-specific execution.
+Repository execution rules live in `AGENTS.md`. The current project handoff lives in [`HANDOFF.md`](./HANDOFF.md).
 
 ## Roadmap
 
-See [`ROADMAP.md`](./ROADMAP.md) for the complete project chronology and current execution queue.
-
-The current baseline includes the canonical document/renderer foundation, Studio authoring, persistence and immutable publishing, live Control/Player/Watch convergence, import/export, Custom Library resources, Text Styles, Linked Styles, runtime surface refinement, the Public Portal/Live Cover, and Gallery V1 through Studio, Player, RTDB and Control.
+See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 
 Current execution order:
 
 ```text
-Gallery integration / final repository gate
-→ Maintenance & Diagnostics
-→ Blocks refinement
-→ Chart V1
-→ other minimum-element improvements as promoted
+Scripted enhancement
+→ Embed adjustments
+→ other work only when explicitly promoted
 ```
 
-Production Readiness, Player resilience, mobile simplification, configurable transitions, Undo/Redo, AI Import, and Audience/Watch expansion remain explicit future work recorded in the roadmap.
+Chart and `publishNow` are deferred.
