@@ -81,6 +81,7 @@ describe("Linked Styles Resources contract", () => {
     expect(row?.textContent).toContain("Matching 2 elements");
     expect(row?.textContent).toContain("Attach 2 matching elements");
     expect(row?.textContent).toContain("Slide 1 · linked");
+    expect(row?.textContent).not.toContain("Detach here");
   });
 
   it("uses the compact shared action grammar and Text Styles disclosure structure", async () => {

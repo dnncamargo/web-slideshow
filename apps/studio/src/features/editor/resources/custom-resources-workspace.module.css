@@ -348,6 +348,12 @@
   gap: var(--ps-ui-space-4);
 }
 
+.resourceUsageRow {
+  display: flex;
+  min-width: 0;
+  gap: var(--ps-ui-space-4);
+}
+
 .scope {
   gap: 14px;
 }

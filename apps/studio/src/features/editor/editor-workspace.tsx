@@ -141,6 +141,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+import { detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
@@ -2466,6 +2467,22 @@ export function EditorWorkspace({
     setSelectedElement({ id: element.id, type: "text" });
   }
 
+  function detachTextStyleElement(styleId: string, location: TextStyleUsageLocation): void {
+    setPresentation((current) => {
+      const slide = current.slides[location.slideIndex];
+      if (slide === undefined) return current;
+      const target = findElementById(slide.elements, location.elementId);
+      if (target?.type !== "text" || target.variant !== styleId || target.styleDetached === true) return current;
+
+      return {
+        ...current,
+        slides: current.slides.map((candidate, index) => index === location.slideIndex
+          ? { ...candidate, elements: updateElementById(candidate.elements, location.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) }
+          : candidate),
+      };
+    });
+  }
+
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -3805,6 +3822,7 @@ export function EditorWorkspace({
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              onSelectTextStyleElement={selectTextStyleElement}
+             onDetachTextStyleElement={detachTextStyleElement}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />
