@@ -121,14 +121,14 @@ describe("Scripted ProjectionSurface port bridge", () => {
     const projection = mountProjectionSurface(root, presentation, { transition: "none" });
     const spy = postSpy("scripted-a");
 
-    projection.sendScriptedInput("scripted-a", "enabled", true);
-    projection.sendScriptedInput("scripted-a", "enabled", 1);
-    projection.sendScriptedInput("scripted-a", "current", 2.5);
+    expect(projection.sendScriptedInput("scripted-a", "enabled", true)).toBe(true);
+    expect(projection.sendScriptedInput("scripted-a", "enabled", 1)).toBe(false);
+    expect(projection.sendScriptedInput("scripted-a", "current", 2.5)).toBe(true);
     projection.sendScriptedInput("scripted-a", "current", Number.NaN);
     projection.sendScriptedInput("scripted-a", "current", Number.POSITIVE_INFINITY);
     projection.sendScriptedInput("scripted-a", "current", -0.1);
     projection.sendScriptedInput("scripted-a", "current", 10.1);
-    projection.sendScriptedInput("scripted-a", "reported", false);
+    expect(projection.sendScriptedInput("scripted-a", "reported", false)).toBe(false);
     projection.sendScriptedInput("scripted-a", "reset", true);
 
     expect(spy).toHaveBeenNthCalledWith(1, {

@@ -76,6 +76,7 @@ export function startPlayer(root: HTMLElement): () => void {
   const liveScriptedActionTracker = createLiveScriptedActionTracker();
   const liveScriptedInputTracker = createLiveScriptedInputTracker();
   let getCurrentScriptedMount: ((slot: number) => { pageId: string; elementId: string; mountRevision: number } | null) | undefined;
+  let markAppliedScriptedInput: ((input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }) => void) | undefined;
 
   interface LoadFailureEvidence {
     code?: "FIRESTORE_LOAD_ERROR";
@@ -293,7 +294,7 @@ export function startPlayer(root: HTMLElement): () => void {
         );
         if (getCurrentScriptedMount) cleanupLiveScriptedInput = subscribeLiveScriptedInput(
           database, live.revision, live.currentVersionId, presenceReporter.bootId,
-          presentation, controller, getCurrentScriptedMount, liveScriptedInputTracker,
+          presentation, controller, getCurrentScriptedMount, liveScriptedInputTracker, markAppliedScriptedInput,
         );
       }
     } catch (error) {
@@ -344,6 +345,7 @@ export function startPlayer(root: HTMLElement): () => void {
     activeController?.destroy();
     activeController = undefined;
     getCurrentScriptedMount = undefined;
+    markAppliedScriptedInput = undefined;
     activePresentation = undefined;
     activeLive = undefined;
     presenceReporter?.stop();
@@ -409,6 +411,7 @@ export function startPlayer(root: HTMLElement): () => void {
           }),
         });
         getCurrentScriptedMount = publisher?.getCurrentMount;
+        markAppliedScriptedInput = publisher?.markAppliedInput;
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
         presenceReporter?.failed("player-mount-failed");

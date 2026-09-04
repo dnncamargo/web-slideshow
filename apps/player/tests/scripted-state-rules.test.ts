@@ -16,7 +16,8 @@ type Leaf = { ".write": string; ".validate": string; $other: { ".validate": bool
 const live = (JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { ".write": string; scriptedRuntime: Record<string, Leaf>; scriptedReport: Record<string, Record<string, Leaf>> } } }).rules.live;
 const runtime = live.scriptedRuntime.$scriptedSlot!;
 const report = live.scriptedReport.$scriptedSlot!.$portIndex!;
-const root = (connected = true, stage = "ready") => ({ live: { current: { revision: 7, currentVersionId: "v" }, playerPresence: { current: { bootId: "boot", stage }, leases: { boot: { bootId: "boot", activationRevision: 7, currentVersionId: "v", connected } } }, scriptedRuntime: { 0: runtimeRecord() } } });
+const inputRecord = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 4, pageId: "p", elementId: "element", portId: "out", targetBootId: "boot", targetMountRevision: 1, value: true, ...overrides });
+const root = (connected = true, stage = "ready", scriptedInput: Record<string, unknown> = { 0: { 0: inputRecord() } }) => ({ live: { current: { revision: 7, currentVersionId: "v" }, playerPresence: { current: { bootId: "boot", stage }, leases: { boot: { bootId: "boot", activationRevision: 7, currentVersionId: "v", connected } } }, scriptedRuntime: { 0: runtimeRecord() }, scriptedInput } });
 const runtimeRecord = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", mountRevision: 1, pageId: "p", elementId: "element", bootId: "boot", ...overrides });
 const reportRecord = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 1, pageId: "p", elementId: "element", portId: "out", sourceBootId: "boot", mountRevision: 1, appliedInputRevision: 0, value: 0.12, ...overrides });
 function evaluate(expression: string, current: unknown, next: unknown, rootValue = root(), auth = true): boolean {
@@ -35,7 +36,7 @@ describe("live Scripted state repository rules", () => {
     expect(runtime.$other[".validate"]).toBe(false);
   });
 
-  it("requires the exact mounted runtime for unauthenticated reports and preserves S7A zero input revision", () => {
+  it("requires the exact mounted runtime for unauthenticated reports and validates positive input correlation", () => {
     expect(evaluate(report[".write"], null, reportRecord(), root(), false)).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord())).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord({ currentVersionId: "stale" }))).toBe(false);
@@ -45,7 +46,16 @@ describe("live Scripted state repository rules", () => {
     expect(evaluate(report[".validate"], null, reportRecord(), root(true, "load-failed"))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord(), root(false))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord({ currentVersionId: "stale" }), root(), true)).toBe(false);
-    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }))).toBe(true);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 4 }))).toBe(true);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 5 }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: -1 }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1.5 }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }), root(true, "ready", { 0: { 0: inputRecord({ pageId: "wrong" }) } }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }), root(true, "ready", { 0: { 0: inputRecord({ elementId: "wrong" }) } }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }), root(true, "ready", { 0: { 0: inputRecord({ portId: "wrong" }) } }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }), root(true, "ready", { 0: { 0: inputRecord({ targetBootId: "wrong" }) } }))).toBe(false);
+    expect(evaluate(report[".validate"], null, reportRecord({ appliedInputRevision: 1 }), root(true, "ready", { 0: { 0: inputRecord({ targetMountRevision: 2 }) } }))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord({ revision: 2 }))).toBe(false);
     expect(evaluate(report[".validate"], reportRecord({ revision: 4 }), reportRecord({ revision: 5 }))).toBe(true);
     expect(evaluate(report[".validate"], reportRecord({ revision: 4 }), reportRecord({ revision: 1, mountRevision: 2 }), { ...root(), live: { ...root().live, scriptedRuntime: { 0: runtimeRecord({ mountRevision: 2 }) } } })).toBe(true);

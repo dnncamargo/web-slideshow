@@ -141,7 +141,7 @@ export interface PlayerController {
     elementId: string,
     portId: string,
     value: boolean | number,
-  ): void;
+  ): boolean;
 
   fullscreen(): Promise<void>;
 
@@ -614,8 +614,8 @@ export function mountPlayer(
       elementId: string,
       portId: string,
       value: boolean | number,
-    ): void {
-      projection.sendScriptedInput(elementId, portId, value);
+    ): boolean {
+      return projection.sendScriptedInput(elementId, portId, value);
     },
 
     fullscreen,

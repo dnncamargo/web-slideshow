@@ -114,13 +114,13 @@ export function postScriptedInput(
   elementId: string,
   portId: string,
   value: boolean | number,
-): void {
+): boolean {
   const element = findScriptedElement(slide, elementId);
   const port = element?.ports.find((candidate) => candidate.id === portId);
   const frame = element && findScriptedFrame(slideSurface, elementId);
 
   if (!element || !port || !inputPort(port) || !validValue(port, value) || !frame?.contentWindow) {
-    return;
+    return false;
   }
 
   frame.contentWindow.postMessage({
@@ -129,6 +129,7 @@ export function postScriptedInput(
     portId,
     value,
   }, "*");
+  return true;
 }
 
 export function validateScriptedReport(

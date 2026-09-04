@@ -35,6 +35,7 @@ export interface LiveScriptedReportRecord {
 interface MountContext extends LiveScriptedRuntimeRecord {
   scriptedSlot: number;
   runtimeWrite: Promise<void>;
+  appliedInputs: Map<number, number>;
 }
 
 export interface LiveScriptedStatePublisherOptions {
@@ -90,9 +91,9 @@ export function parseLiveScriptedReportRecord(value: unknown): LiveScriptedRepor
     !nonEmptyLiveString(value.currentVersionId) || !positiveInteger(value.revision) ||
     !nonEmptyLiveString(value.pageId) || !canonicalId(value.elementId) || !canonicalId(value.portId) ||
     !nonEmptyLiveString(value.sourceBootId) || !positiveInteger(value.mountRevision) ||
-    !nonNegativeInteger(value.appliedInputRevision) || value.appliedInputRevision !== 0 ||
+    !nonNegativeInteger(value.appliedInputRevision) ||
     !(typeof value.value === "boolean" || (typeof value.value === "number" && Number.isFinite(value.value)))) return null;
-  return { activationRevision: value.activationRevision, currentVersionId: value.currentVersionId.trim(), revision: value.revision, pageId: value.pageId.trim(), elementId: value.elementId, portId: value.portId, sourceBootId: value.sourceBootId.trim(), mountRevision: value.mountRevision, appliedInputRevision: 0, value: value.value };
+  return { activationRevision: value.activationRevision, currentVersionId: value.currentVersionId.trim(), revision: value.revision, pageId: value.pageId.trim(), elementId: value.elementId, portId: value.portId, sourceBootId: value.sourceBootId.trim(), mountRevision: value.mountRevision, appliedInputRevision: value.appliedInputRevision, value: value.value };
 }
 
 function scriptedsOnPage(presentation: Presentation, pageId: string): ScriptedElement[] | null {
@@ -113,6 +114,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
   onScriptedMount(event: { pageId: string; elementId: string }): void;
   onScriptedReport(report: ScriptedReportMessage): void;
   getCurrentMount(scriptedSlot: number): { pageId: string; elementId: string; mountRevision: number } | null;
+  markAppliedInput(input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }): void;
 } {
   const contexts = new Map<string, MountContext>();
 
@@ -125,7 +127,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
     const context: MountContext = {
       activationRevision: options.activationRevision, currentVersionId: options.currentVersionId,
       mountRevision, pageId: event.pageId, elementId: event.elementId, bootId: options.bootId,
-      scriptedSlot, runtimeWrite: Promise.resolve(),
+      scriptedSlot, runtimeWrite: Promise.resolve(), appliedInputs: new Map(),
     };
     context.runtimeWrite = set(ref(options.database, `${SCRIPTED_RUNTIME_ROOT_PATH}/${scriptedSlot}`), {
       activationRevision: context.activationRevision, currentVersionId: context.currentVersionId,
@@ -142,6 +144,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
     const portIndex = scripted?.ports.findIndex((port) => port.id === report.portId) ?? -1;
     const port = portIndex >= 0 ? scripted?.ports[portIndex] : undefined;
     if (!scripted || scripted.id !== context.elementId || !port || !validOutputValue(port, report.value)) return;
+    const appliedInputRevision = (port.kind === "boolean" || port.kind === "number") && port.direction === "input-output" ? context.appliedInputs.get(portIndex) ?? 0 : 0;
     void context.runtimeWrite.then(() => {
       if (!options.isCurrent() || options.getCurrentPageId() !== context.pageId || contexts.get(report.elementId) !== context) return;
       const reportRef = ref(options.database, `${SCRIPTED_REPORT_ROOT_PATH}/${context.scriptedSlot}/${portIndex}`);
@@ -149,7 +152,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
         if (!options.isCurrent() || options.getCurrentPageId() !== context.pageId || contexts.get(report.elementId) !== context) return;
         const previous = parseLiveScriptedReportRecord(existing);
         const sameRuntime = previous && previous.activationRevision === context.activationRevision && previous.currentVersionId === context.currentVersionId && previous.pageId === context.pageId && previous.elementId === context.elementId && previous.portId === report.portId && previous.sourceBootId === context.bootId && previous.mountRevision === context.mountRevision;
-        return { activationRevision: context.activationRevision, currentVersionId: context.currentVersionId, revision: sameRuntime ? previous.revision + 1 : 1, pageId: context.pageId, elementId: context.elementId, portId: report.portId, sourceBootId: context.bootId, mountRevision: context.mountRevision, appliedInputRevision: 0, value: report.value };
+        return { activationRevision: context.activationRevision, currentVersionId: context.currentVersionId, revision: sameRuntime ? previous.revision + 1 : 1, pageId: context.pageId, elementId: context.elementId, portId: report.portId, sourceBootId: context.bootId, mountRevision: context.mountRevision, appliedInputRevision, value: report.value };
       }).catch(() => { options.onReportWriteError?.(); });
     }, () => undefined);
   }
@@ -162,5 +165,11 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
     if (!scripted || !context || context.pageId !== pageId || context.scriptedSlot !== scriptedSlot || context.elementId !== scripted.id) return null;
     return { pageId: context.pageId, elementId: context.elementId, mountRevision: context.mountRevision };
   }
-  return { onScriptedMount, onScriptedReport, getCurrentMount };
+  function markAppliedInput(input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }): void {
+    if (!positiveInteger(input.revision) || !options.isCurrent() || options.getCurrentPageId() !== input.pageId) return;
+    const scripted = scriptedsOnPage(options.presentation, input.pageId)?.[input.scriptedSlot]; const context = scripted && contexts.get(scripted.id); const port = scripted?.ports[input.portIndex];
+    if (!scripted || !context || context.scriptedSlot !== input.scriptedSlot || context.elementId !== input.elementId || context.mountRevision !== input.mountRevision || !port || port.id !== input.portId || (port.kind !== "boolean" && port.kind !== "number") || port.direction !== "input-output") return;
+    const previous = context.appliedInputs.get(input.portIndex) ?? 0; if (input.revision > previous) context.appliedInputs.set(input.portIndex, input.revision);
+  }
+  return { onScriptedMount, onScriptedReport, getCurrentMount, markAppliedInput };
 }

@@ -33,7 +33,7 @@ export interface ProjectionSurface {
     elementId: string,
     portId: string,
     value: boolean | number,
-  ): void;
+  ): boolean;
   getCurrentIndex(): number;
   destroy(): void;
 }
@@ -403,8 +403,8 @@ export function mountProjectionSurface(
       elementId: string,
       portId: string,
       value: boolean | number,
-    ): void {
-      postScriptedInput(
+    ): boolean {
+      return postScriptedInput(
         presentation.slides[currentIndex],
         slideSurface,
         elementId,
