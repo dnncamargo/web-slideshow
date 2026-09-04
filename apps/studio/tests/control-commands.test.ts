@@ -108,8 +108,16 @@ describe("control command writer", () => {
     expect(first).toMatchObject({ revision: 1, value: .12, elementId: " element/# ", portId: " port.$ " });
     mocks.runTransaction.mockImplementation(async (_ref, updater) => ({ committed: true, snapshot: { val: () => updater({ ...first, revision: 1 }) } }));
     expect((await writeScriptedInput({} as never, { ...request, value: true })).revision).toBe(2);
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => ({ committed: true, snapshot: { val: () => updater({ ...first, revision: 4 }) } }));
+    expect((await writeScriptedInput({} as never, request)).revision).toBe(5);
+    expect((await writeScriptedInput({} as never, { ...request, targetMountRevision: 5 })).revision).toBe(1);
+    expect((await writeScriptedInput({} as never, { ...request, targetBootId: "other" })).revision).toBe(1);
     await expect(writeScriptedInput({} as never, { ...request, targetMountRevision: 0 })).rejects.toThrow("targetMountRevision");
+    await expect(writeScriptedInput({} as never, { ...request, targetMountRevision: 1.5 })).rejects.toThrow("targetMountRevision");
+    await expect(writeScriptedInput({} as never, { ...request, value: Number.NaN })).rejects.toThrow("finite");
     await expect(writeScriptedInput({} as never, { ...request, value: Infinity })).rejects.toThrow("finite");
+    mocks.getCurrentNonAnonymousUser.mockReturnValue(null);
+    await expect(writeScriptedInput({} as never, request)).rejects.toThrow("authenticated");
   });
 
   afterEach(() => {
