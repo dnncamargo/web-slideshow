@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     nextGallery: vi.fn(),
     setGalleryExpanded: vi.fn(),
   },
+  scriptedStateControl: { groups: [], sendFailed: false, setPortValue: vi.fn() },
   presenterProps: null as Record<string, unknown> | null,
 }));
 
@@ -44,6 +45,9 @@ vi.mock("../src/features/control/use-live-session-control", () => ({
 }));
 vi.mock("../src/features/control/use-live-gallery-control", () => ({
   useLiveGalleryControl: () => mocks.galleryControl,
+}));
+vi.mock("../src/features/control/use-live-scripted-state-control", () => ({
+  useLiveScriptedStateControl: () => mocks.scriptedStateControl,
 }));
 vi.mock("../src/features/control/presenter/presenter-view", () => ({
   PresenterView: (props: Record<string, unknown>) => {
@@ -74,6 +78,7 @@ describe("ControlPage empty state recovery", () => {
     mocks.push.mockReset();
     mocks.presenterProps = null;
     mocks.galleryControl.sendFailed = false;
+    mocks.scriptedStateControl.sendFailed = false;
   });
 
   afterEach(async () => {
@@ -199,7 +204,7 @@ describe("ControlPage empty state recovery", () => {
     );
   });
 
-  it("composes Gallery send failure into PresenterView's existing send-failure prop", () => {
+  it("composes Gallery and Scripted state send failures into PresenterView's existing send-failure prop", () => {
     mocks.liveState = {
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 2 },
@@ -208,6 +213,12 @@ describe("ControlPage empty state recovery", () => {
     render();
 
     expect(mocks.presenterProps?.sendFailed).toBe(true);
+    mocks.galleryControl.sendFailed = false;
+    mocks.scriptedStateControl.sendFailed = true;
+    render();
+    expect(mocks.presenterProps?.sendFailed).toBe(true);
+    expect(mocks.presenterProps?.scriptedStateGroups).toBe(mocks.scriptedStateControl.groups);
+    expect(mocks.presenterProps?.setScriptedPortValue).toBe(mocks.scriptedStateControl.setPortValue);
   });
 
   it("prevents duplicate activation and allows retry after failure", async () => {
