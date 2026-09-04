@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
+import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
+import { Topbar, TopbarActions } from "@powershow/ui";
 import {
   subscribeLiveCurrent,
   type LiveState,
@@ -390,10 +392,17 @@ export function MaintenancePage() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <Link href={STUDIO_ROUTES.control}>Control</Link>
+      <Topbar className={styles.maintenanceTopbar}>
+        <ProductSurfaceBrand surface="control" />
+        <TopbarActions>
+          <Link className={styles.backLink} href={STUDIO_ROUTES.control}>
+            &lt;&lt;&lt; Back to presentation
+          </Link>
+        </TopbarActions>
+      </Topbar>
+      <div className={styles.header}>
         <h1>Maintenance &amp; Diagnostics</h1>
-      </header>
+      </div>
       <div className={styles.grid}>
         <section className={styles.section} aria-labelledby="player-status">
           <h2 id="player-status">Player status</h2>
