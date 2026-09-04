@@ -7,6 +7,10 @@ import type {
 import { escapeHtml } from "./escape-html";
 import { renderColorValue } from "./render-palette";
 
+export function renderTextContent(text: string): string {
+  return escapeHtml(text).replace(/\r\n|\r|\n/g, "<br>");
+}
+
 function renderSpanStyle(marks: TextRunMarks): string | undefined {
   const styles: string[] = [];
 
@@ -46,7 +50,7 @@ function wrapMarks(content: string, marks: TextRunMarks | undefined): string {
 }
 
 function renderRun(run: TextRun): string {
-  const content = escapeHtml(run.text);
+  const content = renderTextContent(run.text);
 
   return wrapMarks(content, run.marks);
 }

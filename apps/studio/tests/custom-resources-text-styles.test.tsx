@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { act, useState } from "react";
+import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type FontResource, type Presentation, type PresentationPaletteColor } from "@powershow/document-schema";
 import { paletteColorCssVariableName } from "@powershow/renderer";
 import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
+import { findElementById, updateElementById } from "../src/features/editor/element-tree";
+import { detachTextStyle } from "../src/features/editor/text-typography-authoring";
 import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
-import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -22,6 +24,12 @@ const fundamentalIds = ["title", "subtitle", "body", "caption"] as const;
 
 const base = (): Presentation => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "", elements: [] }] });
 
+function LocaleSetter({ locale }: { locale: "en" | "pt-BR" }) {
+  const { setLocale } = useStudioI18n();
+  useEffect(() => setLocale(locale), [locale, setLocale]);
+  return null;
+}
+
 function setInputValue(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   setter?.call(input, value);
@@ -33,10 +41,12 @@ function Harness({
   initial = base(),
   presentationRef,
   paletteColors,
+  onSelectTextStyleElement = () => undefined,
 }: {
   initial?: Presentation;
   presentationRef?: { current: Presentation | undefined };
   paletteColors?: readonly PresentationPaletteColor[];
+  onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void;
 }) {
   const [presentation, setPresentation] = useState(initial);
   presentationRef && (presentationRef.current = presentation);
@@ -62,6 +72,13 @@ function Harness({
     onUpdateTextStyle={(id, patch) => setPresentation((current) => updateCustomTextStyle(current, id, patch))}
     onRemoveTextStyle={(id) => setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current)}
     isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
+    onSelectTextStyleElement={onSelectTextStyleElement}
+    onRequestDetachTextStyleElement={(styleId, _styleName, location) => setPresentation((current) => {
+      const slide = current.slides[location.slideIndex];
+      const target = slide ? findElementById(slide.elements, location.elementId) : null;
+      if (target?.type !== "text" || target.variant !== styleId || target.styleDetached === true || !slide) return current;
+      return { ...current, slides: current.slides.map((candidate, index) => index === location.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, location.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
+    })}
   />;
 }
 
@@ -75,11 +92,11 @@ describe("Custom Resources Text Styles", () => {
     root = undefined;
   });
 
-  async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[]): Promise<void> {
+  async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en"): Promise<void> {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root?.render(<StudioI18nProvider><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} onSelectTextStyleElement={onSelectTextStyleElement} /></StudioI18nProvider>));
   }
 
   function requiredElement<T extends Element>(selector: string): T {
@@ -347,6 +364,57 @@ describe("Custom Resources Text Styles", () => {
     await act(async () => removeButton.click());
     expect(presentationRef.current?.textStyles).toEqual(usedPresentation.textStyles);
     expect(presentationRef.current?.slides[0]?.elements[0]).toMatchObject({ type: "text", variant: "quote", content: "unchanged" });
+  });
+
+  it("detaches one Text usage in place without navigating and refreshes usage", async () => {
+    const value = PresentationSchema.parse({
+      ...base(),
+      textStyles: [{ id: "quote", name: "Quote", role: "caption", typography: { fontSize: 24 } }],
+      slides: [{ id: "s", title: "", elements: [
+        { id: "first", type: "text", hidden: false, variant: "quote", content: "First" },
+        { id: "second", type: "text", hidden: false, variant: "quote", content: "Second" },
+      ] }],
+    });
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    const navigation = { count: 0 };
+    await render(value, presentationRef, [], () => { navigation.count += 1; });
+    await act(async () => disclosure("quote").click());
+
+    expect(row("quote").textContent).toContain("Used by 2 elements");
+    const detachButtons = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate.textContent?.trim() === "x");
+    expect(detachButtons).toHaveLength(2);
+
+    await act(async () => detachButtons[0]?.click());
+
+    expect(navigation.count).toBe(0);
+    expect(row("quote").textContent).toContain("Used by 1 element");
+    expect(presentationRef.current?.slides[0]?.elements[0]).toMatchObject({
+      id: "first",
+      variant: "caption",
+      styleDetached: true,
+      typography: { fontSize: 24 },
+    });
+    expect(presentationRef.current?.slides[0]?.elements[1]).toMatchObject({
+      id: "second",
+      variant: "quote",
+    });
+    expect(presentationRef.current?.slides[0]?.elements[1]).not.toHaveProperty("styleDetached");
+  });
+
+  it("localizes the detach accessibility label and preserves the existing location action", async () => {
+    const value = PresentationSchema.parse({
+      ...base(),
+      textStyles: [{ id: "quote", name: "Quote", role: "body" }],
+      slides: [{ id: "s", title: "", elements: [{ id: "text", type: "text", hidden: false, variant: "quote", content: "Text" }] }],
+    });
+    let selected = 0;
+    await render(value, undefined, [], () => { selected += 1; }, "pt-BR");
+    await act(async () => disclosure("quote").click());
+    const usage = row("quote").querySelector("[data-text-style-usage]")!;
+    expect(usage.textContent).not.toContain("Desvincular aqui");
+    expect(usage.querySelector<HTMLButtonElement>("button[aria-label]")?.getAttribute("aria-label")).toContain("Desvincular este elemento de Quote");
+    await act(async () => usage.querySelector<HTMLButtonElement>("button")?.click());
+    expect(selected).toBe(1);
   });
 
   it("adds one baseline property without materializing the other defaults", async () => {

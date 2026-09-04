@@ -348,6 +348,20 @@
   gap: var(--ps-ui-space-4);
 }
 
+.resourceUsageRow {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--ps-ui-space-4);
+}
+
+.resourceUsageRow > .resourceAction:first-child {
+  min-width: 0;
+  white-space: normal;
+  text-align: left;
+}
+
 .scope {
   gap: 14px;
 }

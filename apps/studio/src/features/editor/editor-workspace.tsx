@@ -141,6 +141,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+import { detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
@@ -320,6 +321,14 @@ interface PendingElementDeletion {
   elementId: string;
   elementType: PowerShowElement["type"];
   slideIndex: number;
+}
+
+interface PendingStyleDetach {
+  kind: "text-style" | "linked-style";
+  styleId: string;
+  styleName: string;
+  slideIndex: number;
+  elementId: string;
 }
 
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
@@ -517,6 +526,7 @@ export function EditorWorkspace({
   const [pendingElementDeletion, setPendingElementDeletion] =
     useState<PendingElementDeletion | null>(null);
   const [pendingTextStyleReset, setPendingTextStyleReset] = useState<"title" | "subtitle" | "body" | "caption" | null>(null);
+  const [pendingStyleDetach, setPendingStyleDetach] = useState<PendingStyleDetach | null>(null);
 
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
@@ -2466,6 +2476,31 @@ export function EditorWorkspace({
     setSelectedElement({ id: element.id, type: "text" });
   }
 
+  function requestTextStyleDetach(styleId: string, styleName: string, location: TextStyleUsageLocation): void {
+    setPendingStyleDetach({ kind: "text-style", styleId, styleName, slideIndex: location.slideIndex, elementId: location.elementId });
+  }
+
+  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleContainerLocation): void {
+    setPendingStyleDetach({ kind: "linked-style", styleId, styleName, slideIndex: location.slideIndex, elementId: location.elementId });
+  }
+
+  function confirmStyleDetach(): void {
+    const pending = pendingStyleDetach;
+    if (!pending) return;
+    setPresentation((current) => {
+      const slide = current.slides[pending.slideIndex];
+      if (!slide) return current;
+      const target = findElementById(slide.elements, pending.elementId);
+      if (pending.kind === "text-style") {
+        if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
+        return { ...current, slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, pending.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
+      }
+      if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
+      return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
+    });
+    setPendingStyleDetach(null);
+  }
+
   // ==========================================================
   // BEGIN: ADD ELEMENT
   //
@@ -3805,6 +3840,8 @@ export function EditorWorkspace({
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              onSelectTextStyleElement={selectTextStyleElement}
+             onRequestDetachLinkedStyle={requestLinkedStyleDetach}
+             onRequestDetachTextStyleElement={requestTextStyleDetach}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />
@@ -4077,6 +4114,15 @@ export function EditorWorkspace({
           onConfirm={() => { resetFundamentalTextStyle(pendingTextStyleReset); setPendingTextStyleReset(null); }}
         />;
       })() : null}
+
+      {pendingStyleDetach ? <DangerConfirmDialog
+        title={t("customResources.detachStyleTitle", { style: pendingStyleDetach.styleName })}
+        message={t("customResources.detachStyleMessage")}
+        confirmLabel={t("customResources.detachStyleConfirm")}
+        cancelLabel={t("elementCrud.cancel")}
+        onCancel={() => setPendingStyleDetach(null)}
+        onConfirm={confirmStyleDetach}
+      /> : null}
 
       {/* =====================================================
           END: WORKSPACE
