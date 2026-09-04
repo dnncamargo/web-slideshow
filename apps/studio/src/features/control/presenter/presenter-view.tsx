@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
@@ -25,6 +25,15 @@ import type { ControlGalleryView } from "../use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../use-live-scripted-action-control";
 import type { ControlScriptedStateGroup, ControlScriptedStatePort } from "../use-live-scripted-state-control";
 import type { PlayerOperationalStatus } from "../player-presence";
+import type { LiveSlideTransition } from "../use-live-slide-transition-control";
+import {
+  LIVE_PLAYER_CONTROLS_BASELINE,
+  type LivePlayerControls,
+  type LivePlayerControlsAnimation,
+  type LivePlayerControlsPatch,
+  type LivePlayerControlsPosition,
+  type LivePlayerControlsStyle,
+} from "../use-live-player-controls-control";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
 import { PresenterSlidePreview } from "./presenter-slide-preview";
@@ -189,6 +198,12 @@ export interface PresenterViewProps {
   followPlayer(): void;
   updatePlayer(targetVersionId: string): void;
   requestFullscreen(): void;
+  transition?: LiveSlideTransition;
+  setTransition?(transition: LiveSlideTransition): void;
+  transitionWriteInFlight?: boolean;
+  playerControls?: LivePlayerControls;
+  setPlayerControls?(patch: LivePlayerControlsPatch): void;
+  playerControlsWriteInFlight?: boolean;
   nextGallery(elementId: string): void;
   setGalleryExpanded(elementId: string, expanded: boolean): void;
   triggerScriptedAction(scriptedSlot: number, portIndex: number): void;
@@ -237,6 +252,12 @@ export function PresenterView({
   followPlayer,
   updatePlayer,
   requestFullscreen,
+  transition = "fade",
+  setTransition = () => undefined,
+  transitionWriteInFlight = false,
+  playerControls = LIVE_PLAYER_CONTROLS_BASELINE,
+  setPlayerControls = () => undefined,
+  playerControlsWriteInFlight = false,
   nextGallery,
   setGalleryExpanded,
   triggerScriptedAction,
@@ -244,6 +265,8 @@ export function PresenterView({
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const clock = useLocalClock();
 
@@ -322,6 +345,29 @@ export function PresenterView({
   const currentGalleryTargets = showGalleryControls
     ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
     : [];
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!settingsRef.current?.contains(event.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSettingsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [settingsOpen]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -471,6 +517,98 @@ export function PresenterView({
 
         <div className={presenterStyles.centerControls}>
           <div className={presenterStyles.controlPrimary}>
+            <div className={presenterStyles.settingsAnchor} ref={settingsRef}>
+              <button
+                type="button"
+                className={presenterStyles.arrowButton}
+                disabled={disabled}
+                onClick={() => setSettingsOpen((open) => !open)}
+                aria-label={t("control.playerSettings")}
+                aria-expanded={settingsOpen}
+                aria-controls="presenter-player-settings"
+                title={t("control.playerSettings")}
+              >
+                <svg
+                  className={presenterStyles.settingsIcon}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M4 6h16" />
+                  <path d="M4 12h16" />
+                  <path d="M4 18h16" />
+                  <path d="M8 4v4" />
+                  <path d="M16 10v4" />
+                  <path d="M11 16v4" />
+                </svg>
+              </button>
+
+              {settingsOpen && (
+                <section
+                  id="presenter-player-settings"
+                  className={presenterStyles.settingsPanel}
+                  aria-label={t("control.playerSettings")}
+                >
+                  <div className={presenterStyles.settingsSection}>
+                    <span className={presenterStyles.settingsSectionTitle}>{t("control.player")}</span>
+                    <span className={presenterStyles.settingsGroupLabel}>{t("control.slide")}</span>
+                    <label className={presenterStyles.settingsField}>
+                      <span>{t("control.transition")}</span>
+                      <select
+                        aria-label={t("control.transition")}
+                        value={transition}
+                        disabled={disabled || transitionWriteInFlight}
+                        onChange={(event) => setTransition(event.target.value as LiveSlideTransition)}
+                      >
+                        <option value="fade">{t("control.transitionFade")}</option>
+                        <option value="slide">{t("control.transitionSlide")}</option>
+                        <option value="none">{t("control.transitionNone")}</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className={presenterStyles.settingsSection}>
+                    <span className={presenterStyles.settingsGroupLabel}>{t("control.controls")}</span>
+                    <label className={presenterStyles.settingsField}>
+                      <span>{t("control.position")}</span>
+                      <select aria-label={t("control.position")} value={playerControls.position} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ position: event.target.value as LivePlayerControlsPosition })}>
+                        <option value="bottom-center">{t("control.positionBottomCenter")}</option>
+                        <option value="bottom-left">{t("control.positionBottomLeft")}</option>
+                        <option value="bottom-right">{t("control.positionBottomRight")}</option>
+                        <option value="top-center">{t("control.positionTopCenter")}</option>
+                        <option value="top-left">{t("control.positionTopLeft")}</option>
+                        <option value="top-right">{t("control.positionTopRight")}</option>
+                      </select>
+                    </label>
+                    <label className={presenterStyles.settingsField}>
+                      <span>{t("control.style")}</span>
+                      <select aria-label={t("control.style")} value={playerControls.style} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ style: event.target.value as LivePlayerControlsStyle })}>
+                        <option value="floating">{t("control.styleFloating")}</option>
+                        <option value="minimal">{t("control.styleMinimal")}</option>
+                        <option value="compact">{t("control.styleCompact")}</option>
+                      </select>
+                    </label>
+                    <label className={presenterStyles.settingsToggle}>
+                      <span>{t("control.counter")}</span>
+                      <input aria-label={t("control.counter")} type="checkbox" checked={playerControls.showCounter} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ showCounter: event.target.checked })} />
+                      <span>{t(playerControls.showCounter ? "control.on" : "control.off")}</span>
+                    </label>
+                    <label className={presenterStyles.settingsField}>
+                      <span>{t("control.animation")}</span>
+                      <select aria-label={t("control.animation")} value={playerControls.animation} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ animation: event.target.value as LivePlayerControlsAnimation })}>
+                        <option value="fade">{t("control.transitionFade")}</option>
+                        <option value="slide">{t("control.transitionSlide")}</option>
+                        <option value="none">{t("control.transitionNone")}</option>
+                      </select>
+                    </label>
+                  </div>
+                </section>
+              )}
+            </div>
+
             <button
               type="button"
               className={presenterStyles.arrowButton}

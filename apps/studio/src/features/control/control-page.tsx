@@ -13,6 +13,8 @@ import { useLiveSessionControl } from "./use-live-session-control";
 import { useLiveGalleryControl } from "./use-live-gallery-control";
 import { useLiveScriptedActionControl } from "./use-live-scripted-action-control";
 import { useLiveScriptedStateControl } from "./use-live-scripted-state-control";
+import { useLiveSlideTransitionControl } from "./use-live-slide-transition-control";
+import { useLivePlayerControlsControl } from "./use-live-player-controls-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
 import {
@@ -108,6 +110,12 @@ export function ControlPage() {
     playerStatus,
     controlsBlocked: presentationState.kind === "ready" && presentationState.pendingVersion !== null,
   });
+  const transitionControl = useLiveSlideTransitionControl(
+    liveState.kind === "active" ? liveState.live : null,
+  );
+  const playerControls = useLivePlayerControlsControl(
+    liveState.kind === "active" ? liveState.live : null,
+  );
   const [available] = useState(() => isRealtimeDatabaseConfigured());
   const lastLiveIdentityRef = useRef<Pick<LiveCurrent, "publicationId" | "currentVersionId"> | null>(null);
   const [reactivationInFlight, setReactivationInFlight] = useState(false);
@@ -240,7 +248,7 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed || galleryControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
       presentationState={presentationState}
       galleries={galleryControl.galleries}
       scriptedActionGroups={scriptedActionControl.groups}
@@ -253,6 +261,12 @@ export function ControlPage() {
       followPlayer={followPlayer}
       updatePlayer={updatePlayer}
       requestFullscreen={requestFullscreen}
+      transition={transitionControl.transition}
+      setTransition={transitionControl.setTransition}
+      transitionWriteInFlight={transitionControl.writeInFlight}
+      playerControls={playerControls.controls}
+      setPlayerControls={playerControls.setControlsOptions}
+      playerControlsWriteInFlight={playerControls.writeInFlight}
       nextGallery={galleryControl.nextGallery}
       setGalleryExpanded={galleryControl.setGalleryExpanded}
       triggerScriptedAction={scriptedActionControl.triggerAction}

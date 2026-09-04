@@ -172,6 +172,82 @@
   gap: 12px;
 }
 
+.settingsAnchor {
+  position: relative;
+}
+
+.settingsIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.settingsPanel {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 260px;
+  padding: 10px;
+  border: 1px solid #303847;
+  border-radius: 8px;
+  background: #111620;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.settingsSection + .settingsSection {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #232a36;
+}
+
+.settingsSectionTitle,
+.settingsGroupLabel {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settingsGroupLabel {
+  color: #94a3b8;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settingsField,
+.settingsToggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.settingsField select {
+  min-height: 32px;
+  min-width: 116px;
+  border: 1px solid #3a4558;
+  border-radius: 6px;
+  padding: 0 8px;
+  background: #0b0f17;
+  color: #f8fafc;
+  font: inherit;
+}
+
+.settingsToggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #6366f1;
+}
+
 .galleryControls {
   display: flex;
   flex-direction: column;
