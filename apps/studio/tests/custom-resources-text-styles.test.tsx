@@ -73,7 +73,7 @@ function Harness({
     onRemoveTextStyle={(id) => setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current)}
     isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
     onSelectTextStyleElement={onSelectTextStyleElement}
-    onDetachTextStyleElement={(styleId, location) => setPresentation((current) => {
+    onRequestDetachTextStyleElement={(styleId, _styleName, location) => setPresentation((current) => {
       const slide = current.slides[location.slideIndex];
       const target = slide ? findElementById(slide.elements, location.elementId) : null;
       if (target?.type !== "text" || target.variant !== styleId || target.styleDetached === true || !slide) return current;
@@ -381,7 +381,7 @@ describe("Custom Resources Text Styles", () => {
     await act(async () => disclosure("quote").click());
 
     expect(row("quote").textContent).toContain("Used by 2 elements");
-    const detachButtons = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate.textContent?.trim() === "Detach here");
+    const detachButtons = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate.textContent?.trim() === "x");
     expect(detachButtons).toHaveLength(2);
 
     await act(async () => detachButtons[0]?.click());
@@ -401,7 +401,7 @@ describe("Custom Resources Text Styles", () => {
     expect(presentationRef.current?.slides[0]?.elements[1]).not.toHaveProperty("styleDetached");
   });
 
-  it("localizes Detach here and preserves the existing location action", async () => {
+  it("localizes the detach accessibility label and preserves the existing location action", async () => {
     const value = PresentationSchema.parse({
       ...base(),
       textStyles: [{ id: "quote", name: "Quote", role: "body" }],
@@ -411,7 +411,8 @@ describe("Custom Resources Text Styles", () => {
     await render(value, undefined, [], () => { selected += 1; }, "pt-BR");
     await act(async () => disclosure("quote").click());
     const usage = row("quote").querySelector("[data-text-style-usage]")!;
-    expect(usage.textContent).toContain("Desvincular aqui");
+    expect(usage.textContent).not.toContain("Desvincular aqui");
+    expect(usage.querySelector<HTMLButtonElement>("button[aria-label]")?.getAttribute("aria-label")).toContain("Desvincular este elemento de Quote");
     await act(async () => usage.querySelector<HTMLButtonElement>("button")?.click());
     expect(selected).toBe(1);
   });
