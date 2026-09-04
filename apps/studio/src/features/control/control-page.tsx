@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
 import { useLiveGalleryControl } from "./use-live-gallery-control";
+import { useLiveScriptedActionControl } from "./use-live-scripted-action-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
 import {
@@ -83,6 +84,19 @@ export function ControlPage() {
         ? presentationState.livePresentation
         : null,
     desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+  });
+  const scriptedActionControl = useLiveScriptedActionControl({
+    live: liveState.kind === "active" ? liveState.live : null,
+    livePresentation:
+      presentationState.kind === "ready"
+        ? presentationState.livePresentation
+        : null,
+    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    actualPageId: view?.actualPageId ?? null,
+    controlSynced: view?.status.kind === "synced",
+    playerStatus,
+    controlsBlocked:
+      presentationState.kind === "ready" && presentationState.pendingVersion !== null,
   });
   const [available] = useState(() => isRealtimeDatabaseConfigured());
   const lastLiveIdentityRef = useRef<Pick<LiveCurrent, "publicationId" | "currentVersionId"> | null>(null);
@@ -216,9 +230,11 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed || galleryControl.sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed || scriptedActionControl.sendFailed}
       presentationState={presentationState}
       galleries={galleryControl.galleries}
+      scriptedActionGroups={scriptedActionControl.groups}
+      scriptedActionsEnabled={scriptedActionControl.actionsEnabled}
       previous={previous}
       next={next}
       goTo={goTo}
@@ -227,6 +243,7 @@ export function ControlPage() {
       requestFullscreen={requestFullscreen}
       nextGallery={galleryControl.nextGallery}
       setGalleryExpanded={galleryControl.setGalleryExpanded}
+      triggerScriptedAction={scriptedActionControl.triggerAction}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}
       playerStatus={playerStatus}
