@@ -167,6 +167,7 @@ describe("live-current activation", () => {
       "playerPresence",
       "playerRecoveryRequest",
       "playerState",
+      "scriptedAction",
       "slideAck",
       "slideCommand",
     ]);
@@ -179,6 +180,7 @@ describe("live-current activation", () => {
     expect(committed.fullscreenRequest).toBeNull();
     expect(committed.playerRecoveryRequest).toBeNull();
     expect(committed.playerPresence).toBeNull();
+    expect(committed.scriptedAction).toBeNull();
   });
 
   it("rejects when the activation transaction does not commit", async () => {
@@ -212,7 +214,7 @@ describe("live-current activation", () => {
     expect(committed.activationRevision).toBe(5);
   });
 
-  it("end clears current, presence, projection protocol state, and galleryControl but preserves activationRevision", async () => {
+  it("end clears current, presence, projection protocol state, Gallery, and Scripted actions but preserves activationRevision", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
 
@@ -228,6 +230,7 @@ describe("live-current activation", () => {
         fullscreenRequest: null,
         playerRecoveryRequest: null,
         galleryControl: null,
+        scriptedAction: null,
         slideCommand: null,
         slideAck: null,
       },
@@ -280,6 +283,7 @@ describe("live-current activation", () => {
       fullscreenRequest: null,
       playerRecoveryRequest: null,
       galleryControl: null,
+      scriptedAction: null,
     });
   });
 
@@ -333,6 +337,7 @@ describe("live-current activation", () => {
       fullscreenRequest: null,
       playerRecoveryRequest: null,
       galleryControl: null,
+      scriptedAction: null,
     });
   });
 

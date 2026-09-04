@@ -77,6 +77,7 @@ export async function activateLivePresentation(
         slideCommand: null,
         slideAck: null,
         galleryControl: null,
+        scriptedAction: null,
       };
   });
 
@@ -174,6 +175,7 @@ export async function promoteLivePresentationVersion(
         slideCommand: null,
         slideAck: null,
         galleryControl: null,
+        scriptedAction: null,
       };
     },
     { applyLocally: false },
@@ -210,5 +212,6 @@ export async function endLivePresentation(): Promise<void> {
     slideCommand: null,
     slideAck: null,
     galleryControl: null,
+    scriptedAction: null,
   });
 }
