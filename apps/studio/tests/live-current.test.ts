@@ -165,6 +165,7 @@ describe("live-current activation", () => {
       "fullscreenRequest",
       "galleryControl",
       "playerControls",
+      "playerLogs",
       "playerPresence",
       "playerRecoveryRequest",
       "playerState",
@@ -185,6 +186,7 @@ describe("live-current activation", () => {
     expect(committed.scriptedAction).toBeNull();
     expect(committed.slideTransition).toBeNull();
     expect(committed.playerControls).toBeNull();
+    expect(committed.playerLogs).toBeNull();
   });
 
   it("rejects when the activation transaction does not commit", async () => {
@@ -239,6 +241,7 @@ describe("live-current activation", () => {
         slideAck: null,
         slideTransition: null,
         playerControls: null,
+        playerLogs: null,
       },
     );
     expect(mocks.runTransaction).not.toHaveBeenCalled();

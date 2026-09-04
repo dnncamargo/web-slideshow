@@ -32,6 +32,7 @@ import {
   buildPlayerReloadUrl,
   subscribePlayerRecoveryRequest,
 } from "./live-player-recovery-request";
+import { subscribePlayerLogs } from "./live-player-logs";
 import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
@@ -68,6 +69,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveScriptedAction: (() => void) | undefined;
   let cleanupLiveScriptedInput: (() => void) | undefined;
   let cleanupPlayerRecoveryRequest: (() => void) | undefined;
+  let cleanupLivePlayerLogs: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let presenceReporter: PlayerPresenceReporter | undefined;
   let activePresentation: Presentation | undefined;
@@ -364,11 +366,17 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupPlayerRecoveryRequest = undefined;
   }
 
+  function detachLivePlayerLogs(): void {
+    cleanupLivePlayerLogs?.();
+    cleanupLivePlayerLogs = undefined;
+  }
+
   function teardownLiveSession(): void {
     loadToken += 1;
     currentSessionKey = null;
     detachLiveProjectionSubscriptions();
     detachPlayerRecoveryRequest();
+    detachLivePlayerLogs();
     activeController?.destroy();
     activeController = undefined;
     getCurrentScriptedMount = undefined;
@@ -557,6 +565,7 @@ export function startPlayer(root: HTMLElement): () => void {
     if (promotion) {
       detachLiveProjectionSubscriptions();
       detachPlayerRecoveryRequest();
+      detachLivePlayerLogs();
       loadToken += 1;
     } else {
       teardownLiveSession();
@@ -593,6 +602,14 @@ export function startPlayer(root: HTMLElement): () => void {
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_RECOVERY_SUBSCRIBE_ERROR", { error });
       }
+    }
+
+    try {
+      cleanupLivePlayerLogs = subscribePlayerLogs(
+        database!, event.live.revision, window.location, window.location,
+      );
+    } catch (error) {
+      recordPlayerDiagnostic("PLAYER_LOGS_SUBSCRIBE_ERROR", { error });
     }
 
     if (token !== loadToken) return;

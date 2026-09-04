@@ -6,10 +6,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
-import {
-  resolvePublicPlayerUrl,
-  withPlayerLogsEnabled,
-} from "@/features/public-player/public-player-url";
 import { Topbar, TopbarActions } from "@powershow/ui";
 import {
   subscribeLiveCurrent,
@@ -30,9 +26,11 @@ import {
 import {
   PLAYER_PRESENCE_PATH,
   parsePlayerPresence,
+  resolveConnectedPlayerLeases,
   resolvePlayerOperationalStatus,
   type PlayerOperationalStatus,
 } from "./player-presence";
+import { useLivePlayerLogsControl } from "./use-live-player-logs-control";
 import {
   requestPlayerClearCache,
   requestPlayerReload,
@@ -59,12 +57,11 @@ function label(status: PlayerOperationalStatus | null): string {
 }
 
 export function MaintenancePage() {
-  const publicPlayer = resolvePublicPlayerUrl();
-  const playerLogsUrl = publicPlayer.available && publicPlayer.baseUrl
-    ? withPlayerLogsEnabled(publicPlayer.baseUrl)
-    : null;
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
+  const live = liveState.kind === "active" ? liveState.live : null;
+  const playerLogs = useLivePlayerLogsControl(live);
   const [status, setStatus] = useState<PlayerOperationalStatus | null>(null);
+  const [connectedPlayers, setConnectedPlayers] = useState<string[]>([]);
   const [controlState, setControlState] = useState<LiveControlState | null>(null);
   const [playerState, setPlayerState] = useState<LivePlayerState | null>(null);
   const [latencySnapshot, setLatencySnapshot] =
@@ -140,6 +137,7 @@ export function MaintenancePage() {
   useEffect(() => {
     if (liveState.kind !== "active") {
       setStatus(null);
+      setConnectedPlayers([]);
       setControlState(null);
       setPlayerState(null);
       return;
@@ -148,6 +146,7 @@ export function MaintenancePage() {
     const database = getRealtimeDatabaseOrNull();
     if (!database) {
       setStatus(null);
+      setConnectedPlayers([]);
       setControlState(null);
       setPlayerState(null);
       return;
@@ -165,6 +164,11 @@ export function MaintenancePage() {
             resolvePlayerOperationalStatus(
               liveState.live,
               parsePlayerPresence(snapshot.val()),
+            ),
+          );
+          setConnectedPlayers(
+            resolveConnectedPlayerLeases(snapshot.val(), liveState.live).map(
+              (lease) => lease.bootId,
             ),
           );
         }
@@ -201,6 +205,7 @@ export function MaintenancePage() {
     currentStatus !== null && currentStatus.kind !== "no-report"
       ? currentStatus.presence
       : null;
+  const canControlLogs = liveState.kind === "active" && connectedPlayers.length > 0 && !playerLogs.writeInFlight;
 
   useEffect(() => {
     if (
@@ -448,6 +453,29 @@ export function MaintenancePage() {
         </section>
         <section className={styles.section} aria-labelledby="recovery">
           <h2 id="recovery">Recovery</h2>
+          <h3 className={styles.subheading}>Connected Players</h3>
+          {connectedPlayers.length === 0 ? (
+            <p>No connected Players</p>
+          ) : (
+            <ul className={styles.connectedPlayers}>
+              {connectedPlayers.map((bootId) => (
+                <li key={bootId} title={bootId}>Player {bootId.slice(0, 6)}…</li>
+              ))}
+            </ul>
+          )}
+          <div className={styles.logsControl}>
+            <span>Logs</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={playerLogs.enabled}
+              disabled={!canControlLogs}
+              onClick={() => playerLogs.setEnabled(!playerLogs.enabled)}
+            >
+              {playerLogs.enabled ? "On" : "Off"}
+            </button>
+          </div>
+          {playerLogs.sendFailed && <p role="alert">Could not update Player logs. Try again.</p>}
           <p>
             {retryPending !== null
               ? "Trying again…"
@@ -457,20 +485,6 @@ export function MaintenancePage() {
           </p>
           {reloadError && <p role="alert">{reloadError}</p>}
           <div className={styles.actions}>
-            {playerLogsUrl ? (
-              <a
-                className={styles.actionLink}
-                href={playerLogsUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open Player with logs
-              </a>
-            ) : (
-              <button type="button" disabled>
-                Open Player with logs
-              </button>
-            )}
             <button
               type="button"
               disabled={!canRetry}

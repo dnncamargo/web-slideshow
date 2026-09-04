@@ -80,6 +80,7 @@ export async function activateLivePresentation(
         scriptedAction: null,
         slideTransition: null,
         playerControls: null,
+        playerLogs: null,
       };
   });
 
@@ -217,5 +218,6 @@ export async function endLivePresentation(): Promise<void> {
     scriptedAction: null,
     slideTransition: null,
     playerControls: null,
+    playerLogs: null,
   });
 }

@@ -19,12 +19,11 @@ const mocks = vi.hoisted(() => ({
   ref: vi.fn(),
   requestPlayerReload: vi.fn(),
   requestPlayerRetry: vi.fn(),
-  resolvePublicPlayerUrl: vi.fn(),
+  set: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
-  withPlayerLogsEnabled: vi.fn(),
 }));
 
-vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref }));
+vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref, set: mocks.set }));
 vi.mock("../src/features/control/realtime-db", () => ({
   getRealtimeDatabaseOrNull: () => database,
 }));
@@ -38,10 +37,6 @@ vi.mock("../src/features/control/player-recovery-request", () => ({
 }));
 vi.mock("../src/features/control/control-latency-snapshot", () => ({
   readControlLatencySnapshot: mocks.readControlLatencySnapshot,
-}));
-vi.mock("../src/features/public-player/public-player-url", () => ({
-  resolvePublicPlayerUrl: mocks.resolvePublicPlayerUrl,
-  withPlayerLogsEnabled: mocks.withPlayerLogsEnabled,
 }));
 
 import { MaintenancePage } from "../src/features/control/maintenance-page";
@@ -151,11 +146,7 @@ describe("Maintenance page", () => {
     mocks.requestPlayerReload.mockResolvedValue({});
     mocks.requestPlayerClearCache.mockResolvedValue({});
     mocks.requestPlayerRetry.mockResolvedValue({});
-    mocks.resolvePublicPlayerUrl.mockReturnValue({
-      available: true,
-      baseUrl: "https://player.example/",
-    });
-    mocks.withPlayerLogsEnabled.mockReturnValue("https://player.example/?logs=true");
+    mocks.set.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -197,33 +188,19 @@ describe("Maintenance page", () => {
     expect(sections[0]?.querySelector("h2")?.textContent).toBe("Player status");
     expect(sections[1]?.querySelector("h2")?.textContent).toBe("Recovery");
     expect(container.querySelectorAll("main")).toHaveLength(1);
-    expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(3);
+    expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(4);
   });
 
-  it("opens the public Player logs URL in a new tab", () => {
+  it("never opens a local Player URL for logs", () => {
     render();
-
-    const link = [...container.querySelectorAll<HTMLAnchorElement>("a")].find(
-      (candidate) => candidate.textContent === "Open Player with logs",
-    );
-    expect(link?.getAttribute("href")).toBe("https://player.example/?logs=true");
-    expect(link?.getAttribute("target")).toBe("_blank");
-    expect(link?.getAttribute("rel")).toBe("noreferrer");
-    expect(mocks.withPlayerLogsEnabled).toHaveBeenCalledWith(
-      "https://player.example/",
-    );
+    expect(container.textContent).not.toContain("Open Player with logs");
+    expect([...container.querySelectorAll<HTMLAnchorElement>("a")].some((candidate) => candidate.hasAttribute("target"))).toBe(false);
   });
 
-  it("shows a disabled logs action without a Player href when unavailable", () => {
-    mocks.resolvePublicPlayerUrl.mockReturnValue({ available: false, baseUrl: null });
+  it("shows no connected Players and disables logs", () => {
     render();
-
-    expect(button("Open Player with logs").disabled).toBe(true);
-    expect(
-      [...container.querySelectorAll<HTMLAnchorElement>("a")].some(
-        (candidate) => candidate.textContent === "Open Player with logs",
-      ),
-    ).toBe(false);
+    expect(container.textContent).toContain("No connected Players");
+    expect(button("Off").disabled).toBe(true);
   });
 
   it("uses the canonical Control suite chrome and one maintenance back navigation action", () => {
@@ -269,6 +246,19 @@ describe("Maintenance page", () => {
     expect(button("Try presentation again").disabled).toBe(true);
     expect(button("Reload Player").disabled).toBe(false);
     expect(button("Clear cache and reload").disabled).toBe(false);
+  });
+
+  it("lists connected Players and broadcasts logs without a local URL", async () => {
+    render();
+    emitPresence({
+      ...presence("boot-a"),
+      leases: { "boot-a": presence("boot-a").leases["boot-a"], "boot-b": { activationRevision: 7, currentVersionId: "version-1", bootId: "boot-b", connected: true, transitionedAt: 100 } },
+    });
+    expect(container.textContent).toContain("Player boot-a…");
+    expect(container.textContent).toContain("Player boot-b…");
+    expect(button("Off").disabled).toBe(false);
+    await act(async () => button("Off").click());
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/playerLogs" }, { activationRevision: 7, enabled: true });
   });
 
   it("requires confirmation, writes clear-cache exactly, and waits for a replacement boot", async () => {
@@ -484,7 +474,7 @@ describe("Maintenance page", () => {
     root = createRoot(container);
 
     expect(liveUnsubscribe).toHaveBeenCalledTimes(1);
-    expect(unsubscribes).toHaveLength(3);
+    expect(unsubscribes).toHaveLength(4);
     expect(unsubscribes.every((unsubscribe) => unsubscribe.mock.calls.length === 1)).toBe(
       true,
     );
