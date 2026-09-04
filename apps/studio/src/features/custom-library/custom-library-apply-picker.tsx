@@ -119,7 +119,7 @@ export function CustomLibraryApplyPicker({
               <p className={`${styles.customLibraryApplyStatus} ${styles.customLibrarySaveError}`} role="alert">
                 {t("customLibrary.applyLoadFailed")}
               </p>
-              <button type="button" onClick={() => setReloadToken((current) => current + 1)}>
+              <button className={styles.customLibraryApplyPanelAction} type="button" onClick={() => setReloadToken((current) => current + 1)}>
                 {t("customLibrary.applyRetry")}
               </button>
             </>
@@ -148,7 +148,7 @@ export function CustomLibraryApplyPicker({
                   </li>
                 ))}
               </ul>
-              <button className={actionClassName} type="button" disabled={!selectedItem} onClick={handleApply}>
+              <button className={actionClassName ?? styles.customLibraryApplyPanelAction} type="button" disabled={!selectedItem} onClick={handleApply}>
                 {t("customLibrary.apply")}
               </button>
             </>

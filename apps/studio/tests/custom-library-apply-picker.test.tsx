@@ -222,7 +222,28 @@ describe("CustomLibraryApplyPicker", () => {
   it("accepts the embedded compact action presentation hook", async () => {
     render(async () => [item], undefined, false, true, "resource-action");
     await act(async () => undefined);
-    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected")?.className).toContain("resource-action");
+    const apply = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected");
+    expect(apply?.className).toContain("resource-action");
+    expect(apply?.className).not.toContain("customLibraryApplyPanelAction");
+  });
+
+  it("uses the picker-local action fallback and keeps Retry local", async () => {
+    render(async () => [item]);
+    open();
+    await act(async () => undefined);
+    const apply = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected");
+    expect(apply?.className).toBeTruthy();
+
+    const listItems = vi.fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce([item]);
+    render(listItems, undefined, false, true);
+    await act(async () => undefined);
+    const retry = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+    expect(retry?.className).toBeTruthy();
+    act(() => retry?.click());
+    await act(async () => undefined);
+    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply to selected")?.className).toBe(retry?.className);
   });
 
   it("shows generic failure feedback for font dependency conflicts", async () => {
