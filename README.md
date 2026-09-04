@@ -132,6 +132,8 @@ Theme / defaults
 
 Linked Styles are Presentation-scoped, self-contained and Container-only in the current contract. Custom Library Styles remain copy/materialization resources rather than runtime dependencies.
 
+Recent Editor resource refinements also align `+ Add Linked Style`, `+ Add Style`, and `Apply to selected` with the compact shared resource-action visual; Text Styles expose a projected-style count, and Container `Preserve size` uses the checkbox-first Inspector grammar.
+
 ## Import / Export
 
 PowerShow exports the canonical Presentation directly as readable JSON:
@@ -263,11 +265,10 @@ The recent merged baseline includes:
 - Maintenance & Diagnostics D0–D2 with Player presence and bounded recovery;
 - Firestore serialization hardening for deep canonical Presentations;
 - grammar-based Blocks visual authoring;
-- Typography/Text Style usage locations and target-aware association behavior;
-- Image Inspector and Delete→Enter ergonomics;
-- PowerShow Suite chrome for Maintenance, including `<<< Back to presentation` and square diagnostic cards.
-
-A separate Editor resource-control polish branch exists but is not merged into `main`; always revalidate branch state before integrating it.
+- Typography/Text Style usage locations and target-aware association behavior (PR #125);
+- Image Inspector and Delete→Enter ergonomics (PR #126);
+- PowerShow Suite chrome for Maintenance, including `<<< Back to presentation` and square diagnostic cards (PR #127);
+- Editor Resource Controls polish: checkbox-first Preserve size, compact Add/Apply actions and projected Text Styles count (PR #129).
 
 ## Deferred work
 
@@ -314,7 +315,7 @@ AUDIT
 
 Current code in `main` outranks tests, which outrank contracts/documentation/handoffs when evidence conflicts. Search and reuse existing ownership before creating new states, abstractions or protocols.
 
-Repository execution rules live in `AGENTS.md`. The current project handoff lives in [`HANDOFF.md`](./HANDOFF.md).
+Repository execution rules live in `AGENTS.md`. Operational handoffs are provided explicitly between work areas and must always be revalidated against the real current `main`.
 
 ## Roadmap
 
