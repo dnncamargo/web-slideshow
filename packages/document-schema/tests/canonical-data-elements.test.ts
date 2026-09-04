@@ -61,19 +61,21 @@ describe("canonical data element contracts", () => {
     expect(parsed.style?.color).toBe("#ffffff");
   });
 
-  it.each(["fontWeight", "textAlign", "whiteSpace"] as const)(
-    "rejects Code typography.%s",
-    (field) => {
-      expect(
-        CodeElementSchema.safeParse({
-          id: "code-1",
-          hidden: false,
-          code: "x",
-          typography: { [field]: field === "fontWeight" ? 700 : "center" },
-        }).success,
-      ).toBe(false);
-    },
-  );
+  it.each([
+    ["fontWeight", 700],
+    ["textAlign", "center"],
+    ["whiteSpace", "pre-wrap"],
+  ] as const)("rejects Code typography.%s", (field, value) => {
+    expect(
+      CodeElementSchema.safeParse({
+        id: "code-1",
+        type: "code",
+        hidden: false,
+        code: "x",
+        typography: { [field]: value },
+      }).success,
+    ).toBe(false);
+  });
 
   it("rejects Code style.textColor", () => {
     expect(
@@ -114,7 +116,7 @@ describe("canonical data element contracts", () => {
   it.each([
     { typography: { fontWeight: 700 } },
     { typography: { textAlign: "center" } },
-    { typography: { whiteSpace: "pre" } },
+    { typography: { whiteSpace: "pre-wrap" } },
     { style: { color: "#ffffff" } },
     { style: { titleColor: "#ffffff" } },
     { style: { controlDotColor: "#ffffff" } },
@@ -123,6 +125,7 @@ describe("canonical data element contracts", () => {
     expect(
       TerminalElementSchema.safeParse({
         id: "terminal-1",
+        type: "terminal",
         hidden: false,
         lines: [],
         ...extra,
@@ -149,12 +152,14 @@ describe("canonical data element contracts", () => {
     { typography: { letterSpacing: 0.1 } },
     { typography: { fontWeight: 700 } },
     { typography: { textAlign: "center" } },
+    { typography: { whiteSpace: "pre-wrap" } },
     { style: { textColor: "#ffffff" } },
     { unknown: true },
   ])("rejects unsupported Simple Table fields %j", (extra) => {
     expect(
       SimpleTableElementSchema.safeParse({
         id: "table-1",
+        type: "table",
         hidden: false,
         columns: [{ key: "name", label: "Name" }],
         rows: [],
