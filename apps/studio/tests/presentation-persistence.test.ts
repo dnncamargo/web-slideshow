@@ -476,6 +476,7 @@ describe("persistence round trip with Scripted", () => {
             html: "<div>source</div>\n",
             css: ".source { color: teal; }\n",
             script: "console.log('source');\n",
+            ports: [],
           },
         ],
       },

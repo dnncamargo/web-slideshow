@@ -135,7 +135,7 @@ describe("composeCustomLibraryElementRecipe", () => {
     const root: PowerShowElement = {
       type: "container", id: "opaque-root", hidden: false, children: [
         { type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: { payload } },
-        { type: "scripted", id: "scripted", hidden: false, title: "Script", html: JSON.stringify(payload), css: JSON.stringify(payload), script: JSON.stringify(payload) },
+        { type: "scripted", id: "scripted", hidden: false, title: "Script", html: JSON.stringify(payload), css: JSON.stringify(payload), script: JSON.stringify(payload), ports: [] },
       ],
     };
     const recipe = compose(root, new Map([
@@ -294,6 +294,7 @@ describe("composeCustomLibraryElementRecipe", () => {
         html: "<div />",
         css: ".x {}",
         script: "alert(1)",
+        ports: [],
       }],
     };
 

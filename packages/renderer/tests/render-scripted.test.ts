@@ -23,6 +23,8 @@ function scripted(
 
     script: "console.log('ready');",
 
+    ports: [],
+
     hidden: false,
 
     ...overrides,

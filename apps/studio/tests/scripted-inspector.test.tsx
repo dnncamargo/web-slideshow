@@ -50,6 +50,7 @@ function scripted(
     script: "",
     hidden: false,
     ...overrides,
+    ports: overrides.ports ?? [],
   };
 }
 
