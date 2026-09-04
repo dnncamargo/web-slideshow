@@ -365,7 +365,7 @@ export function ScriptedInspector({
         <span>{t("scripted.ports")}</span>
         <small className={styles.fieldHint}><span>{t("scripted.portsHelp")}</span></small>
         <div className={styles.galleryItemSelector}>{portsDraft.map((port, index) => <div key={index} className={styles.galleryItemSelectorRow}><button type="button" className={`${styles.secondaryButton} ${styles.galleryItemSelectorButton} ${index === selectedPortIndex ? styles.galleryItemSelectorButtonSelected : ""}`} data-powershow-scripted-port-select="true" data-powershow-scripted-port-index={index} aria-pressed={index === selectedPortIndex} onClick={() => setSelectedPortIndex(index)}><span className={styles.galleryItemName}>{port.label || t("scripted.port")}</span></button></div>)}</div>
-        <div className={styles.elementCrudActions}><button type="button" className={`${styles.secondaryButton} ${styles.elementCrudPrimary}`} data-powershow-scripted-port-add="true" onClick={addPort}>{t("scripted.addPort")}</button>{selectedPort && <button type="button" className={styles.secondaryButton} data-powershow-scripted-port-remove="true" aria-label={t("scripted.removePort")} onClick={removeSelectedPort}>×</button>}</div>
+        <div className={styles.elementCrudActions}><button type="button" className={styles.secondaryButton} data-powershow-scripted-port-add="true" onClick={addPort}>{t("scripted.addPort")}</button>{selectedPort && <button type="button" className={styles.secondaryButton} data-powershow-scripted-port-remove="true" aria-label={t("scripted.removePort")} onClick={removeSelectedPort}>×</button>}</div>
         {selectedPort && <>
           <label className={styles.field}><span>{t("scripted.portLabel")}</span><input data-powershow-scripted-port-label="true" value={selectedPort.label} onChange={(event) => updateSelectedPort((port) => ({ ...port, label: event.target.value }))} /></label>
           <label className={styles.field}><span>{t("scripted.portId")}</span><input data-powershow-scripted-port-id="true" value={selectedPort.id} onChange={(event) => updateSelectedPort((port) => ({ ...port, id: event.target.value }))} /></label>
@@ -380,7 +380,7 @@ export function ScriptedInspector({
             id="scripted-apply-run"
             type="button"
 
-            className={`${styles.secondaryButton} ${styles.elementCrudPrimary}`}
+            className={styles.secondaryButton}
 
             disabled={!dirty}
 
