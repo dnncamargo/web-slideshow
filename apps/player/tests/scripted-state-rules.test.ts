@@ -12,7 +12,7 @@ class Snapshot {
   isBoolean(): boolean { return typeof this.value === "boolean"; }
   val(): unknown { return this.value; }
 }
-type Leaf = { ".write": string; ".validate": string; $other: { ".validate": boolean } };
+type Leaf = { ".read"?: boolean; ".write": string; ".validate": string; $other: { ".validate": boolean } };
 const live = (JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { ".write": string; scriptedRuntime: Record<string, Leaf>; scriptedReport: Record<string, Record<string, Leaf>> } } }).rules.live;
 const runtime = live.scriptedRuntime.$scriptedSlot!;
 const report = live.scriptedReport.$scriptedSlot!.$portIndex!;
@@ -37,6 +37,7 @@ describe("live Scripted state repository rules", () => {
   });
 
   it("requires the exact mounted runtime for unauthenticated reports and validates positive input correlation", () => {
+    expect(report[".read"]).toBe(true);
     expect(evaluate(report[".write"], null, reportRecord(), root(), false)).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord())).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord({ currentVersionId: "stale" }))).toBe(false);
