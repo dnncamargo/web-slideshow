@@ -114,18 +114,64 @@ describe("renderEmbed", () => {
     );
   });
 
-  it("does not emit provider-specific behavior", () => {
+  it.each([
+    "https://www.youtube.com/watch?v=video-id",
+    "https://m.youtube.com/watch?v=video-id",
+    "https://youtube.com/watch?v=video-id",
+  ])("normalizes YouTube watch URL %s", (src) => {
+    expect(renderEmbed(embed({ src }))).toContain(
+      'src="https://www.youtube.com/embed/video-id"',
+    );
+  });
+
+  it("normalizes a youtu.be short URL", () => {
+    expect(renderEmbed(embed({ src: "https://youtu.be/video-id" }))).toContain(
+      'src="https://www.youtube.com/embed/video-id"',
+    );
+  });
+
+  it("leaves an existing YouTube embed URL unchanged", () => {
+    const src = "https://www.youtube.com/embed/video-id";
+
+    expect(renderEmbed(embed({ src }))).toContain(`src="${src}"`);
+  });
+
+  it("moves v into the embed path and preserves other query parameters", () => {
     const html = renderEmbed(
-      embed({ src: "https://example.com/embed/video" }),
+      embed({ src: "https://www.youtube.com/watch?v=video-id&start=30&rel=0" }),
     );
 
-    expect(html).not.toContain("youtube");
+    expect(html).toContain(
+      'src="https://www.youtube.com/embed/video-id?start=30&amp;rel=0"',
+    );
+    expect(html).not.toContain("v=video-id");
+  });
 
-    expect(html).not.toContain("youtu.be");
+  it("preserves youtu.be query parameters", () => {
+    expect(
+      renderEmbed(embed({ src: "https://youtu.be/video-id?start=30" })),
+    ).toContain(
+      'src="https://www.youtube.com/embed/video-id?start=30"',
+    );
+  });
 
-    expect(html).not.toContain("convertEmbed");
+  it.each([
+    "https://example.com/embed/video",
+    "https://www.youtube.com/watch",
+    "https://www.youtube.com/watch?v=",
+    "https://youtu.be/video-id/extra",
+  ])("leaves unsupported or incomplete URL %s unchanged", (src) => {
+    expect(renderEmbed(embed({ src }))).toContain(`src="${src}"`);
+  });
 
-    expect(html).not.toContain("provider");
+  it("does not mutate the authored src", () => {
+    const element = embed({
+      src: "https://www.youtube.com/watch?v=video-id&start=30",
+    });
+
+    renderEmbed(element);
+
+    expect(element.src).toBe("https://www.youtube.com/watch?v=video-id&start=30");
   });
 
     it("applies canonical surface namespaces", () => {

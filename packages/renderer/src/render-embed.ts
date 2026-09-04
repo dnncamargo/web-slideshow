@@ -34,6 +34,51 @@ const EMBED_ALLOW = "fullscreen";
 // cross-origin.
 const EMBED_REFERRERPOLICY = "strict-origin-when-cross-origin";
 
+const YOUTUBE_HOSTS = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "youtu.be",
+]);
+
+function resolveEmbedSrc(src: string): string {
+  let url: URL;
+
+  try {
+    url = new URL(src);
+  } catch {
+    return src;
+  }
+
+  if (!YOUTUBE_HOSTS.has(url.hostname)) {
+    return src;
+  }
+
+  if (url.hostname === "youtu.be") {
+    const pathSegments = url.pathname.split("/");
+
+    if (pathSegments.length !== 2 || !pathSegments[1]) {
+      return src;
+    }
+
+    return `https://www.youtube.com/embed/${encodeURIComponent(pathSegments[1])}${url.search}${url.hash}`;
+  }
+
+  if (url.pathname === "/watch") {
+    const videoId = url.searchParams.get("v");
+
+    if (!videoId) {
+      return src;
+    }
+
+    url.searchParams.delete("v");
+
+    return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}${url.search}${url.hash}`;
+  }
+
+  return src;
+}
+
 // ============================================================
 // END: EMBED SANDBOX
 // ============================================================
@@ -80,7 +125,7 @@ export function renderEmbed(
     ` class="${escapeHtml(classes.join(" "))}"` +
     ` data-powershow-id="${escapeHtml(element.id)}"` +
     ` data-powershow-type="embed"` +
-    ` src="${escapeHtml(element.src)}"` +
+    ` src="${escapeHtml(resolveEmbedSrc(element.src))}"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${EMBED_SANDBOX}"` +
     ` allow="${EMBED_ALLOW}"` +
