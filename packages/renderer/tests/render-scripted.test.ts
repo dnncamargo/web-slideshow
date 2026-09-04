@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { runInNewContext } from "node:vm";
 
 import type {
   ScriptedElement,
@@ -57,14 +58,14 @@ function extractSrcdoc(html: string): string {
 function recoverPayload(
   srcdoc: string,
   name: string,
-): string {
+): unknown {
   const regex = new RegExp(`data-${name}="([^"]*)"`);
 
   const match = srcdoc.match(regex);
 
   expect(match).not.toBeNull();
 
-  return JSON.parse(decodeHtmlEntities(match![1]!)) as string;
+  return JSON.parse(decodeHtmlEntities(match![1]!)) as unknown;
 }
 
 // Extracts the CSP meta content attribute from the inner (decoded) srcdoc
@@ -77,6 +78,16 @@ function extractCsp(srcdoc: string): string {
   expect(match).not.toBeNull();
 
   return decodeHtmlEntities(match![1]!);
+}
+
+function extractBootstrap(srcdoc: string): string {
+  const match = srcdoc.match(
+    /<script data-powershow-scripted-bootstrap="true">([\s\S]*)<\/script>/,
+  );
+
+  expect(match).not.toBeNull();
+
+  return match![1]!;
 }
 
 describe("renderScripted", () => {
@@ -424,5 +435,246 @@ describe("renderScripted payload structural safety", () => {
     );
 
     expect(html).toContain("PWM Demo");
+  });
+});
+
+describe("renderScripted PowerShow.ports bootstrap", () => {
+  const ports: ScriptedElement["ports"] = [
+    { id: "scroll-up", label: "Scroll up", kind: "action" },
+    {
+      id: "closed",
+      label: "Closed",
+      kind: "boolean",
+      direction: "input",
+    },
+    {
+      id: "current",
+      label: "Current",
+      kind: "number",
+      direction: "output",
+      min: 0,
+      max: 100,
+      step: 5,
+    },
+  ];
+
+  it("continues rendering Scripted elements with no ports", () => {
+    expect(renderScripted(scripted({ ports: [] }))).toContain("<iframe");
+  });
+
+  it("transports the element id and ports as serialized payload data", () => {
+    const elementId = 'element "<& 日本語';
+
+    const portPayload: ScriptedElement["ports"] = [
+      {
+        id: 'current "<& 日本語',
+        label: 'Current </template><script>unsafe</script>',
+        kind: "number",
+        direction: "input-output",
+        min: -1,
+        max: 1,
+        step: 0.1,
+      },
+    ];
+
+    const srcdoc = extractSrcdoc(
+      renderScripted(scripted({ id: elementId, ports: portPayload })),
+    );
+
+    expect(recoverPayload(srcdoc, "element-id")).toBe(elementId);
+    expect(recoverPayload(srcdoc, "ports")).toEqual(portPayload);
+    expect(srcdoc).not.toContain("<script>unsafe");
+  });
+
+  it("installs the exact public API before appending authored script", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+
+    const apiIndex = srcdoc.indexOf("Object.defineProperty(window, 'PowerShow'");
+    const authoredScriptIndex = srcdoc.indexOf("scriptNode.textContent = script");
+
+    expect(apiIndex).toBeGreaterThan(-1);
+    expect(authoredScriptIndex).toBeGreaterThan(apiIndex);
+    expect(srcdoc).toContain("onAction: onAction");
+    expect(srcdoc).toContain("onInput: onInput");
+    expect(srcdoc).toContain("report: report");
+  });
+
+  it("uses the exact three Scripted message types", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+
+    expect(srcdoc).toContain("powershow:scripted:action");
+    expect(srcdoc).toContain("powershow:scripted:input");
+    expect(srcdoc).toContain("powershow:scripted:report");
+  });
+
+  it("enforces source, exact envelopes, and canonical element and port checks", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+
+    expect(srcdoc).toContain("event.source !== window.parent");
+    expect(srcdoc).toContain("Object.keys(value)");
+    expect(srcdoc).toContain("data.elementId !== elementId");
+    expect(srcdoc).toContain("own(portsById, data.portId)");
+    expect(srcdoc).toContain("portsById[data.portId].kind !== 'action'");
+  });
+
+  it("validates boolean and bounded finite number inputs and reports", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+
+    expect(srcdoc).toContain("typeof value === 'boolean'");
+    expect(srcdoc).toContain("typeof value === 'number'");
+    expect(srcdoc).toContain("Number.isFinite(value)");
+    expect(srcdoc).toContain("value >= port.min");
+    expect(srcdoc).toContain("value <= port.max");
+    expect(srcdoc).toContain("Scripted port does not permit reports");
+    expect(srcdoc).not.toContain("value % port.step");
+  });
+
+  it("posts reports only to parent with the opaque-origin wildcard target", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+
+    expect(srcdoc).toContain("window.parent.postMessage({ type: 'powershow:scripted:report'");
+    expect(srcdoc).toContain("value: value }, '*')");
+  });
+
+  it("contains no message queue or prohibited dynamic execution primitive", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+
+    expect(srcdoc).not.toContain("queue");
+    expect(srcdoc).not.toContain("history");
+    expect(srcdoc).not.toContain("eval(");
+    expect(srcdoc).not.toContain("Function(");
+    expect(srcdoc).not.toContain("document.write");
+    expect(srcdoc).not.toContain("setTimeout(");
+  });
+
+  it("dispatches only valid commands and reports only valid primitive outputs", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
+    const messages: unknown[] = [];
+    const parent = {
+      postMessage(message: unknown, target: string) {
+        messages.push({ message, target });
+      },
+    };
+    let listener: ((event: { source: unknown; data: unknown }) => void) | undefined;
+    const payload = {
+      getAttribute(name: string) {
+        const payloads: Record<string, unknown> = {
+          html: "",
+          css: "",
+          script: "",
+          "element-id": "scripted-1",
+          ports,
+        };
+
+        const value = payloads[name.slice(5)];
+
+        return value === undefined ? null : JSON.stringify(value);
+      },
+      remove() {},
+    };
+    const root = { innerHTML: "" };
+    const document = {
+      getElementById(id: string) {
+        if (id === "powershow-scripted-payload") {
+          return payload;
+        }
+
+        return id === "powershow-scripted-root" ? root : null;
+      },
+      createElement() {
+        return { textContent: "" };
+      },
+      head: { appendChild() {} },
+      body: { appendChild() {} },
+    };
+    const sandboxWindow = {
+      parent,
+      addEventListener(type: string, handler: typeof listener) {
+        if (type === "message") {
+          listener = handler;
+        }
+      },
+    };
+
+    runInNewContext(extractBootstrap(srcdoc), {
+      window: sandboxWindow,
+      document,
+    });
+
+    expect(listener).toBeDefined();
+
+    const powerShow = sandboxWindow as typeof sandboxWindow & {
+      PowerShow: {
+        ports: {
+          onAction(id: string, handler: () => void): void;
+          onInput(id: string, handler: (value: boolean | number) => void): void;
+          report(id: string, value: boolean | number): void;
+        };
+      };
+    };
+    let actionCount = 0;
+    const inputs: Array<boolean | number> = [];
+
+    powerShow.PowerShow.ports.onAction("scroll-up", () => {
+      actionCount += 1;
+    });
+    powerShow.PowerShow.ports.onInput("closed", (value) => {
+      inputs.push(value);
+    });
+
+    listener!({
+      source: parent,
+      data: {
+        type: "powershow:scripted:action",
+        elementId: "scripted-1",
+        portId: "scroll-up",
+      },
+    });
+    listener!({
+      source: parent,
+      data: {
+        type: "powershow:scripted:action",
+        elementId: "scripted-1",
+        portId: "scroll-up",
+        value: true,
+      },
+    });
+    listener!({
+      source: parent,
+      data: {
+        type: "powershow:scripted:input",
+        elementId: "scripted-1",
+        portId: "closed",
+        value: true,
+      },
+    });
+    listener!({
+      source: parent,
+      data: {
+        type: "powershow:scripted:input",
+        elementId: "scripted-1",
+        portId: "closed",
+        value: 1,
+      },
+    });
+
+    expect(actionCount).toBe(1);
+    expect(inputs).toEqual([true]);
+
+    powerShow.PowerShow.ports.report("current", 17.25);
+
+    expect(messages).toEqual([
+      {
+        message: {
+          type: "powershow:scripted:report",
+          elementId: "scripted-1",
+          portId: "current",
+          value: 17.25,
+        },
+        target: "*",
+      },
+    ]);
+    expect(() => powerShow.PowerShow.ports.report("current", Infinity)).toThrow();
+    expect(() => powerShow.PowerShow.ports.report("closed", false)).toThrow();
   });
 });

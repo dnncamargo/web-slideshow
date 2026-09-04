@@ -4,6 +4,11 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
+import {
+  SCRIPTED_ACTION_MESSAGE_TYPE,
+  SCRIPTED_INPUT_MESSAGE_TYPE,
+  SCRIPTED_REPORT_MESSAGE_TYPE,
+} from "./scripted-port-protocol";
 
 // ============================================================
 // BEGIN: SCRIPTED SANDBOX
@@ -69,14 +74,15 @@ const SCRIPTED_CSP =
 // Order of operations inside the sandbox:
 // 1. resolve the payload element;
 // 2. resolve the Scripted root;
-// 3. decode html/css/script from the payload attributes;
+// 3. decode html/css/script/element id/ports from the payload attributes;
 // 4. apply HTML to the Scripted root;
 // 5. create a <style> element and assign CSS through textContent;
 // 6. append the style to document.head;
-// 7. create a <script> element and assign canonical script through
+// 7. install the fixed PowerShow.ports API and message listener;
+// 8. create a <script> element and assign canonical script through
 //    textContent;
-// 8. append it only after HTML and CSS exist;
-// 9. remove the temporary payload node.
+// 9. append it only after HTML, CSS, and PowerShow.ports exist;
+// 10. remove the temporary payload node.
 //
 // No eval(), no Function(), no setTimeout(string), no document.write.
 const SCRIPTED_BOOTSTRAP_SOURCE =
@@ -106,6 +112,12 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var script = String(decode('script'));" +
   "\n" +
+  "var elementId = String(decode('element-id'));" +
+  "\n" +
+  "var decodedPorts = decode('ports');" +
+  "\n" +
+  "var ports = Array.isArray(decodedPorts) ? decodedPorts : [];" +
+  "\n" +
   "root.innerHTML = html;" +
   "\n" +
   "if (css !== '') {" +
@@ -117,6 +129,122 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "  document.head.appendChild(styleNode);" +
   "\n" +
   "}" +
+  "\n" +
+  "var portsById = Object.create(null);" +
+  "\n" +
+  "for (var portIndex = 0; portIndex < ports.length; portIndex += 1) {" +
+  "\n" +
+  "  var port = ports[portIndex];" +
+  "\n" +
+  "  if (port && typeof port.id === 'string') { portsById[port.id] = port; }" +
+  "\n" +
+  "}" +
+  "\n" +
+  "var actionHandlers = Object.create(null);" +
+  "\n" +
+  "var inputHandlers = Object.create(null);" +
+  "\n" +
+  "function own(object, key) { return Object.prototype.hasOwnProperty.call(object, key); }" +
+  "\n" +
+  "function portFor(id) {" +
+  "\n" +
+  "  if (typeof id !== 'string') { throw new TypeError('Scripted port id must be a string'); }" +
+  "\n" +
+  "  if (!own(portsById, id)) { throw new Error('Unknown Scripted port: ' + id); }" +
+  "\n" +
+  "  return portsById[id];" +
+  "\n" +
+  "}" +
+  "\n" +
+  "function inputPort(port) { return (port.kind === 'boolean' || port.kind === 'number') && (port.direction === 'input' || port.direction === 'input-output'); }" +
+  "\n" +
+  "function outputPort(port) { return (port.kind === 'boolean' || port.kind === 'number') && (port.direction === 'output' || port.direction === 'input-output'); }" +
+  "\n" +
+  "function validValue(port, value) {" +
+  "\n" +
+  "  if (port.kind === 'boolean') { return typeof value === 'boolean'; }" +
+  "\n" +
+  "  return port.kind === 'number' && typeof value === 'number' && Number.isFinite(value) && (port.min === undefined || value >= port.min) && (port.max === undefined || value <= port.max);" +
+  "\n" +
+  "}" +
+  "\n" +
+  "function onAction(id, handler) {" +
+  "\n" +
+  "  var port = portFor(id);" +
+  "\n" +
+  "  if (port.kind !== 'action') { throw new Error('Scripted port is not an action: ' + id); }" +
+  "\n" +
+  "  if (typeof handler !== 'function') { throw new TypeError('Scripted action handler must be a function'); }" +
+  "\n" +
+  "  actionHandlers[id] = handler;" +
+  "\n" +
+  "}" +
+  "\n" +
+  "function onInput(id, handler) {" +
+  "\n" +
+  "  var port = portFor(id);" +
+  "\n" +
+  "  if (!inputPort(port)) { throw new Error('Scripted port does not accept input: ' + id); }" +
+  "\n" +
+  "  if (typeof handler !== 'function') { throw new TypeError('Scripted input handler must be a function'); }" +
+  "\n" +
+  "  inputHandlers[id] = handler;" +
+  "\n" +
+  "}" +
+  "\n" +
+  "function report(id, value) {" +
+  "\n" +
+  "  var port = portFor(id);" +
+  "\n" +
+  "  if (!outputPort(port)) { throw new Error('Scripted port does not permit reports: ' + id); }" +
+  "\n" +
+  "  if (!validValue(port, value)) { throw new TypeError('Invalid Scripted report value: ' + id); }" +
+  "\n" +
+  "  window.parent.postMessage({ type: '" + SCRIPTED_REPORT_MESSAGE_TYPE + "', elementId: elementId, portId: id, value: value }, '*');" +
+  "\n" +
+  "}" +
+  "\n" +
+  "var portsApi = Object.freeze({ onAction: onAction, onInput: onInput, report: report });" +
+  "\n" +
+  "Object.defineProperty(window, 'PowerShow', { value: Object.freeze({ ports: portsApi }), writable: false, configurable: false });" +
+  "\n" +
+  "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
+  "\n" +
+  "function exactKeys(value, first, second, third, fourth) {" +
+  "\n" +
+  "  var keys = Object.keys(value);" +
+  "\n" +
+  "  var expected = fourth === undefined ? 3 : 4;" +
+  "\n" +
+  "  return keys.length === expected && own(value, first) && own(value, second) && own(value, third) && (fourth === undefined || own(value, fourth));" +
+  "\n" +
+  "}" +
+  "\n" +
+  "window.addEventListener('message', function (event) {" +
+  "\n" +
+  "  if (event.source !== window.parent || !plainRecord(event.data)) { return; }" +
+  "\n" +
+  "  var data = event.data;" +
+  "\n" +
+  "  if (data.type === '" + SCRIPTED_ACTION_MESSAGE_TYPE + "') {" +
+  "\n" +
+  "    if (!exactKeys(data, 'type', 'elementId', 'portId') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId) || portsById[data.portId].kind !== 'action' || !own(actionHandlers, data.portId)) { return; }" +
+  "\n" +
+  "    actionHandlers[data.portId]();" +
+  "\n" +
+  "    return;" +
+  "\n" +
+  "  }" +
+  "\n" +
+  "  if (data.type !== '" + SCRIPTED_INPUT_MESSAGE_TYPE + "' || !exactKeys(data, 'type', 'elementId', 'portId', 'value') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId)) { return; }" +
+  "\n" +
+  "  var input = portsById[data.portId];" +
+  "\n" +
+  "  if (!inputPort(input) || !validValue(input, data.value) || !own(inputHandlers, data.portId)) { return; }" +
+  "\n" +
+  "  inputHandlers[data.portId](data.value);" +
+  "\n" +
+  "});" +
   "\n" +
   "if (script !== '') {" +
   "\n" +
@@ -132,7 +260,7 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "})();";
 
-function serializedPayloadValue(value: string): string {
+function serializedPayloadValue(value: unknown): string {
   // JSON.stringify keeps the exact authored string byte-for-byte;
   // escapeHtml then makes every quote/angle character inert inside
   // the quoted data attribute, so authored sequences can never
@@ -167,6 +295,12 @@ function buildScriptedDocument(
     "\"" +
     " data-script=\"" +
     serializedPayloadValue(element.script) +
+    "\"" +
+    " data-element-id=\"" +
+    serializedPayloadValue(element.id) +
+    "\"" +
+    " data-ports=\"" +
+    serializedPayloadValue(element.ports) +
     "\"></template>" +
     "<script data-powershow-scripted-bootstrap=\"true\">" +
     SCRIPTED_BOOTSTRAP_SOURCE +
