@@ -23,6 +23,7 @@ import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
 import type { ControlGalleryView } from "../use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../use-live-scripted-action-control";
+import type { ControlScriptedStateGroup, ControlScriptedStatePort } from "../use-live-scripted-state-control";
 import type { PlayerOperationalStatus } from "../player-presence";
 import type { PresenterPresentationState } from "./use-presenter-presentation";
 import { usePresenterNotes } from "./use-presenter-notes";
@@ -147,6 +148,30 @@ function ScriptedActionControls({ groups, disabled, triggerAction }: {
  ));
 }
 
+function stateCopy(port: ControlScriptedStatePort, t: StudioTranslate): string | null {
+  if (port.status === "unavailable") return t("control.portUnavailable");
+  if (port.status === "awaiting-report") return t("control.waitingForState");
+  if (port.status === "pending") return t("control.applying");
+  if (port.status === "divergent") return t("control.actualDiffers");
+  return null;
+}
+function valueCopy(value: boolean | number | null, t: StudioTranslate): string { if (value === null) return "—"; return typeof value === "boolean" ? t(value ? "control.on" : "control.off") : String(value); }
+function NumberPortControl({ group, port, setPortValue, t }: { group: ControlScriptedStateGroup; port: ControlScriptedStatePort; setPortValue(slot: number, index: number, value: boolean | number): void; t: StudioTranslate; }) {
+  const [draft, setDraft] = useState(port.desiredValue === null ? "" : String(port.desiredValue));
+  useEffect(() => { setDraft(port.desiredValue === null ? "" : String(port.desiredValue)); }, [port.runtimeKey, port.desiredRevision, port.desiredValue]);
+  const apply = () => { const text = draft.trim(); if (text === "") return; const value = Number(text); if (!Number.isFinite(value) || (port.min !== undefined && value < port.min) || (port.max !== undefined && value > port.max)) return; setPortValue(group.scriptedSlot, port.portIndex, value); };
+  return <div className={presenterStyles.scriptedStateValue}><input aria-label={port.label} type="number" value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!port.writable} min={port.min} max={port.max} step={port.step} /><Button variant="secondary" size="compact" disabled={!port.writable} onClick={apply}>{t("control.apply")}</Button></div>;
+}
+function ScriptedStateControls({ groups, setPortValue }: { groups: readonly ControlScriptedStateGroup[]; setPortValue(slot: number, index: number, value: boolean | number): void; }) {
+  const { t } = useStudioI18n();
+  return groups.map((group) => <div className={presenterStyles.scriptedStateGroup} key={group.elementId}><span className={presenterStyles.scriptedStateLabel}>{group.title}</span>{group.ports.map((port) => {
+    const actual = port.direction === "input" ? null : <span className={presenterStyles.scriptedStateActual}>{t("control.actual")}: {valueCopy(port.reportedValue, t)}</span>;
+    const status = stateCopy(port, t);
+    const controls = port.direction === "output" ? null : port.kind === "boolean" ? <div className={presenterStyles.scriptedStateValue}><Button variant="secondary" size="compact" disabled={!port.writable} aria-pressed={port.desiredValue === false} onClick={() => setPortValue(group.scriptedSlot, port.portIndex, false)}>{t("control.off")}</Button><Button variant="secondary" size="compact" disabled={!port.writable} aria-pressed={port.desiredValue === true} onClick={() => setPortValue(group.scriptedSlot, port.portIndex, true)}>{t("control.on")}</Button></div> : <NumberPortControl key={`${group.scriptedSlot}:${port.portIndex}:${port.runtimeKey}`} group={group} port={port} setPortValue={setPortValue} t={t} />;
+    return <div className={presenterStyles.scriptedStatePort} key={port.portIndex}><span className={presenterStyles.scriptedStatePortLabel}>{port.label}</span>{controls}{actual}{status && <span className={presenterStyles.scriptedStateStatus}>{status}</span>}</div>;
+  })}</div>);
+}
+
 export interface PresenterViewProps {
   view: LiveControlView | null;
   sendFailed: boolean;
@@ -154,6 +179,7 @@ export interface PresenterViewProps {
   galleries: readonly ControlGalleryView[];
   scriptedActionGroups: readonly ControlScriptedActionGroup[];
   scriptedActionsEnabled: boolean;
+  scriptedStateGroups?: readonly ControlScriptedStateGroup[];
   promotingVersionId: string | null;
   failedPromotionVersionId: string | null;
   playerStatus?: PlayerOperationalStatus | null;
@@ -166,6 +192,7 @@ export interface PresenterViewProps {
   nextGallery(elementId: string): void;
   setGalleryExpanded(elementId: string, expanded: boolean): void;
   triggerScriptedAction(scriptedSlot: number, portIndex: number): void;
+  setScriptedPortValue?(scriptedSlot: number, portIndex: number, value: boolean | number): void;
   end(): void;
 }
 
@@ -200,6 +227,7 @@ export function PresenterView({
   galleries,
   scriptedActionGroups,
   scriptedActionsEnabled,
+  scriptedStateGroups = [],
   promotingVersionId,
   failedPromotionVersionId,
   playerStatus,
@@ -212,6 +240,7 @@ export function PresenterView({
   nextGallery,
   setGalleryExpanded,
   triggerScriptedAction,
+  setScriptedPortValue = () => undefined,
   end,
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
@@ -289,6 +318,7 @@ export function PresenterView({
   const navigationDisabled = pendingVersion !== null || disabled;
   const showGalleryControls = pendingVersion === null && galleries.length > 0;
   const showScriptedActionControls = scriptedActionGroups.length > 0;
+  const showScriptedStateControls = scriptedStateGroups.length > 0;
   const currentGalleryTargets = showGalleryControls
     ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
     : [];
@@ -592,10 +622,11 @@ export function PresenterView({
           </div>
         </div>
 
-        {(showGalleryControls || showScriptedActionControls) && (
+        {(showGalleryControls || showScriptedActionControls || showScriptedStateControls) && (
           <div className={presenterStyles.mobileInteractiveElementsControls} data-mobile-gallery-controls>
             {showGalleryControls && <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />}
             {showScriptedActionControls && <ScriptedActionControls groups={scriptedActionGroups} disabled={!scriptedActionsEnabled} triggerAction={triggerScriptedAction} />}
+            {showScriptedStateControls && <ScriptedStateControls groups={scriptedStateGroups} setPortValue={setScriptedPortValue} />}
           </div>
         )}
 
@@ -632,6 +663,11 @@ export function PresenterView({
             {showScriptedActionControls && (
               <div className={presenterStyles.interactiveElementsControls} data-scripted-action-controls>
                 <ScriptedActionControls groups={scriptedActionGroups} disabled={!scriptedActionsEnabled} triggerAction={triggerScriptedAction} />
+              </div>
+            )}
+            {showScriptedStateControls && (
+              <div className={presenterStyles.interactiveElementsControls} data-scripted-state-controls>
+                <ScriptedStateControls groups={scriptedStateGroups} setPortValue={setScriptedPortValue} />
               </div>
             )}
             {currentSlide && currentSlideNote !== "" && (

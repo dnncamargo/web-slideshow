@@ -20,6 +20,7 @@ export type PlayerTransition = "none" | "fade";
 export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
   onScriptedReport?: (report: ScriptedReportMessage) => void;
+  onScriptedMount?: (mount: { pageId: string; elementId: string }) => void;
 }
 
 export interface ProjectionSurface {
@@ -32,7 +33,7 @@ export interface ProjectionSurface {
     elementId: string,
     portId: string,
     value: boolean | number,
-  ): void;
+  ): boolean;
   getCurrentIndex(): number;
   destroy(): void;
 }
@@ -145,6 +146,12 @@ export function mountProjectionSurface(
 
     slideSurface.innerHTML = renderSlide(slide, { presentation });
     hydrateRendererRuntime(slideSurface);
+    for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
+      'iframe[data-powershow-type="scripted"][data-powershow-id]',
+    )) {
+      const elementId = frame.dataset.powershowId;
+      if (elementId !== undefined) options.onScriptedMount?.({ pageId: slide.id, elementId });
+    }
     animateSlide();
   }
 
@@ -396,8 +403,8 @@ export function mountProjectionSurface(
       elementId: string,
       portId: string,
       value: boolean | number,
-    ): void {
-      postScriptedInput(
+    ): boolean {
+      return postScriptedInput(
         presentation.slides[currentIndex],
         slideSurface,
         elementId,

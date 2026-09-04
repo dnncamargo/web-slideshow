@@ -106,6 +106,8 @@ export interface PlayerOptions {
 
   onScriptedReport?: (report: ScriptedReportMessage) => void;
 
+  onScriptedMount?: (mount: { pageId: string; elementId: string }) => void;
+
   // Mantemos esta opção como já existia.
   // Não vamos movê-la para "controls" nesta etapa,
   // para evitar quebrar código e testes existentes.
@@ -139,7 +141,7 @@ export interface PlayerController {
     elementId: string,
     portId: string,
     value: boolean | number,
-  ): void;
+  ): boolean;
 
   fullscreen(): Promise<void>;
 
@@ -244,6 +246,9 @@ export function mountPlayer(
     ...(options.onScriptedReport === undefined
       ? {}
       : { onScriptedReport: options.onScriptedReport }),
+    ...(options.onScriptedMount === undefined
+      ? {}
+      : { onScriptedMount: options.onScriptedMount }),
   });
 
   const stage = projection.stage;
@@ -609,8 +614,8 @@ export function mountPlayer(
       elementId: string,
       portId: string,
       value: boolean | number,
-    ): void {
-      projection.sendScriptedInput(elementId, portId, value);
+    ): boolean {
+      return projection.sendScriptedInput(elementId, portId, value);
     },
 
     fullscreen,

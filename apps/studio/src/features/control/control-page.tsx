@@ -12,6 +12,7 @@ import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
 import { useLiveGalleryControl } from "./use-live-gallery-control";
 import { useLiveScriptedActionControl } from "./use-live-scripted-action-control";
+import { useLiveScriptedStateControl } from "./use-live-scripted-state-control";
 import { usePresenterPresentation } from "./presenter/use-presenter-presentation";
 import { PresenterView } from "./presenter/presenter-view";
 import {
@@ -97,6 +98,15 @@ export function ControlPage() {
     playerStatus,
     controlsBlocked:
       presentationState.kind === "ready" && presentationState.pendingVersion !== null,
+  });
+  const scriptedStateControl = useLiveScriptedStateControl({
+    live: liveState.kind === "active" ? liveState.live : null,
+    livePresentation: presentationState.kind === "ready" ? presentationState.livePresentation : null,
+    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    actualPageId: view?.actualPageId ?? null,
+    controlSynced: view?.status.kind === "synced",
+    playerStatus,
+    controlsBlocked: presentationState.kind === "ready" && presentationState.pendingVersion !== null,
   });
   const [available] = useState(() => isRealtimeDatabaseConfigured());
   const lastLiveIdentityRef = useRef<Pick<LiveCurrent, "publicationId" | "currentVersionId"> | null>(null);
@@ -230,11 +240,13 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed || galleryControl.sendFailed || scriptedActionControl.sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed}
       presentationState={presentationState}
       galleries={galleryControl.galleries}
       scriptedActionGroups={scriptedActionControl.groups}
       scriptedActionsEnabled={scriptedActionControl.actionsEnabled}
+      scriptedStateGroups={scriptedStateControl.groups}
+      setScriptedPortValue={scriptedStateControl.setPortValue}
       previous={previous}
       next={next}
       goTo={goTo}

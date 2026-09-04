@@ -216,6 +216,58 @@
   white-space: nowrap;
 }
 
+.scriptedStateGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
+
+.scriptedStateLabel,
+.scriptedStatePortLabel {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scriptedStatePort {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.scriptedStateValue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scriptedStateValue input {
+  width: 92px;
+  min-height: 40px;
+  border: 1px solid #3a4558;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #0b0f17;
+  color: #f8fafc;
+}
+
+.scriptedStatePort button {
+  min-height: 40px;
+}
+
+.scriptedStateActual,
+.scriptedStateStatus {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.scriptedStateStatus {
+  color: #fbbf24;
+}
+
 .controlMeta {
   display: flex;
   align-items: center;

@@ -66,8 +66,8 @@ describe("Player public Scripted ports", () => {
     player.sendScriptedAction("scripted-scroll", "scroll-up");
     player.sendScriptedAction("scripted-scroll", "scroll-down");
     player.sendScriptedAction("scripted-scroll", "missing");
-    player.sendScriptedInput("scripted-scroll", "enabled", true);
-    player.sendScriptedInput("scripted-scroll", "enabled", 1);
+    expect(player.sendScriptedInput("scripted-scroll", "enabled", true)).toBe(true);
+    expect(player.sendScriptedInput("scripted-scroll", "enabled", 1)).toBe(false);
 
     expect(postMessage).toHaveBeenNthCalledWith(1, { type: "powershow:scripted:action", elementId: "scripted-scroll", portId: "scroll-up" }, "*");
     expect(postMessage).toHaveBeenNthCalledWith(2, { type: "powershow:scripted:action", elementId: "scripted-scroll", portId: "scroll-down" }, "*");
