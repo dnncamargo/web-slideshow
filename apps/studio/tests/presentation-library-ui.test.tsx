@@ -1542,6 +1542,9 @@ describe("presentation library workspace controls", () => {
     const signOutIndex = actions.textContent?.indexOf("Sign out") ?? -1;
     expect(userIndex).toBeGreaterThanOrEqual(0);
     expect(signOutIndex).toBeGreaterThan(userIndex);
+
+    const locale = container.querySelector<HTMLElement>(".ps-ui-topbar__locale");
+    expect(locale?.className).toContain("mobileHidden");
   });
 
   it("lists Custom Library destinations without a clickable generic Folders destination", async () => {

@@ -1215,7 +1215,7 @@ export function PresentationLibrary({
           </Button>
         </TopbarActions>
 
-        <TopbarLocale>
+        <TopbarLocale className={styles.mobileHidden}>
           <LocaleSelector />
         </TopbarLocale>
       </Topbar>
