@@ -18,6 +18,7 @@ import {
   createLiveScriptedActionTracker,
   subscribeLiveScriptedAction,
 } from "./live-scripted-action";
+import { createLiveScriptedStatePublisher } from "./live-scripted-state";
 import {
   startPlayerPresence,
   type PlayerPresenceReporter,
@@ -69,6 +70,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let loadToken = 0;
   let localRecoveryRevision = 0;
   let localRecoveryInFlight = false;
+  let mountRevision = 0;
   const liveScriptedActionTracker = createLiveScriptedActionTracker();
 
   interface LoadFailureEvidence {
@@ -365,7 +367,29 @@ export function startPlayer(root: HTMLElement): () => void {
       });
 
       try {
-        activeController = mountPlayer(root, result.presentation, { controls });
+        const publisher = presenceReporter?.bootId && database
+          ? createLiveScriptedStatePublisher({
+              database,
+              activationRevision: requestedLive.revision,
+              currentVersionId: requestedLive.currentVersionId,
+              bootId: presenceReporter.bootId,
+              presentation: result.presentation,
+              allocateMountRevision: () => ++mountRevision,
+              isCurrent: () => activePresentation === result.presentation &&
+                activeLive === requestedLive,
+              onRuntimeWriteError: () => recordPlayerDiagnostic("SCRIPTED_RUNTIME_WRITE_ERROR"),
+              onReportWriteError: () => recordPlayerDiagnostic("SCRIPTED_REPORT_WRITE_ERROR"),
+            })
+          : undefined;
+        activePresentation = result.presentation;
+        activeLive = requestedLive;
+        activeController = mountPlayer(root, result.presentation, {
+          controls,
+          ...(publisher === undefined ? {} : {
+            onScriptedMount: publisher.onScriptedMount,
+            onScriptedReport: publisher.onScriptedReport,
+          }),
+        });
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
         presenceReporter?.failed("player-mount-failed");
@@ -378,8 +402,6 @@ export function startPlayer(root: HTMLElement): () => void {
 
       if (promotion) activeController.goTo(promotedIndex);
 
-      activePresentation = result.presentation;
-      activeLive = requestedLive;
       attachLiveProjection(requestedLive, result.presentation, logsEnabled);
       presenceReporter?.ready();
       return;

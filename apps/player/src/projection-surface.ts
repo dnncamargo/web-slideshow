@@ -20,6 +20,7 @@ export type PlayerTransition = "none" | "fade";
 export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
   onScriptedReport?: (report: ScriptedReportMessage) => void;
+  onScriptedMount?: (mount: { pageId: string; elementId: string }) => void;
 }
 
 export interface ProjectionSurface {
@@ -145,6 +146,12 @@ export function mountProjectionSurface(
 
     slideSurface.innerHTML = renderSlide(slide, { presentation });
     hydrateRendererRuntime(slideSurface);
+    for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
+      'iframe[data-powershow-type="scripted"][data-powershow-id]',
+    )) {
+      const elementId = frame.dataset.powershowId;
+      if (elementId !== undefined) options.onScriptedMount?.({ pageId: slide.id, elementId });
+    }
     animateSlide();
   }
 
