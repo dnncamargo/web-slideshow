@@ -1,4 +1,5 @@
 import type { Presentation } from "@powershow/document-schema";
+import type { ScriptedReportMessage } from "@powershow/renderer";
 
 import {
   fitLogicalSlideGeometry,
@@ -8,10 +9,17 @@ import {
   renderSlide,
 } from "@powershow/renderer";
 
+import {
+  postScriptedAction,
+  postScriptedInput,
+  validateScriptedReport,
+} from "./scripted-port-host";
+
 export type PlayerTransition = "none" | "fade";
 
 export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
+  onScriptedReport?: (report: ScriptedReportMessage) => void;
 }
 
 export interface ProjectionSurface {
@@ -19,6 +27,12 @@ export interface ProjectionSurface {
   goTo(index: number): void;
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
+  sendScriptedAction(elementId: string, portId: string): void;
+  sendScriptedInput(
+    elementId: string,
+    portId: string,
+    value: boolean | number,
+  ): void;
   getCurrentIndex(): number;
   destroy(): void;
 }
@@ -153,6 +167,18 @@ export function mountProjectionSurface(
 
   function handleResize(): void {
     updateStageSize();
+  }
+
+  function handleScriptedMessage(event: MessageEvent<unknown>): void {
+    const report = validateScriptedReport(
+      event,
+      presentation.slides[currentIndex],
+      slideSurface,
+    );
+
+    if (report) {
+      options.onScriptedReport?.(report);
+    }
   }
 
   function galleryItems(galleryRoot: HTMLElement): HTMLElement[] {
@@ -342,6 +368,7 @@ export function mountProjectionSurface(
   }
 
   window.addEventListener("resize", handleResize);
+  window.addEventListener("message", handleScriptedMessage);
   slideSurface.addEventListener("click", handleGalleryClick);
 
   updateStageSize();
@@ -357,6 +384,27 @@ export function mountProjectionSurface(
       }
     },
     setGalleryExpanded,
+    sendScriptedAction(elementId: string, portId: string): void {
+      postScriptedAction(
+        presentation.slides[currentIndex],
+        slideSurface,
+        elementId,
+        portId,
+      );
+    },
+    sendScriptedInput(
+      elementId: string,
+      portId: string,
+      value: boolean | number,
+    ): void {
+      postScriptedInput(
+        presentation.slides[currentIndex],
+        slideSurface,
+        elementId,
+        portId,
+        value,
+      );
+    },
     getCurrentIndex(): number {
       return currentIndex;
     },
@@ -367,6 +415,7 @@ export function mountProjectionSurface(
 
       destroyed = true;
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("message", handleScriptedMessage);
       slideSurface.removeEventListener("click", handleGalleryClick);
       clearExpandedGallery();
       root.innerHTML = "";
