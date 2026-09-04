@@ -19,7 +19,9 @@ const mocks = vi.hoisted(() => ({
   ref: vi.fn(),
   requestPlayerReload: vi.fn(),
   requestPlayerRetry: vi.fn(),
+  resolvePublicPlayerUrl: vi.fn(),
   subscribeLiveCurrent: vi.fn(),
+  withPlayerLogsEnabled: vi.fn(),
 }));
 
 vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref }));
@@ -36,6 +38,10 @@ vi.mock("../src/features/control/player-recovery-request", () => ({
 }));
 vi.mock("../src/features/control/control-latency-snapshot", () => ({
   readControlLatencySnapshot: mocks.readControlLatencySnapshot,
+}));
+vi.mock("../src/features/public-player/public-player-url", () => ({
+  resolvePublicPlayerUrl: mocks.resolvePublicPlayerUrl,
+  withPlayerLogsEnabled: mocks.withPlayerLogsEnabled,
 }));
 
 import { MaintenancePage } from "../src/features/control/maintenance-page";
@@ -145,6 +151,11 @@ describe("Maintenance page", () => {
     mocks.requestPlayerReload.mockResolvedValue({});
     mocks.requestPlayerClearCache.mockResolvedValue({});
     mocks.requestPlayerRetry.mockResolvedValue({});
+    mocks.resolvePublicPlayerUrl.mockReturnValue({
+      available: true,
+      baseUrl: "https://player.example/",
+    });
+    mocks.withPlayerLogsEnabled.mockReturnValue("https://player.example/?logs=true");
   });
 
   afterEach(async () => {
@@ -186,9 +197,33 @@ describe("Maintenance page", () => {
     expect(sections[0]?.querySelector("h2")?.textContent).toBe("Player status");
     expect(sections[1]?.querySelector("h2")?.textContent).toBe("Recovery");
     expect(container.querySelectorAll("main")).toHaveLength(1);
-    expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(
-      3,
+    expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(3);
+  });
+
+  it("opens the public Player logs URL in a new tab", () => {
+    render();
+
+    const link = [...container.querySelectorAll<HTMLAnchorElement>("a")].find(
+      (candidate) => candidate.textContent === "Open Player with logs",
     );
+    expect(link?.getAttribute("href")).toBe("https://player.example/?logs=true");
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noreferrer");
+    expect(mocks.withPlayerLogsEnabled).toHaveBeenCalledWith(
+      "https://player.example/",
+    );
+  });
+
+  it("shows a disabled logs action without a Player href when unavailable", () => {
+    mocks.resolvePublicPlayerUrl.mockReturnValue({ available: false, baseUrl: null });
+    render();
+
+    expect(button("Open Player with logs").disabled).toBe(true);
+    expect(
+      [...container.querySelectorAll<HTMLAnchorElement>("a")].some(
+        (candidate) => candidate.textContent === "Open Player with logs",
+      ),
+    ).toBe(false);
   });
 
   it("uses the canonical Control suite chrome and one maintenance back navigation action", () => {

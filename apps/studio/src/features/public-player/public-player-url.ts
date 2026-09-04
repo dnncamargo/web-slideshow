@@ -5,6 +5,12 @@ export interface PublicPlayerUrl {
   baseUrl: string | null;
 }
 
+export function withPlayerLogsEnabled(baseUrl: string): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set("logs", "true");
+  return url.toString();
+}
+
 export function normalizePlayerBaseUrl(value: string): string | null {
   const candidate = value.trim().replace(/\/+$/, "");
 

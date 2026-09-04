@@ -6,6 +6,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
+import {
+  resolvePublicPlayerUrl,
+  withPlayerLogsEnabled,
+} from "@/features/public-player/public-player-url";
 import { Topbar, TopbarActions } from "@powershow/ui";
 import {
   subscribeLiveCurrent,
@@ -55,6 +59,10 @@ function label(status: PlayerOperationalStatus | null): string {
 }
 
 export function MaintenancePage() {
+  const publicPlayer = resolvePublicPlayerUrl();
+  const playerLogsUrl = publicPlayer.available && publicPlayer.baseUrl
+    ? withPlayerLogsEnabled(publicPlayer.baseUrl)
+    : null;
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
   const [status, setStatus] = useState<PlayerOperationalStatus | null>(null);
   const [controlState, setControlState] = useState<LiveControlState | null>(null);
@@ -449,6 +457,20 @@ export function MaintenancePage() {
           </p>
           {reloadError && <p role="alert">{reloadError}</p>}
           <div className={styles.actions}>
+            {playerLogsUrl ? (
+              <a
+                className={styles.actionLink}
+                href={playerLogsUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Player with logs
+              </a>
+            ) : (
+              <button type="button" disabled>
+                Open Player with logs
+              </button>
+            )}
             <button
               type="button"
               disabled={!canRetry}
