@@ -19,6 +19,7 @@ import {
   subscribeLiveScriptedAction,
 } from "./live-scripted-action";
 import { createLiveScriptedStatePublisher } from "./live-scripted-state";
+import { createLiveScriptedInputTracker, subscribeLiveScriptedInput } from "./live-scripted-input";
 import {
   startPlayerPresence,
   type PlayerPresenceReporter,
@@ -61,6 +62,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
   let cleanupLiveScriptedAction: (() => void) | undefined;
+  let cleanupLiveScriptedInput: (() => void) | undefined;
   let cleanupPlayerRecoveryRequest: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let presenceReporter: PlayerPresenceReporter | undefined;
@@ -72,6 +74,8 @@ export function startPlayer(root: HTMLElement): () => void {
   let localRecoveryInFlight = false;
   let mountRevision = 0;
   const liveScriptedActionTracker = createLiveScriptedActionTracker();
+  const liveScriptedInputTracker = createLiveScriptedInputTracker();
+  let getCurrentScriptedMount: ((slot: number) => { pageId: string; elementId: string; mountRevision: number } | null) | undefined;
 
   interface LoadFailureEvidence {
     code?: "FIRESTORE_LOAD_ERROR";
@@ -287,6 +291,10 @@ export function startPlayer(root: HTMLElement): () => void {
           controller,
           liveScriptedActionTracker,
         );
+        if (getCurrentScriptedMount) cleanupLiveScriptedInput = subscribeLiveScriptedInput(
+          database, live.revision, live.currentVersionId, presenceReporter.bootId,
+          presentation, controller, getCurrentScriptedMount, liveScriptedInputTracker,
+        );
       }
     } catch (error) {
       console.error("Player: live projection state initialization failed", error);
@@ -313,12 +321,14 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveScriptedAction?.();
     cleanupLiveScriptedAction = undefined;
   }
+  function detachLiveScriptedInput(): void { cleanupLiveScriptedInput?.(); cleanupLiveScriptedInput = undefined; }
 
   function detachLiveProjectionSubscriptions(): void {
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
     detachLiveScriptedAction();
+    detachLiveScriptedInput();
   }
 
   function detachPlayerRecoveryRequest(): void {
@@ -333,6 +343,7 @@ export function startPlayer(root: HTMLElement): () => void {
     detachPlayerRecoveryRequest();
     activeController?.destroy();
     activeController = undefined;
+    getCurrentScriptedMount = undefined;
     activePresentation = undefined;
     activeLive = undefined;
     presenceReporter?.stop();
@@ -397,6 +408,7 @@ export function startPlayer(root: HTMLElement): () => void {
             onScriptedReport: publisher.onScriptedReport,
           }),
         });
+        getCurrentScriptedMount = publisher?.getCurrentMount;
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_MOUNT_ERROR", { error });
         presenceReporter?.failed("player-mount-failed");

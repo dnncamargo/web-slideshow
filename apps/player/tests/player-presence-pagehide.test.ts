@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveFullscreenRequest: vi.fn(),
   subscribeLiveGalleryControl: vi.fn(),
   subscribeLiveScriptedAction: vi.fn(),
+  subscribeLiveScriptedInput: vi.fn(),
   subscribeLiveProjectionState: vi.fn(),
   subscribePlayerRecoveryRequest: vi.fn(),
 }));
@@ -31,6 +32,10 @@ vi.mock("../src/live-gallery-control", () => ({ subscribeLiveGalleryControl: moc
 vi.mock("../src/live-scripted-action", () => ({
   createLiveScriptedActionTracker: vi.fn(() => ({})),
   subscribeLiveScriptedAction: mocks.subscribeLiveScriptedAction,
+}));
+vi.mock("../src/live-scripted-input", () => ({
+  createLiveScriptedInputTracker: vi.fn(() => ({})),
+  subscribeLiveScriptedInput: mocks.subscribeLiveScriptedInput,
 }));
 vi.mock("../src/live-player-recovery-request", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/live-player-recovery-request")>()),
@@ -52,6 +57,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
     mocks.subscribeLiveScriptedAction.mockReturnValue(vi.fn());
+    mocks.subscribeLiveScriptedInput.mockReturnValue(vi.fn());
     mocks.subscribePlayerRecoveryRequest.mockReturnValue(vi.fn());
     mocks.readLiveCurrent.mockResolvedValue({
       kind: "ok",

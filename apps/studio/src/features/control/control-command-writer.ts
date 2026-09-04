@@ -36,6 +36,11 @@ import {
   parseLiveScriptedActionRecord,
   type LiveScriptedActionRecord,
 } from "../live/scripted-action";
+import {
+  buildScriptedInputPath,
+  parseLiveScriptedInputRecord,
+  type LiveScriptedInputRecord,
+} from "../live/scripted-input";
 import type { LiveCurrent } from "./live-current";
 
 function getCurrentUserIdForControl(): string {
@@ -145,6 +150,11 @@ export interface ScriptedActionRequest {
   targetBootId: string;
 }
 
+export interface ScriptedInputRequest extends ScriptedActionRequest {
+  targetMountRevision: number;
+  value: boolean | number;
+}
+
 function requireScriptedActionInput(request: ScriptedActionRequest): {
   currentVersionId: string;
   pageId: string;
@@ -226,6 +236,28 @@ export async function writeScriptedAction(
   if (committed === null) {
     throw new Error("Scripted action transaction committed a malformed value.");
   }
+  return committed;
+}
+
+/** Writes the latest absolute desired input for one exact Scripted mount. */
+export async function writeScriptedInput(
+  database: Database,
+  request: ScriptedInputRequest,
+): Promise<LiveScriptedInputRecord> {
+  if (!isRealtimeDatabaseConfigured()) throw new Error("Realtime Database is not configured.");
+  getCurrentUserIdForControl();
+  const normalized = requireScriptedActionInput(request);
+  if (!Number.isInteger(request.targetMountRevision) || request.targetMountRevision < 1) throw new Error("Scripted input requires a positive targetMountRevision.");
+  if (!(typeof request.value === "boolean" || (typeof request.value === "number" && Number.isFinite(request.value)))) throw new Error("Scripted input requires a boolean or finite number value.");
+  const inputRef = ref(database, buildScriptedInputPath(request.scriptedSlot, request.portIndex));
+  const result = await runTransaction(inputRef, (current) => {
+    const previous = parseLiveScriptedInputRecord(current);
+    const sameIdentity = previous !== null && previous.activationRevision === request.activationRevision && previous.currentVersionId === normalized.currentVersionId && previous.pageId === normalized.pageId && previous.elementId === request.elementId && previous.portId === request.portId && previous.targetBootId === normalized.targetBootId && previous.targetMountRevision === request.targetMountRevision;
+    return { activationRevision: request.activationRevision, currentVersionId: normalized.currentVersionId, revision: sameIdentity ? previous.revision + 1 : 1, pageId: normalized.pageId, elementId: request.elementId, portId: request.portId, targetBootId: normalized.targetBootId, targetMountRevision: request.targetMountRevision, value: request.value };
+  });
+  if (result.committed !== true) throw new Error("Scripted input transaction did not commit.");
+  const committed = parseLiveScriptedInputRecord(result.snapshot.val());
+  if (committed === null) throw new Error("Scripted input transaction committed a malformed value.");
   return committed;
 }
 

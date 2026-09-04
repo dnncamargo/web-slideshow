@@ -112,6 +112,7 @@ function validOutputValue(port: ScriptedElement["ports"][number], value: boolean
 export function createLiveScriptedStatePublisher(options: LiveScriptedStatePublisherOptions): {
   onScriptedMount(event: { pageId: string; elementId: string }): void;
   onScriptedReport(report: ScriptedReportMessage): void;
+  getCurrentMount(scriptedSlot: number): { pageId: string; elementId: string; mountRevision: number } | null;
 } {
   const contexts = new Map<string, MountContext>();
 
@@ -152,5 +153,14 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
       }).catch(() => { options.onReportWriteError?.(); });
     }, () => undefined);
   }
-  return { onScriptedMount, onScriptedReport };
+  function getCurrentMount(scriptedSlot: number): { pageId: string; elementId: string; mountRevision: number } | null {
+    if (!Number.isInteger(scriptedSlot) || scriptedSlot < 0 || !options.isCurrent()) return null;
+    const pageId = options.getCurrentPageId();
+    if (pageId === null) return null;
+    const scripted = scriptedsOnPage(options.presentation, pageId)?.[scriptedSlot];
+    const context = scripted && contexts.get(scripted.id);
+    if (!scripted || !context || context.pageId !== pageId || context.scriptedSlot !== scriptedSlot || context.elementId !== scripted.id) return null;
+    return { pageId: context.pageId, elementId: context.elementId, mountRevision: context.mountRevision };
+  }
+  return { onScriptedMount, onScriptedReport, getCurrentMount };
 }
