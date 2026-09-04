@@ -8,7 +8,7 @@ import {
   type TextVisualStyle,
   stripLocalTextStyleProperties,
 } from "@powershow/document-schema";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import {
@@ -81,6 +81,19 @@ function readTextareaSelection(
   );
 }
 
+function readTextareaRange(
+  textarea: HTMLTextAreaElement,
+): TextSelectionRange | null {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+
+  if (start === null || end === null) {
+    return null;
+  }
+
+  return { start, end };
+}
+
 function InlineFormatButton({
   format,
   accessibleLabel,
@@ -132,6 +145,9 @@ export function TextInspector({
 }) {
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
+  const textRangeRef = useRef<TextSelectionRange | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const pendingCaretRef = useRef<number | null>(null);
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
   const [isInlineColorOpen, setIsInlineColorOpen] = useState(false);
   const presentationPalette = usePresentationColorPalette();
@@ -156,6 +172,22 @@ export function TextInspector({
         presentationPalette ? { colors: presentationPalette.colors } : undefined,
       );
   const isColorPanelOpen = isInlineColorOpen && hasSelection;
+
+  useLayoutEffect(() => {
+    const caret = pendingCaretRef.current;
+    const textarea = textareaRef.current;
+
+    if (caret === null || !textarea) {
+      return;
+    }
+
+    textarea.focus();
+    textarea.setSelectionRange(caret, caret);
+    textRangeRef.current = { start: caret, end: caret };
+    selectionRef.current = null;
+    setSelection(null);
+    pendingCaretRef.current = null;
+  }, [plainText]);
 
   const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
@@ -237,6 +269,7 @@ export function TextInspector({
   }
 
   function updateSelectionFromTextarea(textarea: HTMLTextAreaElement) {
+    textRangeRef.current = readTextareaRange(textarea);
     const nextSelection = readTextareaSelection(textarea);
 
     setSelection(nextSelection);
@@ -244,6 +277,21 @@ export function TextInspector({
     if (nextSelection) {
       selectionRef.current = nextSelection;
     }
+  }
+
+  function insertLineBreak() {
+    const range = textRangeRef.current;
+    if (!range) {
+      return;
+    }
+
+    const currentText = getTextContentPlainText(element.content);
+    const start = Math.min(Math.max(range.start, 0), currentText.length);
+    const end = Math.min(Math.max(range.end, start), currentText.length);
+    const nextText = `${currentText.slice(0, start)}\n${currentText.slice(end)}`;
+
+    updateTextElementContent((content) => reconcileTextContentEdit(content, nextText));
+    pendingCaretRef.current = start + 1;
   }
 
   function applySelectionTransform(
@@ -351,6 +399,20 @@ export function TextInspector({
                 );
               }}
             />
+
+            <button
+              className={styles.textEditorToolbarButton}
+              type="button"
+              aria-label={t("inspector.inlineFormat.lineBreak")}
+              data-powershow-inline-line-break="true"
+              title={t("inspector.inlineFormat.lineBreak")}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={insertLineBreak}
+            >
+              <span aria-hidden="true">↵</span>
+            </button>
 
             <button
               className={styles.textEditorToolbarButton}
@@ -467,6 +529,7 @@ export function TextInspector({
             id="text-content"
             name="textContent"
             className={styles.textArea}
+            ref={textareaRef}
             aria-label={t("inspector.text")}
             rows={5}
             value={plainText}

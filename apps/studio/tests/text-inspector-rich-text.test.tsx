@@ -119,6 +119,18 @@ describe("TextInspector rich text authoring", () => {
     return button;
   }
 
+  function lineBreakButton(): HTMLButtonElement {
+    const button = container.querySelector<HTMLButtonElement>(
+      '[data-powershow-inline-line-break="true"]',
+    );
+
+    if (!button) {
+      throw new Error("line break button not found");
+    }
+
+    return button;
+  }
+
   function clearFormattingButton(): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
       '[data-powershow-inline-format-clear-formatting="true"]',
@@ -293,6 +305,9 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("underline").getAttribute("aria-label")).toBe("Underline");
     expect(inlineButton("code").textContent).toBe("</>");
     expect(inlineButton("code").getAttribute("aria-label")).toBe("Code");
+    expect(lineBreakButton().textContent).toBe("↵");
+    expect(lineBreakButton().getAttribute("aria-label")).toBe("Line break");
+    expect(lineBreakButton().hasAttribute("aria-pressed")).toBe(false);
     expect(inlineColorButton().getAttribute("aria-label")).toBe("Text color");
     expect(clearFormattingButton().getAttribute("aria-label")).toBe("Clear formatting");
     expect(inlineColorButton().textContent).not.toContain("A");
@@ -301,6 +316,54 @@ describe("TextInspector rich text authoring", () => {
         '[data-powershow-inline-color-icon="paint-bucket"]',
       ),
     ).not.toBeNull();
+  });
+
+  it("inserts one canonical newline at a collapsed caret and restores the caret", async () => {
+    await act(async () => {
+      mount(richTextElement({ content: "abcdef" }));
+    });
+
+    await act(async () => {
+      selectRange(3, 3);
+      lineBreakButton().click();
+    });
+
+    expect(elementState.content).toBe("abc\ndef");
+    expect(textarea().selectionStart).toBe(4);
+    expect(textarea().selectionEnd).toBe(4);
+    expect(document.activeElement).toBe(textarea());
+  });
+
+  it("replaces a selected range with exactly one newline", async () => {
+    await act(async () => {
+      mount(richTextElement({ content: "abcXYZdef" }));
+    });
+
+    await act(async () => {
+      selectRange(3, 6);
+      lineBreakButton().click();
+    });
+
+    expect(elementState.content).toBe("abc\ndef");
+    expect(textarea().selectionStart).toBe(4);
+    expect(textarea().selectionEnd).toBe(4);
+  });
+
+  it("inherits rich-text marks when inserting a newline", async () => {
+    await act(async () => {
+      mount(richTextElement({
+        content: richText([{ text: "beforeafter", marks: { bold: true } }]),
+      }));
+    });
+
+    await act(async () => {
+      selectRange(6, 6);
+      lineBreakButton().click();
+    });
+
+    expect(elementState.content).toEqual(richText([
+      { text: "before\nafter", marks: { bold: true } },
+    ]));
   });
 
   it("applies bold to the selected range", async () => {

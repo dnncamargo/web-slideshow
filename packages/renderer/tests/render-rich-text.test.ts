@@ -18,6 +18,26 @@ function textElement(
 }
 
 describe("renderElement rich text", () => {
+  it("renders authored newlines as line breaks in plain text", () => {
+    expect(renderElement(textElement({ content: "first\nsecond" }))).toContain(
+      ">first<br>second</p>",
+    );
+    expect(renderElement(textElement({ content: "first\n\nsecond" }))).toContain(
+      ">first<br><br>second</p>",
+    );
+  });
+
+  it("renders authored newlines as line breaks inside marked rich text", () => {
+    const html = renderElement(textElement({
+      content: {
+        type: "rich-text",
+        runs: [{ text: "before\nafter", marks: { bold: true } }],
+      },
+    }));
+
+    expect(html).toContain("<strong>before<br>after</strong>");
+  });
+
   it("renders plain text unchanged", () => {
     const html = renderElement(textElement());
 
@@ -148,6 +168,15 @@ describe("renderElement rich text", () => {
       "<strong>&lt;script&gt;alert(1)&lt;/script&gt;</strong>",
     );
     expect(html).not.toContain("<script>");
+  });
+
+  it("escapes HTML while still rendering its authored newline", () => {
+    const html = renderElement(textElement({
+      content: "<script>alert(1)</script>\nnext",
+    }));
+
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;<br>next");
+    expect(html).not.toContain("<script>alert(1)</script>");
   });
 
   it("escapes plain string content instead of interpreting markup", () => {

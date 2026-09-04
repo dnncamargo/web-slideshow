@@ -1,5 +1,5 @@
 import { renderCode } from "./render-code";
-import { renderRichText } from "./render-rich-text";
+import { renderRichText, renderTextContent } from "./render-rich-text";
 import { renderTable } from "./render-table";
 import { renderTopics } from "./render-topics";
 import { renderTerminal } from "./render-terminal";
@@ -134,7 +134,7 @@ function renderText(element: TextElement, context?: RenderContext): string {
 
   const renderedContent =
     typeof element.content === "string"
-      ? escapeHtml(element.content)
+      ? renderTextContent(element.content)
       : renderRichText(element.content);
   const content = renderLinkContent(renderedContent, element.link);
   const resolved = context
