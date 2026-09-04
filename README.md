@@ -313,7 +313,17 @@ AUDIT
 → PR / merge
 ```
 
-Current code in `main` is the first authority for implementation details, followed by tests, canonical contracts, documentation/handoffs, and historical evidence. Search and reuse existing ownership before creating new states, abstractions or protocols.
+Authority order for implementation work is:
+
+```text
+current code in main
+→ tests
+→ canonical contracts / renderer ownership
+→ README / ROADMAP / current handoff
+→ historical branches / old handoffs / memory
+```
+
+Search and reuse existing ownership before creating new states, abstractions or protocols.
 
 Repository execution rules live in `AGENTS.md`. Operational handoffs are provided explicitly between work areas and must always be revalidated against the real current `main`.
 
