@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCurrent: vi.fn(),
   subscribeLiveFullscreenRequest: vi.fn(),
   subscribeLiveGalleryControl: vi.fn(),
+  subscribeLiveScriptedAction: vi.fn(),
   subscribeLiveProjectionState: vi.fn(),
   subscribePlayerRecoveryRequest: vi.fn(),
 }));
@@ -27,6 +28,10 @@ vi.mock("../src/live-player-presence", () => ({ startPlayerPresence: mocks.start
 vi.mock("../src/live-state", () => ({ subscribeLiveProjectionState: mocks.subscribeLiveProjectionState }));
 vi.mock("../src/live-fullscreen-request", () => ({ subscribeLiveFullscreenRequest: mocks.subscribeLiveFullscreenRequest }));
 vi.mock("../src/live-gallery-control", () => ({ subscribeLiveGalleryControl: mocks.subscribeLiveGalleryControl }));
+vi.mock("../src/live-scripted-action", () => ({
+  createLiveScriptedActionTracker: vi.fn(() => ({})),
+  subscribeLiveScriptedAction: mocks.subscribeLiveScriptedAction,
+}));
 vi.mock("../src/live-player-recovery-request", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/live-player-recovery-request")>()),
   subscribePlayerRecoveryRequest: mocks.subscribePlayerRecoveryRequest,
@@ -46,6 +51,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
+    mocks.subscribeLiveScriptedAction.mockReturnValue(vi.fn());
     mocks.subscribePlayerRecoveryRequest.mockReturnValue(vi.fn());
     mocks.readLiveCurrent.mockResolvedValue({
       kind: "ok",
@@ -151,6 +157,7 @@ describe("Player presence pagehide cleanup", () => {
     const ready = vi.fn();
     const failed = vi.fn();
     const projectionCleanups = [vi.fn(), vi.fn()];
+    const scriptedActionCleanups = [vi.fn(), vi.fn()];
     let recoveryHandler!: (request: unknown) => void;
     let loadCount = 0;
     let handleLive!: (event: unknown) => void;
@@ -180,6 +187,9 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveProjectionState
       .mockReturnValueOnce(projectionCleanups[0])
       .mockReturnValueOnce(projectionCleanups[1]);
+    mocks.subscribeLiveScriptedAction
+      .mockReturnValueOnce(scriptedActionCleanups[0])
+      .mockReturnValueOnce(scriptedActionCleanups[1]);
 
     startPlayer(document.querySelector("#app")!);
     handleLive({
@@ -201,6 +211,16 @@ describe("Player presence pagehide cleanup", () => {
     expect(mocks.resolveLiveIdentityMount).toHaveBeenCalledTimes(3);
     expect(mocks.mountPlayer).toHaveBeenCalledTimes(2);
     expect(projectionCleanups[0]).toHaveBeenCalledTimes(1);
+    expect(scriptedActionCleanups[0]).toHaveBeenCalledTimes(1);
+    expect(mocks.subscribeLiveScriptedAction).toHaveBeenCalledTimes(2);
+    expect(mocks.subscribeLiveScriptedAction.mock.calls[0]?.[6]).toBe(
+      mocks.subscribeLiveScriptedAction.mock.calls[1]?.[6],
+    );
+    expect(mocks.subscribeLiveScriptedAction.mock.calls[0]?.[3]).toBe("boot-a");
+    expect(mocks.subscribeLiveScriptedAction.mock.calls[1]?.[3]).toBe("boot-a");
+    expect(
+      mocks.subscribeLiveScriptedAction.mock.invocationCallOrder[0],
+    ).toBeLessThan(ready.mock.invocationCallOrder[0] ?? Infinity);
     expect(mocks.recordPlayerDiagnostic).not.toHaveBeenCalledWith(
       "PLAYER_RECOVERY_RETRY_ERROR",
       expect.anything(),
