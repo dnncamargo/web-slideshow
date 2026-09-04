@@ -123,6 +123,20 @@ describe("element style authoring defaults", () => {
       resolveEffectiveElementStyleDefaults({ type: "chart" }).borderRadius,
     ).toBe(0);
   });
+
+  it("resolves Code authoring defaults without injecting a font family", () => {
+    expect(resolveEffectiveElementStyleDefaults({ type: "code" })).toEqual({
+      typography: {
+        fontSize: 15.2,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+      },
+      borderRadius: 14,
+    });
+    expect(resolveEffectiveElementStyleDefaults({ type: "terminal" })).toEqual({
+      borderRadius: 14,
+    });
+  });
   it("exposes the deterministic Topics item gap default", () => {
     expect(TOPICS_ITEM_GAP_DEFAULT_PX).toBe(6);
   });

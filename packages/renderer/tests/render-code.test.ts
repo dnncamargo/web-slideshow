@@ -169,6 +169,38 @@ describe("renderCode", () => {
     expect(html).toContain("background:#101218");
     expect(html).toContain("border-radius:8px");
   });
+
+  it("leaves authored typography and color declarations absent by default", () => {
+    const html = renderCode(createCodeElement({ showLineNumbers: false }));
+
+    expect(html).not.toContain("font-family:");
+    expect(html).not.toContain("font-size:");
+    expect(html).not.toContain("line-height:");
+    expect(html).not.toContain("letter-spacing:");
+    expect(html).not.toContain("color:");
+  });
+
+  it("renders Code typography and text color on the pre root", () => {
+    const html = renderCode(createCodeElement({
+      typography: {
+        fontFamily: 'Example "Mono"',
+        fontSize: "1.25rem",
+        lineHeight: 1.4,
+        letterSpacing: "0.02em",
+      },
+      style: { color: { kind: "palette", colorId: "accent" } },
+      showLineNumbers: true,
+      highlightedLines: [1],
+    }));
+
+    expect(html).toContain("font-family:&quot;Example \\22 Mono\\22 &quot;");
+    expect(html).toContain("font-size:1.25rem");
+    expect(html).toContain("line-height:1.4");
+    expect(html).toContain("letter-spacing:0.02em");
+    expect(html).toContain("color:var(--ps-palette-0061006300630065006e0074)");
+    expect(html).toContain('class="powershow-code-line-number"');
+    expect(html).toContain("powershow-code-line-highlighted");
+  });
 });
 
 // ============================================================

@@ -143,7 +143,7 @@ function ElementTypeInspector({
 
     case "code":
       return (
-        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} />
+        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} />
       );
 
     case "terminal":

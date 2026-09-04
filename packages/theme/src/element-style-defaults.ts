@@ -144,6 +144,12 @@ export const TEXT_VARIANT_TYPOGRAPHY_DEFAULTS: Readonly<
   caption: numericTypographyDefaults(TEXT_VARIANT_TYPOGRAPHY_BASELINES.caption),
 };
 
+export const CODE_TYPOGRAPHY_DEFAULTS: Readonly<ThemeTypographyDefaults> = {
+  fontSize: 0.95 * AUTHORING_ROOT_FONT_SIZE_PX,
+  lineHeight: 1.2,
+  letterSpacing: 0,
+};
+
 export const TOPICS_ITEM_GAP_DEFAULT_PX = 6;
 
 export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
@@ -286,6 +292,13 @@ export function resolveEffectiveElementStyleDefaults(
     const variant = element.variant as ThemeTextVariant | undefined;
     return {
       typography: TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[variant ?? "body"] ?? TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body,
+      borderRadius,
+    };
+  }
+
+  if (element.type === "code") {
+    return {
+      typography: CODE_TYPOGRAPHY_DEFAULTS,
       borderRadius,
     };
   }

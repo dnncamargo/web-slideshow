@@ -3,7 +3,10 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { quoteCssString } from "./escape-css-string";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
+import { renderColorValue } from "./render-palette";
+import { renderLength } from "./render-length";
 
 export function renderCode(
   element: CodeElement,
@@ -18,6 +21,28 @@ export function renderCode(
 
   if (baseStyle) {
     styles.push(baseStyle);
+  }
+
+  const typography = element.typography;
+
+  if (typography?.fontFamily !== undefined) {
+    styles.push(`font-family:${quoteCssString(typography.fontFamily)}`);
+  }
+
+  if (typography?.fontSize !== undefined) {
+    styles.push(`font-size:${renderLength(typography.fontSize)}`);
+  }
+
+  if (typography?.lineHeight !== undefined) {
+    styles.push(`line-height:${typography.lineHeight}`);
+  }
+
+  if (typography?.letterSpacing !== undefined) {
+    styles.push(`letter-spacing:${renderLength(typography.letterSpacing)}`);
+  }
+
+  if (element.style?.color !== undefined) {
+    styles.push(`color:${renderColorValue(element.style.color)}`);
   }
 
   const customClass =

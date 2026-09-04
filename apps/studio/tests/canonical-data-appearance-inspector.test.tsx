@@ -53,6 +53,7 @@ describe("canonical data Appearance controls", () => {
       <StudioI18nProvider>
         <CodeInspector
           element={state}
+          fontResources={[{ id: "fira-code", family: "Fira Code" }]}
           onUpdate={(update) => {
             const next = update(state);
             state = next.type === "code" ? next : state;
@@ -117,5 +118,45 @@ describe("canonical data Appearance controls", () => {
     expect(state.style).not.toHaveProperty("backgroundGradient");
     expect(state.style).not.toHaveProperty("opacity");
     expect(state.style).not.toHaveProperty("shadow");
+  });
+
+  it("exposes only the Code typography controls and writes their canonical fields", async () => {
+    state = codeElement();
+    await act(async () => renderInspector());
+
+    expect(host.querySelector("#code-font-family")).not.toBeNull();
+    expect(host.querySelector("#code-font-size")).not.toBeNull();
+    expect(host.querySelector("#code-line-height")).not.toBeNull();
+    expect(host.querySelector("#code-letter-spacing")).not.toBeNull();
+    expect(host.querySelector("#code-font-weight")).toBeNull();
+    expect(host.querySelector("#code-font-style")).toBeNull();
+    expect(host.querySelector("#code-text-align")).toBeNull();
+    expect(host.querySelector("#code-text-transform")).toBeNull();
+    expect(host.querySelector("#code-white-space")).toBeNull();
+
+    await act(async () => changeSelect(host.querySelector("#code-font-family")!, "Fira Code"));
+    await act(async () => changeSelect(host.querySelector("#code-font-size-unit")!, "px"));
+    await act(async () => changeInput(host.querySelector("#code-font-size")!, "18"));
+    await act(async () => changeInput(host.querySelector("#code-line-height")!, "1.5"));
+    await act(async () => changeInput(host.querySelector("#code-letter-spacing")!, "0.1"));
+
+    expect(state.typography).toEqual({
+      fontFamily: "Fira Code",
+      fontSize: 18,
+      lineHeight: 1.5,
+      letterSpacing: "0.1em",
+    });
+  });
+
+  it("writes and resets Code text color without persisting the theme color", async () => {
+    state = codeElement();
+    await act(async () => renderInspector());
+
+    await act(async () => changeInput(host.querySelector("#code-color")!, "#ff0000"));
+    expect(state.style?.color).toBe("#ff0000");
+
+    const reset = host.querySelector<HTMLInputElement>("#code-color")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+    await act(async () => reset?.click());
+    expect(state.style?.color).toBeUndefined();
   });
 });
