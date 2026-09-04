@@ -14,6 +14,8 @@ import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import { subscribeLiveGalleryControl } from "./live-gallery-control";
+import { subscribeLiveSlideTransition } from "./live-slide-transition";
+import { subscribeLivePlayerControls } from "./live-player-controls";
 import {
   createLiveScriptedActionTracker,
   subscribeLiveScriptedAction,
@@ -30,6 +32,7 @@ import {
   buildPlayerReloadUrl,
   subscribePlayerRecoveryRequest,
 } from "./live-player-recovery-request";
+import { subscribePlayerLogs } from "./live-player-logs";
 import {
   configurePlayerDiagnostics,
   recordPlayerDiagnostic,
@@ -61,9 +64,12 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
+  let cleanupLiveSlideTransition: (() => void) | undefined;
+  let cleanupLivePlayerControls: (() => void) | undefined;
   let cleanupLiveScriptedAction: (() => void) | undefined;
   let cleanupLiveScriptedInput: (() => void) | undefined;
   let cleanupPlayerRecoveryRequest: (() => void) | undefined;
+  let cleanupLivePlayerLogs: (() => void) | undefined;
   let cleanupLiveCurrent: (() => void) | undefined;
   let presenceReporter: PlayerPresenceReporter | undefined;
   let activePresentation: Presentation | undefined;
@@ -282,6 +288,17 @@ export function startPlayer(root: HTMLElement): () => void {
         presentation,
         controller,
       );
+      cleanupLiveSlideTransition = subscribeLiveSlideTransition(
+        database,
+        live.revision,
+        controller,
+      );
+      cleanupLivePlayerControls = subscribeLivePlayerControls(
+        database,
+        live.revision,
+        controller,
+        controls,
+      );
       if (presenceReporter?.bootId) {
         cleanupLiveScriptedAction = subscribeLiveScriptedAction(
           database,
@@ -318,6 +335,16 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachLiveSlideTransition(): void {
+    cleanupLiveSlideTransition?.();
+    cleanupLiveSlideTransition = undefined;
+  }
+
+  function detachLivePlayerControls(): void {
+    cleanupLivePlayerControls?.();
+    cleanupLivePlayerControls = undefined;
+  }
+
   function detachLiveScriptedAction(): void {
     cleanupLiveScriptedAction?.();
     cleanupLiveScriptedAction = undefined;
@@ -328,6 +355,8 @@ export function startPlayer(root: HTMLElement): () => void {
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
+    detachLiveSlideTransition();
+    detachLivePlayerControls();
     detachLiveScriptedAction();
     detachLiveScriptedInput();
   }
@@ -337,11 +366,17 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupPlayerRecoveryRequest = undefined;
   }
 
+  function detachLivePlayerLogs(): void {
+    cleanupLivePlayerLogs?.();
+    cleanupLivePlayerLogs = undefined;
+  }
+
   function teardownLiveSession(): void {
     loadToken += 1;
     currentSessionKey = null;
     detachLiveProjectionSubscriptions();
     detachPlayerRecoveryRequest();
+    detachLivePlayerLogs();
     activeController?.destroy();
     activeController = undefined;
     getCurrentScriptedMount = undefined;
@@ -530,6 +565,7 @@ export function startPlayer(root: HTMLElement): () => void {
     if (promotion) {
       detachLiveProjectionSubscriptions();
       detachPlayerRecoveryRequest();
+      detachLivePlayerLogs();
       loadToken += 1;
     } else {
       teardownLiveSession();
@@ -566,6 +602,14 @@ export function startPlayer(root: HTMLElement): () => void {
       } catch (error) {
         recordPlayerDiagnostic("PLAYER_RECOVERY_SUBSCRIBE_ERROR", { error });
       }
+    }
+
+    try {
+      cleanupLivePlayerLogs = subscribePlayerLogs(
+        database!, event.live.revision, window.location, window.location,
+      );
+    } catch (error) {
+      recordPlayerDiagnostic("PLAYER_LOGS_SUBSCRIBE_ERROR", { error });
     }
 
     if (token !== loadToken) return;

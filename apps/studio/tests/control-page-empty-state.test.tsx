@@ -18,6 +18,13 @@ const mocks = vi.hoisted(() => ({
     setGalleryExpanded: vi.fn(),
   },
   scriptedStateControl: { groups: [], sendFailed: false, setPortValue: vi.fn() },
+  transitionControl: { transition: "fade" as const, setTransition: vi.fn(), writeInFlight: false, sendFailed: false },
+  playerControlsControl: {
+    controls: { position: "bottom-right" as const, style: "compact" as const, showCounter: true, animation: "fade" as const },
+    setControlsOptions: vi.fn(),
+    writeInFlight: false,
+    sendFailed: false,
+  },
   presenterProps: null as Record<string, unknown> | null,
 }));
 
@@ -49,6 +56,12 @@ vi.mock("../src/features/control/use-live-gallery-control", () => ({
 vi.mock("../src/features/control/use-live-scripted-state-control", () => ({
   useLiveScriptedStateControl: () => mocks.scriptedStateControl,
 }));
+vi.mock("../src/features/control/use-live-slide-transition-control", () => ({
+  useLiveSlideTransitionControl: () => mocks.transitionControl,
+}));
+vi.mock("../src/features/control/use-live-player-controls-control", () => ({
+  useLivePlayerControlsControl: () => mocks.playerControlsControl,
+}));
 vi.mock("../src/features/control/presenter/presenter-view", () => ({
   PresenterView: (props: Record<string, unknown>) => {
     mocks.presenterProps = props;
@@ -79,6 +92,8 @@ describe("ControlPage empty state recovery", () => {
     mocks.presenterProps = null;
     mocks.galleryControl.sendFailed = false;
     mocks.scriptedStateControl.sendFailed = false;
+    mocks.transitionControl.sendFailed = false;
+    mocks.playerControlsControl.sendFailed = false;
   });
 
   afterEach(async () => {
@@ -204,7 +219,7 @@ describe("ControlPage empty state recovery", () => {
     );
   });
 
-  it("composes Gallery and Scripted state send failures into PresenterView's existing send-failure prop", () => {
+  it("composes Player settings and existing control send failures into PresenterView", () => {
     mocks.liveState = {
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 2 },
@@ -219,6 +234,18 @@ describe("ControlPage empty state recovery", () => {
     expect(mocks.presenterProps?.sendFailed).toBe(true);
     expect(mocks.presenterProps?.scriptedStateGroups).toBe(mocks.scriptedStateControl.groups);
     expect(mocks.presenterProps?.setScriptedPortValue).toBe(mocks.scriptedStateControl.setPortValue);
+    mocks.scriptedStateControl.sendFailed = false;
+    mocks.transitionControl.sendFailed = true;
+    render();
+    expect(mocks.presenterProps?.sendFailed).toBe(true);
+    mocks.transitionControl.sendFailed = false;
+    mocks.playerControlsControl.sendFailed = true;
+    render();
+    expect(mocks.presenterProps?.sendFailed).toBe(true);
+    expect(mocks.presenterProps?.transition).toBe(mocks.transitionControl.transition);
+    expect(mocks.presenterProps?.setTransition).toBe(mocks.transitionControl.setTransition);
+    expect(mocks.presenterProps?.playerControls).toBe(mocks.playerControlsControl.controls);
+    expect(mocks.presenterProps?.setPlayerControls).toBe(mocks.playerControlsControl.setControlsOptions);
   });
 
   it("prevents duplicate activation and allows retry after failure", async () => {

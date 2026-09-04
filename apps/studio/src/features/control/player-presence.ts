@@ -60,6 +60,17 @@ function parseLease(value: unknown, bootId: string): PlayerPresenceLease | null 
   return { activationRevision: record.activationRevision, currentVersionId: record.currentVersionId.trim(), bootId, connected: record.connected, transitionedAt: record.transitionedAt };
 }
 
+/** Finds every strictly valid connected lease aligned with the active Live identity. */
+export function resolveConnectedPlayerLeases(value: unknown, live: LiveCurrent): PlayerPresenceLease[] {
+  if (typeof value !== "object" || value === null) return [];
+  const root = value as Record<string, unknown>;
+  if (typeof root.leases !== "object" || root.leases === null) return [];
+  return Object.keys(root.leases as Record<string, unknown>).sort().flatMap((bootId) => {
+    const lease = parseLease((root.leases as Record<string, unknown>)[bootId], bootId);
+    return lease !== null && lease.connected && lease.activationRevision === live.revision && lease.currentVersionId === live.currentVersionId ? [lease] : [];
+  });
+}
+
 /** Parses current and only its exact boot-scoped lease; unrelated leases are ignored. */
 export function parsePlayerPresence(value: unknown): PlayerPresence | null {
   if (typeof value !== "object" || value === null) return null;

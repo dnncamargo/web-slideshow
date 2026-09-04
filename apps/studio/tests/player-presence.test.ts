@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePlayerPresence, resolvePlayerOperationalStatus } from "../src/features/control/player-presence";
+import { parsePlayerPresence, resolveConnectedPlayerLeases, resolvePlayerOperationalStatus } from "../src/features/control/player-presence";
 
 const live = { publicationId: "publication", currentVersionId: "version-1", revision: 4 };
 const current = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", bootId: "boot-b", stage: "starting", transitionedAt: 1, ...overrides });
@@ -42,5 +42,19 @@ describe("Player operational status", () => {
 
   it("ignores unrelated malformed leases", () => {
     expect(status(presence({}, { "boot-a": { malformed: true }, "boot-b": lease("boot-b") }))?.kind).toBe("starting");
+  });
+
+  it("discovers all connected leases aligned with the active version", () => {
+    const found = resolveConnectedPlayerLeases({
+      leases: {
+        "boot-z": lease("boot-z"),
+        "boot-a": lease("boot-a"),
+        offline: lease("offline", { connected: false }),
+        stale: lease("stale", { activationRevision: 3 }),
+        old: lease("old", { currentVersionId: "version-0" }),
+        broken: { nope: true },
+      },
+    }, live);
+    expect(found.map((item) => item.bootId)).toEqual(["boot-a", "boot-z"]);
   });
 });

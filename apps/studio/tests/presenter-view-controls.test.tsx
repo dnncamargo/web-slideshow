@@ -15,6 +15,7 @@ import type { LiveControlView } from "../src/features/control/live-control";
 import type { ControlGalleryView } from "../src/features/control/use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../src/features/control/use-live-scripted-action-control";
 import type { PlayerOperationalStatus } from "../src/features/control/player-presence";
+import type { LivePlayerControls } from "../src/features/control/use-live-player-controls-control";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 vi.mock("../src/features/control/presenter/use-presenter-notes", () => ({
@@ -105,6 +106,12 @@ describe("PresenterView controls", () => {
     next = vi.fn(),
     goTo = vi.fn(),
     requestFullscreen = vi.fn(),
+    transition = "fade" as const,
+    setTransition = vi.fn(),
+    transitionWriteInFlight = false,
+    playerControls = { position: "bottom-right", style: "compact", showCounter: true, animation: "fade" },
+    setPlayerControls = vi.fn(),
+    playerControlsWriteInFlight = false,
     galleries = [],
     scriptedActionGroups = [],
     scriptedActionsEnabled = true,
@@ -130,6 +137,12 @@ describe("PresenterView controls", () => {
     next?: ReturnType<typeof vi.fn>;
     goTo?: ReturnType<typeof vi.fn>;
     requestFullscreen?: ReturnType<typeof vi.fn>;
+    transition?: "fade" | "slide" | "none";
+    setTransition?: ReturnType<typeof vi.fn>;
+    transitionWriteInFlight?: boolean;
+    playerControls?: LivePlayerControls;
+    setPlayerControls?: ReturnType<typeof vi.fn>;
+    playerControlsWriteInFlight?: boolean;
     galleries?: ControlGalleryView[];
     scriptedActionGroups?: ControlScriptedActionGroup[];
     scriptedActionsEnabled?: boolean;
@@ -166,6 +179,12 @@ describe("PresenterView controls", () => {
             followPlayer={vi.fn()}
             updatePlayer={vi.fn()}
             requestFullscreen={requestFullscreen}
+            transition={transition}
+            setTransition={setTransition}
+            transitionWriteInFlight={transitionWriteInFlight}
+            playerControls={playerControls}
+            setPlayerControls={setPlayerControls}
+            playerControlsWriteInFlight={playerControlsWriteInFlight}
             nextGallery={nextGallery}
             setGalleryExpanded={setGalleryExpanded}
             triggerScriptedAction={triggerScriptedAction}
@@ -180,6 +199,8 @@ describe("PresenterView controls", () => {
       next,
       goTo,
       requestFullscreen,
+      setTransition,
+      setPlayerControls,
       nextGallery,
       setGalleryExpanded,
       triggerScriptedAction,
@@ -320,6 +341,80 @@ describe("PresenterView controls", () => {
 
     expect(result.requestFullscreen).toHaveBeenCalledTimes(1);
     expect(nativeRequestFullscreen).not.toHaveBeenCalled();
+  });
+
+  it("keeps Player settings compact and applies each panel option without closing it", () => {
+    const setTransition = vi.fn();
+    const setPlayerControls = vi.fn();
+    render({ setTransition, setPlayerControls });
+
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Player settings"]');
+    const primary = trigger?.parentElement?.parentElement;
+    expect(container.querySelectorAll('button[aria-label="Player settings"]')).toHaveLength(1);
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger?.getAttribute("aria-controls")).toBe("presenter-player-settings");
+    expect(primary?.firstElementChild).toBe(trigger?.parentElement);
+    expect(container.querySelector('#presenter-player-settings')).toBeNull();
+    expect(container.querySelector('select[aria-label="Transition"]')).toBeNull();
+
+    act(() => trigger?.click());
+
+    const panel = container.querySelector<HTMLElement>('#presenter-player-settings');
+    const transition = panel?.querySelector<HTMLSelectElement>('select[aria-label="Transition"]');
+    const position = panel?.querySelector<HTMLSelectElement>('select[aria-label="Position"]');
+    const style = panel?.querySelector<HTMLSelectElement>('select[aria-label="Style"]');
+    const counter = panel?.querySelector<HTMLInputElement>('input[aria-label="Counter"]');
+    const animation = panel?.querySelector<HTMLSelectElement>('select[aria-label="Animation"]');
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(panel?.textContent).toContain("Player");
+    expect(panel?.textContent).toContain("Controls");
+    expect([...transition?.options ?? []].map((option) => option.text)).toEqual(["Fade", "Slide", "None"]);
+    expect([...position?.options ?? []].map((option) => option.value)).toEqual(["bottom-center", "bottom-left", "bottom-right", "top-center", "top-left", "top-right"]);
+    expect([...style?.options ?? []].map((option) => option.value)).toEqual(["floating", "minimal", "compact"]);
+    expect(counter?.checked).toBe(true);
+    expect(counter?.parentElement?.textContent).toBe("On");
+    expect([...animation?.options ?? []].map((option) => option.text)).toEqual(["Fade", "Slide", "None"]);
+
+    if (transition && position && style && counter && animation) {
+      transition.value = "slide";
+      position.value = "top-left";
+      style.value = "minimal";
+      animation.value = "none";
+      act(() => {
+        transition.dispatchEvent(new Event("change", { bubbles: true }));
+        position.dispatchEvent(new Event("change", { bubbles: true }));
+        style.dispatchEvent(new Event("change", { bubbles: true }));
+        counter.click();
+        animation.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+    expect(setTransition).toHaveBeenCalledWith("slide");
+    expect(setPlayerControls).toHaveBeenNthCalledWith(1, { position: "top-left" });
+    expect(setPlayerControls).toHaveBeenNthCalledWith(2, { style: "minimal" });
+    expect(setPlayerControls).toHaveBeenNthCalledWith(3, { showCounter: false });
+    expect(setPlayerControls).toHaveBeenNthCalledWith(4, { animation: "none" });
+    expect(container.querySelector('#presenter-player-settings')).not.toBeNull();
+  });
+
+  it("closes Player settings with Escape and isolates pending disabled states", () => {
+    render({ transitionWriteInFlight: true });
+    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="Player settings"]');
+    act(() => trigger?.click());
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Transition"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Position"]')?.disabled).toBe(false);
+    const escape = dispatchKey(document, { key: "Escape" });
+    expect(escape.defaultPrevented).toBe(true);
+    expect(container.querySelector('#presenter-player-settings')).toBeNull();
+
+    act(() => { root.unmount(); root = createRoot(container); });
+    render({ playerControlsWriteInFlight: true });
+    const secondTrigger = container.querySelector<HTMLButtonElement>('button[aria-label="Player settings"]');
+    act(() => secondTrigger?.click());
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Transition"]')?.disabled).toBe(false);
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Position"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Style"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Counter"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>('select[aria-label="Animation"]')?.disabled).toBe(true);
   });
 
   it("renders no Gallery controls when the desired slide has no Galleries", () => {

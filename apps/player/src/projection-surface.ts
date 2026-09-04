@@ -15,7 +15,9 @@ import {
   validateScriptedReport,
 } from "./scripted-port-host";
 
-export type PlayerTransition = "none" | "fade";
+export type PlayerTransition = "none" | "fade" | "slide";
+
+type SlideDirection = "forward" | "backward";
 
 export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
@@ -26,6 +28,7 @@ export interface ProjectionSurfaceOptions {
 export interface ProjectionSurface {
   stage: HTMLElement;
   goTo(index: number): void;
+  setTransition(transition: PlayerTransition): void;
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
   sendScriptedAction(elementId: string, portId: string): void;
@@ -56,7 +59,7 @@ export function mountProjectionSurface(
   presentation: Presentation,
   options: ProjectionSurfaceOptions = {},
 ): ProjectionSurface {
-  const transition = options.transition ?? "fade";
+  let transition = options.transition ?? "fade";
   let currentIndex = 0;
   let expandedGalleryId: string | null = null;
   let expandedOverlay: HTMLElement | null = null;
@@ -119,21 +122,41 @@ export function mountProjectionSurface(
     }
   }
 
-  function animateSlide(): void {
-    if (transition !== "fade" || typeof slideHost.animate !== "function") {
+  function animateSlide(direction?: SlideDirection): void {
+    if (typeof slideHost.animate !== "function") {
       return;
     }
 
-    slideHost.animate(
-      [
-        { opacity: 0, transform: "scale(0.995)" },
-        { opacity: 1, transform: "scale(1)" },
-      ],
-      { duration: 180, easing: "ease-out" },
-    );
+    if (transition === "fade") {
+      slideHost.animate(
+        [
+          { opacity: 0, transform: "scale(0.995)" },
+          { opacity: 1, transform: "scale(1)" },
+        ],
+        { duration: 180, easing: "ease-out" },
+      );
+      return;
+    }
+
+    // A direção só existe após uma navegação real.
+    // No primeiro render não há deslocamento horizontal.
+    if (transition === "slide" && direction !== undefined) {
+      const fromTransform =
+        direction === "forward"
+          ? "translateX(2%)"
+          : "translateX(-2%)";
+
+      slideHost.animate(
+        [
+          { opacity: 0, transform: fromTransform },
+          { opacity: 1, transform: "translateX(0)" },
+        ],
+        { duration: 180, easing: "ease-out" },
+      );
+    }
   }
 
-  function renderCurrentSlide(): void {
+  function renderCurrentSlide(direction?: SlideDirection): void {
     clearExpandedGallery();
     const slide = presentation.slides[currentIndex];
 
@@ -152,7 +175,7 @@ export function mountProjectionSurface(
       const elementId = frame.dataset.powershowId;
       if (elementId !== undefined) options.onScriptedMount?.({ pageId: slide.id, elementId });
     }
-    animateSlide();
+    animateSlide(direction);
   }
 
   function goTo(index: number): void {
@@ -168,8 +191,11 @@ export function mountProjectionSurface(
       return;
     }
 
+    const direction: SlideDirection =
+      index > currentIndex ? "forward" : "backward";
+
     currentIndex = index;
-    renderCurrentSlide();
+    renderCurrentSlide(direction);
   }
 
   function handleResize(): void {
@@ -384,6 +410,9 @@ export function mountProjectionSurface(
   return {
     stage,
     goTo,
+    setTransition(nextTransition: PlayerTransition): void {
+      transition = nextTransition;
+    },
     setGalleryActiveIndex(galleryId: string, targetIndex: number): void {
       const galleryRoot = findGalleryById(galleryId);
       if (galleryRoot) {

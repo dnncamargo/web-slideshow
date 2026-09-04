@@ -59,6 +59,7 @@ export type PlayerDiagnosticCode =
   | "PLAYER_RECOVERY_CLEAR_CACHE"
   | "PLAYER_RECOVERY_RETRY"
   | "PLAYER_RECOVERY_RETRY_ERROR"
+  | "PLAYER_LOGS_SUBSCRIBE_ERROR"
   | "CONTROL_STATE_SUBSCRIBE_ERROR";
 
 export interface PlayerDiagnosticEvent {

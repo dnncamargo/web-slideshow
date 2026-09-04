@@ -78,6 +78,9 @@ export async function activateLivePresentation(
         slideAck: null,
         galleryControl: null,
         scriptedAction: null,
+        slideTransition: null,
+        playerControls: null,
+        playerLogs: null,
       };
   });
 
@@ -213,5 +216,8 @@ export async function endLivePresentation(): Promise<void> {
     slideAck: null,
     galleryControl: null,
     scriptedAction: null,
+    slideTransition: null,
+    playerControls: null,
+    playerLogs: null,
   });
 }

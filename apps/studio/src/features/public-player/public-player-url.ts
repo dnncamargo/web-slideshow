@@ -5,6 +5,7 @@ export interface PublicPlayerUrl {
   baseUrl: string | null;
 }
 
+
 export function normalizePlayerBaseUrl(value: string): string | null {
   const candidate = value.trim().replace(/\/+$/, "");
 
