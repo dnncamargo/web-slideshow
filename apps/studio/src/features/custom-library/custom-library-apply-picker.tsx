@@ -26,6 +26,7 @@ interface CustomLibraryApplyPickerProps {
   repository?: CustomLibraryRepository;
   onApply: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   embedded?: boolean;
+  actionClassName?: string;
 }
 
 function rootTypeLabel(
@@ -39,6 +40,7 @@ export function CustomLibraryApplyPicker({
   repository = getDefaultCustomLibraryRepository(),
   onApply,
   embedded = false,
+  actionClassName,
 }: CustomLibraryApplyPickerProps) {
   const { t } = useStudioI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -146,7 +148,7 @@ export function CustomLibraryApplyPicker({
                   </li>
                 ))}
               </ul>
-              <button type="button" disabled={!selectedItem} onClick={handleApply}>
+              <button className={actionClassName} type="button" disabled={!selectedItem} onClick={handleApply}>
                 {t("customLibrary.apply")}
               </button>
             </>
