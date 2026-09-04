@@ -4,7 +4,7 @@ This document records the **PowerShow execution path from the canonical-document
 
 Its purposes are:
 
-1. preserve implementation history so completed architectural decisions are not accidentally reopened;
+1. preserve enough implementation history that completed architectural decisions are not accidentally reopened;
 2. define the current execution order without allowing stale branches, old handoffs or historical SHAs to become competing sources of truth.
 
 Merged code in `main` remains authoritative. Every new work area begins by revalidating the real repository state.
@@ -185,7 +185,7 @@ P10.8 and P10.10 are minimum implementations, not a declaration that Embed or Sc
 
 # P11 — Resources, Organization & Text Styles ✅
 
-References: PRs #69–#71, #85–#105, with later Typography usage refinement in PR #125.
+References: PRs #69–#71, #85–#105, with later refinement in PRs #125 and #129.
 
 Delivered:
 
@@ -194,7 +194,11 @@ Delivered:
 - Custom Library Styles/Palettes/Fonts;
 - Presentation-local Palette, FontResources and Text Styles;
 - refined Text Inspector;
-- explicit recovery rather than migration.
+- explicit recovery rather than migration;
+- real Text Style usage locations and navigation;
+- target-aware Text Style and Linked Style association UX;
+- projected Text Styles count;
+- compact shared resource-action styling for Add/Apply controls.
 
 Text Style precedence:
 
@@ -204,7 +208,17 @@ Theme role baseline
 → local Text override
 ```
 
-PR #125 later added real Text Style usage locations, navigation to associated Text elements, target-aware attach/detach copy and impact-confirmed Reset. A detached Text is excluded from usage/removal-safety even if it retains its fundamental `variant` role.
+A detached Text is excluded from usage/removal safety even if it retains a fundamental `variant` role.
+
+Linked Styles remain a different mechanism:
+
+```text
+Theme / defaults
+→ Linked Style
+→ local Container override
+```
+
+Current V1 is Container-only, Presentation-scoped and self-contained.
 
 ---
 
@@ -219,8 +233,9 @@ Delivered:
 - Children Fit (`Contain`, `Cover`, `Fill`);
 - Preserve size through `layout.flexShrink?: 0`;
 - import/export regression coverage;
-- later Image Inspector ordering and Preserve proportion refinement;
-- native-focus Delete → Enter confirmation flow in PR #126.
+- Image Inspector ordering and Preserve proportion refinement;
+- native-focus Delete → Enter confirmation flow in PR #126;
+- checkbox-first Container `Preserve size` Inspector grammar in PR #129.
 
 Direct Canvas manipulation inside transformed fitted Containers remains deferred until inverse transformed-authoring geometry is deliberately implemented.
 
@@ -244,25 +259,9 @@ PowerShow
     └── Watch
 ```
 
-PowerShow naming is canonical: PowerShow Library, PowerShow Editor, PowerShow Control, PowerShow Player and PowerShow Watch.
+Canonical product names are PowerShow Library, PowerShow Editor, PowerShow Control, PowerShow Player and PowerShow Watch.
 
 Public Portal / Live Cover is complete through PR #109. Cover remains static/read-only; Watch remains the actual audience follower.
-
----
-
-# Linked Styles — This Presentation ✅
-
-References: PRs #111–#113 and association refinements in PR #125.
-
-Linked Styles provide Presentation-local live reuse for Containers while Custom Library Styles remain copy/materialization resources.
-
-```text
-Theme / defaults
-→ Linked Style
-→ local Container override
-```
-
-Current V1 remains Container-only, Presentation-scoped, self-contained and limited to one linked style reference per Container. Definitions may provide `layout`, `style`, `typography` and `effect`; content/children/identity are not owned by the Linked Style.
 
 ---
 
@@ -326,24 +325,20 @@ Blocks is static/didactic, not executable. Do not add interpreter/compiler/runti
 
 ---
 
-# Editor resource-control polish — integration note
+# Editor Resource Controls polish ✅
 
-A focused branch exists outside `main`:
+Reference: PR #129.
 
-```text
-fix/editor-resource-control-polish
-head observed during the latest review:
-43eb5641a62477d2ea3199f792f27c88301c292f
-```
+Merged refinements:
 
-It contains:
+- Container `Preserve size` checkbox appears before its label;
+- `+ Add Linked Style` uses the compact shared resource-action visual;
+- `+ Add Style` uses intrinsic width rather than stretching across the panel;
+- Custom Library Apply uses `Apply to selected` / `Aplicar à seleção` and the same shared action visual;
+- Text Styles exposes the same count-pill grammar as Linked Styles, derived from the projected style set including fundamentals;
+- Custom Library Apply fallback/Retry styling remains local to the reusable picker.
 
-- Container Preserve size checkbox on the left;
-- compact shared styling for `+ Add Linked Style` and `+ Add Style`;
-- `Apply to selected` / `Aplicar à seleção` using shared resource-action styling;
-- Text Styles count pill derived from projected styles.
-
-This branch was created from an older `main`. It is **not merged** and must not be assumed to be the current baseline. Before integration, fetch and compare it against the real current `main`; do not reset/rebase/cherry-pick blindly.
+This work is now part of `main`; there is no remaining integration gate for `fix/editor-resource-control-polish`.
 
 ---
 
@@ -461,7 +456,7 @@ Permanent constraints:
 - runtime state is transient and scoped to the active runtime;
 - stale/delayed commands must be rejected across activation/version/page/remount changes.
 
-## Suggested checkpoints
+Suggested checkpoints:
 
 ```text
 S0 — audit current implementation and runtime lifecycle
@@ -479,7 +474,7 @@ Use the narrowest checkpoint possible. Do not implement a generic automation/eve
 
 # Embed adjustments — NEXT AFTER SCRIPTED
 
-`embed` is also an existing minimum implementation.
+`embed` is an existing minimum implementation.
 
 ## Current audited contract
 
@@ -514,7 +509,7 @@ referrerpolicy="strict-origin-when-cross-origin"
 loading="lazy"
 ```
 
-The same-origin + scripts combination is practical for external providers but security-sensitive, especially for same-origin URLs. That is an audited renderer concern, not permission to expose arbitrary authored sandbox tokens.
+The same-origin + scripts combination is practical for external providers but security-sensitive, especially for same-origin URLs. That is a renderer concern, not permission to expose arbitrary authored sandbox tokens.
 
 ## E0 — Embed audit
 
@@ -532,7 +527,7 @@ Before changing Embed, establish the concrete product problems to solve and audi
 
 Do not make `sandbox`, Permissions Policy or provider internals authored Presentation fields merely for convenience.
 
-Suggested progression after E0 evidence:
+Suggested progression:
 
 ```text
 E0 — audit real Embed failures/use cases
@@ -556,7 +551,7 @@ The proposed Editor `publishnow=true` fast-live mode is intentionally paused. Do
 
 ## Topics consuming Typography Styles — deferred concept
 
-Current Topics owns its own typography context while TopicItem content may contain Text elements with their own Text Style/local semantics. A future design may allow Topics itself to consume a Typography Style, but this is not implemented or frozen. Do not change Topics defaults/import behavior as an incidental fix.
+Current Topics owns its own typography context while TopicItem content may contain Text elements with their own Text Style/local semantics. A future design may allow Topics itself to consume a Typography Style, but this is not implemented or frozen.
 
 ---
 
@@ -630,9 +625,7 @@ P12   UX / Properties refinement                            ✅
        Typography usage / associations (#125)               ✅
        Image/Delete ergonomics (#126)                       ✅
        Maintenance Suite chrome (#127)                      ✅
-
-UNMERGED INTEGRATION NOTE:
-  fix/editor-resource-control-polish @ 43eb5641...           branch only
+       Editor Resource Controls polish (#129)               ✅
 
 NEXT:
   Scripted enhancement — begin with S0 audit
@@ -649,8 +642,6 @@ FUTURE / AS PROMOTED:
   Production Readiness
   Player resilience
   Audience / Watch expansion
-  evidence-driven Diagnostics additions
-  other focused Editor/runtime backlog
 ```
 
-The next implementation session must start from the **real current `main`**, read `AGENTS.md`, verify Git state, and audit the current Scripted code/tests before proposing S1. Do not start by designing a generic bridge from memory.
+The next implementation session must begin by auditing the **real current `main`** and Scripted ownership boundaries before freezing any new canonical or RTDB contract.
