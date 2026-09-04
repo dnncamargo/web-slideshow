@@ -2,11 +2,6 @@
 
 This document records the **PowerShow execution path from the canonical-document foundation to the current work area**.
 
-Its purposes are:
-
-1. preserve enough implementation history that completed architectural decisions are not accidentally reopened;
-2. define the current execution order without allowing stale branches, old handoffs or historical SHAs to become competing sources of truth.
-
 Merged code in `main` remains authoritative. Every new work area begins by revalidating the real repository state.
 
 ## Status legend
@@ -30,6 +25,7 @@ AUDIT current code
 → inspect the real remote SHA / diff / files
 → manual acceptance when visual/runtime behavior requires it
 → PR / merge
+→ return local repository to updated main
 ```
 
 Core rules:
@@ -37,16 +33,34 @@ Core rules:
 - `schemaVersion` stays literally `1`;
 - no migration, dual schema, compatibility layer or generic abstraction without a concrete requirement;
 - current code in `main` is the first authority for implementation details;
-- tests are contractual evidence but do not replace manual visual/runtime acceptance;
+- tests are contractual evidence but do not replace manual visual/runtime acceptance when acceptance is required;
 - search/reuse existing ownership before creating another state, protocol or abstraction;
 - branch names and historical SHAs are evidence only — always fetch and revalidate;
 - completed architecture should not be reopened speculatively.
 
+### Post-merge closure — mandatory
+
+After every PR + merge:
+
+```text
+git fetch origin --prune
+git switch main
+git pull --ff-only origin main
+```
+
+Then verify:
+
+```text
+branch == main
+HEAD == origin/main
+worktree clean
+```
+
+Do not begin a new work area or create a new feature branch from a stale local `main`. If fetch/switch/pull fails or the worktree is unexpectedly dirty, stop and report instead of repairing history automatically.
+
 ---
 
 # P0–P8 — Foundation history ✅
-
-These headings group the early repository chronology; merged PRs remain the detailed authority.
 
 ## P0 — Canonical document foundation ✅
 
@@ -105,7 +119,7 @@ Established user-scoped Firestore drafts, Library workflows, repository-backed E
 
 Reference: PR #42.
 
-Established immutable published presentation versions. Existing versions are never modified in place.
+Existing published versions are immutable.
 
 ## P7 — Authentication, public pointer and remote-control base ✅
 
@@ -125,18 +139,7 @@ Established Library Present / Control / End lifecycle. Publish and Present remai
 
 References: PRs #47–#57 and later hardening.
 
-Delivered:
-
-- Player live entry from `live/current`;
-- exact immutable-version loading;
-- logical `pageId` navigation;
-- Control desired state;
-- Player applied state / ACK;
-- coalescing and latency evidence;
-- reload/reconnect convergence;
-- staged publication updates and explicit version promotion;
-- private slide Notes outside the canonical Presentation;
-- Watch following actual Player-applied state.
+Delivered Player live entry, immutable-version loading, logical `pageId` navigation, Control desired state, Player applied state / ACK, latency evidence, reconnect convergence, staged publication promotion, private Notes and Watch following actual Player-applied state.
 
 Core flow:
 
@@ -151,18 +154,6 @@ Control desired state
 ---
 
 # P10 — Canonical Authoring & Import Foundation ✅
-
-Goal: one strict, semantic, self-contained Presentation that can be authored, persisted, published, rendered, exported and imported without a second persisted language.
-
-Final baseline rules include:
-
-- `schemaVersion` remains `1`;
-- strict responsibility-specific element contracts;
-- no universal persisted style bag;
-- no historical placement compatibility model;
-- Player is independent of Studio-private resources;
-- `textbox` is not canonical; boxed text is `Container + Text`;
-- import/export operate directly on the canonical Presentation.
 
 | Checkpoint | Area | Status | Main references |
 |---|---|---:|---|
@@ -179,7 +170,14 @@ Final baseline rules include:
 | P10.11 | Canonical Contract Cleanup | ✅ | #80–#83 |
 | P10.12 | JSON Import / Export | ✅ | #84 |
 
-P10.8 and P10.10 are minimum implementations, not a declaration that Embed or Scripted need no further product refinement.
+Permanent P10 invariants include:
+
+- `schemaVersion` remains `1`;
+- strict responsibility-specific contracts;
+- no universal persisted style bag;
+- Player independent of Studio-private resources;
+- `textbox` is not canonical; boxed text is `Container + Text`;
+- import/export operates directly on the canonical Presentation.
 
 ---
 
@@ -187,18 +185,7 @@ P10.8 and P10.10 are minimum implementations, not a declaration that Embed or Sc
 
 References: PRs #69–#71, #85–#105, with later refinement in PRs #125 and #129.
 
-Delivered:
-
-- shared Studio / Library shell;
-- private folders;
-- Custom Library Styles/Palettes/Fonts;
-- Presentation-local Palette, FontResources and Text Styles;
-- refined Text Inspector;
-- explicit recovery rather than migration;
-- real Text Style usage locations and navigation;
-- target-aware Text Style and Linked Style association UX;
-- projected Text Styles count;
-- compact shared resource-action styling for Add/Apply controls.
+Delivered shared Studio/Library shell, private folders, Custom Library resources, Presentation-local Palette/FontResources/Text Styles, Linked Styles, refined usage/navigation and compact shared resource actions.
 
 Text Style precedence:
 
@@ -208,9 +195,7 @@ Theme role baseline
 → local Text override
 ```
 
-A detached Text is excluded from usage/removal safety even if it retains a fundamental `variant` role.
-
-Linked Styles remain a different mechanism:
+Linked Style precedence:
 
 ```text
 Theme / defaults
@@ -218,32 +203,17 @@ Theme / defaults
 → local Container override
 ```
 
-Current V1 is Container-only, Presentation-scoped and self-contained.
-
 ---
 
 # P12 — UX / Properties refinement ✅
 
-Delivered:
-
-- shared logical slide geometry;
-- Player/Editor/Presenter/Watch geometry convergence;
-- Palette and gradient corrections;
-- Container `layout.overflow`;
-- Children Fit (`Contain`, `Cover`, `Fill`);
-- Preserve size through `layout.flexShrink?: 0`;
-- import/export regression coverage;
-- Image Inspector ordering and Preserve proportion refinement;
-- native-focus Delete → Enter confirmation flow in PR #126;
-- checkbox-first Container `Preserve size` Inspector grammar in PR #129.
+Delivered shared logical slide geometry, Player/Editor/Presenter/Watch geometry convergence, Palette/gradient corrections, Container overflow/Fit/Preserve size, Image inspector refinements, Delete→Enter confirmation and related authoring polish.
 
 Direct Canvas manipulation inside transformed fitted Containers remains deferred until inverse transformed-authoring geometry is deliberately implemented.
 
 ---
 
 # Runtime and product surfaces ✅
-
-Current surfaces:
 
 ```text
 PowerShow
@@ -261,7 +231,7 @@ PowerShow
 
 Canonical product names are PowerShow Library, PowerShow Editor, PowerShow Control, PowerShow Player and PowerShow Watch.
 
-Public Portal / Live Cover is complete through PR #109. Cover remains static/read-only; Watch remains the actual audience follower.
+Public Portal / Live Cover is complete; Cover remains static/read-only while Watch follows real Player state.
 
 ---
 
@@ -269,15 +239,13 @@ Public Portal / Live Cover is complete through PR #109. Cover remains static/rea
 
 References: PRs #114–#115.
 
-Gallery is one semantic media frame with ordered items and no per-item IDs. Delivered Studio item authoring, Image↔Gallery structure operations, Player local advance/expanded behavior and one-way Control commands through `live/galleryControl/<slot>`.
-
-Gallery deliberately has no ACK or Player→Control Gallery synchronization.
+Gallery is one semantic media frame with ordered items. Studio, Player local behavior and one-way Control commands through `live/galleryControl/<slot>` are complete.
 
 ---
 
 # Maintenance & Diagnostics — first operational slice ✅
 
-References: PRs #116–#119, #121 and Suite-chrome PR #127.
+References: PRs #116–#119, #121, Suite-chrome PR #127 and later Player-logs work in PR #134.
 
 Delivered:
 
@@ -288,10 +256,9 @@ Delivered:
 - real browser-cache clear path;
 - Player-local recovery options;
 - Maintenance under PowerShow Control;
-- canonical Suite topbar with `<<< Back to presentation`;
-- square diagnostic cards and Suite tokens.
+- remote activation-scoped Player logs mode for already-open Players.
 
-Diagnostics remains bounded. Do not turn it into a generic fleet/admin console, expose secrets, add history/polling without need, or create broad automatic repair.
+Diagnostics remains bounded. Do not turn it into a generic fleet/admin console or broad automatic repair system.
 
 ---
 
@@ -299,7 +266,7 @@ Diagnostics remains bounded. Do not turn it into a generic fleet/admin console, 
 
 Reference: PR #120.
 
-Firestore persists canonical Presentation content as `presentationJson`, parsed and validated through `PresentationSchema` on read. This avoids deep nested-map limits without introducing a second canonical format.
+Firestore persists canonical Presentation content as `presentationJson`, parsed and validated through `PresentationSchema` on read.
 
 ---
 
@@ -307,21 +274,7 @@ Firestore persists canonical Presentation content as `presentationJson`, parsed 
 
 References: PRs #122–#123.
 
-Canonical Blocks persists a single `source` string. A handwritten parser creates transient structure for the shared static renderer.
-
-Grammar:
-
-```text
-\start(...)
-\statement(...)
-\scope(...){...}
-\end(...)
-\value(...)
-\variable(...)
-\logic(...)
-```
-
-Blocks is static/didactic, not executable. Do not add interpreter/compiler/runtime behavior without a separately approved requirement.
+Canonical Blocks persists a single `source` string. A handwritten parser creates transient structure for shared static rendering. Blocks is static/didactic, not executable.
 
 ---
 
@@ -329,122 +282,29 @@ Blocks is static/didactic, not executable. Do not add interpreter/compiler/runti
 
 Reference: PR #129.
 
-Merged refinements:
-
-- Container `Preserve size` checkbox appears before its label;
-- `+ Add Linked Style` uses the compact shared resource-action visual;
-- `+ Add Style` uses intrinsic width rather than stretching across the panel;
-- Custom Library Apply uses `Apply to selected` / `Aplicar à seleção` and the same shared action visual;
-- Text Styles exposes the same count-pill grammar as Linked Styles, derived from the projected style set including fundamentals;
-- Custom Library Apply fallback/Retry styling remains local to the reusable picker.
-
-This work is now part of `main`; there is no remaining integration gate for `fix/editor-resource-control-polish`.
+Merged Preserve size grammar, compact Add/Apply actions, projected Text Styles count and related resource-control polish.
 
 ---
 
-# Scripted enhancement ← NEXT
+# Scripted controlled interaction ✅
 
-`scripted` already exists in the canonical union, Editor and shared renderer. The active work is refinement, especially controlled interaction, not element creation.
+Reference: PR #133.
 
-## Current audited contract
+Scripted enhancement is complete and no longer the active queue.
 
-Canonical authored fields:
+Delivered:
 
-```text
-ScriptedElement
-├── id
-├── type: "scripted"
-├── hidden
-├── layout?
-├── style?
-├── effect?
-├── title
-├── html
-├── css
-└── script
-```
+- declared action ports;
+- declared boolean and number state ports;
+- `input`, `output` and `input-output` direction where applicable;
+- Player-owned transient runtime identity;
+- strict Player↔sandbox message validation;
+- Scripted-specific RTDB input/runtime/report state;
+- Control stateful controls generated from declarations;
+- desired/reported/pending/divergent semantics;
+- retained renderer-owned sandbox and fixed CSP boundary.
 
-Editor behavior:
-
-- `title`, `html`, `css`, `script` are edited in local drafts;
-- drafts commit together through explicit **Apply / Run**;
-- Reset restores local drafts to canonical values;
-- the Inspector does not execute authored JavaScript itself;
-- canonical updates may recreate the iframe, so write-on-every-keystroke is intentionally avoided.
-
-Renderer-owned security boundary:
-
-```text
-sandbox="allow-scripts"
-referrerpolicy="no-referrer"
-fixed CSP
-```
-
-The fixed CSP denies network connections, child frames, objects, forms, top navigation and external resource origins except deliberately allowed data/blob media/font cases. Scripted has no same-origin permission, no storage, no Firebase/session access and no authored sandbox policy. The renderer bootstrap does not use `eval`, `Function`, `document.write` or string timers.
-
-## S0 — real-system audit
-
-Before implementation, re-audit:
-
-- current `ScriptedElementSchema` and defaults;
-- `scripted-inspector.tsx` drafts / Apply-Run lifecycle;
-- `render-scripted.ts` sandbox, CSP and bootstrap;
-- active-slide Player lifecycle/remount behavior;
-- current Player/Watch rendering ownership;
-- Control ownership and Gallery/live-state precedents;
-- RTDB rules and cleanup conventions;
-- existing tests/fixtures;
-- security boundaries that must remain permanent.
-
-Do not assume an old handoff exactly matches the latest code.
-
-## Planned interaction direction
-
-The intended refinement is a **small declared control surface** rather than arbitrary application access.
-
-Conceptual declaration:
-
-```text
-control
-├── stable id / name
-├── operator label
-└── kind
-    ├── action
-    └── boolean state
-```
-
-Candidate V1 semantics:
-
-```text
-action:
-- scroll up
-- scroll down
-- reset
-- next step
-
-boolean state:
-- switch on/off
-- play/paused
-- visible/hidden
-```
-
-The exact persisted declaration shape is **not frozen** until S0/S1 audit evidence is reviewed.
-
-## Bridge/security invariants
-
-If the bridge is promoted:
-
-```text
-Control intent
-→ Scripted-specific RTDB state/command
-→ Player validates activation/version/page/slot/element/control identity
-→ Player postMessage to the mounted sandbox
-→ sandbox may report explicitly declared state
-→ Player validates event.source + strict envelope
-→ Control observes validated state where required
-```
-
-Permanent constraints:
+Permanent constraints remain:
 
 - no `allow-same-origin` for Scripted;
 - no Firebase SDK/tokens/session exposure inside authored code;
@@ -452,150 +312,153 @@ Permanent constraints:
 - no top navigation/forms/popups/downloads/storage;
 - no `eval` / `Function`;
 - no JavaScript payload delivered through RTDB;
-- Presentation remains the owner of authored code/declarations;
-- runtime state is transient and scoped to the active runtime;
-- stale/delayed commands must be rejected across activation/version/page/remount changes.
-
-Suggested checkpoints:
-
-```text
-S0 — audit current implementation and runtime lifecycle
-S1 — freeze action + boolean control declaration contract
-S2 — sandbox bridge / fixed API / message validation
-S3 — Studio authoring for declarations
-S4 — RTDB protocol + Player routing + rules
-S5 — contextual Control UI + state/pending semantics
-S6 — circuit/classic-scroll acceptance and hardening
-```
-
-Use the narrowest checkpoint possible. Do not implement a generic automation/event framework.
+- runtime state never persists into the Presentation.
 
 ---
 
-# Embed adjustments — NEXT AFTER SCRIPTED
+# Player presentation options + remote logs ✅
 
-`embed` is an existing minimum implementation.
+Reference: PR #134.
 
-## Current audited contract
+Delivered:
 
-Canonical authored fields:
+- slide transition: Fade / Slide / None;
+- Player control position;
+- Player control style;
+- counter On / Off;
+- control-bar animation;
+- activation-scoped `live/slideTransition`;
+- activation-scoped `live/playerControls`;
+- activation-scoped `live/playerLogs`;
+- Maintenance connected-Player discovery from boot-scoped leases;
+- remote logs On/Off without sending arbitrary Player URLs through RTDB.
 
-```text
-EmbedElement
-├── id
-├── type: "embed"
-├── hidden
-├── layout?
-├── style?
-├── effect?
-├── src      absolute http/https URL
-└── title    required accessibility title
-```
-
-Editor behavior:
-
-- `src` and `title` use local drafts;
-- valid values commit on blur/Enter;
-- Escape restores the canonical value;
-- invalid URL/title drafts never enter canonical state;
-- iframe security policy is not authorable in Studio.
-
-Renderer-owned policy currently uses:
-
-```text
-sandbox="allow-scripts allow-forms allow-same-origin"
-allow="fullscreen"
-referrerpolicy="strict-origin-when-cross-origin"
-loading="lazy"
-```
-
-The same-origin + scripts combination is practical for external providers but security-sensitive, especially for same-origin URLs. That is a renderer concern, not permission to expose arbitrary authored sandbox tokens.
-
-## E0 — Embed audit
-
-Before changing Embed, establish the concrete product problems to solve and audit:
-
-- which real providers/URLs currently fail or behave poorly;
-- same-origin versus cross-origin behavior;
-- fullscreen behavior;
-- referrer requirements;
-- iframe sizing/fit and Editor interaction ergonomics;
-- URL normalization/provider convenience versus canonical generic URL ownership;
-- security implications of `allow-same-origin` + `allow-scripts`;
-- current tests and runtime behavior in Player/Watch;
-- whether any provider-specific handling is actually necessary.
-
-Do not make `sandbox`, Permissions Policy or provider internals authored Presentation fields merely for convenience.
-
-Suggested progression:
-
-```text
-E0 — audit real Embed failures/use cases
-E1 — freeze renderer/security and authoring responsibilities
-E2 — targeted renderer/provider correction
-E3 — Studio UX refinement if needed
-E4 — Player/Watch/manual provider acceptance
-```
+RTDB rules for these contracts were validated and explicitly deployed.
 
 ---
 
-# Explicitly deferred
+# Mobile Library / Control recovery ✅
 
-## Chart V1 — deferred
+Current `main` recovers the previously accepted mobile Library and Control behavior after PR #134.
 
-Chart remains canonical semantic data (`line`, `bar`, `area`, `scatter`) with placeholder rendering. The user explicitly deferred implementation. Do not select a charting library or alter the Chart contract until Chart is promoted again.
+Current rule:
+
+- compact Player Settings is desktop-only;
+- Previous, Next, Fullscreen and End remain part of mobile Control;
+- responsive ownership stays in layout/CSS rather than user-agent detection.
+
+An iPhone 14 Plus is a concrete mobile acceptance device in the current workflow, but breakpoint changes remain evidence-driven.
+
+---
+
+# Terminal + Code + Table typography/layout refinement ← NEXT
+
+The next work area is refinement of existing canonical elements, not element creation.
+
+Primary goal: improve typography and layout behavior for `terminal`, `code` and `table` while preserving shared-renderer convergence and avoiding duplicate style contracts.
+
+## TCL0 — real-system audit
+
+Before implementation, audit the current real `main` for:
+
+- canonical schemas/defaults for Terminal, Code and Table;
+- renderer ownership and current CSS/classes;
+- Inspector controls and effective defaults;
+- current typography responsibilities versus shared Text/Typography infrastructure;
+- layout/overflow/size responsibilities;
+- theme defaults and any element-specific styling;
+- Studio preview, Player and Watch parity;
+- current tests and visual regressions.
+
+The audit must identify which refinements belong to:
+
+```text
+existing canonical property
+existing shared typography/layout property
+renderer-only presentation default
+Inspector ergonomics
+```
+
+Do not add a generic typography namespace or new compatibility layer merely because three elements need similar controls.
+
+## Planned checkpoints
+
+```text
+TCL0 — audit Terminal / Code / Table real ownership
+TCL1 — freeze smallest typography/layout responsibility changes
+TCL2 — Terminal + Code refinement
+TCL3 — Table refinement
+TCL4 — shared-renderer regressions + manual visual acceptance when available
+```
+
+Checkpoint boundaries may be reduced further after TCL0 evidence.
+
+---
+
+# Chart V1 — NEXT AFTER TERMINAL/CODE/TABLE
+
+Chart is now explicitly promoted from deferred work.
+
+Current baseline before audit: Chart already exists canonically as semantic data for `line`, `bar`, `area` and `scatter`, while rendering remains placeholder/minimum.
+
+## C0 — real-system audit
+
+Before selecting a charting library or changing the contract, audit:
+
+- exact current `ChartElement` schema/defaults;
+- current renderer placeholder and styling ownership;
+- current Studio Inspector/authoring support;
+- data-series/category/value semantics;
+- palette/typography/layout interaction;
+- resize/aspect/overflow expectations;
+- Player/Watch/shared-renderer requirements;
+- bundle/performance constraints;
+- whether a dependency is actually necessary;
+- existing tests and import/export behavior.
+
+Do not choose a chart library first and then reshape the canonical contract around it.
+
+## Planned checkpoints
+
+```text
+C0 — audit canonical Chart + renderer + authoring
+C1 — freeze Chart V1 rendering/authoring responsibilities
+C2 — shared renderer implementation
+C3 — Studio authoring refinement
+C4 — Player/Watch/import-export regression + visual acceptance
+```
+
+Keep Chart semantic and provider/library-neutral at the canonical layer.
+
+---
+
+# Future / deferred
+
+## Embed adjustments — future as promoted
+
+Embed exists canonically. Resume only from a concrete provider/runtime audit. Do not expose authored sandbox/Permissions Policy internals merely for convenience.
 
 ## publishNow — deferred
 
-The proposed Editor `publishnow=true` fast-live mode is intentionally paused. Do not add deferred-revision metadata, hot snapshots, Control bypass or Player changes until the user explicitly resumes this work.
+The proposed fast-live Editor mode remains intentionally paused.
 
 ## Topics consuming Typography Styles — deferred concept
 
-Current Topics owns its own typography context while TopicItem content may contain Text elements with their own Text Style/local semantics. A future design may allow Topics itself to consume a Typography Style, but this is not implemented or frozen.
+Topics currently owns its typography context; future direct Typography Style consumption is not frozen.
 
----
+## P13 — Production Readiness — planned
 
-# P13 — Production Readiness — planned
+Promote from concrete deployment/reliability needs: Studio→publish→Control→Player E2E, auth/rules review, deploy/smoke/rollback, constrained-hardware performance, responsive acceptance and security review.
 
-Future production work may include:
+## P14 — Maintenance & Diagnostics 🟡
 
-- full Studio → Save/reload → Publish → Control → Player E2E;
-- auth/rules/public-read review;
-- deploy/smoke/rollback procedures;
-- Player performance on constrained hardware;
-- physical Firefox 116 Android/touch verification where still relevant;
-- responsive acceptance;
-- security review for Embed and Scripted;
-- production error/recovery surfaces.
+D0–D2 plus remote logs are operational. Further expansion remains evidence-driven and bounded.
 
-Production Readiness should be promoted from concrete deployment/reliability needs rather than cosmetic backlog.
+## P15 — Audience / Watch expansion — future
 
----
+Watch already follows Player-applied state. Viewer presence/count/nickname and richer audience behavior remain future candidates and must never grant audience clients shared presentation control.
 
-# P14 — Maintenance & Diagnostics 🟡
-
-D0–D2 is complete and no longer active. Future expansion should be evidence-driven and remain bounded.
-
----
-
-# P15 — Audience / Watch expansion — future
-
-Watch already follows actual Player-applied state. Viewer presence/count/nickname and richer audience behavior remain future candidates and must never grant audience clients control of shared presentation state.
-
----
-
-# Other future candidates
-
-- mobile Control / Library simplification when promoted;
-- configurable slide transitions;
-- bounded local Undo / Redo distinct from immutable Version History;
-- AI Import producing the existing canonical Presentation;
-- Player offline continuity from the last valid immutable version;
-- custom-variant portability for Custom Library recipes;
-- remaining WYSIWYG/Text refinements;
-- visual vocabulary refinements driven by real presentation needs.
-
-Further Gallery or Blocks changes require concrete observed needs, not generic V2 milestones.
+Other future candidates include bounded Undo/Redo, AI Import into the existing canonical Presentation, Player offline continuity, Custom Library portability refinements and remaining WYSIWYG/Text improvements.
 
 ---
 
@@ -615,33 +478,27 @@ P9    Live presentation foundation                          ✅
 P10   Canonical Authoring & Import Foundation               ✅
 P11   Resources, Organization & Text Styles                 ✅
 P12   UX / Properties refinement                            ✅
-       Runtime / Control / Watch refinement                 ✅
-       Public Portal / Live Cover                           ✅
-       Linked Styles                                        ✅
        Gallery V1                                           ✅
-       Maintenance & Diagnostics D0–D2                     ✅
+       Maintenance & Diagnostics                            ✅
        Persistence serialization hardening                  ✅
        Blocks visual authoring                              ✅
-       Typography usage / associations (#125)               ✅
-       Image/Delete ergonomics (#126)                       ✅
-       Maintenance Suite chrome (#127)                      ✅
-       Editor Resource Controls polish (#129)               ✅
+       Editor Resource Controls polish                      ✅
+       Scripted controlled interaction (#133)               ✅
+       Player options + remote logs (#134)                  ✅
+       Mobile Library / Control recovery                    ✅
 
 NEXT:
-  Scripted enhancement — begin with S0 audit
+  Terminal + Code + Table typography/layout refinement — begin with TCL0 audit
 
 THEN:
-  Embed adjustments — begin with E0 audit
+  Chart V1 — begin with C0 audit
 
-DEFERRED:
-  Chart V1
+DEFERRED / FUTURE:
+  Embed adjustments
   publishNow
   Topics → Typography Style consumer concept
-
-FUTURE / AS PROMOTED:
   Production Readiness
-  Player resilience
   Audience / Watch expansion
 ```
 
-The next implementation session must begin by auditing the **real current `main`** and Scripted ownership boundaries before freezing any new canonical or RTDB contract.
+The next implementation session must begin by completing post-merge local closure, auditing the **real current `main`**, and then performing TCL0 before freezing any new typography/layout contract.
