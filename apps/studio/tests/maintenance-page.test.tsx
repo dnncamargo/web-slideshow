@@ -191,7 +191,7 @@ describe("Maintenance page", () => {
     );
   });
 
-  it("uses the canonical Control suite chrome and one Back to presentation navigation action", () => {
+  it("uses the canonical Control suite chrome and one maintenance back navigation action", () => {
     render();
 
     const topbar = container.querySelector("main > header");
@@ -203,12 +203,11 @@ describe("Maintenance page", () => {
     );
     expect(container.querySelectorAll("main > header a")).toHaveLength(1);
     const back = container.querySelector<HTMLAnchorElement>("main > header a");
-    expect(back?.textContent).toBe("Back to presentation");
+    expect(back?.textContent).toBe("<<< Back to presentation");
     expect(back?.getAttribute("href")).toBe(STUDIO_ROUTES.control);
     expect(topbar?.nextElementSibling?.querySelector("h1")?.textContent).toBe(
       "Maintenance & Diagnostics",
     );
-    expect(container.textContent).not.toContain("<<<");
   });
 
   it("disables every recovery action with no report and reload while disconnected", () => {

@@ -396,7 +396,7 @@ export function MaintenancePage() {
         <ProductSurfaceBrand surface="control" />
         <TopbarActions>
           <Link className={styles.backLink} href={STUDIO_ROUTES.control}>
-            Back to presentation
+            &lt;&lt;&lt; Back to presentation
           </Link>
         </TopbarActions>
       </Topbar>
