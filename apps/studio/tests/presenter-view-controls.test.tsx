@@ -372,6 +372,7 @@ describe("PresenterView controls", () => {
     expect([...position?.options ?? []].map((option) => option.value)).toEqual(["bottom-center", "bottom-left", "bottom-right", "top-center", "top-left", "top-right"]);
     expect([...style?.options ?? []].map((option) => option.value)).toEqual(["floating", "minimal", "compact"]);
     expect(counter?.checked).toBe(true);
+    expect(counter?.parentElement?.textContent).toBe("On");
     expect([...animation?.options ?? []].map((option) => option.text)).toEqual(["Fade", "Slide", "None"]);
 
     if (transition && position && style && counter && animation) {

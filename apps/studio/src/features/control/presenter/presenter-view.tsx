@@ -593,8 +593,10 @@ export function PresenterView({
                     </label>
                     <label className={presenterStyles.settingsToggle}>
                       <span>{t("control.counter")}</span>
-                      <input aria-label={t("control.counter")} type="checkbox" checked={playerControls.showCounter} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ showCounter: event.target.checked })} />
-                      <span>{t(playerControls.showCounter ? "control.on" : "control.off")}</span>
+                      <span className={presenterStyles.settingsToggleControl}>
+                        <input aria-label={t("control.counter")} type="checkbox" checked={playerControls.showCounter} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ showCounter: event.target.checked })} />
+                        <span>{t(playerControls.showCounter ? "control.on" : "control.off")}</span>
+                      </span>
                     </label>
                     <label className={presenterStyles.settingsField}>
                       <span>{t("control.animation")}</span>

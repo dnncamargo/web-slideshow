@@ -248,6 +248,12 @@
   accent-color: #6366f1;
 }
 
+.settingsToggleControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .galleryControls {
   display: flex;
   flex-direction: column;
