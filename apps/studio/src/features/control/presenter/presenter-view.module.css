@@ -557,8 +557,35 @@
   outline-offset: 2px;
 }
 
-.mobileLiveStatus {
+.mobilePlayerStatus {
   display: none;
+}
+
+.controlTopbar {
+  min-width: 0;
+}
+
+.topbarActions {
+  min-width: 0;
+}
+
+.desktopTopbarControls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbarEndButton {
+  flex: none;
+}
+
+.mobileTopbarLocale {
+  min-width: 0;
+}
+
+.presentationTitle {
+  min-width: 0;
 }
 
 .maintenanceLink { color: #7dd3fc; font-size: 12px; font-weight: 600; text-decoration: none; }
@@ -694,6 +721,37 @@
    ========================================================== */
 
 @media (max-width: 899px) {
+  .controlTopbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+  }
+
+  .controlTopbar :global(.ps-ui-topbar__brand) { grid-column: 1; grid-row: 1; }
+  .controlTopbar .topbarActions {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+  }
+  .controlTopbar .presentationTitle {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    text-align: left;
+  }
+  .desktopTopbarControls,
+  .topbarEndButton,
+  .mobileTopbarLocale {
+    display: none;
+  }
+
+  .settingsAnchor {
+    display: none;
+  }
+
   .currentColumn {
     order: 1;
     width: 100%;
@@ -739,9 +797,10 @@
     align-items: center;
     justify-content: center;
 
-    gap: 8px;
+    gap: 6px;
 
     width: 100%;
+    flex-wrap: nowrap;
   }
 
   .mobileInteractiveElementsControls {
@@ -807,8 +866,8 @@
     gap: 4px;
   }
 
-  .mobileLiveStatus {
-    order: 4;
+  .mobilePlayerStatus {
+    order: 5;
 
     display: flex;
     align-items: center;

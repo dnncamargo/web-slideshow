@@ -940,14 +940,24 @@
      ========================================================== */
   .libraryTopbar {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    row-gap: var(--ps-ui-space-8);
+    grid-template-rows: auto;
     padding: var(--ps-ui-space-12) var(--ps-ui-space-16);
   }
 
   .libraryTopbar :global(.ps-ui-topbar__brand) { grid-column: 1; grid-row: 1; }
-  .libraryTopbar :global(.ps-ui-topbar__locale) { grid-column: 2; grid-row: 1; margin-left: 0; }
-  .libraryTopbar :global(.ps-ui-topbar__actions) { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+  .libraryTopbar :global(.ps-ui-topbar__actions) {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    gap: var(--ps-ui-space-8);
+    justify-content: flex-end;
+  }
+  .libraryTopbar :global(.ps-ui-topbar__actions) .headerUser {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .mobileHidden { display: none; }
 
   /* ==========================================================
      STUDIO MOBILE WORKSPACE
@@ -1018,29 +1028,81 @@
 
   .sidebarItem { white-space: nowrap; }
 
-  .main { padding: 22px 18px 0; }
-  .workspaceHeading { align-items: stretch; flex-direction: column; }
-  .toolbar {
-    flex: none;
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    align-items: stretch;
-    gap: 8px;
+  .main {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    padding: 22px 18px 0;
   }
-  .toolbarCenter { justify-content: flex-start; }
-  .toolbarContext { justify-content: flex-start; flex-wrap: wrap; }
-  .toolbarRight { justify-content: flex-start; }
+  .workspaceHeading {
+    display: contents;
+  }
+  .workspaceHeading > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ps-ui-border-subtle);
+  }
+  .toolbar {
+    display: contents;
+  }
+  .toolbarCenter {
+    display: contents;
+  }
+  .toolbarContext {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    overflow: hidden;
+    padding: 8px;
+  }
+  .toolbarSelection {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .toolbarRight {
+    grid-column: 1;
+    grid-row: 4;
+    justify-self: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    white-space: normal;
+    padding: 8px;
+  }
+  .toolbarLocalActions {
+    flex: 0 1 auto;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .toolbarLocalActions :global(.ps-ui-separator) { display: none; }
   .workspaceBody {
+    grid-column: 1;
+    grid-row: 3;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
   }
   .detailsPane {
-    max-height: 40dvh;
-    padding-left: 0;
-    border-left: 0;
-    border-top: 1px solid var(--ps-ui-border-subtle);
+    display: none;
   }
   .row { grid-template-columns: 86px minmax(0, 1fr); }
-  .rowState { grid-column: 2; justify-content: flex-start; }
+  .rowMetadata {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.35;
+  }
+  .rowState {
+    grid-column: 2;
+    justify-content: flex-start;
+    margin-top: 2px;
+  }
 }

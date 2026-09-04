@@ -783,6 +783,7 @@ describe("presentation library workspace controls", () => {
     const contextGroup = container.querySelector<HTMLElement>('[role="group"]');
     const title = contextGroup?.querySelector('[title="Title published"]');
     expect(title).toBeTruthy();
+    expect(Array.from(contextGroup?.querySelectorAll("button") ?? []).find((button) => button.textContent === "Edit")?.className).toContain("mobileHidden");
   });
 
   it("keeps row controls out of the presentation list and selects one row at a time", () => {
@@ -1541,6 +1542,9 @@ describe("presentation library workspace controls", () => {
     const signOutIndex = actions.textContent?.indexOf("Sign out") ?? -1;
     expect(userIndex).toBeGreaterThanOrEqual(0);
     expect(signOutIndex).toBeGreaterThan(userIndex);
+
+    const locale = container.querySelector<HTMLElement>(".ps-ui-topbar__locale");
+    expect(locale?.className).toContain("mobileHidden");
   });
 
   it("lists Custom Library destinations without a clickable generic Folders destination", async () => {
