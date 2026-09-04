@@ -450,6 +450,10 @@
   border-top: 1px solid var(--ps-ui-border-subtle);
 }
 
+.textStylesSection > .resourceAction {
+  align-self: flex-start;
+}
+
 .typographyStyleList {
   display: flex;
   flex-direction: column;

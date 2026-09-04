@@ -160,6 +160,16 @@ describe("Container canonical position inspector", () => {
     expect(state.layout).toBeUndefined();
   });
 
+  it("places the Preserve size checkbox before its label text", async () => {
+    state = containerElement();
+    await act(async () => renderInspector(containerElement()));
+
+    const row = host.querySelector("#container-preserve-size")?.parentElement;
+    const checkbox = row?.querySelector("input");
+    const text = row?.querySelector("span");
+    expect(checkbox && text && (checkbox.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  });
+
   it("preserves authored size across Absolute and Flow", async () => {
     state = containerElement({ layout: { flexShrink: 0 } });
     const parent = containerElement();
