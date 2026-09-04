@@ -32,6 +32,6 @@ export function subscribeLiveSlideTransition(
   controller: Pick<PlayerController, "setTransition">,
 ): () => void {
   return onValue(ref(database, SLIDE_TRANSITION_PATH), (snapshot) => {
-    controller.setTransition?.(resolveLiveSlideTransition(snapshot.val(), activationRevision));
+    controller.setTransition(resolveLiveSlideTransition(snapshot.val(), activationRevision));
   });
 }

@@ -174,8 +174,9 @@ describe("useLivePlayerControlsControl", () => {
     expect(result?.writeInFlight).toBe(false);
   });
 
-  it("ignores an old-activation async failure", async () => {
+  it("keeps a new activation write pending after an old-activation rejection", async () => {
     let rejectWrite!: (error: unknown) => void;
+    let resolveNewWrite!: () => void;
     mocks.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectWrite = reject; }));
     act(() => { result?.setControlsOptions({ position: "top-left" }); });
     expect(result?.writeInFlight).toBe(true);
@@ -185,9 +186,26 @@ describe("useLivePlayerControlsControl", () => {
     expect(result?.sendFailed).toBe(false);
     expect(result?.writeInFlight).toBe(false);
 
+    mocks.set.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveNewWrite = resolve; }));
+    act(() => { result?.setControlsOptions({ position: "top-right" }); });
+    expect(result?.writeInFlight).toBe(true);
+
     await act(async () => rejectWrite(new Error("denied")));
     expect(result?.sendFailed).toBe(false);
     expect(result?.controls).toEqual(LIVE_PLAYER_CONTROLS_BASELINE);
+    expect(result?.writeInFlight).toBe(true);
+
+    act(() => { result?.setControlsOptions({ style: "minimal" }); });
+    expect(mocks.set).toHaveBeenCalledTimes(2);
+
+    await act(async () => resolveNewWrite());
+    expect(result?.writeInFlight).toBe(false);
+    expect(result?.controls).toEqual({
+      position: "top-right",
+      style: "compact",
+      showCounter: true,
+      animation: "fade",
+    });
   });
 
   it("parses exact records and rejects partial or invalid ones", () => {

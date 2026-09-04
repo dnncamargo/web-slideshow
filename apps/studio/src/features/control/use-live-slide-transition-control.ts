@@ -84,18 +84,17 @@ export function useLiveSlideTransitionControl(
       activationRevision,
       transition: next,
     }).then(() => {
+      if (latestRef.current?.revision !== activationRevision) return;
       writeInFlightRef.current = false;
       setWriteInFlight(false);
-      if (latestRef.current?.revision === activationRevision) {
-        setSelectedTransition(next);
-        setSendFailed(false);
-      }
+      setSelectedTransition(next);
+      setSendFailed(false);
     }).catch((error: unknown) => {
+      if (latestRef.current?.revision !== activationRevision) return;
       console.error("Control: could not write slide transition", error);
       writeInFlightRef.current = false;
       setWriteInFlight(false);
-      // Falha só contamina a ativação atual.
-      if (latestRef.current?.revision === activationRevision) setSendFailed(true);
+      setSendFailed(true);
     });
   }, []);
 

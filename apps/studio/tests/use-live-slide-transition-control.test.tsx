@@ -87,8 +87,9 @@ describe("useLiveSlideTransitionControl", () => {
     expect(result?.writeInFlight).toBe(false);
   });
 
-  it("ignores an old-activation rejection", async () => {
+  it("keeps a new activation write pending after an old-activation rejection", async () => {
     let rejectWrite!: (error: unknown) => void;
+    let resolveNewWrite!: () => void;
     mocks.set.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectWrite = reject; }));
     act(() => { result?.setTransition("slide"); });
     expect(result?.writeInFlight).toBe(true);
@@ -98,9 +99,20 @@ describe("useLiveSlideTransitionControl", () => {
     expect(result?.sendFailed).toBe(false);
     expect(result?.writeInFlight).toBe(false);
 
+    mocks.set.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveNewWrite = resolve; }));
+    act(() => { result?.setTransition("none"); });
+    expect(result?.writeInFlight).toBe(true);
+
     await act(async () => rejectWrite(new Error("denied")));
     expect(result?.sendFailed).toBe(false);
     expect(result?.transition).toBe("fade");
+    expect(result?.writeInFlight).toBe(true);
+
+    act(() => { result?.setTransition("fade"); });
+    expect(mocks.set).toHaveBeenCalledTimes(2);
+
+    await act(async () => resolveNewWrite());
+    expect(result?.writeInFlight).toBe(false);
   });
 
   it("fails closed on a second write while pending", async () => {

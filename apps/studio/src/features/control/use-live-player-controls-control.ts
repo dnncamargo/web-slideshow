@@ -152,18 +152,17 @@ export function useLivePlayerControlsControl(
       showCounter: next.showCounter,
       animation: next.animation,
     }).then(() => {
+      if (latestRef.current?.revision !== activationRevision) return;
       writeInFlightRef.current = false;
       setWriteInFlight(false);
-      if (latestRef.current?.revision === activationRevision) {
-        setControls(next);
-        setSendFailed(false);
-      }
+      setControls(next);
+      setSendFailed(false);
     }).catch((error: unknown) => {
+      if (latestRef.current?.revision !== activationRevision) return;
       console.error("Control: could not write Player controls", error);
       writeInFlightRef.current = false;
       setWriteInFlight(false);
-      // Falha só contamina a ativação atual.
-      if (latestRef.current?.revision === activationRevision) setSendFailed(true);
+      setSendFailed(true);
     });
   }, []);
 
