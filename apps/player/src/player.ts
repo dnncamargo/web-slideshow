@@ -1,4 +1,5 @@
 import type { Presentation } from "@powershow/document-schema";
+import type { ScriptedReportMessage } from "@powershow/renderer";
 
 import {
   mountProjectionSurface,
@@ -103,6 +104,8 @@ export type PlayerControlsAnimation = "fade" | "slide" | "none";
 export interface PlayerOptions {
   transition?: PlayerTransition;
 
+  onScriptedReport?: (report: ScriptedReportMessage) => void;
+
   // Mantemos esta opção como já existia.
   // Não vamos movê-la para "controls" nesta etapa,
   // para evitar quebrar código e testes existentes.
@@ -129,6 +132,14 @@ export interface PlayerController {
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
 
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
+
+  sendScriptedAction(elementId: string, portId: string): void;
+
+  sendScriptedInput(
+    elementId: string,
+    portId: string,
+    value: boolean | number,
+  ): void;
 
   fullscreen(): Promise<void>;
 
@@ -230,6 +241,9 @@ export function mountPlayer(
 
   const projection = mountProjectionSurface(root, presentation, {
     transition,
+    ...(options.onScriptedReport === undefined
+      ? {}
+      : { onScriptedReport: options.onScriptedReport }),
   });
 
   const stage = projection.stage;
@@ -585,6 +599,18 @@ export function mountPlayer(
 
     setGalleryExpanded(galleryId: string, expanded: boolean): void {
       projection.setGalleryExpanded(galleryId, expanded);
+    },
+
+    sendScriptedAction(elementId: string, portId: string): void {
+      projection.sendScriptedAction(elementId, portId);
+    },
+
+    sendScriptedInput(
+      elementId: string,
+      portId: string,
+      value: boolean | number,
+    ): void {
+      projection.sendScriptedInput(elementId, portId, value);
     },
 
     fullscreen,

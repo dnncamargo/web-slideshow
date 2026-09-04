@@ -88,6 +88,8 @@ describe("subscribeLiveFullscreenRequest", () => {
     goTo: vi.fn(),
     setGalleryActiveIndex: vi.fn(),
     setGalleryExpanded: vi.fn(),
+    sendScriptedAction: vi.fn(),
+    sendScriptedInput: vi.fn(),
     fullscreen: vi.fn().mockResolvedValue(undefined),
     getCurrentIndex: vi.fn(() => 0),
     destroy: vi.fn(),
@@ -152,6 +154,8 @@ describe("subscribeLiveFullscreenRequest", () => {
       goTo: vi.fn(),
       setGalleryActiveIndex: vi.fn(),
       setGalleryExpanded: vi.fn(),
+      sendScriptedAction: vi.fn(),
+      sendScriptedInput: vi.fn(),
       fullscreen: vi.fn()
         .mockRejectedValueOnce(new Error("denied"))
         .mockResolvedValueOnce(undefined),

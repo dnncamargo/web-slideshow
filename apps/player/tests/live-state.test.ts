@@ -63,6 +63,8 @@ function controller(initialIndex: number) {
     }),
     setGalleryActiveIndex: vi.fn(),
     setGalleryExpanded: vi.fn(),
+    sendScriptedAction: vi.fn(),
+    sendScriptedInput: vi.fn(),
     getCurrentIndex: vi.fn(() => index),
   };
 }
