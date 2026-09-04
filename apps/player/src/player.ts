@@ -131,6 +131,10 @@ export interface PlayerController {
 
   goTo(index: number): void;
 
+  setTransition?(transition: PlayerTransition): void;
+
+  setControlsOptions?(options: PlayerControlsOptions): void;
+
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
 
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
@@ -171,6 +175,38 @@ const DEFAULT_CONTROLS: Required<PlayerControlsOptions> = {
   style: "floating",
   animation: "fade",
 };
+
+// ============================================================
+// BEGIN: VALORES CONHECIDOS DAS VARIANTES DOS CONTROLES
+//
+// Usados pelo sincronizador para remover a classe anterior
+// e instalar exatamente uma classe atual por aspecto.
+// ============================================================
+
+const PLAYER_CONTROLS_POSITIONS: readonly PlayerControlsPosition[] = [
+  "bottom-center",
+  "bottom-left",
+  "bottom-right",
+  "top-center",
+  "top-left",
+  "top-right",
+];
+
+const PLAYER_CONTROLS_STYLES: readonly PlayerControlsStyle[] = [
+  "floating",
+  "minimal",
+  "compact",
+];
+
+const PLAYER_CONTROLS_ANIMATIONS: readonly PlayerControlsAnimation[] = [
+  "fade",
+  "slide",
+  "none",
+];
+
+// ============================================================
+// END: VALORES CONHECIDOS DAS VARIANTES DOS CONTROLES
+// ============================================================
 
 // ============================================================
 // END: DEFAULTS DOS CONTROLES
@@ -224,7 +260,7 @@ export function mountPlayer(
   // BEGIN: RESOLVE CONFIGURAÇÃO DOS CONTROLES
   // ==========================================================
 
-  const controlsOptions: Required<PlayerControlsOptions> = {
+  let controlsOptions: Required<PlayerControlsOptions> = {
     ...DEFAULT_CONTROLS,
     ...options.controls,
   };
@@ -301,50 +337,56 @@ export function mountPlayer(
   );
 
   // ============================================================
-  // BEGIN: VISIBILIDADE DO CONTADOR
+  // BEGIN: SINCRONIZA OPÇÕES DOS CONTROLES COM O DOM
   //
-  // Usamos a propriedade HTML "hidden".
-  // Isso mantém a decisão simples e sem CSS customizado.
+  // Uma única função reflete o estado resolvido atual
+  // (controlsOptions) no DOM já montado:
   //
-  // showCounter: true
-  //   → mostra "1 / 3"
+  // - classe de posição;
+  // - classe de estilo;
+  // - classe de animação;
+  // - visibilidade do contador.
   //
-  // showCounter: false
-  //   → contador não aparece
+  // Removemos a classe anterior de cada aspecto e instalamos
+  // exatamente uma classe atual, sem acumular variantes antigas.
+  //
+  // É usada no mount inicial e em toda atualização via
+  // setControlsOptions().
   // ============================================================
 
-  counter.hidden = !controlsOptions.showCounter;
+  function synchronizeControls(): void {
+    for (const position of PLAYER_CONTROLS_POSITIONS) {
+      controls.classList.remove(`powershow-player-controls-${position}`);
+    }
+    controls.classList.add(
+      `powershow-player-controls-${controlsOptions.position}`,
+    );
+
+    for (const style of PLAYER_CONTROLS_STYLES) {
+      controls.classList.remove(`powershow-player-controls-${style}`);
+    }
+    controls.classList.add(
+      `powershow-player-controls-${controlsOptions.style}`,
+    );
+
+    for (const animation of PLAYER_CONTROLS_ANIMATIONS) {
+      controls.classList.remove(`powershow-player-controls-${animation}`);
+    }
+    controls.classList.add(
+      `powershow-player-controls-${controlsOptions.animation}`,
+    );
+
+    // Usamos a propriedade HTML "hidden".
+    // O contador continua existindo estruturalmente,
+    // apenas não é exibido quando showCounter é false.
+    counter.hidden = !controlsOptions.showCounter;
+  }
+
+  synchronizeControls();
 
   // ============================================================
-  // END: VISIBILIDADE DO CONTADOR
+  // END: SINCRONIZA OPÇÕES DOS CONTROLES COM O DOM
   // ============================================================
-  
-  // ==========================================================
-  // BEGIN: CLASSES ESTRUTURAIS DOS CONTROLES
-  //
-  // Exemplo:
-  //
-  // powershow-player-controls
-  // powershow-player-controls-top-right
-  // powershow-player-controls-compact
-  // powershow-player-controls-slide
-  //
-  // Cada aspecto permanece independente.
-  // ==========================================================
-
-  controls.classList.add(
-    `powershow-player-controls-${controlsOptions.position}`,
-  );
-
-  controls.classList.add(`powershow-player-controls-${controlsOptions.style}`);
-
-  controls.classList.add(
-    `powershow-player-controls-${controlsOptions.animation}`,
-  );
-
-  // ==========================================================
-  // END: CLASSES ESTRUTURAIS DOS CONTROLES
-  // ==========================================================
 
   // ============================================================
   // BEGIN: ATUALIZA ESTADO DOS CONTROLES
@@ -616,6 +658,18 @@ export function mountPlayer(
       value: boolean | number,
     ): boolean {
       return projection.sendScriptedInput(elementId, portId, value);
+    },
+
+    setTransition(nextTransition: PlayerTransition): void {
+      projection.setTransition(nextTransition);
+    },
+
+    setControlsOptions(nextOptions: PlayerControlsOptions): void {
+      controlsOptions = {
+        ...controlsOptions,
+        ...nextOptions,
+      };
+      synchronizeControls();
     },
 
     fullscreen,

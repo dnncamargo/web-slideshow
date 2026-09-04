@@ -1148,4 +1148,209 @@ describe("PowerShow Player", () => {
   // ============================================================
   // END: TESTES DE ANIMAÇÃO DOS CONTROLES
   // ============================================================
+
+  // ============================================================
+  // BEGIN: ATUALIZAÇÃO DINÂMICA DAS OPÇÕES DOS CONTROLES
+  // ============================================================
+
+  it("applies initial controls options unchanged at mount", () => {
+    player.destroy();
+    player = mountPlayer(root, playerTestPresentation, {
+      controls: {
+        position: "top-right",
+        style: "compact",
+        showCounter: false,
+        animation: "none",
+      },
+    });
+
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+    const counter = root.querySelector<HTMLOutputElement>(
+      ".powershow-player-counter",
+    );
+
+    expect(
+      controls?.classList.contains("powershow-player-controls-top-right"),
+    ).toBe(true);
+    expect(
+      controls?.classList.contains("powershow-player-controls-compact"),
+    ).toBe(true);
+    expect(controls?.classList.contains("powershow-player-controls-none")).toBe(
+      true,
+    );
+    expect(counter?.hidden).toBe(true);
+  });
+
+  it("replaces the position class on setControlsOptions", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+
+    player.setControlsOptions?.({ position: "top-left" });
+
+    expect(
+      controls?.classList.contains("powershow-player-controls-bottom-center"),
+    ).toBe(false);
+    expect(
+      controls?.classList.contains("powershow-player-controls-top-left"),
+    ).toBe(true);
+  });
+
+  it("replaces the style class on setControlsOptions", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+
+    player.setControlsOptions?.({ style: "minimal" });
+
+    expect(
+      controls?.classList.contains("powershow-player-controls-floating"),
+    ).toBe(false);
+    expect(
+      controls?.classList.contains("powershow-player-controls-minimal"),
+    ).toBe(true);
+  });
+
+  it("replaces the animation class with slide on setControlsOptions", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+
+    player.setControlsOptions?.({ animation: "slide" });
+
+    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+      false,
+    );
+    expect(
+      controls?.classList.contains("powershow-player-controls-slide"),
+    ).toBe(true);
+  });
+
+  it("replaces the animation class with none on setControlsOptions", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+
+    player.setControlsOptions?.({ animation: "none" });
+
+    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+      false,
+    );
+    expect(controls?.classList.contains("powershow-player-controls-none")).toBe(
+      true,
+    );
+  });
+
+  it("hides the existing counter on setControlsOptions", () => {
+    const counter = root.querySelector<HTMLOutputElement>(
+      ".powershow-player-counter",
+    );
+
+    expect(counter?.hidden).toBe(false);
+
+    player.setControlsOptions?.({ showCounter: false });
+
+    expect(counter?.hidden).toBe(true);
+  });
+
+  it("shows the counter again on setControlsOptions", () => {
+    const counter = root.querySelector<HTMLOutputElement>(
+      ".powershow-player-counter",
+    );
+
+    player.setControlsOptions?.({ showCounter: false });
+    player.setControlsOptions?.({ showCounter: true });
+
+    expect(counter?.hidden).toBe(false);
+  });
+
+  it("preserves untouched controls options on partial updates", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+    const counter = root.querySelector<HTMLOutputElement>(
+      ".powershow-player-counter",
+    );
+
+    player.setControlsOptions?.({ position: "top-right" });
+
+    expect(
+      controls?.classList.contains("powershow-player-controls-top-right"),
+    ).toBe(true);
+    expect(
+      controls?.classList.contains("powershow-player-controls-floating"),
+    ).toBe(true);
+    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+      true,
+    );
+    expect(counter?.hidden).toBe(false);
+  });
+
+  it("does not accumulate stale variant classes across repeated updates", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+
+    player.setControlsOptions?.({ position: "top-left" });
+    player.setControlsOptions?.({ position: "bottom-right" });
+    player.setControlsOptions?.({ style: "compact" });
+    player.setControlsOptions?.({ style: "minimal" });
+
+    expect(
+      controls?.classList.contains("powershow-player-controls-bottom-center"),
+    ).toBe(false);
+    expect(
+      controls?.classList.contains("powershow-player-controls-top-left"),
+    ).toBe(false);
+    expect(
+      controls?.classList.contains("powershow-player-controls-bottom-right"),
+    ).toBe(true);
+    expect(
+      controls?.classList.contains("powershow-player-controls-floating"),
+    ).toBe(false);
+    expect(
+      controls?.classList.contains("powershow-player-controls-minimal"),
+    ).toBe(true);
+  });
+
+  it("keeps the controls element identity across runtime updates", () => {
+    const controls = root.querySelector<HTMLElement>(
+      ".powershow-player-controls",
+    );
+
+    player.setControlsOptions?.({
+      position: "top-left",
+      style: "minimal",
+      animation: "none",
+      showCounter: false,
+    });
+
+    expect(root.querySelector(".powershow-player-controls")).toBe(controls);
+  });
+
+  it("keeps the current slide index after controls updates", () => {
+    player.goTo(1);
+
+    player.setControlsOptions?.({ position: "top-left" });
+    player.setControlsOptions?.({ showCounter: false });
+
+    expect(player.getCurrentIndex()).toBe(1);
+    expect(root.innerHTML).toContain("Slide Two");
+  });
+
+  it("keeps navigation working after controls updates", () => {
+    player.setControlsOptions?.({ position: "top-left", animation: "none" });
+
+    player.next();
+    player.previous();
+
+    expect(player.getCurrentIndex()).toBe(0);
+    expect(root.innerHTML).toContain("Slide One");
+  });
+
+  // ============================================================
+  // END: ATUALIZAÇÃO DINÂMICA DAS OPÇÕES DOS CONTROLES
+  // ============================================================
 });
