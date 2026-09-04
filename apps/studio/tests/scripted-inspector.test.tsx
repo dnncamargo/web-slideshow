@@ -764,6 +764,100 @@ describe("ScriptedInspector", () => {
   });
 });
 
+describe("ScriptedInspector port drafts", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let elementState: ScriptedElement;
+  let updates: ScriptedElement[];
+
+  function renderInspector(): void {
+    root.render(<StudioI18nProvider><ScriptedInspector element={elementState} onUpdate={(update) => {
+      const next = update(elementState);
+      if (next.type === "scripted") {
+        elementState = next;
+        updates.push(next);
+        renderInspector();
+      }
+    }} /></StudioI18nProvider>);
+  }
+
+  function mount(initial: ScriptedElement): void {
+    elementState = initial;
+    updates = [];
+    renderInspector();
+  }
+
+  function click(selector: string): void {
+    const control = container.querySelector<HTMLElement>(selector);
+    if (!control) throw new Error(`Missing control: ${selector}`);
+    control.click();
+  }
+
+  function change(selector: string, value: string): void {
+    const control = container.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(selector);
+    if (!control) throw new Error(`Missing control: ${selector}`);
+    const prototype = control instanceof HTMLSelectElement
+      ? window.HTMLSelectElement.prototype
+      : control instanceof HTMLTextAreaElement
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value);
+    control.dispatchEvent(new Event("change", { bubbles: true }));
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    document.body.innerHTML = "";
+  });
+
+  it("renders canonical ports in order and keeps selection, add, remove, and reset local", async () => {
+    await act(async () => mount(scripted({ ports: [
+      { id: "first", label: "First", kind: "action" },
+      { id: "second", label: "Second", kind: "boolean", direction: "input" },
+    ] })));
+    expect(Array.from(container.querySelectorAll("[data-powershow-scripted-port-select]")).map((node) => node.textContent)).toEqual(["First", "Second"]);
+    await act(async () => click('[data-powershow-scripted-port-select][data-powershow-scripted-port-index="1"]'));
+    await act(async () => click('[data-powershow-scripted-port-add]'));
+    expect(updates).toHaveLength(0);
+    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("port");
+    await act(async () => click('[data-powershow-scripted-port-remove]'));
+    await act(async () => click("#scripted-reset"));
+    expect(updates).toHaveLength(0);
+    expect(container.querySelectorAll("[data-powershow-scripted-port-select]")).toHaveLength(2);
+  });
+
+  it("converts local port shapes and applies ports with source in one update", async () => {
+    await act(async () => mount(scripted({ ports: [{ id: "go", label: "Go", kind: "action" }] })));
+    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
+    expect(container.querySelector("[data-powershow-scripted-port-direction]")).not.toBeNull();
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
+    expect(container.querySelector("[data-powershow-scripted-port-min]")).not.toBeNull();
+    await act(async () => change('[data-powershow-scripted-port-direction]', "output"));
+    await act(async () => change("#scripted-html", "<p>source</p>"));
+    await act(async () => click("#scripted-apply-run"));
+    expect(updates).toHaveLength(1);
+    expect(elementState.html).toBe("<p>source</p>");
+    expect(elementState.ports).toEqual([{ id: "go", label: "Go", kind: "number", direction: "output" }]);
+  });
+
+  it("blocks invalid local ports without canonical writes", async () => {
+    await act(async () => mount(scripted({ ports: [{ id: "existing", label: "Existing", kind: "action" }] })));
+    await act(async () => click('[data-powershow-scripted-port-add]'));
+    await act(async () => change('[data-powershow-scripted-port-id]', "existing"));
+    await act(async () => click("#scripted-apply-run"));
+    expect(updates).toHaveLength(0);
+    expect(container.textContent).toContain("Correct the selected port");
+  });
+});
+
 describe("ElementInspector dispatcher for Scripted", () => {
   let container: HTMLDivElement;
   let root: Root;
