@@ -220,6 +220,21 @@ describe("PresenterView controls", () => {
     ).toBe("Maintenance");
   });
 
+  it("owns the mobile Library link in the topbar actions before Maintenance", () => {
+    render();
+
+    const libraryLink = container.querySelector<HTMLAnchorElement>('a[href="/studio/library"]');
+    const maintenanceLink = container.querySelector<HTMLAnchorElement>('a[href="/studio/control/maintenance"]');
+    const actions = container.querySelector(".ps-ui-topbar__actions");
+    const brand = container.querySelector(".ps-ui-topbar__brand");
+
+    expect(libraryLink?.textContent).toBe("<<< Library");
+    expect(libraryLink?.parentElement).toBe(actions);
+    expect(maintenanceLink?.parentElement).toBe(actions);
+    expect(libraryLink && maintenanceLink && libraryLink.compareDocumentPosition(maintenanceLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(brand?.contains(libraryLink ?? null)).toBe(false);
+  });
+
   it.each([
     [{ kind: "no-report" }, { kind: "synced" }, "No Player report"],
     [

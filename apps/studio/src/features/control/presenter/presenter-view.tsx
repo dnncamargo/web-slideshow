@@ -427,11 +427,7 @@ export function PresenterView({
       BEGIN: BRAND
       ======================================================== */}
 
-        <ProductSurfaceBrand surface="control">
-          <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
-            {t("control.library")}
-          </Link>
-        </ProductSurfaceBrand>
+        <ProductSurfaceBrand surface="control" />
 
         {/* ========================================================
       END: BRAND
@@ -462,6 +458,10 @@ export function PresenterView({
             )}
             <Status>{describeCombinedStatus(t, playerStatus, view)}</Status>
           </div>
+
+          <Link className={styles.mobileLibraryLink} href={STUDIO_ROUTES.library}>
+            &lt;&lt;&lt; {t("control.library")}
+          </Link>
 
           <Link className={presenterStyles.maintenanceLink} href={STUDIO_ROUTES.controlMaintenance}>
             Maintenance
