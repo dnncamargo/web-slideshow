@@ -65,6 +65,8 @@ function root(
   };
 }
 
+// This structural harness evaluates stored rule expressions. Firebase skips
+// `.validate` for deletions, so these tests do not claim deletion rejection.
 function evaluate(
   expression: string,
   current: unknown,
@@ -106,7 +108,6 @@ describe("live/scriptedAction repository rules", () => {
   it("rejects malformed and extra records", () => {
     expect(evaluate(actionRules[".validate"], null, action({ portId: "" }))).toBe(false);
     expect(evaluate(actionRules[".validate"], null, action({ revision: 1.5 }))).toBe(false);
-    expect(evaluate(actionRules[".validate"], action(), null)).toBe(false);
     expect(actionRules.$other[".validate"]).toBe(false);
   });
 
