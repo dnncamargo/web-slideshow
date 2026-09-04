@@ -159,4 +159,47 @@ describe("canonical data Appearance controls", () => {
     await act(async () => reset?.click());
     expect(state.style?.color).toBeUndefined();
   });
+
+  it("resets each authored Code typography field while preserving its siblings", async () => {
+    state = codeElement();
+    await act(async () => renderInspector());
+
+    await act(async () => changeSelect(host.querySelector("#code-font-family")!, "Fira Code"));
+    await act(async () => changeSelect(host.querySelector("#code-font-size-unit")!, "px"));
+    await act(async () => changeInput(host.querySelector("#code-font-size")!, "18"));
+    await act(async () => changeInput(host.querySelector("#code-line-height")!, "1.5"));
+    await act(async () => changeInput(host.querySelector("#code-letter-spacing")!, "0.1"));
+
+    expect(state.typography).toEqual({
+      fontFamily: "Fira Code",
+      fontSize: 18,
+      lineHeight: 1.5,
+      letterSpacing: "0.1em",
+    });
+
+    await act(async () => changeSelect(host.querySelector("#code-font-family")!, ""));
+    expect(state.typography?.fontFamily).toBeUndefined();
+    expect(state.typography?.fontSize).toBe(18);
+    expect(state.typography?.lineHeight).toBe(1.5);
+    expect(state.typography?.letterSpacing).toBe("0.1em");
+
+    const clickReset = async (id: string): Promise<void> => {
+      const input = host.querySelector<HTMLInputElement>(id);
+      const reset = input?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+      expect(reset).not.toBeNull();
+      await act(async () => reset?.click());
+    };
+
+    await clickReset("#code-font-size");
+    expect(state.typography?.fontSize).toBeUndefined();
+    expect(state.typography?.lineHeight).toBe(1.5);
+    expect(state.typography?.letterSpacing).toBe("0.1em");
+
+    await clickReset("#code-line-height");
+    expect(state.typography?.lineHeight).toBeUndefined();
+    expect(state.typography?.letterSpacing).toBe("0.1em");
+
+    await clickReset("#code-letter-spacing");
+    expect(state.typography?.letterSpacing).toBeUndefined();
+  });
 });

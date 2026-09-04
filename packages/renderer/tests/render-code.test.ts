@@ -201,6 +201,34 @@ describe("renderCode", () => {
     expect(html).toContain('class="powershow-code-line-number"');
     expect(html).toContain("powershow-code-line-highlighted");
   });
+
+  it("coexists with canonical layout, surface, and effect styles", () => {
+    const html = renderCode(createCodeElement({
+      layout: { position: "absolute", width: 320 },
+      style: {
+        background: { color: "#101218" },
+        border: { width: 1, style: "solid", color: "#334155" },
+        borderRadius: 8,
+        color: "#f8fafc",
+      },
+      effect: { opacity: 0.8 },
+      typography: {
+        fontFamily: "Fira Code",
+        fontSize: 16,
+        lineHeight: 1.4,
+        letterSpacing: "0.02em",
+      },
+    }));
+
+    expect(html).toContain("width:320px");
+    expect(html).toContain("background:#101218");
+    expect(html).toContain("border-radius:8px");
+    expect(html).toContain("opacity:0.8");
+    expect(html).toContain("font-size:16px");
+    expect(html).toContain("line-height:1.4");
+    expect(html).toContain("letter-spacing:0.02em");
+    expect(html).toContain("color:#f8fafc");
+  });
 });
 
 // ============================================================
