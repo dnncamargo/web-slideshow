@@ -37,10 +37,10 @@ PowerShow
 - **Public Portal** — public PowerShow root. Without Live it exposes the self-contained demo; during Live it shows the active presentation cover and Watch entry.
 - **PowerShow Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
 - **PowerShow Editor** — visual authoring of the canonical Presentation.
-- **PowerShow Control** — authenticated live-session control, direct navigation, publication promotion, Player-state feedback, Gallery commands and bounded recovery.
-- **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence and explicit recovery actions.
+- **PowerShow Control** — authenticated live-session control, navigation, Player options, contextual element controls and Player-state feedback.
+- **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence, bounded recovery and remote diagnostics mode.
 - **PowerShow Player** — public projection runtime.
-- **PowerShow Watch** — public read-only audience surface following the actual Player-applied state.
+- **PowerShow Watch** — public read-only audience surface following actual Player-applied state.
 
 The public root is deliberately not another Player. During Live, Cover remains static/read-only while Watch follows the real Player state.
 
@@ -132,8 +132,6 @@ Theme / defaults
 
 Linked Styles are Presentation-scoped, self-contained and Container-only in the current contract. Custom Library Styles remain copy/materialization resources rather than runtime dependencies.
 
-Recent Editor resource refinements also align `+ Add Linked Style`, `+ Add Style`, and `Apply to selected` with the compact shared resource-action visual; Text Styles expose a projected-style count, and Container `Preserve size` uses the checkbox-first Inspector grammar.
-
 ## Import / Export
 
 PowerShow exports the canonical Presentation directly as readable JSON:
@@ -187,17 +185,15 @@ Control desired slide state
 → Control + Watch observe convergence
 ```
 
-Gallery deliberately uses a narrower one-way contract:
+Other bounded Live contracts include:
 
-```text
-Control desired Gallery state
-→ live/galleryControl/<slot>
-→ Player
-```
+- `live/galleryControl/<slot>` for one-way Gallery intent;
+- `live/slideTransition` for presentation-slide transition mode;
+- `live/playerControls` for Player control position/style/counter/animation;
+- `live/playerLogs` for activation-scoped remote diagnostics mode;
+- Scripted-specific runtime/input/report roots for declared ports.
 
-A physical Gallery interaction on Player remains local and does not update Control.
-
-Maintenance / Diagnostics adds bounded operational evidence and explicit retry, reload and cache-clear recovery without becoming a generic administration console.
+Runtime state remains outside the canonical Presentation.
 
 ## Blocks
 
@@ -219,20 +215,19 @@ Blocks is intentionally not an executable programming environment.
 
 ## Scripted
 
-`scripted` already exists as a canonical, authored and rendered element. It is the next active refinement area, not a new element to create.
+Scripted controlled interaction is complete through PR #133.
 
-Current canonical authored fields are:
+Canonical authored state remains self-contained in the Presentation and now includes declared `ports` in addition to `title`, `html`, `css` and `script`. Ports are explicit capabilities, not introspection of arbitrary authored JavaScript.
 
-```text
-title
-html
-css
-script
-```
+Supported runtime semantics include:
 
-The Editor keeps these source fields in local drafts and commits them together only through **Apply / Run**, preventing JavaScript from being re-executed on every keystroke.
+- action ports;
+- boolean state ports with `input`, `output` or `input-output` direction;
+- number state ports with `input`, `output` or `input-output` direction and optional finite `min`/`max`/`step` guidance.
 
-The shared renderer executes authored content only inside a renderer-owned sandboxed iframe:
+The Editor keeps source fields in local drafts and commits them through explicit **Apply / Run**. PowerShow Control renders controls from declarations; Player owns runtime identity and validates activation/version/page/slot/element/port before bridging messages to the mounted sandbox.
+
+The shared renderer keeps the permanent isolation boundary:
 
 ```text
 sandbox="allow-scripts"
@@ -240,45 +235,55 @@ referrerpolicy="no-referrer"
 fixed CSP
 ```
 
-The sandbox deliberately denies same-origin access, forms, popups, downloads, top navigation, storage and network connections. Authored JavaScript does not execute in the PowerShow application context. The renderer does not use `eval`, `Function`, `document.write` or string timers.
+No same-origin permission, Firebase/session exposure, parent DOM access, storage, popup/top-navigation privileges, `eval`, `Function`, or JavaScript payload delivered through RTDB is allowed. Runtime state is transient and never persisted into the Presentation.
 
-The next Scripted work must begin with an audit of the real current code and tests. The planned direction is to improve controlled interactivity without weakening this isolation boundary. A dedicated PowerShow/Control bridge, if implemented, must use explicit declared controls and validated messages rather than exposing application/Firebase/session access to authored code.
+## Player options and Maintenance
+
+PR #134 added activation-scoped Player presentation options and remote logs control.
+
+PowerShow Control can configure:
+
+- slide transition: Fade / Slide / None;
+- Player control position;
+- Player control style;
+- counter On / Off;
+- Player control-bar animation.
+
+Maintenance discovers connected Players from existing boot-scoped presence leases and broadcasts only the desired logs boolean. Each Player owns and rewrites its own URL: enabling logs adds/replaces `logs=true`; disabling logs removes all query parameters while preserving path/hash. URL equality prevents reload loops.
+
+RTDB rules for `slideTransition`, `playerControls` and `playerLogs` were explicitly deployed after validation.
+
+## Mobile surfaces
+
+The accepted mobile Library and Control layout was recovered on current `main` after PR #134.
+
+Current product rule for the compact Player settings control:
+
+- Player Settings is desktop-only;
+- Previous, Next, Fullscreen and End remain available in mobile Control;
+- responsive behavior is CSS/layout-owned rather than user-agent/device sniffing.
+
+An iPhone 14 Plus is a concrete mobile acceptance device used during current development. Breakpoint changes should still be evidence-driven rather than device-specific hacks.
 
 ## Embed
 
-`embed` also already exists canonically and in the shared renderer. The current Editor authors:
-
-```text
-src     absolute http/https URL
-title   required accessibility title
-```
-
-The renderer owns the iframe policy. Current runtime uses scripts/forms/same-origin for practical external embeds, grants fullscreen only, uses `strict-origin-when-cross-origin`, lazy loads the iframe, and does not expose sandbox policy as authored Presentation state.
-
-Embed refinement follows Scripted. The first checkpoint must audit concrete provider/runtime problems before changing sandbox, permissions, URL normalization or authoring UX. Security-sensitive changes must stay renderer-owned unless a separately justified canonical requirement exists.
+`embed` exists canonically and in the shared renderer. The Editor authors an absolute http/https `src` and required accessibility `title`; renderer-owned iframe policy remains security-sensitive. Embed refinement is not in the active queue and should resume only from a concrete provider/runtime audit.
 
 ## Current completed refinement line
 
-The recent merged baseline includes:
+Recent merged work includes:
 
 - Gallery V1 across Studio, Player, RTDB and Control;
 - Maintenance & Diagnostics D0–D2 with Player presence and bounded recovery;
 - Firestore serialization hardening for deep canonical Presentations;
 - grammar-based Blocks visual authoring;
-- Typography/Text Style usage locations and target-aware association behavior (PR #125);
-- Image Inspector and Delete→Enter ergonomics (PR #126);
-- PowerShow Suite chrome for Maintenance, including `<<< Back to presentation` and square diagnostic cards (PR #127);
-- Editor Resource Controls polish: checkbox-first Preserve size, compact Add/Apply actions and projected Text Styles count (PR #129).
-
-## Deferred work
-
-These items are intentionally not active:
-
-- `publishNow` Editor mode;
-- Chart V1;
-- making Topics itself a consumer of Typography Styles;
-- broader Diagnostics D3 expansion;
-- Production Readiness and Audience/Watch expansion until promoted by concrete need.
+- Typography/Text Style usage and target-aware association behavior;
+- Image Inspector and Delete→Enter ergonomics;
+- PowerShow Suite chrome for Maintenance;
+- Editor Resource Controls polish;
+- Scripted declared action/boolean/number ports with Player bridge and Control stateful controls (PR #133);
+- Player slide transitions, Player control options and remote Maintenance logs (PR #134);
+- recovered mobile Library/Control layout with Player Settings desktop-only.
 
 ## Development
 
@@ -311,7 +316,26 @@ AUDIT
 → review the real remote SHA/diff
 → manual acceptance where visual/runtime behavior requires it
 → PR / merge
+→ POST-MERGE LOCAL CLOSURE
 ```
+
+After every PR + merge, the local repository must return to the current `main` before another work area starts:
+
+```text
+git fetch origin --prune
+git switch main
+git pull --ff-only origin main
+```
+
+Then verify:
+
+```text
+branch == main
+HEAD == origin/main
+worktree clean
+```
+
+If fetch/switch/pull fails or the repository is unexpectedly dirty, stop and report rather than repairing history automatically. Never create the next feature branch from a stale local `main`.
 
 Authority order for implementation work is:
 
@@ -334,9 +358,9 @@ See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 Current execution order:
 
 ```text
-Scripted enhancement
-→ Embed adjustments
+Terminal + Code + Table typography/layout refinements
+→ Chart V1
 → other work only when explicitly promoted
 ```
 
-Chart and `publishNow` are deferred.
+`publishNow`, Topics→Typography Style consumption, broader Diagnostics and Embed refinement remain deferred/future until explicitly promoted.
