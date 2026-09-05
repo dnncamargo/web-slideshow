@@ -137,6 +137,9 @@ importers:
       '@powershow/document-schema':
         specifier: workspace:*
         version: link:../document-schema
+      '@powershow/math-source':
+        specifier: workspace:*
+        version: link:../math-source
     devDependencies:
       typescript:
         specifier: ^5.9.0
