@@ -274,6 +274,12 @@ describe("Terminal authoring controls", () => {
       letterSpacing: "0.1em",
     });
 
+    await act(async () => changeSelect(host.querySelector("#terminal-font-family")!, ""));
+    expect(state.typography?.fontFamily).toBeUndefined();
+    expect(state.typography?.fontSize).toBe(18);
+    expect(state.typography?.lineHeight).toBe(1.5);
+    expect(state.typography?.letterSpacing).toBe("0.1em");
+
     const clickReset = async (id: string): Promise<void> => {
       const input = host.querySelector<HTMLInputElement>(id);
       const reset = input?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
@@ -282,7 +288,7 @@ describe("Terminal authoring controls", () => {
     };
 
     await clickReset("#terminal-font-size");
-    expect(state.typography?.fontFamily).toBe("Fira Code");
+    expect(state.typography?.fontFamily).toBeUndefined();
     expect(state.typography?.fontSize).toBeUndefined();
     expect(state.typography?.lineHeight).toBe(1.5);
     expect(state.typography?.letterSpacing).toBe("0.1em");
@@ -290,6 +296,10 @@ describe("Terminal authoring controls", () => {
     await clickReset("#terminal-line-height");
     expect(state.typography?.lineHeight).toBeUndefined();
     expect(state.typography?.letterSpacing).toBe("0.1em");
+
+    await clickReset("#terminal-letter-spacing");
+    expect(state.typography?.letterSpacing).toBeUndefined();
+    expect(state.typography?.fontFamily).toBeUndefined();
   });
 
   it("writes and resets the five Terminal semantic colors independently", async () => {
@@ -318,6 +328,23 @@ describe("Terminal authoring controls", () => {
     await act(async () => reset("promptColor")?.click());
     expect(state.style?.promptColor).toBeUndefined();
     expect(state.style?.outputColor).toBe("#000003");
+    expect(state.style?.borderRadius).toBe(8);
+
+    await act(async () => reset("outputColor")?.click());
+    expect(state.style?.outputColor).toBeUndefined();
+    expect(state.style?.commentColor).toBe("#000004");
+    expect(state.style?.background?.color).toBe("#111111");
+    expect(state.style?.borderRadius).toBe(8);
+
+    await act(async () => reset("commentColor")?.click());
+    expect(state.style?.commentColor).toBeUndefined();
+    expect(state.style?.errorColor).toBe("#000005");
+    expect(state.style?.background?.color).toBe("#111111");
+    expect(state.style?.borderRadius).toBe(8);
+
+    await act(async () => reset("errorColor")?.click());
+    expect(state.style?.errorColor).toBeUndefined();
+    expect(state.style?.background?.color).toBe("#111111");
     expect(state.style?.borderRadius).toBe(8);
   });
 });
