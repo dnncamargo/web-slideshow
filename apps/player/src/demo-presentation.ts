@@ -263,9 +263,9 @@ function migrateLegacyElement(element: unknown): unknown {
   if (element.type === "chart") {
     const style = isDemoRecord(element.style) ? element.style : {};
     if (Object.keys(style).length === 0) {
-      const { style: _style, layout: layoutValue, ...chart } = element;
+      const { style: _style, layout: layoutValue, ...plot } = element;
       return {
-        ...chart,
+        ...plot,
         layout: legacyLayout(style, layoutValue),
       };
     }
