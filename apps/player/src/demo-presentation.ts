@@ -1699,7 +1699,7 @@ export const demoPresentation =
         id: "slide-8",
 
         title:
-          "Future interactive components",
+          "Chart and interaction",
 
         background: {
           color: "#080b12",
@@ -1770,7 +1770,7 @@ export const demoPresentation =
                   "subtitle",
 
                 content:
-                  "Chart now renders 2D math geometry. Interactive remains a placeholder.",
+                  "Chart renders 2D math geometry. Gallery and Scripted are interactive; the generic Interactive element remains a placeholder.",
               },
 
               {
@@ -1795,20 +1795,91 @@ export const demoPresentation =
 
                 children: [
                   {
-                    type: "chart",
+                    type: "container",
 
                     id:
-                      "demo-chart",
+                      "demo-chart-card",
 
                     hidden: false,
 
-                    source:
-                      "y = x^2",
+                    direction: "column",
 
-                    layout: {
+                    gap: 10,
+
+                    horizontalAlign:
+                      "center",
+
+                    verticalAlign:
+                      "center",
+
+                    style: {
                       width: 280,
-                      height: 180,
+                      height: 260,
+
+                      padding: 24,
+
+                      borderRadius:
+                        18,
+
+                      background:
+                        "rgba(15,23,42,0.82)",
+
+                      border: {
+                        width: 1,
+
+                        color:
+                          "rgba(34,211,238,0.40)",
+                      },
                     },
+
+                    children: [
+                      {
+                        type: "text",
+
+                        id:
+                          "demo-chart-title",
+
+                        hidden: false,
+
+                        variant:
+                          "subtitle",
+
+                        content:
+                          "Quadratic function",
+                      },
+
+                      {
+                        type: "chart",
+
+                        id:
+                          "demo-chart",
+
+                        hidden: false,
+
+                        source:
+                          "y = x^2",
+
+                        layout: {
+                          width: 232,
+                          height: 180,
+                        },
+                      },
+
+                      {
+                        type: "text",
+
+                        id:
+                          "demo-chart-function",
+
+                        hidden: false,
+
+                        variant:
+                          "caption",
+
+                        content:
+                          "f(x) = x²",
+                      },
+                    ],
                   },
 
                   {

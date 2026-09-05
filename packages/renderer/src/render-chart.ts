@@ -53,6 +53,8 @@ export function renderChart(element: ChartElement): string {
 
   const geometry: MathGeometryResult = { segments: [], diagnostics: [] };
   const analysis = analyzeMathSource(element.source);
+  let renderedEquationCount = 0;
+  let allRenderedEquationsAreExplicitY = true;
 
   for (const equation of analysis.equations) {
     let result: MathGeometryResult;
@@ -68,10 +70,16 @@ export function renderChart(element: ChartElement): string {
       case "implicit-3d":
         continue;
     }
+    if (result.segments.length > 0) {
+      renderedEquationCount += 1;
+      if (equation.form !== "explicit-y") allRenderedEquationsAreExplicitY = false;
+    }
     appendGeometry(geometry, result);
   }
 
-  const svg = renderMathGeometrySvg(geometry, CHART_VIEWPORT);
+  const svg = renderMathGeometrySvg(geometry, CHART_VIEWPORT, renderedEquationCount > 0
+    ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y" }
+    : undefined);
   if (svg === "") return renderChartFallback(element);
 
   return `<div class="powershow-element powershow-chart" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderChartLayout(element)}>${svg}</div>`;

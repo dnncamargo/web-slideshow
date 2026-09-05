@@ -65,6 +65,42 @@ describe("renderMathGeometrySvg", () => {
     expect(svg).toContain('vector-effect="non-scaling-stroke"');
   });
 
+  it("renders subordinate Cartesian axes before the curve", () => {
+    const svg = renderMathGeometrySvg(geometry([
+      [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+    ]), squareViewport, { x: "x", y: "f(x)" });
+
+    expect(svg.match(/<line /g)).toHaveLength(2);
+    expect(svg).toContain('class="powershow-chart-axis powershow-chart-axis-x"');
+    expect(svg).toContain('class="powershow-chart-axis powershow-chart-axis-y"');
+    expect(svg).toContain('stroke-width="1"');
+    expect(svg.indexOf("<line")).toBeLessThan(svg.indexOf("<path"));
+    expect(svg).toContain('class="powershow-chart-axis-label powershow-chart-axis-label-x"');
+    expect(svg).toContain('class="powershow-chart-axis-label powershow-chart-axis-label-y"');
+    expect(svg).toContain(">x</text>");
+    expect(svg).toContain(">f(x)</text>");
+    expect(svg.match(/<path /g)).toHaveLength(1);
+  });
+
+  it("uses x/y labels for non-explicit-y charts", () => {
+    const svg = renderMathGeometrySvg(geometry([
+      [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+    ]), squareViewport, { x: "x", y: "y" });
+
+    expect(svg).toContain(">x</text>");
+    expect(svg).toContain(">y</text>");
+    expect(svg).not.toContain("f(x)");
+  });
+
+  it("omits axes outside the viewport", () => {
+    const svg = renderMathGeometrySvg(geometry([
+      [{ x: 1, y: 1 }, { x: 2, y: 2 }],
+    ]), { xMin: 1, xMax: 2, yMin: 1, yMax: 2 }, { x: "x", y: "y" });
+
+    expect(svg).not.toContain("powershow-chart-axis");
+    expect(svg).not.toContain("<text");
+  });
+
   it("returns empty SVG for empty geometry", () => {
     expect(renderMathGeometrySvg(geometry([]), squareViewport)).toBe("");
   });

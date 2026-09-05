@@ -32,6 +32,12 @@ describe("Chart renderer", () => {
     expect(html).not.toContain("[chart]");
   });
 
+  it("uses f(x) only when every renderable equation is explicit-y", () => {
+    expect(renderChart("y = x^2\ny = sin(x)")).toContain(">f(x)</text>");
+    expect(renderChart("y = x^2\nx^2 + y^2 = 1")).toContain(">y</text>");
+    expect(renderChart("x = y^2")).not.toContain("f(x)");
+  });
+
   it("combines multiple supported equations into one SVG and path", () => {
     const html = renderChart("y = x\nx = y^2");
     expect(html.match(/<svg /g)).toHaveLength(1);
