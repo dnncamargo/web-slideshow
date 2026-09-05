@@ -6,6 +6,7 @@ import {
   StructuredTableElementSchema,
   TerminalElementSchema,
 } from "../src/elements";
+import { PresentationSchema } from "../src/presentation";
 
 const gradient = { type: "linear" as const, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 1 }] };
 const border = { width: 1, style: "solid" as const, gradient };
@@ -112,6 +113,56 @@ describe("canonical data element contracts", () => {
     expect(parsed.typography?.letterSpacing).toBe(0.1);
     expect(parsed.style?.promptColor).toBe("#00ff00");
   });
+
+  it("accepts Terminal title styling while preserving schema version 1", () => {
+    const parsed = TerminalElementSchema.parse({
+      id: "terminal-title-1",
+      type: "terminal",
+      hidden: false,
+      title: "shell",
+      titleStyle: { color: { kind: "palette", colorId: "accent" }, borderRadius: 8, className: "title" },
+      titleTypography: {
+        fontFamily: "Fira Code",
+        fontSize: 14,
+        fontWeight: 600,
+        fontStyle: "italic",
+        lineHeight: 1.2,
+        letterSpacing: "0.02em",
+        textTransform: "uppercase",
+      },
+      typography: { fontFamily: "monospace", fontSize: 16, lineHeight: 1.5, letterSpacing: 0.1 },
+      lines: [],
+    });
+
+    expect(parsed.title).toBe("shell");
+    expect(parsed.titleStyle?.borderRadius).toBe(8);
+    expect(parsed.titleTypography?.textTransform).toBe("uppercase");
+    expect(parsed.typography?.fontSize).toBe(16);
+
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "presentation-1",
+      title: "Terminal presentation",
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [parsed] }],
+    });
+
+    expect(presentation.schemaVersion).toBe(1);
+  });
+
+  it.each(["textAlign", "whiteSpace", "textStroke"] as const)(
+    "rejects out-of-scope Terminal titleTypography.%s",
+    (field) => {
+      expect(
+        TerminalElementSchema.safeParse({
+          id: "terminal-title-1",
+          type: "terminal",
+          hidden: false,
+          lines: [],
+          titleTypography: { [field]: field === "textStroke" ? {} : "center" },
+        }).success,
+      ).toBe(false);
+    },
+  );
 
   it.each([
     { typography: { fontWeight: 700 } },

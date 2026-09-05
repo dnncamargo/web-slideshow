@@ -16,7 +16,7 @@ describe("renderTerminal", () => {
     expect(html).not.toContain("font-family:");
   });
 
-  it("renders authored body typography without styling the titlebar", () => {
+  it("renders authored body typography without becoming title typography", () => {
     const html = renderTerminal(createTerminalElement({
       title: "Terminal title",
       typography: {
@@ -29,6 +29,43 @@ describe("renderTerminal", () => {
 
     expect(html).toContain('class="powershow-terminal-title">Terminal title</div>');
     expect(html).toContain('class="powershow-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px;line-height:1.25;--powershow-terminal-line-height:1.25em;letter-spacing:0.02em"');
+    expect(html).not.toContain('powershow-terminal-title" style=');
+  });
+
+  it("renders authored title typography and visual styling independently", () => {
+    const html = renderTerminal(createTerminalElement({
+      title: "Terminal title",
+      titleStyle: {
+        color: "#facc15",
+        background: { color: { kind: "palette", colorId: "accent" } },
+        border: { width: 1, style: "solid", color: "#ffffff" },
+        borderRadius: 8,
+        className: "custom-title",
+      },
+      titleTypography: {
+        fontFamily: 'Example "Mono"',
+        fontSize: 14,
+        fontWeight: 600,
+        fontStyle: "italic",
+        lineHeight: 1.2,
+        letterSpacing: "0.02em",
+        textTransform: "uppercase",
+      },
+      typography: { fontFamily: "Fira Code", fontSize: 18 },
+    }));
+
+    expect(html).toContain('class="powershow-terminal-title custom-title"');
+    expect(html).toContain('style="color:#facc15;background:var(--ps-palette-');
+    expect(html).toContain("border-width:1px;border-style:solid;border-color:#ffffff;border-radius:8px");
+    expect(html).toContain('font-family:&quot;Example \\22 Mono\\22 &quot;');
+    expect(html).toContain("font-size:14px;font-weight:600;font-style:italic;line-height:1.2;letter-spacing:0.02em;text-transform:uppercase");
+    expect(html).toContain('class="powershow-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px"');
+  });
+
+  it("does not emit authored title style when title styling is absent", () => {
+    const html = renderTerminal(createTerminalElement({ title: "Plain title" }));
+
+    expect(html).toContain('class="powershow-terminal-title">Plain title</div>');
     expect(html).not.toContain('powershow-terminal-title" style=');
   });
 

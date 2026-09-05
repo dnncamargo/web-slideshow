@@ -11,6 +11,69 @@ import { quoteCssString } from "./escape-css-string";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderColorValue } from "./render-palette";
 import { renderLength } from "./render-length";
+import { renderBorder, renderGradient } from "./render-visual";
+
+function renderTitleStyle(element: TerminalElement): string[] {
+  const output: string[] = [];
+  const style = element.titleStyle;
+
+  if (style?.color !== undefined) {
+    output.push(`color:${renderColorValue(style.color)}`);
+  }
+
+  if (style?.background?.color !== undefined) {
+    output.push(`background:${renderColorValue(style.background.color)}`);
+  }
+
+  if (style?.background?.gradient !== undefined) {
+    output.push(`background-image:${renderGradient(style.background.gradient)}`);
+  }
+
+  if (style?.border !== undefined) {
+    output.push(...renderBorder(style.border));
+  }
+
+  if (style?.borderRadius !== undefined) {
+    output.push(`border-radius:${renderLength(style.borderRadius)}`);
+  }
+
+  return output;
+}
+
+function renderTitleTypography(element: TerminalElement): string[] {
+  const output: string[] = [];
+  const typography = element.titleTypography;
+
+  if (typography?.fontFamily !== undefined) {
+    output.push(`font-family:${quoteCssString(typography.fontFamily)}`);
+  }
+
+  if (typography?.fontSize !== undefined) {
+    output.push(`font-size:${renderLength(typography.fontSize)}`);
+  }
+
+  if (typography?.fontWeight !== undefined) {
+    output.push(`font-weight:${typography.fontWeight}`);
+  }
+
+  if (typography?.fontStyle !== undefined) {
+    output.push(`font-style:${typography.fontStyle}`);
+  }
+
+  if (typography?.lineHeight !== undefined) {
+    output.push(`line-height:${typography.lineHeight}`);
+  }
+
+  if (typography?.letterSpacing !== undefined) {
+    output.push(`letter-spacing:${renderLength(typography.letterSpacing)}`);
+  }
+
+  if (typography?.textTransform !== undefined) {
+    output.push(`text-transform:${typography.textTransform}`);
+  }
+
+  return output;
+}
 
 export function renderTerminal(
   element: TerminalElement,
@@ -81,6 +144,20 @@ export function renderTerminal(
     ? ` style="${escapeHtml(bodyStyles.join(";"))}"`
     : "";
 
+  const titleStyles = [
+    ...renderTitleStyle(element),
+    ...renderTitleTypography(element),
+  ];
+  const titleStyleAttribute = titleStyles.length > 0
+    ? ` style="${escapeHtml(titleStyles.join(";"))}"`
+    : "";
+  const titleClasses = ["powershow-terminal-title"];
+  const customTitleClass = element.titleStyle?.className?.trim();
+
+  if (customTitleClass) {
+    titleClasses.push(customTitleClass);
+  }
+
   const titleBar = element.title
     ? (
       `<div class="powershow-terminal-titlebar">` +
@@ -98,7 +175,7 @@ export function renderTerminal(
             ` class="powershow-terminal-control powershow-terminal-control-expand"` +
           `></span>` +
         `</div>` +
-        `<div class="powershow-terminal-title">` +
+        `<div class="${escapeHtml(titleClasses.join(" "))}"${titleStyleAttribute}>` +
           escapeHtml(element.title) +
         `</div>` +
       `</div>`
