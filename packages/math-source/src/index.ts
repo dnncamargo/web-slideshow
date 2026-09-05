@@ -37,3 +37,12 @@ export type {
 } from "./semantic";
 
 export { analyzeMathSource } from "./semantic";
+
+export type {
+  MathBindings,
+  MathEvaluationDiagnostic,
+  MathEvaluationDiagnosticCode,
+  MathEvaluationResult,
+} from "./evaluator";
+
+export { evaluateMathEquation } from "./evaluator";

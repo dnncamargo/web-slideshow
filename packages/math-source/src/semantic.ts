@@ -1,4 +1,5 @@
 import { parseMathSource, type MathEquationStatement, type MathExpression, type MathProgram, type MathSourceDiagnostic } from "./parser";
+import { isMathBuiltInFunctionName } from "./builtins";
 
 export type MathCoordinateName = "x" | "y" | "z";
 
@@ -36,7 +37,6 @@ export interface MathAnalysisResult {
 
 const coordinates = new Set<MathCoordinateName>(["x", "y", "z"]);
 const constants = new Set(["pi", "e"]);
-const builtInFunctions = new Set(["sin", "cos", "tan", "sqrt", "abs", "log", "exp"]);
 
 interface ExpressionSummary {
   coordinates: MathCoordinateName[];
@@ -65,7 +65,7 @@ function summarizeExpression(expression: MathExpression): ExpressionSummary {
       return;
     }
     if (node.kind === "call") {
-      if (!builtInFunctions.has(node.callee)) {
+      if (!isMathBuiltInFunctionName(node.callee)) {
         summary.unknownFunctions.push({
           code: "unknown-function",
           message: `Unknown function '${node.callee}'.`,
