@@ -325,16 +325,15 @@ describe("Custom Library apply core", () => {
       id: "chart-target",
       type: "chart",
       hidden: false,
-      chartType: "line",
-      series: [{ name: "Old", values: [{ x: 0, y: 1 }] }],
+      source: "y = x",
     };
     const result = mergeCustomLibraryElementRecipe(recipe("chart", [
-      { path: "series", value: [{ name: "New", values: [{ x: 1, y: 2 }] }] },
+      { path: "source", value: "y = x^2" },
     ]), target, [slide([target])]);
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "chart") return;
     expect(result.element.id).toBe("chart-target");
-    expect(result.element.series[0]?.name).toBe("New");
+    expect(result.element.source).toBe("y = x^2");
     expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
   });
 

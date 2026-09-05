@@ -1802,49 +1802,12 @@ export const demoPresentation =
 
                     hidden: false,
 
-                    chartType:
-                      "line",
+                    source:
+                      "y = x^2",
 
-                    series: [
-                      {
-                        name:
-                          "Demo",
-
-                        values: [
-                          {
-                            x: 0,
-                            y: 1,
-                          },
-                          {
-                            x: 1,
-                            y: 3,
-                          },
-                          {
-                            x: 2,
-                            y: 2,
-                          },
-                        ],
-                      },
-                    ],
-
-                    style: {
+                    layout: {
                       width: 280,
                       height: 180,
-
-                      padding: 24,
-
-                      borderRadius:
-                        18,
-
-                      background:
-                        "rgba(15,23,42,0.82)",
-
-                      border: {
-                        width: 1,
-
-                        color:
-                          "rgba(139,92,246,0.40)",
-                      },
                     },
                   },
 

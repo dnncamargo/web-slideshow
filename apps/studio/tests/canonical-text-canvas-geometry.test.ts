@@ -39,7 +39,7 @@ function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedE
 
 describe("canonical text canvas drag", () => {
   it.each([
-    ["chart", { type: "chart", id: "chart", hidden: false, chartType: "line", series: [{ name: "series", values: [] }] }],
+    ["chart", { type: "chart", id: "chart", hidden: false, source: "" }],
     ["interactive", { type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: {} }],
   ] satisfies readonly [string, ChartElement | InteractiveElement][])("moves an absolute %s through canonical layout edges", (_type, element) => {
     const result = updateCanonicalElementForCanvasDrag(

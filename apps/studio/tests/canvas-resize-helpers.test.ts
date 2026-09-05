@@ -20,7 +20,7 @@ describe("canonical canvas resize helpers", () => {
   });
 
   it("keeps unsupported semantic elements non-resizable", () => {
-    expect(isCanvasResizable({ type: "chart", id: "chart", hidden: false, chartType: "line", series: [] })).toBe(false);
+    expect(isCanvasResizable({ type: "chart", id: "chart", hidden: false, source: "" })).toBe(false);
     expect(isCanvasResizable({ type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: {} })).toBe(false);
   });
 

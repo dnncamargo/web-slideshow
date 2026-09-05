@@ -3,7 +3,7 @@ import { renderContentSlotStyle, renderElement } from "../src";
 
 describe("Chart and Interactive placeholders", () => {
   it.each([
-    [{ type: "chart", id: "chart-flow", hidden: false, chartType: "line", series: [] }],
+    [{ type: "chart", id: "chart-flow", hidden: false, source: "" }],
     [{ type: "interactive", id: "interactive-flow", hidden: false, widget: "function-plot", config: {} }],
   ])("renders a flow placeholder without legacy style", (element) => {
     const html = renderElement(element as never);
@@ -18,8 +18,7 @@ describe("Chart and Interactive placeholders", () => {
       id: "chart-absolute",
       hidden: false,
       layout: { position: "absolute", top: "10%", left: 12 },
-      chartType: "bar",
-      series: [],
+      source: "y = x^2",
     });
     expect(html).toContain("position:absolute;top:10%;left:12px");
     expect(html).not.toContain("width:");

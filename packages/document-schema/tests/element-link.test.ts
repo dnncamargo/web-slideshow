@@ -626,7 +626,7 @@ describe("Container element links", () => {
 
 describe("unsupported element types and links", () => {
   it.each([
-    ["chart", { type: "chart", id: "chart-1", hidden: false, chartType: "line", series: [] }],
+    ["chart", { type: "chart", id: "chart-1", hidden: false, source: "" }],
     ["interactive", { type: "interactive", id: "int-1", hidden: false, widget: "function-plot", config: {} }],
   ] as const)(
     "rejects a link property from a %s element per schema strictness conventions",

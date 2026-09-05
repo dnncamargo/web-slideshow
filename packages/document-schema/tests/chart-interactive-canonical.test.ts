@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { ChartElementSchema, InteractiveElementSchema } from "../src";
 
-const chart = { id: "chart-1", type: "chart" as const, chartType: "line" as const, series: [] };
+const chart = { id: "chart-1", type: "chart" as const, hidden: false, source: "" };
 const interactive = { id: "interactive-1", type: "interactive" as const, widget: "function-plot" as const, config: {} };
+
+describe("Chart canonical contract", () => {
+  it.each([
+    chart,
+    { ...chart, source: "y = x^2" },
+    { ...chart, layout: { width: 640, height: 360 } },
+  ])("accepts %j", (input) => {
+    expect(ChartElementSchema.safeParse(input).success).toBe(true);
+  });
+
+  it.each([
+    { id: "chart-1", type: "chart", hidden: false },
+    { ...chart, source: "x".repeat(4097) },
+    { ...chart, chartType: "line", series: [] },
+    { ...chart, unknown: true },
+  ])("rejects non-canonical input %j", (input) => {
+    expect(ChartElementSchema.safeParse(input).success).toBe(false);
+  });
+});
 
 describe.each([
   ["Chart", ChartElementSchema, chart],
@@ -21,8 +40,6 @@ describe.each([
 
   it.each([
     { layout: { top: 1 } },
-    { layout: { width: 100 } },
-    { layout: { height: 100 } },
     { layout: { minWidth: 1 } },
     { layout: { maxHeight: 1 } },
     { layout: { padding: 1 } },

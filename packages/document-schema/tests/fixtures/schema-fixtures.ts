@@ -107,16 +107,7 @@ const tableElement = {
 const chartElement = {
   id: "chart-element",
   type: "chart",
-  chartType: "line",
-  series: [
-    {
-      name: "Voltage",
-      values: [
-        { x: 0, y: 0 },
-        { x: 1, y: 5 },
-      ],
-    },
-  ],
+  source: "y = x^2",
 };
 
 const interactiveElement = {

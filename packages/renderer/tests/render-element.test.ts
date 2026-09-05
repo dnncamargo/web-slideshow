@@ -357,8 +357,7 @@ describe("renderElement", () => {
       type: "chart",
       id: "chart-1",
       hidden: false,
-      chartType: "line",
-      series: [],
+      source: "",
     };
 
     const html = renderElement(element);

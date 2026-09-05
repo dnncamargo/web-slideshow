@@ -16,7 +16,7 @@ const topics: TopicsAuthoringControls = { onAddTopLevelTopic: () => null, onAddC
 const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
 
 const elements: readonly [string, ChartElement | InteractiveElement][] = [
-  ["Chart", { id: "chart-1", type: "chart", hidden: false, chartType: "line", series: [] }],
+  ["Chart", { id: "chart-1", type: "chart", hidden: false, source: "" }],
   ["Interactive", { id: "interactive-1", type: "interactive", hidden: false, widget: "function-plot", config: {} }],
 ];
 

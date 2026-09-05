@@ -265,28 +265,10 @@ export const ChartElementSchema =
   z.object({
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
-    layout: PositionedElementLayoutSchema.optional(),
+    layout: ResizablePositionedLayoutSchema.optional(),
     type: z.literal("chart"),
 
-    chartType: z.enum([
-      "line",
-      "bar",
-      "area",
-      "scatter",
-    ]),
-
-    series: z.array(
-      z.object({
-        name: z.string(),
-
-        values: z.array(
-          z.object({
-            x: z.number(),
-            y: z.number(),
-          }),
-        ),
-      }),
-    ),
+    source: z.string().max(4096),
   }).strict();
 
 export type ChartElement =

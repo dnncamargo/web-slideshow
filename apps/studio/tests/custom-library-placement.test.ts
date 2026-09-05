@@ -122,9 +122,9 @@ describe("Custom Library placement core", () => {
   });
 
   it("supports same-type Chart merge", () => {
-    const chart: PowerShowElement = { id: "chart", type: "chart", hidden: false, chartType: "bar", series: [] };
+    const chart: PowerShowElement = { id: "chart", type: "chart", hidden: false, source: "" };
     const current = slide([text("before"), chart, text("after")]);
-    const result = success(placeCustomLibraryElementRecipe(recipe("chart", [{ path: "chartType", value: "line" }]), current, [current], "chart"));
+    const result = success(placeCustomLibraryElementRecipe(recipe("chart", [{ path: "source", value: "y = x^2" }]), current, [current], "chart"));
     expect(result.mode).toBe("merge-selected");
     expect(result.appliedElementId).toBe("chart");
     expect(result.slide.elements.map((element) => element.id)).toEqual(["before", "chart", "after"]);
