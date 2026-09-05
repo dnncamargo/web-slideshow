@@ -26,6 +26,18 @@ function renderTerminalContent(
     : renderRichText(content, { newlineMode: "preserve" });
 }
 
+function hasTerminalTitleText(
+  content: TerminalElement["title"],
+): boolean {
+  if (content === undefined) {
+    return false;
+  }
+
+  return typeof content === "string"
+    ? content.length > 0
+    : content.runs.some((run) => run.text.length > 0);
+}
+
 function renderTitleStyle(element: TerminalElement): string[] {
   const output: string[] = [];
   const style = element.titleStyle;
@@ -171,7 +183,7 @@ export function renderTerminal(
     titleClasses.push(customTitleClass);
   }
 
-  const titleBar = element.title
+  const titleBar = hasTerminalTitleText(element.title)
     ? (
       `<div class="powershow-terminal-titlebar">` +
         `<div` +

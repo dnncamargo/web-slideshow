@@ -54,6 +54,16 @@ describe("renderCode", () => {
     expect(html).toContain("x = 1;");
     expect(html).toContain("next");
   });
+
+  it("preserves the trailing empty physical line", () => {
+    const html = renderCode(createCodeElement({
+      code: { type: "rich-text", runs: [{ text: "a\n", marks: { bold: true } }] },
+    }));
+
+    expect(countOccurrences(html, 'data-line="')).toBe(2);
+    expect(html).toContain('data-line="2"');
+    expect(html).toContain('data-line="2"><span class="powershow-code-line-number"');
+  });
   it("renders empty code as one empty visual line", () => {
     const html = renderCode(
       createCodeElement({ code: "" }),

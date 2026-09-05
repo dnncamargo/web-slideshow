@@ -54,6 +54,13 @@ function changeSelect(select: HTMLSelectElement, value: string): void {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+  setter?.call(textarea, value);
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  textarea.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 describe("canonical data Appearance controls", () => {
   let host: HTMLDivElement;
   let root: Root;
@@ -96,6 +103,20 @@ describe("canonical data Appearance controls", () => {
 
     expect(state.style?.background?.color).toBeUndefined();
     expect(state.style?.background?.gradient).toEqual(gradient);
+  });
+
+  it("adapts RichText Code source through the existing textarea", async () => {
+    state = codeElement({
+      code: { type: "rich-text", runs: [{ text: "  const", marks: { bold: true } }, { text: " value = 1;\nnext" }] },
+    });
+    await act(async () => renderInspector());
+
+    const source = host.querySelector<HTMLTextAreaElement>("#code-source");
+    expect(source?.value).toBe("  const value = 1;\nnext");
+    expect(source?.value).not.toContain("[object Object]");
+
+    await act(async () => changeTextarea(source!, "  const value = 2;\nnext"));
+    expect(state.code).toEqual({ type: "rich-text", runs: [{ text: "  const", marks: { bold: true } }, { text: " value = 2;\nnext" }] });
   });
 
   it("preserves the sibling while changing or clearing either background property", async () => {
@@ -245,6 +266,29 @@ describe("Terminal authoring controls", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+  });
+
+  it("adapts RichText titles and lines through the existing plain controls", async () => {
+    state = terminalElement({
+      title: { type: "rich-text", runs: [{ text: "Terminal", marks: { bold: true } }] },
+      lines: [{ type: "error", content: { type: "rich-text", runs: [{ text: "failure", marks: { italic: true } }] } }],
+    });
+    await act(async () => renderInspector());
+
+    const title = host.querySelector<HTMLInputElement>("#terminal-title");
+    const line = host.querySelector<HTMLTextAreaElement>('textarea[id*="line-0-content"]');
+    expect(title?.value).toBe("Terminal");
+    expect(line?.value).toBe("failure");
+
+    await act(async () => changeInput(title!, "Renamed"));
+    await act(async () => changeTextarea(line!, "fixed"));
+
+    expect(state.title).toEqual({ type: "rich-text", runs: [{ text: "Renamed", marks: { bold: true } }] });
+    expect(state.lines[0]?.type).toBe("error");
+    expect(state.lines[0]?.content).toEqual({ type: "rich-text", runs: [{ text: "fixed", marks: { italic: true } }] });
+
+    await act(async () => changeInput(host.querySelector<HTMLInputElement>("#terminal-title")!, ""));
+    expect(state.title).toBeUndefined();
   });
 
   it("exposes only the four Terminal typography controls and resets fields independently", async () => {
