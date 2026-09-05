@@ -46,3 +46,13 @@ export type {
 } from "./evaluator";
 
 export { evaluateMathEquation } from "./evaluator";
+
+export type {
+  MathExplicit2DOptions,
+  MathGeometryDiagnostic,
+  MathGeometryResult,
+  MathPoint2D,
+  MathViewport2D,
+} from "./geometry";
+
+export { generateExplicit2DGeometry } from "./geometry";
