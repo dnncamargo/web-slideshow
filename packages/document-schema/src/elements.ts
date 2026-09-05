@@ -16,6 +16,7 @@ import {
   ElementTypographySchema,
   CodeTypographySchema,
   TerminalTypographySchema,
+  TerminalTitleTypographySchema,
   SimpleTableTypographySchema,
   ElementVisualStyleSchema,
   TextLayoutSchema,
@@ -238,6 +239,10 @@ export const TerminalElementSchema =
     typography: TerminalTypographySchema.optional(),
 
     title: z.string().optional(),
+
+    titleStyle: TextVisualStyleSchema.optional(),
+
+    titleTypography: TerminalTitleTypographySchema.optional(),
 
     lines: z.array(
       z.object({

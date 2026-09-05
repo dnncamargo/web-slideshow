@@ -310,6 +310,20 @@ export const TerminalTypographySchema = ElementTypographySchema.pick({
 
 export type TerminalTypography = z.infer<typeof TerminalTypographySchema>;
 
+export const TerminalTitleTypographySchema = ElementTypographySchema.pick({
+  fontFamily: true,
+  fontSize: true,
+  fontWeight: true,
+  fontStyle: true,
+  lineHeight: true,
+  letterSpacing: true,
+  textTransform: true,
+}).strict();
+
+export type TerminalTitleTypography = z.infer<
+  typeof TerminalTitleTypographySchema
+>;
+
 export const SimpleTableTypographySchema = ElementTypographySchema.pick({
   fontFamily: true,
   fontSize: true,
