@@ -12,6 +12,31 @@ import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderColorValue } from "./render-palette";
 import { renderLength } from "./render-length";
 import { renderBorder, renderGradient } from "./render-visual";
+import { renderRichText, renderTextContent } from "./render-rich-text";
+
+function renderTerminalContent(
+  content: TerminalElement["title"],
+): string {
+  if (content === undefined) {
+    return "";
+  }
+
+  return typeof content === "string"
+    ? renderTextContent(content, { newlineMode: "preserve" })
+    : renderRichText(content, { newlineMode: "preserve" });
+}
+
+function hasTerminalTitleText(
+  content: TerminalElement["title"],
+): boolean {
+  if (content === undefined) {
+    return false;
+  }
+
+  return typeof content === "string"
+    ? content.length > 0
+    : content.runs.some((run) => run.text.length > 0);
+}
 
 function renderTitleStyle(element: TerminalElement): string[] {
   const output: string[] = [];
@@ -158,7 +183,7 @@ export function renderTerminal(
     titleClasses.push(customTitleClass);
   }
 
-  const titleBar = element.title
+  const titleBar = hasTerminalTitleText(element.title)
     ? (
       `<div class="powershow-terminal-titlebar">` +
         `<div` +
@@ -176,7 +201,7 @@ export function renderTerminal(
           `></span>` +
         `</div>` +
         `<div class="${escapeHtml(titleClasses.join(" "))}"${titleStyleAttribute}>` +
-          escapeHtml(element.title) +
+        renderTerminalContent(element.title) +
         `</div>` +
       `</div>`
     )
@@ -189,7 +214,9 @@ export function renderTerminal(
           ` class="powershow-terminal-line powershow-terminal-line-${line.type}"` +
           ` data-terminal-line-type="${line.type}"` +
         `>` +
-          escapeHtml(line.content) +
+          (typeof line.content === "string"
+            ? renderTextContent(line.content, { newlineMode: "preserve" })
+            : renderRichText(line.content, { newlineMode: "preserve" })) +
         `</div>`
       );
     })

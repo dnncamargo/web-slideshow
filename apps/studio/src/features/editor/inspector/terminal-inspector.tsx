@@ -12,6 +12,10 @@ import type { TypedInspectorProps } from "./inspector-types";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import {
+  getTextContentPlainText,
+} from "../rich-text-authoring";
+import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -133,32 +137,26 @@ export function TerminalInspector({
       <div className={styles.inspectorDivider} />
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span>{t("inspector.titleField")}</span>
 
-          <input
+          <RichTextAuthoringControl
+            content={element.title ?? ""}
             id="terminal-title"
             name="terminalTitle"
-            type="text"
+            multiline={false}
+            visibleMarks={{ bold: true, italic: true, underline: true, code: false }}
+            showLineBreak={false}
             placeholder={t("inspector.optional")}
-            value={element.title ?? ""}
-            onChange={(event) => {
-              const value = event.target.value;
-
-              onUpdate((current) => {
-                if (current.type !== "terminal") {
-                  return current;
-                }
-
-                return {
+            ariaLabel={t("inspector.titleField")}
+            onChange={(content) => onUpdate((current) => current.type === "terminal"
+              ? {
                   ...current,
-
-                  title: value === "" ? undefined : value,
-                };
-              });
-            }}
+                  title: getTextContentPlainText(content) === "" ? undefined : content,
+                }
+              : current)}
           />
-        </label>
+        </div>
 
         <div className={styles.inspectorSectionHeader}>
           <div className={styles.inspectorSectionTitle}>
@@ -223,25 +221,18 @@ export function TerminalInspector({
                 </button>
               </div>
 
-              <textarea
+              <RichTextAuthoringControl
+                content={line.content}
                 id={`terminal-${element.id}-line-${index}-content`}
                 name={`terminalLineContent_${element.id}_${index}`}
-                className={styles.textArea}
                 rows={2}
-                value={line.content}
-                onChange={(event) => {
-                  const content = event.target.value;
-
-                  updateLine(
-                    index,
-
-                    (currentLine) => ({
-                      ...currentLine,
-
-                      content,
-                    }),
-                  );
-                }}
+                visibleMarks={{ bold: true, italic: true, underline: true, code: false }}
+                showLineBreak={false}
+                ariaLabel={t("inspector.content")}
+                onChange={(content) => updateLine(index, (currentLine) => ({
+                  ...currentLine,
+                  content,
+                }))}
               />
             </div>
           ))}

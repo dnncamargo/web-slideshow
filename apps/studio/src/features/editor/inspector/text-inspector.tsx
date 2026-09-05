@@ -1,5 +1,4 @@
 import {
-  resolveColorValue,
   type ContainerElement,
   type PowerShowElement,
   type TextElement,
@@ -8,7 +7,6 @@ import {
   type TextVisualStyle,
   stripLocalTextStyleProperties,
 } from "@powershow/document-schema";
-import { useLayoutEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import {
@@ -18,19 +16,7 @@ import {
 
 import styles from "../editor-workspace.module.css";
 
-import {
-  applyTextContentColor,
-  clearTextContentColor,
-  clearTextContentFormatting,
-  getTextContentPlainText,
-  getTextContentSelectionBooleanMarkState,
-  getTextContentSelectionColorState,
-  normalizeTextContent,
-  normalizeTextSelectionRange,
-  reconcileTextContentEdit,
-  toggleTextContentBooleanMark,
-  type TextSelectionRange,
-} from "../rich-text-authoring";
+import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 
 import { InspectorSection } from "./inspector-section";
 
@@ -51,9 +37,7 @@ import { CanonicalTextPositionSection } from "./sections/canonical-text-position
 
 import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
-import { ColorControl } from "./sections/color-control";
 import { ElementTypographyFields } from "./sections/element-typography-control";
-import { usePresentationColorPalette } from "./sections/presentation-color-palette";
 import {
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
@@ -61,72 +45,6 @@ import {
 import { listPresentationTextStyles } from "../text-style-helpers";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
-
-function readTextareaSelection(
-  textarea: HTMLTextAreaElement,
-): TextSelectionRange | null {
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-
-  if (start === null || end === null) {
-    return null;
-  }
-
-  return normalizeTextSelectionRange(
-    {
-      start,
-      end,
-    },
-    textarea.value.length,
-  );
-}
-
-function readTextareaRange(
-  textarea: HTMLTextAreaElement,
-): TextSelectionRange | null {
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-
-  if (start === null || end === null) {
-    return null;
-  }
-
-  return { start, end };
-}
-
-function InlineFormatButton({
-  format,
-  accessibleLabel,
-  visualLabel,
-  state,
-  disabled,
-  onClick,
-}: {
-  format: "bold" | "italic" | "underline" | "code";
-  accessibleLabel: string;
-  visualLabel: string;
-  state: "off" | "on" | "mixed" | null;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={styles.textEditorToolbarButton}
-      type="button"
-      aria-label={accessibleLabel}
-      aria-pressed={state === "mixed" ? "mixed" : state === "on"}
-      disabled={disabled}
-      data-powershow-inline-format={format}
-      title={accessibleLabel}
-      onMouseDown={(event) => {
-        event.preventDefault();
-      }}
-      onClick={onClick}
-    >
-      <span aria-hidden="true">{visualLabel}</span>
-    </button>
-  );
-}
 
 // ============================================================
 // BEGIN: TEXT INSPECTOR
@@ -144,50 +62,6 @@ export function TextInspector({
   layerControls?: ElementLayerControls | null;
 }) {
   const { t } = useStudioI18n();
-  const selectionRef = useRef<TextSelectionRange | null>(null);
-  const textRangeRef = useRef<TextSelectionRange | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const pendingCaretRef = useRef<number | null>(null);
-  const [selection, setSelection] = useState<TextSelectionRange | null>(null);
-  const [isInlineColorOpen, setIsInlineColorOpen] = useState(false);
-  const presentationPalette = usePresentationColorPalette();
-
-  const plainText = getTextContentPlainText(element.content);
-  const normalizedSelection = normalizeTextSelectionRange(
-    selection,
-    plainText.length,
-  );
-  const hasSelection = normalizedSelection !== null;
-  const selectionColorState = getTextContentSelectionColorState(
-    element.content,
-    normalizedSelection,
-  );
-  const selectionColor = selectionColorState?.kind === "uniform"
-    ? selectionColorState.color
-    : undefined;
-  const resolvedSelectionColor = selectionColor === undefined
-    ? undefined
-    : resolveColorValue(
-        selectionColor,
-        presentationPalette ? { colors: presentationPalette.colors } : undefined,
-      );
-  const isColorPanelOpen = isInlineColorOpen && hasSelection;
-
-  useLayoutEffect(() => {
-    const caret = pendingCaretRef.current;
-    const textarea = textareaRef.current;
-
-    if (caret === null || !textarea) {
-      return;
-    }
-
-    textarea.focus();
-    textarea.setSelectionRange(caret, caret);
-    textRangeRef.current = { start: caret, end: caret };
-    selectionRef.current = null;
-    setSelection(null);
-    pendingCaretRef.current = null;
-  }, [plainText]);
 
   const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
@@ -249,312 +123,15 @@ export function TextInspector({
     });
   }
 
-  function updateTextElementContent(
-    update: (content: TextElement["content"]) => TextElement["content"],
-  ) {
-    onUpdate((current) => {
-      if (current.type !== "text") {
-        return current;
-      }
-
-      const nextContent = normalizeTextContent(update(current.content));
-
-      return nextContent === current.content
-        ? current
-        : {
-            ...current,
-            content: nextContent,
-          };
-    });
-  }
-
-  function updateSelectionFromTextarea(textarea: HTMLTextAreaElement) {
-    textRangeRef.current = readTextareaRange(textarea);
-    const nextSelection = readTextareaSelection(textarea);
-
-    setSelection(nextSelection);
-
-    if (nextSelection) {
-      selectionRef.current = nextSelection;
-    }
-  }
-
-  function insertLineBreak() {
-    const range = textRangeRef.current;
-    if (!range) {
-      return;
-    }
-
-    const currentText = getTextContentPlainText(element.content);
-    const start = Math.min(Math.max(range.start, 0), currentText.length);
-    const end = Math.min(Math.max(range.end, start), currentText.length);
-    const nextText = `${currentText.slice(0, start)}\n${currentText.slice(end)}`;
-
-    updateTextElementContent((content) => reconcileTextContentEdit(content, nextText));
-    pendingCaretRef.current = start + 1;
-  }
-
-  function applySelectionTransform(
-    transform: (
-      content: TextElement["content"],
-      selectionRange: TextSelectionRange,
-    ) => TextElement["content"],
-  ) {
-    const nextSelection = selectionRef.current;
-    if (!nextSelection) {
-      return;
-    }
-
-    updateTextElementContent((content) => {
-      const normalized = normalizeTextSelectionRange(
-        nextSelection,
-        getTextContentPlainText(content).length,
-      );
-
-      if (!normalized) {
-        return content;
-      }
-
-      return transform(content, normalized);
-    });
-
-    setSelection(nextSelection);
-    selectionRef.current = nextSelection;
-  }
-
   return (
     <>
       <div className={styles.inspectorDivider} />
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
-        <div className={styles.textEditor} data-powershow-text-editor="true">
-          <div
-            className={styles.textEditorToolbar}
-            data-powershow-text-editor-toolbar="true"
-          >
-            <InlineFormatButton
-              format="bold"
-              accessibleLabel={t("inspector.inlineFormat.bold")}
-              visualLabel="B"
-              state={getTextContentSelectionBooleanMarkState(
-                element.content,
-                normalizedSelection,
-                "bold",
-              )}
-              disabled={!hasSelection}
-              onClick={() => {
-                applySelectionTransform((content, range) =>
-                  toggleTextContentBooleanMark(content, range, "bold"),
-                );
-              }}
-            />
-
-            <InlineFormatButton
-              format="italic"
-              accessibleLabel={t("inspector.inlineFormat.italic")}
-              visualLabel="I"
-              state={getTextContentSelectionBooleanMarkState(
-                element.content,
-                normalizedSelection,
-                "italic",
-              )}
-              disabled={!hasSelection}
-              onClick={() => {
-                applySelectionTransform((content, range) =>
-                  toggleTextContentBooleanMark(content, range, "italic"),
-                );
-              }}
-            />
-
-            <InlineFormatButton
-              format="underline"
-              accessibleLabel={t("inspector.inlineFormat.underline")}
-              visualLabel="U"
-              state={getTextContentSelectionBooleanMarkState(
-                element.content,
-                normalizedSelection,
-                "underline",
-              )}
-              disabled={!hasSelection}
-              onClick={() => {
-                applySelectionTransform((content, range) =>
-                  toggleTextContentBooleanMark(content, range, "underline"),
-                );
-              }}
-            />
-
-            <InlineFormatButton
-              format="code"
-              accessibleLabel={t("inspector.inlineFormat.code")}
-              visualLabel="</>"
-              state={getTextContentSelectionBooleanMarkState(
-                element.content,
-                normalizedSelection,
-                "code",
-              )}
-              disabled={!hasSelection}
-              onClick={() => {
-                applySelectionTransform((content, range) =>
-                  toggleTextContentBooleanMark(content, range, "code"),
-                );
-              }}
-            />
-
-            <button
-              className={styles.textEditorToolbarButton}
-              type="button"
-              aria-label={t("inspector.inlineFormat.lineBreak")}
-              data-powershow-inline-line-break="true"
-              title={t("inspector.inlineFormat.lineBreak")}
-              onMouseDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={insertLineBreak}
-            >
-              <span aria-hidden="true">↵</span>
-            </button>
-
-            <button
-              className={styles.textEditorToolbarButton}
-              type="button"
-              aria-label={t("inspector.inlineFormat.color")}
-              aria-expanded={isColorPanelOpen}
-              aria-controls="text-inline-color-panel"
-              disabled={!hasSelection}
-              data-powershow-inline-color="true"
-              data-powershow-inline-color-state={selectionColorState?.kind ?? "none"}
-              title={t("inspector.inlineFormat.color")}
-              onMouseDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={() => setIsInlineColorOpen((open) => !open)}
-            >
-              <svg
-                aria-hidden="true"
-                className={styles.textEditorColorIcon}
-                data-powershow-inline-color-icon="paint-bucket"
-                viewBox="0 0 24 24"
-                focusable="false"
-              >
-                <path
-                  d="m4.5 9 5-5 9 9-5 5-9-9Z"
-                  fill={resolvedSelectionColor ?? "currentColor"}
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.7"
-                />
-                <path
-                  d="m9.5 4 2-2 9 9-2 2M4.5 9l-2 2 7 7"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.7"
-                />
-                <path
-                  d="M17.5 16.5c0 1.4-1.1 2.5-2.5 2.5s-2.5-1.1-2.5-2.5c0-1.4 2.5-4 2.5-4s2.5 2.6 2.5 4Z"
-                  fill={resolvedSelectionColor ?? "currentColor"}
-                  stroke="currentColor"
-                  strokeLinejoin="round"
-                  strokeWidth="1.4"
-                />
-                <path
-                  d="M19 20h2"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeWidth="1.7"
-                />
-              </svg>
-              <span
-                aria-hidden="true"
-                className={styles.textEditorColorSwatch}
-                data-powershow-inline-color-swatch="true"
-                style={{ backgroundColor: resolvedSelectionColor ?? "currentColor" }}
-              />
-            </button>
-
-            <button
-              className={styles.textEditorToolbarButton}
-              type="button"
-              aria-label={t("inspector.inlineFormat.clearFormatting")}
-              disabled={!hasSelection}
-              data-powershow-inline-format-clear-formatting="true"
-              title={t("inspector.inlineFormat.clearFormatting")}
-              onMouseDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={() => {
-                applySelectionTransform((content, range) =>
-                  clearTextContentFormatting(content, range),
-                );
-              }}
-            >T×</button>
-          </div>
-
-          {isColorPanelOpen && (
-            <div
-              className={styles.textEditorColorPanel}
-              id="text-inline-color-panel"
-              data-powershow-inline-color-panel="true"
-            >
-              {selectionColorState?.kind === "mixed" ? (
-                <p className={styles.textEditorColorMixedStatus} role="status">
-                  {t("inspector.inlineFormat.mixed")}
-                </p>
-              ) : null}
-              <ColorControl
-                id="text-inline-color"
-                name="textInlineColor"
-                value={selectionColor}
-                disabled={!hasSelection}
-                onChange={(color) => {
-                  applySelectionTransform((content, range) =>
-                    applyTextContentColor(content, range, color),
-                  );
-                }}
-                secondaryAction={{
-                  label: t("inspector.inlineFormat.clearColor"),
-                  onClick: () => {
-                    applySelectionTransform((content, range) =>
-                      clearTextContentColor(content, range),
-                    );
-                  },
-                }}
-              />
-            </div>
-          )}
-
-          <textarea
-            id="text-content"
-            name="textContent"
-            className={styles.textArea}
-            ref={textareaRef}
-            aria-label={t("inspector.text")}
-            rows={5}
-            value={plainText}
-            onSelect={(event) => {
-              updateSelectionFromTextarea(event.currentTarget);
-            }}
-            onMouseUp={(event) => {
-              updateSelectionFromTextarea(event.currentTarget);
-            }}
-            onClick={(event) => {
-              updateSelectionFromTextarea(event.currentTarget);
-            }}
-            onKeyUp={(event) => {
-              updateSelectionFromTextarea(event.currentTarget);
-            }}
-            onChange={(event) => {
-              const content = event.currentTarget.value;
-
-              updateTextElementContent((currentContent) =>
-                reconcileTextContentEdit(currentContent, content),
-              );
-              updateSelectionFromTextarea(event.currentTarget);
-            }}
-          />
-        </div>
+        <RichTextAuthoringControl
+          content={element.content}
+          onChange={(content) => onUpdate((current) => current.type === "text" ? { ...current, content } : current)}
+        />
       </InspectorSection>
 
       <InspectorSection title={t("inspector.typography")}>

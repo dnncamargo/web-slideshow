@@ -21,6 +21,10 @@ import type {
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import {
+  getTextContentPlainText,
+  reconcileTextContentEdit,
+} from "../rich-text-authoring";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -96,7 +100,11 @@ function convertCellType(
         return value;
       }
 
-      const converted = Number(value);
+      const converted = Number(
+        value !== null && (typeof value === "string" || typeof value === "object")
+          ? getTextContentPlainText(value)
+          : value,
+      );
 
       return Number.isFinite(converted) ? converted : 0;
     }
@@ -109,7 +117,15 @@ function convertCellType(
 
     case "string":
     default:
-      return value === undefined || value === null ? "" : String(value);
+      if (value === undefined || value === null) {
+        return "";
+      }
+
+      if (typeof value === "object") {
+        return value;
+      }
+
+      return String(value);
   }
 }
 
@@ -264,9 +280,17 @@ function TableCellEditor({
           id={`${controlIdPrefix}-value`}
           name={`${controlNamePrefix}Value`}
           type="text"
-          value={typeof value === "string" ? value : ""}
+          value={value === undefined || value === null || (typeof value !== "string" && typeof value !== "object")
+            ? ""
+            : getTextContentPlainText(value)}
           onChange={(event) => {
-            onChange(event.target.value);
+            const nextPlainText = event.target.value;
+            onChange(
+              reconcileTextContentEdit(
+                value !== null && (typeof value === "string" || typeof value === "object") ? value : "",
+                nextPlainText,
+              ),
+            );
           }}
         />
       )}
@@ -626,9 +650,9 @@ function SimpleTableInspector({
                 id={`table-${element.id}-column-${column.key}-label`}
                 name={`tableColumnLabel_${element.id}_${column.key}`}
                 type="text"
-                value={column.label}
+                value={getTextContentPlainText(column.label)}
                 onChange={(event) => {
-                  const label = event.target.value;
+                  const nextPlainText = event.target.value;
 
                   updateTable((table) => ({
                     ...table,
@@ -638,7 +662,7 @@ function SimpleTableInspector({
                         ? {
                             ...currentColumn,
 
-                            label,
+                            label: reconcileTextContentEdit(currentColumn.label, nextPlainText),
                           }
                         : currentColumn,
                     ),
@@ -733,7 +757,7 @@ function SimpleTableInspector({
               {element.columns.map((column, columnIndex) => (
                 <div key={column.key} className={styles.tableCellField}>
                   <span className={styles.tableCellLabel}>
-                    {column.label || column.key}
+                    {getTextContentPlainText(column.label) || column.key}
                   </span>
 
                   <TableCellEditor

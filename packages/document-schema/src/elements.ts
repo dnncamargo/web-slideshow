@@ -216,7 +216,7 @@ export const CodeElementSchema =
 
     typography: CodeTypographySchema.optional(),
 
-    code: z.string(),
+    code: TextContentSchema,
 
     language: z.string().default("text"),
 
@@ -238,7 +238,7 @@ export const TerminalElementSchema =
 
     typography: TerminalTypographySchema.optional(),
 
-    title: z.string().optional(),
+    title: TextContentSchema.optional(),
 
     titleStyle: TextVisualStyleSchema.optional(),
 
@@ -253,7 +253,7 @@ export const TerminalElementSchema =
           "comment",
         ]),
 
-        content: z.string(),
+        content: TextContentSchema,
       }),
     ),
   }).strict();
@@ -537,7 +537,7 @@ export const SimpleTableElementSchema =
     columns: z.array(
       z.object({
         key: z.string().min(1),
-        label: z.string(),
+        label: TextContentSchema,
       }),
     ),
 
@@ -545,7 +545,7 @@ export const SimpleTableElementSchema =
       z.record(
         z.string(),
         z.union([
-          z.string(),
+          TextContentSchema,
           z.number(),
           z.boolean(),
           z.null(),

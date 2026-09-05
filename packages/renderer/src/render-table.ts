@@ -2,6 +2,7 @@ import type {
   ContentSlot,
   TableElement,
   PowerShowElement,
+  TextContent,
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
@@ -10,12 +11,13 @@ import { renderLength } from "./render-length";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderContentSlotStyle } from "./render-content-slot";
 import { renderColorValue } from "./render-palette";
+import { renderRichText, renderTextContent } from "./render-rich-text";
 
 type RenderChild = (element: PowerShowElement) => string;
 
 function renderCellValue(
   value:
-    | string
+    | TextContent
     | number
     | boolean
     | null
@@ -25,7 +27,11 @@ function renderCellValue(
     return "";
   }
 
-  return escapeHtml(String(value));
+  return typeof value === "string"
+    ? renderTextContent(value, { newlineMode: "preserve" })
+    : typeof value === "number" || typeof value === "boolean"
+      ? escapeHtml(String(value))
+      : renderRichText(value, { newlineMode: "preserve" });
 }
 
 export function renderTable(
@@ -81,7 +87,7 @@ export function renderTable(
       .map(
         (column) =>
           `<th scope="col">` +
-          escapeHtml(column.label) +
+          renderCellValue(column.label) +
           `</th>`,
       )
       .join("");

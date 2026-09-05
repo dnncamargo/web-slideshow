@@ -7,6 +7,36 @@ import { renderTerminal } from "../src/render-terminal";
 import { createTerminalElement } from "./fixtures/render-fixtures";
 
 describe("renderTerminal", () => {
+  it.each([
+    ["empty string", ""],
+    ["empty runs", { type: "rich-text", runs: [] } as TerminalElement["title"]],
+    ["empty marked run", { type: "rich-text", runs: [{ text: "", marks: { bold: true } }] } as TerminalElement["title"]],
+  ])("omits a titlebar for %s", (_name, title) => {
+    expect(renderTerminal(createTerminalElement({ title }))).not.toContain(
+      "powershow-terminal-titlebar",
+    );
+  });
+
+  it("renders a non-empty RichText title with its marks", () => {
+    const html = renderTerminal(createTerminalElement({
+      title: { type: "rich-text", runs: [{ text: "Title", marks: { bold: true, italic: true } }] },
+    }));
+
+    expect(html).toContain("powershow-terminal-titlebar");
+    expect(html).toContain("<em><strong>Title</strong></em>");
+  });
+
+  it("renders RichText title and line content with semantic defaults", () => {
+    const html = renderTerminal(createTerminalElement({
+      title: { type: "rich-text", runs: [{ text: "Terminal", marks: { bold: true, color: "#f00" } }] },
+      lines: [{ type: "output", content: { type: "rich-text", runs: [{ text: "ok", marks: { italic: true } }] } }],
+    }));
+
+    expect(html).toContain("<strong>");
+    expect(html).toContain("Terminal");
+    expect(html).toContain("<em>ok</em>");
+    expect(html).toContain("powershow-terminal-line-output");
+  });
   it("omits the title region when no title is provided", () => {
     const html = renderTerminal(createTerminalElement());
 

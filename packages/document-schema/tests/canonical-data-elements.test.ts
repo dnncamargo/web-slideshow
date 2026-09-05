@@ -15,6 +15,13 @@ const effect = { opacity: 0.5, shadow: { x: 0, y: 4, blur: 12, spread: 2, color:
 const layout = { width: "50%", height: 120, position: "absolute" as const, top: 1, right: "2%", bottom: 3, left: 4 };
 
 describe("canonical data element contracts", () => {
+  it("accepts shared TextContent for Terminal, Code, and Simple Table", () => {
+    const richText = { type: "rich-text" as const, runs: [{ text: "marked", marks: { bold: true } }] };
+
+    expect(TerminalElementSchema.parse({ id: "terminal-1", type: "terminal", hidden: false, title: richText, lines: [{ type: "command", content: richText }] }).title).toEqual(richText);
+    expect(CodeElementSchema.parse({ id: "code-1", type: "code", hidden: false, code: richText }).code).toEqual(richText);
+    expect(SimpleTableElementSchema.parse({ id: "table-1", type: "table", hidden: false, columns: [{ key: "name", label: richText }], rows: [{ name: richText, count: 1, enabled: true, empty: null }] })).toMatchObject({ columns: [{ label: richText }], rows: [{ name: richText, count: 1, enabled: true, empty: null }] });
+  });
   it.each([
     ["code", CodeElementSchema, { type: "code", code: "const x = 1", language: "ts", showLineNumbers: true, highlightedLines: [] }],
     ["terminal", TerminalElementSchema, { type: "terminal", title: "shell", lines: [{ type: "command", content: "pnpm test" }] }],

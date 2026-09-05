@@ -14,6 +14,10 @@ import type { TypedInspectorProps } from "./inspector-types";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import {
+  getTextContentPlainText,
+  reconcileTextContentEdit,
+} from "../rich-text-authoring";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -117,9 +121,9 @@ export function CodeInspector({
             className={`${styles.textArea} ${styles.codeTextArea}`}
             rows={10}
             spellCheck={false}
-            value={element.code}
+            value={getTextContentPlainText(element.code)}
             onChange={(event) => {
-              const code = event.target.value;
+              const nextPlainText = event.target.value;
 
               onUpdate((current) => {
                 if (current.type !== "code") {
@@ -129,7 +133,7 @@ export function CodeInspector({
                 return {
                   ...current,
 
-                  code,
+                  code: reconcileTextContentEdit(current.code, nextPlainText),
                 };
               });
             }}

@@ -31,7 +31,7 @@ const FONT_RESOURCES: readonly FontResource[] = [{
   source: { type: "url", url: "https://example.com/inter.woff2", format: "woff2" },
 }];
 
-function simpleTable(): SimpleTableElement {
+function simpleTable(overrides: Partial<SimpleTableElement> = {}): SimpleTableElement {
   return {
     type: "table",
     id: "simple-table",
@@ -39,6 +39,7 @@ function simpleTable(): SimpleTableElement {
     style: { background: { color: "#101218" }, borderRadius: 4 },
     columns: [{ key: "value", label: "Value" }],
     rows: [{ value: "text" }],
+    ...overrides,
   };
 }
 
@@ -258,6 +259,19 @@ describe("TableInspector", () => {
     expect(keyInput).not.toBeNull();
     expect(cellTypeSelect).not.toBeNull();
     expect(headerCheckbox()).toBeNull();
+  });
+
+  it("displays RichText labels and cells as text controls", async () => {
+    await act(async () => {
+      mount(simpleTable({
+        columns: [{ key: "value", label: { type: "rich-text", runs: [{ text: "Value", marks: { bold: true } }] } }],
+        rows: [{ value: { type: "rich-text", runs: [{ text: "text", marks: { italic: true } }] } }],
+      }));
+    });
+
+    expect(container.querySelector<HTMLInputElement>('input[name^="tableColumnLabel_"]')?.value).toBe("Value");
+    expect(container.querySelector<HTMLSelectElement>('select[name^="tableCell_"]')?.value).toBe("string");
+    expect(container.querySelector<HTMLInputElement>('input[name$="Value"]')?.value).toBe("text");
   });
 
   it("authors and resets Simple Table typography and color without sibling loss", async () => {

@@ -21,6 +21,17 @@ function bodyMarkup(html: string): string {
 }
 
 describe("renderTable", () => {
+  it("renders RichText headers and cells while preserving scalar cells", () => {
+    const html = renderTable(createTableElement({
+      columns: [{ key: "name", label: { type: "rich-text", runs: [{ text: "Name", marks: { bold: true } }] } }],
+      rows: [{ name: { type: "rich-text", runs: [{ text: "Alice", marks: { color: "#f00" } }] } }, { name: 42 }],
+    }));
+
+    expect(html).toContain("<strong>Name</strong>");
+    expect(html).toContain("Alice");
+    expect(html).toContain(">42</td>");
+    expect(html).not.toContain("[object Object]");
+  });
   it("uses declared column order rather than row key order", () => {
     const html = renderTable(
       createTableElement({
