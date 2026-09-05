@@ -5,9 +5,11 @@ import type {
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { quoteCssString } from "./escape-css-string";
 import { renderLength } from "./render-length";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderContentSlotStyle } from "./render-content-slot";
+import { renderColorValue } from "./render-palette";
 
 type RenderChild = (element: PowerShowElement) => string;
 
@@ -46,7 +48,29 @@ export function renderTable(
     classes.push(customClass);
   }
 
-  const baseStyle = renderCanonicalDataStyle(element);
+  const styleParts = [renderCanonicalDataStyle(element)];
+
+  if (element.mode !== "structured") {
+    const typography = element.typography;
+
+    if (typography?.fontFamily !== undefined) {
+      styleParts.push(`font-family:${quoteCssString(typography.fontFamily)}`);
+    }
+
+    if (typography?.fontSize !== undefined) {
+      styleParts.push(`font-size:${renderLength(typography.fontSize)}`);
+    }
+
+    if (typography?.lineHeight !== undefined) {
+      styleParts.push(`line-height:${typography.lineHeight}`);
+    }
+
+    if (element.style?.color !== undefined) {
+      styleParts.push(`color:${renderColorValue(element.style.color)}`);
+    }
+  }
+
+  const baseStyle = styleParts.filter(Boolean).join(";");
 
   const styleAttribute = baseStyle
     ? ` style="${escapeHtml(baseStyle)}"`

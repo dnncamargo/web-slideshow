@@ -176,6 +176,7 @@ function ElementTypeInspector({
         <TableInspector
           element={element}
           onUpdate={onUpdate}
+          fontResources={fontResources}
           tableAuthoringControls={tableAuthoringControls}
         />
       );
