@@ -399,9 +399,26 @@ describe("Terminal authoring controls", () => {
     });
   });
 
-  it("exposes only the four Terminal typography controls and resets fields independently", async () => {
-    state = terminalElement();
+  it("exposes independent title and body typography controls", async () => {
+    state = terminalElement({
+      titleTypography: {
+        fontFamily: "Fira Code",
+        fontWeight: 500,
+        fontStyle: "italic",
+        lineHeight: 1.2,
+        letterSpacing: "0.05em",
+        textTransform: "uppercase",
+      },
+      typography: {
+        fontSize: "1.1rem",
+      },
+    });
     await act(async () => renderInspector());
+
+    expect(host.querySelector("#terminal-title-font-size")).not.toBeNull();
+    expect(host.querySelector("#terminal-title-font-size")?.getAttribute("value")).toBe("0.8125");
+    expect(host.querySelector("#terminal-title-font-family")).toBeNull();
+    expect(host.querySelector("#terminal-title-font-weight")).toBeNull();
 
     expect(host.querySelector("#terminal-font-family")).not.toBeNull();
     expect(host.querySelector("#terminal-font-size")).not.toBeNull();
@@ -412,6 +429,33 @@ describe("Terminal authoring controls", () => {
     expect(host.querySelector("#terminal-text-align")).toBeNull();
     expect(host.querySelector("#terminal-text-transform")).toBeNull();
     expect(host.querySelector("#terminal-white-space")).toBeNull();
+
+    await act(async () => changeSelect(host.querySelector("#terminal-title-font-size-unit")!, "rem"));
+    await act(async () => changeInput(host.querySelector("#terminal-title-font-size")!, "1.25"));
+
+    expect(state.titleTypography).toEqual({
+      fontFamily: "Fira Code",
+      fontSize: "1.25rem",
+      fontWeight: 500,
+      fontStyle: "italic",
+      lineHeight: 1.2,
+      letterSpacing: "0.05em",
+      textTransform: "uppercase",
+    });
+    expect(state.typography?.fontSize).toBe("1.1rem");
+
+    const titleReset = host.querySelector<HTMLInputElement>("#terminal-title-font-size")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+    expect(titleReset).not.toBeNull();
+    await act(async () => titleReset?.click());
+    expect(state.titleTypography).toEqual({
+      fontFamily: "Fira Code",
+      fontWeight: 500,
+      fontStyle: "italic",
+      lineHeight: 1.2,
+      letterSpacing: "0.05em",
+      textTransform: "uppercase",
+    });
+    expect(state.typography?.fontSize).toBe("1.1rem");
 
     await act(async () => changeSelect(host.querySelector("#terminal-font-family")!, "Fira Code"));
     await act(async () => changeSelect(host.querySelector("#terminal-font-size-unit")!, "px"));
