@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MathGeometryResult, MathViewport2D } from "@powershow/math-source";
-import { renderMathGeometrySvg } from "../src/render-chart-svg";
+import { renderMathGeometrySvg } from "../src/render-plot-svg";
 
 const squareViewport: MathViewport2D = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
 
@@ -71,18 +71,18 @@ describe("renderMathGeometrySvg", () => {
     ]), squareViewport, { x: "x", y: "f(x)" });
 
     expect(svg.match(/<line /g)).toHaveLength(2);
-    expect(svg).toContain('class="powershow-chart-axis powershow-chart-axis-x"');
-    expect(svg).toContain('class="powershow-chart-axis powershow-chart-axis-y"');
+    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-x"');
+    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-y"');
     expect(svg).toContain('stroke-width="1"');
     expect(svg.indexOf("<line")).toBeLessThan(svg.indexOf("<path"));
-    expect(svg).toContain('class="powershow-chart-axis-label powershow-chart-axis-label-x"');
-    expect(svg).toContain('class="powershow-chart-axis-label powershow-chart-axis-label-y"');
+    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-x"');
+    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-y"');
     expect(svg).toContain(">x</text>");
     expect(svg).toContain(">f(x)</text>");
     expect(svg.match(/<path /g)).toHaveLength(1);
   });
 
-  it("uses x/y labels for non-explicit-y charts", () => {
+  it("uses x/y labels for non-explicit-y plots", () => {
     const svg = renderMathGeometrySvg(geometry([
       [{ x: -1, y: -1 }, { x: 1, y: 1 }],
     ]), squareViewport, { x: "x", y: "y" });
@@ -97,7 +97,7 @@ describe("renderMathGeometrySvg", () => {
       [{ x: 1, y: 1 }, { x: 2, y: 2 }],
     ]), { xMin: 1, xMax: 2, yMin: 1, yMax: 2 }, { x: "x", y: "y" });
 
-    expect(svg).not.toContain("powershow-chart-axis");
+    expect(svg).not.toContain("powershow-plot-axis");
     expect(svg).not.toContain("<text");
   });
 

@@ -30,7 +30,7 @@ import {
 // ============================================================
 // BEGIN: TIPOS DE ELEMENTOS CRIÁVEIS
 //
-// Chart e Interactive ficam fora desta primeira rodada porque
+// Plot e Interactive ficam fora desta primeira rodada porque
 // ainda não possuem edição/renderização completa no Editor.
 // ============================================================
 

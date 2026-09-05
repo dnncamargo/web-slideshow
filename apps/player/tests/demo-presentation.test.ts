@@ -30,18 +30,18 @@ describe("canonical demo presentation", () => {
     ]);
   });
 
-  it("keeps the demo Chart as the layout-owning element", () => {
+  it("keeps the demo Plot as the layout-owning element", () => {
     const slide = demoPresentation.slides.find((candidate) => candidate.id === "slide-8");
     const root = slide?.elements[0];
-    const chart = root === undefined ? undefined : findElement(root, "demo-chart");
-    const card = root === undefined ? undefined : findElement(root, "demo-chart-card");
+    const plot = root === undefined ? undefined : findElement(root, "demo-plot");
+    const card = root === undefined ? undefined : findElement(root, "demo-plot-card");
     const interactive = root === undefined ? undefined : findElement(root, "demo-interactive");
 
-    expect(chart?.type).toBe("chart");
-    expect(chart?.layout).toEqual({ width: 232, height: 160 });
+    expect(plot?.type).toBe("chart");
+    expect(plot?.layout).toEqual({ width: 232, height: 160 });
     expect(card?.type).toBe("container");
-    expect(card?.type === "container" && card.children.some((child) => child.id === "demo-chart")).toBe(true);
-    expect(findElement(root!, "demo-chart-frame")).toBeUndefined();
+    expect(card?.type === "container" && card.children.some((child) => child.id === "demo-plot")).toBe(true);
+    expect(findElement(root!, "demo-plot-frame")).toBeUndefined();
     expect(interactive?.type).toBe("interactive");
   });
 });

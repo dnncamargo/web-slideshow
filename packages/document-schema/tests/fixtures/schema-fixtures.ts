@@ -104,8 +104,8 @@ const tableElement = {
   ],
 };
 
-const chartElement = {
-  id: "chart-element",
+const plotElement = {
+  id: "plot-element",
   type: "chart",
   source: "y = x^2",
 };
@@ -217,7 +217,7 @@ export const validStructureFixtures = [
             ),
             makeContainer(
               "column-3",
-              [chartElement],
+              [plotElement],
               { role: "column" },
             ),
           ],
@@ -279,7 +279,7 @@ export const validStructureFixtures = [
             imageElement,
             terminalElement,
             tableElement,
-            chartElement,
+            plotElement,
           ],
           { role: "column" },
         ),
@@ -326,9 +326,9 @@ export const validElementFixtures = [
     ]),
   },
   {
-    name: "chart element",
+    name: "plot element",
     input: makePresentation([
-      makeSlide([chartElement]),
+      makeSlide([plotElement]),
     ]),
   },
   {

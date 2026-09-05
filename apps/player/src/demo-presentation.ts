@@ -1699,7 +1699,7 @@ export const demoPresentation =
       // SLIDE 8
       // COMPONENTES AINDA NÃO IMPLEMENTADOS
       //
-      // Chart e Interactive já existem no schema,
+      // Plot e Interactive já existem no schema,
       // mas neste estágio o renderer ainda produz placeholders.
       //
       // Isso é proposital:
@@ -1710,7 +1710,7 @@ export const demoPresentation =
         id: "slide-8",
 
         title:
-          "Chart and interaction",
+          "Plot and interaction",
 
         background: {
           color: "#080b12",
@@ -1766,7 +1766,7 @@ export const demoPresentation =
                 variant: "title",
 
                 content:
-                  "Chart and interaction",
+                  "Plot and interaction",
               },
 
               {
@@ -1781,7 +1781,7 @@ export const demoPresentation =
                   "subtitle",
 
                 content:
-                  "Chart renders 2D math geometry. Gallery and Scripted are interactive; the generic Interactive element remains a placeholder.",
+                      "Plot renders 2D math geometry. Gallery and Scripted are interactive; the generic Interactive element remains a placeholder.",
               },
 
               {
@@ -1809,7 +1809,7 @@ export const demoPresentation =
                     type: "container",
 
                     id:
-                      "demo-chart-card",
+                      "demo-plot-card",
 
                     hidden: false,
 
@@ -1848,7 +1848,7 @@ export const demoPresentation =
                         type: "text",
 
                         id:
-                          "demo-chart-title",
+                          "demo-plot-title",
 
                         hidden: false,
 
@@ -1863,7 +1863,7 @@ export const demoPresentation =
                         type: "chart",
 
                         id:
-                          "demo-chart",
+                          "demo-plot",
 
                         hidden: false,
 
@@ -1880,7 +1880,7 @@ export const demoPresentation =
                         type: "text",
 
                         id:
-                          "demo-chart-function",
+                          "demo-plot-function",
 
                         hidden: false,
 

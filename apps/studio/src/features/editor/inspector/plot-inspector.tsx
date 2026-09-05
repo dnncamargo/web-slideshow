@@ -1,4 +1,4 @@
-import type { ChartElement } from "@powershow/document-schema";
+import type { PlotElement } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -7,10 +7,10 @@ import styles from "../editor-workspace.module.css";
 import { InspectorSection } from "./inspector-section";
 import type { TypedInspectorProps } from "./inspector-types";
 
-export function ChartInspector({
+export function PlotInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<ChartElement>) {
+}: TypedInspectorProps<PlotElement>) {
   const { t } = useStudioI18n();
 
   return (
@@ -22,8 +22,8 @@ export function ChartInspector({
           <span>{t("inspector.source")}</span>
 
           <textarea
-            id="chart-source"
-            name="chartSource"
+            id="plot-source"
+            name="plotSource"
             className={`${styles.textArea} ${styles.codeTextArea}`}
             rows={6}
             spellCheck={false}
@@ -48,8 +48,8 @@ export function ChartInspector({
 
         <label className={styles.checkboxRow}>
           <input
-            id="chart-fit-to-axes"
-            name="chartFitToAxes"
+            id="plot-fit-to-axes"
+            name="plotFitToAxes"
             type="checkbox"
             checked={element.fitToAxes !== false}
             onChange={(event) => {

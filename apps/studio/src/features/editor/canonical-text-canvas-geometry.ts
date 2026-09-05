@@ -1,4 +1,4 @@
-import type { BlocksElement, ChartElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@powershow/document-schema";
+import type { BlocksElement, PlotElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@powershow/document-schema";
 import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@powershow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
@@ -14,7 +14,7 @@ export interface CanonicalTextCanvasGeometry {
 }
 
 type TextFamilyElement = TextElement;
-type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | ChartElement | InteractiveElement;
+type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement;
 type PositioningEdge = "left" | "right" | "top" | "bottom";
 
 function includes(direction: CanvasResizeDirection, value: string): boolean {

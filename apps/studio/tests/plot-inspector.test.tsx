@@ -4,23 +4,23 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { ChartElement } from "@powershow/document-schema";
+import type { PlotElement } from "@powershow/document-schema";
 
-import { ChartInspector } from "../src/features/editor/inspector/chart-inspector";
+import { PlotInspector } from "../src/features/editor/inspector/plot-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-describe("Chart source Inspector", () => {
+describe("Plot source Inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let current: ChartElement;
+  let current: PlotElement;
 
   beforeEach(() => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    current = { id: "chart-1", type: "chart", hidden: false, source: "y = x^2" };
+    current = { id: "plot-1", type: "chart", hidden: false, source: "y = x^2" };
   });
 
   afterEach(async () => {
@@ -31,7 +31,7 @@ describe("Chart source Inspector", () => {
   function renderInspector(): void {
     root.render(
       <StudioI18nProvider>
-        <ChartInspector
+        <PlotInspector
           element={current}
           onUpdate={(update) => {
             const next = update(current);
@@ -44,15 +44,15 @@ describe("Chart source Inspector", () => {
   }
 
   function changeSource(source: string): void {
-    const textarea = host.querySelector<HTMLTextAreaElement>("#chart-source");
-    if (!textarea) throw new Error("Chart source textarea not found");
+    const textarea = host.querySelector<HTMLTextAreaElement>("#plot-source");
+    if (!textarea) throw new Error("Plot source textarea not found");
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(textarea, source);
     textarea.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   function changeFitToAxes(checked: boolean): void {
-    const checkbox = host.querySelector<HTMLInputElement>("#chart-fit-to-axes");
-    if (!checkbox) throw new Error("Chart fit-to-axes checkbox not found");
+    const checkbox = host.querySelector<HTMLInputElement>("#plot-fit-to-axes");
+    if (!checkbox) throw new Error("Plot fit-to-axes checkbox not found");
     if (checkbox.checked !== checked) {
       checkbox.click();
     }
@@ -64,7 +64,7 @@ describe("Chart source Inspector", () => {
     [false, false],
   ] as const)("renders fit-to-axes %j as checked=%j", async (fitToAxes, checked) => {
     current = {
-      id: "chart-1",
+      id: "plot-1",
       type: "chart",
       hidden: false,
       source: "y = x^2",
@@ -73,20 +73,20 @@ describe("Chart source Inspector", () => {
 
     await act(async () => renderInspector());
 
-    expect(host.querySelector<HTMLInputElement>("#chart-fit-to-axes")?.checked).toBe(checked);
+    expect(host.querySelector<HTMLInputElement>("#plot-fit-to-axes")?.checked).toBe(checked);
   });
 
   it("toggles fitToAxes without changing source", async () => {
     await act(async () => renderInspector());
 
-    const checkbox = host.querySelector<HTMLInputElement>("#chart-fit-to-axes");
+    const checkbox = host.querySelector<HTMLInputElement>("#plot-fit-to-axes");
     expect(checkbox?.checked).toBe(true);
 
     await act(async () => changeFitToAxes(false));
-    expect(current).toEqual({ id: "chart-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: false });
+    expect(current).toEqual({ id: "plot-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: false });
 
     await act(async () => changeFitToAxes(true));
-    expect(current).toEqual({ id: "chart-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: true });
+    expect(current).toEqual({ id: "plot-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: true });
 
     await act(async () => changeSource("y = sin(x)"));
     expect(current.fitToAxes).toBe(true);
@@ -95,14 +95,14 @@ describe("Chart source Inspector", () => {
   it("edits only canonical source, preserving multiline and empty values", async () => {
     await act(async () => renderInspector());
 
-    const textarea = host.querySelector<HTMLTextAreaElement>("#chart-source");
+    const textarea = host.querySelector<HTMLTextAreaElement>("#plot-source");
     expect(textarea?.value).toBe("y = x^2");
     expect(textarea?.maxLength).toBe(4096);
     expect(textarea?.getAttribute("spellcheck")).toBe("false");
 
     await act(async () => changeSource("y = sin(x)"));
     expect(current.source).toBe("y = sin(x)");
-    expect(current).toEqual({ id: "chart-1", type: "chart", hidden: false, source: "y = sin(x)" });
+    expect(current).toEqual({ id: "plot-1", type: "chart", hidden: false, source: "y = sin(x)" });
 
     const multiline = "y = sin(x)\ny = x^2";
     await act(async () => changeSource(multiline));

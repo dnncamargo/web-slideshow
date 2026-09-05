@@ -320,7 +320,7 @@ describe("Custom Library apply core", () => {
     expect(result).toEqual({ ok: false, reason: "unsupported-create-type" });
   });
 
-  it("merges unsupported-create Chart elements when their type matches", () => {
+  it("merges unsupported-create Plot elements when their type matches", () => {
     const target: PowerShowElement = {
       id: "chart-target",
       type: "chart",

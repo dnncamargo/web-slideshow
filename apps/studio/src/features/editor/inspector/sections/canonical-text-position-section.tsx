@@ -1,11 +1,11 @@
-import type { BlocksElement, ChartElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@powershow/document-schema";
+import type { BlocksElement, PlotElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 import { shouldShowPositionLayerControls, type ElementLayerControls } from "./element-positioning-helpers";
 
 interface Props {
-  element: TextElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | ChartElement | InteractiveElement;
+  element: TextElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement;
   parent: ContainerElement | null;
   onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => void;
   layerControls: ElementLayerControls;

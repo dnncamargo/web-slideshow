@@ -85,7 +85,7 @@ const items: CustomLibraryItemRecord[] = [
   { id: "text-item", item: { name: "Text preset", root: textRecipe } },
   { id: "image-item", item: { name: "Image preset", root: imageRecipe } },
   { id: "container-item", item: { name: "Container composition", root: containerRecipe } },
-  { id: "chart-item", item: { name: "Chart preset", root: chartRecipe } },
+  { id: "plot-item", item: { name: "Plot preset", root: chartRecipe } },
 ];
 
 function topicsElement(): PowerShowElement {
@@ -863,12 +863,12 @@ describe("Custom Library Editor integration", () => {
     expect(containerElement.textContent).not.toContain("Content slot");
   });
 
-  it("keeps Presentation and selection unchanged for unsupported Chart create", async () => {
+  it("keeps Presentation and selection unchanged for unsupported Plot create", async () => {
     const saved: Presentation[] = [];
     await mount(makePresentation([text("existing", "Existing")]), saved);
     await openElements();
     await openPicker();
-    await applyItem("Chart preset");
+    await applyItem("Plot preset");
 
     expect(containerElement.textContent).toContain("This item cannot be created in the Editor yet.");
     expect(saved).toHaveLength(0);

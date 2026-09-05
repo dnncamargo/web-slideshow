@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChartElement, EmbedElement, GalleryElement, ImageElement, InteractiveElement, ScriptedElement, TextElement } from "@powershow/document-schema";
+import type { PlotElement, EmbedElement, GalleryElement, ImageElement, InteractiveElement, ScriptedElement, TextElement } from "@powershow/document-schema";
 import {
   updateCanonicalElementForCanvasDrag,
   updateCanonicalTextForCanvasDrag,
@@ -41,7 +41,7 @@ describe("canonical text canvas drag", () => {
   it.each([
     ["chart", { type: "chart", id: "chart", hidden: false, source: "" }],
     ["interactive", { type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: {} }],
-  ] satisfies readonly [string, ChartElement | InteractiveElement][])("moves an absolute %s through canonical layout edges", (_type, element) => {
+  ] satisfies readonly [string, PlotElement | InteractiveElement][])("moves an absolute %s through canonical layout edges", (_type, element) => {
     const result = updateCanonicalElementForCanvasDrag(
       { ...element, layout: { position: "absolute", left: 10, top: "20%" } },
       15,

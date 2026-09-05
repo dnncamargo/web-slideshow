@@ -8,7 +8,7 @@ import styles from "./editor-workspace.module.css";
 
 import {
   BlocksInspector,
-  ChartInspector,
+  PlotInspector,
   CodeInspector,
   ContainerInspector,
   DividerInspector,
@@ -148,7 +148,7 @@ function ElementTypeInspector({
       );
 
     case "chart":
-      return <ChartInspector element={element} onUpdate={onUpdate} />;
+      return <PlotInspector element={element} onUpdate={onUpdate} />;
 
     case "terminal":
       return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;

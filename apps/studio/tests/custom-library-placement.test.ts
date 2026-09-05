@@ -121,7 +121,7 @@ describe("Custom Library placement core", () => {
     expect(current).toEqual(before);
   });
 
-  it("supports same-type Chart merge", () => {
+  it("supports same-type Plot merge", () => {
     const chart: PowerShowElement = { id: "chart", type: "chart", hidden: false, source: "" };
     const current = slide([text("before"), chart, text("after")]);
     const result = success(placeCustomLibraryElementRecipe(recipe("chart", [{ path: "source", value: "y = x^2" }]), current, [current], "chart"));

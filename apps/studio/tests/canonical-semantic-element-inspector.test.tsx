@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ChartElement, InteractiveElement, PowerShowElement } from "@powershow/document-schema";
+import type { PlotElement, InteractiveElement, PowerShowElement } from "@powershow/document-schema";
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import type { TableAuthoringControls, TopicsAuthoringControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -24,7 +24,7 @@ describe("canonical semantic element inspector", () => {
   beforeEach(() => { container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container); });
   afterEach(async () => { await act(async () => root.unmount()); document.body.innerHTML = ""; });
 
-  async function renderElement(initial: ChartElement | InteractiveElement) {
+  async function renderElement(initial: PlotElement | InteractiveElement) {
     let element: PowerShowElement = initial;
     const renderInspector = () => root.render(
       <StudioI18nProvider>
@@ -49,11 +49,11 @@ describe("canonical semantic element inspector", () => {
     return { element: () => element };
   }
 
-  it("Chart uses its source Inspector and only canonical positioning", async () => {
+  it("Plot uses its source Inspector and only canonical positioning", async () => {
     const { element } = await renderElement({ id: "chart-1", type: "chart", hidden: false, source: "" });
 
     expect(container.textContent).not.toContain("Specific editing controls will be added");
-    expect(container.querySelector("#chart-source")).not.toBeNull();
+    expect(container.querySelector("#plot-source")).not.toBeNull();
     expect(container.querySelector("#element-canonical-position-mode")).not.toBeNull();
     expect(container.querySelector("#element-placement-mode")).toBeNull();
     expect(element()).not.toHaveProperty("style");

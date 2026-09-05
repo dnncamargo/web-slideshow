@@ -395,17 +395,17 @@ Checkpoint boundaries may be reduced further after TCL0 evidence.
 
 ---
 
-# Chart V1 — NEXT AFTER TERMINAL/CODE/TABLE
+# Plot V1 — NEXT AFTER TERMINAL/CODE/TABLE
 
-Chart is now explicitly promoted from deferred work.
+Plot is now explicitly promoted from deferred work.
 
-Current baseline before audit: Chart already exists canonically as semantic data for `line`, `bar`, `area` and `scatter`, while rendering remains placeholder/minimum.
+Current baseline before audit: Plot already exists canonically as semantic data for `line`, `bar`, `area` and `scatter`, while rendering remains placeholder/minimum.
 
 ## C0 — real-system audit
 
 Before selecting a charting library or changing the contract, audit:
 
-- exact current `ChartElement` schema/defaults;
+- exact current `PlotElement` schema/defaults;
 - current renderer placeholder and styling ownership;
 - current Studio Inspector/authoring support;
 - data-series/category/value semantics;
@@ -416,19 +416,19 @@ Before selecting a charting library or changing the contract, audit:
 - whether a dependency is actually necessary;
 - existing tests and import/export behavior.
 
-Do not choose a chart library first and then reshape the canonical contract around it.
+Do not choose a plotting library first and then reshape the canonical contract around it.
 
 ## Planned checkpoints
 
 ```text
-C0 — audit canonical Chart + renderer + authoring
-C1 — freeze Chart V1 rendering/authoring responsibilities
+C0 — audit canonical Plot + renderer + authoring
+C1 — freeze Plot V1 rendering/authoring responsibilities
 C2 — shared renderer implementation
 C3 — Studio authoring refinement
 C4 — Player/Watch/import-export regression + visual acceptance
 ```
 
-Keep Chart semantic and provider/library-neutral at the canonical layer.
+Keep Plot semantic and provider/library-neutral at the canonical layer.
 
 ---
 
@@ -491,7 +491,7 @@ NEXT:
   Terminal + Code + Table typography/layout refinement — begin with TCL0 audit
 
 THEN:
-  Chart V1 — begin with C0 audit
+  Plot V1 — begin with C0 audit
 
 DEFERRED / FUTURE:
   Embed adjustments

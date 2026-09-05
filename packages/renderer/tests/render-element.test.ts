@@ -362,9 +362,9 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain("powershow-placeholder-chart");
+    expect(html).toContain("powershow-placeholder-plot");
 
-    expect(html).toContain("[chart]");
+    expect(html).toContain("[plot]");
   });
 
   it("renders code with line numbers", () => {

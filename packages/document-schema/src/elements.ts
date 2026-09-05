@@ -261,7 +261,7 @@ export const TerminalElementSchema =
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
-export const ChartElementSchema =
+export const PlotElementSchema =
   z.object({
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
@@ -272,8 +272,8 @@ export const ChartElementSchema =
     fitToAxes: z.boolean().optional(),
   }).strict();
 
-export type ChartElement =
-  z.infer<typeof ChartElementSchema>;
+export type PlotElement =
+  z.infer<typeof PlotElementSchema>;
 
 export const InteractiveElementSchema =
   z.object({
@@ -731,7 +731,7 @@ export type PowerShowElement =
   | CodeElement
   | TerminalElement
   | TableElement
-  | ChartElement
+  | PlotElement
   | InteractiveElement
   | DividerElement
   | EmbedElement
@@ -750,7 +750,7 @@ export const PowerShowElementSchema:
       CodeElementSchema,
       TerminalElementSchema,
       TableElementSchema,
-      ChartElementSchema,
+      PlotElementSchema,
       InteractiveElementSchema,
       DividerElementSchema,
       EmbedElementSchema,

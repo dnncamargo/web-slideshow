@@ -9,7 +9,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-describe("ElementCrudControls Chart wiring", () => {
+describe("ElementCrudControls Plot wiring", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -25,7 +25,7 @@ describe("ElementCrudControls Chart wiring", () => {
     vi.clearAllMocks();
   });
 
-  it("exposes Chart and excludes Interactive", () => {
+  it("exposes Plot and excludes Interactive", () => {
     act(() => {
       root.render(
         <StudioI18nProvider>
@@ -35,11 +35,11 @@ describe("ElementCrudControls Chart wiring", () => {
     });
 
     const options = Array.from(container.querySelectorAll("option"));
-    expect(options.find((option) => option.value === "chart")?.textContent).toBe("Chart");
+    expect(options.find((option) => option.value === "chart")?.textContent).toBe("Plot");
     expect(options.find((option) => option.value === "interactive")).toBeUndefined();
   });
 
-  it("calls onAdd with chart when Chart is selected", () => {
+  it("calls onAdd with chart when Plot is selected", () => {
     const onAdd = vi.fn();
     act(() => {
       root.render(

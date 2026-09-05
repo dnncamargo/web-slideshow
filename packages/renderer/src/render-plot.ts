@@ -1,4 +1,4 @@
-import type { ChartElement } from "@powershow/document-schema";
+import type { PlotElement } from "@powershow/document-schema";
 import {
   analyzeMathSource,
   generateExplicit2DGeometry,
@@ -9,9 +9,9 @@ import {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
-import { renderMathGeometrySvg } from "./render-chart-svg";
+import { renderMathGeometrySvg } from "./render-plot-svg";
 
-const CHART_WORKING_VIEWPORT: MathViewport2D = {
+const PLOT_WORKING_VIEWPORT: MathViewport2D = {
   xMin: -10,
   xMax: 10,
   yMin: -10,
@@ -80,7 +80,7 @@ function deriveAutoFitViewport(geometry: MathGeometryResult): MathViewport2D | u
     : undefined;
 }
 
-function renderChartLayout(element: ChartElement): string {
+function renderPlotLayout(element: PlotElement): string {
   const layout = element.layout;
   if (layout === undefined) return "";
 
@@ -102,15 +102,15 @@ function renderChartLayout(element: ChartElement): string {
   return styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
 }
 
-function renderChartFallback(element: ChartElement): string {
-  return `<div class="powershow-element powershow-placeholder powershow-placeholder-chart" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderChartLayout(element)}>[chart]</div>`;
+function renderPlotFallback(element: PlotElement): string {
+  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderPlotLayout(element)}>[plot]</div>`;
 }
 
 function appendGeometry(target: MathGeometryResult, result: MathGeometryResult): void {
   target.segments.push(...result.segments);
 }
 
-export function renderChart(element: ChartElement): string {
+export function renderPlot(element: PlotElement): string {
   if (element.hidden) return "";
 
   const geometry: MathGeometryResult = { segments: [], diagnostics: [] };
@@ -123,10 +123,10 @@ export function renderChart(element: ChartElement): string {
     switch (equation.form) {
       case "explicit-y":
       case "explicit-x":
-        result = generateExplicit2DGeometry(equation, CHART_WORKING_VIEWPORT, { bindings: {} });
+        result = generateExplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings: {} });
         break;
       case "implicit-2d":
-        result = generateImplicit2DGeometry(equation, CHART_WORKING_VIEWPORT, { bindings: {} });
+        result = generateImplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings: {} });
         break;
       case "explicit-z":
       case "implicit-3d":
@@ -140,12 +140,12 @@ export function renderChart(element: ChartElement): string {
   }
 
   const displayViewport = element.fitToAxes === false
-    ? deriveAutoFitViewport(geometry) ?? CHART_WORKING_VIEWPORT
-    : CHART_WORKING_VIEWPORT;
+    ? deriveAutoFitViewport(geometry) ?? PLOT_WORKING_VIEWPORT
+    : PLOT_WORKING_VIEWPORT;
   const svg = renderMathGeometrySvg(geometry, displayViewport, renderedEquationCount > 0
     ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y" }
     : undefined);
-  if (svg === "") return renderChartFallback(element);
+  if (svg === "") return renderPlotFallback(element);
 
-  return `<div class="powershow-element powershow-chart" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderChartLayout(element)}>${svg}</div>`;
+  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderPlotLayout(element)}>${svg}</div>`;
 }

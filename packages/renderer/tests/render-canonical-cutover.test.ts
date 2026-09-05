@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderContentSlotStyle, renderElement } from "../src";
 
-describe("Chart and Interactive placeholders", () => {
+describe("Plot and Interactive placeholders", () => {
   it.each([
     [{ type: "chart", id: "chart-flow", hidden: false, source: "" }],
     [{ type: "interactive", id: "interactive-flow", hidden: false, widget: "function-plot", config: {} }],

@@ -85,16 +85,16 @@
    END: TEXT
    ========================================================== */
 
-.powershow-chart {
+.powershow-plot {
   color: var(--powershow-accent);
 }
 
-.powershow-chart-axis {
+.powershow-plot-axis {
   stroke: var(--powershow-text-muted);
   opacity: 0.7;
 }
 
-.powershow-chart-axis-label {
+.powershow-plot-axis-label {
   fill: var(--powershow-text-primary);
   font-family: var(--powershow-font-sans);
   font-weight: 700;

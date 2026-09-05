@@ -1,36 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { ChartElementSchema, InteractiveElementSchema } from "../src";
+import { PlotElementSchema, InteractiveElementSchema } from "../src";
 
-const chart = { id: "chart-1", type: "chart" as const, hidden: false, source: "" };
+const plot = { id: "plot-1", type: "chart" as const, hidden: false, source: "" };
 const interactive = { id: "interactive-1", type: "interactive" as const, widget: "function-plot" as const, config: {} };
 
-describe("Chart canonical contract", () => {
+describe("Plot canonical contract", () => {
   it("keeps the legacy minimum valid without materializing fitToAxes", () => {
-    const parsed = ChartElementSchema.parse(chart);
+    const parsed = PlotElementSchema.parse(plot);
 
     expect(parsed).not.toHaveProperty("fitToAxes");
   });
 
   it.each([true, false])("accepts fitToAxes: %j", (fitToAxes) => {
-    expect(ChartElementSchema.safeParse({ ...chart, fitToAxes }).success).toBe(true);
+    expect(PlotElementSchema.safeParse({ ...plot, fitToAxes }).success).toBe(true);
   });
 
   it.each([
-    chart,
-    { ...chart, source: "y = x^2" },
-    { ...chart, layout: { width: 640, height: 360 } },
+    plot,
+    { ...plot, source: "y = x^2" },
+    { ...plot, layout: { width: 640, height: 360 } },
   ])("accepts %j", (input) => {
-    expect(ChartElementSchema.safeParse(input).success).toBe(true);
+    expect(PlotElementSchema.safeParse(input).success).toBe(true);
   });
 
   it.each([
-    { id: "chart-1", type: "chart", hidden: false },
-    { ...chart, source: "x".repeat(4097) },
-    { ...chart, chartType: "line", series: [] },
-    { ...chart, unknown: true },
-    { ...chart, fitToAxes: "true" },
+    { id: "plot-1", type: "chart", hidden: false },
+    { ...plot, type: "plot" },
+    { ...plot, source: "x".repeat(4097) },
+    { ...plot, chartType: "line", series: [] },
+    { ...plot, unknown: true },
+    { ...plot, fitToAxes: "true" },
   ])("rejects non-canonical input %j", (input) => {
-    expect(ChartElementSchema.safeParse(input).success).toBe(false);
+    expect(PlotElementSchema.safeParse(input).success).toBe(false);
   });
 });
 
@@ -49,7 +50,7 @@ describe("Interactive canonical layout", () => {
 });
 
 describe.each([
-  ["Chart", ChartElementSchema, chart],
+  ["Plot", PlotElementSchema, plot],
   ["Interactive", InteractiveElementSchema, interactive],
 ] as const)("%s canonical contract", (_name, schema, minimum) => {
   it("accepts the minimum semantic object and canonical absolute edges", () => {

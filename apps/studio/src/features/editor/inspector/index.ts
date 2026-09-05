@@ -1,6 +1,6 @@
 export { CodeInspector } from "./code-inspector";
 
-export { ChartInspector } from "./chart-inspector";
+export { PlotInspector } from "./plot-inspector";
 
 export { BlocksInspector } from "./blocks-inspector";
 

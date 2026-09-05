@@ -359,7 +359,7 @@ Current execution order:
 
 ```text
 Terminal + Code + Table typography/layout refinements
-→ Chart V1
+→ Plot V1
 → other work only when explicitly promoted
 ```
 
