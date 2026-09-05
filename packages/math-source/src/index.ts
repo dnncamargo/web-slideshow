@@ -26,3 +26,14 @@ export type {
 
 export { tokenizeMathSource };
 export { parseMathSource };
+
+export type {
+  MathAnalysisResult,
+  MathCoordinateName,
+  MathEquationForm,
+  MathSemanticDiagnostic,
+  MathSemanticDiagnosticCode,
+  MathSemanticEquation,
+} from "./semantic";
+
+export { analyzeMathSource } from "./semantic";
