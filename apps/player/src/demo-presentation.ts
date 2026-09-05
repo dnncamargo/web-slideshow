@@ -260,7 +260,18 @@ function migrateLegacyElement(element: unknown): unknown {
     };
   }
 
-  if (element.type === "chart" || element.type === "interactive") {
+  if (element.type === "chart") {
+    const style = isDemoRecord(element.style) ? element.style : {};
+    if (Object.keys(style).length === 0) {
+      const { style: _style, layout: layoutValue, ...chart } = element;
+      return {
+        ...chart,
+        layout: legacyLayout(style, layoutValue),
+      };
+    }
+  }
+
+  if (element.type === "interactive") {
     const { style: styleValue, layout: layoutValue, id, ...component } = element;
     const style = isDemoRecord(styleValue) ? styleValue : {};
     const migrated = migrateLegacyStyle(style);
