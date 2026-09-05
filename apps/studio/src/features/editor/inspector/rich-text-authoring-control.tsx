@@ -25,8 +25,10 @@ import {
 import { ColorControl } from "./sections/color-control";
 import { usePresentationColorPalette } from "./sections/presentation-color-palette";
 
+type TextInputElement = HTMLTextAreaElement | HTMLInputElement;
+
 function readTextareaSelection(
-  textarea: HTMLTextAreaElement,
+  textarea: TextInputElement,
 ): TextSelectionRange | null {
   const start = textarea.selectionStart;
   const end = textarea.selectionEnd;
@@ -42,7 +44,7 @@ function readTextareaSelection(
 }
 
 function readTextareaRange(
-  textarea: HTMLTextAreaElement,
+  textarea: TextInputElement,
 ): TextSelectionRange | null {
   const start = textarea.selectionStart;
   const end = textarea.selectionEnd;
@@ -87,16 +89,32 @@ function InlineFormatButton({
 export interface RichTextAuthoringControlProps {
   content: TextContent;
   onChange: (content: TextContent) => void;
+  id?: string;
+  name?: string;
+  multiline?: boolean;
+  rows?: number;
+  visibleMarks?: Partial<Record<"bold" | "italic" | "underline" | "code", boolean>>;
+  showLineBreak?: boolean;
+  placeholder?: string;
+  ariaLabel?: string;
 }
 
 export function RichTextAuthoringControl({
   content,
   onChange,
+  id = "text-content",
+  name = "textContent",
+  multiline = true,
+  rows = 5,
+  visibleMarks = { bold: true, italic: true, underline: true, code: true },
+  showLineBreak = true,
+  placeholder,
+  ariaLabel,
 }: RichTextAuthoringControlProps) {
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
   const textRangeRef = useRef<TextSelectionRange | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const textareaRef = useRef<TextInputElement | null>(null);
   const pendingCaretRef = useRef<number | null>(null);
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
   const [isInlineColorOpen, setIsInlineColorOpen] = useState(false);
@@ -143,7 +161,7 @@ export function RichTextAuthoringControl({
     onChange(normalizeTextContent(update(content)));
   }
 
-  function updateSelectionFromTextarea(textarea: HTMLTextAreaElement) {
+  function updateSelectionFromTextarea(textarea: TextInputElement) {
     textRangeRef.current = readTextareaRange(textarea);
     const nextSelection = readTextareaSelection(textarea);
 
@@ -195,7 +213,7 @@ export function RichTextAuthoringControl({
         className={styles.textEditorToolbar}
         data-powershow-text-editor-toolbar="true"
       >
-        {(["bold", "italic", "underline", "code"] as const).map((format) => (
+        {(["bold", "italic", "underline", "code"] as const).filter((format) => visibleMarks[format] !== false).map((format) => (
           <InlineFormatButton
             key={format}
             format={format}
@@ -215,7 +233,7 @@ export function RichTextAuthoringControl({
           />
         ))}
 
-        <button
+        {showLineBreak && <button
           className={styles.textEditorToolbarButton}
           type="button"
           aria-label={t("inspector.inlineFormat.lineBreak")}
@@ -226,13 +244,14 @@ export function RichTextAuthoringControl({
         >
           <span aria-hidden="true">↵</span>
         </button>
+        }
 
         <button
           className={styles.textEditorToolbarButton}
           type="button"
           aria-label={t("inspector.inlineFormat.color")}
           aria-expanded={isColorPanelOpen}
-          aria-controls="text-inline-color-panel"
+          aria-controls={`${id.replace(/-content$/, "")}-inline-color-panel`}
           disabled={!hasSelection}
           data-powershow-inline-color="true"
           data-powershow-inline-color-state={selectionColorState?.kind ?? "none"}
@@ -306,7 +325,7 @@ export function RichTextAuthoringControl({
       {isColorPanelOpen && (
         <div
           className={styles.textEditorColorPanel}
-          id="text-inline-color-panel"
+          id={`${id.replace(/-content$/, "")}-inline-color-panel`}
           data-powershow-inline-color-panel="true"
         >
           {selectionColorState?.kind === "mixed" ? (
@@ -315,8 +334,8 @@ export function RichTextAuthoringControl({
             </p>
           ) : null}
           <ColorControl
-            id="text-inline-color"
-            name="textInlineColor"
+            id={`${id.replace(/-content$/, "")}-inline-color`}
+            name={`${name}InlineColor`}
             value={selectionColor}
             disabled={!hasSelection}
             onChange={(color: ColorValue) => {
@@ -336,13 +355,16 @@ export function RichTextAuthoringControl({
         </div>
       )}
 
-      <textarea
-        id="text-content"
-        name="textContent"
+      {multiline ? <textarea
+        id={id}
+        name={name}
         className={styles.textArea}
-        ref={textareaRef}
-        aria-label={t("inspector.text")}
-        rows={5}
+        ref={(node) => {
+          textareaRef.current = node;
+        }}
+        aria-label={ariaLabel ?? t("inspector.text")}
+        placeholder={placeholder}
+        rows={rows}
         value={plainText}
         onSelect={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onMouseUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
@@ -354,7 +376,28 @@ export function RichTextAuthoringControl({
           );
           updateSelectionFromTextarea(event.currentTarget);
         }}
-      />
+      /> : <input
+        id={id}
+        name={name}
+        type="text"
+        className={styles.textArea}
+        ref={(node) => {
+          textareaRef.current = node;
+        }}
+        aria-label={ariaLabel ?? t("inspector.text")}
+        placeholder={placeholder}
+        value={plainText}
+        onSelect={(event) => updateSelectionFromTextarea(event.currentTarget)}
+        onMouseUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
+        onClick={(event) => updateSelectionFromTextarea(event.currentTarget)}
+        onKeyUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
+        onChange={(event) => {
+          updateContent((current) =>
+            reconcileTextContentEdit(current, event.currentTarget.value.replace(/[\r\n]/g, "")),
+          );
+          updateSelectionFromTextarea(event.currentTarget);
+        }}
+      />}
     </div>
   );
 }

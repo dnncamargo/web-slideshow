@@ -14,8 +14,8 @@ import { CanonicalElementEffectsSection } from "./sections/canonical-element-eff
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import {
   getTextContentPlainText,
-  reconcileTextContentEdit,
 } from "../rich-text-authoring";
+import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -140,29 +140,21 @@ export function TerminalInspector({
         <label className={styles.field}>
           <span>{t("inspector.titleField")}</span>
 
-          <input
+          <RichTextAuthoringControl
+            content={element.title ?? ""}
             id="terminal-title"
             name="terminalTitle"
-            type="text"
+            multiline={false}
+            visibleMarks={{ bold: true, italic: true, underline: true, code: false }}
+            showLineBreak={false}
             placeholder={t("inspector.optional")}
-            value={element.title === undefined ? "" : getTextContentPlainText(element.title)}
-            onChange={(event) => {
-              const nextPlainText = event.target.value;
-
-              onUpdate((current) => {
-                if (current.type !== "terminal") {
-                  return current;
-                }
-
-                return {
+            ariaLabel={t("inspector.titleField")}
+            onChange={(content) => onUpdate((current) => current.type === "terminal"
+              ? {
                   ...current,
-
-                  title: nextPlainText === ""
-                    ? undefined
-                    : reconcileTextContentEdit(current.title ?? "", nextPlainText),
-                };
-              });
-            }}
+                  title: getTextContentPlainText(content) === "" ? undefined : content,
+                }
+              : current)}
           />
         </label>
 
@@ -229,25 +221,18 @@ export function TerminalInspector({
                 </button>
               </div>
 
-              <textarea
+              <RichTextAuthoringControl
+                content={line.content}
                 id={`terminal-${element.id}-line-${index}-content`}
                 name={`terminalLineContent_${element.id}_${index}`}
-                className={styles.textArea}
                 rows={2}
-                value={getTextContentPlainText(line.content)}
-                onChange={(event) => {
-                  const nextPlainText = event.target.value;
-
-                  updateLine(
-                    index,
-
-                    (currentLine) => ({
-                      ...currentLine,
-
-                      content: reconcileTextContentEdit(currentLine.content, nextPlainText),
-                    }),
-                  );
-                }}
+                visibleMarks={{ bold: true, italic: true, underline: true, code: false }}
+                showLineBreak={false}
+                ariaLabel={t("inspector.content")}
+                onChange={(content) => updateLine(index, (currentLine) => ({
+                  ...currentLine,
+                  content,
+                }))}
               />
             </div>
           ))}

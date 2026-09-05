@@ -61,6 +61,26 @@ function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
   textarea.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function selectEditorRange(host: HTMLElement, editorId: string, start: number, end: number): HTMLElement {
+  const editor = host.querySelector<HTMLElement>(`#${editorId}`)?.closest<HTMLElement>(
+    '[data-powershow-text-editor="true"]',
+  );
+  const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`#${editorId}`);
+  if (!editor || !input) throw new Error(`editor not found: ${editorId}`);
+  input.focus();
+  input.setSelectionRange(start, end);
+  input.dispatchEvent(new Event("select", { bubbles: true }));
+  input.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  return editor;
+}
+
+function editorButton(editor: HTMLElement, selector: string): HTMLButtonElement {
+  const button = editor.querySelector<HTMLButtonElement>(selector);
+  if (!button) throw new Error(`editor button not found: ${selector}`);
+  return button;
+}
+
 describe("canonical data Appearance controls", () => {
   let host: HTMLDivElement;
   let root: Root;
@@ -289,6 +309,85 @@ describe("Terminal authoring controls", () => {
 
     await act(async () => changeInput(host.querySelector<HTMLInputElement>("#terminal-title")!, ""));
     expect(state.title).toBeUndefined();
+  });
+
+  it("authors Terminal titles with the shared inline toolbar", async () => {
+    const titleStyle = { color: "#ffffff", borderRadius: 4 } as const;
+    const titleTypography = { fontSize: 20, textTransform: "uppercase" as const };
+    state = terminalElement({
+      title: "Terminal title",
+      titleStyle,
+      titleTypography,
+    });
+    await act(async () => renderInspector());
+
+    let titleEditor: HTMLElement | null = null;
+    await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
+    expect(editorButton(titleEditor!, '[data-powershow-inline-format="bold"]')).not.toBeNull();
+    expect(editorButton(titleEditor!, '[data-powershow-inline-format="italic"]')).not.toBeNull();
+    expect(editorButton(titleEditor!, '[data-powershow-inline-format="underline"]')).not.toBeNull();
+    expect(titleEditor!.querySelector('[data-powershow-inline-format="code"]')).toBeNull();
+    expect(titleEditor!.querySelector('[data-powershow-inline-line-break="true"]')).toBeNull();
+
+    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format="bold"]').click());
+    await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
+    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format="italic"]').click());
+    await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
+    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format="underline"]').click());
+
+    await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
+    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-color="true"]').click());
+    await act(async () => changeInput(host.querySelector<HTMLInputElement>("#terminal-title-inline-color-value")!, "#ff0000"));
+
+    await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
+    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format-clear-formatting="true"]').click());
+
+    expect(state.title).toEqual("Terminal title");
+    expect(state.titleStyle).toEqual(titleStyle);
+    expect(state.titleTypography).toEqual(titleTypography);
+  });
+
+  it("keeps Terminal line semantics separate from shared RichText formatting", async () => {
+    state = terminalElement({
+      title: { type: "rich-text", runs: [{ text: "Title", marks: { bold: true } }] },
+      lines: [
+        { type: "command", content: { type: "rich-text", runs: [{ text: "first", marks: { bold: true } }] } },
+        { type: "output", content: { type: "rich-text", runs: [{ text: "second", marks: { italic: true } }] } },
+      ],
+    });
+    await act(async () => renderInspector());
+
+    const editors = Array.from(host.querySelectorAll('[data-powershow-text-editor="true"]'));
+    expect(editors).toHaveLength(3);
+    expect(new Set(Array.from(host.querySelectorAll("[id]")).map((node) => node.id)).size)
+      .toBe(host.querySelectorAll("[id]").length);
+
+    let lineEditor: HTMLElement | null = null;
+    await act(async () => { lineEditor = selectEditorRange(host, "terminal-canonical-terminal-line-0-content", 0, 5); });
+    expect(lineEditor!.querySelector('[data-powershow-inline-format="code"]')).toBeNull();
+    expect(lineEditor!.querySelector('[data-powershow-inline-line-break="true"]')).toBeNull();
+    await act(async () => editorButton(lineEditor!, '[data-powershow-inline-format="underline"]').click());
+
+    expect(state.lines[0]?.type).toBe("command");
+    expect(state.lines[1]?.content).toEqual({ type: "rich-text", runs: [{ text: "second", marks: { italic: true } }] });
+    expect(state.title).toEqual({ type: "rich-text", runs: [{ text: "Title", marks: { bold: true } }] });
+
+    const line = host.querySelector<HTMLTextAreaElement>("#terminal-canonical-terminal-line-0-content");
+    expect(line?.rows).toBe(2);
+    await act(async () => changeTextarea(line!, "first\ncontinued"));
+    expect(state.lines[0]?.type).toBe("command");
+    expect(state.lines[0]?.content).toEqual({
+      type: "rich-text",
+      runs: [{ text: "first\ncontinued", marks: { bold: true, underline: true } }],
+    });
+
+    const typeSelect = host.querySelector<HTMLSelectElement>("#terminal-canonical-terminal-line-0-type");
+    await act(async () => changeSelect(typeSelect!, "error"));
+    expect(state.lines[0]?.type).toBe("error");
+    expect(state.lines[0]?.content).toEqual({
+      type: "rich-text",
+      runs: [{ text: "first\ncontinued", marks: { bold: true, underline: true } }],
+    });
   });
 
   it("exposes only the four Terminal typography controls and resets fields independently", async () => {
