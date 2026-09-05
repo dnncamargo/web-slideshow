@@ -18,6 +18,12 @@ function renderChart(source: string, overrides: Partial<ChartElement> = {}): str
   return renderElement(chart(source, overrides));
 }
 
+function viewBox(html: string): [number, number] {
+  const match = html.match(/viewBox="0 0 ([^ ]+) ([^"]+)"/);
+  if (match?.[1] === undefined || match[2] === undefined) throw new Error("Missing viewBox");
+  return [Number(match[1]), Number(match[2])];
+}
+
 describe("Chart renderer", () => {
   it.each([
     "y = x^2",
@@ -30,6 +36,52 @@ describe("Chart renderer", () => {
     expect(html).toContain("<path");
     expect(html).toContain('viewBox="0 0 20 20"');
     expect(html).not.toContain("[chart]");
+  });
+
+  it("keeps the fixed viewport when fitToAxes is explicitly true", () => {
+    expect(renderChart("y = x^2", { fitToAxes: true })).toContain('viewBox="0 0 20 20"');
+  });
+
+  it("derives an automatic display viewport from generated geometry", () => {
+    const html = renderChart("y = x^2", { fitToAxes: false });
+    const [, height] = viewBox(html);
+    expect(height).toBeGreaterThan(20);
+    expect(html).not.toContain('viewBox="0 0 20 20"');
+  });
+
+  it("fits a positive constant explicit-y without manufacturing an x-axis", () => {
+    const html = renderChart("y = 5", { fitToAxes: false });
+    const [, height] = viewBox(html);
+    expect(height).toBeGreaterThan(0);
+    expect(html).not.toContain("powershow-chart-axis-x");
+    expect(html).toContain("powershow-chart-axis-y");
+    expect(html).not.toContain('viewBox="0 0 20 20"');
+  });
+
+  it("fits a positive constant explicit-x with only the x-axis visible", () => {
+    const html = renderChart("x = 5", { fitToAxes: false });
+    expect(html).toContain("powershow-chart-axis-x");
+    expect(html).not.toContain("powershow-chart-axis-y");
+  });
+
+  it("keeps a zero constant in a valid non-degenerate viewport", () => {
+    const html = renderChart("y = 0", { fitToAxes: false });
+    const [width, height] = viewBox(html);
+    expect(width).toBeGreaterThan(0);
+    expect(height).toBeGreaterThan(0);
+    expect(html).toContain("powershow-chart-axis-x");
+  });
+
+  it("does not manufacture an x-axis for a shifted positive function", () => {
+    const html = renderChart("y = x^2 + 1", { fitToAxes: false });
+    expect(html).not.toContain("powershow-chart-axis-x");
+    expect(html).toContain("powershow-chart-axis-y");
+  });
+
+  it("uses the union of multiple equations for automatic bounds", () => {
+    const [, singleHeight] = viewBox(renderChart("y = x^2", { fitToAxes: false }));
+    const [, combinedHeight] = viewBox(renderChart("y = x^2\ny = 200", { fitToAxes: false }));
+    expect(combinedHeight).toBeGreaterThan(singleHeight);
   });
 
   it("uses f(x) only when every renderable equation is explicit-y", () => {
