@@ -1755,7 +1755,7 @@ export const demoPresentation =
                 variant: "title",
 
                 content:
-                  "Interactive elements",
+                  "Chart and interaction",
               },
 
               {
@@ -1842,7 +1842,7 @@ export const demoPresentation =
                         hidden: false,
 
                         variant:
-                          "subtitle",
+                          "body",
 
                         content:
                           "Quadratic function",
@@ -1861,7 +1861,7 @@ export const demoPresentation =
 
                         layout: {
                           width: 232,
-                          height: 180,
+                          height: 160,
                         },
                       },
 
