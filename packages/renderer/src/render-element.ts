@@ -25,6 +25,7 @@ import { FundamentalTextStyleIdSchema } from "@powershow/document-schema";
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
+import { renderChart } from "./render-chart";
 import { renderLength } from "./render-length";
 import {
   renderCanonicalImageCropMetadata,
@@ -257,7 +258,7 @@ function renderImage(element: ImageElement): string {
   );
 }
 
-function renderPlaceholder(element: ChartElement | InteractiveElement): string {
+function renderPlaceholder(element: InteractiveElement): string {
   if (element.hidden) {
     return "";
   }
@@ -330,6 +331,8 @@ export function renderElement(
       return renderScripted(element);
 
     case "chart":
+      return renderChart(element);
+
     case "interactive":
       return renderPlaceholder(element);
 
