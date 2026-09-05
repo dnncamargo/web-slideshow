@@ -20,6 +20,7 @@ import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle | SimpleTableVisualStyle;
+type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
 type DataElement = Extract<PowerShowElement, { type: "code" | "terminal" | "table" | "blocks" }>;
 
 type BackgroundKey = "color" | "gradient";
@@ -112,7 +113,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       <ElementBorderControl border={blocksStyle?.blockBorder} onChange={(blockBorder) => onUpdateStyle((current) => ({ ...current, blockBorder }))} controlPrefix={`${controlPrefix}-block`} allowGradient={false} label={t("inspector.blocks.blockStroke")} />
     </div>}
     {showColor && (element.type === "code" || (element.type === "table" && element.mode !== "structured")) && <div className={styles.colorControl}>
-      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={element.style?.color} onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), color } as CodeVisualStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as CodeVisualStyle; delete next.color; return next; }) }} /></label>
+      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={element.style?.color} onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), color } as ColorCapableCanonicalDataStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as ColorCapableCanonicalDataStyle; delete next.color; return next; }) }} /></label>
     </div>}
     {element.type === "terminal" && <div className={styles.colorControl}>
       {([

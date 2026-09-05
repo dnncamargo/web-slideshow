@@ -266,3 +266,79 @@ describe("shared text capability controls", () => {
     ).not.toBeNull();
   });
 });
+
+describe("shared typography controls with unknown defaults", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let state: ElementTypography | undefined;
+  let updates: ElementTypography[];
+
+  function renderControl() {
+    root.render(
+      <StudioI18nProvider>
+        <ElementTypographyControl
+          typography={state}
+          effectiveDefaults={{}}
+          visibleProperties={["fontSize", "lineHeight"]}
+          controlPrefix="unknown"
+          fontResources={[]}
+          onUpdateTypography={(update) => {
+            state = update(state);
+            updates.push(state);
+            renderControl();
+          }}
+        />
+      </StudioI18nProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    state = undefined;
+    updates = [];
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    document.body.innerHTML = "";
+  });
+
+  function numeric(id: string): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(`#${id}`);
+    if (!input) throw new Error(`input ${id} not found`);
+    return input;
+  }
+
+  function change(id: string, value: string) {
+    const input = numeric(id);
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter not found");
+    setter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  it("keeps unknown inherited values blank, authors values, and resets independently", async () => {
+    await act(async () => {
+      renderControl();
+    });
+
+    expect(numeric("unknown-font-size").value).toBe("");
+    expect(numeric("unknown-line-height").value).toBe("");
+    expect(container.textContent).toContain("Default");
+    expect(updates).toHaveLength(0);
+
+    await act(async () => change("unknown-font-size", "24"));
+    await act(async () => change("unknown-line-height", "1.4"));
+    expect(state).toEqual({ fontSize: "24rem", lineHeight: 1.4 });
+
+    const resetFor = (id: string) => numeric(id).closest("div")?.parentElement?.querySelector<HTMLButtonElement>("button");
+    await act(async () => resetFor("unknown-font-size")?.click());
+    expect(state).toEqual({ fontSize: undefined, lineHeight: 1.4 });
+
+    await act(async () => resetFor("unknown-line-height")?.click());
+    expect(state).toEqual({ fontSize: undefined, lineHeight: undefined });
+  });
+});

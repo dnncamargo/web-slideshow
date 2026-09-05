@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   PowerShowElement,
+  FontResource,
   SimpleTableElement,
   Slide,
   StructuredTableElement,
@@ -24,11 +25,18 @@ import {
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const FONT_RESOURCES: readonly FontResource[] = [{
+  id: "font-inter",
+  family: "Inter",
+  source: { type: "url", url: "https://example.com/inter.woff2", format: "woff2" },
+}];
+
 function simpleTable(): SimpleTableElement {
   return {
     type: "table",
     id: "simple-table",
     hidden: false,
+    style: { background: { color: "#101218" }, borderRadius: 4 },
     columns: [{ key: "value", label: "Value" }],
     rows: [{ value: "text" }],
   };
@@ -137,6 +145,7 @@ describe("TableInspector", () => {
             updates.push(next);
             renderInspector();
           }}
+          fontResources={FONT_RESOURCES}
           tableAuthoringControls={controls}
         />
       </StudioI18nProvider>,
@@ -251,6 +260,75 @@ describe("TableInspector", () => {
     expect(headerCheckbox()).toBeNull();
   });
 
+  it("authors and resets Simple Table typography and color without sibling loss", async () => {
+    await act(async () => mount(simpleTable()));
+
+    expect(container.querySelector("#table-font-family")).not.toBeNull();
+    expect(container.querySelector("#table-font-size")).not.toBeNull();
+    expect(container.querySelector("#table-line-height")).not.toBeNull();
+    expect(container.querySelector("#table-color")).not.toBeNull();
+    expect(container.querySelector("#table-letter-spacing")).toBeNull();
+    expect(container.querySelector("#table-font-weight")).toBeNull();
+    expect(container.querySelector("#table-font-style")).toBeNull();
+    expect(container.querySelector("#table-text-align")).toBeNull();
+    expect(container.querySelector("#table-text-transform")).toBeNull();
+    expect(container.querySelector("#table-white-space")).toBeNull();
+    expect((container.querySelector<HTMLInputElement>("#table-font-size"))?.value).toBe("");
+    expect((container.querySelector<HTMLInputElement>("#table-line-height"))?.value).toBe("");
+    expect(updates).toHaveLength(0);
+
+    await act(async () => {
+      const family = container.querySelector<HTMLSelectElement>("#table-font-family")!;
+      family.value = "Inter";
+      family.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect((elementState as SimpleTableElement).typography?.fontFamily).toBe("Inter");
+    await act(async () => {
+      const family = container.querySelector<HTMLSelectElement>("#table-font-family")!;
+      family.value = "";
+      family.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect((elementState as SimpleTableElement).typography?.fontFamily).toBeUndefined();
+
+    const editNumber = async (id: string, value: string) => {
+      await act(async () => {
+        const input = container.querySelector<HTMLInputElement>(`#${id}`)!;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        if (!setter) throw new Error("input value setter not found");
+        setter.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    };
+    await editNumber("table-font-size", "24");
+    await editNumber("table-line-height", "1.4");
+    expect((elementState as SimpleTableElement).typography).toMatchObject({ fontSize: "24rem", lineHeight: 1.4 });
+
+    const resetFor = (id: string) => container.querySelector<HTMLInputElement>(`#${id}`)?.closest("div")?.parentElement?.querySelector<HTMLButtonElement>("button");
+    await act(async () => resetFor("table-font-size")?.click());
+    expect((elementState as SimpleTableElement).typography).toEqual({ fontFamily: undefined, fontSize: undefined, lineHeight: 1.4 });
+    await act(async () => resetFor("table-line-height")?.click());
+    expect((elementState as SimpleTableElement).typography).toEqual({ fontFamily: undefined, fontSize: undefined, lineHeight: undefined });
+
+    const colorInput = container.querySelector<HTMLInputElement>("#table-color-value")!;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) throw new Error("input value setter not found");
+      setter.call(colorInput, "#123456");
+      colorInput.dispatchEvent(new Event("input", { bubbles: true }));
+      colorInput.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect((elementState as SimpleTableElement).style?.color).toBe("#123456");
+    expect((elementState as SimpleTableElement).style?.background?.color).toBe("#101218");
+    expect((elementState as SimpleTableElement).style?.borderRadius).toBe(4);
+    await act(async () => {
+      colorInput.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button")?.click();
+    });
+    expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
+    expect((elementState as SimpleTableElement).style?.background?.color).toBe("#101218");
+    expect((elementState as SimpleTableElement).style?.borderRadius).toBe(4);
+  });
+
   it("renders minimal structural controls for a Structured Table", async () => {
     await act(async () => {
       mount(structuredTable());
@@ -261,6 +339,10 @@ describe("TableInspector", () => {
     expect(rowRows()).toHaveLength(1);
     expect(addColumnButton()).not.toBeNull();
     expect(addRowButton()).not.toBeNull();
+    expect(container.querySelector("#table-font-family")).toBeNull();
+    expect(container.querySelector("#table-font-size")).toBeNull();
+    expect(container.querySelector("#table-line-height")).toBeNull();
+    expect(container.querySelector("#table-color")).toBeNull();
   });
 
   it("adds a column keeping every row rectangular", async () => {

@@ -186,6 +186,56 @@ describe("renderTable", () => {
     expect(html).toBe("");
   });
 
+  it("leaves authored typography and color declarations absent by default", () => {
+    const html = renderTable(createTableElement());
+
+    expect(html).not.toContain("font-family:");
+    expect(html).not.toContain("font-size:");
+    expect(html).not.toContain("line-height:");
+    expect(html).not.toContain("color:");
+  });
+
+  it("renders Simple Table typography and literal or palette colors on the table root", () => {
+    const html = renderTable(createTableElement({
+      typography: {
+        fontFamily: 'Example "Mono"',
+        fontSize: "1.25rem",
+        lineHeight: 1.4,
+      },
+      style: { color: { kind: "palette", colorId: "accent" } },
+    }));
+
+    expect(html).toContain("font-family:&quot;Example \\22 Mono\\22 &quot;");
+    expect(html).toContain("font-size:1.25rem");
+    expect(html).toContain("line-height:1.4");
+    expect(html).toContain("color:var(--ps-palette-0061006300630065006e0074)");
+
+    const literal = renderTable(createTableElement({ style: { color: "#123456" } }));
+    expect(literal).toContain("color:#123456");
+  });
+
+  it("coexists with canonical Simple Table styles", () => {
+    const html = renderTable(createTableElement({
+      layout: { position: "absolute", width: 320 },
+      style: {
+        background: { color: "#101218" },
+        border: { width: 1, style: "solid", color: "#334155" },
+        borderRadius: 8,
+        color: "#f8fafc",
+      },
+      effect: { opacity: 0.8 },
+      typography: { fontFamily: "Fira Code", fontSize: 16, lineHeight: 1.4 },
+    }));
+
+    expect(html).toContain("width:320px");
+    expect(html).toContain("background:#101218");
+    expect(html).toContain("border-radius:8px");
+    expect(html).toContain("opacity:0.8");
+    expect(html).toContain("font-size:16px");
+    expect(html).toContain("line-height:1.4");
+    expect(html).toContain("color:#f8fafc");
+  });
+
   it("renders structured tables with recursive semantic content", () => {
     const html = renderElement({
       type: "table",
