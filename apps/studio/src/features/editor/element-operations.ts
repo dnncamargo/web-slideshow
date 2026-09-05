@@ -677,6 +677,8 @@ export function createElement(
 
         source: "y = x^2",
 
+        fitToAxes: true,
+
         layout: {
           width: "60%",
           height: "55%",

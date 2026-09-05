@@ -50,6 +50,48 @@ describe("Chart source Inspector", () => {
     textarea.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function changeFitToAxes(checked: boolean): void {
+    const checkbox = host.querySelector<HTMLInputElement>("#chart-fit-to-axes");
+    if (!checkbox) throw new Error("Chart fit-to-axes checkbox not found");
+    if (checkbox.checked !== checked) {
+      checkbox.click();
+    }
+  }
+
+  it.each([
+    [undefined, true],
+    [true, true],
+    [false, false],
+  ] as const)("renders fit-to-axes %j as checked=%j", async (fitToAxes, checked) => {
+    current = {
+      id: "chart-1",
+      type: "chart",
+      hidden: false,
+      source: "y = x^2",
+      ...(fitToAxes === undefined ? {} : { fitToAxes }),
+    };
+
+    await act(async () => renderInspector());
+
+    expect(host.querySelector<HTMLInputElement>("#chart-fit-to-axes")?.checked).toBe(checked);
+  });
+
+  it("toggles fitToAxes without changing source", async () => {
+    await act(async () => renderInspector());
+
+    const checkbox = host.querySelector<HTMLInputElement>("#chart-fit-to-axes");
+    expect(checkbox?.checked).toBe(true);
+
+    await act(async () => changeFitToAxes(false));
+    expect(current).toEqual({ id: "chart-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: false });
+
+    await act(async () => changeFitToAxes(true));
+    expect(current).toEqual({ id: "chart-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: true });
+
+    await act(async () => changeSource("y = sin(x)"));
+    expect(current.fitToAxes).toBe(true);
+  });
+
   it("edits only canonical source, preserving multiline and empty values", async () => {
     await act(async () => renderInspector());
 

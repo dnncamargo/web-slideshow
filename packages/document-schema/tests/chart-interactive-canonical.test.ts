@@ -5,6 +5,16 @@ const chart = { id: "chart-1", type: "chart" as const, hidden: false, source: ""
 const interactive = { id: "interactive-1", type: "interactive" as const, widget: "function-plot" as const, config: {} };
 
 describe("Chart canonical contract", () => {
+  it("keeps the legacy minimum valid without materializing fitToAxes", () => {
+    const parsed = ChartElementSchema.parse(chart);
+
+    expect(parsed).not.toHaveProperty("fitToAxes");
+  });
+
+  it.each([true, false])("accepts fitToAxes: %j", (fitToAxes) => {
+    expect(ChartElementSchema.safeParse({ ...chart, fitToAxes }).success).toBe(true);
+  });
+
   it.each([
     chart,
     { ...chart, source: "y = x^2" },
@@ -18,6 +28,7 @@ describe("Chart canonical contract", () => {
     { ...chart, source: "x".repeat(4097) },
     { ...chart, chartType: "line", series: [] },
     { ...chart, unknown: true },
+    { ...chart, fitToAxes: "true" },
   ])("rejects non-canonical input %j", (input) => {
     expect(ChartElementSchema.safeParse(input).success).toBe(false);
   });

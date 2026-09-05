@@ -45,6 +45,28 @@ export function ChartInspector({
             }}
           />
         </label>
+
+        <label className={styles.checkboxRow}>
+          <input
+            id="chart-fit-to-axes"
+            name="chartFitToAxes"
+            type="checkbox"
+            checked={element.fitToAxes !== false}
+            onChange={(event) => {
+              onUpdate((current) => {
+                if (current.type !== "chart") {
+                  return current;
+                }
+
+                return {
+                  ...current,
+                  fitToAxes: event.target.checked,
+                };
+              });
+            }}
+          />
+          <span>{t("inspector.fitToAxes")}</span>
+        </label>
       </InspectorSection>
     </>
   );

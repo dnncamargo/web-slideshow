@@ -269,6 +269,7 @@ export const ChartElementSchema =
     type: z.literal("chart"),
 
     source: z.string().max(4096),
+    fitToAxes: z.boolean().optional(),
   }).strict();
 
 export type ChartElement =
