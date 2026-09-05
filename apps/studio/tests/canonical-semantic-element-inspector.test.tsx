@@ -15,10 +15,7 @@ const fonts: readonly { id: string; family: string }[] = [];
 const topics: TopicsAuthoringControls = { onAddTopLevelTopic: () => null, onAddChildTopic: () => null };
 const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
 
-const elements: readonly [string, ChartElement | InteractiveElement][] = [
-  ["Chart", { id: "chart-1", type: "chart", hidden: false, source: "" }],
-  ["Interactive", { id: "interactive-1", type: "interactive", hidden: false, widget: "function-plot", config: {} }],
-];
+const interactiveElement: InteractiveElement = { id: "interactive-1", type: "interactive", hidden: false, widget: "function-plot", config: {} };
 
 describe("canonical semantic element inspector", () => {
   let container: HTMLDivElement;
@@ -27,7 +24,7 @@ describe("canonical semantic element inspector", () => {
   beforeEach(() => { container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container); });
   afterEach(async () => { await act(async () => root.unmount()); document.body.innerHTML = ""; });
 
-  it.each(elements)("%s uses only canonical positioning", async (_name, initial) => {
+  async function renderElement(initial: ChartElement | InteractiveElement) {
     let element: PowerShowElement = initial;
     const renderInspector = () => root.render(
       <StudioI18nProvider>
@@ -49,24 +46,55 @@ describe("canonical semantic element inspector", () => {
     );
     await act(async () => renderInspector());
 
-    expect(container.textContent).toContain("Specific editing controls will be added");
+    return { element: () => element };
+  }
+
+  it("Chart uses its source Inspector and only canonical positioning", async () => {
+    const { element } = await renderElement({ id: "chart-1", type: "chart", hidden: false, source: "" });
+
+    expect(container.textContent).not.toContain("Specific editing controls will be added");
+    expect(container.querySelector("#chart-source")).not.toBeNull();
     expect(container.querySelector("#element-canonical-position-mode")).not.toBeNull();
     expect(container.querySelector("#element-placement-mode")).toBeNull();
-    expect(element).not.toHaveProperty("style");
+    expect(element()).not.toHaveProperty("style");
 
     await act(async () => {
       const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")!;
       mode.value = "absolute";
       mode.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(element).toHaveProperty("layout.position", "absolute");
+    expect(element()).toHaveProperty("layout.position", "absolute");
 
     await act(async () => {
       const left = container.querySelector<HTMLInputElement>("#element-canonical-left")!;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(left, "24");
       left.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(element).toHaveProperty("layout.left", 24);
-    expect(element).not.toHaveProperty("style");
+    expect(element()).toHaveProperty("layout.left", 24);
+    expect(element()).not.toHaveProperty("style");
+  });
+
+  it("Interactive remains unsupported and uses only canonical positioning", async () => {
+    const { element } = await renderElement(interactiveElement);
+
+    expect(container.textContent).toContain("Specific editing controls will be added");
+    expect(container.querySelector("#element-canonical-position-mode")).not.toBeNull();
+    expect(container.querySelector("#element-placement-mode")).toBeNull();
+    expect(element()).not.toHaveProperty("style");
+
+    await act(async () => {
+      const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")!;
+      mode.value = "absolute";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(element()).toHaveProperty("layout.position", "absolute");
+
+    await act(async () => {
+      const left = container.querySelector<HTMLInputElement>("#element-canonical-left")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(left, "24");
+      left.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(element()).toHaveProperty("layout.left", 24);
+    expect(element()).not.toHaveProperty("style");
   });
 });
