@@ -56,3 +56,5 @@ export type {
 } from "./geometry";
 
 export { generateExplicit2DGeometry } from "./geometry";
+export type { MathImplicit2DOptions } from "./implicit-geometry";
+export { generateImplicit2DGeometry } from "./implicit-geometry";

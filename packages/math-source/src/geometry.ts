@@ -27,6 +27,8 @@ export type MathGeometryDiagnostic =
       code:
         | "invalid-viewport"
         | "invalid-sample-count"
+        | "invalid-grid"
+        | "geometry-budget-exceeded"
         | "unsupported-equation-form"
         | "no-visible-geometry";
       message: string;
@@ -46,7 +48,19 @@ const DEFAULT_SAMPLE_COUNT = 256;
 const MIN_SAMPLE_COUNT = 2;
 const MAX_SAMPLE_COUNT = 512;
 
-function invalidResult(code: "invalid-viewport" | "invalid-sample-count" | "unsupported-equation-form", message: string): MathGeometryResult {
+export function isValidMathViewport2D(viewport: MathViewport2D): boolean {
+  return Number.isFinite(viewport.xMin) &&
+    Number.isFinite(viewport.xMax) &&
+    Number.isFinite(viewport.yMin) &&
+    Number.isFinite(viewport.yMax) &&
+    viewport.xMin < viewport.xMax &&
+    viewport.yMin < viewport.yMax;
+}
+
+function invalidResult(
+  code: "invalid-viewport" | "invalid-sample-count" | "invalid-grid" | "geometry-budget-exceeded" | "unsupported-equation-form",
+  message: string,
+): MathGeometryResult {
   return { segments: [], diagnostics: [{ code, message }] };
 }
 
@@ -63,14 +77,7 @@ export function generateExplicit2DGeometry(
   viewport: MathViewport2D,
   options: MathExplicit2DOptions = {},
 ): MathGeometryResult {
-  if (
-    !Number.isFinite(viewport.xMin) ||
-    !Number.isFinite(viewport.xMax) ||
-    !Number.isFinite(viewport.yMin) ||
-    !Number.isFinite(viewport.yMax) ||
-    viewport.xMin >= viewport.xMax ||
-    viewport.yMin >= viewport.yMax
-  ) {
+  if (!isValidMathViewport2D(viewport)) {
     return invalidResult("invalid-viewport", "Viewport bounds must be finite and ordered.");
   }
 
