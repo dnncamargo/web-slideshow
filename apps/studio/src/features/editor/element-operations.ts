@@ -46,7 +46,8 @@ export type ElementCreateType =
   | "gallery"
   | "embed"
   | "blocks"
-  | "scripted";
+  | "scripted"
+  | "chart";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -661,6 +662,23 @@ export function createElement(
         layout: {
           width: "60%",
 
+          height: "55%",
+        },
+      };
+    }
+
+    case "chart": {
+      return {
+        id: createUniqueId("chart-element", usedIds),
+
+        type: "chart",
+
+        hidden: false,
+
+        source: "y = x^2",
+
+        layout: {
+          width: "60%",
           height: "55%",
         },
       };
