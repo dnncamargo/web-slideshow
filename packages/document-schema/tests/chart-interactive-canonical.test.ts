@@ -23,6 +23,20 @@ describe("Chart canonical contract", () => {
   });
 });
 
+describe("Interactive canonical layout", () => {
+  it.each([
+    { width: 100 },
+    { height: 100 },
+  ])("rejects resizable-only layout %j", (layout) => {
+    expect(
+      InteractiveElementSchema.safeParse({
+        ...interactive,
+        layout,
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe.each([
   ["Chart", ChartElementSchema, chart],
   ["Interactive", InteractiveElementSchema, interactive],
