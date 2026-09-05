@@ -1,4 +1,11 @@
-import type { ElementEffect, FontResource, PowerShowElement, TerminalTypography } from "@powershow/document-schema";
+import type {
+  ElementEffect,
+  FontResource,
+  PowerShowElement,
+  TerminalTitleTypography,
+  TerminalTypography,
+} from "@powershow/document-schema";
+import { AUTHORING_ROOT_FONT_SIZE_PX } from "@powershow/theme/element-style-defaults";
 import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -130,7 +137,19 @@ export function TerminalInspector({
       : current);
   };
 
+  const updateTitleTypography = (update: (typography: TerminalTitleTypography | undefined) => TerminalTitleTypography) => {
+    onUpdate((current) => current.type === "terminal"
+      ? {
+          ...current,
+          titleTypography: update(current.titleTypography),
+        }
+      : current);
+  };
+
   const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
+  const titleTypographyDefaults = {
+    fontSize: 0.8125 * AUTHORING_ROOT_FONT_SIZE_PX,
+  };
 
   return (
     <>
@@ -248,6 +267,38 @@ export function TerminalInspector({
       </InspectorSection>
 
       <InspectorSection title={t("inspector.typography")}>
+        <div className={styles.inspectorSectionHeader}>
+          <div className={styles.inspectorSectionTitle}>
+            <span>{t("inspector.titleField")}</span>
+          </div>
+        </div>
+
+        <ElementTypographyFields
+          typography={element.titleTypography}
+          effectiveDefaults={titleTypographyDefaults}
+          onUpdateTypography={(update) => updateTitleTypography((current) => {
+            const next = update(current);
+            return {
+              fontFamily: next.fontFamily,
+              fontSize: next.fontSize,
+              fontWeight: next.fontWeight,
+              fontStyle: next.fontStyle,
+              lineHeight: next.lineHeight,
+              letterSpacing: next.letterSpacing,
+              textTransform: next.textTransform,
+            };
+          })}
+          controlPrefix="terminal-title"
+          fontResources={fontResources}
+          visibleProperties={["fontSize"]}
+        />
+
+        <div className={styles.inspectorSectionHeader}>
+          <div className={styles.inspectorSectionTitle}>
+            <span>{t("inspector.content")}</span>
+          </div>
+        </div>
+
         <ElementTypographyFields
           typography={element.typography}
           effectiveDefaults={typographyDefaults!}
