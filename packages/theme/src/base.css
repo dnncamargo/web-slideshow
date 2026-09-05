@@ -238,32 +238,32 @@
 }
 
 .powershow-terminal-line {
-  min-height: 1.6em;
+  min-height: var(--powershow-terminal-line-height, 1.6em);
 
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .powershow-terminal-line-command {
-  color: #d1fae5;
+  color: var(--powershow-terminal-command-color, #d1fae5);
 }
 
 .powershow-terminal-line-command::before {
   content: "$ ";
 
-  color: #34d399;
+  color: var(--powershow-terminal-prompt-color, #34d399);
 }
 
 .powershow-terminal-line-output {
-  color: #cbd5e1;
+  color: var(--powershow-terminal-output-color, #cbd5e1);
 }
 
 .powershow-terminal-line-comment {
-  color: #64748b;
+  color: var(--powershow-terminal-comment-color, #64748b);
 }
 
 .powershow-terminal-line-error {
-  color: #fca5a5;
+  color: var(--powershow-terminal-error-color, #fca5a5);
 }
 
 /* ==========================================================

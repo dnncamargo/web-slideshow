@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import type { ElementEffect, PowerShowElement } from "@powershow/document-schema";
+import type { CodeTypography, ElementEffect, FontResource, PowerShowElement } from "@powershow/document-schema";
+import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -12,6 +13,7 @@ import type { TypedInspectorProps } from "./inspector-types";
 
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { ElementTypographyFields } from "./sections/element-typography-control";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -35,7 +37,8 @@ function parseHighlightedLines(value: string): number[] {
 export function CodeInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<CodeElement>) {
+  fontResources = [],
+}: TypedInspectorProps<CodeElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
 
   const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
@@ -87,6 +90,18 @@ export function CodeInspector({
   const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
     onUpdate((current) => current.type === "code" ? { ...current, effect: update(current.effect) } : current);
   };
+
+  const updateTypography = (update: (typography: CodeTypography | undefined) => CodeTypography) => {
+    onUpdate((current) => {
+      if (current.type !== "code") {
+        return current;
+      }
+
+      return { ...current, typography: update(current.typography) };
+    });
+  };
+
+  const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
 
   return (
     <>
@@ -217,10 +232,30 @@ export function CodeInspector({
         </label>
       </InspectorSection>
 
+      <InspectorSection title={t("inspector.typography")}>
+        <ElementTypographyFields
+          typography={element.typography}
+          effectiveDefaults={typographyDefaults!}
+          onUpdateTypography={(update) => updateTypography((current) => {
+            const next = update(current);
+            return {
+              fontFamily: next.fontFamily,
+              fontSize: next.fontSize,
+              lineHeight: next.lineHeight,
+              letterSpacing: next.letterSpacing,
+            };
+          })}
+          controlPrefix="code"
+          fontResources={fontResources}
+          visibleProperties={["fontFamily", "fontSize", "lineHeight", "letterSpacing"]}
+        />
+      </InspectorSection>
+
       <CanonicalDataAppearanceSection
         element={element}
         style={element.style}
         effect={element.effect}
+        showColor
         onUpdateStyle={updateStyle}
         controlPrefix="code"
         onUpdateEffect={updateEffect}

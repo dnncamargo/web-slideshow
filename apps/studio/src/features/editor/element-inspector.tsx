@@ -143,11 +143,11 @@ function ElementTypeInspector({
 
     case "code":
       return (
-        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} />
+        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} />
       );
 
     case "terminal":
-      return <TerminalInspector element={element} onUpdate={onUpdate} />;
+      return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
 
     case "image":
       return (
@@ -176,6 +176,7 @@ function ElementTypeInspector({
         <TableInspector
           element={element}
           onUpdate={onUpdate}
+          fontResources={fontResources}
           tableAuthoringControls={tableAuthoringControls}
         />
       );

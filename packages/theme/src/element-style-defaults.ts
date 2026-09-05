@@ -144,6 +144,26 @@ export const TEXT_VARIANT_TYPOGRAPHY_DEFAULTS: Readonly<
   caption: numericTypographyDefaults(TEXT_VARIANT_TYPOGRAPHY_BASELINES.caption),
 };
 
+export const CODE_TYPOGRAPHY_DEFAULTS: Readonly<ThemeTypographyDefaults> = {
+  fontSize: 0.95 * AUTHORING_ROOT_FONT_SIZE_PX,
+  lineHeight: 1.2,
+  letterSpacing: 0,
+};
+
+export const TERMINAL_TYPOGRAPHY_DEFAULTS: Readonly<ThemeTypographyDefaults> = {
+  fontSize: AUTHORING_ROOT_FONT_SIZE_PX,
+  lineHeight: 1.6,
+  letterSpacing: 0,
+};
+
+export const TERMINAL_SEMANTIC_COLORS = {
+  command: "#d1fae5",
+  prompt: "#34d399",
+  output: "#cbd5e1",
+  comment: "#64748b",
+  error: "#fca5a5",
+} as const;
+
 export const TOPICS_ITEM_GAP_DEFAULT_PX = 6;
 
 export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
@@ -286,6 +306,20 @@ export function resolveEffectiveElementStyleDefaults(
     const variant = element.variant as ThemeTextVariant | undefined;
     return {
       typography: TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[variant ?? "body"] ?? TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body,
+      borderRadius,
+    };
+  }
+
+  if (element.type === "code") {
+    return {
+      typography: CODE_TYPOGRAPHY_DEFAULTS,
+      borderRadius,
+    };
+  }
+
+  if (element.type === "terminal") {
+    return {
+      typography: TERMINAL_TYPOGRAPHY_DEFAULTS,
       borderRadius,
     };
   }

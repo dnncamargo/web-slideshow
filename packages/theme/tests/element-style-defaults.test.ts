@@ -7,6 +7,8 @@ import {
   resolveEffectiveElementStyleDefaults,
   resolveEffectiveNumericStyleValue,
   resolveThemeTextTypographyBaseline,
+  TERMINAL_SEMANTIC_COLORS,
+  TERMINAL_TYPOGRAPHY_DEFAULTS,
   TOPICS_ITEM_GAP_DEFAULT_PX,
 } from "../src/element-style-defaults";
 
@@ -122,6 +124,37 @@ describe("element style authoring defaults", () => {
     expect(
       resolveEffectiveElementStyleDefaults({ type: "chart" }).borderRadius,
     ).toBe(0);
+  });
+
+  it("resolves Code and Terminal authoring defaults without injecting a font family", () => {
+    expect(resolveEffectiveElementStyleDefaults({ type: "code" })).toEqual({
+      typography: {
+        fontSize: 15.2,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+      },
+      borderRadius: 14,
+    });
+    expect(resolveEffectiveElementStyleDefaults({ type: "terminal" })).toEqual({
+      typography: {
+        fontSize: 16,
+        lineHeight: 1.6,
+        letterSpacing: 0,
+      },
+      borderRadius: 14,
+    });
+    expect(TERMINAL_TYPOGRAPHY_DEFAULTS).toEqual({
+      fontSize: 16,
+      lineHeight: 1.6,
+      letterSpacing: 0,
+    });
+    expect(TERMINAL_SEMANTIC_COLORS).toEqual({
+      command: "#d1fae5",
+      prompt: "#34d399",
+      output: "#cbd5e1",
+      comment: "#64748b",
+      error: "#fca5a5",
+    });
   });
   it("exposes the deterministic Topics item gap default", () => {
     expect(TOPICS_ITEM_GAP_DEFAULT_PX).toBe(6);

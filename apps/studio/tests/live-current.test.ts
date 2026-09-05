@@ -147,7 +147,14 @@ describe("live-current activation", () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
     const box: { committed: Record<string, unknown> | null } = { committed: null };
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      box.committed = updater({ activationRevision: 3, current: {} }) as Record<
+      box.committed = updater({
+        activationRevision: 3,
+        current: {},
+        scriptedAction: { stale: true },
+        scriptedRuntime: { stale: true },
+        scriptedReport: { stale: true },
+        scriptedInput: { stale: true },
+      }) as Record<
         string,
         unknown
       >;
@@ -184,6 +191,9 @@ describe("live-current activation", () => {
     expect(committed.playerRecoveryRequest).toBeNull();
     expect(committed.playerPresence).toBeNull();
     expect(committed.scriptedAction).toBeNull();
+    expect(committed.scriptedRuntime).toBeUndefined();
+    expect(committed.scriptedReport).toBeUndefined();
+    expect(committed.scriptedInput).toBeUndefined();
     expect(committed.slideTransition).toBeNull();
     expect(committed.playerControls).toBeNull();
     expect(committed.playerLogs).toBeNull();
@@ -237,6 +247,9 @@ describe("live-current activation", () => {
         playerRecoveryRequest: null,
         galleryControl: null,
         scriptedAction: null,
+        scriptedRuntime: null,
+        scriptedReport: null,
+        scriptedInput: null,
         slideCommand: null,
         slideAck: null,
         slideTransition: null,
@@ -267,6 +280,10 @@ describe("live-current activation", () => {
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
       playerRecoveryRequest: { revision: 2 },
+      scriptedAction: { revision: 4 },
+      scriptedRuntime: { currentVersionId: "ver-1" },
+      scriptedReport: { currentVersionId: "ver-1" },
+      scriptedInput: { currentVersionId: "ver-1" },
     };
     let committed: unknown;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -293,6 +310,9 @@ describe("live-current activation", () => {
       playerRecoveryRequest: null,
       galleryControl: null,
       scriptedAction: null,
+      scriptedRuntime: null,
+      scriptedReport: null,
+      scriptedInput: null,
     });
   });
 
@@ -324,6 +344,7 @@ describe("live-current activation", () => {
         showCounter: false,
         animation: "slide",
       },
+      playerLogs: { activationRevision: 7, enabled: true },
     };
     let committed: unknown;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -344,6 +365,7 @@ describe("live-current activation", () => {
       showCounter: false,
       animation: "slide",
     });
+    expect(result.playerLogs).toEqual({ activationRevision: 7, enabled: true });
     expect((result as Record<string, unknown>).controlState).toBeNull();
     expect((result as Record<string, unknown>).playerPresence).toBeNull();
   });
@@ -399,6 +421,9 @@ describe("live-current activation", () => {
       playerRecoveryRequest: null,
       galleryControl: null,
       scriptedAction: null,
+      scriptedRuntime: null,
+      scriptedReport: null,
+      scriptedInput: null,
     });
   });
 

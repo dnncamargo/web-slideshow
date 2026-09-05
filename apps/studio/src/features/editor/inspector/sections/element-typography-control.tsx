@@ -24,7 +24,7 @@ export type CoreTypographyProperty = (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAME
 interface ElementTypographyControlProps {
   typography?: ElementTypography | undefined;
 
-  effectiveDefaults: ThemeTypographyDefaults & Partial<ElementTypography>;
+  effectiveDefaults: Partial<ThemeTypographyDefaults & ElementTypography>;
 
   onUpdateTypography?: UpdateElementTypography;
 
@@ -206,10 +206,12 @@ export function ElementTypographyFields({
     currentTypography?.fontSize === undefined
       ? effectiveDefaults.fontSize
       : convertAuthoringLength(currentTypography.fontSize, "px");
-  const lineHeightValue = resolveEffectiveNumericStyleValue(
-    currentTypography?.lineHeight,
-    effectiveDefaults.lineHeight,
-  );
+  const lineHeightValue = effectiveDefaults.lineHeight === undefined && currentTypography?.lineHeight === undefined
+    ? { value: "" as const, inherited: true }
+    : resolveEffectiveNumericStyleValue(
+      currentTypography?.lineHeight,
+      effectiveDefaults.lineHeight ?? 0,
+    );
 
   return (
     <>

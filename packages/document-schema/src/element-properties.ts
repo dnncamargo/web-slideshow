@@ -292,6 +292,60 @@ export const ElementTypographySchema = z
 
 export type ElementTypography = z.infer<typeof ElementTypographySchema>;
 
+export const CodeTypographySchema = ElementTypographySchema.pick({
+  fontFamily: true,
+  fontSize: true,
+  lineHeight: true,
+  letterSpacing: true,
+}).strict();
+
+export type CodeTypography = z.infer<typeof CodeTypographySchema>;
+
+export const TerminalTypographySchema = ElementTypographySchema.pick({
+  fontFamily: true,
+  fontSize: true,
+  lineHeight: true,
+  letterSpacing: true,
+}).strict();
+
+export type TerminalTypography = z.infer<typeof TerminalTypographySchema>;
+
+export const SimpleTableTypographySchema = ElementTypographySchema.pick({
+  fontFamily: true,
+  fontSize: true,
+  lineHeight: true,
+}).strict();
+
+export type SimpleTableTypography = z.infer<
+  typeof SimpleTableTypographySchema
+>;
+
+export const CodeVisualStyleSchema = GradientSurfaceVisualStyleSchema.extend({
+  color: ColorValueSchema.optional(),
+}).strict();
+
+export type CodeVisualStyle = z.infer<typeof CodeVisualStyleSchema>;
+
+export const TerminalVisualStyleSchema =
+  GradientSurfaceVisualStyleSchema.extend({
+    commandColor: ColorValueSchema.optional(),
+    promptColor: ColorValueSchema.optional(),
+    outputColor: ColorValueSchema.optional(),
+    commentColor: ColorValueSchema.optional(),
+    errorColor: ColorValueSchema.optional(),
+  }).strict();
+
+export type TerminalVisualStyle = z.infer<typeof TerminalVisualStyleSchema>;
+
+export const SimpleTableVisualStyleSchema =
+  GradientSurfaceVisualStyleSchema.extend({
+    color: ColorValueSchema.optional(),
+  }).strict();
+
+export type SimpleTableVisualStyle = z.infer<
+  typeof SimpleTableVisualStyleSchema
+>;
+
 export const ElementEffectSchema = z
   .object({
     opacity: z.number().min(0).max(1).optional(),

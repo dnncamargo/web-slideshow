@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type {
+  FontResource,
   ElementEffect,
   PowerShowElement,
   SimpleTableElement,
@@ -19,6 +20,7 @@ import type {
 
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { ElementTypographyFields } from "./sections/element-typography-control";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -43,6 +45,8 @@ interface TableInspectorProps {
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
 
   tableAuthoringControls: TableAuthoringControls;
+
+  fontResources?: readonly FontResource[];
 }
 
 // ============================================================
@@ -319,10 +323,11 @@ function TableCellEditor({
 export function TableInspector({
   element,
   onUpdate,
+  fontResources = [],
   tableAuthoringControls,
 }: TableInspectorProps) {
   if (element.mode !== "structured") {
-    return <SimpleTableInspector element={element} onUpdate={onUpdate} />;
+    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
   }
 
   return (
@@ -337,10 +342,13 @@ export function TableInspector({
 function SimpleTableInspector({
   element,
   onUpdate,
+  fontResources,
 }: {
   element: SimpleTableElement;
 
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+
+  fontResources: readonly FontResource[];
 }) {
   const { t } = useStudioI18n();
 
@@ -370,6 +378,10 @@ function SimpleTableInspector({
 
   const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
     updateTable((table) => ({ ...table, effect: update(table.effect) }));
+  };
+
+  const updateTypography = (update: (typography: SimpleTableElement["typography"]) => SimpleTableElement["typography"]) => {
+    updateTable((table) => ({ ...table, typography: update(table.typography) }));
   };
 
   // ==========================================================
@@ -675,6 +687,17 @@ function SimpleTableInspector({
             ===================================================== */}
       </InspectorSection>
 
+      <InspectorSection title={t("inspector.typography")}>
+        <ElementTypographyFields
+          typography={element.typography}
+          effectiveDefaults={{}}
+          onUpdateTypography={updateTypography}
+          controlPrefix="table"
+          fontResources={fontResources}
+          visibleProperties={["fontFamily", "fontSize", "lineHeight"]}
+        />
+      </InspectorSection>
+
       <InspectorSection title={t("table.rows")} count={element.rows.length}>
         {/* =====================================================
             BEGIN: ROWS
@@ -743,6 +766,7 @@ function SimpleTableInspector({
         effect={element.effect}
         onUpdateStyle={updateStyle}
         controlPrefix="table"
+        showColor
         onUpdateEffect={updateEffect}
       />
 

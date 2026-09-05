@@ -6,7 +6,11 @@ import {
   escapeHtml,
 } from "./escape-html";
 
+import { quoteCssString } from "./escape-css-string";
+
 import { renderCanonicalDataStyle } from "./render-canonical-data";
+import { renderColorValue } from "./render-palette";
+import { renderLength } from "./render-length";
 
 export function renderTerminal(
   element: TerminalElement,
@@ -27,10 +31,54 @@ export function renderTerminal(
     classes.push(customClass);
   }
 
+  const rootStyles: string[] = [];
+
   const baseStyle = renderCanonicalDataStyle(element);
 
-  const styleAttribute = baseStyle
-    ? ` style="${escapeHtml(baseStyle)}"`
+  if (baseStyle) {
+    rootStyles.push(baseStyle);
+  }
+
+  const semanticColors = [
+    ["command", element.style?.commandColor],
+    ["prompt", element.style?.promptColor],
+    ["output", element.style?.outputColor],
+    ["comment", element.style?.commentColor],
+    ["error", element.style?.errorColor],
+  ] as const;
+
+  for (const [name, color] of semanticColors) {
+    if (color !== undefined) {
+      rootStyles.push(`--powershow-terminal-${name}-color:${renderColorValue(color)}`);
+    }
+  }
+
+  const styleAttribute = rootStyles.length > 0
+    ? ` style="${escapeHtml(rootStyles.join(";"))}"`
+    : "";
+
+  const bodyStyles: string[] = [];
+  const typography = element.typography;
+
+  if (typography?.fontFamily !== undefined) {
+    bodyStyles.push(`font-family:${quoteCssString(typography.fontFamily)}`);
+  }
+
+  if (typography?.fontSize !== undefined) {
+    bodyStyles.push(`font-size:${renderLength(typography.fontSize)}`);
+  }
+
+  if (typography?.lineHeight !== undefined) {
+    bodyStyles.push(`line-height:${typography.lineHeight}`);
+    bodyStyles.push(`--powershow-terminal-line-height:${typography.lineHeight}em`);
+  }
+
+  if (typography?.letterSpacing !== undefined) {
+    bodyStyles.push(`letter-spacing:${renderLength(typography.letterSpacing)}`);
+  }
+
+  const bodyStyleAttribute = bodyStyles.length > 0
+    ? ` style="${escapeHtml(bodyStyles.join(";"))}"`
     : "";
 
   const titleBar = element.title
@@ -82,7 +130,7 @@ export function renderTerminal(
       styleAttribute +
     `>` +
       titleBar +
-      `<div class="powershow-terminal-body">` +
+      `<div class="powershow-terminal-body"${bodyStyleAttribute}>` +
         lines +
       `</div>` +
     `</div>`

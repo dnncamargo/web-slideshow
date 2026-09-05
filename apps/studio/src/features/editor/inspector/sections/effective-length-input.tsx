@@ -15,7 +15,7 @@ interface EffectiveLengthInputProps {
   id: string;
   name: string;
   value: Length | undefined;
-  inheritedValue: Length;
+  inheritedValue?: Length;
   inheritedSource?: "linked" | "theme";
   preferredUnit: AuthoringLengthUnit;
   units: readonly AuthoringLengthUnit[];
@@ -75,8 +75,9 @@ export function EffectiveLengthInput({
 
   const numericValue =
     value === undefined
-      ? (convertAuthoringLength(inheritedValue, unit, relativeFontSizePx) ??
-        inheritedValue)
+      ? inheritedValue === undefined
+        ? ""
+        : (convertAuthoringLength(inheritedValue, unit, relativeFontSizePx) ?? inheritedValue)
       : (convertAuthoringLength(value, unit, relativeFontSizePx) ?? "");
   const inherited = value === undefined;
   const inputStep = stepByUnit?.[unit] ?? step;
