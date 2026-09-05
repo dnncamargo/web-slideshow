@@ -7,6 +7,17 @@ import { renderTerminal } from "../src/render-terminal";
 import { createTerminalElement } from "./fixtures/render-fixtures";
 
 describe("renderTerminal", () => {
+  it("renders RichText title and line content with semantic defaults", () => {
+    const html = renderTerminal(createTerminalElement({
+      title: { type: "rich-text", runs: [{ text: "Terminal", marks: { bold: true, color: "#f00" } }] },
+      lines: [{ type: "output", content: { type: "rich-text", runs: [{ text: "ok", marks: { italic: true } }] } }],
+    }));
+
+    expect(html).toContain("<strong>");
+    expect(html).toContain("Terminal");
+    expect(html).toContain("<em>ok</em>");
+    expect(html).toContain("powershow-terminal-line-output");
+  });
   it("omits the title region when no title is provided", () => {
     const html = renderTerminal(createTerminalElement());
 

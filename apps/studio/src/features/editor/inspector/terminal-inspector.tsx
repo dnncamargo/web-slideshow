@@ -12,6 +12,10 @@ import type { TypedInspectorProps } from "./inspector-types";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import {
+  getTextContentPlainText,
+  reconcileTextContentEdit,
+} from "../rich-text-authoring";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -141,9 +145,9 @@ export function TerminalInspector({
             name="terminalTitle"
             type="text"
             placeholder={t("inspector.optional")}
-            value={element.title ?? ""}
+            value={element.title === undefined ? "" : getTextContentPlainText(element.title)}
             onChange={(event) => {
-              const value = event.target.value;
+              const nextPlainText = event.target.value;
 
               onUpdate((current) => {
                 if (current.type !== "terminal") {
@@ -153,7 +157,9 @@ export function TerminalInspector({
                 return {
                   ...current,
 
-                  title: value === "" ? undefined : value,
+                  title: nextPlainText === ""
+                    ? undefined
+                    : reconcileTextContentEdit(current.title ?? "", nextPlainText),
                 };
               });
             }}
@@ -228,9 +234,9 @@ export function TerminalInspector({
                 name={`terminalLineContent_${element.id}_${index}`}
                 className={styles.textArea}
                 rows={2}
-                value={line.content}
+                value={getTextContentPlainText(line.content)}
                 onChange={(event) => {
-                  const content = event.target.value;
+                  const nextPlainText = event.target.value;
 
                   updateLine(
                     index,
@@ -238,7 +244,7 @@ export function TerminalInspector({
                     (currentLine) => ({
                       ...currentLine,
 
-                      content,
+                      content: reconcileTextContentEdit(currentLine.content, nextPlainText),
                     }),
                   );
                 }}

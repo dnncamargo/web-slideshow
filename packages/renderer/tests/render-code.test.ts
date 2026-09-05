@@ -36,6 +36,24 @@ function getLineOpeningTag(
 }
 
 describe("renderCode", () => {
+  it("renders RichText marks without changing physical source lines", () => {
+    const html = renderCode(createCodeElement({
+      code: {
+        type: "rich-text",
+        runs: [
+          { text: "  const", marks: { bold: true } },
+          { text: " x = 1;\n\nnext", marks: { color: { kind: "palette", colorId: "accent" } } },
+        ],
+      },
+    }));
+
+    expect(html).toContain('data-line="1"');
+    expect(html).toContain('data-line="2"');
+    expect(html).toContain('data-line="3"');
+    expect(html).toContain("<strong>  const</strong>");
+    expect(html).toContain("x = 1;");
+    expect(html).toContain("next");
+  });
   it("renders empty code as one empty visual line", () => {
     const html = renderCode(
       createCodeElement({ code: "" }),

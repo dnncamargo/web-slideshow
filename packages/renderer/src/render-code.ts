@@ -7,6 +7,11 @@ import { quoteCssString } from "./escape-css-string";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderColorValue } from "./render-palette";
 import { renderLength } from "./render-length";
+import {
+  renderRichText,
+  renderTextContent,
+  splitTextContentLines,
+} from "./render-rich-text";
 
 export function renderCode(
   element: CodeElement,
@@ -57,7 +62,7 @@ export function renderCode(
     classes.push(customClass);
   }
 
-  const lines = element.code.split("\n");
+  const lines = splitTextContentLines(element.code);
 
   const content = lines
     .map((line, index) => {
@@ -94,7 +99,11 @@ export function renderCode(
         `>` +
         number +
         `<span class="powershow-code-line-content">` +
-        escapeHtml(line || " ") +
+        (line === ""
+          ? " "
+          : typeof line === "string"
+            ? renderTextContent(line, { newlineMode: "preserve" })
+            : renderRichText(line, { newlineMode: "preserve" })) +
         `</span>` +
         `</span>`
       );

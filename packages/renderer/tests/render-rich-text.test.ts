@@ -18,6 +18,11 @@ function textElement(
 }
 
 describe("renderElement rich text", () => {
+  it("preserves newlines when callers own whitespace", async () => {
+    const { renderRichText } = await import("../src/render-rich-text");
+
+    expect(renderRichText({ type: "rich-text", runs: [{ text: "a\nb", marks: { bold: true } }] }, { newlineMode: "preserve" })).toContain("<strong>a\nb</strong>");
+  });
   it("renders authored newlines as line breaks in plain text", () => {
     expect(renderElement(textElement({ content: "first\nsecond" }))).toContain(
       ">first<br>second</p>",
