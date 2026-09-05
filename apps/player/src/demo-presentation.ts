@@ -1770,7 +1770,7 @@ export const demoPresentation =
                   "subtitle",
 
                 content:
-                  "These schema elements currently render as placeholders.",
+                  "Chart now renders 2D math geometry. Interactive remains a placeholder.",
               },
 
               {
