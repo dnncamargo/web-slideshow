@@ -137,7 +137,7 @@ export function TerminalInspector({
       <div className={styles.inspectorDivider} />
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span>{t("inspector.titleField")}</span>
 
           <RichTextAuthoringControl
@@ -156,7 +156,7 @@ export function TerminalInspector({
                 }
               : current)}
           />
-        </label>
+        </div>
 
         <div className={styles.inspectorSectionHeader}>
           <div className={styles.inspectorSectionTitle}>

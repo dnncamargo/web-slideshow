@@ -298,6 +298,15 @@ describe("Terminal authoring controls", () => {
     const title = host.querySelector<HTMLInputElement>("#terminal-title");
     const line = host.querySelector<HTMLTextAreaElement>('textarea[id*="line-0-content"]');
     expect(title?.value).toBe("Terminal");
+    expect(title?.getAttribute("aria-label")).toBe("Title");
+    const titleEditor = title?.closest<HTMLElement>('[data-powershow-text-editor="true"]');
+    expect(titleEditor).not.toBeNull();
+    expect(titleEditor?.closest("label")).toBeNull();
+    expect(titleEditor?.querySelector('[data-powershow-inline-format="bold"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-powershow-inline-format="italic"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-powershow-inline-format="underline"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-powershow-inline-color="true"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-powershow-inline-format-clear-formatting="true"]')).not.toBeNull();
     expect(line?.value).toBe("failure");
 
     await act(async () => changeInput(title!, "Renamed"));
