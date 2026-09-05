@@ -395,40 +395,19 @@ Checkpoint boundaries may be reduced further after TCL0 evidence.
 
 ---
 
-# Plot V1 — NEXT AFTER TERMINAL/CODE/TABLE
+# Plot V1 — current state
 
-Plot is now explicitly promoted from deferred work.
+Plot is the product and developer concept for the restricted mathematical
+plotting surface. Its persisted discriminator intentionally remains
+`type: "chart"`.
 
-Current baseline before audit: Plot already exists canonically as semantic data for `line`, `bar`, `area` and `scatter`, while rendering remains placeholder/minimum.
-
-## C0 — real-system audit
-
-Before selecting a charting library or changing the contract, audit:
-
-- exact current `PlotElement` schema/defaults;
-- current renderer placeholder and styling ownership;
-- current Studio Inspector/authoring support;
-- data-series/category/value semantics;
-- palette/typography/layout interaction;
-- resize/aspect/overflow expectations;
-- Player/Watch/shared-renderer requirements;
-- bundle/performance constraints;
-- whether a dependency is actually necessary;
-- existing tests and import/export behavior.
-
-Do not choose a plotting library first and then reshape the canonical contract around it.
-
-## Planned checkpoints
-
-```text
-C0 — audit canonical Plot + renderer + authoring
-C1 — freeze Plot V1 rendering/authoring responsibilities
-C2 — shared renderer implementation
-C3 — Studio authoring refinement
-C4 — Player/Watch/import-export regression + visual acceptance
-```
-
-Keep Plot semantic and provider/library-neutral at the canonical layer.
+The canonical element stores a mathematical `source` and optional
+`fitToAxes`. The `@powershow/math-source` package owns tokenization,
+parsing, semantic analysis, bounded evaluation, sampling, and math-space
+geometry. The renderer owns the current 2D SVG projection and axes
+presentation. Studio creates Plot elements and edits their source and
+`fitToAxes` values. Interactive remains a separate element and runtime
+surface.
 
 ---
 
@@ -491,7 +470,7 @@ NEXT:
   Terminal + Code + Table typography/layout refinement — begin with TCL0 audit
 
 THEN:
-  Plot V1 — begin with C0 audit
+  Plot V1 nomenclature closure — complete on feat/chart-math-plotter
 
 DEFERRED / FUTURE:
   Embed adjustments

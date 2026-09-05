@@ -15,7 +15,7 @@ describe("Plot element authoring", () => {
     const created = createElement("chart", []);
 
     expect(created).toMatchObject({
-      id: "chart-element",
+      id: "plot-element",
       type: "chart",
       hidden: false,
       source: "y = x^2",
@@ -25,15 +25,15 @@ describe("Plot element authoring", () => {
     expect(() => PlotElementSchema.parse(created)).not.toThrow();
   });
 
-  it("uses chart-element-2 on id collision", () => {
+  it("uses plot-element-2 on id collision", () => {
     const created = createElement("chart", [{
       id: "slide-1",
       title: "",
       summary: "",
       speakerNotes: "",
-      elements: [{ id: "chart-element", type: "chart", hidden: false, source: "" }],
+      elements: [{ id: "plot-element", type: "chart", hidden: false, source: "" }],
     }]);
 
-    expect(created.id).toBe("chart-element-2");
+    expect(created.id).toBe("plot-element-2");
   });
 });

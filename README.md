@@ -358,8 +358,7 @@ See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 Current execution order:
 
 ```text
-Terminal + Code + Table typography/layout refinements
-→ Plot V1
+Plot V1 nomenclature closure
 → other work only when explicitly promoted
 ```
 

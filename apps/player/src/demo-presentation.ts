@@ -1697,13 +1697,10 @@ export const demoPresentation =
 
       // ======================================================
       // SLIDE 8
-      // COMPONENTES AINDA NÃO IMPLEMENTADOS
+      // PLOT AND INTERACTION
       //
-      // Plot e Interactive já existem no schema,
-      // mas neste estágio o renderer ainda produz placeholders.
-      //
-      // Isso é proposital:
-      // permite enxergar claramente o estágio atual do projeto.
+      // Plot renders the current 2D mathematical surface.
+      // Generic Interactive remains a separate placeholder.
       // ======================================================
 
       {
@@ -1781,7 +1778,7 @@ export const demoPresentation =
                   "subtitle",
 
                 content:
-                      "Plot renders 2D math geometry. Gallery and Scripted are interactive; the generic Interactive element remains a placeholder.",
+                  "Plot renders 2D math geometry. Gallery and Scripted are interactive; the generic Interactive element remains a placeholder.",
               },
 
               {

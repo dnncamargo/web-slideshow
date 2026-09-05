@@ -30,8 +30,8 @@ import {
 // ============================================================
 // BEGIN: TIPOS DE ELEMENTOS CRIÁVEIS
 //
-// Plot e Interactive ficam fora desta primeira rodada porque
-// ainda não possuem edição/renderização completa no Editor.
+// Plot and Interactive use the canonical discriminator plumbing below;
+// Plot is creatable and has dedicated editing/rendering support.
 // ============================================================
 
 export type ElementCreateType =
@@ -669,7 +669,7 @@ export function createElement(
 
     case "chart": {
       return {
-        id: createUniqueId("chart-element", usedIds),
+        id: createUniqueId("plot-element", usedIds),
 
         type: "chart",
 
