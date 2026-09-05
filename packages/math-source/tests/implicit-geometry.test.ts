@@ -73,6 +73,13 @@ describe("generateImplicit2DGeometry", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
+  it("skips a whole cell when any corner is locally invalid", () => {
+    expect(generateImplicit2DGeometry(equation("log(x + y + 2) = 1"), { xMin: -1, xMax: 1, yMin: -1, yMax: 1 }, { gridWidth: 1, gridHeight: 1 })).toEqual({
+      segments: [],
+      diagnostics: [{ code: "no-visible-geometry", message: "No visible geometry." }],
+    });
+  });
+
   it("reports no visible geometry", () => {
     expect(generateImplicit2DGeometry(equation("x^2 + y^2 = 100"), { xMin: -1, xMax: 1, yMin: -1, yMax: 1 }).diagnostics).toEqual([{ code: "no-visible-geometry", message: "No visible geometry." }]);
   });

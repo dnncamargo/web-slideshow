@@ -118,6 +118,7 @@ export function generateImplicit2DGeometry(
       const br = grid[row * columns + column + 1]!;
       const tr = grid[(row + 1) * columns + column + 1]!;
       const tl = grid[(row + 1) * columns + column]!;
+      if (bl.value === null || br.value === null || tr.value === null || tl.value === null) continue;
       const points = edgePoints({ bl, br, tr, tl });
       const crossed = (["bottom", "right", "top", "left"] as const).filter((edge) => points[edge] !== undefined);
       if (crossed.length === 4) {
