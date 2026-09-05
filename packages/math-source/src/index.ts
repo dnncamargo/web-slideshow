@@ -1,4 +1,21 @@
 import { tokenizeMathSource } from "./tokenizer";
+import { parseMathSource } from "./parser";
+
+export type {
+  MathBinaryExpression,
+  MathCallExpression,
+  MathEquationStatement,
+  MathExpression,
+  MathGroupExpression,
+  MathIdentifierExpression,
+  MathNumberExpression,
+  MathParseDiagnostic,
+  MathParseDiagnosticCode,
+  MathParseResult,
+  MathProgram,
+  MathSourceDiagnostic,
+  MathUnaryExpression,
+} from "./parser";
 
 export type {
   MathDiagnostic,
@@ -8,3 +25,4 @@ export type {
 } from "./tokenizer";
 
 export { tokenizeMathSource };
+export { parseMathSource };
