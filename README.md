@@ -237,13 +237,13 @@ fixed CSP
 
 No same-origin permission, Firebase/session exposure, parent DOM access, storage, popup/top-navigation privileges, `eval`, `Function`, or JavaScript payload delivered through RTDB is allowed. Runtime state is transient and never persisted into the Presentation.
 
-## Plot V1
+## Plot
 
-Plot V1 is merged in PR #142. The canonical `plot` element stores restricted
-mathematical intent through `source` and optional `fitToAxes`. The
-`@powershow/math-source` package provides explicit-y, explicit-x and
-implicit-2d parsing with bounded evaluation and geometry; the shared renderer
-owns the 2D projection, and Studio authoring and Player rendering are current.
+Plot V1 is merged in PR #142. The canonical `plot` element stores restricted mathematical intent through `source` and optional `fitToAxes`; it already reuses the shared resizable/positioned element layout contract. `@powershow/math-source` provides explicit-y, explicit-x and implicit-2d parsing with bounded evaluation and math-space geometry; the shared renderer owns the current 2D projection, and Studio authoring and Player rendering are accepted.
+
+Plot is now the active continuation work area. The owner has explicitly identified three remaining product goals: **3D, Position and Appearance**. These goals must begin with a read-only audit of the real current `main` before any schema or renderer change. In particular, the audit must distinguish element placement from mathematical viewport/camera concerns and must determine which appearance properties belong in canonical Plot intent versus renderer defaults or existing shared style/effect contracts.
+
+Do not assume WebGL, Canvas, Three.js, persisted meshes, camera fields or a new Plot element type before evidence. Plot continues to persist restricted mathematical intent, not AST, generated samples, geometry or arbitrary JavaScript.
 
 ## Player options and Maintenance
 
@@ -275,7 +275,9 @@ An iPhone 14 Plus is a concrete mobile acceptance device used during current dev
 
 ## Embed
 
-`embed` exists canonically and in the shared renderer. The Editor authors an absolute http/https `src` and required accessibility `title`; renderer-owned iframe policy remains security-sensitive. Embed refinement is not in the active queue and should resume only from a concrete provider/runtime audit.
+`embed` exists canonically and in the shared renderer. The Editor authors an absolute http/https `src` and required accessibility `title`; renderer-owned iframe policy remains security-sensitive.
+
+Embed remains a planned refinement after the current Plot continuation. It must resume with **E0 — a concrete provider/runtime audit**, not with a new element or speculative contract. The audit should cover real provider failures, same-origin/cross-origin behavior, fullscreen, referrer behavior, sizing/fit, Editor ergonomics, Player/Watch behavior and sandbox/security implications. Only evidence from that audit should promote E1–E4 implementation checkpoints.
 
 ## Current completed refinement line
 
@@ -295,7 +297,8 @@ Recent merged work includes:
 - Terminal/Code/Simple Table typography and color refinement (PR #138);
 - Terminal title appearance/typography and shared inline RichText authoring (PRs #139–#140);
 - Terminal title font size (PR #141);
-- Plot V1 (PR #142).
+- Plot V1 (PR #142);
+- deterministic Studio test debt closure, tests-only (PR #144): Studio typecheck PASS and full Studio suite 185 files / 2,161 tests / 0 failures.
 
 ## Development
 
@@ -327,9 +330,13 @@ AUDIT
 → TEST
 → review the real remote SHA/diff
 → manual acceptance where visual/runtime behavior requires it
+→ branch closure
 → PR / merge
+→ verify remote merge
 → POST-MERGE LOCAL CLOSURE
 ```
+
+Before a PR is opened, the completed branch is closed technically: audit the entire branch diff against current `main`, confirm expected files/scope, run the relevant final suite/typecheck/diff-check, and confirm a clean worktree. New failures discovered during closure are audited causally before any patch.
 
 After every PR + merge, the local repository must return to the current `main` before another work area starts:
 
@@ -367,14 +374,17 @@ Repository execution rules live in `AGENTS.md`. Operational handoffs are provide
 
 See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 
-Current execution order:
+Current planned execution order:
 
 ```text
-current-main deterministic Studio test debt
-→ P13 Production Readiness when promoted
+Plot continuation
+  → PLOT-N0 read-only audit of 3D / Position / Appearance
+  → smallest evidence-driven Plot checkpoints
+
+→ Embed E0 provider/runtime/security audit
+  → E1–E4 only if the audit proves concrete changes are needed
+
+→ P13 Production Readiness
 ```
 
-P13 is the next major product/reliability candidate after the deterministic
-baseline debt is addressed; it is not active implementation yet.
-`publishNow`, Topics→Typography Style consumption, broader Diagnostics and
-Embed refinement remain deferred/future until explicitly promoted.
+After P13, broader Diagnostics, Audience/Watch expansion and other deferred candidates remain evidence-driven. `publishNow`, Topics→Typography Style consumption, bounded Undo/Redo, AI Import, Player offline continuity, Custom Library portability and remaining WYSIWYG/Text improvements remain backlog until explicitly promoted.
