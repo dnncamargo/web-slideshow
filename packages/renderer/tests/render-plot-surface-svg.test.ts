@@ -121,6 +121,20 @@ describe("renderMathSurfaceGeometrySvg", () => {
     expect(svg).toBe(renderMathSurfaceGeometrySvg(value));
   });
 
+  it("maps the mathematical origin to one shared SVG coordinate frame", () => {
+    const svg = renderMathSurfaceGeometrySvg(geometry([
+      [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 1 }],
+      [{ x: 0, y: 1, z: 1 }, { x: 1, y: 1, z: 2 }],
+    ]));
+    const origin = svg.match(/<path[^>]* d="M ([^ ]+) ([^ ]+)/)?.slice(1);
+    if (origin?.[0] === undefined || origin[1] === undefined) throw new Error("Missing surface origin");
+
+    for (const axis of ["x", "y", "z"] as const) {
+      const point = svg.match(new RegExp(`powershow-plot-axis-${axis}\\" x1=\\"([^\\"]+)\\" y1=\\"([^\\"]+)\\"`))?.slice(1);
+      expect(point).toEqual(origin);
+    }
+  });
+
   it("hides axes while preserving the surface wireframe", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry(plane((x, y) => x + y)), { showAxes: false });
 

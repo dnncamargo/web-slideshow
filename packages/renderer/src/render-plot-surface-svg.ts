@@ -253,10 +253,10 @@ export function renderMathSurfaceGeometrySvg(
   if (subpaths.length === 0) return "";
 
   const axisMarkup = axes.map((axis) => {
-    const x1 = axis.start.u - bounds.minU;
-    const y1 = bounds.maxV - axis.start.v;
-    const x2 = axis.end.u - bounds.minU;
-    const y2 = bounds.maxV - axis.end.v;
+    const x1 = axis.start.u - projectionBounds.minU;
+    const y1 = projectionBounds.maxV - axis.start.v;
+    const x2 = axis.end.u - projectionBounds.minU;
+    const y2 = projectionBounds.maxV - axis.end.v;
     return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}" stroke-width="1" vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2">${axis.name}</text>`;
   }).join("");
 
