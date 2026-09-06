@@ -111,7 +111,6 @@ describe("Plot renderer", () => {
 
   it.each([
     "y = a*x",
-    "z = x + y",
     "",
     "not valid syntax",
   ])("uses the neutral fallback when no renderable geometry survives: %s", (source) => {
@@ -119,6 +118,77 @@ describe("Plot renderer", () => {
     expect(html).toContain("powershow-placeholder-plot");
     expect(html).toContain("[plot]");
     expect(html).not.toContain("powershow-plot-svg");
+  });
+
+  it("renders a single explicit-z equation as a 3D surface wireframe", () => {
+    const html = renderPlot("z = sin(x) * cos(y)");
+    expect(html).toContain("powershow-plot");
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).toContain("powershow-plot-surface-svg");
+    expect(html).toContain("powershow-plot-surface-wireframe");
+    expect(html).not.toContain("[plot]");
+  });
+
+  it.each(["z = x + y", "z = 2"])("renders explicit-z surface %s", (source) => {
+    expect(renderPlot(source)).toContain("powershow-plot-surface-svg");
+  });
+
+  it("retains a surface around local domain gaps", () => {
+    expect(renderPlot("z = sqrt(x)")).toContain("powershow-plot-surface-svg");
+  });
+
+  it("falls back for a fatal explicit-z parameter failure", () => {
+    const html = renderPlot("z = a*x");
+    expect(html).toContain("powershow-placeholder-plot");
+    expect(html).toContain("[plot]");
+    expect(html).not.toContain("Missing binding");
+    expect(html).not.toContain("a*x");
+  });
+
+  it("falls back when multiple explicit-z equations are present", () => {
+    const html = renderPlot("z = x + y\nz = x - y");
+    expect(html).toContain("powershow-placeholder-plot");
+    expect(html).not.toContain("powershow-plot-surface-svg");
+  });
+
+  it("preserves renderable 2D priority over an explicit-z sibling", () => {
+    const html = renderPlot("y = x^2\nz = x + y");
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).not.toContain("powershow-plot-surface-svg");
+  });
+
+  it("uses a valid explicit-z surface when a 2D sibling fails evaluation", () => {
+    const html = renderPlot("y = a*x\nz = x + y");
+    expect(html).toContain("powershow-plot-surface-svg");
+    expect(html).not.toContain("[plot]");
+  });
+
+  it("recovers a valid explicit-z equation beside invalid syntax", () => {
+    const html = renderPlot("invalid text\nz = sin(x) * cos(y)");
+    expect(html).toContain("powershow-plot-surface-svg");
+    expect(html).not.toContain("invalid text");
+  });
+
+  it("continues to use the neutral fallback for implicit-3d", () => {
+    const html = renderPlot("x^2 + y^2 + z^2 = 1");
+    expect(html).toContain("powershow-placeholder-plot");
+    expect(html).not.toContain("powershow-plot-surface-svg");
+  });
+
+  it.each([true, false])("keeps explicit-z output valid regardless of fitToAxes=%s", (fitToAxes) => {
+    expect(renderPlot("z = x + y", { fitToAxes })).toContain("powershow-plot-surface-svg");
+  });
+
+  it("applies complete canonical layout to an explicit-z surface", () => {
+    const html = renderPlot("z = x + y", {
+      layout: { width: "80%", height: 240, position: "absolute", top: "1rem", left: 12 },
+    });
+    expect(html).toContain("powershow-plot-surface-svg");
+    expect(html).toContain("width:80%;height:240px;position:absolute;top:1rem;left:12px");
+  });
+
+  it("returns nothing for a hidden explicit-z Plot", () => {
+    expect(renderPlot("z = x + y", { hidden: true })).toBe("");
   });
 
   it("returns nothing for a hidden Plot without analyzing its source", () => {

@@ -1,6 +1,7 @@
 import type { PlotElement } from "@powershow/document-schema";
 import {
   analyzeMathSource,
+  generateExplicit3DSurfaceGeometry,
   generateExplicit2DGeometry,
   generateImplicit2DGeometry,
   type MathGeometryResult,
@@ -10,6 +11,7 @@ import {
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
 import { renderMathGeometrySvg } from "./render-plot-svg";
+import { renderMathSurfaceGeometrySvg } from "./render-plot-surface-svg";
 
 const PLOT_WORKING_VIEWPORT: MathViewport2D = {
   xMin: -10,
@@ -137,6 +139,23 @@ export function renderPlot(element: PlotElement): string {
       if (equation.form !== "explicit-y") allRenderedEquationsAreExplicitY = false;
     }
     appendGeometry(geometry, result);
+  }
+
+  if (renderedEquationCount === 0) {
+    const explicitSurfaceEquations = analysis.equations.filter(
+      (equation) => equation.form === "explicit-z",
+    );
+
+    if (explicitSurfaceEquations.length === 1) {
+      const surfaceGeometry = generateExplicit3DSurfaceGeometry(
+        explicitSurfaceEquations[0]!,
+        PLOT_WORKING_VIEWPORT,
+      );
+      const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry);
+      if (surfaceSvg !== "") {
+        return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>${surfaceSvg}</div>`;
+      }
+    }
   }
 
   const displayViewport = element.fitToAxes === false
