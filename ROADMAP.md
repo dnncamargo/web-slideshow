@@ -24,7 +24,9 @@ AUDIT current code
 → TEST
 → inspect the real remote SHA / diff / files
 → manual acceptance when visual/runtime behavior requires it
+→ branch closure
 → PR / merge
+→ verify the remote merge
 → return local repository to updated main
 ```
 
@@ -37,6 +39,18 @@ Core rules:
 - search/reuse existing ownership before creating another state, protocol or abstraction;
 - branch names and historical SHAs are evidence only — always fetch and revalidate;
 - completed architecture should not be reopened speculatively.
+
+### Branch closure — mandatory before PR
+
+Before opening a PR for a completed work area:
+
+1. audit the complete branch diff against current `main`;
+2. confirm only the intended files/scope changed;
+3. run the relevant final suite, typecheck and `git diff --check`;
+4. confirm the worktree is clean;
+5. confirm the branch is not unexpectedly behind `main`.
+
+If closure reveals a new failure, audit its cause before patching it. A PR is opened only after the branch is technically ready.
 
 ### Post-merge closure — mandatory
 
@@ -355,20 +369,14 @@ An iPhone 14 Plus is a concrete mobile acceptance device in the current workflow
 
 References: PRs #138–#141.
 
-Completed refinement of existing canonical elements without creating new
-element types or duplicate style contracts:
+Completed refinement of existing canonical elements without creating new element types or duplicate style contracts:
 
 - Terminal, Code and Simple Table typography/color refinement (#138);
 - Terminal title appearance and typography (#139);
 - shared inline RichText authoring foundation (#140);
 - Terminal title font size (#141).
 
-The former TCL audit/checkpoint plan is complete and retained only as
-historical context below; it is no longer the active queue.
-
-The completed work refined typography and layout through existing canonical
-and shared renderer responsibilities. TCL0–TCL4 are retained only as
-historical planning labels and are not future checkpoints.
+The former TCL audit/checkpoint plan is complete and retained only as historical context; it is no longer the active queue.
 
 ---
 
@@ -376,44 +384,124 @@ historical planning labels and are not future checkpoints.
 
 Reference: PR #142.
 
-Plot V1 is the merged restricted mathematical plotting surface. Its persisted
-discriminator is `type: "plot"`.
+Plot V1 is the merged restricted mathematical plotting surface. Its persisted discriminator is `type: "plot"`.
 
 The current V1 contract includes:
 
 - mathematical `source` and optional `fitToAxes`;
-- `@powershow/math-source` support for explicit-y, explicit-x and implicit-2d
-  sources;
+- shared resizable/positioned element layout;
+- `@powershow/math-source` support for explicit-y, explicit-x and implicit-2d sources;
 - bounded evaluation and a shared 2D renderer;
 - Studio authoring and Player rendering.
 
-The package owns tokenization, parsing, semantic analysis, bounded evaluation,
-sampling and math-space geometry. The renderer owns the 2D SVG projection and
-axes presentation. Interactive remains a separate element and runtime
-surface. Parametric and 3D plotting are future expansion, not incomplete V1
-requirements.
+The package owns tokenization, parsing, semantic analysis, bounded evaluation, sampling and math-space geometry. The renderer owns the current 2D projection and axes presentation. Interactive remains a separate element and runtime surface.
+
+V1 itself is complete; the owner has subsequently promoted a new Plot continuation work area for 3D, Position and Appearance.
 
 ---
 
-# Current-main deterministic Studio test debt
+# Deterministic Studio test debt ✅
 
-The current main baseline has known deterministic Studio debt in:
+Reference: PR #144.
 
-- Custom Library editor Apply-button failures;
-- Gallery default alt mismatch;
-- persistence/publish/read expectations around Scripted `ports: []`;
-- Studio test-compilation/typecheck debt in Gallery/tree-panel tests.
+The post-Plot deterministic Studio debt is closed. The branch was tests-only and aligned stale expectations with current Custom Library, Gallery and Scripted contracts while repairing Gallery/tree-panel test typing.
 
-The Player full suite currently passes. This note records the maintenance
-work area; it does not diagnose or fix the failures.
+Final closure evidence:
+
+- Studio typecheck: PASS;
+- full Studio suite: 185 files / 2,161 tests / 0 failures;
+- `git diff --check`: PASS;
+- no production, schema, renderer, Firebase or Plot changes.
+
+Do not treat the former Studio baseline failures as known current failures unless they are reproduced again on a future `main`.
+
+---
+
+# Plot continuation ← NEXT
+
+The next work area is the expansion of the existing Plot element around three owner-declared product goals:
+
+- **3D**;
+- **Position**;
+- **Appearance**.
+
+The internal implementation order is intentionally **not frozen yet**.
+
+## PLOT-N0 — read-only audit ← NEXT
+
+Before any implementation, audit the real current `main` across:
+
+- `@powershow/document-schema` Plot contract and reusable layout/style/effect contracts;
+- `@powershow/math-source` grammar, AST, semantic forms, evaluator, sampling and geometry, including any existing `z`/3D groundwork;
+- `@powershow/renderer` Plot projection, axes, viewport and sizing ownership;
+- Studio Plot Inspector, generic Position controls, Canvas behavior and reusable Appearance sections;
+- Player shared-renderer path and compatibility constraints;
+- current Plot tests across schema, math-source, renderer, Studio and Player.
+
+The audit must distinguish:
+
+```text
+Plot element placement in the slide
+≠
+mathematical viewport / camera / 3D projection
+```
+
+Plot already uses the shared resizable/positioned layout contract, so no new positioning schema should be invented unless the audit demonstrates a real canonical gap.
+
+Likewise, Appearance must be derived from concrete authored needs and existing style/effect/Palette ownership. Do not create a generic Plot style bag speculatively.
+
+For 3D, do not preselect WebGL, Canvas, Three.js, camera persistence, mesh persistence or interaction controls before the current math/renderer architecture is audited.
+
+Permanent Plot boundary:
+
+```text
+restricted mathematical source
+→ transient parse / semantic / samples / geometry
+→ shared renderer projection
+```
+
+Do not persist AST, generated samples, geometry or arbitrary executable JavaScript.
+
+After PLOT-N0, freeze small checkpoints from evidence. 3D is expected to require multiple checkpoints rather than one large implementation diff.
+
+---
+
+# Embed adjustments — NEXT AFTER PLOT
+
+Embed already exists canonically and in the shared renderer. This is refinement of an existing surface, not a new element.
+
+## E0 — concrete provider/runtime audit
+
+Audit before implementation:
+
+- real providers/URLs that fail or behave poorly;
+- same-origin vs cross-origin behavior;
+- fullscreen;
+- referrer requirements;
+- iframe sizing/fit;
+- Editor ergonomics;
+- current Player and Watch behavior;
+- existing tests;
+- current sandbox/security policy;
+- whether provider-specific URL normalization is actually justified.
+
+The historical refinement sequence remains a useful plan, but only E0 is frozen before evidence:
+
+```text
+E0 — audit real Embed failures/use cases
+E1 — freeze renderer/security and authoring responsibilities
+E2 — targeted renderer/provider correction
+E3 — Studio UX refinement if needed
+E4 — Player/Watch/manual provider acceptance
+```
+
+If E0 finds no concrete product defect requiring code changes, the work area may close without forcing E1–E4.
+
+Do not expose authored sandbox or Permissions Policy internals merely for convenience.
 
 ---
 
 # Future / deferred
-
-## Embed adjustments — future as promoted
-
-Embed exists canonically. Resume only from a concrete provider/runtime audit. Do not expose authored sandbox/Permissions Policy internals merely for convenience.
 
 ## publishNow — deferred
 
@@ -423,9 +511,18 @@ The proposed fast-live Editor mode remains intentionally paused.
 
 Topics currently owns its typography context; future direct Typography Style consumption is not frozen.
 
-## P13 — Production Readiness — planned
+## P13 — Production Readiness — planned after active feature refinement
 
-Promote from concrete deployment/reliability needs: Studio→publish→Control→Player E2E, auth/rules review, deploy/smoke/rollback, constrained-hardware performance, responsive acceptance and security review.
+After Plot continuation and the bounded Embed audit/refinement line, promote Production Readiness from concrete deployment/reliability needs:
+
+- Studio→publish→Control→Player E2E;
+- auth/rules review;
+- deploy/smoke/rollback;
+- constrained-hardware performance;
+- responsive acceptance;
+- security review.
+
+P13 should stabilize the product after the currently promoted feature refinements instead of interrupting them midway.
 
 ## P14 — Maintenance & Diagnostics 🟡
 
@@ -460,24 +557,35 @@ P12   UX / Properties refinement                            ✅
        Persistence serialization hardening                  ✅
        Blocks visual authoring                              ✅
        Editor Resource Controls polish                      ✅
-       Scripted controlled interaction (#133)                 ✅
-       Player options + remote logs (#134)                    ✅
-       Mobile Library / Control recovery                      ✅
-       Terminal / Code / Table refinement (#138–#141)         ✅
-       Plot V1 (#142)                                         ✅
+       Scripted controlled interaction (#133)               ✅
+       Player options + remote logs (#134)                  ✅
+       Mobile Library / Control recovery                    ✅
+       Terminal / Code / Table refinement (#138–#141)       ✅
+       Plot V1 (#142)                                       ✅
+       Studio deterministic test debt closure (#144)        ✅
 
 NEXT:
-  Current-main Studio test debt closure
+  Plot continuation
+  → PLOT-N0 read-only audit of 3D / Position / Appearance
+  → evidence-driven Plot checkpoints
+
+NEXT AFTER PLOT:
+  Embed E0 provider/runtime/security audit
+  → E1–E4 only if concrete changes are justified
 
 THEN:
-  P13 Production Readiness — next major product/reliability candidate after
-  the deterministic baseline debt is addressed
+  P13 Production Readiness
 
-DEFERRED / FUTURE:
-  Embed adjustments
+FUTURE / DEFERRED:
+  P14 bounded Diagnostics expansion
+  P15 Audience / Watch expansion
   publishNow
   Topics → Typography Style consumer concept
-  Audience / Watch expansion
+  bounded Undo/Redo
+  AI Import
+  Player offline continuity
+  Custom Library portability
+  remaining WYSIWYG/Text improvements
 ```
 
-The next implementation session must begin by completing post-merge local closure and auditing the **real current `main`** before taking on the deterministic Studio test debt.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and run **PLOT-N0 as a read-only audit before creating a feature branch or changing schema/renderer code**.
