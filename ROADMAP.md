@@ -477,7 +477,6 @@ DEFERRED / FUTURE:
   Embed adjustments
   publishNow
   Topics → Typography Style consumer concept
-  Production Readiness
   Audience / Watch expansion
 ```
 
