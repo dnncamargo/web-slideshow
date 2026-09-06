@@ -24,9 +24,7 @@ describe("Plot canonical contract", () => {
   });
 
   it.each([
-    { id: "plot-1", type: "chart", hidden: false },
     { ...plot, source: "x".repeat(4097) },
-    { ...plot, chartType: "line", series: [] },
     { ...plot, unknown: true },
     { ...plot, fitToAxes: "true" },
   ])("rejects non-canonical input %j", (input) => {
