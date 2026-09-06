@@ -13,14 +13,15 @@ Read this file before editing code.
 
 PowerShow is a cloud-based system for creating, publishing, displaying, and remotely controlling interactive web presentations.
 
-The system has distinct runtime surfaces:
+The system has distinct product/runtime surfaces:
 
-* **Studio** — presentation management.
-* **Editor** — slide authoring.
-* **Control** — presenter remote control.
-* **Player** — main presentation display.
+* **PowerShow Library** — presentation management.
+* **PowerShow Editor** — slide authoring.
+* **PowerShow Control** — presenter remote control and Maintenance.
+* **PowerShow Player** — main presentation display.
 * **Player Legacy** — compatibility runtime.
-* **Audience** — read-only presentation follower.
+* **PowerShow Watch** — read-only presentation follower.
+* **Maintenance** — authenticated operational and diagnostics surface.
 
 The architectural priority is:
 
@@ -41,7 +42,9 @@ web-slideshow/
 │
 ├── packages/
 │   ├── document-schema/
+│   ├── math-source/
 │   ├── renderer/
+│   ├── theme/
 │   ├── firebase/
 │   └── ui/
 │
@@ -59,6 +62,15 @@ Responsibilities:
 Canonical definition of PowerShow presentation documents.
 
 This package defines what a presentation **is**.
+
+The canonical `schemaVersion` remains literally `1`. Do not introduce a
+migration, compatibility layer, or dual schema unless a concrete task
+explicitly requires and authorizes it.
+
+### `packages/math-source`
+
+Restricted mathematical source parsing, bounded evaluation, sampling, and
+math-space geometry for Plot.
 
 ### `packages/renderer`
 
@@ -80,7 +92,7 @@ Do not move Player runtime dependencies here merely for reuse.
 
 ### `apps/studio`
 
-Presentation library, Editor, Control, and administrative interfaces.
+PowerShow Library, PowerShow Editor, PowerShow Control, and administrative interfaces.
 
 ### `apps/player`
 
@@ -142,14 +154,24 @@ Presentation
     └── Element[]
         ├── text
         ├── image
+        ├── gallery
         ├── code
         ├── terminal
         ├── table
-        ├── chart
+        ├── plot
         ├── interactive
+        ├── divider
+        ├── embed
+        ├── blocks
+        ├── scripted
+        ├── topics
         └── container
             └── Element[]
 ```
+
+The canonical element union is `text`, `image`, `gallery`, `code`, `terminal`,
+`table`, `plot`, `interactive`, `divider`, `embed`, `blocks`, `scripted`,
+`topics`, and `container`. `chart` and `textbox` are not canonical elements.
 
 The document schema is an architectural contract.
 
@@ -173,7 +195,6 @@ Do not create content-specific container types such as:
 ImageColumn
 TextColumn
 CodeColumn
-ChartColumn
 ```
 
 Use generic containers instead.
@@ -190,7 +211,7 @@ Slide
 │   └── Column
 │       ├── Text
 │       ├── Terminal
-│       └── Chart
+│       └── Table
 │
 └── Footer
 ```
@@ -205,7 +226,7 @@ Column
 ├── Image
 ├── Terminal
 ├── Table
-└── Chart
+└── Plot
 ```
 
 Containers may also contain nested containers.
@@ -239,11 +260,11 @@ Do not encode assumptions that prevent the user from modifying the preset struct
 
 Document semantics must remain independent from rendering libraries.
 
-For example:
+For example, a Plot element stores restricted mathematical intent such as
+`source` and optional `fitToAxes`, rather than SVG/Canvas/library-specific
+geometry.
 
-A chart element stores chart semantics and data.
-
-It must not require Chart.js, D3, React, Canvas, or SVG as part of its canonical schema.
+It must not require a rendering library as part of its canonical schema.
 
 The renderer decides the implementation.
 
@@ -369,14 +390,14 @@ Published Version
        ▼
     Session
    ↙   ↓   ↘
-Player Control Audience
+Player Control Watch
 ```
 
 Player and authorized Control clients may update shared presentation state.
 
-Audience clients are read-only with respect to shared state.
+Watch clients are read-only with respect to shared state.
 
-Audience local navigation, when enabled, must not modify the main presentation.
+Watch local navigation, when enabled, must not modify the main presentation.
 
 Never rely only on hidden UI controls for authorization.
 
@@ -486,7 +507,7 @@ Do not weaken:
 
 * Firebase security rules;
 * document validation;
-* audience read-only access;
+* Watch read-only access;
 * session authorization;
 * script sandboxing;
 * immutable publishing.
@@ -576,7 +597,7 @@ Agents MUST NOT autonomously:
 * change publishing/version rules;
 * redesign Firebase architecture;
 * change session authorization;
-* change audience permissions;
+* change Watch permissions;
 * merge Studio and Player;
 * merge Modern and Legacy Player;
 * remove Legacy support;
@@ -656,7 +677,7 @@ Live Sessions
       ↓
 Control
       ↓
-Audience
+Watch
       ↓
 Legacy Expansion
 ```

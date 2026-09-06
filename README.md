@@ -237,6 +237,14 @@ fixed CSP
 
 No same-origin permission, Firebase/session exposure, parent DOM access, storage, popup/top-navigation privileges, `eval`, `Function`, or JavaScript payload delivered through RTDB is allowed. Runtime state is transient and never persisted into the Presentation.
 
+## Plot V1
+
+Plot V1 is merged in PR #142. The canonical `plot` element stores restricted
+mathematical intent through `source` and optional `fitToAxes`. The
+`@powershow/math-source` package provides explicit-y, explicit-x and
+implicit-2d parsing with bounded evaluation and geometry; the shared renderer
+owns the 2D projection, and Studio authoring and Player rendering are current.
+
 ## Player options and Maintenance
 
 PR #134 added activation-scoped Player presentation options and remote logs control.
@@ -283,7 +291,11 @@ Recent merged work includes:
 - Editor Resource Controls polish;
 - Scripted declared action/boolean/number ports with Player bridge and Control stateful controls (PR #133);
 - Player slide transitions, Player control options and remote Maintenance logs (PR #134);
-- recovered mobile Library/Control layout with Player Settings desktop-only.
+- recovered mobile Library/Control layout with Player Settings desktop-only;
+- Terminal/Code/Simple Table typography and color refinement (PR #138);
+- Terminal title appearance/typography and shared inline RichText authoring (PRs #139–#140);
+- Terminal title font size (PR #141);
+- Plot V1 (PR #142).
 
 ## Development
 
@@ -358,8 +370,11 @@ See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 Current execution order:
 
 ```text
-Plot V1 nomenclature closure
-→ other work only when explicitly promoted
+current-main deterministic Studio test debt
+→ P13 Production Readiness when promoted
 ```
 
-`publishNow`, Topics→Typography Style consumption, broader Diagnostics and Embed refinement remain deferred/future until explicitly promoted.
+P13 is the next major product/reliability candidate after the deterministic
+baseline debt is addressed; it is not active implementation yet.
+`publishNow`, Topics→Typography Style consumption, broader Diagnostics and
+Embed refinement remain deferred/future until explicitly promoted.
