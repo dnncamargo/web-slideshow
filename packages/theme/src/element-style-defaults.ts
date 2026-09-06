@@ -7,7 +7,7 @@ export type ThemeElementType =
   | "code"
   | "terminal"
   | "table"
-  | "chart"
+  | "plot"
   | "interactive"
   | "topics"
   | "divider"
@@ -175,7 +175,7 @@ export const ELEMENT_BORDER_RADIUS_DEFAULTS: Readonly<
   code: 14,
   terminal: 14,
   table: 14,
-  chart: 0,
+  plot: 0,
   interactive: 0,
   topics: 0,
   divider: 0,

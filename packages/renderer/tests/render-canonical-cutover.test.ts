@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { renderContentSlotStyle, renderElement } from "../src";
 
-describe("Chart and Interactive placeholders", () => {
+describe("Plot and Interactive placeholders", () => {
   it.each([
-    [{ type: "chart", id: "chart-flow", hidden: false, chartType: "line", series: [] }],
+    [{ type: "plot", id: "plot-flow", hidden: false, source: "" }],
     [{ type: "interactive", id: "interactive-flow", hidden: false, widget: "function-plot", config: {} }],
   ])("renders a flow placeholder without legacy style", (element) => {
     const html = renderElement(element as never);
@@ -14,12 +14,11 @@ describe("Chart and Interactive placeholders", () => {
 
   it("renders canonical absolute edges only", () => {
     const html = renderElement({
-      type: "chart",
-      id: "chart-absolute",
+      type: "plot",
+      id: "plot-absolute",
       hidden: false,
       layout: { position: "absolute", top: "10%", left: 12 },
-      chartType: "bar",
-      series: [],
+      source: "y = x^2",
     });
     expect(html).toContain("position:absolute;top:10%;left:12px");
     expect(html).not.toContain("width:");

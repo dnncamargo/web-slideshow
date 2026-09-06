@@ -261,36 +261,19 @@ export const TerminalElementSchema =
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
-export const ChartElementSchema =
+export const PlotElementSchema =
   z.object({
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
-    layout: PositionedElementLayoutSchema.optional(),
-    type: z.literal("chart"),
+    layout: ResizablePositionedLayoutSchema.optional(),
+    type: z.literal("plot"),
 
-    chartType: z.enum([
-      "line",
-      "bar",
-      "area",
-      "scatter",
-    ]),
-
-    series: z.array(
-      z.object({
-        name: z.string(),
-
-        values: z.array(
-          z.object({
-            x: z.number(),
-            y: z.number(),
-          }),
-        ),
-      }),
-    ),
+    source: z.string().max(4096),
+    fitToAxes: z.boolean().optional(),
   }).strict();
 
-export type ChartElement =
-  z.infer<typeof ChartElementSchema>;
+export type PlotElement =
+  z.infer<typeof PlotElementSchema>;
 
 export const InteractiveElementSchema =
   z.object({
@@ -748,7 +731,7 @@ export type PowerShowElement =
   | CodeElement
   | TerminalElement
   | TableElement
-  | ChartElement
+  | PlotElement
   | InteractiveElement
   | DividerElement
   | EmbedElement
@@ -767,7 +750,7 @@ export const PowerShowElementSchema:
       CodeElementSchema,
       TerminalElementSchema,
       TableElementSchema,
-      ChartElementSchema,
+      PlotElementSchema,
       InteractiveElementSchema,
       DividerElementSchema,
       EmbedElementSchema,

@@ -85,6 +85,21 @@
    END: TEXT
    ========================================================== */
 
+.powershow-plot {
+  color: var(--powershow-accent);
+}
+
+.powershow-plot-axis {
+  stroke: var(--powershow-text-muted);
+  opacity: 0.7;
+}
+
+.powershow-plot-axis-label {
+  fill: var(--powershow-text-primary);
+  font-family: var(--powershow-font-sans);
+  font-weight: 700;
+}
+
 /* ==========================================================
    BEGIN: CODE
    ========================================================== */

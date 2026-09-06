@@ -484,7 +484,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
                 },
 
                 {
-                  component: "Charts",
+                  component: "Plots",
 
                   status: "Planned",
 

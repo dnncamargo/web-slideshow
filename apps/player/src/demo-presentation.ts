@@ -260,7 +260,18 @@ function migrateLegacyElement(element: unknown): unknown {
     };
   }
 
-  if (element.type === "chart" || element.type === "interactive") {
+  if (element.type === "plot") {
+    const style = isDemoRecord(element.style) ? element.style : {};
+    if (Object.keys(style).length === 0) {
+      const { style: _style, layout: layoutValue, ...plot } = element;
+      return {
+        ...plot,
+        layout: legacyLayout(style, layoutValue),
+      };
+    }
+  }
+
+  if (element.type === "interactive") {
     const { style: styleValue, layout: layoutValue, id, ...component } = element;
     const style = isDemoRecord(styleValue) ? styleValue : {};
     const migrated = migrateLegacyStyle(style);
@@ -1686,20 +1697,17 @@ export const demoPresentation =
 
       // ======================================================
       // SLIDE 8
-      // COMPONENTES AINDA NÃO IMPLEMENTADOS
+      // PLOT AND INTERACTION
       //
-      // Chart e Interactive já existem no schema,
-      // mas neste estágio o renderer ainda produz placeholders.
-      //
-      // Isso é proposital:
-      // permite enxergar claramente o estágio atual do projeto.
+      // Plot renders the current 2D mathematical surface.
+      // Generic Interactive remains a separate placeholder.
       // ======================================================
 
       {
         id: "slide-8",
 
         title:
-          "Future interactive components",
+          "Plot and interaction",
 
         background: {
           color: "#080b12",
@@ -1755,7 +1763,7 @@ export const demoPresentation =
                 variant: "title",
 
                 content:
-                  "Interactive elements",
+                  "Plot and interaction",
               },
 
               {
@@ -1770,7 +1778,7 @@ export const demoPresentation =
                   "subtitle",
 
                 content:
-                  "These schema elements currently render as placeholders.",
+                  "Plot renders 2D math geometry. Gallery and Scripted are interactive; the generic Interactive element remains a placeholder.",
               },
 
               {
@@ -1795,41 +1803,26 @@ export const demoPresentation =
 
                 children: [
                   {
-                    type: "chart",
+                    type: "container",
 
                     id:
-                      "demo-chart",
+                      "demo-plot-card",
 
                     hidden: false,
 
-                    chartType:
-                      "line",
+                    direction: "column",
 
-                    series: [
-                      {
-                        name:
-                          "Demo",
+                    gap: 10,
 
-                        values: [
-                          {
-                            x: 0,
-                            y: 1,
-                          },
-                          {
-                            x: 1,
-                            y: 3,
-                          },
-                          {
-                            x: 2,
-                            y: 2,
-                          },
-                        ],
-                      },
-                    ],
+                    horizontalAlign:
+                      "center",
+
+                    verticalAlign:
+                      "center",
 
                     style: {
                       width: 280,
-                      height: 180,
+                      height: 260,
 
                       padding: 24,
 
@@ -1843,9 +1836,58 @@ export const demoPresentation =
                         width: 1,
 
                         color:
-                          "rgba(139,92,246,0.40)",
+                          "rgba(34,211,238,0.40)",
                       },
                     },
+
+                    children: [
+                      {
+                        type: "text",
+
+                        id:
+                          "demo-plot-title",
+
+                        hidden: false,
+
+                        variant:
+                          "body",
+
+                        content:
+                          "Quadratic function",
+                      },
+
+                      {
+                        type: "plot",
+
+                        id:
+                          "demo-plot",
+
+                        hidden: false,
+
+                        source:
+                          "y = x^2",
+
+                        layout: {
+                          width: 232,
+                          height: 160,
+                        },
+                      },
+
+                      {
+                        type: "text",
+
+                        id:
+                          "demo-plot-function",
+
+                        hidden: false,
+
+                        variant:
+                          "caption",
+
+                        content:
+                          "f(x) = x²",
+                      },
+                    ],
                   },
 
                   {

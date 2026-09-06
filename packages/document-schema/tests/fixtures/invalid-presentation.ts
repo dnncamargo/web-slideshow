@@ -125,17 +125,6 @@ export const invalidPresentationFixtures = [
     ]),
   },
   {
-    name: "invalid chartType",
-    input: makePresentation([
-      {
-        id: "invalid-chart-type",
-        type: "chart",
-        chartType: "pie",
-        series: [],
-      },
-    ]),
-  },
-  {
     name: "invalid interactive widget",
     input: makePresentation([
       {

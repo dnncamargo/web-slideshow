@@ -11,7 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@powershow/document-schema": "workspace:*"
+    "@powershow/document-schema": "workspace:*",
+    "@powershow/math-source": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

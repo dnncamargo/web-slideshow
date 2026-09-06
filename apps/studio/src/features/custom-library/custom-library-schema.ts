@@ -15,7 +15,7 @@ const ELEMENT_TYPE_NAMES = {
   code: true,
   terminal: true,
   table: true,
-  chart: true,
+  plot: true,
   interactive: true,
   divider: true,
   embed: true,

@@ -1,11 +1,53 @@
 import { describe, expect, it } from "vitest";
-import { ChartElementSchema, InteractiveElementSchema } from "../src";
+import { PlotElementSchema, InteractiveElementSchema } from "../src";
 
-const chart = { id: "chart-1", type: "chart" as const, chartType: "line" as const, series: [] };
+const plot = { id: "plot-1", type: "plot" as const, hidden: false, source: "" };
 const interactive = { id: "interactive-1", type: "interactive" as const, widget: "function-plot" as const, config: {} };
 
+describe("Plot canonical contract", () => {
+  it("keeps the legacy minimum valid without materializing fitToAxes", () => {
+    const parsed = PlotElementSchema.parse(plot);
+
+    expect(parsed).not.toHaveProperty("fitToAxes");
+  });
+
+  it.each([true, false])("accepts fitToAxes: %j", (fitToAxes) => {
+    expect(PlotElementSchema.safeParse({ ...plot, fitToAxes }).success).toBe(true);
+  });
+
+  it.each([
+    plot,
+    { ...plot, source: "y = x^2" },
+    { ...plot, layout: { width: 640, height: 360 } },
+  ])("accepts %j", (input) => {
+    expect(PlotElementSchema.safeParse(input).success).toBe(true);
+  });
+
+  it.each([
+    { ...plot, source: "x".repeat(4097) },
+    { ...plot, unknown: true },
+    { ...plot, fitToAxes: "true" },
+  ])("rejects non-canonical input %j", (input) => {
+    expect(PlotElementSchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe("Interactive canonical layout", () => {
+  it.each([
+    { width: 100 },
+    { height: 100 },
+  ])("rejects resizable-only layout %j", (layout) => {
+    expect(
+      InteractiveElementSchema.safeParse({
+        ...interactive,
+        layout,
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe.each([
-  ["Chart", ChartElementSchema, chart],
+  ["Plot", PlotElementSchema, plot],
   ["Interactive", InteractiveElementSchema, interactive],
 ] as const)("%s canonical contract", (_name, schema, minimum) => {
   it("accepts the minimum semantic object and canonical absolute edges", () => {
@@ -21,8 +63,6 @@ describe.each([
 
   it.each([
     { layout: { top: 1 } },
-    { layout: { width: 100 } },
-    { layout: { height: 100 } },
     { layout: { minWidth: 1 } },
     { layout: { maxHeight: 1 } },
     { layout: { padding: 1 } },

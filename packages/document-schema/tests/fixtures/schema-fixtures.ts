@@ -104,19 +104,10 @@ const tableElement = {
   ],
 };
 
-const chartElement = {
-  id: "chart-element",
-  type: "chart",
-  chartType: "line",
-  series: [
-    {
-      name: "Voltage",
-      values: [
-        { x: 0, y: 0 },
-        { x: 1, y: 5 },
-      ],
-    },
-  ],
+const plotElement = {
+  id: "plot-element",
+  type: "plot",
+  source: "y = x^2",
 };
 
 const interactiveElement = {
@@ -226,7 +217,7 @@ export const validStructureFixtures = [
             ),
             makeContainer(
               "column-3",
-              [chartElement],
+              [plotElement],
               { role: "column" },
             ),
           ],
@@ -288,7 +279,7 @@ export const validStructureFixtures = [
             imageElement,
             terminalElement,
             tableElement,
-            chartElement,
+            plotElement,
           ],
           { role: "column" },
         ),
@@ -335,9 +326,9 @@ export const validElementFixtures = [
     ]),
   },
   {
-    name: "chart element",
+    name: "plot element",
     input: makePresentation([
-      makeSlide([chartElement]),
+      makeSlide([plotElement]),
     ]),
   },
   {

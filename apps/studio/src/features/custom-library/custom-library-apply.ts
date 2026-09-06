@@ -34,6 +34,7 @@ const ELEMENT_CREATE_TYPE_FLAGS = {
   embed: true,
   blocks: true,
   scripted: true,
+  plot: true,
 } satisfies Record<ElementCreateType, true>;
 
 const FORBIDDEN_PATH_SEGMENTS = new Set([

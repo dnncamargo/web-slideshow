@@ -122,7 +122,7 @@ describe("element style authoring defaults", () => {
       resolveEffectiveElementStyleDefaults({ type: "scripted" }).borderRadius,
     ).toBe(0);
     expect(
-      resolveEffectiveElementStyleDefaults({ type: "chart" }).borderRadius,
+      resolveEffectiveElementStyleDefaults({ type: "plot" }).borderRadius,
     ).toBe(0);
   });
 

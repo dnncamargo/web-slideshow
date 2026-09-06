@@ -15,7 +15,7 @@ import type {
   ImageElement,
   PowerShowElement,
   TextElement,
-  ChartElement,
+  PlotElement,
   InteractiveElement,
 } from "@powershow/document-schema";
 import type { Presentation } from "@powershow/document-schema";
@@ -25,6 +25,7 @@ import { FundamentalTextStyleIdSchema } from "@powershow/document-schema";
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
+import { renderPlot } from "./render-plot";
 import { renderLength } from "./render-length";
 import {
   renderCanonicalImageCropMetadata,
@@ -257,7 +258,7 @@ function renderImage(element: ImageElement): string {
   );
 }
 
-function renderPlaceholder(element: ChartElement | InteractiveElement): string {
+function renderPlaceholder(element: InteractiveElement): string {
   if (element.hidden) {
     return "";
   }
@@ -329,7 +330,9 @@ export function renderElement(
     case "scripted":
       return renderScripted(element);
 
-    case "chart":
+    case "plot":
+      return renderPlot(element);
+
     case "interactive":
       return renderPlaceholder(element);
 

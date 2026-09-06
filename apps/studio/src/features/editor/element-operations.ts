@@ -30,8 +30,8 @@ import {
 // ============================================================
 // BEGIN: TIPOS DE ELEMENTOS CRIÁVEIS
 //
-// Chart e Interactive ficam fora desta primeira rodada porque
-// ainda não possuem edição/renderização completa no Editor.
+// Plot and Interactive use the canonical discriminator plumbing below;
+// Plot is creatable and has dedicated editing/rendering support.
 // ============================================================
 
 export type ElementCreateType =
@@ -46,7 +46,8 @@ export type ElementCreateType =
   | "gallery"
   | "embed"
   | "blocks"
-  | "scripted";
+  | "scripted"
+  | "plot";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -661,6 +662,25 @@ export function createElement(
         layout: {
           width: "60%",
 
+          height: "55%",
+        },
+      };
+    }
+
+    case "plot": {
+      return {
+        id: createUniqueId("plot-element", usedIds),
+
+        type: "plot",
+
+        hidden: false,
+
+        source: "y = x^2",
+
+        fitToAxes: true,
+
+        layout: {
+          width: "60%",
           height: "55%",
         },
       };

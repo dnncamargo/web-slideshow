@@ -57,7 +57,7 @@ const containerRecipe = {
   properties: [],
   children: [{ type: "text" as const, properties: [{ path: "content", value: "Library child" }] }],
 };
-const chartRecipe = { type: "chart" as const, properties: [] };
+const plotRecipe = { type: "plot" as const, properties: [] };
 
 const firaFace: FontFaceResource = {
   weight: 400,
@@ -85,7 +85,7 @@ const items: CustomLibraryItemRecord[] = [
   { id: "text-item", item: { name: "Text preset", root: textRecipe } },
   { id: "image-item", item: { name: "Image preset", root: imageRecipe } },
   { id: "container-item", item: { name: "Container composition", root: containerRecipe } },
-  { id: "chart-item", item: { name: "Chart preset", root: chartRecipe } },
+  { id: "plot-item", item: { name: "Plot preset", root: plotRecipe } },
 ];
 
 function topicsElement(): PowerShowElement {
@@ -863,17 +863,16 @@ describe("Custom Library Editor integration", () => {
     expect(containerElement.textContent).not.toContain("Content slot");
   });
 
-  it("keeps Presentation and selection unchanged for unsupported Chart create", async () => {
+  it("creates a Plot through the real Custom Library apply path", async () => {
     const saved: Presentation[] = [];
     await mount(makePresentation([text("existing", "Existing")]), saved);
     await openElements();
     await openPicker();
-    await applyItem("Chart preset");
+    await applyItem("Plot preset");
 
-    expect(containerElement.textContent).toContain("This item cannot be created in the Editor yet.");
-    expect(saved).toHaveLength(0);
-    await clickToolbarMode("Custom Resources");
-    expect(containerElement.textContent).toContain("No element selected.");
+    const presentation = await saveAfterApply(saved);
+    expect(presentation.slides[0]?.elements.map((element) => element.type)).toEqual(["text", "plot"]);
+    expect(containerElement.textContent).toContain("Plot ·");
   });
 
   it("autosaves only the selected slide after Apply", async () => {
