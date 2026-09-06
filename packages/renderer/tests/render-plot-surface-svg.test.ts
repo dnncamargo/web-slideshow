@@ -12,6 +12,32 @@ function viewBox(svg: string): [number, number] {
   return [Number(match[1]), Number(match[2])];
 }
 
+function pathPoints(svg: string): Array<[number, number]> {
+  const path = svg.match(/ d="([^"]+)"/)?.[1] ?? "";
+  return [...path.matchAll(/[ML] ([^ ]+) ([^ ]+)/g)].map((match) => [Number(match[1]), Number(match[2])]);
+}
+
+function hasNonCollinearPoints(points: Array<[number, number]>): boolean {
+  const origin = points[0];
+  if (origin === undefined) return false;
+  for (let first = 1; first < points.length; first += 1) {
+    const a = points[first];
+    if (a === undefined) continue;
+    for (let second = first + 1; second < points.length; second += 1) {
+      const b = points[second];
+      if (b === undefined) continue;
+      const cross = (a[0] - origin[0]) * (b[1] - origin[1]) -
+        (a[1] - origin[1]) * (b[0] - origin[0]);
+      if (Math.abs(cross) > 1e-9) return true;
+    }
+  }
+  return false;
+}
+
+function plane(rows: (x: number, y: number) => number): MathSurfaceGeometryResult["rows"] {
+  return [-1, 0, 1].map((y) => [-1, 0, 1].map((x) => ({ x, y, z: rows(x, y) })));
+}
+
 describe("renderMathSurfaceGeometrySvg", () => {
   it("projects the frozen isometric view deterministically", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry([
@@ -30,14 +56,14 @@ describe("renderMathSurfaceGeometrySvg", () => {
       .map((match) => match.slice(1).map(Number));
 
     expect(segments).toHaveLength(4);
-    expect(segments[0]?.[2]! - segments[0]?.[0]!).toBeCloseTo(Math.sqrt(3) / 2);
-    expect(segments[0]?.[3]! - segments[0]?.[1]!).toBeCloseTo(0.5);
-    expect(segments[1]?.[2]! - segments[1]?.[0]!).toBeCloseTo(Math.sqrt(3) / 2);
-    expect(segments[1]?.[3]! - segments[1]?.[1]!).toBeCloseTo(-1.5);
-    expect(segments[2]?.[2]! - segments[2]?.[0]!).toBeCloseTo(-Math.sqrt(3) / 2);
-    expect(segments[2]?.[3]! - segments[2]?.[1]!).toBeCloseTo(0.5);
-    expect(segments[3]?.[2]! - segments[3]?.[0]!).toBeCloseTo(-Math.sqrt(3) / 2);
-    expect(segments[3]?.[3]! - segments[3]?.[1]!).toBeCloseTo(-1.5);
+    expect(segments[0]?.[2]! - segments[0]?.[0]!).toBeCloseTo(Math.SQRT1_2);
+    expect(segments[0]?.[3]! - segments[0]?.[1]!).toBeCloseTo(Math.SQRT1_2 * 0.5);
+    expect(segments[1]?.[2]! - segments[1]?.[0]!).toBeCloseTo(Math.SQRT1_2);
+    expect(segments[1]?.[3]! - segments[1]?.[1]!).toBeCloseTo(-(Math.sqrt(3) / 2 + Math.SQRT1_2 * 0.5));
+    expect(segments[2]?.[2]! - segments[2]?.[0]!).toBeCloseTo(-Math.SQRT1_2);
+    expect(segments[2]?.[3]! - segments[2]?.[1]!).toBeCloseTo(Math.SQRT1_2 * 0.5);
+    expect(segments[3]?.[2]! - segments[3]?.[0]!).toBeCloseTo(-Math.SQRT1_2);
+    expect(segments[3]?.[3]! - segments[3]?.[1]!).toBeCloseTo(-(Math.sqrt(3) / 2 + Math.SQRT1_2 * 0.5));
   });
 
   it("connects finite points across rows and columns", () => {
@@ -90,6 +116,28 @@ describe("renderMathSurfaceGeometrySvg", () => {
     expect(height).toBeGreaterThan(0);
     expect(Number.isFinite(width)).toBe(true);
     expect(Number.isFinite(height)).toBe(true);
+  });
+
+  it("keeps an inclined z=x+y plane materially different from a flat plane", () => {
+    const inclined = renderMathSurfaceGeometrySvg(geometry(plane((x, y) => x + y)));
+    const flat = renderMathSurfaceGeometrySvg(geometry(plane(() => 2)));
+    const [inclinedWidth, inclinedHeight] = viewBox(inclined);
+    const [flatWidth, flatHeight] = viewBox(flat);
+
+    expect(inclinedHeight / inclinedWidth).not.toBeCloseTo(flatHeight / flatWidth, 2);
+    expect(inclined).not.toBe(flat);
+  });
+
+  it.each([
+    ["z=x", (x: number) => x],
+    ["z=y", (_x: number, y: number) => y],
+  ] as const)("keeps %s from collapsing edge-on", (_name, surface) => {
+    const svg = renderMathSurfaceGeometrySvg(geometry(plane(surface)));
+    const [width, height] = viewBox(svg);
+
+    expect(width).toBeGreaterThan(0);
+    expect(height).toBeGreaterThan(0);
+    expect(hasNonCollinearPoints(pathPoints(svg))).toBe(true);
   });
 
   it("defensively skips malformed points and emits required wireframe markup", () => {

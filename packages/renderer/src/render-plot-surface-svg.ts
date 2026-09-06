@@ -27,8 +27,8 @@ function isFinitePoint(value: unknown): value is MathPoint3D {
 }
 
 function project(point: MathPoint3D): ProjectedPoint | null {
-  const u = (point.x - point.y) * Math.sqrt(3) / 2;
-  const v = point.z - (point.x + point.y) / 2;
+  const u = (point.x - point.y) * Math.SQRT1_2;
+  const v = point.z * (Math.sqrt(3) / 2) - (point.x + point.y) * Math.SQRT1_2 * 0.5;
   return Number.isFinite(u) && Number.isFinite(v) ? { u, v } : null;
 }
 
