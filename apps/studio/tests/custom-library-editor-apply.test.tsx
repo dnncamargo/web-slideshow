@@ -232,7 +232,7 @@ describe("Custom Library Editor integration", () => {
     if (!itemButton) throw new Error(`Custom Library item not found: ${name}`);
     await act(async () => itemButton.click());
     const applyButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
-      .find((candidate) => candidate.textContent?.trim() === "Apply");
+      .find((candidate) => candidate.textContent?.trim() === "Apply to selected");
     if (!applyButton) throw new Error("Apply button not found");
     await act(async () => applyButton.click());
   }
