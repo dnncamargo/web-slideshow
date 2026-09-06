@@ -24,6 +24,18 @@ describe("Plot canonical contract", () => {
     { color: { kind: "palette", colorId: "accent" } },
     { background: { color: "#ffffff" } },
     { color: "#ff0000", background: { color: "#ffffff" } },
+    { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+    {
+      zGradient: {
+        minColor: { kind: "palette", colorId: "low" },
+        maxColor: { kind: "palette", colorId: "high" },
+      },
+    },
+    {
+      color: "#ffffff",
+      background: { color: "#000000" },
+      zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+    },
   ])("accepts minimal visual style %j", (style) => {
     expect(PlotElementSchema.safeParse({ ...plot, style }).success).toBe(true);
   });
@@ -46,6 +58,13 @@ describe("Plot canonical contract", () => {
     { ...plot, style: { lineWidth: 2 } },
     { ...plot, style: { unknown: true } },
     { ...plot, style: { background: { border: {} } } },
+    { ...plot, style: { zGradient: {} } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed" } } },
+    { ...plot, style: { zGradient: { maxColor: "#06b6d4" } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", type: "linear" } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", angle: 90 } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", shape: "circle" } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", stops: [] } } },
   ])("rejects non-canonical input %j", (input) => {
     expect(PlotElementSchema.safeParse(input).success).toBe(false);
   });

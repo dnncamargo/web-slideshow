@@ -143,6 +143,74 @@ describe("renderMathSurfaceGeometrySvg", () => {
     expect(svg).not.toContain("powershow-plot-axis-label");
   });
 
+  it("colors wireframe segments by mathematical Z with bounded deterministic paths", () => {
+    const value = geometry([
+      [{ x: -4, y: 0, z: 0 }, { x: -3, y: 0, z: 2 }, { x: -2, y: 0, z: 0 }],
+      [{ x: 2, y: 4, z: 0 }, { x: 3, y: 4, z: 2 }, { x: 4, y: 4, z: 0 }],
+      [{ x: 6, y: 0, z: 10 }, { x: 7, y: 0, z: 10 }],
+    ]);
+    const options = { showAxes: false, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } };
+    const svg = renderMathSurfaceGeometrySvg(value, options);
+
+    expect(svg).toContain("powershow-plot-surface-wireframe-z-gradient");
+    expect(svg).toContain("color-mix(in srgb,#7c3aed");
+    expect(svg).toContain("color-mix(in srgb,#7c3aed 0%,#06b6d4 100%)");
+    const gradientPathCount = svg.match(/<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient"/g)?.length ?? 0;
+    expect(gradientPathCount).toBeGreaterThan(1);
+    expect(gradientPathCount).toBeLessThanOrEqual(32);
+    expect(svg).not.toMatch(/NaN|Infinity/);
+    expect(svg).toBe(renderMathSurfaceGeometrySvg(value, options));
+
+    const paths = [...svg.matchAll(/<path[^>]*class="[^"]*z-gradient[^"]*"[^>]*stroke="([^"]+)"[^>]*d="([^"]+)"/g)];
+    const sameZPaths = paths.filter(([, , d]) => d?.includes("M "));
+    expect(sameZPaths.some(([, stroke, d]) => stroke?.includes("90.3225806451613%") && d?.match(/M [^M]+M /))).toBe(true);
+    expect(new Set(paths.map(([, stroke]) => stroke)).size).toBeGreaterThan(1);
+  });
+
+  it("uses one deterministic middle band for a flat mathematical surface", () => {
+    const value = geometry([
+      [{ x: -1, y: -1, z: 2 }, { x: 1, y: -1, z: 2 }],
+      [{ x: -1, y: 1, z: 2 }, { x: 1, y: 1, z: 2 }],
+    ]);
+    const svg = renderMathSurfaceGeometrySvg(value, {
+      showAxes: false,
+      zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+    });
+
+    expect(svg.match(/<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient"/g)).toHaveLength(1);
+    expect(svg).toContain("color-mix(in srgb,#7c3aed 48.38709677419355%,#06b6d4 51.61290322580645%)");
+    expect(svg).not.toMatch(/NaN|Infinity/);
+  });
+
+  it("keeps axis geometry and visibility independent of Z gradient banding", () => {
+    const value = geometry(plane((x, y) => x + y));
+    const solid = renderMathSurfaceGeometrySvg(value);
+    const gradient = renderMathSurfaceGeometrySvg(value, {
+      zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+    });
+
+    for (const axis of ["x", "y", "z"] as const) {
+      const axisPattern = new RegExp(`(<line class="powershow-plot-axis powershow-plot-axis-${axis}"[^>]+>)`);
+      expect(gradient.match(axisPattern)?.[1]).toBe(solid.match(axisPattern)?.[1]);
+    }
+    expect(renderMathSurfaceGeometrySvg(value, { showAxes: false, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } })).not.toContain("powershow-plot-axis");
+  });
+
+  it("preserves gaps while banding finite row and column segments", () => {
+    const svg = renderMathSurfaceGeometrySvg(geometry([
+      [{ x: 0, y: 0, z: 0 }, null, { x: 2, y: 0, z: 4 }],
+      [{ x: 0, y: 1, z: 0 }, { x: 1, y: 1, z: 2 }, null],
+    ]), {
+      showAxes: false,
+      zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+    });
+
+    expect(svg).toContain("powershow-plot-surface-wireframe-z-gradient");
+    expect(svg).not.toMatch(/NaN|Infinity/);
+    expect(svg.match(/M /g)).toHaveLength(2);
+    expect(svg.match(/<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient"/g)?.length).toBeLessThanOrEqual(32);
+  });
+
   it("uses finite non-degenerate padded bounds for a flat surface", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry([
       [{ x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 2 }],

@@ -8,11 +8,16 @@ import { InspectorSection } from "./inspector-section";
 import type { TypedInspectorProps } from "./inspector-types";
 import { ColorControl } from "./sections/color-control";
 
+const DEFAULT_PLOT_Z_GRADIENT = {
+  minColor: "#7c3aed",
+  maxColor: "#06b6d4",
+} as const;
+
 function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle | undefined {
   if (style === undefined) return undefined;
   const background = style.background?.color === undefined ? undefined : style.background;
   const next = { ...style, ...(background === undefined ? { background: undefined } : { background }) };
-  if (next.color === undefined && next.background === undefined) return undefined;
+  if (next.color === undefined && next.background === undefined && next.zGradient === undefined) return undefined;
   return next;
 }
 
@@ -133,6 +138,66 @@ export function PlotInspector({
             }}
           />
         </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.plot3dColor")}</span>
+          <select
+            id="plot-z-color-mode"
+            name="plotZColorMode"
+            value={element.style?.zGradient === undefined ? "solid" : "z"}
+            onChange={(event) => {
+              const mode = event.target.value;
+              updateStyle((current) => {
+                const next = { ...(current ?? {}) };
+                if (mode === "z") {
+                  next.zGradient = current?.zGradient ?? DEFAULT_PLOT_Z_GRADIENT;
+                } else {
+                  delete next.zGradient;
+                }
+                return next;
+              });
+            }}
+          >
+            <option value="solid">{t("inspector.plot3dColor.solid")}</option>
+            <option value="z">{t("inspector.plot3dColor.byZ")}</option>
+          </select>
+        </label>
+
+        {element.style?.zGradient !== undefined ? (
+          <>
+            <label className={styles.field}>
+              <span>{t("inspector.plot3dColor.min")}</span>
+              <ColorControl
+                id="plot-z-min-color"
+                name="plotZMinColor"
+                value={element.style.zGradient.minColor}
+                onChange={(color) => updateStyle((current) => ({
+                  ...(current ?? {}),
+                  zGradient: {
+                    ...(current?.zGradient ?? DEFAULT_PLOT_Z_GRADIENT),
+                    minColor: color,
+                  },
+                }))}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>{t("inspector.plot3dColor.max")}</span>
+              <ColorControl
+                id="plot-z-max-color"
+                name="plotZMaxColor"
+                value={element.style.zGradient.maxColor}
+                onChange={(color) => updateStyle((current) => ({
+                  ...(current ?? {}),
+                  zGradient: {
+                    ...(current?.zGradient ?? DEFAULT_PLOT_Z_GRADIENT),
+                    maxColor: color,
+                  },
+                }))}
+              />
+            </label>
+          </>
+        ) : null}
       </InspectorSection>
     </>
   );

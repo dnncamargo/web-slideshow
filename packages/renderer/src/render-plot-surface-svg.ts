@@ -3,9 +3,14 @@ import type {
   MathSurfaceGeometryResult,
 } from "@powershow/math-source";
 
+import { escapeHtml } from "./escape-html";
+
+const Z_GRADIENT_BAND_COUNT = 32;
+
 interface ProjectedPoint {
   u: number;
   v: number;
+  z: number;
 }
 
 interface ProjectedBounds {
@@ -44,7 +49,7 @@ function isFinitePoint(value: unknown): value is MathPoint3D {
 function project(point: MathPoint3D): ProjectedPoint | null {
   const u = (point.x - point.y) * Math.SQRT1_2;
   const v = point.z * (Math.sqrt(3) / 2) - (point.x + point.y) * Math.SQRT1_2 * 0.5;
-  return Number.isFinite(u) && Number.isFinite(v) ? { u, v } : null;
+  return Number.isFinite(u) && Number.isFinite(v) ? { u, v, z: point.z } : null;
 }
 
 function projectRows(
@@ -227,13 +232,76 @@ function appendColumnRuns(
   }
 }
 
+interface ZGradientOptions {
+  minColor: string;
+  maxColor: string;
+}
+
+function normalizedSegmentZ(start: ProjectedPoint, end: ProjectedPoint, bounds: SurfaceBounds): number {
+  if (bounds.zMin === bounds.zMax) return 0.5;
+  return Math.min(1, Math.max(0, ((start.z + end.z) * 0.5 - bounds.zMin) / (bounds.zMax - bounds.zMin)));
+}
+
+function appendGradientSegment(
+  bands: string[][],
+  start: ProjectedPoint,
+  end: ProjectedPoint,
+  bounds: { minU: number; maxV: number },
+  surfaceBounds: SurfaceBounds,
+): void {
+  const normalized = normalizedSegmentZ(start, end, surfaceBounds);
+  const bandIndex = Math.min(
+    Z_GRADIENT_BAND_COUNT - 1,
+    Math.max(0, Math.round(normalized * (Z_GRADIENT_BAND_COUNT - 1))),
+  );
+  bands[bandIndex]?.push(
+    `M ${formatNumber(start.u - bounds.minU)} ${formatNumber(bounds.maxV - start.v)} L ${formatNumber(end.u - bounds.minU)} ${formatNumber(bounds.maxV - end.v)}`,
+  );
+}
+
+function appendGradientRows(
+  bands: string[][],
+  rows: Array<Array<ProjectedPoint | null>>,
+  bounds: { minU: number; maxV: number },
+  surfaceBounds: SurfaceBounds,
+): void {
+  for (const row of rows) {
+    for (let index = 1; index < row.length; index += 1) {
+      const start = row[index - 1];
+      const end = row[index];
+      if (start !== null && start !== undefined && end !== null && end !== undefined) {
+        appendGradientSegment(bands, start, end, bounds, surfaceBounds);
+      }
+    }
+  }
+}
+
+function appendGradientColumns(
+  bands: string[][],
+  rows: Array<Array<ProjectedPoint | null>>,
+  bounds: { minU: number; maxV: number },
+  surfaceBounds: SurfaceBounds,
+): void {
+  const columnCount = rows.reduce((count, row) => Math.max(count, row.length), 0);
+  for (let column = 0; column < columnCount; column += 1) {
+    for (let row = 1; row < rows.length; row += 1) {
+      const start = rows[row - 1]?.[column];
+      const end = rows[row]?.[column];
+      if (start !== null && start !== undefined && end !== null && end !== undefined) {
+        appendGradientSegment(bands, start, end, bounds, surfaceBounds);
+      }
+    }
+  }
+}
+
 /** Projects a structured 3D surface into a deterministic SVG wireframe. */
 export function renderMathSurfaceGeometrySvg(
   geometry: MathSurfaceGeometryResult,
-  options: { showAxes?: boolean } = {},
+  options: { showAxes?: boolean; zGradient?: ZGradientOptions } = {},
 ): string {
   const rows = projectRows(geometry);
   const axes = options.showAxes === false ? [] : createAxes(geometry);
+  const surfaceBounds = collectSurfaceBounds(geometry);
   const axisPoints = axes.flatMap((axis) => [axis.start, axis.end]);
   const bounds = collectBounds(rows, axisPoints);
   if (bounds === undefined) return "";
@@ -246,11 +314,18 @@ export function renderMathSurfaceGeometrySvg(
   const height = v[1] - v[0];
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return "";
 
-  const subpaths: string[] = [];
   const projectionBounds = { minU: u[0], maxV: v[1] };
-  appendRowRuns(subpaths, rows, projectionBounds);
-  appendColumnRuns(subpaths, rows, projectionBounds);
-  if (subpaths.length === 0) return "";
+  const subpaths: string[] = [];
+  const gradientBands: string[][] = Array.from({ length: Z_GRADIENT_BAND_COUNT }, () => []);
+  if (options.zGradient !== undefined && surfaceBounds !== undefined) {
+    appendGradientRows(gradientBands, rows, projectionBounds, surfaceBounds);
+    appendGradientColumns(gradientBands, rows, projectionBounds, surfaceBounds);
+  } else {
+    appendRowRuns(subpaths, rows, projectionBounds);
+    appendColumnRuns(subpaths, rows, projectionBounds);
+  }
+  if (options.zGradient === undefined && subpaths.length === 0) return "";
+  if (options.zGradient !== undefined && gradientBands.every((band) => band.length === 0)) return "";
 
   const axisMarkup = axes.map((axis) => {
     const x1 = axis.start.u - projectionBounds.minU;
@@ -260,5 +335,9 @@ export function renderMathSurfaceGeometrySvg(
     return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}" stroke-width="1" vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2">${axis.name}</text>`;
   }).join("");
 
-  return `<svg class="powershow-plot-svg powershow-plot-surface-svg" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axisMarkup}<path class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
+  const wireframeMarkup = options.zGradient === undefined
+    ? `<path class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path>`
+    : gradientBands.map((band, index) => band.length === 0 ? "" : `<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient" fill="none" stroke="color-mix(in srgb,${escapeHtml(options.zGradient!.minColor)} ${100 - (index / (Z_GRADIENT_BAND_COUNT - 1)) * 100}%,${escapeHtml(options.zGradient!.maxColor)} ${(index / (Z_GRADIENT_BAND_COUNT - 1)) * 100}%)" stroke-width="1" vector-effect="non-scaling-stroke" d="${band.join(" ")}"></path>`).join("");
+
+  return `<svg class="powershow-plot-svg powershow-plot-surface-svg" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axisMarkup}${wireframeMarkup}</svg>`;
 }

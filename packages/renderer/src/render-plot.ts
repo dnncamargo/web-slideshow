@@ -159,7 +159,15 @@ export function renderPlot(element: PlotElement): string {
         explicitSurfaceEquations[0]!,
         PLOT_WORKING_VIEWPORT,
       );
-      const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, { showAxes: element.showAxes !== false });
+      const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, {
+        showAxes: element.showAxes !== false,
+        ...(element.style?.zGradient === undefined ? {} : {
+          zGradient: {
+            minColor: renderColorValue(element.style.zGradient.minColor),
+            maxColor: renderColorValue(element.style.zGradient.maxColor),
+          },
+        }),
+      });
       if (surfaceSvg !== "") {
         return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${surfaceSvg}</div>`;
       }

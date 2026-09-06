@@ -185,6 +185,40 @@ describe("Plot renderer", () => {
     expect(html).toContain("powershow-plot-surface-wireframe");
   });
 
+  it("passes explicit-z Plot Z colors into the mathematical gradient renderer", () => {
+    const html = renderPlot("z = x + y", {
+      style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+    });
+
+    expect(html).toContain("powershow-plot-surface-wireframe-z-gradient");
+    expect(html).toContain("color-mix(in srgb,#7c3aed");
+    expect(html).toContain("#06b6d4");
+  });
+
+  it("renders explicit-z palette gradient colors through shared CSS variables", () => {
+    const html = renderPlot("z = x + y", {
+      style: {
+        zGradient: {
+          minColor: { kind: "palette", colorId: "low" },
+          maxColor: { kind: "palette", colorId: "high" },
+        },
+      },
+    });
+
+    expect(html).toContain("var(--ps-palette-006c006f0077)");
+    expect(html).toContain("var(--ps-palette-0068006900670068)");
+  });
+
+  it("keeps zGradient inert for 2D Plot output", () => {
+    const html = renderPlot("y = x", {
+      style: { color: "#ff0000", zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+    });
+
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).not.toContain("powershow-plot-surface-wireframe-z-gradient");
+    expect(html).toContain("color:#ff0000");
+  });
+
   it("does not leak successful explicit-z source into markup", () => {
     const source = "z = sin(x) * cos(y)";
     const html = renderPlot(source);

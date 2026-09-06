@@ -162,9 +162,15 @@ const PlotBackgroundSchema = z.object({
   color: ColorValueSchema.optional(),
 }).strict();
 
+const PlotZGradientSchema = z.object({
+  minColor: ColorValueSchema,
+  maxColor: ColorValueSchema,
+}).strict();
+
 export const PlotVisualStyleSchema = z.object({
   color: ColorValueSchema.optional(),
   background: PlotBackgroundSchema.optional(),
+  zGradient: PlotZGradientSchema.optional(),
 }).strict();
 
 export type PlotVisualStyle = z.infer<typeof PlotVisualStyleSchema>;

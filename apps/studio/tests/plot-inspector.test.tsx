@@ -64,6 +64,13 @@ describe("Plot Inspector", () => {
     if (checkbox.checked !== checked) checkbox.click();
   }
 
+  function changeZColorMode(mode: "solid" | "z"): void {
+    const select = host.querySelector<HTMLSelectElement>("#plot-z-color-mode");
+    if (!select) throw new Error("Plot 3D color mode select not found");
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, mode);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   function changeColor(id: string, value: string): void {
     const input = host.querySelector<HTMLInputElement>(`#${id}-value`);
     if (!input) throw new Error(`Plot color input not found: ${id}`);
@@ -106,6 +113,8 @@ describe("Plot Inspector", () => {
     expect(details[1]?.textContent).toContain("Show axes");
     expect(details[1]?.textContent).toContain("Color");
     expect(details[1]?.textContent).toContain("Background");
+    expect(details[1]?.textContent).toContain("3D color");
+    expect(host.querySelector<HTMLSelectElement>("#plot-z-color-mode")?.value).toBe("solid");
   });
 
   it.each([undefined, true, false] as const)("renders showAxes %j as checked", async (showAxes) => {
@@ -196,6 +205,90 @@ describe("Plot Inspector", () => {
     };
     await act(async () => renderInspector());
     await act(async () => removeColor("plot-color"));
+    expect(current.style).toBeUndefined();
+  });
+
+  it("enables By Z with complete defaults and preserves unrelated Plot fields", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "z = x + y",
+      fitToAxes: false,
+      showAxes: false,
+      layout: { width: 320, height: 180 },
+      style: { color: "#ff0000", background: { color: "#112233" } },
+    };
+    await act(async () => renderInspector());
+    await act(async () => changeZColorMode("z"));
+
+    expect(current).toMatchObject({
+      source: "z = x + y",
+      fitToAxes: false,
+      showAxes: false,
+      layout: { width: 320, height: 180 },
+      style: {
+        color: "#ff0000",
+        background: { color: "#112233" },
+        zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+      },
+    });
+    expect(host.querySelector("#plot-z-min-color-value")).not.toBeNull();
+    expect(host.querySelector("#plot-z-max-color-value")).not.toBeNull();
+  });
+
+  it("edits minimum and maximum Z colors independently", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "z = x + y",
+      style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => changeColor("plot-z-min-color", "#111111"));
+    expect(current.style?.zGradient).toEqual({ minColor: "#111111", maxColor: "#06b6d4" });
+    await act(async () => changeColor("plot-z-max-color", "#eeeeee"));
+    expect(current.style?.zGradient).toEqual({ minColor: "#111111", maxColor: "#eeeeee" });
+  });
+
+  it("disables By Z without removing Plot color or background", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "z = x + y",
+      style: {
+        color: "#ff0000",
+        background: { color: "#112233" },
+        zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+      },
+    };
+    await act(async () => renderInspector());
+    await act(async () => changeZColorMode("solid"));
+
+    expect(current.style).toEqual({ color: "#ff0000", background: { color: "#112233" } });
+  });
+
+  it("keeps zGradient while removing color and background, then cleans the final style", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "z = x + y",
+      style: {
+        color: "#ff0000",
+        background: { color: "#112233" },
+        zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+      },
+    };
+    await act(async () => renderInspector());
+    await act(async () => removeColor("plot-color"));
+    expect(current.style?.zGradient).toEqual({ minColor: "#7c3aed", maxColor: "#06b6d4" });
+    await act(async () => removeColor("plot-background"));
+    expect(current.style?.zGradient).toEqual({ minColor: "#7c3aed", maxColor: "#06b6d4" });
+    await act(async () => changeZColorMode("solid"));
     expect(current.style).toBeUndefined();
   });
 
