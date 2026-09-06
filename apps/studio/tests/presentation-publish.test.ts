@@ -333,6 +333,7 @@ describe("transactional presentation publishing", () => {
       html,
       css,
       script,
+      ports: [],
       layout: { width: "71%", height: "41%" },
       style: { className: "published-scripted" },
     });

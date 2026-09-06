@@ -298,6 +298,7 @@ describe("published presentation reader", () => {
       html,
       css,
       script,
+      ports: [],
       layout: { width: "68%", height: "52%" },
       effect: { opacity: 0.9 },
     });
