@@ -23,7 +23,7 @@ export function CustomLibraryStylePreview({ recipe }: CustomLibraryStylePreviewP
     {model.type === "code" || model.type === "scripted" ? <><span className={styles.customLibraryPreviewCodeLine} /><span className={styles.customLibraryPreviewCodeLine} /><span className={styles.customLibraryPreviewCodeLine} /></> : null}
     {model.type === "terminal" ? <span className={styles.customLibraryPreviewPrompt}>›_</span> : null}
     {model.type === "table" ? <span className={styles.customLibraryPreviewGrid} /> : null}
-    {model.type === "chart" ? <><span className={styles.customLibraryPreviewBar} /><span className={styles.customLibraryPreviewBar} /><span className={styles.customLibraryPreviewBar} /></> : null}
+    {model.type === "plot" ? <><span className={styles.customLibraryPreviewBar} /><span className={styles.customLibraryPreviewBar} /><span className={styles.customLibraryPreviewBar} /></> : null}
     {model.type === "interactive" ? <><span className={styles.customLibraryPreviewNode} /><span className={styles.customLibraryPreviewNode} /><span className={styles.customLibraryPreviewNode} /></> : null}
     {model.type === "divider" ? <span className={styles.customLibraryPreviewDivider} /> : null}
     {model.type === "blocks" ? <><span className={styles.customLibraryPreviewBlock} /><span className={styles.customLibraryPreviewBlock} /></> : null}

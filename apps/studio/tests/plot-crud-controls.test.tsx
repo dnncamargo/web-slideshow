@@ -35,11 +35,11 @@ describe("ElementCrudControls Plot wiring", () => {
     });
 
     const options = Array.from(container.querySelectorAll("option"));
-    expect(options.find((option) => option.value === "chart")?.textContent).toBe("Plot");
+    expect(options.find((option) => option.value === "plot")?.textContent).toBe("Plot");
     expect(options.find((option) => option.value === "interactive")).toBeUndefined();
   });
 
-  it("calls onAdd with chart when Plot is selected", () => {
+  it("calls onAdd with plot when Plot is selected", () => {
     const onAdd = vi.fn();
     act(() => {
       root.render(
@@ -52,7 +52,7 @@ describe("ElementCrudControls Plot wiring", () => {
     const select = container.querySelector("select");
     if (!select) throw new Error("Add Element select not found");
     act(() => {
-      select.value = "chart";
+      select.value = "plot";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
@@ -60,6 +60,6 @@ describe("ElementCrudControls Plot wiring", () => {
     if (!addButton) throw new Error("Add button not found");
     act(() => addButton.click());
 
-    expect(onAdd).toHaveBeenCalledWith("chart");
+    expect(onAdd).toHaveBeenCalledWith("plot");
   });
 });

@@ -291,7 +291,7 @@ describe("Custom Library apply core", () => {
   it("rejects mismatches, unsupported creates, invalid values, and unsafe paths", () => {
     const target = text("target", "Target");
     expect(mergeCustomLibraryElementRecipe(recipe("image"), target, slides)).toEqual({ ok: false, reason: "type-mismatch" });
-    expect(materializeCustomLibraryElementRecipe(recipe("chart"), slides)).toEqual({ ok: false, reason: "unsupported-create-type" });
+    expect(materializeCustomLibraryElementRecipe(recipe("interactive"), slides)).toEqual({ ok: false, reason: "unsupported-create-type" });
     expect(materializeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: 42 }]), slides)).toEqual({ ok: false, reason: "invalid-recipe-application" });
     for (const path of ["__proto__.polluted", "constructor.x", "prototype.x", "typography..fontSize", "content.0"]) {
       expect(materializeCustomLibraryElementRecipe(recipe("text", [{ path, value: "x" }]), slides)).toEqual({ ok: false, reason: "invalid-recipe-application" });
@@ -315,24 +315,24 @@ describe("Custom Library apply core", () => {
   it("rejects unsupported descendants without returning a partial root", () => {
     const result = materializeCustomLibraryElementRecipe(recipe("container", [], [
       recipe("text", [{ path: "content", value: "Supported" }]),
-      recipe("chart", []),
+      recipe("interactive", []),
     ]), slides);
     expect(result).toEqual({ ok: false, reason: "unsupported-create-type" });
   });
 
-  it("merges unsupported-create Plot elements when their type matches", () => {
+  it("merges Plot elements when their type matches", () => {
     const target: PowerShowElement = {
-      id: "chart-target",
-      type: "chart",
+      id: "plot-target",
+      type: "plot",
       hidden: false,
       source: "y = x",
     };
-    const result = mergeCustomLibraryElementRecipe(recipe("chart", [
+    const result = mergeCustomLibraryElementRecipe(recipe("plot", [
       { path: "source", value: "y = x^2" },
     ]), target, [slide([target])]);
     expect(result.ok).toBe(true);
-    if (!result.ok || result.element.type !== "chart") return;
-    expect(result.element.id).toBe("chart-target");
+    if (!result.ok || result.element.type !== "plot") return;
+    expect(result.element.id).toBe("plot-target");
     expect(result.element.source).toBe("y = x^2");
     expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
   });
@@ -405,7 +405,7 @@ describe("Custom Library apply core", () => {
     );
     expect(container.ok).toBe(true);
 
-    const chart = materializeCustomLibraryElementRecipe(recipe("chart", []), slides);
-    expect(chart).toEqual({ ok: false, reason: "unsupported-create-type" });
+    const interactive = materializeCustomLibraryElementRecipe(recipe("interactive", []), slides);
+    expect(interactive).toEqual({ ok: false, reason: "unsupported-create-type" });
   });
 });

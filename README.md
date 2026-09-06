@@ -90,7 +90,7 @@ gallery
 code
 terminal
 table
-chart
+plot
 interactive
 divider
 embed

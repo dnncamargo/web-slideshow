@@ -108,7 +108,7 @@ describe("applyCustomLibraryItemToPresentation", () => {
 
   it("rolls back materialized fonts when placement fails", () => {
     const original = presentation();
-    const style = item({ type: "chart", properties: [] }, { fonts: [{ family: "Fira Code", faces: [face("https://example.com/fira.woff2")] }] });
+    const style = item({ type: "interactive", properties: [] }, { fonts: [{ family: "Fira Code", faces: [face("https://example.com/fira.woff2")] }] });
     const result = applyCustomLibraryItemToPresentation(style, original, 0, null);
 
     expect(result).toEqual({ ok: false, reason: "unsupported-create-type" });

@@ -266,7 +266,7 @@ export const PlotElementSchema =
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
     layout: ResizablePositionedLayoutSchema.optional(),
-    type: z.literal("chart"),
+    type: z.literal("plot"),
 
     source: z.string().max(4096),
     fitToAxes: z.boolean().optional(),

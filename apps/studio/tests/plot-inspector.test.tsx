@@ -20,7 +20,7 @@ describe("Plot source Inspector", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    current = { id: "plot-1", type: "chart", hidden: false, source: "y = x^2" };
+    current = { id: "plot-1", type: "plot", hidden: false, source: "y = x^2" };
   });
 
   afterEach(async () => {
@@ -35,7 +35,7 @@ describe("Plot source Inspector", () => {
           element={current}
           onUpdate={(update) => {
             const next = update(current);
-            current = next.type === "chart" ? next : current;
+            current = next.type === "plot" ? next : current;
             renderInspector();
           }}
         />
@@ -65,7 +65,7 @@ describe("Plot source Inspector", () => {
   ] as const)("renders fit-to-axes %j as checked=%j", async (fitToAxes, checked) => {
     current = {
       id: "plot-1",
-      type: "chart",
+      type: "plot",
       hidden: false,
       source: "y = x^2",
       ...(fitToAxes === undefined ? {} : { fitToAxes }),
@@ -83,10 +83,10 @@ describe("Plot source Inspector", () => {
     expect(checkbox?.checked).toBe(true);
 
     await act(async () => changeFitToAxes(false));
-    expect(current).toEqual({ id: "plot-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: false });
+    expect(current).toEqual({ id: "plot-1", type: "plot", hidden: false, source: "y = x^2", fitToAxes: false });
 
     await act(async () => changeFitToAxes(true));
-    expect(current).toEqual({ id: "plot-1", type: "chart", hidden: false, source: "y = x^2", fitToAxes: true });
+    expect(current).toEqual({ id: "plot-1", type: "plot", hidden: false, source: "y = x^2", fitToAxes: true });
 
     await act(async () => changeSource("y = sin(x)"));
     expect(current.fitToAxes).toBe(true);
@@ -102,7 +102,7 @@ describe("Plot source Inspector", () => {
 
     await act(async () => changeSource("y = sin(x)"));
     expect(current.source).toBe("y = sin(x)");
-    expect(current).toEqual({ id: "plot-1", type: "chart", hidden: false, source: "y = sin(x)" });
+    expect(current).toEqual({ id: "plot-1", type: "plot", hidden: false, source: "y = sin(x)" });
 
     const multiline = "y = sin(x)\ny = x^2";
     await act(async () => changeSource(multiline));

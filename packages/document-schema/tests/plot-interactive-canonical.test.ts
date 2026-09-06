@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PlotElementSchema, InteractiveElementSchema } from "../src";
 
-const plot = { id: "plot-1", type: "chart" as const, hidden: false, source: "" };
+const plot = { id: "plot-1", type: "plot" as const, hidden: false, source: "" };
 const interactive = { id: "interactive-1", type: "interactive" as const, widget: "function-plot" as const, config: {} };
 
 describe("Plot canonical contract", () => {
@@ -25,7 +25,6 @@ describe("Plot canonical contract", () => {
 
   it.each([
     { id: "plot-1", type: "chart", hidden: false },
-    { ...plot, type: "plot" },
     { ...plot, source: "x".repeat(4097) },
     { ...plot, chartType: "line", series: [] },
     { ...plot, unknown: true },

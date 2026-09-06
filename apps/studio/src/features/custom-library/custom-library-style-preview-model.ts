@@ -14,7 +14,7 @@ export interface CustomLibraryStylePreviewModel {
 }
 
 const previewTypes: ReadonlySet<CustomLibraryPreviewType> = new Set([
-  "text", "image", "gallery", "code", "terminal", "table", "chart",
+  "text", "image", "gallery", "code", "terminal", "table", "plot",
   "interactive", "divider", "embed", "blocks", "scripted", "topics", "container",
 ]);
 

@@ -37,7 +37,7 @@ describe("canonical demo presentation", () => {
     const card = root === undefined ? undefined : findElement(root, "demo-plot-card");
     const interactive = root === undefined ? undefined : findElement(root, "demo-interactive");
 
-    expect(plot?.type).toBe("chart");
+    expect(plot?.type).toBe("plot");
     expect(plot?.layout).toEqual({ width: 232, height: 160 });
     expect(card?.type).toBe("container");
     expect(card?.type === "container" && card.children.some((child) => child.id === "demo-plot")).toBe(true);

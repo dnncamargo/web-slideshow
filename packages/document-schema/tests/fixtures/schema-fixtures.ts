@@ -106,7 +106,7 @@ const tableElement = {
 
 const plotElement = {
   id: "plot-element",
-  type: "chart",
+  type: "plot",
   source: "y = x^2",
 };
 

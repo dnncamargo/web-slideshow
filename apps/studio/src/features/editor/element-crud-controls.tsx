@@ -165,7 +165,7 @@ const insertionDescription =
             {t("element.scripted")}
           </option>
 
-          <option value="chart">
+          <option value="plot">
             {t("element.plot")}
           </option>
         </select>

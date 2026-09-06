@@ -176,7 +176,7 @@ export function visitPresentationColorValues(
       case "divider":
         visitStyle(element.style, [...path, "style"]);
         break;
-      case "interactive": case "chart":
+      case "interactive": case "plot":
         break;
     }
   }

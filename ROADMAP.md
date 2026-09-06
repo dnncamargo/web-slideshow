@@ -399,7 +399,7 @@ Checkpoint boundaries may be reduced further after TCL0 evidence.
 
 Plot is the product and developer concept for the restricted mathematical
 plotting surface. Its persisted discriminator intentionally remains
-`type: "chart"`.
+`type: "plot"`.
 
 The canonical element stores a mathematical `source` and optional
 `fitToAxes`. The `@powershow/math-source` package owns tokenization,

@@ -103,7 +103,7 @@ function renderPlotLayout(element: PlotElement): string {
 }
 
 function renderPlotFallback(element: PlotElement): string {
-  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderPlotLayout(element)}>[plot]</div>`;
+  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>[plot]</div>`;
 }
 
 function appendGeometry(target: MathGeometryResult, result: MathGeometryResult): void {
@@ -147,5 +147,5 @@ export function renderPlot(element: PlotElement): string {
     : undefined);
   if (svg === "") return renderPlotFallback(element);
 
-  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="chart"${renderPlotLayout(element)}>${svg}</div>`;
+  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>${svg}</div>`;
 }

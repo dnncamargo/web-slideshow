@@ -260,7 +260,7 @@ function migrateLegacyElement(element: unknown): unknown {
     };
   }
 
-  if (element.type === "chart") {
+  if (element.type === "plot") {
     const style = isDemoRecord(element.style) ? element.style : {};
     if (Object.keys(style).length === 0) {
       const { style: _style, layout: layoutValue, ...plot } = element;
@@ -1857,7 +1857,7 @@ export const demoPresentation =
                       },
 
                       {
-                        type: "chart",
+                        type: "plot",
 
                         id:
                           "demo-plot",

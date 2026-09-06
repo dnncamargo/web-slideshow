@@ -133,7 +133,7 @@ describe("CustomLibraryStylePreview", () => {
   });
 
   it.each([
-    "image", "gallery", "code", "terminal", "table", "chart", "interactive",
+    "image", "gallery", "code", "terminal", "table", "plot", "interactive",
     "divider", "embed", "blocks", "scripted", "topics", "container",
   ] as const)("renders a safe fixed silhouette for %s", (type) => {
     expect(markup(recipe(type))).toContain(`data-preview-type=\"${type}\"`);

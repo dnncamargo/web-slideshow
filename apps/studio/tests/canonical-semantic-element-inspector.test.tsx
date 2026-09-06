@@ -50,7 +50,7 @@ describe("canonical semantic element inspector", () => {
   }
 
   it("Plot uses its source Inspector and only canonical positioning", async () => {
-    const { element } = await renderElement({ id: "chart-1", type: "chart", hidden: false, source: "" });
+    const { element } = await renderElement({ id: "plot-1", type: "plot", hidden: false, source: "" });
 
     expect(container.textContent).not.toContain("Specific editing controls will be added");
     expect(container.querySelector("#plot-source")).not.toBeNull();

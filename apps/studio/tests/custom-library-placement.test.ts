@@ -116,18 +116,18 @@ describe("Custom Library placement core", () => {
   it("propagates unsupported create failures without modifying the slide", () => {
     const current = slide([text("selected")]);
     const before = structuredClone(current);
-    expect(placeCustomLibraryElementRecipe(recipe("chart"), current, [current], null)).toEqual({ ok: false, reason: "unsupported-create-type" });
-    expect(placeCustomLibraryElementRecipe(recipe("chart"), current, [current], "selected")).toEqual({ ok: false, reason: "unsupported-create-type" });
+    expect(placeCustomLibraryElementRecipe(recipe("interactive"), current, [current], null)).toEqual({ ok: false, reason: "unsupported-create-type" });
+    expect(placeCustomLibraryElementRecipe(recipe("interactive"), current, [current], "selected")).toEqual({ ok: false, reason: "unsupported-create-type" });
     expect(current).toEqual(before);
   });
 
   it("supports same-type Plot merge", () => {
-    const chart: PowerShowElement = { id: "chart", type: "chart", hidden: false, source: "" };
-    const current = slide([text("before"), chart, text("after")]);
-    const result = success(placeCustomLibraryElementRecipe(recipe("chart", [{ path: "source", value: "y = x^2" }]), current, [current], "chart"));
+    const plot: PowerShowElement = { id: "plot", type: "plot", hidden: false, source: "" };
+    const current = slide([text("before"), plot, text("after")]);
+    const result = success(placeCustomLibraryElementRecipe(recipe("plot", [{ path: "source", value: "y = x^2" }]), current, [current], "plot"));
     expect(result.mode).toBe("merge-selected");
-    expect(result.appliedElementId).toBe("chart");
-    expect(result.slide.elements.map((element) => element.id)).toEqual(["before", "chart", "after"]);
+    expect(result.appliedElementId).toBe("plot");
+    expect(result.slide.elements.map((element) => element.id)).toEqual(["before", "plot", "after"]);
   });
 
   it("leaves slide, slides, and recipe unchanged on invalid application", () => {

@@ -33,7 +33,7 @@ export function PlotInspector({
               const source = event.target.value;
 
               onUpdate((current) => {
-                if (current.type !== "chart") {
+                if (current.type !== "plot") {
                   return current;
                 }
 
@@ -54,7 +54,7 @@ export function PlotInspector({
             checked={element.fitToAxes !== false}
             onChange={(event) => {
               onUpdate((current) => {
-                if (current.type !== "chart") {
+                if (current.type !== "plot") {
                   return current;
                 }
 

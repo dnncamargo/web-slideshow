@@ -147,7 +147,7 @@ function ElementTypeInspector({
         <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} />
       );
 
-    case "chart":
+    case "plot":
       return <PlotInspector element={element} onUpdate={onUpdate} />;
 
     case "terminal":
@@ -320,7 +320,7 @@ export function ElementInspector({
       />
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (
-        element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "chart" || element.type === "interactive" ? (
+        element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive" ? (
           <CanonicalElementPositionSection
             element={element}
             parent={parent}
@@ -342,7 +342,7 @@ export function ElementInspector({
                 if (current.type === "code" || current.type === "terminal" || current.type === "table" || current.type === "blocks") {
                   return { ...current, layout: update(current.layout) };
                 }
-                if (current.type === "divider" || current.type === "topics" || current.type === "chart" || current.type === "interactive") {
+                if (current.type === "divider" || current.type === "topics" || current.type === "plot" || current.type === "interactive") {
                   return { ...current, layout: update(current.layout) };
                 }
                 return current;

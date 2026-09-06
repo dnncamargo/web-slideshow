@@ -6,17 +6,17 @@ import type { ElementCreateType } from "../src/features/editor/element-operation
 import { createElement } from "../src/features/editor/element-operations";
 
 describe("Plot element authoring", () => {
-  it("exposes the canonical chart discriminator as an ElementCreateType for Plot", () => {
-    const createType: ElementCreateType = "chart";
-    expect(createType).toBe("chart");
+  it("exposes the canonical plot discriminator as an ElementCreateType", () => {
+    const createType: ElementCreateType = "plot";
+    expect(createType).toBe("plot");
   });
 
   it("creates a canonical Plot with deterministic defaults", () => {
-    const created = createElement("chart", []);
+    const created = createElement("plot", []);
 
     expect(created).toMatchObject({
       id: "plot-element",
-      type: "chart",
+      type: "plot",
       hidden: false,
       source: "y = x^2",
       fitToAxes: true,
@@ -26,12 +26,12 @@ describe("Plot element authoring", () => {
   });
 
   it("uses plot-element-2 on id collision", () => {
-    const created = createElement("chart", [{
+    const created = createElement("plot", [{
       id: "slide-1",
       title: "",
       summary: "",
       speakerNotes: "",
-      elements: [{ id: "plot-element", type: "chart", hidden: false, source: "" }],
+      elements: [{ id: "plot-element", type: "plot", hidden: false, source: "" }],
     }]);
 
     expect(created.id).toBe("plot-element-2");

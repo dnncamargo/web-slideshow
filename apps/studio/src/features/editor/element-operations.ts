@@ -47,7 +47,7 @@ export type ElementCreateType =
   | "embed"
   | "blocks"
   | "scripted"
-  | "chart";
+  | "plot";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -667,11 +667,11 @@ export function createElement(
       };
     }
 
-    case "chart": {
+    case "plot": {
       return {
         id: createUniqueId("plot-element", usedIds),
 
-        type: "chart",
+        type: "plot",
 
         hidden: false,
 

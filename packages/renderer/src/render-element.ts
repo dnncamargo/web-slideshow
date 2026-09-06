@@ -330,7 +330,7 @@ export function renderElement(
     case "scripted":
       return renderScripted(element);
 
-    case "chart":
+    case "plot":
       return renderPlot(element);
 
     case "interactive":

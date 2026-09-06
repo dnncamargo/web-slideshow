@@ -6,7 +6,7 @@ import { renderElement } from "../src/render-element";
 
 function plot(source: string, overrides: Partial<PlotElement> = {}): PlotElement {
   return {
-    type: "chart",
+    type: "plot",
     id: "plot-test",
     hidden: false,
     source,

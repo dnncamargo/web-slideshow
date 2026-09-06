@@ -2140,7 +2140,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   code: "element.code",
   terminal: "element.terminal",
   table: "element.table",
-  chart: "element.plot",
+  plot: "element.plot",
   interactive: "element.interactive",
   topics: "element.topics",
   container: "element.container",

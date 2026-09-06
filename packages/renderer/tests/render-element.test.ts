@@ -354,8 +354,8 @@ describe("renderElement", () => {
 
   it("renders implemented-later elements as placeholders", () => {
     const element: PowerShowElement = {
-      type: "chart",
-      id: "chart-1",
+      type: "plot",
+      id: "plot-1",
       hidden: false,
       source: "",
     };
