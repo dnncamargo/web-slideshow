@@ -358,7 +358,10 @@ describe("GalleryInspector", () => {
 
     const structuralActions = container.querySelector("[data-powershow-gallery-add]")?.parentElement;
     const source = itemSrc("#gallery-gallery-1-item-0-src");
-    expect(structuralActions?.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    if (!structuralActions) {
+      throw new Error("Gallery structural actions not found");
+    }
+    expect(structuralActions.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("remove image removes the targeted item", async () => {

@@ -444,6 +444,7 @@ describe("persistence round trip with Scripted", () => {
         html,
         css,
         script,
+        ports: [],
         layout: {
           width: "73%",
           height: "44%",

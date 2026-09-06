@@ -280,6 +280,8 @@ describe("ElementTreePanel", () => {
             selectedGalleryItemIndex={options.selectedGalleryItemIndex ?? null}
             onSelectElement={onSelectElement}
             onMoveElement={onMoveElement}
+            onMoveGalleryItem={vi.fn()}
+            onGalleryStructureDrop={vi.fn()}
             onBrowseElementStyles={vi.fn()}
           />
         </StudioI18nProvider>,

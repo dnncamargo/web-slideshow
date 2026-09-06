@@ -44,8 +44,8 @@ describe("Gallery structural operations", () => {
     const focalPoint = { x: 0.4, y: 0.6 };
     const source = gallery([{ src: "a.png", alt: "Facade", crop, focalPoint }], {
       layout: { width: "80%", height: "70%" },
-      style: { opacity: 0.2 },
-      effect: { type: "shadow", color: "#000", blur: 4, x: 1, y: 1 },
+      style: { background: { color: "#fff" } },
+      effect: { opacity: 0.2, shadow: { color: "#000", blur: 4, x: 1, y: 1 } },
     });
     const outcome = detachGalleryItemToImage([source], [slide([image("image-element")])], "gallery", 0, "gallery", "after");
     const detached = findElementById(outcome.elements, outcome.imageId ?? "");
@@ -69,7 +69,7 @@ describe("Gallery structural operations", () => {
   });
 
   it("attaches only standalone Images and discards standalone-only properties", () => {
-    const source = image("image", { src: "b.png", alt: "B", fit: "fill", layout: { width: "20%" }, style: { opacity: 0.5 }, link: { href: "https://example.com" } });
+    const source = image("image", { src: "b.png", alt: "B", fit: "fill", layout: { width: "20%" }, style: { border: { width: 1, color: "#fff" } }, link: { kind: "url", href: "https://example.com" } });
     const target = gallery([item("A"), item("C")]);
     const outcome = attachImageToGallery([source, target], "image", "gallery", 1);
     const updated = findElementById(outcome.elements, "gallery") as GalleryElement;

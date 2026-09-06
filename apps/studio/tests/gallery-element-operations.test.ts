@@ -88,14 +88,14 @@ describe("Gallery element authoring", () => {
     }
   });
 
-  it("defaults the single item to src /powershow-demo.svg and alt Gallery image", () => {
+  it("defaults the single item to src /powershow-demo.svg and empty alt", () => {
     const created = createElement("gallery", []);
 
     if (created.type === "gallery") {
       expect(created.items[0]).toEqual({
         src: "/powershow-demo.svg",
 
-        alt: "Gallery image",
+        alt: "",
       });
     }
   });

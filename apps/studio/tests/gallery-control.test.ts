@@ -13,6 +13,18 @@ describe("gallery control wire and writer", () => {
   it("writes revision one, increments identical records, and resets exact identity changes", async () => { let previous: unknown = null; mocks.runTransaction.mockImplementation(async (_r, updater) => { const value = updater(previous); previous = value; return { committed: true, snapshot: { val: () => value } }; }); expect(await writeGalleryControlState({} as never, 2, "v", "p", 0, " ", 0, false)).toMatchObject({ revision: 1, elementId: " " }); expect(await writeGalleryControlState({} as never, 2, "v", "p", 0, " ", 1, true)).toMatchObject({ revision: 2 }); expect(await writeGalleryControlState({} as never, 2, "v", "p", 0, "gallery", 0, false)).toMatchObject({ revision: 1 }); });
   it("resets revision for every changed identity generation", async () => { for (const [activation, version, page, element] of [[2, "v", "page-b", "gallery"], [3, "v", "page-a", "gallery"], [2, "v2", "page-a", "gallery"], [2, "v", "page-a", " gallery "]] as const) { mocks.runTransaction.mockImplementationOnce(async (_r, updater) => { const value = updater(valid({ pageId: "page-a", elementId: "gallery", revision: 8 })); return { committed: true, snapshot: { val: () => value } }; }); await expect(writeGalleryControlState({} as never, activation, version, page, 0, element, 0, false)).resolves.toMatchObject({ revision: 1 }); } });
   it("requires auth and rejects malformed inputs before transaction", async () => { mocks.getCurrentNonAnonymousUser.mockReturnValue(null); await expect(writeGalleryControlState({} as never, 2, "v", "p", 0, "g", 0, false)).rejects.toThrow(); expect(mocks.runTransaction).not.toHaveBeenCalled(); mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u" }); await expect(writeGalleryControlState({} as never, -1, "v", "p", 0, "g", 0, false)).rejects.toThrow(); await expect(writeGalleryControlState({} as never, 2, "v", "p", 0, "", 0, false)).rejects.toThrow(); expect(mocks.runTransaction).not.toHaveBeenCalled(); });
-  it("rejects all malformed runtime inputs before transacting", async () => { for (const args of [[2, "v", "p", -1, "g", 0, false], [2, "v", "p", 0.5, "g", 0, false], [2, "v", "p", 0, "g", -1, false], [2, "v", "p", 0, "g", 0.5, false], [2, "v", "p", 0, "g", 0, "yes"]] as const) await expect(writeGalleryControlState({} as never, ...args as never)).rejects.toThrow(); expect(mocks.runTransaction).not.toHaveBeenCalled(); });
+  it("rejects all malformed runtime inputs before transacting", async () => {
+    const malformedInputs: ReadonlyArray<ReadonlyArray<unknown>> = [
+      [2, "v", "p", -1, "g", 0, false],
+      [2, "v", "p", 0.5, "g", 0, false],
+      [2, "v", "p", 0, "g", -1, false],
+      [2, "v", "p", 0, "g", 0.5, false],
+      [2, "v", "p", 0, "g", 0, "yes"],
+    ];
+    for (const args of malformedInputs) {
+      await expect(Reflect.apply(writeGalleryControlState, null, [{}, ...args])).rejects.toThrow();
+    }
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
   it("rejects uncommitted and malformed committed transaction results", async () => { mocks.runTransaction.mockResolvedValueOnce({ committed: false, snapshot: { val: () => valid() } }); await expect(writeGalleryControlState({} as never, 2, "v", "p", 0, "g", 0, false)).rejects.toThrow(/did not commit/); mocks.runTransaction.mockResolvedValueOnce({ committed: true, snapshot: { val: () => valid({ revision: 0 }) } }); await expect(writeGalleryControlState({} as never, 2, "v", "p", 0, "g", 0, false)).rejects.toThrow(/malformed/); });
 });
