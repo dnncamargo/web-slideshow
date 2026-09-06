@@ -351,63 +351,61 @@ An iPhone 14 Plus is a concrete mobile acceptance device in the current workflow
 
 ---
 
-# Terminal + Code + Table typography/layout refinement ← NEXT
+# Terminal / Code / Table typography and layout refinement ✅
 
-The next work area is refinement of existing canonical elements, not element creation.
+References: PRs #138–#141.
 
-Primary goal: improve typography and layout behavior for `terminal`, `code` and `table` while preserving shared-renderer convergence and avoiding duplicate style contracts.
+Completed refinement of existing canonical elements without creating new
+element types or duplicate style contracts:
 
-## TCL0 — real-system audit
+- Terminal, Code and Simple Table typography/color refinement (#138);
+- Terminal title appearance and typography (#139);
+- shared inline RichText authoring foundation (#140);
+- Terminal title font size (#141).
 
-Before implementation, audit the current real `main` for:
+The former TCL audit/checkpoint plan is complete and retained only as
+historical context below; it is no longer the active queue.
 
-- canonical schemas/defaults for Terminal, Code and Table;
-- renderer ownership and current CSS/classes;
-- Inspector controls and effective defaults;
-- current typography responsibilities versus shared Text/Typography infrastructure;
-- layout/overflow/size responsibilities;
-- theme defaults and any element-specific styling;
-- Studio preview, Player and Watch parity;
-- current tests and visual regressions.
-
-The audit must identify which refinements belong to:
-
-```text
-existing canonical property
-existing shared typography/layout property
-renderer-only presentation default
-Inspector ergonomics
-```
-
-Do not add a generic typography namespace or new compatibility layer merely because three elements need similar controls.
-
-## Planned checkpoints
-
-```text
-TCL0 — audit Terminal / Code / Table real ownership
-TCL1 — freeze smallest typography/layout responsibility changes
-TCL2 — Terminal + Code refinement
-TCL3 — Table refinement
-TCL4 — shared-renderer regressions + manual visual acceptance when available
-```
-
-Checkpoint boundaries may be reduced further after TCL0 evidence.
+The completed work refined typography and layout through existing canonical
+and shared renderer responsibilities. TCL0–TCL4 are retained only as
+historical planning labels and are not future checkpoints.
 
 ---
 
-# Plot V1 — current state
+# Plot V1 ✅
 
-Plot is the product and developer concept for the restricted mathematical
-plotting surface. Its persisted discriminator intentionally remains
-`type: "plot"`.
+Reference: PR #142.
 
-The canonical element stores a mathematical `source` and optional
-`fitToAxes`. The `@powershow/math-source` package owns tokenization,
-parsing, semantic analysis, bounded evaluation, sampling, and math-space
-geometry. The renderer owns the current 2D SVG projection and axes
-presentation. Studio creates Plot elements and edits their source and
-`fitToAxes` values. Interactive remains a separate element and runtime
-surface.
+Plot V1 is the merged restricted mathematical plotting surface. Its persisted
+discriminator is `type: "plot"`.
+
+The current V1 contract includes:
+
+- mathematical `source` and optional `fitToAxes`;
+- `@powershow/math-source` support for explicit-y, explicit-x and implicit-2d
+  sources;
+- bounded evaluation and a shared 2D renderer;
+- Studio authoring and Player rendering.
+
+The package owns tokenization, parsing, semantic analysis, bounded evaluation,
+sampling and math-space geometry. The renderer owns the 2D SVG projection and
+axes presentation. Interactive remains a separate element and runtime
+surface. Parametric and 3D plotting are future expansion, not incomplete V1
+requirements.
+
+---
+
+# Current-main deterministic Studio test debt
+
+The current main baseline has known deterministic Studio debt in:
+
+- Custom Library editor Apply-button failures;
+- Gallery default alt mismatch;
+- persistence/publish/read expectations around Scripted `ports: []`;
+- Studio test-compilation/typecheck debt in Gallery/tree-panel tests.
+
+The Player full suite currently passes. This note records the maintenance
+work area; it does not diagnose or fix the failures.
 
 ---
 
@@ -462,15 +460,18 @@ P12   UX / Properties refinement                            ✅
        Persistence serialization hardening                  ✅
        Blocks visual authoring                              ✅
        Editor Resource Controls polish                      ✅
-       Scripted controlled interaction (#133)               ✅
-       Player options + remote logs (#134)                  ✅
-       Mobile Library / Control recovery                    ✅
+       Scripted controlled interaction (#133)                 ✅
+       Player options + remote logs (#134)                    ✅
+       Mobile Library / Control recovery                      ✅
+       Terminal / Code / Table refinement (#138–#141)         ✅
+       Plot V1 (#142)                                         ✅
 
 NEXT:
-  Terminal + Code + Table typography/layout refinement — begin with TCL0 audit
+  Current-main Studio test debt closure
 
 THEN:
-  Plot V1 nomenclature closure — complete on feat/chart-math-plotter
+  P13 Production Readiness — next major product/reliability candidate after
+  the deterministic baseline debt is addressed
 
 DEFERRED / FUTURE:
   Embed adjustments
@@ -480,4 +481,4 @@ DEFERRED / FUTURE:
   Audience / Watch expansion
 ```
 
-The next implementation session must begin by completing post-merge local closure, auditing the **real current `main`**, and then performing TCL0 before freezing any new typography/layout contract.
+The next implementation session must begin by completing post-merge local closure and auditing the **real current `main`** before taking on the deterministic Studio test debt.
