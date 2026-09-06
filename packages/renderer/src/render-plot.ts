@@ -10,6 +10,7 @@ import {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 import { renderMathGeometrySvg } from "./render-plot-svg";
 import { renderMathSurfaceGeometrySvg } from "./render-plot-surface-svg";
 
@@ -82,30 +83,37 @@ function deriveAutoFitViewport(geometry: MathGeometryResult): MathViewport2D | u
     : undefined;
 }
 
-function renderPlotLayout(element: PlotElement): string {
+function renderPlotStyle(element: PlotElement): string {
   const layout = element.layout;
-  if (layout === undefined) return "";
-
   const styles: string[] = [];
-  for (const [property, value] of [
-    ["width", layout.width],
-    ["height", layout.height],
-    ["position", layout.position],
-    ["top", layout.top],
-    ["right", layout.right],
-    ["bottom", layout.bottom],
-    ["left", layout.left],
-  ] as const) {
-    if (value !== undefined) {
-      styles.push(`${property}:${property === "position" ? value : renderLength(value)}`);
+  if (layout !== undefined) {
+    for (const [property, value] of [
+      ["width", layout.width],
+      ["height", layout.height],
+      ["position", layout.position],
+      ["top", layout.top],
+      ["right", layout.right],
+      ["bottom", layout.bottom],
+      ["left", layout.left],
+    ] as const) {
+      if (value !== undefined) {
+        styles.push(`${property}:${property === "position" ? value : renderLength(value)}`);
+      }
     }
+  }
+
+  if (element.style?.color !== undefined) {
+    styles.push(`color:${renderColorValue(element.style.color)}`);
+  }
+  if (element.style?.background?.color !== undefined) {
+    styles.push(`background:${renderColorValue(element.style.background.color)}`);
   }
 
   return styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
 }
 
 function renderPlotFallback(element: PlotElement): string {
-  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>[plot]</div>`;
+  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>[plot]</div>`;
 }
 
 function appendGeometry(target: MathGeometryResult, result: MathGeometryResult): void {
@@ -153,7 +161,7 @@ export function renderPlot(element: PlotElement): string {
       );
       const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, { showAxes: element.showAxes !== false });
       if (surfaceSvg !== "") {
-        return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>${surfaceSvg}</div>`;
+        return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${surfaceSvg}</div>`;
       }
     }
   }
@@ -166,5 +174,5 @@ export function renderPlot(element: PlotElement): string {
     : undefined);
   if (svg === "") return renderPlotFallback(element);
 
-  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>${svg}</div>`;
+  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${svg}</div>`;
 }

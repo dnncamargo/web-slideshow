@@ -154,6 +154,37 @@ describe("Plot renderer", () => {
     expect(hidden.match(/<path[^>]* d="([^"]+)"/)?.[1]).toBe(shown.match(/<path[^>]* d="([^"]+)"/)?.[1]);
   });
 
+  it("keeps the default Plot background transparent", () => {
+    const html = renderPlot("y = x");
+
+    expect(html).not.toContain("background:");
+    expect(html).not.toContain("transparent");
+  });
+
+  it("renders literal Plot color and background on the wrapper", () => {
+    const html = renderPlot("y = x", {
+      style: { color: "#ff0000", background: { color: "#112233" } },
+    });
+
+    expect(html).toContain("color:#ff0000;background:#112233");
+    expect(html).toContain("powershow-plot-svg");
+  });
+
+  it("renders palette Plot color through the shared CSS variable", () => {
+    const html = renderPlot("y = x", {
+      style: { color: { kind: "palette", colorId: "accent" } },
+    });
+
+    expect(html).toContain("color:var(--ps-palette-0061006300630065006e0074)");
+  });
+
+  it("applies the same Plot color wrapper to explicit-z output", () => {
+    const html = renderPlot("z = x + y", { style: { color: "#ff0000" } });
+
+    expect(html).toContain("color:#ff0000");
+    expect(html).toContain("powershow-plot-surface-wireframe");
+  });
+
   it("does not leak successful explicit-z source into markup", () => {
     const source = "z = sin(x) * cos(y)";
     const html = renderPlot(source);

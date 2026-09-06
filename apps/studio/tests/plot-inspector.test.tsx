@@ -64,6 +64,20 @@ describe("Plot Inspector", () => {
     if (checkbox.checked !== checked) checkbox.click();
   }
 
+  function changeColor(id: string, value: string): void {
+    const input = host.querySelector<HTMLInputElement>(`#${id}-value`);
+    if (!input) throw new Error(`Plot color input not found: ${id}`);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function removeColor(id: string): void {
+    const input = host.querySelector<HTMLInputElement>(`#${id}-value`);
+    const button = input?.closest("label")?.querySelector("button");
+    if (!(button instanceof HTMLButtonElement)) throw new Error(`Plot color remove button not found: ${id}`);
+    button.click();
+  }
+
   it.each([
     [undefined, true],
     [true, true],
@@ -90,6 +104,8 @@ describe("Plot Inspector", () => {
     expect(details[0]?.textContent).not.toContain("Fit to axes");
     expect(details[1]?.textContent).toContain("Fit to axes");
     expect(details[1]?.textContent).toContain("Show axes");
+    expect(details[1]?.textContent).toContain("Color");
+    expect(details[1]?.textContent).toContain("Background");
   });
 
   it.each([undefined, true, false] as const)("renders showAxes %j as checked", async (showAxes) => {
@@ -130,6 +146,57 @@ describe("Plot Inspector", () => {
 
     await act(async () => changeShowAxes(true));
     expect(current).toEqual({ id: "plot-1", type: "plot", hidden: false, source: "y = x^2", showAxes: true });
+  });
+
+  it("writes Color and Background without disturbing unrelated Plot fields", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x^2",
+      fitToAxes: false,
+      showAxes: false,
+      layout: { width: 320, height: 180 },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => changeColor("plot-color", "#ff0000"));
+    expect(current).toMatchObject({
+      source: "y = x^2",
+      fitToAxes: false,
+      showAxes: false,
+      layout: { width: 320, height: 180 },
+      style: { color: "#ff0000" },
+    });
+    expect(current.style?.background).toBeUndefined();
+
+    await act(async () => changeColor("plot-background", "#112233"));
+    expect(current.style).toEqual({ color: "#ff0000", background: { color: "#112233" } });
+  });
+
+  it("removes Background and cleans up the final Plot style property", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x^2",
+      style: { background: { color: "#112233" } },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => removeColor("plot-background"));
+    expect(current.style).toBeUndefined();
+
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x^2",
+      style: { color: "#ff0000" },
+    };
+    await act(async () => renderInspector());
+    await act(async () => removeColor("plot-color"));
+    expect(current.style).toBeUndefined();
   });
 
   it("edits only canonical source, preserving multiline and empty values", async () => {

@@ -20,6 +20,15 @@ describe("Plot canonical contract", () => {
   });
 
   it.each([
+    { color: "#ff0000" },
+    { color: { kind: "palette", colorId: "accent" } },
+    { background: { color: "#ffffff" } },
+    { color: "#ff0000", background: { color: "#ffffff" } },
+  ])("accepts minimal visual style %j", (style) => {
+    expect(PlotElementSchema.safeParse({ ...plot, style }).success).toBe(true);
+  });
+
+  it.each([
     plot,
     { ...plot, source: "y = x^2" },
     { ...plot, layout: { width: 640, height: 360 } },
@@ -32,6 +41,11 @@ describe("Plot canonical contract", () => {
     { ...plot, unknown: true },
     { ...plot, fitToAxes: "true" },
     { ...plot, showAxes: "true" },
+    { ...plot, style: { gradient: {} } },
+    { ...plot, style: { border: {} } },
+    { ...plot, style: { lineWidth: 2 } },
+    { ...plot, style: { unknown: true } },
+    { ...plot, style: { background: { border: {} } } },
   ])("rejects non-canonical input %j", (input) => {
     expect(PlotElementSchema.safeParse(input).success).toBe(false);
   });
@@ -73,7 +87,6 @@ describe.each([
     { layout: { padding: 1 } },
     { layout: { margin: 1 } },
     { layout: { overflow: "hidden" } },
-    { style: {} },
     { typography: {} },
     { effect: {} },
     { link: {} },
@@ -83,5 +96,9 @@ describe.each([
     { unknown: true },
   ])("rejects non-canonical field %j", (extra) => {
     expect(schema.safeParse({ ...minimum, ...extra }).success).toBe(false);
+  });
+
+  it("rejects an empty style object for Interactive", () => {
+    expect(InteractiveElementSchema.safeParse({ ...interactive, style: {} }).success).toBe(false);
   });
 });

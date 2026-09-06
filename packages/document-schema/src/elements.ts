@@ -25,6 +25,7 @@ import {
   ImageVisualStyleSchema,
   ResizablePositionedLayoutSchema,
   SurfaceVisualStyleSchema,
+  PlotVisualStyleSchema,
   GradientSurfaceVisualStyleSchema,
   CodeVisualStyleSchema,
   TerminalVisualStyleSchema,
@@ -271,6 +272,7 @@ export const PlotElementSchema =
     source: z.string().max(4096),
     fitToAxes: z.boolean().optional(),
     showAxes: z.boolean().optional(),
+    style: PlotVisualStyleSchema.optional(),
   }).strict();
 
 export type PlotElement =
