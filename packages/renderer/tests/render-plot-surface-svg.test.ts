@@ -106,11 +106,34 @@ describe("renderMathSurfaceGeometrySvg", () => {
     expect(renderMathSurfaceGeometrySvg(value)).toBe(renderMathSurfaceGeometrySvg(value));
   });
 
+  it("renders deterministic projected x/y/z axes and labels by default", () => {
+    const value = geometry(plane((x, y) => x + y));
+    const svg = renderMathSurfaceGeometrySvg(value);
+
+    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-x"');
+    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-y"');
+    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-z"');
+    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-x"');
+    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-y"');
+    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-z"');
+    expect(svg).toContain("powershow-plot-surface-wireframe");
+    expect(svg).not.toMatch(/NaN|Infinity/);
+    expect(svg).toBe(renderMathSurfaceGeometrySvg(value));
+  });
+
+  it("hides axes while preserving the surface wireframe", () => {
+    const svg = renderMathSurfaceGeometrySvg(geometry(plane((x, y) => x + y)), { showAxes: false });
+
+    expect(svg).toContain("powershow-plot-surface-wireframe");
+    expect(svg).not.toContain("powershow-plot-axis");
+    expect(svg).not.toContain("powershow-plot-axis-label");
+  });
+
   it("uses finite non-degenerate padded bounds for a flat surface", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry([
       [{ x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 2 }],
       [{ x: 0, y: 1, z: 2 }, { x: 1, y: 1, z: 2 }],
-    ]));
+    ]), { showAxes: false });
     const [width, height] = viewBox(svg);
     expect(width).toBeGreaterThan(0);
     expect(height).toBeGreaterThan(0);
@@ -144,7 +167,7 @@ describe("renderMathSurfaceGeometrySvg", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry([
       [{ x: 0, y: 0, z: 0 }, { x: Number.NaN, y: 1, z: 0 }, { x: 1, y: 0, z: 0 }],
       [{ x: 0, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 1, z: Number.POSITIVE_INFINITY }],
-    ]));
+    ]), { showAxes: false });
 
     expect(svg).toContain("powershow-plot-svg");
     expect(svg).toContain("powershow-plot-surface-svg");

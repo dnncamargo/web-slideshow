@@ -11,7 +11,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-describe("Plot source Inspector", () => {
+describe("Plot Inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
   let current: PlotElement;
@@ -58,6 +58,12 @@ describe("Plot source Inspector", () => {
     }
   }
 
+  function changeShowAxes(checked: boolean): void {
+    const checkbox = host.querySelector<HTMLInputElement>("#plot-show-axes");
+    if (!checkbox) throw new Error("Plot show-axes checkbox not found");
+    if (checkbox.checked !== checked) checkbox.click();
+  }
+
   it.each([
     [undefined, true],
     [true, true],
@@ -76,6 +82,30 @@ describe("Plot source Inspector", () => {
     expect(host.querySelector<HTMLInputElement>("#plot-fit-to-axes")?.checked).toBe(checked);
   });
 
+  it("keeps Source in Content and exposes both controls in Appearance", async () => {
+    await act(async () => renderInspector());
+
+    const details = [...host.querySelectorAll("details")];
+    expect(details[0]?.textContent).toContain("Source");
+    expect(details[0]?.textContent).not.toContain("Fit to axes");
+    expect(details[1]?.textContent).toContain("Fit to axes");
+    expect(details[1]?.textContent).toContain("Show axes");
+  });
+
+  it.each([undefined, true, false] as const)("renders showAxes %j as checked", async (showAxes) => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x^2",
+      ...(showAxes === undefined ? {} : { showAxes }),
+    };
+
+    await act(async () => renderInspector());
+
+    expect(host.querySelector<HTMLInputElement>("#plot-show-axes")?.checked).toBe(showAxes !== false);
+  });
+
   it("toggles fitToAxes without changing source", async () => {
     await act(async () => renderInspector());
 
@@ -90,6 +120,16 @@ describe("Plot source Inspector", () => {
 
     await act(async () => changeSource("y = sin(x)"));
     expect(current.fitToAxes).toBe(true);
+  });
+
+  it("toggles showAxes without changing fitToAxes or source", async () => {
+    await act(async () => renderInspector());
+
+    await act(async () => changeShowAxes(false));
+    expect(current).toEqual({ id: "plot-1", type: "plot", hidden: false, source: "y = x^2", showAxes: false });
+
+    await act(async () => changeShowAxes(true));
+    expect(current).toEqual({ id: "plot-1", type: "plot", hidden: false, source: "y = x^2", showAxes: true });
   });
 
   it("edits only canonical source, preserving multiline and empty values", async () => {

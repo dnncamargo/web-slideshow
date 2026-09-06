@@ -101,6 +101,18 @@ describe("renderMathGeometrySvg", () => {
     expect(svg).not.toContain("<text");
   });
 
+  it("hides axes and labels without changing the curve path", () => {
+    const geometryValue = geometry([
+      [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+    ]);
+    const shown = renderMathGeometrySvg(geometryValue, squareViewport, { x: "x", y: "y" });
+    const hidden = renderMathGeometrySvg(geometryValue, squareViewport, { x: "x", y: "y", showAxes: false });
+
+    expect(hidden).not.toContain("powershow-plot-axis");
+    expect(hidden).not.toContain("<text");
+    expect(hidden.match(/ d="([^"]+)"/)?.[1]).toBe(shown.match(/ d="([^"]+)"/)?.[1]);
+  });
+
   it("returns empty SVG for empty geometry", () => {
     expect(renderMathGeometrySvg(geometry([]), squareViewport)).toBe("");
   });

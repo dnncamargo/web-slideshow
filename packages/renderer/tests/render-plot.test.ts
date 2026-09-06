@@ -129,6 +129,31 @@ describe("Plot renderer", () => {
     expect(html).not.toContain("[plot]");
   });
 
+  it.each([undefined, true] as const)("shows explicit-z axes by default or when showAxes=%s", (showAxes) => {
+    const html = renderPlot("z = x + y", showAxes === undefined ? {} : { showAxes });
+
+    expect(html).toContain("powershow-plot-surface-wireframe");
+    expect(html).toContain("powershow-plot-axis-x");
+    expect(html).toContain("powershow-plot-axis-y");
+    expect(html).toContain("powershow-plot-axis-z");
+  });
+
+  it("hides explicit-z axes without hiding the surface", () => {
+    const html = renderPlot("z = x + y", { showAxes: false });
+
+    expect(html).toContain("powershow-plot-surface-wireframe");
+    expect(html).not.toContain("powershow-plot-axis");
+  });
+
+  it("hides 2D axes without changing the rendered curve", () => {
+    const shown = renderPlot("y = x", { fitToAxes: false });
+    const hidden = renderPlot("y = x", { fitToAxes: false, showAxes: false });
+
+    expect(shown).toContain("powershow-plot-axis");
+    expect(hidden).not.toContain("powershow-plot-axis");
+    expect(hidden.match(/<path[^>]* d="([^"]+)"/)?.[1]).toBe(shown.match(/<path[^>]* d="([^"]+)"/)?.[1]);
+  });
+
   it("does not leak successful explicit-z source into markup", () => {
     const source = "z = sin(x) * cos(y)";
     const html = renderPlot(source);

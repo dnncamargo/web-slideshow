@@ -270,6 +270,7 @@ export const PlotElementSchema =
 
     source: z.string().max(4096),
     fitToAxes: z.boolean().optional(),
+    showAxes: z.boolean().optional(),
   }).strict();
 
 export type PlotElement =

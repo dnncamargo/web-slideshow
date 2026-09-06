@@ -15,6 +15,10 @@ describe("Plot canonical contract", () => {
     expect(PlotElementSchema.safeParse({ ...plot, fitToAxes }).success).toBe(true);
   });
 
+  it.each([true, false])("accepts showAxes: %j", (showAxes) => {
+    expect(PlotElementSchema.safeParse({ ...plot, showAxes }).success).toBe(true);
+  });
+
   it.each([
     plot,
     { ...plot, source: "y = x^2" },
@@ -27,6 +31,7 @@ describe("Plot canonical contract", () => {
     { ...plot, source: "x".repeat(4097) },
     { ...plot, unknown: true },
     { ...plot, fitToAxes: "true" },
+    { ...plot, showAxes: "true" },
   ])("rejects non-canonical input %j", (input) => {
     expect(PlotElementSchema.safeParse(input).success).toBe(false);
   });

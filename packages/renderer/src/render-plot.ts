@@ -151,7 +151,7 @@ export function renderPlot(element: PlotElement): string {
         explicitSurfaceEquations[0]!,
         PLOT_WORKING_VIEWPORT,
       );
-      const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry);
+      const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, { showAxes: element.showAxes !== false });
       if (surfaceSvg !== "") {
         return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>${surfaceSvg}</div>`;
       }
@@ -162,7 +162,7 @@ export function renderPlot(element: PlotElement): string {
     ? deriveAutoFitViewport(geometry) ?? PLOT_WORKING_VIEWPORT
     : PLOT_WORKING_VIEWPORT;
   const svg = renderMathGeometrySvg(geometry, displayViewport, renderedEquationCount > 0
-    ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y" }
+    ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y", showAxes: element.showAxes !== false }
     : undefined);
   if (svg === "") return renderPlotFallback(element);
 

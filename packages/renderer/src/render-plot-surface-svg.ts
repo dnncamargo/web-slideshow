@@ -15,6 +15,21 @@ interface ProjectedBounds {
   maxV: number;
 }
 
+interface SurfaceBounds {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  zMin: number;
+  zMax: number;
+}
+
+interface ProjectedAxis {
+  name: "x" | "y" | "z";
+  start: ProjectedPoint;
+  end: ProjectedPoint;
+}
+
 const PADDING_RATIO = 0.08;
 const MIN_DEGENERATE_SPAN = 0.000001;
 
@@ -48,6 +63,7 @@ function projectRows(
 
 function collectBounds(
   rows: Array<Array<ProjectedPoint | null>>,
+  extraPoints: ProjectedPoint[] = [],
 ): ProjectedBounds | undefined {
   let bounds: ProjectedBounds | undefined;
   for (const row of rows) {
@@ -63,7 +79,65 @@ function collectBounds(
       bounds.maxV = Math.max(bounds.maxV, point.v);
     }
   }
+  for (const point of extraPoints) {
+    if (bounds === undefined) {
+      bounds = { minU: point.u, maxU: point.u, minV: point.v, maxV: point.v };
+      continue;
+    }
+    bounds.minU = Math.min(bounds.minU, point.u);
+    bounds.maxU = Math.max(bounds.maxU, point.u);
+    bounds.minV = Math.min(bounds.minV, point.v);
+    bounds.maxV = Math.max(bounds.maxV, point.v);
+  }
   return bounds;
+}
+
+function collectSurfaceBounds(
+  geometry: MathSurfaceGeometryResult,
+): SurfaceBounds | undefined {
+  let bounds: SurfaceBounds | undefined;
+  for (const row of geometry.rows) {
+    for (const point of row) {
+      if (!isFinitePoint(point)) continue;
+      if (bounds === undefined) {
+        bounds = { xMin: point.x, xMax: point.x, yMin: point.y, yMax: point.y, zMin: point.z, zMax: point.z };
+        continue;
+      }
+      bounds.xMin = Math.min(bounds.xMin, point.x);
+      bounds.xMax = Math.max(bounds.xMax, point.x);
+      bounds.yMin = Math.min(bounds.yMin, point.y);
+      bounds.yMax = Math.max(bounds.yMax, point.y);
+      bounds.zMin = Math.min(bounds.zMin, point.z);
+      bounds.zMax = Math.max(bounds.zMax, point.z);
+    }
+  }
+  return bounds;
+}
+
+function usableRange(min: number, max: number): [number, number] {
+  if (min < max) return [min, max];
+  if (min === 0) return [-1, 1];
+  const delta = Math.max(Math.abs(min) * 0.1, MIN_DEGENERATE_SPAN);
+  return [min - delta, max + delta];
+}
+
+function createAxes(geometry: MathSurfaceGeometryResult): ProjectedAxis[] {
+  const bounds = collectSurfaceBounds(geometry);
+  if (bounds === undefined) return [];
+
+  const [xMin, xMax] = usableRange(bounds.xMin, bounds.xMax);
+  const [yMin, yMax] = usableRange(bounds.yMin, bounds.yMax);
+  const [zMin, zMax] = usableRange(Math.min(0, bounds.zMin), Math.max(0, bounds.zMax));
+  const axes = [
+    { name: "x" as const, start: { x: xMin, y: 0, z: 0 }, end: { x: xMax, y: 0, z: 0 } },
+    { name: "y" as const, start: { x: 0, y: yMin, z: 0 }, end: { x: 0, y: yMax, z: 0 } },
+    { name: "z" as const, start: { x: 0, y: 0, z: zMin }, end: { x: 0, y: 0, z: zMax } },
+  ];
+  return axes.flatMap((axis) => {
+    const start = project(axis.start);
+    const end = project(axis.end);
+    return start !== null && end !== null ? [{ name: axis.name, start, end }] : [];
+  });
 }
 
 function paddedAxis(min: number, max: number): [number, number] | undefined {
@@ -156,9 +230,12 @@ function appendColumnRuns(
 /** Projects a structured 3D surface into a deterministic SVG wireframe. */
 export function renderMathSurfaceGeometrySvg(
   geometry: MathSurfaceGeometryResult,
+  options: { showAxes?: boolean } = {},
 ): string {
   const rows = projectRows(geometry);
-  const bounds = collectBounds(rows);
+  const axes = options.showAxes === false ? [] : createAxes(geometry);
+  const axisPoints = axes.flatMap((axis) => [axis.start, axis.end]);
+  const bounds = collectBounds(rows, axisPoints);
   if (bounds === undefined) return "";
 
   const u = paddedAxis(bounds.minU, bounds.maxU);
@@ -175,5 +252,13 @@ export function renderMathSurfaceGeometrySvg(
   appendColumnRuns(subpaths, rows, projectionBounds);
   if (subpaths.length === 0) return "";
 
-  return `<svg class="powershow-plot-svg powershow-plot-surface-svg" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false"><path class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
+  const axisMarkup = axes.map((axis) => {
+    const x1 = axis.start.u - bounds.minU;
+    const y1 = bounds.maxV - axis.start.v;
+    const x2 = axis.end.u - bounds.minU;
+    const y2 = bounds.maxV - axis.end.v;
+    return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}" stroke-width="1" vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2">${axis.name}</text>`;
+  }).join("");
+
+  return `<svg class="powershow-plot-svg powershow-plot-surface-svg" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axisMarkup}<path class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
 }

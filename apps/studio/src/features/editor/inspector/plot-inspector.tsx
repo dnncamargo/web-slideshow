@@ -46,6 +46,9 @@ export function PlotInspector({
           />
         </label>
 
+      </InspectorSection>
+
+      <InspectorSection title={t("inspector.appearance")} defaultOpen>
         <label className={styles.checkboxRow}>
           <input
             id="plot-fit-to-axes"
@@ -53,19 +56,27 @@ export function PlotInspector({
             type="checkbox"
             checked={element.fitToAxes !== false}
             onChange={(event) => {
-              onUpdate((current) => {
-                if (current.type !== "plot") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-                  fitToAxes: event.target.checked,
-                };
-              });
+              onUpdate((current) => current.type === "plot"
+                ? { ...current, fitToAxes: event.target.checked }
+                : current);
             }}
           />
           <span>{t("inspector.fitToAxes")}</span>
+        </label>
+
+        <label className={styles.checkboxRow}>
+          <input
+            id="plot-show-axes"
+            name="plotShowAxes"
+            type="checkbox"
+            checked={element.showAxes !== false}
+            onChange={(event) => {
+              onUpdate((current) => current.type === "plot"
+                ? { ...current, showAxes: event.target.checked }
+                : current);
+            }}
+          />
+          <span>{t("inspector.showAxes")}</span>
         </label>
       </InspectorSection>
     </>
