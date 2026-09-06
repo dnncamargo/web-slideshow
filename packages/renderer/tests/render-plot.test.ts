@@ -129,6 +129,16 @@ describe("Plot renderer", () => {
     expect(html).not.toContain("[plot]");
   });
 
+  it("does not leak successful explicit-z source into markup", () => {
+    const source = "z = sin(x) * cos(y)";
+    const html = renderPlot(source);
+
+    expect(html).toContain("powershow-plot-surface-svg");
+    expect(html).not.toContain(source);
+    expect(html).not.toContain("sin(x)");
+    expect(html).not.toContain("cos(y)");
+  });
+
   it.each(["z = x + y", "z = 2"])("renders explicit-z surface %s", (source) => {
     expect(renderPlot(source)).toContain("powershow-plot-surface-svg");
   });
