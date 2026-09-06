@@ -19,8 +19,8 @@ describe("canonical canvas resize helpers", () => {
     expect(getCanvasResizeDeltas("nw", 20, 10)).toEqual({ width: -20, height: -10, offsetX: 20, offsetY: 10 });
   });
 
-  it("keeps unsupported semantic elements non-resizable", () => {
-    expect(isCanvasResizable({ type: "plot", id: "plot", hidden: false, source: "" })).toBe(false);
+  it("classifies Plot as resizable while keeping unsupported semantic elements non-resizable", () => {
+    expect(isCanvasResizable({ type: "plot", id: "plot", hidden: false, source: "" })).toBe(true);
     expect(isCanvasResizable({ type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: {} })).toBe(false);
   });
 

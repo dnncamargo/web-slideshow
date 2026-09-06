@@ -1849,7 +1849,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks") {
+    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks" || selectedDocumentElement.type === "plot") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -2062,12 +2062,12 @@ export function EditorWorkspace({
                       ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
-                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
+                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "plot") {
                     return resize.canonicalTextResizeGeometry
                       ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
-                  if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") return element;
+                  if (element.type === "divider" || element.type === "topics" || element.type === "interactive") return element;
                   return element;
                 },
               ),
