@@ -30,6 +30,7 @@ import type {
 } from "./inspector/inspector-types";
 import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
+import { CanonicalElementSizeSection } from "./inspector/sections/canonical-element-size-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 
 interface ElementInspectorProps {
@@ -324,6 +325,17 @@ export function ElementInspector({
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}
       />
+
+      {element.type === "plot" && (
+        <CanonicalElementSizeSection
+          layout={element.layout}
+          onUpdateLayout={(update) => {
+            onUpdate((current) => current.type === "plot"
+              ? { ...current, layout: update(current.layout) }
+              : current);
+          }}
+        />
+      )}
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (
         element.type === "image" || element.type === "gallery" || element.type === "embed" || element.type === "scripted" || element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive" ? (
