@@ -132,13 +132,16 @@ describe("Plot animation runtime", () => {
   });
 
   it("refreshes render-affecting canonical data without restarting", () => {
-    const initial = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const initial: PlotElement = {
+      ...plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 }),
+      showAxes: true,
+    };
     const plotNode = node(initial);
     const root = new FakeRoot([plotNode]);
     hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([initial]) } });
     runNextFrame(100);
 
-    const updated: PlotElement = { ...initial, showAxes: true };
+    const updated: PlotElement = { ...initial, showAxes: false };
     hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([updated]) } });
     runNextFrame(600);
 
@@ -146,7 +149,27 @@ describe("Plot animation runtime", () => {
     expect(expected).not.toBeNull();
     expect(plotNode.className).toBe(`powershow-element ${expected?.className}`);
     expect(plotNode.innerHTML).toBe(expected?.content);
-    expect(plotNode.innerHTML).toContain("powershow-plot-axis");
+    expect(plotNode.innerHTML).not.toContain("powershow-plot-axis");
+    expect(requestFrame).toHaveBeenCalledTimes(3);
+  });
+
+  it("restarts a same-node Plot when its animation configuration changes", () => {
+    const initial = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000, loop: false });
+    const plotNode = node(initial);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([initial]) } });
+    runNextFrame(100);
+
+    const updated = plot("plot-1", { parameter: "t", from: 50, to: 60, durationMs: 1000, loop: false });
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([updated]) } });
+    runNextFrame(600);
+
+    const expected = renderPlotFrame(updated, { bindings: { t: 50 } });
+    const continuedOldTimeline = renderPlotFrame(updated, { bindings: { t: 55 } });
+    expect(expected).not.toBeNull();
+    expect(plotNode.innerHTML).toBe(expected?.content);
+    expect(plotNode.innerHTML).not.toBe(continuedOldTimeline?.content);
+    expect(callbacks.size).toBe(1);
     expect(requestFrame).toHaveBeenCalledTimes(3);
   });
 
