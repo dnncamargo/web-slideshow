@@ -1,3 +1,9 @@
+import { onValue, ref, type Database } from "firebase/database";
+
+import type { Presentation } from "@powershow/document-schema";
+
+import type { PlayerController } from "./player";
+
 export const PLOT_ANIMATION_ACTION_ROOT_PATH = "live/plotAnimationAction";
 
 export type PlotAnimationAction = "play" | "pause" | "reset";
@@ -10,6 +16,37 @@ export interface LivePlotAnimationActionRecord {
   elementId: string;
   targetBootId: string;
   action: PlotAnimationAction;
+}
+
+export interface PlotAnimationActionTracker {
+  prepareBoot(targetBootId: string): void;
+  takeIfNew(plotSlot: number, record: LivePlotAnimationActionRecord): boolean;
+}
+
+export function createLivePlotAnimationActionTracker(): PlotAnimationActionTracker {
+  let bootId: string | undefined;
+  const cursors = new Map<number, { identityKey: string; revision: number }>();
+  return {
+    prepareBoot(targetBootId): void {
+      if (bootId === targetBootId) return;
+      bootId = targetBootId;
+      cursors.clear();
+    },
+    takeIfNew(plotSlot, record): boolean {
+      const identityKey = JSON.stringify([
+        record.activationRevision, record.currentVersionId, record.pageId,
+        record.elementId, record.targetBootId,
+      ]);
+      const cursor = cursors.get(plotSlot);
+      if (cursor === undefined || cursor.identityKey !== identityKey) {
+        cursors.set(plotSlot, { identityKey, revision: record.revision });
+        return true;
+      }
+      if (record.revision <= cursor.revision) return false;
+      cursor.revision = record.revision;
+      return true;
+    },
+  };
 }
 
 function isNonNegativeInteger(value: unknown): value is number {
@@ -42,4 +79,37 @@ export function parseLivePlotAnimationActionRecord(value: unknown): LivePlotAnim
     targetBootId: record.targetBootId.trim(),
     action: record.action,
   };
+}
+
+function numericEntries(value: unknown): Array<[string, unknown]> {
+  return value !== null && typeof value === "object" ? Object.entries(value) : [];
+}
+
+/** Consumes Plot action occurrences without replaying revision gaps. */
+export function subscribeLivePlotAnimationAction(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  targetBootId: string,
+  presentation: Presentation,
+  controller: PlayerController,
+  tracker: PlotAnimationActionTracker,
+): () => void {
+  tracker.prepareBoot(targetBootId);
+  const unsubscribe = onValue(ref(database, PLOT_ANIMATION_ACTION_ROOT_PATH), (snapshot) => {
+    for (const [slotKey, value] of numericEntries(snapshot.val())) {
+      const plotSlot = parsePlotAnimationActionIndex(slotKey);
+      const record = parseLivePlotAnimationActionRecord(value);
+      if (plotSlot === null || record === null ||
+        record.activationRevision !== activationRevision ||
+        record.currentVersionId !== currentVersionId ||
+        record.targetBootId !== targetBootId ||
+        !tracker.takeIfNew(plotSlot, record)) continue;
+
+      const currentSlide = presentation.slides[controller.getCurrentIndex()];
+      if (currentSlide?.id !== record.pageId) continue;
+      controller.controlPlotAnimation(record.elementId, record.action);
+    }
+  });
+  return () => unsubscribe();
 }

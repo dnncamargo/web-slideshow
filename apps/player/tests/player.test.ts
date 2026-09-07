@@ -85,6 +85,18 @@ describe("PowerShow Player", () => {
     player.setGalleryExpanded("gallery-player", false);
     expect(root.querySelector(".powershow-player-gallery-expanded")).toBeNull();
   });
+
+  it("exposes narrow Plot animation control through the Player façade", () => {
+    player.destroy();
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "player-plot", title: "Player Plot", description: "", aspectRatio: "16:9",
+      slides: [{ id: "slide", elements: [{ id: "plot-player", type: "plot", hidden: false, source: "y = x + t", animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 } }] }],
+    });
+    player = mountPlayer(root, presentation, { transition: "none" });
+    expect(() => player.controlPlotAnimation("plot-player", "pause")).not.toThrow();
+    expect(() => player.controlPlotAnimation("plot-player", "reset")).not.toThrow();
+    expect(() => player.controlPlotAnimation("missing", "play")).not.toThrow();
+  });
   it("fits a 16:9 logical surface into a 1920x1080 viewport", () => {
     player.destroy();
     setViewport(1920, 1080);
