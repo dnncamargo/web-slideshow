@@ -30,6 +30,63 @@ describe("renderEmbed", () => {
     expect(renderEmbed(embed())).toContain("<iframe");
   });
 
+  it("preserves ordinary iframe rendering when viewport is absent", () => {
+    const html = renderEmbed(embed());
+
+    expect(html.startsWith("<iframe")).toBe(true);
+    expect(html).not.toContain("overflow:hidden");
+    expect(html).toContain('data-powershow-id="embed-1"');
+  });
+
+  it("renders a PowerShow-owned clipped viewport when authored", () => {
+    const html = renderEmbed(embed({ viewport: { zoom: 0.75 } }));
+
+    expect(html.startsWith('<div class="powershow-element powershow-embed"')).toBe(true);
+    expect(html).toContain("overflow:hidden");
+    expect(html).toContain('data-powershow-id="embed-1"');
+    expect(html).toContain('<iframe src="https://example.com/"');
+    expect(html).not.toContain('data-powershow-id="embed-1" src=');
+  });
+
+  it("uses reciprocal internal dimensions for zoom below one", () => {
+    const html = renderEmbed(embed({ viewport: { zoom: 0.75 } }));
+
+    expect(html).toContain("width:calc(133.333333% + 0px)");
+    expect(html).toContain("height:calc(133.333333% + 0px)");
+    expect(html).toContain("transform:scale(0.75)");
+    expect(html).toContain("transform-origin:top left");
+  });
+
+  it("offsets the internal page by top and left insets", () => {
+    const html = renderEmbed(embed({ viewport: { top: 12, left: 24 } }));
+
+    expect(html).toContain("left:-24px");
+    expect(html).toContain("top:-12px");
+  });
+
+  it("extends internal dimensions for right and bottom insets", () => {
+    const html = renderEmbed(embed({ viewport: { right: 30, bottom: 40 } }));
+
+    expect(html).toContain("width:calc(100% + 30px)");
+    expect(html).toContain("height:calc(100% + 40px)");
+  });
+
+  it("composes all viewport values deterministically", () => {
+    const html = renderEmbed(embed({ viewport: {
+      zoom: 1.5,
+      top: 10,
+      right: 20,
+      bottom: 30,
+      left: 40,
+    } }));
+
+    expect(html).toContain("width:calc(66.666667% + 60px)");
+    expect(html).toContain("height:calc(66.666667% + 40px)");
+    expect(html).toContain("left:-40px");
+    expect(html).toContain("top:-10px");
+    expect(html).toContain("transform:scale(1.5)");
+  });
+
   it("renders the powershow-element class", () => {
     expect(renderEmbed(embed())).toContain("powershow-element");
   });
@@ -174,7 +231,16 @@ describe("renderEmbed", () => {
     expect(element.src).toBe("https://www.youtube.com/watch?v=video-id&start=30");
   });
 
-    it("applies canonical surface namespaces", () => {
+  it("does not mutate the authored viewport", () => {
+    const viewport = { zoom: 0.75, top: 12, right: 20, bottom: 8, left: 24 };
+    const element = embed({ viewport });
+
+    renderEmbed(element);
+
+    expect(element.viewport).toEqual(viewport);
+  });
+
+  it("applies canonical surface namespaces", () => {
     const html = renderEmbed(
       embed({
         layout: {
@@ -208,6 +274,31 @@ describe("renderEmbed", () => {
     expect(html).toContain("opacity:0.9");
 
     expect(html).toContain("box-shadow:");
+  });
+
+  it("keeps canonical layout and effects on the outer viewport box", () => {
+    const html = renderEmbed(embed({
+      viewport: { zoom: 0.75 },
+      layout: { width: 640, height: 360, position: "absolute", top: 10, right: 20, bottom: 30, left: 40 },
+      style: { background: { color: "#0f172a" }, borderRadius: 8 },
+      effect: { opacity: 0.9 },
+    }));
+
+    const outerEnd = html.indexOf(">", html.indexOf("<div"));
+    const outerStyle = html.slice(html.indexOf('style="') + 7, html.indexOf('"', html.indexOf('style="') + 7));
+    const iframeStyle = html.slice(html.indexOf('style="', outerEnd) + 7, html.indexOf('"', html.indexOf('style="', outerEnd) + 7));
+
+    expect(outerStyle).toContain("width:640px");
+    expect(outerStyle).toContain("position:absolute");
+    expect(outerStyle).toContain("top:10px");
+    expect(outerStyle).toContain("right:20px");
+    expect(outerStyle).toContain("bottom:30px");
+    expect(outerStyle).toContain("left:40px");
+    expect(outerStyle).toContain("background:#0f172a");
+    expect(outerStyle).toContain("border-radius:8px");
+    expect(outerStyle).toContain("opacity:0.9");
+    expect(iframeStyle).not.toContain("width:640px");
+    expect(iframeStyle).toContain("transform:scale(0.75)");
   });
 
   it("preserves the authored custom className", () => {

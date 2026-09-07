@@ -29,6 +29,35 @@ const EMBED_ALLOW = "fullscreen";
 // cross-origin.
 const EMBED_REFERRERPOLICY = "strict-origin-when-cross-origin";
 
+function renderViewportNumber(value: number): string {
+  return Number(value.toFixed(6)).toString();
+}
+
+function renderEmbedViewport(element: EmbedElement): string {
+  const viewport = element.viewport;
+  if (!viewport) {
+    return "";
+  }
+
+  const zoom = viewport.zoom ?? 1;
+  const top = viewport.top ?? 0;
+  const right = viewport.right ?? 0;
+  const bottom = viewport.bottom ?? 0;
+  const left = viewport.left ?? 0;
+  const reciprocalZoom = renderViewportNumber(100 / zoom);
+
+  return [
+    "display:block",
+    "position:absolute",
+    `width:calc(${reciprocalZoom}% + ${renderViewportNumber(left + right)}px)`,
+    `height:calc(${reciprocalZoom}% + ${renderViewportNumber(top + bottom)}px)`,
+    `left:-${renderViewportNumber(left)}px`,
+    `top:-${renderViewportNumber(top)}px`,
+    `transform:scale(${renderViewportNumber(zoom)})`,
+    "transform-origin:top left",
+  ].join(";");
+}
+
 const YOUTUBE_HOSTS = new Set([
   "youtube.com",
   "www.youtube.com",
@@ -115,18 +144,37 @@ export function renderEmbed(
     styles.push("border:0");
   }
 
-  return (
+  const iframe = (
     `<iframe` +
-    ` class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="embed"` +
+    (element.viewport
+      ? ""
+      : ` class="${escapeHtml(classes.join(" "))}"` +
+        ` data-powershow-id="${escapeHtml(element.id)}"` +
+        ` data-powershow-type="embed"`) +
     ` src="${escapeHtml(resolveEmbedSrc(element.src))}"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${EMBED_SANDBOX}"` +
     ` allow="${EMBED_ALLOW}"` +
     ` referrerpolicy="${EMBED_REFERRERPOLICY}"` +
     ` loading="lazy"` +
-    ` style="${escapeHtml(styles.join(";"))}"` +
+    ` style="${escapeHtml(element.viewport ? renderEmbedViewport(element) : styles.join(";"))}"` +
     `></iframe>`
+  );
+
+  if (!element.viewport) {
+    return iframe;
+  }
+
+  return (
+    `<div class="${escapeHtml(classes.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
+    ` data-powershow-type="embed"` +
+    ` style="${escapeHtml([
+      ...styles,
+      ...(element.layout?.position === undefined ? ["position:relative"] : []),
+      "overflow:hidden",
+    ].join(";"))}">` +
+    iframe +
+    `</div>`
   );
 }
