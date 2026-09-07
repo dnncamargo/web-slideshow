@@ -49,6 +49,16 @@ describe("Plot renderer", () => {
     expect(transient).not.toContain("y = x + t");
   });
 
+  it("merges transient bindings with the animation initial binding", () => {
+    const element = plot("y = x + t + a", {
+      animation: { parameter: "t", from: 2, to: 4, durationMs: 1000 },
+    });
+    const html = renderPlotWithOptions(element, { bindings: { a: 3 } });
+
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).not.toContain("[plot]");
+  });
+
   it("applies the same transient binding to multiple 2D equations", () => {
     const element = plot("y = x + t\ny = x + 2*t");
     const html = renderPlotWithOptions(element, { bindings: { t: 3 } });
@@ -67,6 +77,26 @@ describe("Plot renderer", () => {
     expect(initial).toContain("powershow-plot-surface-svg");
     expect(transient).toContain("powershow-plot-surface-svg");
     expect(transient).not.toBe(initial);
+  });
+
+  it("applies bindings to implicit 2D geometry", () => {
+    const element = plot("x^2 + y^2 = t", {
+      animation: { parameter: "t", from: 4, to: 9, durationMs: 1000 },
+    });
+    const html = renderPlotWithOptions(element);
+
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).not.toContain("[plot]");
+  });
+
+  it("applies bindings to explicit-x geometry", () => {
+    const element = plot("x = y + t", {
+      animation: { parameter: "t", from: 2, to: 4, durationMs: 1000 },
+    });
+    const html = renderPlotWithOptions(element);
+
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).not.toContain("[plot]");
   });
 
   it.each([

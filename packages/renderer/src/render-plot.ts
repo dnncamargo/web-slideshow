@@ -128,9 +128,10 @@ function appendGeometry(target: MathGeometryResult, result: MathGeometryResult):
 export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}): string {
   if (element.hidden) return "";
 
-  const bindings = options.bindings ?? (element.animation === undefined
+  const initialBindings = element.animation === undefined
     ? {}
-    : { [element.animation.parameter]: element.animation.from });
+    : { [element.animation.parameter]: element.animation.from };
+  const bindings = { ...initialBindings, ...options.bindings };
   const geometry: MathGeometryResult = { segments: [], diagnostics: [] };
   const analysis = analyzeMathSource(element.source);
   let renderedEquationCount = 0;

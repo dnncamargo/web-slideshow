@@ -262,11 +262,13 @@ export const TerminalElementSchema =
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
+const PLOT_ANIMATION_RESERVED_PARAMETERS = new Set(["x", "y", "z", "pi", "e"]);
+
 const PlotAnimationParameterSchema = z.string()
   .regex(/^[A-Za-z][A-Za-z0-9_]*$/, "Plot animation parameter must be a valid identifier.")
   .refine(
-    (parameter) => !new Set(["x", "y", "z", "pi", "e", "sin", "cos", "tan", "sqrt", "abs", "log", "exp"]).has(parameter),
-    "Plot animation parameter must not be a coordinate, constant, or built-in function.",
+    (parameter) => !PLOT_ANIMATION_RESERVED_PARAMETERS.has(parameter),
+    "Plot animation parameter must not be a coordinate or constant.",
   );
 
 export const PlotAnimationSchema = z.object({

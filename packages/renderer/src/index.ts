@@ -5,7 +5,6 @@ export * from "./render-content-slot";
 export * from "./render-background-pattern";
 export * from "./render-visual";
 export * from "./render-element";
-export * from "./render-plot";
 export * from "./render-topics";
 export * from "./render-gallery";
 export * from "./render-embed";
