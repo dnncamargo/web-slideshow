@@ -66,14 +66,14 @@ describe("renderEmbed", () => {
     );
   });
 
-  it("emits exactly sandbox allow-scripts allow-forms allow-same-origin", () => {
+  it("emits the renderer-owned script and form sandbox permissions", () => {
     const html = renderEmbed(embed());
 
-    expect(html).toContain('sandbox="allow-scripts allow-forms allow-same-origin"');
+    expect(html).toContain('sandbox="allow-scripts allow-forms"');
   });
 
-  it("emits allow-same-origin", () => {
-    expect(renderEmbed(embed())).toContain("allow-same-origin");
+  it("does not grant same-origin capability", () => {
+    expect(renderEmbed(embed())).not.toContain("allow-same-origin");
   });
 
   it("does not emit top-navigation sandbox permissions", () => {

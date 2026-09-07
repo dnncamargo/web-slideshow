@@ -12,17 +12,12 @@ import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 //
 // The sandbox is a fixed renderer-owned policy. It is NOT authored
 // state and is never made author-configurable. It deliberately
-// provides scripts and forms and grants allow-same-origin so real
-// cross-origin players such as YouTube receive normal origin
-// semantics for their scripts and resources. It explicitly denies
-// top navigation, popups, downloads, and storage access.
-//
-// SECURITY: allow-same-origin combined with allow-scripts is not
-// universally safe for same-origin embedded content. That concern is
-// tracked as a separate architecture decision outside this renderer.
+// provides scripts and forms while keeping the embedded document on
+// an opaque sandbox origin. It explicitly denies top navigation,
+// popups, downloads, and storage access.
 // ============================================================
 
-const EMBED_SANDBOX = "allow-scripts allow-forms allow-same-origin";
+const EMBED_SANDBOX = "allow-scripts allow-forms";
 
 // The only Permissions Policy token the renderer may grant is
 // fullscreen. Camera, microphone, geolocation and other provider
