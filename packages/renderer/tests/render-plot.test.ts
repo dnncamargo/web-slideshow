@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PlotElement, InteractiveElement } from "@powershow/document-schema";
 
 import { renderElement } from "../src/render-element";
+import { renderPlot as renderPlotWithOptions } from "../src/render-plot";
 
 function plot(source: string, overrides: Partial<PlotElement> = {}): PlotElement {
   return {
@@ -25,6 +26,49 @@ function viewBox(html: string): [number, number] {
 }
 
 describe("Plot renderer", () => {
+  it("renders an animated Plot at its authored initial value", () => {
+    const element = plot("y = x + t", {
+      animation: { parameter: "t", from: 2, to: 4, durationMs: 1000 },
+    });
+
+    expect(renderPlotWithOptions(element)).toBe(
+      renderPlotWithOptions(element, { bindings: { t: 2 } }),
+    );
+    expect(renderPlotWithOptions(element)).not.toContain("y = x + t");
+  });
+
+  it("supports pure transient bindings without mutating the Plot", () => {
+    const element = plot("y = x + t", {
+      animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 },
+    });
+    const initial = renderPlotWithOptions(element);
+    const transient = renderPlotWithOptions(element, { bindings: { t: 3 } });
+
+    expect(transient).not.toBe(initial);
+    expect(element.animation).toEqual({ parameter: "t", from: 0, to: 1, durationMs: 1000 });
+    expect(transient).not.toContain("y = x + t");
+  });
+
+  it("applies the same transient binding to multiple 2D equations", () => {
+    const element = plot("y = x + t\ny = x + 2*t");
+    const html = renderPlotWithOptions(element, { bindings: { t: 3 } });
+
+    expect(html).toContain("powershow-plot-svg");
+    expect(html).not.toContain("[plot]");
+  });
+
+  it("applies transient bindings to explicit-z geometry", () => {
+    const element = plot("z = x + y + t", {
+      animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 },
+    });
+    const initial = renderPlotWithOptions(element);
+    const transient = renderPlotWithOptions(element, { bindings: { t: 3 } });
+
+    expect(initial).toContain("powershow-plot-surface-svg");
+    expect(transient).toContain("powershow-plot-surface-svg");
+    expect(transient).not.toBe(initial);
+  });
+
   it.each([
     "y = x^2",
     "x = y^2",

@@ -262,6 +262,25 @@ export const TerminalElementSchema =
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
+const PlotAnimationParameterSchema = z.string()
+  .regex(/^[A-Za-z][A-Za-z0-9_]*$/, "Plot animation parameter must be a valid identifier.")
+  .refine(
+    (parameter) => !new Set(["x", "y", "z", "pi", "e", "sin", "cos", "tan", "sqrt", "abs", "log", "exp"]).has(parameter),
+    "Plot animation parameter must not be a coordinate, constant, or built-in function.",
+  );
+
+export const PlotAnimationSchema = z.object({
+  parameter: PlotAnimationParameterSchema,
+  from: z.number().finite(),
+  to: z.number().finite(),
+  durationMs: z.number().finite().int().positive(),
+  loop: z.boolean().optional(),
+  autoplay: z.boolean().optional(),
+}).strict();
+
+export type PlotAnimation =
+  z.infer<typeof PlotAnimationSchema>;
+
 export const PlotElementSchema =
   z.object({
     id: ElementIdSchema,
@@ -273,6 +292,7 @@ export const PlotElementSchema =
     fitToAxes: z.boolean().optional(),
     showAxes: z.boolean().optional(),
     style: PlotVisualStyleSchema.optional(),
+    animation: PlotAnimationSchema.optional(),
   }).strict();
 
 export type PlotElement =

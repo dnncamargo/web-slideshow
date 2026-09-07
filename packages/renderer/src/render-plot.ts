@@ -4,6 +4,7 @@ import {
   generateExplicit3DSurfaceGeometry,
   generateExplicit2DGeometry,
   generateImplicit2DGeometry,
+  type MathBindings,
   type MathGeometryResult,
   type MathViewport2D,
 } from "@powershow/math-source";
@@ -22,6 +23,10 @@ const PLOT_WORKING_VIEWPORT: MathViewport2D = {
 };
 
 const AUTO_FIT_PADDING_RATIO = 0.08;
+
+export interface PlotRenderOptions {
+  bindings?: MathBindings;
+}
 
 interface MathBounds2D {
   xMin: number;
@@ -120,9 +125,12 @@ function appendGeometry(target: MathGeometryResult, result: MathGeometryResult):
   target.segments.push(...result.segments);
 }
 
-export function renderPlot(element: PlotElement): string {
+export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}): string {
   if (element.hidden) return "";
 
+  const bindings = options.bindings ?? (element.animation === undefined
+    ? {}
+    : { [element.animation.parameter]: element.animation.from });
   const geometry: MathGeometryResult = { segments: [], diagnostics: [] };
   const analysis = analyzeMathSource(element.source);
   let renderedEquationCount = 0;
@@ -133,10 +141,10 @@ export function renderPlot(element: PlotElement): string {
     switch (equation.form) {
       case "explicit-y":
       case "explicit-x":
-        result = generateExplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings: {} });
+        result = generateExplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings });
         break;
       case "implicit-2d":
-        result = generateImplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings: {} });
+        result = generateImplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings });
         break;
       case "explicit-z":
       case "implicit-3d":
@@ -158,6 +166,7 @@ export function renderPlot(element: PlotElement): string {
       const surfaceGeometry = generateExplicit3DSurfaceGeometry(
         explicitSurfaceEquations[0]!,
         PLOT_WORKING_VIEWPORT,
+        { bindings },
       );
       const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, {
         showAxes: element.showAxes !== false,

@@ -19,6 +19,29 @@ describe("Plot canonical contract", () => {
     expect(PlotElementSchema.safeParse({ ...plot, showAxes }).success).toBe(true);
   });
 
+  it("accepts canonical Plot animation intent", () => {
+    const parsed = PlotElementSchema.parse({
+      ...plot,
+      animation: {
+        parameter: "t",
+        from: 0,
+        to: Math.PI * 2,
+        durationMs: 4000,
+        loop: true,
+        autoplay: false,
+      },
+    });
+
+    expect(parsed.animation).toEqual({
+      parameter: "t",
+      from: 0,
+      to: Math.PI * 2,
+      durationMs: 4000,
+      loop: true,
+      autoplay: false,
+    });
+  });
+
   it.each([
     { color: "#ff0000" },
     { color: { kind: "palette", colorId: "accent" } },
@@ -53,6 +76,13 @@ describe("Plot canonical contract", () => {
     { ...plot, unknown: true },
     { ...plot, fitToAxes: "true" },
     { ...plot, showAxes: "true" },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: 0 } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: 1.5 } },
+    { ...plot, animation: { parameter: "x", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "pi", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "sin", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "bad-name", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: 1000, current: 0 } },
     { ...plot, style: { gradient: {} } },
     { ...plot, style: { border: {} } },
     { ...plot, style: { lineWidth: 2 } },
