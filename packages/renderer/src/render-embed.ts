@@ -49,10 +49,11 @@ function renderEmbedViewport(element: EmbedElement): string {
   return [
     "display:block",
     "position:absolute",
+    "border:0",
     `width:calc(${reciprocalZoom}% + ${renderViewportNumber(left + right)}px)`,
     `height:calc(${reciprocalZoom}% + ${renderViewportNumber(top + bottom)}px)`,
-    `left:-${renderViewportNumber(left)}px`,
-    `top:-${renderViewportNumber(top)}px`,
+    `left:-${renderViewportNumber(left * zoom)}px`,
+    `top:-${renderViewportNumber(top * zoom)}px`,
     `transform:scale(${renderViewportNumber(zoom)})`,
     "transform-origin:top left",
   ].join(";");

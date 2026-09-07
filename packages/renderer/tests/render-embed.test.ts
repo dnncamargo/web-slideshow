@@ -58,10 +58,24 @@ describe("renderEmbed", () => {
   });
 
   it("offsets the internal page by top and left insets", () => {
-    const html = renderEmbed(embed({ viewport: { top: 12, left: 24 } }));
+    const html = renderEmbed(embed({ viewport: { top: 12, left: 24, zoom: 0.75 } }));
+
+    expect(html).toContain("left:-18px");
+    expect(html).toContain("top:-9px");
+  });
+
+  it("keeps direct offsets at zoom one", () => {
+    const html = renderEmbed(embed({ viewport: { top: 12, left: 24, zoom: 1 } }));
 
     expect(html).toContain("left:-24px");
     expect(html).toContain("top:-12px");
+  });
+
+  it("scales offsets up when zoom is greater than one", () => {
+    const html = renderEmbed(embed({ viewport: { top: 10, left: 40, zoom: 1.5 } }));
+
+    expect(html).toContain("left:-60px");
+    expect(html).toContain("top:-15px");
   });
 
   it("extends internal dimensions for right and bottom insets", () => {
@@ -82,8 +96,8 @@ describe("renderEmbed", () => {
 
     expect(html).toContain("width:calc(66.666667% + 60px)");
     expect(html).toContain("height:calc(66.666667% + 40px)");
-    expect(html).toContain("left:-40px");
-    expect(html).toContain("top:-10px");
+    expect(html).toContain("left:-60px");
+    expect(html).toContain("top:-15px");
     expect(html).toContain("transform:scale(1.5)");
   });
 
@@ -298,7 +312,30 @@ describe("renderEmbed", () => {
     expect(outerStyle).toContain("border-radius:8px");
     expect(outerStyle).toContain("opacity:0.9");
     expect(iframeStyle).not.toContain("width:640px");
+    expect(iframeStyle).toContain("border:0");
     expect(iframeStyle).toContain("transform:scale(0.75)");
+  });
+
+  it("keeps an authored outer border while removing the inner iframe border", () => {
+    const html = renderEmbed(embed({
+      viewport: { zoom: 0.75 },
+      style: {
+        border: {
+          width: 2,
+          style: "solid",
+          color: "#ff0000",
+        },
+      },
+    }));
+
+    const outerEnd = html.indexOf(">", html.indexOf("<div"));
+    const outerStyle = html.slice(html.indexOf('style="') + 7, html.indexOf('"', html.indexOf('style="') + 7));
+    const iframeStyle = html.slice(html.indexOf('style="', outerEnd) + 7, html.indexOf('"', html.indexOf('style="', outerEnd) + 7));
+
+    expect(outerStyle).toContain("border-width:2px");
+    expect(outerStyle).toContain("border-style:solid");
+    expect(outerStyle).toContain("border-color:#ff0000");
+    expect(iframeStyle).toContain("border:0");
   });
 
   it("preserves the authored custom className", () => {
