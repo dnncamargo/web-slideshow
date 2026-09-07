@@ -169,4 +169,101 @@ describe("PresenterSlidePreview logical geometry", () => {
       style: { color: { kind: "palette", colorId: "accent" } },
     });
   });
+
+  it("preserves an Embed iframe across equivalent preview rerenders", async () => {
+    const presentation = createBlankPresentation(
+      "presentation-1",
+      "Presentation",
+    );
+    const slide = {
+      ...createBlankSlide("slide-1"),
+      elements: [{
+        id: "embed-1",
+        type: "embed" as const,
+        hidden: false,
+        src: "https://blockly.games/maze?lang=en&level=4",
+        title: "Blockly Maze",
+      }],
+    };
+
+    await act(async () => {
+      root.render(
+        <PresenterSlidePreview
+          presentation={presentation}
+          slide={slide}
+          aspectRatio="16:9"
+          variant="current"
+          galleryTargets={[]}
+        />,
+      );
+    });
+
+    const firstIframe = container.querySelector("iframe");
+    expect(firstIframe).not.toBeNull();
+    const firstSrc = firstIframe?.getAttribute("src");
+
+    await act(async () => {
+      root.render(
+        <PresenterSlidePreview
+          presentation={{ ...presentation }}
+          slide={{ ...slide, elements: [...slide.elements] }}
+          aspectRatio="16:9"
+          variant="current"
+          galleryTargets={[]}
+        />,
+      );
+    });
+
+    const secondIframe = container.querySelector("iframe");
+    expect(secondIframe).toBe(firstIframe);
+    expect(secondIframe?.getAttribute("src")).toBe(firstSrc);
+  });
+
+  it("replaces the Embed iframe when rendered markup changes", async () => {
+    const presentation = createBlankPresentation(
+      "presentation-1",
+      "Presentation",
+    );
+    const slide = {
+      ...createBlankSlide("slide-1"),
+      elements: [{
+        id: "embed-1",
+        type: "embed" as const,
+        hidden: false,
+        src: "https://example.com/first",
+        title: "First",
+      }],
+    };
+
+    await act(async () => {
+      root.render(
+        <PresenterSlidePreview
+          presentation={presentation}
+          slide={slide}
+          aspectRatio="16:9"
+          variant="current"
+        />,
+      );
+    });
+
+    const firstIframe = container.querySelector("iframe");
+
+    await act(async () => {
+      root.render(
+        <PresenterSlidePreview
+          presentation={presentation}
+          slide={{
+            ...slide,
+            elements: [{ ...slide.elements[0], src: "https://example.com/second" }],
+          }}
+          aspectRatio="16:9"
+          variant="current"
+        />,
+      );
+    });
+
+    const secondIframe = container.querySelector("iframe");
+    expect(secondIframe).not.toBe(firstIframe);
+    expect(secondIframe?.getAttribute("src")).toBe("https://example.com/second");
+  });
 });

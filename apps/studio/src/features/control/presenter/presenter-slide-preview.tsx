@@ -99,6 +99,10 @@ export function PresenterSlidePreview({
     () => renderSlide(slide, { presentation }),
     [presentation, slide],
   );
+  const renderedMarkup = useMemo(
+    () => ({ __html: markup }),
+    [markup],
+  );
 
   const logicalSize = resolveLogicalSlideSize(aspectRatio);
   const paletteStyle = Object.fromEntries(
@@ -144,6 +148,10 @@ export function PresenterSlidePreview({
   useEffect(() => {
     if (!previewSurfaceRef.current) return;
     hydrateRendererRuntime(previewSurfaceRef.current);
+  }, [markup]);
+
+  useEffect(() => {
+    if (!previewSurfaceRef.current) return;
     projectGalleryTargets(previewSurfaceRef.current, galleryTargets);
   }, [galleryTargets, markup]);
 
@@ -162,7 +170,7 @@ export function PresenterSlidePreview({
           transform: `scale(${scale})`,
           ...paletteStyle,
         } as CSSProperties}
-        dangerouslySetInnerHTML={{ __html: markup }}
+        dangerouslySetInnerHTML={renderedMarkup}
       />
     </div>
   );
