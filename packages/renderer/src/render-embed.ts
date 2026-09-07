@@ -11,13 +11,15 @@ import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 // Embed renders external web content as a sandboxed iframe.
 //
 // The sandbox is a fixed renderer-owned policy. It is NOT authored
-// state and is never made author-configurable. It deliberately
-// provides scripts and forms while keeping the embedded document on
-// an opaque sandbox origin. It explicitly denies top navigation,
-// popups, downloads, and storage access.
+// state and is never made author-configurable. It permits scripts and
+// forms, while allowing the embedded provider to retain its own origin.
+// Cross-origin providers remain cross-origin relative to PowerShow.
+// Top navigation, popups, and downloads remain denied by sandbox.
+// Sandbox policy remains renderer-owned.
 // ============================================================
 
-const EMBED_SANDBOX = "allow-scripts allow-forms";
+const EMBED_SANDBOX =
+  "allow-scripts allow-forms allow-same-origin";
 
 // The only Permissions Policy token the renderer may grant is
 // fullscreen. Camera, microphone, geolocation and other provider
@@ -28,6 +30,36 @@ const EMBED_ALLOW = "fullscreen";
 // identification and recommend referrerpolicy strict-origin-when-
 // cross-origin.
 const EMBED_REFERRERPOLICY = "strict-origin-when-cross-origin";
+
+function renderViewportNumber(value: number): string {
+  return Number(value.toFixed(6)).toString();
+}
+
+function renderEmbedViewport(element: EmbedElement): string {
+  const viewport = element.viewport;
+  if (!viewport) {
+    return "";
+  }
+
+  const zoom = viewport.zoom ?? 1;
+  const top = viewport.top ?? 0;
+  const right = viewport.right ?? 0;
+  const bottom = viewport.bottom ?? 0;
+  const left = viewport.left ?? 0;
+  const reciprocalZoom = renderViewportNumber(100 / zoom);
+
+  return [
+    "display:block",
+    "position:absolute",
+    "border:0",
+    `width:calc(${reciprocalZoom}% + ${renderViewportNumber(left + right)}px)`,
+    `height:calc(${reciprocalZoom}% + ${renderViewportNumber(top + bottom)}px)`,
+    `left:-${renderViewportNumber(left * zoom)}px`,
+    `top:-${renderViewportNumber(top * zoom)}px`,
+    `transform:scale(${renderViewportNumber(zoom)})`,
+    "transform-origin:top left",
+  ].join(";");
+}
 
 const YOUTUBE_HOSTS = new Set([
   "youtube.com",
@@ -115,18 +147,37 @@ export function renderEmbed(
     styles.push("border:0");
   }
 
-  return (
+  const iframe = (
     `<iframe` +
-    ` class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="embed"` +
+    (element.viewport
+      ? ""
+      : ` class="${escapeHtml(classes.join(" "))}"` +
+        ` data-powershow-id="${escapeHtml(element.id)}"` +
+        ` data-powershow-type="embed"`) +
     ` src="${escapeHtml(resolveEmbedSrc(element.src))}"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${EMBED_SANDBOX}"` +
     ` allow="${EMBED_ALLOW}"` +
     ` referrerpolicy="${EMBED_REFERRERPOLICY}"` +
     ` loading="lazy"` +
-    ` style="${escapeHtml(styles.join(";"))}"` +
+    ` style="${escapeHtml(element.viewport ? renderEmbedViewport(element) : styles.join(";"))}"` +
     `></iframe>`
+  );
+
+  if (!element.viewport) {
+    return iframe;
+  }
+
+  return (
+    `<div class="${escapeHtml(classes.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
+    ` data-powershow-type="embed"` +
+    ` style="${escapeHtml([
+      ...styles,
+      ...(element.layout?.position === undefined ? ["position:relative"] : []),
+      "overflow:hidden",
+    ].join(";"))}">` +
+    iframe +
+    `</div>`
   );
 }

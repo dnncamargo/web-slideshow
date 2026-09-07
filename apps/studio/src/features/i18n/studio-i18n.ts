@@ -233,6 +233,11 @@ const englishMessages = {
   "embed.titleRequired": "Enter a title.",
   "embed.canvasHelp":
     "Embedded content is non-interactive on the Studio canvas. Use Preview or Player to test interaction.",
+  "embed.viewport": "Embed viewport",
+  "embed.viewportHelp":
+    "Zoom changes how much of the embedded page fits inside the Embed. Edge values adjust the framed region.",
+  "embed.zoom": "Zoom",
+  "embed.framing": "Framing",
 
   "scripted.title": "Title",
   "scripted.html": "HTML",
@@ -1312,6 +1317,11 @@ const portugueseMessages = {
   "embed.titleRequired": "Informe um título.",
   "embed.canvasHelp":
     "O conteúdo incorporado não é interativo no canvas do Studio. Use a Prévia ou o Player para testar a interação.",
+  "embed.viewport": "Viewport do Embed",
+  "embed.viewportHelp":
+    "O zoom altera quanto da página incorporada cabe no Embed. Os valores das bordas ajustam a região enquadrada.",
+  "embed.zoom": "Zoom",
+  "embed.framing": "Enquadramento",
 
   "scripted.title": "Título",
   "scripted.html": "HTML",

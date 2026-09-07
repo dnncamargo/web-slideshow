@@ -389,9 +389,12 @@ export function PresenterView({
   const showScriptedActionControls = scriptedActionGroups.length > 0;
   const showPlotAnimationControls = plotTargets.length > 0;
   const showScriptedStateControls = scriptedStateGroups.length > 0;
-  const currentGalleryTargets = showGalleryControls
-    ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
-    : [];
+  const currentGalleryTargets = useMemo(
+    () => showGalleryControls
+      ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
+      : [],
+    [galleries, showGalleryControls],
+  );
 
   useEffect(() => {
     if (!settingsOpen) return;
