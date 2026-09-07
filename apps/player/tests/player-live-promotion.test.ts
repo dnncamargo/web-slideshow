@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Presentation } from "@powershow/document-schema";
 
+import { startPlayer } from "../src/player-entry";
+
 import { playerTestPresentation } from "./fixtures/player-presentation";
 
 const mocks = vi.hoisted(() => ({
@@ -92,7 +94,6 @@ function controller(initialIndex: number) {
 
 describe("Player live version promotion", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     document.body.innerHTML = '<div id="app"></div>';
 
@@ -141,7 +142,6 @@ describe("Player live version promotion", () => {
       },
     );
 
-    const { startPlayer } = await import("../src/player-entry");
     const root = document.querySelector<HTMLElement>("#app");
     if (!root) {
       throw new Error("test root missing");
