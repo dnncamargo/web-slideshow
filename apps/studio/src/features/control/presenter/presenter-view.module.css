@@ -134,6 +134,28 @@
   padding: 12px;
 }
 
+.plotAnimationAllActions,
+.plotAnimationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plotAnimationGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.plotAnimationLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
 .mobileInteractiveElementsControls {
   display: none;
 }
