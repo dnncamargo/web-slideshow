@@ -171,6 +171,17 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      <footer className={styles.metaLinks}>
+        <a href="/docs">Docs</a>
+        <a
+          href="https://github.com/dnncamargo/web-slideshow"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub
+        </a>
+      </footer>
     </div>
   );
 }
