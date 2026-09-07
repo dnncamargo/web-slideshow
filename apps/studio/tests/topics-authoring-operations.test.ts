@@ -165,7 +165,10 @@ describe("TopicItem sibling reorder", () => {
       topicItem("b", contentSlot("slot-b", [text("text-b")])),
       topicItem("c", contentSlot("slot-c", [text("text-c")])),
     ];
-    const elements: PowerShowElement[] = [topics("topics", items)];
+    const otherTopics = topics("other-topics", [
+      topicItem("other", contentSlot("other-slot", [text("other-text")])),
+    ]);
+    const elements: PowerShowElement[] = [topics("topics", items), otherTopics];
 
     const forward = moveTopicItemToSiblingIndex(elements, "topics", "a", 2);
     const backward = moveTopicItemToSiblingIndex(forward, "topics", "a", 0);
@@ -180,6 +183,8 @@ describe("TopicItem sibling reorder", () => {
       "b",
       "c",
     ]);
+    expect(backward[1]).toBe(otherTopics);
+    expect((backward[1] as TopicsElement).items[0]).toBe(otherTopics.items[0]);
   });
 
   it("reorders nested siblings and preserves the complete subtree", () => {
@@ -238,11 +243,17 @@ describe("TopicItem sibling reorder", () => {
   it("reorders imported TopicItems deeper than the authoring limit", () => {
     const items = structuralChain(6);
     const deepParent = findTopicItemDepthItem(items, "topic-level-6")!;
+    const deepFirst = topicItem(
+      "deep-first",
+      contentSlot("deep-first-slot", [text("deep-first-text")]),
+      [topicItem("deep-first-child", contentSlot("deep-first-child-slot", [text("deep-first-child-text")]))],
+    );
     const deepSibling = topicItem(
       "deep-sibling",
       contentSlot("deep-sibling-slot", [text("deep-sibling-text")]),
+      [topicItem("deep-sibling-child", contentSlot("deep-sibling-child-slot", [text("deep-sibling-child-text")]))],
     );
-    deepParent.children.push(deepSibling);
+    deepParent.children.push(deepFirst, deepSibling);
     const elements: PowerShowElement[] = [topics("topics", items)];
 
     const result = moveTopicItemToSiblingIndex(
@@ -258,8 +269,16 @@ describe("TopicItem sibling reorder", () => {
     )!;
 
     expect(updated.id).toBe("topic-level-1");
-    expect(updatedDeepParent.children[0]?.id).toBe("deep-sibling");
-    expect(updatedDeepParent.children[1]?.id).toBeUndefined();
+    expect(updatedDeepParent.children.map((item) => item.id)).toEqual([
+      "deep-sibling",
+      "deep-first",
+    ]);
+    expect(updatedDeepParent.children[0]).toBe(deepSibling);
+    expect(updatedDeepParent.children[1]).toBe(deepFirst);
+    expect(updatedDeepParent.children[0]?.content).toBe(deepSibling.content);
+    expect(updatedDeepParent.children[0]?.children).toBe(deepSibling.children);
+    expect(updatedDeepParent.children[1]?.content).toBe(deepFirst.content);
+    expect(updatedDeepParent.children[1]?.children).toBe(deepFirst.children);
     expect(
       findTopicItemStructuralDepthInItems(
         (result[0] as TopicsElement).items,
@@ -268,6 +287,9 @@ describe("TopicItem sibling reorder", () => {
     ).toBe(6);
     expect(updatedDeepParent.children[0]?.content.children[0]?.id).toBe(
       "deep-sibling-text",
+    );
+    expect(updatedDeepParent.children[1]?.content.children[0]?.id).toBe(
+      "deep-first-text",
     );
   });
 });
