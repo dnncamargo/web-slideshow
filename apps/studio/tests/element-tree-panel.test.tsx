@@ -265,10 +265,16 @@ describe("ElementTreePanel", () => {
       selectedGalleryItemIndex?: number | null;
       onSelectElement?: ReturnType<typeof vi.fn>;
       onMoveElement?: ReturnType<typeof vi.fn>;
+      onMoveTopicItem?: ReturnType<typeof vi.fn>;
+      onIndentTopicItem?: ReturnType<typeof vi.fn>;
+      onOutdentTopicItem?: ReturnType<typeof vi.fn>;
     } = {},
   ) {
     const onSelectElement = options.onSelectElement ?? vi.fn();
     const onMoveElement = options.onMoveElement ?? vi.fn();
+    const onMoveTopicItem = options.onMoveTopicItem ?? vi.fn();
+    const onIndentTopicItem = options.onIndentTopicItem ?? vi.fn();
+    const onOutdentTopicItem = options.onOutdentTopicItem ?? vi.fn();
 
     act(() => {
       root.render(
@@ -280,6 +286,9 @@ describe("ElementTreePanel", () => {
             selectedGalleryItemIndex={options.selectedGalleryItemIndex ?? null}
             onSelectElement={onSelectElement}
             onMoveElement={onMoveElement}
+            onMoveTopicItem={onMoveTopicItem}
+            onIndentTopicItem={onIndentTopicItem}
+            onOutdentTopicItem={onOutdentTopicItem}
             onMoveGalleryItem={vi.fn()}
             onGalleryStructureDrop={vi.fn()}
             onBrowseElementStyles={vi.fn()}
@@ -288,7 +297,28 @@ describe("ElementTreePanel", () => {
       );
     });
 
-    return { onSelectElement, onMoveElement };
+    return {
+      onSelectElement,
+      onMoveElement,
+      onMoveTopicItem,
+      onIndentTopicItem,
+      onOutdentTopicItem,
+    };
+  }
+
+  function topicActionButton(
+    treeItem: HTMLLIElement,
+    label: string,
+  ): HTMLButtonElement {
+    const button = treeItem.querySelector<HTMLButtonElement>(
+      `button[aria-label="${label}"]`,
+    );
+
+    if (!button) {
+      throw new Error(`Topic action button not found: ${label}`);
+    }
+
+    return button;
   }
 
   beforeEach(() => {
@@ -305,7 +335,7 @@ describe("ElementTreePanel", () => {
     vi.clearAllMocks();
   });
 
-  it("renders content elements under a dedicated Content group and keeps structural subtopics separate", () => {
+  it("renders content elements directly before structural subtopics", () => {
     const slide = slideWithTopics([
       topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text", "A")])),
       topicItem(
@@ -332,16 +362,125 @@ describe("ElementTreePanel", () => {
 
     const topicB = findTreeItem(container, "B");
 
-    expect(contentGroupLabel(topicB)).toBe("Content");
-    expect(contentGroupItems(topicB).map(treeItemLabel)).toEqual([
-      "Text — B",
+    expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
+    expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "Image",
       "Table",
-    ]);
-    expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "B.1",
       "B.2",
     ]);
+  });
+
+  it("suppresses only each TopicItem label source while preserving canonical children", () => {
+    const primaryA = text("topic-a-text", "A");
+    const noteA = text("topic-a-note", "Additional note");
+    const primaryB = text("topic-b-text", "B");
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [primaryA, noteA, image("a-image")])),
+      topicItem("topic-b", contentSlot("slot-b", [primaryB]), [
+        topicItem("topic-b-1", contentSlot("slot-b-1", [text("b-1-text", "B.1")])),
+      ]),
+    ]);
+
+    renderPanel(slide);
+
+    const topicA = findTreeItem(container, "A");
+    expect(directTopicChildren(topicA).map(treeItemLabel)).toEqual([
+      "Text — Additional note",
+      "Image",
+    ]);
+    expect(
+      Array.from(container.querySelectorAll('li[role="treeitem"]')).some(
+        (treeItem): treeItem is HTMLLIElement =>
+          treeItem instanceof HTMLLIElement && treeItemLabel(treeItem) === "Text — A",
+      ),
+    ).toBe(false);
+    expect(findTreeItem(container, "B")).toBeTruthy();
+    expect(findTreeItem(container, "B.1")).toBeTruthy();
+    expect(() => findTreeItem(container, "Text — A")).toThrow();
+    expect(() => findTreeItem(container, "Text — B")).toThrow();
+    expect(() => findTreeItem(container, "Text — B.1")).toThrow();
+    expect(slide.elements[0]?.type === "topics" ? slide.elements[0].items[0]?.content.children : []).toEqual([
+      primaryA,
+      noteA,
+      expect.objectContaining({ id: "a-image" }),
+    ]);
+  });
+
+  it("renders a default TopicItem as a visual leaf without an empty group", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text", "A")])),
+    ]);
+
+    renderPanel(slide);
+
+    const topicA = findTreeItem(container, "A");
+    expect(topicA.querySelector(':scope > div > button[aria-label="Expand"]')).toBeNull();
+    expect(topicA.querySelector(':scope > div > span[aria-hidden="true"]')).not.toBeNull();
+    expect(directTreeGroup(topicA)).toBeNull();
+  });
+
+  it("keeps additional Text selectable and movable while hiding only the label source", () => {
+    const note = text("topic-note", "Additional note");
+    const slide = slideWithTopics([
+      topicItem(
+        "topic-a",
+        contentSlot("slot-a", [text("topic-a-text", "A"), note, image("a-image")]),
+      ),
+    ]);
+    const { onSelectElement, onMoveElement } = renderPanel(slide, {
+      selectedElementId: note.id,
+      selectedContentSlotId: "slot-a",
+    });
+
+    const noteRow = findTreeItem(container, "Text — Additional note");
+    expect(noteRow.querySelector('[draggable="true"]')).not.toBeNull();
+    clickRow(noteRow);
+    expect(onSelectElement).toHaveBeenCalledWith({
+      id: note.id,
+      type: "text",
+    });
+
+    act(() => {
+      footerMoveDownButton(container).click();
+    });
+    expect(onMoveElement).toHaveBeenCalledWith({
+      elementId: note.id,
+      targetParentRef: { kind: "content-slot", id: "slot-a" },
+      targetIndex: 2,
+    });
+  });
+
+  it("preserves a TopicItem with no usable label Text", () => {
+    const blank = text("blank-text", "");
+    const slide = slideWithTopics([
+      topicItem("topic-empty-label", contentSlot("slot-empty-label", [blank, image("empty-image")])),
+    ]);
+
+    renderPanel(slide);
+
+    const topic = findTreeItem(container, "Topic");
+    expect(topic).toBeTruthy();
+    expect(directTopicChildren(topic).map(treeItemLabel)).toEqual([
+      "Text",
+      "Image",
+    ]);
+    expect((slide.elements[0] as TopicsElement).items[0]?.id).toBe("topic-empty-label");
+    expect((slide.elements[0] as TopicsElement).items[0]?.content.children[0]).toBe(blank);
+  });
+
+  it("keeps TopicItems expandable for additional content or structural children", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A"), image("a-image")])),
+      topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")]), [
+        topicItem("topic-b-1", contentSlot("slot-b-1", [text("b-1-text", "B.1")])),
+      ]),
+    ]);
+
+    renderPanel(slide);
+
+    expect(findTreeItem(container, "A").querySelector('button[aria-label="Collapse"]')).not.toBeNull();
+    expect(findTreeItem(container, "B").querySelector('button[aria-label="Collapse"]')).not.toBeNull();
   });
 
   it("renders initially expanded synthetic Gallery Image rows in canonical order", () => {
@@ -412,7 +551,7 @@ describe("ElementTreePanel", () => {
     expect(treeItems(container).map(treeItemLabel)).toEqual(["Gallery"]);
   });
 
-  it("renders recursive Content groups for structural subtopics", () => {
+  it("renders content elements directly for structural subtopics", () => {
     const slide = slideWithTopics([
       topicItem("topic-c", contentSlot("slot-c", [text("topic-c-text", "C")]), [
         topicItem(
@@ -429,9 +568,7 @@ describe("ElementTreePanel", () => {
 
     const topicC1 = findTreeItem(container, "C.1");
 
-    expect(contentGroupLabel(topicC1)).toBe("Content");
-    expect(contentGroupItems(topicC1).map(treeItemLabel)).toEqual([
-      "Text — C.1",
+    expect(directTopicChildren(topicC1).map(treeItemLabel)).toEqual([
       "Image",
     ]);
   });
@@ -445,7 +582,7 @@ describe("ElementTreePanel", () => {
     const emptyTopic = findTreeItem(container, "Topic");
 
     expect(emptyTopic).toBeTruthy();
-    expect(contentGroupLabel(emptyTopic)).toBe("Content");
+    expect(directTopicChildren(emptyTopic)).toEqual([]);
 
     clickRow(emptyTopic);
 
@@ -471,7 +608,119 @@ describe("ElementTreePanel", () => {
     });
   });
 
-  it("suppresses footer movement for a structurally selected topic row", () => {
+  it("renders explicit hierarchy actions with the authoritative availability rules", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A")]), [
+        topicItem("topic-a-1", contentSlot("slot-a-1", [text("a-1-text", "A.1")])),
+        topicItem("topic-a-2", contentSlot("slot-a-2", [text("a-2-text", "A.2")])),
+      ]),
+      topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
+    ]);
+
+    function expectActions(
+      selectedContentSlotId: string | null,
+      canOutdent: boolean,
+      canIndent: boolean,
+    ): void {
+      renderPanel(slide, {
+        selectedElementId: selectedContentSlotId ? "topics-1" : null,
+        selectedContentSlotId,
+      });
+      const topicsRow = findTreeItem(container, "Topics");
+      expect(topicActionButton(topicsRow, "Promote topic").disabled).toBe(!canOutdent);
+      expect(topicActionButton(topicsRow, "Demote topic").disabled).toBe(!canIndent);
+    }
+
+    renderPanel(slide);
+    const unselectedTopicsRow = findTreeItem(container, "Topics");
+    expect(topicActionButton(unselectedTopicsRow, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(unselectedTopicsRow, "Demote topic").disabled).toBe(true);
+
+    expectActions("slot-a", false, false);
+    expectActions("slot-a-1", true, false);
+    expectActions("slot-a-2", true, true);
+    expectActions("slot-b", false, true);
+  });
+
+  it("routes hierarchy actions to the owning TopicsElement and preserves row selection routing", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A")])),
+      topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
+    ]);
+    const { onIndentTopicItem, onOutdentTopicItem, onMoveElement, onSelectElement } =
+      renderPanel(slide, {
+        selectedElementId: "topics-1",
+        selectedContentSlotId: "slot-b",
+      });
+
+    const topicsRow = findTreeItem(container, "Topics");
+    const promote = topicActionButton(topicsRow, "Promote topic");
+    const demote = topicActionButton(topicsRow, "Demote topic");
+
+    expect(promote.title).toBe("Promote topic");
+    expect(demote.title).toBe("Demote topic");
+
+    act(() => {
+      demote.click();
+    });
+
+    expect(onIndentTopicItem).toHaveBeenCalledWith("topics-1", "topic-b");
+    expect(onOutdentTopicItem).not.toHaveBeenCalled();
+    expect(onMoveElement).not.toHaveBeenCalled();
+    expect(onSelectElement).not.toHaveBeenCalled();
+  });
+
+  it("keeps hierarchy actions off ordinary and synthetic child rows", () => {
+    const slide = slideWithTopics([
+      topicItem(
+        "topic-a",
+        contentSlot("slot-a", [text("a-text", "A"), image("a-image")]),
+      ),
+    ]);
+
+    renderPanel(slide);
+
+    const topicsRow = findTreeItem(container, "Topics");
+    expect(topicsRow.querySelectorAll('button[aria-label="Promote topic"]')).toHaveLength(1);
+    expect(topicsRow.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
+    expect(container.querySelectorAll('button[aria-label="Promote topic"]')).toHaveLength(1);
+    expect(container.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
+    expect(findTreeItem(container, "A").querySelector('button[aria-label="Promote topic"]')).toBeNull();
+    expect(findTreeItem(container, "Image").querySelector('button[aria-label="Demote topic"]')).toBeNull();
+  });
+
+  it("enables hierarchy actions only on the owning Topics row", () => {
+    const first = topicsElement([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A")])),
+    ]);
+    const second = {
+      ...topicsElement([
+        topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
+        topicItem("topic-c", contentSlot("slot-c", [text("c-text", "C")])),
+      ]),
+      id: "topics-2",
+    } satisfies TopicsElement;
+    const slide: Slide = {
+      ...slideWithTopics([]),
+      elements: [first, second],
+    };
+
+    renderPanel(slide, {
+      selectedElementId: "topics-2",
+      selectedContentSlotId: "slot-c",
+    });
+
+    const topicsRows = treeItems(container).filter(
+      (treeItem) => treeItemLabel(treeItem) === "Topics",
+    );
+    expect(topicsRows).toHaveLength(2);
+    expect(topicActionButton(topicsRows[0]!, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(topicsRows[0]!, "Demote topic").disabled).toBe(true);
+    expect(topicActionButton(topicsRows[1]!, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(topicsRows[1]!, "Demote topic").disabled).toBe(false);
+  });
+
+  it("reorders a structurally selected middle topic row through the footer", () => {
     const slide = {
       ...slideWithTopics([
         topicItem(
@@ -494,17 +743,22 @@ describe("ElementTreePanel", () => {
             "topic-b",
             contentSlot("slot-b", [text("topic-b-text", "B")]),
           ),
+          topicItem(
+            "topic-c",
+            contentSlot("slot-c", [text("topic-c-text", "C")]),
+          ),
         ]).elements,
         topicContainer("after"),
       ],
     };
-    const { onMoveElement } = renderPanel(slide, {
+    const { onMoveElement, onMoveTopicItem } = renderPanel(slide, {
+      onMoveTopicItem: vi.fn(),
       selectedElementId: "topics-1",
       selectedContentSlotId: "slot-b",
     });
 
-    expect(footerMoveUpButton(container).disabled).toBe(true);
-    expect(footerMoveDownButton(container).disabled).toBe(true);
+    expect(footerMoveUpButton(container).disabled).toBe(false);
+    expect(footerMoveDownButton(container).disabled).toBe(false);
     expect(footerMoveToSelect(container).disabled).toBe(true);
     expect(footerMoveToSelect(container).options).toHaveLength(1);
 
@@ -518,6 +772,8 @@ describe("ElementTreePanel", () => {
     });
 
     expect(onMoveElement).not.toHaveBeenCalled();
+    expect(onMoveTopicItem).toHaveBeenNthCalledWith(1, "topics-1", "topic-b", 0);
+    expect(onMoveTopicItem).toHaveBeenNthCalledWith(2, "topics-1", "topic-b", 2);
   });
 
   it("suppresses footer movement for a nested structural topic row", () => {
@@ -568,7 +824,8 @@ describe("ElementTreePanel", () => {
       ],
     };
 
-    const { onMoveElement } = renderPanel(slide, {
+    const { onMoveElement, onMoveTopicItem } = renderPanel(slide, {
+      onMoveTopicItem: vi.fn(),
       selectedElementId: "topics-1",
       selectedContentSlotId: "slot-b-1-1",
     });
@@ -584,6 +841,34 @@ describe("ElementTreePanel", () => {
     });
 
     expect(onMoveElement).not.toHaveBeenCalled();
+    expect(onMoveTopicItem).not.toHaveBeenCalled();
+  });
+
+  it("reorders a nested topic only within its structural siblings", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-parent", contentSlot("slot-parent"), [
+        topicItem("topic-child-a", contentSlot("slot-child-a")),
+        topicItem("topic-child-b", contentSlot("slot-child-b")),
+      ]),
+    ]);
+    const { onMoveTopicItem } = renderPanel(slide, {
+      onMoveTopicItem: vi.fn(),
+      selectedElementId: "topics-1",
+      selectedContentSlotId: "slot-child-a",
+    });
+
+    expect(footerMoveUpButton(container).disabled).toBe(true);
+    expect(footerMoveDownButton(container).disabled).toBe(false);
+
+    act(() => {
+      footerMoveDownButton(container).click();
+    });
+
+    expect(onMoveTopicItem).toHaveBeenCalledWith(
+      "topics-1",
+      "topic-child-a",
+      1,
+    );
   });
 
   it("keeps ordinary TopicsElement movement available when no structural topic row is selected", () => {
@@ -671,10 +956,10 @@ describe("ElementTreePanel", () => {
     const { onSelectElement } = renderPanel(slide);
 
     const topicB = findTreeItem(container, "B");
-    const imageRow = contentGroupItems(topicB).find(
+    const imageRow = directTopicChildren(topicB).find(
       (treeItem) => treeItemLabel(treeItem) === "Image",
     );
-    const tableRow = contentGroupItems(topicB).find(
+    const tableRow = directTopicChildren(topicB).find(
       (treeItem) => treeItemLabel(treeItem) === "Table",
     );
 
@@ -712,14 +997,12 @@ describe("ElementTreePanel", () => {
 
     const topicB = findTreeItem(container, "B");
 
-    expect(contentGroupItems(topicB).map(treeItemLabel)).toEqual([
-      "Text — B",
+    expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "Container",
-      "Text — Nested container text",
     ]);
   });
 
-  it("does not treat the Content group as a tree item or drop target", () => {
+  it("does not render a Content group row", () => {
     const slide = slideWithTopics([
       topicItem(
         "topic-b",
@@ -733,11 +1016,7 @@ describe("ElementTreePanel", () => {
     renderPanel(slide);
 
     const topicB = findTreeItem(container, "B");
-    const group = contentGroup(topicB);
-
-    expect(group.getAttribute("role")).toBe("none");
-    expect(group.hasAttribute("draggable")).toBe(false);
-    expect(group.querySelector(':scope > ul[role="group"]')).not.toBeNull();
+    expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
   });
 
   it("does not mutate canonical data when rendering the selector", () => {

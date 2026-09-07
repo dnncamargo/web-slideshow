@@ -655,7 +655,7 @@ export const TopicItemSchema:
       children: z.array(
         z.lazy(() => TopicItemSchema),
       ),
-    }),
+    }).strict(),
   );
 
 export type TopicsElement = {

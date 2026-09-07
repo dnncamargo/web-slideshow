@@ -307,6 +307,325 @@ export function appendChildTopicItemToTopics(
   });
 }
 
+function moveTopicItemToSiblingIndexInItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  targetIndex: number,
+): TopicItem[] {
+  const sourceIndex = items.findIndex((item) => item.id === topicItemId);
+
+  if (sourceIndex >= 0) {
+    if (
+      !Number.isInteger(targetIndex) ||
+      targetIndex < 0 ||
+      targetIndex >= items.length ||
+      targetIndex === sourceIndex
+    ) {
+      return items as TopicItem[];
+    }
+
+    const nextItems = [...items];
+    const [item] = nextItems.splice(sourceIndex, 1);
+
+    if (!item) {
+      return items as TopicItem[];
+    }
+
+    nextItems.splice(targetIndex, 0, item);
+    return nextItems;
+  }
+
+  for (let index = 0; index < items.length; index += 1) {
+    const currentItem = items[index];
+    if (!currentItem) {
+      continue;
+    }
+
+    const children = moveTopicItemToSiblingIndexInItems(
+      currentItem.children,
+      topicItemId,
+      targetIndex,
+    );
+
+    if (children === currentItem.children) {
+      continue;
+    }
+
+    const nextItems = [...items];
+    nextItems[index] = { ...currentItem, children };
+    return nextItems;
+  }
+
+  return items as TopicItem[];
+}
+
+export function moveTopicItemToSiblingIndex(
+  elements: readonly PowerShowElement[],
+  topicsId: string,
+  topicItemId: string,
+  targetIndex: number,
+): PowerShowElement[] {
+  const target = findElementById(elements, topicsId);
+
+  if (target?.type !== "topics") {
+    return elements as PowerShowElement[];
+  }
+
+  const items = moveTopicItemToSiblingIndexInItems(
+    target.items,
+    topicItemId,
+    targetIndex,
+  );
+
+  if (items === target.items) {
+    return elements as PowerShowElement[];
+  }
+
+  return updateElementById(elements, topicsId, (element) => {
+    if (element.type !== "topics") {
+      return element;
+    }
+
+    return { ...element, items };
+  });
+}
+
+function topicItemStructuralHeight(item: TopicItem): number {
+  let height = 1;
+
+  for (const child of item.children) {
+    height = Math.max(height, 1 + topicItemStructuralHeight(child));
+  }
+
+  return height;
+}
+
+export interface TopicItemHierarchyActionState {
+  canIndent: boolean;
+  canOutdent: boolean;
+}
+
+interface TopicItemHierarchyLocation {
+  depth: number;
+  hasStructuralParent: boolean;
+  hasPreviousSibling: boolean;
+  subtreeHeight: number;
+}
+
+function findTopicItemHierarchyLocation(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  depth: number,
+  hasStructuralParent: boolean,
+): TopicItemHierarchyLocation | null {
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+
+    if (!item) {
+      continue;
+    }
+
+    if (item.id === topicItemId) {
+      return {
+        depth,
+        hasStructuralParent,
+        hasPreviousSibling: index > 0,
+        subtreeHeight: topicItemStructuralHeight(item),
+      };
+    }
+
+    const nested = findTopicItemHierarchyLocation(
+      item.children,
+      topicItemId,
+      depth + 1,
+      true,
+    );
+
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+export function getTopicItemHierarchyActionState(
+  elements: readonly PowerShowElement[],
+  topicsId: string,
+  topicItemId: string,
+): TopicItemHierarchyActionState {
+  const topics = findElementById(elements, topicsId);
+
+  if (topics?.type !== "topics") {
+    return { canIndent: false, canOutdent: false };
+  }
+
+  const location = findTopicItemHierarchyLocation(
+    topics.items,
+    topicItemId,
+    1,
+    false,
+  );
+
+  if (!location) {
+    return { canIndent: false, canOutdent: false };
+  }
+
+  return {
+    canIndent:
+      location.hasPreviousSibling &&
+      location.depth + location.subtreeHeight <= MAX_TOPIC_STRUCTURAL_DEPTH,
+    canOutdent: location.hasStructuralParent,
+  };
+}
+
+function indentTopicItemInItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  depth: number,
+): TopicItem[] {
+  const directIndex = items.findIndex((item) => item.id === topicItemId);
+
+  if (directIndex >= 0) {
+    if (directIndex === 0) {
+      return items as TopicItem[];
+    }
+
+    const source = items[directIndex];
+    const previous = items[directIndex - 1];
+
+    if (!source || !previous || depth + topicItemStructuralHeight(source) > MAX_TOPIC_STRUCTURAL_DEPTH) {
+      return items as TopicItem[];
+    }
+
+    const nextItems = [...items];
+    nextItems.splice(directIndex, 1);
+    nextItems[directIndex - 1] = {
+      ...previous,
+      children: [...previous.children, source],
+    };
+    return nextItems;
+  }
+
+  for (let index = 0; index < items.length; index += 1) {
+    const currentItem = items[index];
+    if (!currentItem) {
+      continue;
+    }
+
+    const children = indentTopicItemInItems(
+      currentItem.children,
+      topicItemId,
+      depth + 1,
+    );
+
+    if (children === currentItem.children) {
+      continue;
+    }
+
+    const nextItems = [...items];
+    nextItems[index] = { ...currentItem, children };
+    return nextItems;
+  }
+
+  return items as TopicItem[];
+}
+
+export function indentTopicItem(
+  elements: readonly PowerShowElement[],
+  topicsId: string,
+  topicItemId: string,
+): PowerShowElement[] {
+  const target = findElementById(elements, topicsId);
+
+  if (target?.type !== "topics") {
+    return elements as PowerShowElement[];
+  }
+
+  const items = indentTopicItemInItems(target.items, topicItemId, 1);
+
+  if (items === target.items) {
+    return elements as PowerShowElement[];
+  }
+
+  return updateElementById(elements, topicsId, (element) => {
+    if (element.type !== "topics") {
+      return element;
+    }
+
+    return { ...element, items };
+  });
+}
+
+function outdentTopicItemInItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+): TopicItem[] {
+  for (let index = 0; index < items.length; index += 1) {
+    const parent = items[index];
+    if (!parent) {
+      continue;
+    }
+
+    const sourceIndex = parent.children.findIndex(
+      (item) => item.id === topicItemId,
+    );
+
+    if (sourceIndex >= 0) {
+      const source = parent.children[sourceIndex];
+      if (!source) {
+        return items as TopicItem[];
+      }
+
+      const children = [...parent.children];
+      children.splice(sourceIndex, 1);
+
+      const nextItems = [...items];
+      nextItems[index] = { ...parent, children };
+      nextItems.splice(index + 1, 0, source);
+      return nextItems;
+    }
+
+    const nested = outdentTopicItemInItems(parent.children, topicItemId);
+
+    if (nested === parent.children) {
+      continue;
+    }
+
+    const nextItems = [...items];
+    nextItems[index] = { ...parent, children: nested };
+    return nextItems;
+  }
+
+  return items as TopicItem[];
+}
+
+export function outdentTopicItem(
+  elements: readonly PowerShowElement[],
+  topicsId: string,
+  topicItemId: string,
+): PowerShowElement[] {
+  const target = findElementById(elements, topicsId);
+
+  if (target?.type !== "topics") {
+    return elements as PowerShowElement[];
+  }
+
+  const items = outdentTopicItemInItems(target.items, topicItemId);
+
+  if (items === target.items) {
+    return elements as PowerShowElement[];
+  }
+
+  return updateElementById(elements, topicsId, (element) => {
+    if (element.type !== "topics") {
+      return element;
+    }
+
+    return { ...element, items };
+  });
+}
+
 export function updateTopicItemTextContent(
   items: readonly TopicItem[],
   topicItemId: string,
