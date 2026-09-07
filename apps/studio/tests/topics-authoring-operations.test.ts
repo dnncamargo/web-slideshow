@@ -15,6 +15,7 @@ import {
   createDefaultTopicItem,
   createElement,
   findTopicItemStructuralDepthInItems,
+  moveTopicItemToSiblingIndex,
   removeTopicItemFromTopicItems,
   updateTopicItemTextContent,
 } from "../src/features/editor/element-operations";
@@ -154,6 +155,120 @@ describe("canonical TopicItem ContentSlot metadata", () => {
     const result = updateTopicItemTextContent([item], "item-1", "After")[0];
     expect(result?.content).toMatchObject(metadata);
     expect(result?.content.children[0]).toMatchObject({ type: "text", content: "After" });
+  });
+});
+
+describe("TopicItem sibling reorder", () => {
+  it("reorders top-level siblings forward and backward", () => {
+    const items = [
+      topicItem("a", contentSlot("slot-a", [text("text-a")])),
+      topicItem("b", contentSlot("slot-b", [text("text-b")])),
+      topicItem("c", contentSlot("slot-c", [text("text-c")])),
+    ];
+    const elements: PowerShowElement[] = [topics("topics", items)];
+
+    const forward = moveTopicItemToSiblingIndex(elements, "topics", "a", 2);
+    const backward = moveTopicItemToSiblingIndex(forward, "topics", "a", 0);
+
+    expect((forward[0] as TopicsElement).items.map((item) => item.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+    expect((backward[0] as TopicsElement).items.map((item) => item.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("reorders nested siblings and preserves the complete subtree", () => {
+    const moved = topicItem(
+      "moved",
+      contentSlot("moved-slot", [text("moved-text")]),
+      [topicItem("grandchild", contentSlot("grandchild-slot", [text("grandchild-text")]))],
+    );
+    const parent = topicItem(
+      "parent",
+      contentSlot("parent-slot", [text("parent-text")]),
+      [moved, topicItem("sibling", contentSlot("sibling-slot", [text("sibling-text")]))],
+    );
+    const elements: PowerShowElement[] = [topics("topics", [parent])];
+
+    const result = moveTopicItemToSiblingIndex(elements, "topics", "moved", 1);
+    const updatedParent = (result[0] as TopicsElement).items[0]!;
+
+    expect(updatedParent.children.map((item) => item.id)).toEqual([
+      "sibling",
+      "moved",
+    ]);
+    expect(updatedParent.children[1]).toBe(moved);
+    expect(updatedParent.children[1]?.content).toBe(moved.content);
+    expect(updatedParent.children[1]?.content.children).toBe(moved.content.children);
+    expect(updatedParent.children[1]?.children).toBe(moved.children);
+    expect(updatedParent.children[1]?.children[0]?.id).toBe("grandchild");
+  });
+
+  it("leaves invalid requests, same index, and other TopicsElements unchanged", () => {
+    const first = topics("first", [
+      topicItem("a", contentSlot("slot-a", [text("text-a")])),
+      topicItem("b", contentSlot("slot-b", [text("text-b")])),
+    ]);
+    const second = topics("second", [
+      topicItem("other", contentSlot("slot-other", [text("text-other")])),
+    ]);
+    const elements: PowerShowElement[] = [first, second];
+
+    for (const [topicsId, itemId, index] of [
+      ["first", "missing", 0],
+      ["second", "a", 0],
+      ["first", "a", -1],
+      ["first", "a", 2],
+      ["first", "a", 0],
+      ["first", "a", 1.5],
+    ] as const) {
+      expect(moveTopicItemToSiblingIndex(elements, topicsId, itemId, index)).toBe(
+        elements,
+      );
+    }
+
+    expect(second.items[0]?.id).toBe("other");
+  });
+
+  it("reorders imported TopicItems deeper than the authoring limit", () => {
+    const items = structuralChain(6);
+    const deepParent = findTopicItemDepthItem(items, "topic-level-6")!;
+    const deepSibling = topicItem(
+      "deep-sibling",
+      contentSlot("deep-sibling-slot", [text("deep-sibling-text")]),
+    );
+    deepParent.children.push(deepSibling);
+    const elements: PowerShowElement[] = [topics("topics", items)];
+
+    const result = moveTopicItemToSiblingIndex(
+      elements,
+      "topics",
+      "deep-sibling",
+      0,
+    );
+    const updated = (result[0] as TopicsElement).items[0]!;
+    const updatedDeepParent = findTopicItemDepthItem(
+      (result[0] as TopicsElement).items,
+      "topic-level-6",
+    )!;
+
+    expect(updated.id).toBe("topic-level-1");
+    expect(updatedDeepParent.children[0]?.id).toBe("deep-sibling");
+    expect(updatedDeepParent.children[1]?.id).toBeUndefined();
+    expect(
+      findTopicItemStructuralDepthInItems(
+        (result[0] as TopicsElement).items,
+        "topic-level-6",
+      ),
+    ).toBe(6);
+    expect(updatedDeepParent.children[0]?.content.children[0]?.id).toBe(
+      "deep-sibling-text",
+    );
   });
 });
 

@@ -307,6 +307,89 @@ export function appendChildTopicItemToTopics(
   });
 }
 
+function moveTopicItemToSiblingIndexInItems(
+  items: readonly TopicItem[],
+  topicItemId: string,
+  targetIndex: number,
+): TopicItem[] {
+  const sourceIndex = items.findIndex((item) => item.id === topicItemId);
+
+  if (sourceIndex >= 0) {
+    if (
+      !Number.isInteger(targetIndex) ||
+      targetIndex < 0 ||
+      targetIndex >= items.length ||
+      targetIndex === sourceIndex
+    ) {
+      return items as TopicItem[];
+    }
+
+    const nextItems = [...items];
+    const [item] = nextItems.splice(sourceIndex, 1);
+
+    if (!item) {
+      return items as TopicItem[];
+    }
+
+    nextItems.splice(targetIndex, 0, item);
+    return nextItems;
+  }
+
+  for (let index = 0; index < items.length; index += 1) {
+    const currentItem = items[index];
+    if (!currentItem) {
+      continue;
+    }
+
+    const children = moveTopicItemToSiblingIndexInItems(
+      currentItem.children,
+      topicItemId,
+      targetIndex,
+    );
+
+    if (children === currentItem.children) {
+      continue;
+    }
+
+    const nextItems = [...items];
+    nextItems[index] = { ...currentItem, children };
+    return nextItems;
+  }
+
+  return items as TopicItem[];
+}
+
+export function moveTopicItemToSiblingIndex(
+  elements: readonly PowerShowElement[],
+  topicsId: string,
+  topicItemId: string,
+  targetIndex: number,
+): PowerShowElement[] {
+  const target = findElementById(elements, topicsId);
+
+  if (target?.type !== "topics") {
+    return elements as PowerShowElement[];
+  }
+
+  const items = moveTopicItemToSiblingIndexInItems(
+    target.items,
+    topicItemId,
+    targetIndex,
+  );
+
+  if (items === target.items) {
+    return elements as PowerShowElement[];
+  }
+
+  return updateElementById(elements, topicsId, (element) => {
+    if (element.type !== "topics") {
+      return element;
+    }
+
+    return { ...element, items };
+  });
+}
+
 export function updateTopicItemTextContent(
   items: readonly TopicItem[],
   topicItemId: string,
