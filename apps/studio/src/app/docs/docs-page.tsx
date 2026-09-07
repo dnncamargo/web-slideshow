@@ -134,6 +134,32 @@ export function DocsPage() {
                     <code>{section.code}</code>
                   </pre>
                 ) : null}
+
+                {section.codeBlocks?.map((block) => (
+                  <div className={styles.codeBlock} key={`${block.label ?? "code"}-${block.code}`}>
+                    {block.label !== undefined ? <div className={styles.codeLabel}>{block.label}</div> : null}
+                    <pre>
+                      <code>{block.code}</code>
+                    </pre>
+                  </div>
+                ))}
+
+                {section.table !== undefined ? (
+                  <div className={styles.tableWrap}>
+                    <table>
+                      <thead>
+                        <tr>{section.table.columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {section.table.rows.map((row, rowIndex) => (
+                          <tr key={`${rowIndex}-${row.join("|")}`}>
+                            {row.map((cell, cellIndex) => <td key={`${cellIndex}-${cell}`}>{cell}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
               </section>
             ))}
           </div>

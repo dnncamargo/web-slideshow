@@ -1,0 +1,80 @@
+import type { DocsGroup, DocsTopic } from "./docs-content-types";
+
+const topic = (id: string, title: string, summary: string, sections: DocsTopic["sections"]): DocsTopic => ({ id, title, summary, sections });
+
+export const advancedDocsGroup: DocsGroup = {
+  title: "Guias avançados",
+  topics: [
+    topic("plot-create", "Plot — Como criar", "Crie um Plot pequeno, valide a fonte e ajuste a aparência.", [
+      { title: "Descrição", paragraphs: ["Adicione um Plot e escreva uma equação por linha no campo Source. O renderer analisa a fonte, amostra a geometria e produz o desenho; Source é intenção matemática, não SVG ou código de desenho."] },
+      { title: "Sintaxe", paragraphs: ["Toda linha válida tem a forma expressão = expressão. Use x, y e z como coordenadas conforme a forma reconhecida. Parâmetros adicionais precisam receber bindings, por exemplo pela animação."] },
+      { title: "Exemplo", codeBlocks: [{ label: "Source", language: "text", code: "y = sin(x)" }] },
+      { title: "Passos", bullets: ["Abra Content → Source.", "Digite a equação e deixe o Inspector analisar.", "Em Appearance, escolha Fit to axes e Show axes.", "Use Size para dimensionar a caixa; Position só aparece quando o contexto de layers a habilita."] },
+      { title: "Resultado esperado", paragraphs: ["Uma curva 2D aparece com eixos conforme a configuração. Uma relação implícita ou uma superfície 3D usa o caminho geométrico correspondente; fontes inválidas não produzem uma geometria útil."] },
+      { title: "Erros comuns", bullets: ["Usar uma função que não existe na lista de built-ins.", "Esquecer o sinal =.", "Usar um parâmetro sem binding ou fora de uma animação.", "Ultrapassar 4096 caracteres em Source."] },
+    ]),
+    topic("plot-language", "Plot — Linguagem matemática", "Referência mínima da gramática implementada pelo math-source.", [
+      { title: "Descrição", paragraphs: ["A linguagem aceita números, identificadores, chamadas de funções built-in, parênteses, equações e quebras de linha. O avaliador é limitado e rejeita sintaxe ou operações fora desse contrato."] },
+      { title: "Valores e identificadores", bullets: ["Números usam a forma decimal aceita pelo tokenizer, incluindo sinais unários.", "Identificadores começam com uma letra ASCII e continuam com letras, dígitos ou underscore.", "x, y e z são coordenadas quando usados na análise; pi e e são constantes.", "Outros identificadores são parâmetros e precisam de binding."] },
+      { title: "Operadores e precedência", table: { columns: ["Nível", "Operadores", "Observação"], rows: [["Mais alta", "( )", "Agrupa uma expressão."], ["", "^", "Potência; associada pelo parser com o operando unário à direita."], ["", "+x, -x", "Sinal unário."], ["", "* /", "Multiplicação e divisão."], ["Mais baixa", "+ -", "Soma e subtração."]] } },
+      { title: "Funções built-in", paragraphs: ["As funções reais são sin, cos, tan, sqrt, abs, log e exp. Cada uma recebe um argumento. sqrt exige domínio não negativo; log exige argumento positivo."] },
+      { title: "Formas de equação", table: { columns: ["Forma para o usuário", "Forma analisada", "Exemplo"], rows: [["y em função de x", "explicit-y", "y = sin(x)"], ["x em função de y", "explicit-x", "x = cos(y)"], ["z em função de x e y", "explicit-z", "z = sin(x) * cos(y)"], ["relação no plano", "implicit-2d", "x^2 + y^2 = 1"], ["relação no espaço", "implicit-3d", "x^2 + y^2 + z^2 = 1"]] } },
+      { title: "Exemplos validados", codeBlocks: [{ label: "2D explícito", code: "y = sin(x)" }, { label: "2D implícito", code: "x^2 + y^2 = 1" }, { label: "Superfície", code: "z = sin(x) * cos(y)\n\nx^2 + y^2 + z^2 = 1" }] },
+      { title: "Notas", paragraphs: ["O renderer trata equações explícitas 2D, implícitas 2D, superfícies explícitas z e implícitas 3D por caminhos de geometria diferentes. Uma forma válida na análise ainda pode não ser adequada a todas as rotinas de geometria; consulte o resultado visual e os diagnósticos."] },
+    ]),
+    topic("plot-animation", "Plot — Animação", "Anime um parâmetro da expressão usando o estado authored do Plot.", [
+      { title: "Descrição", paragraphs: ["A animação interpola um parâmetro entre From e To durante Duration (ms). Loop reinicia a interpolação; Autoplay inicia a reprodução quando o runtime hidrata o slide."] },
+      { title: "Parâmetros", table: { columns: ["Campo", "Regra"], rows: [["Parameter", "Identifier válido; não pode ser x, y, z, pi ou e."], ["From / To", "Números finitos."], ["Duration (ms)", "Inteiro positivo em milissegundos."], ["Loop", "false termina no valor To; true ou ausência fazem a interpolação repetir."], ["Autoplay", "false desativa o início automático; ausência permite autoplay quando o runtime o habilita."]] } },
+      { title: "Exemplo", codeBlocks: [{ label: "Source", language: "text", code: "y = sin(x + t)" }, { label: "Animation", language: "text", code: "parameter: t\nfrom: 0\nto: 6.283185307179586\ndurationMs: 4000\nloop: true\nautoplay: true" }] },
+      { title: "Aplicar e prévia", bullets: ["Ative Animate parameter e preencha os campos.", "Apply valida e grava a configuração canônica; Reset restaura o draft local ao valor canônico.", "Play preview, Pause preview e Reset preview controlam a prévia do Inspector quando há controles de preview.", "A expressão deve realmente usar o parâmetro para que a mudança altere a geometria."] },
+      { title: "Limites", paragraphs: ["A animação usa requestAnimationFrame no runtime e é cancelada quando não há Plot tocando. Ela não transforma valores animados em estado persistido da Presentation."] },
+    ]),
+    topic("plot-examples", "Plot — Exemplos", "Exemplos pequenos de cada forma de equação.", [
+      { title: "Função y(x)", codeBlocks: [{ code: "y = sin(x)" }], paragraphs: ["Resultado esperado: curva 2D de seno. Use Fit to axes para enquadrar bounds finitos."] },
+      { title: "Função x(y)", codeBlocks: [{ code: "x = cos(y)" }], paragraphs: ["Resultado esperado: curva 2D orientada a partir do domínio y."] },
+      { title: "Círculo implícito", codeBlocks: [{ code: "x^2 + y^2 = 1" }], paragraphs: ["Resultado esperado: relação implícita 2D amostrada no viewport."] },
+      { title: "Superfície z(x,y)", codeBlocks: [{ code: "z = sin(x) * cos(y)" }], paragraphs: ["Resultado esperado: superfície 3D; Appearance → 3D color pode escolher Solid ou By Z e, neste último caso, Minimum Z color e Maximum Z color."] },
+      { title: "Esfera implícita", codeBlocks: [{ code: "x^2 + y^2 + z^2 = 1" }], paragraphs: ["Esta forma é reconhecida como relação implícita 3D. A adequação da geometria depende do caminho de amostragem e do viewport."] },
+    ]),
+    topic("scripted-create", "Scripted — Como criar", "Monte um Scripted isolado com HTML, CSS e JavaScript.", [
+      { title: "Objetivo", paragraphs: ["Scripted é para interações authored que não possuem elemento oficial. Crie os três campos e depois use Aplicar / Executar para enviar o conjunto ao estado canônico."] },
+      { title: "Inspector", paragraphs: ["Content contém Título, HTML, CSS, JavaScript, Ports e os controles da porta. Appearance e Effects são seções separadas. Size e Position, quando disponíveis, vêm do ElementInspector comum."] },
+      { title: "HTML", codeBlocks: [{ label: "HTML", language: "html", code: "<div class=\"counter\">\n  <strong id=\"value\">0</strong>\n  <button id=\"increment\">+</button>\n</div>" }] },
+      { title: "CSS", codeBlocks: [{ label: "CSS", language: "css", code: ".counter {\n  display: grid;\n  place-items: center;\n  gap: 1rem;\n}\n\nbutton {\n  font: inherit;\n}" }] },
+      { title: "JavaScript", codeBlocks: [{ label: "JavaScript", language: "js", code: "let value = 0;\n\nconst output = document.getElementById(\"value\");\nconst button = document.getElementById(\"increment\");\n\nbutton.addEventListener(\"click\", () => {\n  value += 1;\n  output.textContent = String(value);\n});" }] },
+      { title: "Como testar", bullets: ["Cole cada trecho no campo correspondente.", "Mantenha o Título não vazio.", "Clique Aplicar / Executar.", "Teste no preview/player; o Inspector não executa o script diretamente."] },
+    ]),
+    topic("scripted-code", "Scripted — HTML, CSS e JavaScript", "Entenda o momento de execução e o limite do documento isolado.", [
+      { title: "Apply / Run é a fronteira", paragraphs: ["Typing nos campos atualiza apenas drafts locais. Aplicar / Executar valida título e ports, grava title + html + css + script juntos e permite que o renderer recrie o iframe. Reverter descarta os drafts sem escrever nem executar."] },
+      { title: "Ordem no sandbox", bullets: ["O renderer cria o root e instala HTML e CSS.", "A API PowerShow.ports é instalada.", "O script authored é anexado por um nó script e executado dentro do iframe.", "O Inspector nunca chama eval, Function ou o JavaScript authored."] },
+      { title: "Limite prático", paragraphs: ["Use APIs do DOM do próprio iframe e a bridge documentada. Não dependa de acesso ao documento pai, Firebase ou recursos externos sem considerar a CSP."] },
+    ]),
+    topic("scripted-ports", "Scripted — Ports", "Defina a interface entre o Scripted e o PowerShow.", [
+      { title: "Tipos", table: { columns: ["Kind", "Direção", "Uso"], rows: [["action", "—", "Comando sem valor."], ["boolean", "input", "Control envia boolean."], ["boolean", "output", "Scripted reporta boolean."], ["boolean", "input-output", "Ambos os sentidos."], ["number", "input/output/input-output", "Valor numérico, com limites opcionais."]] } },
+      { title: "Identidade e validação", bullets: ["id é a identidade técnica estável usada pelo JavaScript e pelo Control.", "label é o texto mostrado ao operador.", "id e label não podem ser vazios.", "IDs devem ser únicos dentro do Scripted.", "Para number, min não pode ser maior que max e step, quando informado, deve ser positivo."] },
+      { title: "Number", paragraphs: ["Min e Max restringem os valores aceitos. Step descreve o passo do controle numérico do Control quando ele está disponível; não substitui a validação de min/max do runtime."] },
+      { title: "Como testar", paragraphs: ["Crie a porta no Inspector, copie exatamente o id para o código e clique Aplicar / Executar. O Control só pode comandar portas de entrada ou input-output; uma porta output-only é observada."] },
+    ]),
+    topic("scripted-api", "Scripted — Ports API", "Referência da API PowerShow.ports injetada no sandbox.", [
+      { title: "onAction", paragraphs: ["Registra um handler para uma porta action. O comando recebido não tem valor."], codeBlocks: [{ language: "js", code: "PowerShow.ports.onAction(\"reset\", () => {\n  value = 0;\n  render();\n});" }] },
+      { title: "onInput", paragraphs: ["Registra um handler para uma porta boolean ou number com direção input ou input-output."], codeBlocks: [{ label: "boolean", language: "js", code: "PowerShow.ports.onInput(\"visible\", (visible) => {\n  document.body.hidden = !visible;\n});" }, { label: "number", language: "js", code: "PowerShow.ports.onInput(\"level\", (level) => {\n  output.textContent = String(level);\n});" }] },
+      { title: "report", paragraphs: ["Envia estado para uma porta de saída ou input-output. O tipo precisa coincidir; number deve respeitar min/max. O valor reportado é estado do sandbox no Live, não uma gravação na Presentation."], codeBlocks: [{ language: "js", code: "PowerShow.ports.report(\"level\", 42);" }] },
+      { title: "Erros de contrato", bullets: ["id desconhecido gera erro.", "onAction em porta que não é action gera erro.", "onInput em output-only não é aceito.", "report em input-only não é aceito.", "Valores boolean/number inválidos ou fora de min/max são rejeitados."] },
+    ]),
+    topic("scripted-examples", "Scripted — Exemplos", "Seis exemplos progressivos, cada um demonstrando uma interface.", [
+      { title: "1 — contador local", paragraphs: ["Objetivo: aprender HTML/CSS/JS sem Ports. Ports a criar: nenhum. Use o exemplo de Scripted — Como criar; teste clicando +. O Control não verá controles para esse elemento."] },
+      { title: "2 — Reset remoto", paragraphs: ["Objetivo: receber um comando. Port a criar: id reset, label Reset, kind action. Como testar: registre PowerShow.ports.onAction(\"reset\", ...), aplique e use o comando Reset no Control. O Control verá uma ação, sem valor."], codeBlocks: [{ language: "js", code: "PowerShow.ports.onAction(\"reset\", () => {\n  value = 0;\n  render();\n});" }] },
+      { title: "3 — visibilidade", paragraphs: ["Objetivo: Control enviar boolean. Port: id visible, label Visible, kind boolean, direction input. Como testar: altere Visible no Control. O Scripted reage no iframe; o Control verá o valor desejado e o estado reportado somente se houver report."], codeBlocks: [{ language: "js", code: "PowerShow.ports.onInput(\"visible\", (visible) => {\n  document.body.hidden = !visible;\n});" }] },
+      { title: "4 — número remoto", paragraphs: ["Objetivo: receber um número limitado. Port: id level, label Level, kind number, direction input, min 0, max 100, step 1. Como testar: mova o controle numérico e renderize o valor recebido."], codeBlocks: [{ language: "js", code: "PowerShow.ports.onInput(\"level\", (level) => {\n  output.textContent = String(level);\n});" }] },
+      { title: "5 — estado de saída", paragraphs: ["Objetivo: reportar uma mudança local. Port: id level, label Level, kind number, direction output. Como testar: depois de cada interação local, chame report. O Control verá o valor atual, sem comando de entrada."], codeBlocks: [{ language: "js", code: "button.addEventListener(\"click\", () => {\n  value += 1;\n  render();\n  PowerShow.ports.report(\"level\", value);\n});" }] },
+      { title: "6 — input-output", paragraphs: ["Objetivo: aceitar valor remoto e também reportar interação local. Port: id level, label Level, kind number, direction input-output, min 0, max 100, step 1. Como testar: onInput atualiza a UI; a interação local chama report. O Control verá o desejado, o aplicado e o reportado conforme o runtime Live."], codeBlocks: [{ language: "js", code: "PowerShow.ports.onInput(\"level\", (level) => {\n  value = level;\n  render();\n});\n\nfunction localChange(next) {\n  value = next;\n  render();\n  PowerShow.ports.report(\"level\", value);\n}" }] },
+    ]),
+    topic("scripted-security-guide", "Scripted — Segurança e limites", "Saiba exatamente o que o sandbox permite e bloqueia.", [
+      { title: "Boundary", paragraphs: ["O renderer cria um iframe com sandbox=allow-scripts e sem allow-same-origin. Scripted permite JavaScript authored, mas dentro de um documento isolado; não é código privilegiado do PowerShow."] },
+      { title: "CSP atual", bullets: ["script-src permite o bootstrap inline do renderer.", "style-src permite CSS inline do documento isolado.", "img-src aceita https:, data: e blob:.", "media-src aceita data: e blob:.", "font-src aceita data:.", "connect-src é none.", "frame-src é none.", "object-src e base-uri são none.", "form-action é none."] },
+      { title: "O que não é fornecido", bullets: ["Acesso ao DOM pai.", "Firebase SDK ou tokens do PowerShow.", "Storage compartilhado com a origem do PowerShow.", "Forms, popups, downloads ou top navigation autorizados pelo sandbox.", "Iframes internos, pois frame-src permanece none."] },
+      { title: "Erros comuns", bullets: ["Esquecer Aplicar / Executar.", "Usar id diferente entre Inspector e JavaScript.", "Usar onAction em porta não-action.", "Usar onInput em output-only.", "Usar report em input-only.", "Enviar tipo errado ou número fora de min/max.", "Criar IDs duplicados ou labels/IDs vazios.", "Tentar fetch, window.parent.document ou storage compartilhado.", "Depender de recurso externo bloqueado pela CSP."] },
+      { title: "Regra prática", paragraphs: ["Mantenha a interação dentro do iframe e use apenas PowerShow.ports para comunicação. Estado reportado é Live/runtime e não persiste na Presentation canônica."] },
+    ]),
+  ],
+};
