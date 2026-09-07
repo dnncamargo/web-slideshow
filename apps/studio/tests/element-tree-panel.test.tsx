@@ -364,12 +364,65 @@ describe("ElementTreePanel", () => {
 
     expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
     expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
-      "Text — B",
       "Image",
       "Table",
       "B.1",
       "B.2",
     ]);
+  });
+
+  it("suppresses only each TopicItem label source while preserving canonical children", () => {
+    const primaryA = text("topic-a-text", "A");
+    const noteA = text("topic-a-note", "Additional note");
+    const primaryB = text("topic-b-text", "B");
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [primaryA, noteA, image("a-image")])),
+      topicItem("topic-b", contentSlot("slot-b", [primaryB]), [
+        topicItem("topic-b-1", contentSlot("slot-b-1", [text("b-1-text", "B.1")])),
+      ]),
+    ]);
+
+    renderPanel(slide);
+
+    const topicA = findTreeItem(container, "A");
+    expect(directTopicChildren(topicA).map(treeItemLabel)).toEqual([
+      "Text — Additional note",
+      "Image",
+    ]);
+    expect(findTreeItem(container, "B")).toBeTruthy();
+    expect(findTreeItem(container, "B.1")).toBeTruthy();
+    expect(slide.elements[0]?.type === "topics" ? slide.elements[0].items[0]?.content.children : []).toEqual([
+      primaryA,
+      noteA,
+      expect.objectContaining({ id: "a-image" }),
+    ]);
+  });
+
+  it("renders a default TopicItem as a visual leaf without an empty group", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text", "A")])),
+    ]);
+
+    renderPanel(slide);
+
+    const topicA = findTreeItem(container, "A");
+    expect(topicA.querySelector(':scope > div > button[aria-label="Expand"]')).toBeNull();
+    expect(topicA.querySelector(':scope > div > span[aria-hidden="true"]')).not.toBeNull();
+    expect(directTreeGroup(topicA)).toBeNull();
+  });
+
+  it("keeps TopicItems expandable for additional content or structural children", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A"), image("a-image")])),
+      topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")]), [
+        topicItem("topic-b-1", contentSlot("slot-b-1", [text("b-1-text", "B.1")])),
+      ]),
+    ]);
+
+    renderPanel(slide);
+
+    expect(findTreeItem(container, "A").querySelector('button[aria-label="Collapse"]')).not.toBeNull();
+    expect(findTreeItem(container, "B").querySelector('button[aria-label="Collapse"]')).not.toBeNull();
   });
 
   it("renders initially expanded synthetic Gallery Image rows in canonical order", () => {
@@ -458,7 +511,6 @@ describe("ElementTreePanel", () => {
     const topicC1 = findTreeItem(container, "C.1");
 
     expect(directTopicChildren(topicC1).map(treeItemLabel)).toEqual([
-      "Text — C.1",
       "Image",
     ]);
   });
@@ -575,7 +627,7 @@ describe("ElementTreePanel", () => {
     expect(topicsRow.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
     expect(container.querySelectorAll('button[aria-label="Promote topic"]')).toHaveLength(1);
     expect(container.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
-    expect(findTreeItem(container, "Text — A").querySelector('button[aria-label="Promote topic"]')).toBeNull();
+    expect(findTreeItem(container, "A").querySelector('button[aria-label="Promote topic"]')).toBeNull();
     expect(findTreeItem(container, "Image").querySelector('button[aria-label="Demote topic"]')).toBeNull();
   });
 
@@ -888,7 +940,6 @@ describe("ElementTreePanel", () => {
     const topicB = findTreeItem(container, "B");
 
     expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
-      "Text — B",
       "Container",
     ]);
   });

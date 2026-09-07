@@ -202,7 +202,10 @@ function getTextPreview(
   return compact.length > 36 ? `${compact.slice(0, 35)}…` : compact;
 }
 
-function getTopicItemLabel(item: TopicItem, topicLabel: string): string {
+function getTopicItemDisplayInfo(
+  item: TopicItem,
+  topicLabel: string,
+): { label: string; labelSourceElementId: string | null } {
   for (const child of item.content.children) {
     if (child.type !== "text") {
       continue;
@@ -211,11 +214,11 @@ function getTopicItemLabel(item: TopicItem, topicLabel: string): string {
     const preview = getTextPreview(child.content);
 
     if (preview) {
-      return preview;
+      return { label: preview, labelSourceElementId: child.id };
     }
   }
 
-  return topicLabel;
+  return { label: topicLabel, labelSourceElementId: null };
 }
 
 function collectInitiallyExpandedTopicItemIds(
@@ -587,19 +590,24 @@ function TopicItemTreeNode({
   getTopicItemHierarchyActionState,
 }: TopicItemTreeNodeProps) {
   const { t } = useStudioI18n();
-  const expanded = expandedIds.has(item.id);
+  const displayInfo = getTopicItemDisplayInfo(item, t("tree.topic"));
+  const visibleContentChildren = item.content.children.filter(
+    (child) => child.id !== displayInfo.labelSourceElementId,
+  );
+  const structuralChildren = item.children;
+  const isExpandable =
+    visibleContentChildren.length > 0 || structuralChildren.length > 0;
+  const expanded = isExpandable && expandedIds.has(item.id);
   const selected =
     selectedElementId === owningTopicsId &&
     selectedContentSlotId === item.content.id;
-  const treeChildren = item.content.children;
-  const structuralChildren = item.children;
 
   return (
     <li
       className={styles.elementTreeNode}
       role="treeitem"
       aria-selected={selected}
-      aria-expanded={expanded}
+      aria-expanded={isExpandable ? expanded : undefined}
     >
       <div
         className={
@@ -608,14 +616,18 @@ function TopicItemTreeNode({
             : styles.elementTreeRow
         }
       >
-        <button
-          className={styles.elementTreeExpand}
-          type="button"
-          aria-label={t(expanded ? "tree.collapse" : "tree.expand")}
-          onClick={() => onToggle(item.id)}
-        >
-          {expanded ? "▾" : "▸"}
-        </button>
+        {isExpandable ? (
+          <button
+            className={styles.elementTreeExpand}
+            type="button"
+            aria-label={t(expanded ? "tree.collapse" : "tree.expand")}
+            onClick={() => onToggle(item.id)}
+          >
+            {expanded ? "▾" : "▸"}
+          </button>
+        ) : (
+          <span className={styles.elementTreeExpand} aria-hidden="true" />
+        )}
 
         <button
           className={styles.elementTreeSelect}
@@ -628,18 +640,18 @@ function TopicItemTreeNode({
             })
           }
         >
-          {getTopicItemLabel(item, t("tree.topic"))}
+          {displayInfo.label}
         </button>
 
       </div>
-      {expanded && (
+      {isExpandable && expanded && (
         <ul role="group" className={styles.elementTreeList}>
-          {treeChildren.map((child, childIndex) => (
+          {visibleContentChildren.map((child, childIndex) => (
             <ElementTreeNode
               key={child.id}
               element={child}
               index={childIndex}
-              siblingCount={treeChildren.length}
+              siblingCount={visibleContentChildren.length}
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
               selectedContentSlotId={selectedContentSlotId}
