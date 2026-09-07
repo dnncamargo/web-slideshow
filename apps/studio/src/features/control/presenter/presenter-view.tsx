@@ -168,24 +168,25 @@ function PlotAnimationControls({ targets, actionsEnabled, pendingPlotSlots, trig
   t: StudioTranslate;
 }) {
   const pending = pendingPlotSlots.size > 0;
-  const actionButtons: readonly [PlotAnimationAction, string, string][] = [
-    ["play", "control.play", "play"],
-    ["pause", "control.pause", "pause"],
-    ["reset", "control.reset", "reset"],
+  const actionButtons: readonly [PlotAnimationAction, string, "control.playPlot" | "control.pausePlot" | "control.resetPlot", string][] = [
+    ["play", "▶", "control.playPlot", "control.playAllAccessible"],
+    ["pause", "⏸", "control.pausePlot", "control.pauseAllAccessible"],
+    ["reset", "⏮", "control.resetPlot", "control.resetAllAccessible"],
   ];
   return <>
     <div className={presenterStyles.plotAnimationAllActions}>
-      {(["play", "pause", "reset"] as const).map((action) => (
-        <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pending} onClick={() => triggerAll(action)}>
-          {t(action === "play" ? "control.playAll" : action === "pause" ? "control.pauseAll" : "control.resetAll")}
+      <span className={presenterStyles.plotAnimationScope}>{t("control.all")}</span>
+      {actionButtons.map(([action, symbol, _individualKey, allKey]) => (
+        <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pending} onClick={() => triggerAll(action)} aria-label={t(allKey as "control.playAllAccessible" | "control.pauseAllAccessible" | "control.resetAllAccessible")} title={t(allKey as "control.playAllAccessible" | "control.pauseAllAccessible" | "control.resetAllAccessible")}>
+          <span aria-hidden="true">{symbol}</span>
         </Button>
       ))}
     </div>
     {targets.map((target) => <div className={presenterStyles.plotAnimationGroup} key={`${target.plotSlot}:${target.elementId}`}>
       <span className={presenterStyles.plotAnimationLabel}>{target.label}</span>
       <div className={presenterStyles.plotAnimationActions}>
-        {actionButtons.map(([action, key]) => <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pendingPlotSlots.has(target.plotSlot)} onClick={() => triggerAction(target, action)} aria-label={`${t(key as "control.play" | "control.pause" | "control.reset")}: ${t("control.plot")} ${target.plotSlot + 1}`}>
-          {t(key as "control.play" | "control.pause" | "control.reset")}
+        {actionButtons.map(([action, symbol, individualKey]) => <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pendingPlotSlots.has(target.plotSlot)} onClick={() => triggerAction(target, action)} aria-label={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })} title={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })}>
+          <span aria-hidden="true">{symbol}</span>
         </Button>)}
       </div>
     </div>)}
@@ -805,7 +806,7 @@ export function PresenterView({
           </div>
         </div>
 
-        {(showGalleryControls || showScriptedActionControls || showScriptedStateControls) && (
+        {(showGalleryControls || showPlotAnimationControls || showScriptedActionControls || showScriptedStateControls) && (
           <div className={presenterStyles.mobileInteractiveElementsControls} data-mobile-gallery-controls data-mobile-interactive-elements-controls>
             {showGalleryControls && <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />}
             {showPlotAnimationControls && <div className={presenterStyles.interactiveElementsControls}><strong>{t("control.animations")}</strong><PlotAnimationControls targets={plotTargets} actionsEnabled={plotActionsEnabled && !disabled} pendingPlotSlots={pendingPlotSlots} triggerAction={triggerPlotAction} triggerAll={triggerAllPlotActions} t={t} /></div>}

@@ -487,7 +487,11 @@ describe("PresenterView controls", () => {
     render({ plotTargets: [target], triggerPlotAction, triggerAllPlotActions });
     const controls = container.querySelector<HTMLElement>("[data-plot-animation-controls]");
     expect(controls?.textContent).toContain("Animations");
+    expect(controls?.textContent).toContain("All");
     expect(controls?.textContent).toContain(target.label);
+    expect(controls?.textContent).toContain("▶");
+    expect(controls?.textContent).toContain("⏸");
+    expect(controls?.textContent).toContain("⏮");
     expect(controls?.querySelectorAll("button")).toHaveLength(6);
     const buttons = [...controls?.querySelectorAll<HTMLButtonElement>("button") ?? []];
     act(() => { buttons[0]?.click(); buttons[1]?.click(); buttons[2]?.click(); buttons[3]?.click(); buttons[4]?.click(); buttons[5]?.click(); });
@@ -495,8 +499,19 @@ describe("PresenterView controls", () => {
     expect(triggerAllPlotActions).toHaveBeenCalledWith("pause");
     expect(triggerAllPlotActions).toHaveBeenCalledWith("reset");
     expect(triggerPlotAction).toHaveBeenCalledTimes(3);
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Play all animations", "Pause all animations", "Reset all animations",
+      "Play Plot 1", "Pause Plot 1", "Reset Plot 1",
+    ]);
     expect(controls?.querySelector('[aria-pressed]')).toBeNull();
     expect(controls?.textContent).not.toContain("playing");
+  });
+
+  it("keeps the mobile interaction surface for Plot-only slides", () => {
+    render({ plotTargets: [{ plotSlot: 0, elementId: "plot-only", label: "Plot 1" }] });
+    expect(container.querySelector("[data-mobile-interactive-elements-controls]")).not.toBeNull();
+    expect(container.querySelector("[data-mobile-interactive-elements-controls]")?.textContent).toContain("▶");
+    expect(container.querySelector("[data-gallery-controls]")).toBeNull();
   });
 
   it("disables Plot global and pending-target commands truthfully", () => {

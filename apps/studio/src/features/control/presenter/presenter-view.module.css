@@ -137,23 +137,43 @@
 .plotAnimationAllActions,
 .plotAnimationActions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 
+.plotAnimationAllActions {
+  align-items: center;
+}
+
+.plotAnimationScope {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .plotAnimationGroup {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
 
 .plotAnimationLabel {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #cbd5e1;
   font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .plotAnimationGroup {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
 }
 
 .mobileInteractiveElementsControls {
