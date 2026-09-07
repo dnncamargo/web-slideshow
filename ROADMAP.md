@@ -174,7 +174,7 @@ Control desired state
 | P10.1 | Typography & Fonts refinement | ✅ | #58–#59 |
 | P10.2 | Links / Interaction | ✅ | #60–#62 |
 | P10.3 | ContentSlot foundation | ✅ | #63 |
-| P10.4 | Topics | ✅ | #64–#66 |
+| P10.4 | Topics minimum | ✅ | #64–#66 |
 | P10.5 | Structured Table | ✅ | #73 |
 | P10.6 | Inline Text / Rich Text foundation | ✅ | #74 |
 | P10.7 | Gallery minimum | ✅ | #75 |
@@ -302,9 +302,7 @@ Merged Preserve size grammar, compact Add/Apply actions, projected Text Styles c
 
 # Scripted controlled interaction ✅
 
-Reference: PR #133.
-
-Scripted enhancement is complete and no longer the active queue.
+References: PR #133 and HTTPS-image refinement PR #149.
 
 Delivered:
 
@@ -316,7 +314,8 @@ Delivered:
 - Scripted-specific RTDB input/runtime/report state;
 - Control stateful controls generated from declarations;
 - desired/reported/pending/divergent semantics;
-- retained renderer-owned sandbox and fixed CSP boundary.
+- retained renderer-owned sandbox and fixed CSP boundary;
+- HTTPS image loading in addition to `data:` and `blob:` while general networking remains blocked.
 
 Permanent constraints remain:
 
@@ -327,6 +326,8 @@ Permanent constraints remain:
 - no `eval` / `Function`;
 - no JavaScript payload delivered through RTDB;
 - runtime state never persists into the Presentation.
+
+`img-src https:` is a narrow image capability: sandboxed JavaScript can initiate image GET requests, while `connect-src 'none'` still blocks fetch/XHR/WebSocket/EventSource.
 
 ---
 
@@ -353,7 +354,7 @@ RTDB rules for these contracts were validated and explicitly deployed.
 
 # Mobile Library / Control recovery ✅
 
-Current `main` recovers the previously accepted mobile Library and Control behavior after PR #134.
+Current `main` preserves the accepted mobile Library and Control behavior after PR #134.
 
 Current rule:
 
@@ -376,81 +377,26 @@ Completed refinement of existing canonical elements without creating new element
 - shared inline RichText authoring foundation (#140);
 - Terminal title font size (#141).
 
-The former TCL audit/checkpoint plan is complete and retained only as historical context; it is no longer the active queue.
-
 ---
 
-# Plot V1 ✅
+# Plot V1 + continuation ✅
 
-Reference: PR #142.
+References: PRs #142 and #146–#148.
 
-Plot V1 is the merged restricted mathematical plotting surface. Its persisted discriminator is `type: "plot"`.
+Plot persists restricted mathematical intent; it does not persist generated geometry or arbitrary JavaScript.
 
-The current V1 contract includes:
+Completed capability line:
 
-- mathematical `source` and optional `fitToAxes`;
-- shared resizable/positioned element layout;
-- `@powershow/math-source` support for explicit-y, explicit-x and implicit-2d sources;
-- bounded evaluation and a shared 2D renderer;
-- Studio authoring and Player rendering.
-
-The package owns tokenization, parsing, semantic analysis, bounded evaluation, sampling and math-space geometry. The renderer owns the current 2D projection and axes presentation. Interactive remains a separate element and runtime surface.
-
-V1 itself is complete; the owner has subsequently promoted a new Plot continuation work area for 3D, Position and Appearance.
-
----
-
-# Deterministic Studio test debt ✅
-
-Reference: PR #144.
-
-The post-Plot deterministic Studio debt is closed. The branch was tests-only and aligned stale expectations with current Custom Library, Gallery and Scripted contracts while repairing Gallery/tree-panel test typing.
-
-Final closure evidence:
-
-- Studio typecheck: PASS;
-- full Studio suite: 185 files / 2,161 tests / 0 failures;
-- `git diff --check`: PASS;
-- no production, schema, renderer, Firebase or Plot changes.
-
-Do not treat the former Studio baseline failures as known current failures unless they are reproduced again on a future `main`.
-
----
-
-# Plot continuation ← NEXT
-
-The next work area is the expansion of the existing Plot element around three owner-declared product goals:
-
-- **3D**;
-- **Position**;
-- **Appearance**.
-
-The internal implementation order is intentionally **not frozen yet**.
-
-## PLOT-N0 — read-only audit ← NEXT
-
-Before any implementation, audit the real current `main` across:
-
-- `@powershow/document-schema` Plot contract and reusable layout/style/effect contracts;
-- `@powershow/math-source` grammar, AST, semantic forms, evaluator, sampling and geometry, including any existing `z`/3D groundwork;
-- `@powershow/renderer` Plot projection, axes, viewport and sizing ownership;
-- Studio Plot Inspector, generic Position controls, Canvas behavior and reusable Appearance sections;
-- Player shared-renderer path and compatibility constraints;
-- current Plot tests across schema, math-source, renderer, Studio and Player.
-
-The audit must distinguish:
-
-```text
-Plot element placement in the slide
-≠
-mathematical viewport / camera / 3D projection
-```
-
-Plot already uses the shared resizable/positioned layout contract, so no new positioning schema should be invented unless the audit demonstrates a real canonical gap.
-
-Likewise, Appearance must be derived from concrete authored needs and existing style/effect/Palette ownership. Do not create a generic Plot style bag speculatively.
-
-For 3D, do not preselect WebGL, Canvas, Three.js, camera persistence, mesh persistence or interaction controls before the current math/renderer architecture is audited.
+- explicit-y, explicit-x and implicit-2d sources;
+- explicit-z 3D surface geometry;
+- static SVG 3D wireframe projection;
+- element sizing/positioning through existing shared layout ownership;
+- Plot colors/background;
+- z-based 3D gradient;
+- canonical animation parameter intent with transient runtime bindings;
+- Player/Watch/Demo animation playback and Editor local preview;
+- Control→Player remote Play/Pause/Reset actions;
+- axis color, stroke width and opacity refinement.
 
 Permanent Plot boundary:
 
@@ -460,44 +406,193 @@ restricted mathematical source
 → shared renderer projection
 ```
 
-Do not persist AST, generated samples, geometry or arbitrary executable JavaScript.
+No Three.js/WebGL/Canvas/camera/mesh persistence is part of the current architecture.
 
-After PLOT-N0, freeze small checkpoints from evidence. 3D is expected to require multiple checkpoints rather than one large implementation diff.
+Physical acceptance on the target Android interactive display with Firefox 116 remains pending because the hardware has not yet been available. This is a release gate, not negative compatibility evidence.
 
 ---
 
-# Embed adjustments — NEXT AFTER PLOT
+# Deterministic Studio test debt ✅
 
-Embed already exists canonically and in the shared renderer. This is refinement of an existing surface, not a new element.
+Reference: PR #144.
 
-## E0 — concrete provider/runtime audit
+The post-Plot deterministic Studio debt was closed tests-only. Later feature work has continued to grow the suite; do not treat the historical 185-file baseline as a current expected count.
+
+---
+
+# Font authoring refinement ✅
+
+Reference: PR #150.
+
+Delivered without schema or renderer redesign:
+
+- editable manual `fontFamily` authoring;
+- Presentation FontResource families retained as suggestions;
+- blank returns to inherited/default behavior;
+- Text Styles can author a family even with zero Presentation fonts;
+- complete FontResource in-use detection across current canonical typography consumers, including Code, Terminal body/title, Table/Topics ContentSlots, Text Styles and Linked Styles.
+
+Manual family names are system/browser family requests, not automatic downloads. Portable fonts continue to use canonical `Presentation.resources.fonts` and renderer-generated `@font-face`.
+
+Final PR #150 closure evidence included Studio typecheck PASS, full Studio suite **188 files / 2,245 tests / 0 failures**, remote Studio/Player checks PASS and manual acceptance PASS.
+
+Direct This Presentation FontResource authoring is deferred. Library-thumbnail FontResource style injection parity is a separate backlog item.
+
+---
+
+# Topics refinement ← NEXT
+
+Topics minimum authoring was delivered historically in P10.4. The next work area is **refinement of the existing canonical Topics model**, not creation of a second list element or speculative schema replacement.
+
+Current canonical structure:
+
+```text
+TopicsElement
+→ items: TopicItem[]
+   ├── content: ContentSlot
+   │   ├── layout?
+   │   ├── style?
+   │   ├── typography?
+   │   └── children: PowerShowElement[]
+   └── children: TopicItem[]
+```
+
+Current authored Topics intent also includes ordered/unordered kind, root marker style, marker color, item gap, element layout/style/typography and recursive TopicItem hierarchy.
+
+Studio limits **creation** of structural TopicItem nesting to depth 5. This is an authoring limit only: deeper canonical documents remain loadable, renderable and persistable.
+
+## TOPICS-T0 — read-only audit ← NEXT
+
+Before any implementation, audit real `main` across:
+
+- `TopicsElement`, `TopicItem` and `ContentSlot` canonical contracts/invariants;
+- shared renderer list structure, marker sequencing, nested levels, ContentSlot styling/typography and arbitrary child rendering;
+- Topics Inspector direct-text behavior and non-Text ContentSlot summaries;
+- add/remove/create-child operations and the depth-5 authoring rule;
+- hierarchy ownership, ID allocation, selection/focus and element-tree representation;
+- whether reorder, nest/unnest or ContentSlot editing has a concrete missing product path;
+- Canvas behavior and generic position/appearance integration;
+- save/reload/import/export/publish preservation;
+- Editor/Player/Watch/Cover parity;
+- keyboard, touch/mobile and accessibility behavior;
+- existing schema/renderer/Studio/Player tests.
+
+T0 must return root causes and classify every proposed change as **required, useful but deferred, or not justified**. Do not implement during T0.
+
+## Candidate Topics checkpoints after T0 — not frozen
+
+Only evidence may promote these categories:
+
+```text
+TOPICS-T1 — hierarchy/item lifecycle correction
+  add/remove/reorder/nest/unnest only where a real gap is proven
+
+TOPICS-T2 — ContentSlot authoring correction
+  selection/editing of arbitrary canonical slot children without flattening them
+
+TOPICS-T3 — appearance/renderer parity correction
+  marker/typography/layout behavior only where Studio/runtime evidence diverges
+
+TOPICS-T4 — integration + manual acceptance
+  save/reload/import/export/publish and Editor/Player/Watch/Cover acceptance
+```
+
+Do not create a generic list abstraction, second Topics schema, migration or compatibility layer. Direct Topics consumption of Presentation Text Styles remains deferred unless T0 plus an explicit product decision promotes it.
+
+### Topics manual acceptance target
+
+When implementation is complete, validate at least:
+
+- ordered and unordered Topics;
+- nested items through the supported authoring depth;
+- add/remove and any evidence-approved reorder/nest operations;
+- direct Text and non-Text ContentSlot children;
+- marker and typography behavior;
+- save/reload and JSON export/import;
+- publish and shared-renderer parity across Editor/Player/Watch/Cover;
+- touch/mobile behavior where the changed authoring control applies.
+
+---
+
+# Embed refinement — NEXT AFTER TOPICS
+
+Embed minimum was delivered historically in P10.8. The current element already owns canonical `src`, required accessibility `title`, shared surface appearance/effect and resizable/positioned layout. This is refinement of an existing surface, not a new element.
+
+Current renderer-owned iframe policy is fixed rather than authored:
+
+```text
+sandbox="allow-scripts allow-forms allow-same-origin"
+allow="fullscreen"
+referrerpolicy="strict-origin-when-cross-origin"
+loading="lazy"
+```
+
+The renderer also contains bounded YouTube URL normalization. Because `allow-scripts + allow-same-origin` is security-sensitive, policy changes must remain renderer-owned and evidence-backed.
+
+## EMBED-E0 — concrete provider/runtime/security audit
 
 Audit before implementation:
 
-- real providers/URLs that fail or behave poorly;
+- real embeddable HTTPS providers and URLs that fail or behave poorly;
+- provider-blocked pages via `X-Frame-Options` or CSP `frame-ancestors`;
 - same-origin vs cross-origin behavior;
-- fullscreen;
+- current sandbox capabilities and same-origin security implications;
+- fullscreen and Permissions Policy requirements;
 - referrer requirements;
-- iframe sizing/fit;
-- Editor ergonomics;
-- current Player and Watch behavior;
-- existing tests;
-- current sandbox/security policy;
-- whether provider-specific URL normalization is actually justified.
+- iframe sizing, fit, resize and responsive behavior;
+- Editor src/title draft/validation ergonomics;
+- YouTube normalization behavior and whether any additional provider normalization is actually justified;
+- Player, Watch, Cover and Demo shared-renderer paths;
+- navigation/top-level escape behavior;
+- existing schema/renderer/Studio/Player tests.
 
-The historical refinement sequence remains a useful plan, but only E0 is frozen before evidence:
+E0 must distinguish **provider refusal** from a PowerShow defect. A site that deliberately forbids framing is not automatically something PowerShow should bypass.
+
+## Candidate Embed checkpoints after E0 — not frozen
 
 ```text
-E0 — audit real Embed failures/use cases
-E1 — freeze renderer/security and authoring responsibilities
-E2 — targeted renderer/provider correction
-E3 — Studio UX refinement if needed
-E4 — Player/Watch/manual provider acceptance
+EMBED-E1 — freeze renderer/security responsibility
+  only if E0 exposes a concrete sandbox/referrer/fullscreen gap
+
+EMBED-E2 — targeted provider/runtime correction
+  only bounded normalization/policy behavior justified by tested providers
+
+EMBED-E3 — Studio UX correction
+  only if src/title/size/preview authoring has a demonstrated gap
+
+EMBED-E4 — runtime/manual acceptance
+  embeddable + provider-blocked cases across relevant PowerShow surfaces
 ```
 
-If E0 finds no concrete product defect requiring code changes, the work area may close without forcing E1–E4.
+If E0 finds no PowerShow-owned product defect, Embed may close after audit without forcing E1–E4. Do not expose authored sandbox/Permissions Policy fields merely for convenience, and do not add a new dependency without evidence.
 
-Do not expose authored sandbox or Permissions Policy internals merely for convenience.
+### Embed manual acceptance target
+
+When implementation is required, validate at least:
+
+- one real HTTPS provider that permits embedding;
+- one provider/page that intentionally blocks embedding, with graceful PowerShow behavior;
+- canonical src/title validation and persistence;
+- resize/layout behavior;
+- fullscreen/referrer behavior where supported;
+- Editor/Player/Watch/Cover shared-renderer parity;
+- navigation safety and touch behavior where applicable.
+
+---
+
+# P13 — Production Readiness — planned after Topics + Embed
+
+After Topics refinement and the bounded Embed audit/refinement line, promote Production Readiness from concrete deployment/reliability needs:
+
+- Studio→publish→Control→Player E2E;
+- auth/rules review;
+- deploy/smoke/rollback;
+- constrained-hardware performance;
+- responsive acceptance;
+- security review;
+- Android interactive-display / Firefox 116 physical Player acceptance.
+
+P13 should stabilize the product after the promoted feature-refinement line instead of interrupting it midway.
 
 ---
 
@@ -507,23 +602,6 @@ Do not expose authored sandbox or Permissions Policy internals merely for conven
 
 The proposed fast-live Editor mode remains intentionally paused.
 
-## Topics consuming Typography Styles — deferred concept
-
-Topics currently owns its typography context; future direct Typography Style consumption is not frozen.
-
-## P13 — Production Readiness — planned after active feature refinement
-
-After Plot continuation and the bounded Embed audit/refinement line, promote Production Readiness from concrete deployment/reliability needs:
-
-- Studio→publish→Control→Player E2E;
-- auth/rules review;
-- deploy/smoke/rollback;
-- constrained-hardware performance;
-- responsive acceptance;
-- security review.
-
-P13 should stabilize the product after the currently promoted feature refinements instead of interrupting them midway.
-
 ## P14 — Maintenance & Diagnostics 🟡
 
 D0–D2 plus remote logs are operational. Further expansion remains evidence-driven and bounded.
@@ -532,7 +610,16 @@ D0–D2 plus remote logs are operational. Further expansion remains evidence-dri
 
 Watch already follows Player-applied state. Viewer presence/count/nickname and richer audience behavior remain future candidates and must never grant audience clients shared presentation control.
 
-Other future candidates include bounded Undo/Redo, AI Import into the existing canonical Presentation, Player offline continuity, Custom Library portability refinements and remaining WYSIWYG/Text improvements.
+Other deferred candidates include:
+
+- direct This Presentation FontResource authoring;
+- Library-thumbnail FontResource parity;
+- Topics → Text Style consumption;
+- bounded Undo/Redo;
+- AI Import into the existing canonical Presentation;
+- Player offline continuity;
+- Custom Library portability refinements;
+- remaining WYSIWYG/Text improvements.
 
 ---
 
@@ -563,24 +650,37 @@ P12   UX / Properties refinement                            ✅
        Terminal / Code / Table refinement (#138–#141)       ✅
        Plot V1 (#142)                                       ✅
        Studio deterministic test debt closure (#144)        ✅
+       Plot continuation / 3D / animation (#146)            ✅
+       Plot remote animation controls (#147)                ✅
+       Plot axis appearance (#148)                          ✅
+       Scripted HTTPS images (#149)                         ✅
+       Font authoring + usage protection (#150)             ✅
 
 NEXT:
-  Plot continuation
-  → PLOT-N0 read-only audit of 3D / Position / Appearance
-  → evidence-driven Plot checkpoints
+  Topics refinement
+  → TOPICS-T0 read-only audit
+  → smallest evidence-backed Topics checkpoints
+  → manual acceptance
 
-NEXT AFTER PLOT:
-  Embed E0 provider/runtime/security audit
-  → E1–E4 only if concrete changes are justified
+NEXT AFTER TOPICS:
+  Embed refinement
+  → EMBED-E0 provider/runtime/security audit
+  → smallest evidence-backed Embed checkpoints
+  → manual acceptance
 
 THEN:
   P13 Production Readiness
+
+RELEASE GATE STILL PENDING:
+  Android interactive display + Firefox 116 physical Player acceptance
 
 FUTURE / DEFERRED:
   P14 bounded Diagnostics expansion
   P15 Audience / Watch expansion
   publishNow
-  Topics → Typography Style consumer concept
+  direct This Presentation FontResource authoring
+  Library-thumbnail FontResource parity
+  Topics → Text Style consumption
   bounded Undo/Redo
   AI Import
   Player offline continuity
@@ -588,4 +688,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and run **PLOT-N0 as a read-only audit before creating a feature branch or changing schema/renderer code**.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and run **TOPICS-T0 as a read-only audit before changing schema, renderer or Studio production code**.
