@@ -211,6 +211,30 @@
   cursor: default;
 }
 
+.metaLinks {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.metaLinks a {
+  color: rgb(226 232 240 / 58%);
+  text-shadow: 0 1px 7px rgb(0 0 0 / 52%);
+  transition: color 140ms ease;
+}
+
+.metaLinks a:hover,
+.metaLinks a:focus-visible {
+  color: #f8fafc;
+  outline: none;
+}
+
 @media (max-width: 520px) {
   .rail {
     width: min(92vw, 420px);
@@ -228,11 +252,17 @@
   .watchQr svg {
     width: clamp(150px, 52vw, 210px);
   }
+
+  .metaLinks {
+    right: 10px;
+    bottom: 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .action,
-  .action::before {
+  .action::before,
+  .metaLinks a {
     transition-duration: 0ms;
   }
 }
