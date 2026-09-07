@@ -15,7 +15,9 @@ import {
   createDefaultTopicItem,
   createElement,
   findTopicItemStructuralDepthInItems,
+  indentTopicItem,
   moveTopicItemToSiblingIndex,
+  outdentTopicItem,
   removeTopicItemFromTopicItems,
   updateTopicItemTextContent,
 } from "../src/features/editor/element-operations";
@@ -291,6 +293,155 @@ describe("TopicItem sibling reorder", () => {
     expect(updatedDeepParent.children[1]?.content.children[0]?.id).toBe(
       "deep-first-text",
     );
+  });
+});
+
+describe("TopicItem hierarchy operations", () => {
+  it("indents a top-level sibling under its immediate predecessor", () => {
+    const a = topicItem("a", contentSlot("slot-a", [text("text-a")]));
+    const b = topicItem("b", contentSlot("slot-b", [text("text-b")]));
+    const c = topicItem("c", contentSlot("slot-c", [text("text-c")]));
+    const elements: PowerShowElement[] = [topics("topics", [a, b, c])];
+
+    const result = indentTopicItem(elements, "topics", "b");
+    const updated = result[0] as TopicsElement;
+
+    expect(updated.items.map((item) => item.id)).toEqual(["a", "c"]);
+    expect(updated.items[0]?.children).toEqual([b]);
+    expect(updated.items[0]?.children[0]).toBe(b);
+  });
+
+  it("indents nested siblings and preserves the complete subtree by identity", () => {
+    const moved = topicItem(
+      "moved",
+      contentSlot("moved-slot", [text("moved-text")]),
+      [topicItem("grandchild", contentSlot("grandchild-slot", [text("grandchild-text")]))],
+    );
+    const previous = topicItem("previous", contentSlot("previous-slot", [text("previous-text")]));
+    const parent = topicItem("parent", contentSlot("parent-slot", [text("parent-text")]), [previous, moved]);
+    const elements: PowerShowElement[] = [topics("topics", [parent])];
+
+    const result = indentTopicItem(elements, "topics", "moved");
+    const updatedParent = (result[0] as TopicsElement).items[0]!;
+
+    expect(updatedParent.children.map((item) => item.id)).toEqual(["previous"]);
+    expect(updatedParent.children[0]?.children[0]).toBe(moved);
+    expect(updatedParent.children[0]?.children[0]?.content).toBe(moved.content);
+    expect(updatedParent.children[0]?.children[0]?.children).toBe(moved.children);
+  });
+
+  it("makes indent a no-op for the first or invalid item and the wrong owner", () => {
+    const first = topics("first", [
+      topicItem("a", contentSlot("slot-a", [text("text-a")])),
+      topicItem("b", contentSlot("slot-b", [text("text-b")])),
+    ]);
+    const second = topics("second", [
+      topicItem("other", contentSlot("slot-other", [text("text-other")])),
+    ]);
+    const elements: PowerShowElement[] = [first, second];
+
+    expect(indentTopicItem(elements, "first", "a")).toBe(elements);
+    expect(indentTopicItem(elements, "first", "missing")).toBe(elements);
+    expect(indentTopicItem(elements, "second", "b")).toBe(elements);
+  });
+
+  it("allows legal depth 5 indent and refuses a root or descendant overflow", () => {
+    const legalItems = structuralChain(3);
+    const legalParent = findTopicItemDepthItem(legalItems, "topic-level-3")!;
+    const legalSource = topicItem("legal-source", contentSlot("legal-slot", [text("legal-text")]));
+    legalParent.children.push(
+      topicItem("legal-previous", contentSlot("legal-previous-slot", [text("legal-previous-text")])),
+      legalSource,
+    );
+    const legalElements: PowerShowElement[] = [topics("topics", legalItems)];
+    const legalResult = indentTopicItem(legalElements, "topics", "legal-source");
+    expect(findTopicItemStructuralDepthInItems((legalResult[0] as TopicsElement).items, "legal-source")).toBe(5);
+
+    const rootOverflowItems = structuralChain(4);
+    const rootParent = findTopicItemDepthItem(rootOverflowItems, "topic-level-4")!;
+    rootParent.children.push(
+      topicItem("root-previous", contentSlot("root-previous-slot", [text("root-previous-text")])),
+      topicItem("root-overflow", contentSlot("root-slot", [text("root-text")])),
+    );
+    const rootOverflow: PowerShowElement[] = [topics("topics", rootOverflowItems)];
+    expect(indentTopicItem(rootOverflow, "topics", "root-overflow")).toBe(rootOverflow);
+
+    const descendantItems = structuralChain(3);
+    const descendantParent = findTopicItemDepthItem(descendantItems, "topic-level-3")!;
+    const descendantSource = topicItem(
+      "descendant-overflow",
+      contentSlot("descendant-slot", [text("descendant-text")]),
+      [topicItem("too-deep", contentSlot("too-deep-slot", [text("too-deep-text")]))],
+    );
+    descendantParent.children.push(
+      topicItem("descendant-previous", contentSlot("descendant-previous-slot", [text("descendant-previous-text")])),
+      descendantSource,
+    );
+    const descendantOverflow: PowerShowElement[] = [topics("topics", descendantItems)];
+    expect(indentTopicItem(descendantOverflow, "topics", "descendant-overflow")).toBe(descendantOverflow);
+  });
+
+  it("outdents a nested item immediately after its old parent", () => {
+    const source = topicItem(
+      "source",
+      contentSlot("source-slot", [text("source-text")]),
+      [topicItem("child", contentSlot("child-slot", [text("child-text")]))],
+    );
+    const parent = topicItem("parent", contentSlot("parent-slot", [text("parent-text")]), [source]);
+    const after = topicItem("after", contentSlot("after-slot", [text("after-text")]));
+    const elements: PowerShowElement[] = [topics("topics", [parent, after])];
+
+    const result = outdentTopicItem(elements, "topics", "source");
+    const updated = (result[0] as TopicsElement).items;
+
+    expect(updated.map((item) => item.id)).toEqual(["parent", "source", "after"]);
+    expect(updated[1]).toBe(source);
+    expect(updated[1]?.children[0]).toBe(source.children[0]);
+  });
+
+  it("outdents nested siblings, preserving the complete subtree and unrelated Topics", () => {
+    const source = topicItem(
+      "source",
+      contentSlot("source-slot", [text("source-text")]),
+      [topicItem("grandchild", contentSlot("grandchild-slot", [text("grandchild-text")]))],
+    );
+    const parent = topicItem("parent", contentSlot("parent-slot", [text("parent-text")]), [source]);
+    const otherTopics = topics("other-topics", [topicItem("other", contentSlot("other-slot", [text("other-text")] ))]);
+    const elements: PowerShowElement[] = [topics("topics", [parent]), otherTopics];
+
+    const result = outdentTopicItem(elements, "topics", "source");
+    expect((result[0] as TopicsElement).items[1]).toBe(source);
+    expect((result[0] as TopicsElement).items[1]?.content).toBe(source.content);
+    expect((result[0] as TopicsElement).items[1]?.children).toBe(source.children);
+    expect(result[1]).toBe(otherTopics);
+  });
+
+  it("makes outdent a no-op for top-level or invalid items and the wrong owner", () => {
+    const first = topics("first", [
+      topicItem("a", contentSlot("slot-a", [text("text-a")])),
+      topicItem("b", contentSlot("slot-b", [text("text-b")])),
+    ]);
+    const second = topics("second", [topicItem("other", contentSlot("slot-other", [text("text-other")]))]);
+    const elements: PowerShowElement[] = [first, second];
+
+    expect(outdentTopicItem(elements, "first", "a")).toBe(elements);
+    expect(outdentTopicItem(elements, "first", "missing")).toBe(elements);
+    expect(outdentTopicItem(elements, "second", "b")).toBe(elements);
+  });
+
+  it("outdents imported structures deeper than the authoring limit without data loss", () => {
+    const items = structuralChain(7);
+    const source = findTopicItemDepthItem(items, "topic-level-7")!;
+    const elements: PowerShowElement[] = [topics("topics", items)];
+
+    const result = outdentTopicItem(elements, "topics", source.id);
+    const updated = (result[0] as TopicsElement).items;
+
+    const promoted = findTopicItemDepthItem(updated, source.id);
+    expect(promoted).toBe(source);
+    expect(promoted?.content).toBe(source.content);
+    expect(promoted?.children).toBe(source.children);
+    expect(findTopicItemStructuralDepthInItems(updated, source.id)).toBe(6);
   });
 });
 
