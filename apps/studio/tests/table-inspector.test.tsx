@@ -292,15 +292,23 @@ describe("TableInspector", () => {
     expect(updates).toHaveLength(0);
 
     await act(async () => {
-      const family = container.querySelector<HTMLSelectElement>("#table-font-family")!;
-      family.value = "Inter";
+      const family = container.querySelector<HTMLInputElement>("#table-font-family")!;
+      family.focus();
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+      setter?.call(family, "Inter");
+      family.dispatchEvent(new Event("input", { bubbles: true }));
       family.dispatchEvent(new Event("change", { bubbles: true }));
+      family.blur();
     });
     expect((elementState as SimpleTableElement).typography?.fontFamily).toBe("Inter");
     await act(async () => {
-      const family = container.querySelector<HTMLSelectElement>("#table-font-family")!;
-      family.value = "";
+      const family = container.querySelector<HTMLInputElement>("#table-font-family")!;
+      family.focus();
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+      setter?.call(family, "");
+      family.dispatchEvent(new Event("input", { bubbles: true }));
       family.dispatchEvent(new Event("change", { bubbles: true }));
+      family.blur();
     });
     expect((elementState as SimpleTableElement).typography?.fontFamily).toBeUndefined();
 

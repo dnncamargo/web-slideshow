@@ -41,11 +41,13 @@ function Harness({
   initial = base(),
   presentationRef,
   paletteColors,
+  presentationFonts = [presentationFont],
   onSelectTextStyleElement = () => undefined,
 }: {
   initial?: Presentation;
   presentationRef?: { current: Presentation | undefined };
   paletteColors?: readonly PresentationPaletteColor[];
+  presentationFonts?: readonly FontResource[];
   onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void;
 }) {
   const [presentation, setPresentation] = useState(initial);
@@ -56,7 +58,7 @@ function Harness({
     customLibraryFontRepository={repository}
     presentationColors={paletteColors ?? presentation.palette?.colors ?? []}
     presentation={paletteColors ? presentation : undefined}
-    presentationFonts={[presentationFont]}
+    presentationFonts={presentationFonts}
     onAddLibraryPalette={() => ({ ok: true, addedColors: [] })}
     onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
     onApplyElementStyle={() => ({ ok: true })}
@@ -92,11 +94,11 @@ describe("Custom Resources Text Styles", () => {
     root = undefined;
   });
 
-  async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en"): Promise<void> {
+async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont]): Promise<void> {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} onSelectTextStyleElement={onSelectTextStyleElement} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} presentationFonts={presentationFonts} onSelectTextStyleElement={onSelectTextStyleElement} /></StudioI18nProvider>));
   }
 
   function requiredElement<T extends Element>(selector: string): T {
@@ -221,12 +223,12 @@ describe("Custom Resources Text Styles", () => {
     await act(async () => rowButton("body", "+ Add property").click());
     const addFontFamily = Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font family");
     await act(async () => addFontFamily?.click());
-    const fontSelect = requiredElement<HTMLSelectElement>("#text-style-body-font-family");
+    const fontInput = requiredElement<HTMLInputElement>("#text-style-body-font-family");
     expect(presentationRef.current?.textStyles).toBeUndefined();
     await act(async () => {
-      fontSelect.value = "Inter";
-      fontSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      setInputValue(fontInput, "Inter");
     });
+    await act(async () => { const input = requiredElement<HTMLInputElement>("#text-style-body-font-family"); input.focus(); input.blur(); });
     expect(bodyPreviewText().getAttribute("style")).toContain('font-family:"Inter"');
     expect(JSON.stringify(presentationRef.current)).not.toContain("text-style-preview-");
     expect(JSON.stringify(presentationRef.current)).not.toContain("Aa");
@@ -312,21 +314,39 @@ describe("Custom Resources Text Styles", () => {
     await act(async () => rowButton("quote", "+ Add property").click());
     const addQuoteFont = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font family");
     await act(async () => addQuoteFont?.click());
-    const quoteFontSelect = requiredElement<HTMLSelectElement>("#text-style-quote-font-family");
-    expect(Array.from(quoteFontSelect.options).map((option) => option.value)).toEqual(["", "Inter"]);
+    const quoteFontInput = requiredElement<HTMLInputElement>("#text-style-quote-font-family");
+    expect(document.querySelector("#text-style-quote-font-family-suggestions option[value='Inter']")).not.toBeNull();
     await act(async () => {
-      quoteFontSelect.value = "Inter";
-      quoteFontSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      setInputValue(quoteFontInput, "Inter");
     });
+    await act(async () => { const input = requiredElement<HTMLInputElement>("#text-style-quote-font-family"); input.focus(); input.blur(); });
     expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ id: "quote", typography: { fontFamily: "Inter" } });
-    const quoteFontSelectAfterSave = requiredElement<HTMLSelectElement>("#text-style-quote-font-family");
+    const quoteFontInputAfterSave = requiredElement<HTMLInputElement>("#text-style-quote-font-family");
     await act(async () => {
-      quoteFontSelectAfterSave.value = "";
-      quoteFontSelectAfterSave.dispatchEvent(new Event("change", { bubbles: true }));
+      setInputValue(quoteFontInputAfterSave, "");
     });
+    await act(async () => { const input = requiredElement<HTMLInputElement>("#text-style-quote-font-family"); input.focus(); input.blur(); });
     expect(presentationRef.current?.textStyles).toEqual([{ id: "quote", name: "Block Quote", role: "caption" }]);
     expect(presentationRef.current?.textStyles?.[0]).not.toHaveProperty("typography");
     expect(row("quote").textContent).not.toContain("Edit");
+  });
+
+  it("adds and authors Font family for a TextStyle without Presentation FontResources", async () => {
+    const initial = addCustomTextStyle(base(), "Quote", "body");
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef, undefined, undefined, "en", []);
+    await act(async () => disclosure("quote").click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Font family")?.click());
+
+    const input = requiredElement<HTMLInputElement>("#text-style-quote-font-family");
+    expect(input.disabled).toBe(false);
+    await act(async () => {
+      setInputValue(input, "MS Sans Serif");
+    });
+    await act(async () => { const input = requiredElement<HTMLInputElement>("#text-style-quote-font-family"); input.focus(); input.blur(); });
+
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ typography: { fontFamily: "MS Sans Serif" } });
   });
 
   it("removes an unused custom style", async () => {
