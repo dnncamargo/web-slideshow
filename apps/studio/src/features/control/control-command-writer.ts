@@ -42,6 +42,12 @@ import {
   type LiveScriptedInputRecord,
 } from "../live/scripted-input";
 import type { LiveCurrent } from "./live-current";
+import {
+  buildPlotAnimationActionPath,
+  parseLivePlotAnimationActionRecord,
+  type LivePlotAnimationActionRecord,
+  type PlotAnimationAction,
+} from "../live/plot-animation-action";
 
 function getCurrentUserIdForControl(): string {
   const user = getCurrentNonAnonymousUser();
@@ -316,6 +322,67 @@ export async function writeGalleryControlState(
   if (committed === null) {
     throw new Error("Gallery control transaction committed a malformed value.");
   }
+  return committed;
+}
+
+export interface PlotAnimationActionRequest {
+  activationRevision: number;
+  currentVersionId: string;
+  pageId: string;
+  plotSlot: number;
+  elementId: string;
+  targetBootId: string;
+  action: PlotAnimationAction;
+}
+
+function requirePlotAnimationActionInput(request: PlotAnimationActionRequest): {
+  currentVersionId: string;
+  pageId: string;
+  targetBootId: string;
+} {
+  if (!isNonNegativeInteger(request.activationRevision)) throw new Error("Plot animation action requires a non-negative activationRevision.");
+  if (!isNonNegativeInteger(request.plotSlot)) throw new Error("Plot animation action requires a non-negative integer plotSlot.");
+  if (typeof request.elementId !== "string" || request.elementId.length === 0) throw new Error("Plot animation action requires an elementId.");
+  if (request.action !== "play" && request.action !== "pause" && request.action !== "reset") throw new Error("Plot animation action requires a valid action.");
+  const currentVersionId = request.currentVersionId.trim();
+  const pageId = request.pageId.trim();
+  const targetBootId = request.targetBootId.trim();
+  if (currentVersionId === "") throw new Error("Plot animation action requires a currentVersionId.");
+  if (pageId === "") throw new Error("Plot animation action requires a pageId.");
+  if (targetBootId === "") throw new Error("Plot animation action requires a targetBootId.");
+  return { currentVersionId, pageId, targetBootId };
+}
+
+/** Writes one Plot animation action occurrence at its independent slot address. */
+export async function writePlotAnimationAction(
+  database: Database,
+  request: PlotAnimationActionRequest,
+): Promise<LivePlotAnimationActionRecord> {
+  if (!isRealtimeDatabaseConfigured()) throw new Error("Realtime Database is not configured.");
+  getCurrentUserIdForControl();
+  const normalized = requirePlotAnimationActionInput(request);
+  const actionRef = ref(database, buildPlotAnimationActionPath(request.plotSlot));
+  const result = await runTransaction(actionRef, (current) => {
+    const previous = parseLivePlotAnimationActionRecord(current);
+    const sameIdentity = previous !== null &&
+      previous.activationRevision === request.activationRevision &&
+      previous.currentVersionId === normalized.currentVersionId &&
+      previous.pageId === normalized.pageId &&
+      previous.elementId === request.elementId &&
+      previous.targetBootId === normalized.targetBootId;
+    return {
+      activationRevision: request.activationRevision,
+      currentVersionId: normalized.currentVersionId,
+      revision: sameIdentity ? previous.revision + 1 : 1,
+      pageId: normalized.pageId,
+      elementId: request.elementId,
+      targetBootId: normalized.targetBootId,
+      action: request.action,
+    };
+  });
+  if (result.committed !== true) throw new Error("Plot animation action transaction did not commit.");
+  const committed = parseLivePlotAnimationActionRecord(result.snapshot.val());
+  if (committed === null) throw new Error("Plot animation action transaction committed a malformed value.");
   return committed;
 }
 
