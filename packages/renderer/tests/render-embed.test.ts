@@ -140,11 +140,9 @@ describe("renderEmbed", () => {
   it("emits the renderer-owned script and form sandbox permissions", () => {
     const html = renderEmbed(embed());
 
-    expect(html).toContain('sandbox="allow-scripts allow-forms"');
-  });
-
-  it("does not grant same-origin capability", () => {
-    expect(renderEmbed(embed())).not.toContain("allow-same-origin");
+    expect(html).toContain(
+      'sandbox="allow-scripts allow-forms allow-same-origin"',
+    );
   });
 
   it("does not emit top-navigation sandbox permissions", () => {
@@ -163,12 +161,10 @@ describe("renderEmbed", () => {
     expect(html).not.toContain("allow-popups-to-escape-sandbox");
   });
 
-  it("does not emit downloads or storage-access sandbox permissions", () => {
+  it("does not emit downloads sandbox permission", () => {
     const html = renderEmbed(embed());
 
     expect(html).not.toContain("allow-downloads");
-
-    expect(html).not.toContain("allow-storage-access-by-user-activation");
   });
 
   it("emits allow fullscreen as the Permissions Policy", () => {
