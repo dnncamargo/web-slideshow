@@ -440,11 +440,13 @@ Direct This Presentation FontResource authoring is deferred. Library-thumbnail F
 
 ---
 
-# Topics refinement ← NEXT
+# Topics refinement ✅
 
-Topics minimum authoring was delivered historically in P10.4. The next work area is **refinement of the existing canonical Topics model**, not creation of a second list element or speculative schema replacement.
+Reference: PR #152.
 
-Current canonical structure:
+Topics minimum authoring was delivered historically in P10.4. The refinement line audited and improved the existing canonical model rather than creating a second list element.
+
+Canonical structure remains:
 
 ```text
 TopicsElement
@@ -457,68 +459,64 @@ TopicsElement
    └── children: TopicItem[]
 ```
 
-Current authored Topics intent also includes ordered/unordered kind, root marker style, marker color, item gap, element layout/style/typography and recursive TopicItem hierarchy.
+Delivered:
 
-Studio limits **creation** of structural TopicItem nesting to depth 5. This is an authoring limit only: deeper canonical documents remain loadable, renderable and persistable.
+- strict `TopicItem` canonical validation;
+- structural sibling reorder;
+- deterministic structural indent/outdent;
+- contextual hierarchy controls;
+- simplified Element Tree projection without a redundant Content pseudo-node;
+- first usable Text child projected as the Topic row label rather than a separately draggable primary Text row;
+- additional Text/non-Text ContentSlot children remain ordinary canonical rows;
+- regression coverage for deep structural reorder, hierarchy and label projection.
 
-## TOPICS-T0 — read-only audit ← NEXT
+Permanent authoring rule remains: Studio limits creation of structural `TopicItem.children` to depth 5, while deeper canonical documents remain loadable/renderable/persistable.
 
-Before any implementation, audit real `main` across:
+Audit decisions:
 
-- `TopicsElement`, `TopicItem` and `ContentSlot` canonical contracts/invariants;
-- shared renderer list structure, marker sequencing, nested levels, ContentSlot styling/typography and arbitrary child rendering;
-- Topics Inspector direct-text behavior and non-Text ContentSlot summaries;
-- add/remove/create-child operations and the depth-5 authoring rule;
-- hierarchy ownership, ID allocation, selection/focus and element-tree representation;
-- whether reorder, nest/unnest or ContentSlot editing has a concrete missing product path;
-- Canvas behavior and generic position/appearance integration;
-- save/reload/import/export/publish preservation;
-- Editor/Player/Watch/Cover parity;
-- keyboard, touch/mobile and accessibility behavior;
-- existing schema/renderer/Studio/Player tests.
+- a second ContentSlot authoring system was **not justified**;
+- renderer/appearance redesign was **not justified**;
+- autonomous nested Topics inside a TopicItem ContentSlot was **not justified**;
+- direct Topics → Presentation Text Style consumption remains deferred;
+- cross-cutting canonical ID uniqueness/integrity belongs to a separate complete-audit backlog rather than Topics.
 
-T0 must return root causes and classify every proposed change as **required, useful but deferred, or not justified**. Do not implement during T0.
-
-## Candidate Topics checkpoints after T0 — not frozen
-
-Only evidence may promote these categories:
-
-```text
-TOPICS-T1 — hierarchy/item lifecycle correction
-  add/remove/reorder/nest/unnest only where a real gap is proven
-
-TOPICS-T2 — ContentSlot authoring correction
-  selection/editing of arbitrary canonical slot children without flattening them
-
-TOPICS-T3 — appearance/renderer parity correction
-  marker/typography/layout behavior only where Studio/runtime evidence diverges
-
-TOPICS-T4 — integration + manual acceptance
-  save/reload/import/export/publish and Editor/Player/Watch/Cover acceptance
-```
-
-Do not create a generic list abstraction, second Topics schema, migration or compatibility layer. Direct Topics consumption of Presentation Text Styles remains deferred unless T0 plus an explicit product decision promotes it.
-
-### Topics manual acceptance target
-
-When implementation is complete, validate at least:
-
-- ordered and unordered Topics;
-- nested items through the supported authoring depth;
-- add/remove and any evidence-approved reorder/nest operations;
-- direct Text and non-Text ContentSlot children;
-- marker and typography behavior;
-- save/reload and JSON export/import;
-- publish and shared-renderer parity across Editor/Player/Watch/Cover;
-- touch/mobile behavior where the changed authoring control applies.
+Manual acceptance passed before merge.
 
 ---
 
-# Embed refinement — NEXT AFTER TOPICS
+# Embed refinement ✅
 
-Embed minimum was delivered historically in P10.8. The current element already owns canonical `src`, required accessibility `title`, shared surface appearance/effect and resizable/positioned layout. This is refinement of an existing surface, not a new element.
+Reference: PR #154.
 
-Current renderer-owned iframe policy is fixed rather than authored:
+Embed minimum was delivered historically in P10.8. The refinement line started with an evidence-first provider/runtime/security audit and promoted only concrete product needs.
+
+## Canonical viewport
+
+Embed now optionally owns:
+
+```text
+viewport?
+├── zoom?    0.1 .. 4
+├── top?     >= 0
+├── right?   >= 0
+├── bottom?  >= 0
+└── left?    >= 0
+```
+
+Semantics:
+
+- `zoom: 1` = 100%;
+- edge values are non-negative CSS px in the iframe's unscaled internal coordinate space;
+- absent/default values are pruned;
+- an empty `viewport` is never persisted.
+
+This is distinct from `layout.top/right/bottom/left`, which positions the Embed itself in its parent.
+
+## Renderer / provider behavior
+
+The renderer owns a clipped outer viewport and transform-based iframe scaling. It never accesses provider DOM, `contentDocument`, provider scrolling APIs or provider-specific JavaScript APIs.
+
+The fixed renderer-owned iframe policy remains:
 
 ```text
 sandbox="allow-scripts allow-forms allow-same-origin"
@@ -527,99 +525,94 @@ referrerpolicy="strict-origin-when-cross-origin"
 loading="lazy"
 ```
 
-The renderer also contains bounded YouTube URL normalization. Because `allow-scripts + allow-same-origin` is security-sensitive, policy changes must remain renderer-owned and evidence-backed.
+The audit initially tested removing `allow-same-origin`, but manual evidence with Blockly Games showed that external applications may require their own normal origin capability for storage/origin-dependent behavior. Restoring `allow-same-origin` preserved provider origin without making a cross-origin provider same-origin with PowerShow.
 
-## EMBED-E0 — concrete provider/runtime/security audit
+Permanent decisions:
 
-Audit before implementation:
+- sandbox/Permissions Policy remain renderer-owned, not authored;
+- global removal of `allow-same-origin` is not justified by current evidence;
+- provider refusal via `X-Frame-Options` / CSP `frame-ancestors` is not a PowerShow bug and must not be bypassed;
+- bounded YouTube normalization remains; no speculative provider matrix was added;
+- same-origin PowerShow iframe behavior remains security-sensitive and belongs to focused security review rather than a provider-breaking global sandbox change.
 
-- real embeddable HTTPS providers and URLs that fail or behave poorly;
-- provider-blocked pages via `X-Frame-Options` or CSP `frame-ancestors`;
-- same-origin vs cross-origin behavior;
-- current sandbox capabilities and same-origin security implications;
-- fullscreen and Permissions Policy requirements;
-- referrer requirements;
-- iframe sizing, fit, resize and responsive behavior;
-- Editor src/title draft/validation ergonomics;
-- YouTube normalization behavior and whether any additional provider normalization is actually justified;
-- Player, Watch, Cover and Demo shared-renderer paths;
-- navigation/top-level escape behavior;
-- existing schema/renderer/Studio/Player tests.
+## Studio authoring
 
-E0 must distinguish **provider refusal** from a PowerShow defect. A site that deliberately forbids framing is not automatically something PowerShow should bypass.
-
-## Candidate Embed checkpoints after E0 — not frozen
+The Inspector exposes:
 
 ```text
-EMBED-E1 — freeze renderer/security responsibility
-  only if E0 exposes a concrete sandbox/referrer/fullscreen gap
+Embed viewport
 
-EMBED-E2 — targeted provider/runtime correction
-  only bounded normalization/policy behavior justified by tested providers
+Zoom
+[ 100 ] %
 
-EMBED-E3 — Studio UX correction
-  only if src/title/size/preview authoring has a demonstrated gap
-
-EMBED-E4 — runtime/manual acceptance
-  embeddable + provider-blocked cases across relevant PowerShow surfaces
+Framing / Enquadramento
+Top      Right
+Bottom   Left
 ```
 
-If E0 finds no PowerShow-owned product defect, Embed may close after audit without forcing E1–E4. Do not expose authored sandbox/Permissions Policy fields merely for convenience, and do not add a new dependency without evidence.
+Zoom is displayed as 10–400% and converted to canonical 0.1–4. Edge controls author non-negative px values. Returning all fields to defaults removes `viewport` entirely.
 
-### Embed manual acceptance target
+## Control preview stability
 
-When implementation is required, validate at least:
+Manual acceptance exposed a separate Control integration bug: the one-second presenter clock rerender could recreate iframe-backed preview DOM. PR #154 now preserves the `dangerouslySetInnerHTML` payload by effective markup, separates renderer hydration from Gallery projection and stabilizes derived Gallery targets.
 
-- one real HTTPS provider that permits embedding;
-- one provider/page that intentionally blocks embedding, with graceful PowerShow behavior;
-- canonical src/title validation and persistence;
-- resize/layout behavior;
-- fullscreen/referrer behavior where supported;
-- Editor/Player/Watch/Cover shared-renderer parity;
-- navigation safety and touch behavior where applicable.
+Regression coverage verifies that an Embed iframe node remains identical across equivalent preview rerenders and is replaced when effective slide markup actually changes.
+
+Manual acceptance passed with Blockly Games: provider content rendered, viewport zoom/framing worked and the Control iframe remained stable across clock ticks.
 
 ---
 
-# P13 — Production Readiness — planned after Topics + Embed
+# P13 — Production Readiness ← NEXT
 
-After Topics refinement and the bounded Embed audit/refinement line, promote Production Readiness from concrete deployment/reliability needs:
+Topics and Embed refinement are complete. P13 is now the active work area.
 
-- Studio→publish→Control→Player E2E;
-- auth/rules review;
-- deploy/smoke/rollback;
-- constrained-hardware performance;
-- responsive acceptance;
-- security review;
-- Android interactive-display / Firefox 116 physical Player acceptance.
+P13 should stabilize the product from concrete deployment/reliability/security evidence rather than reopen completed feature architecture speculatively.
 
-P13 should stabilize the product after the promoted feature-refinement line instead of interrupting it midway.
+Planned audit/checkpoint line:
+
+- Studio → publish → Control → Player end-to-end validation;
+- authentication and authorization review;
+- Firestore / RTDB rules review against current contracts;
+- deployment configuration, smoke checks and rollback readiness;
+- responsive acceptance across Studio and runtime surfaces;
+- constrained-hardware performance evidence;
+- focused security review, including current iframe/provider boundaries and other externally reachable surfaces;
+- production logging/diagnostic behavior and failure recovery evidence;
+- Android interactive-display / Firefox 116 physical Player acceptance when hardware becomes available.
+
+P13 begins with an audit of the current production-readiness surface. Implementation checkpoints are promoted only from concrete findings.
+
+The unavailable Android interactive display remains an explicit release gate, not negative compatibility evidence.
 
 ---
 
 # Future / deferred
 
-## publishNow — deferred
-
-The proposed fast-live Editor mode remains intentionally paused.
-
 ## P14 — Maintenance & Diagnostics 🟡
 
-D0–D2 plus remote logs are operational. Further expansion remains evidence-driven and bounded.
+D0–D2 plus remote logs are operational. Further expansion remains evidence-driven and bounded. Do not turn Maintenance into a generic fleet-management surface without concrete need.
 
 ## P15 — Audience / Watch expansion — future
 
 Watch already follows Player-applied state. Viewer presence/count/nickname and richer audience behavior remain future candidates and must never grant audience clients shared presentation control.
 
-Other deferred candidates include:
+## Product / authoring backlog
 
+Deferred candidates include:
+
+- **Delete and preserve children** — define deliberate hierarchy semantics before implementing destructive element deletion that retains descendants;
+- **Delete published** — define the lifecycle/authorization semantics for removing published material;
+- **complete audit** — cross-cutting integrity audit, including canonical/global ID uniqueness and other issues intentionally kept out of feature-specific checkpoints;
+- **AI Converter** — convert external/source content into the existing canonical Presentation rather than introducing a second document model;
+- **Player hardening with local history/continuity** — stronger local recovery/history behavior without replacing immutable publication and Live ownership;
 - direct This Presentation FontResource authoring;
 - Library-thumbnail FontResource parity;
 - Topics → Text Style consumption;
 - bounded Undo/Redo;
-- AI Import into the existing canonical Presentation;
-- Player offline continuity;
 - Custom Library portability refinements;
 - remaining WYSIWYG/Text improvements.
+
+Backlog items are not active checkpoints until evidence and an explicit product decision promote them.
 
 ---
 
@@ -655,21 +648,14 @@ P12   UX / Properties refinement                            ✅
        Plot axis appearance (#148)                          ✅
        Scripted HTTPS images (#149)                         ✅
        Font authoring + usage protection (#150)             ✅
+       Topics structural refinement (#152)                  ✅
+       Embed viewport + stable Control preview (#154)       ✅
 
 NEXT:
-  Topics refinement
-  → TOPICS-T0 read-only audit
-  → smallest evidence-backed Topics checkpoints
-  → manual acceptance
-
-NEXT AFTER TOPICS:
-  Embed refinement
-  → EMBED-E0 provider/runtime/security audit
-  → smallest evidence-backed Embed checkpoints
-  → manual acceptance
-
-THEN:
   P13 Production Readiness
+  → read-only readiness audit
+  → smallest evidence-backed readiness checkpoints
+  → deployment / reliability / security acceptance
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -677,15 +663,17 @@ RELEASE GATE STILL PENDING:
 FUTURE / DEFERRED:
   P14 bounded Diagnostics expansion
   P15 Audience / Watch expansion
-  publishNow
+  Delete and preserve children
+  Delete published
+  complete audit
+  AI Converter
+  Player hardening with local history/continuity
   direct This Presentation FontResource authoring
   Library-thumbnail FontResource parity
   Topics → Text Style consumption
   bounded Undo/Redo
-  AI Import
-  Player offline continuity
   Custom Library portability
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and run **TOPICS-T0 as a read-only audit before changing schema, renderer or Studio production code**.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and start **P13 with an audit before changing production code**.

@@ -243,7 +243,7 @@ No same-origin permission, Firebase/session exposure, parent DOM access, storage
 
 ## Plot
 
-Plot V1 started in PR #142 and its continuation is now complete through PRs #146–#148.
+Plot V1 started in PR #142 and its continuation is complete through PRs #146–#148.
 
 The canonical `plot` element stores restricted mathematical intent rather than generated geometry. `@powershow/math-source` owns parsing, semantic validation, bounded evaluation, sampling and math-space geometry; the shared renderer owns projection and visual output.
 
@@ -268,7 +268,7 @@ Physical performance acceptance on the target Android interactive display with F
 
 Font authoring was refined in PR #150 without changing the canonical schema or renderer contract.
 
-`typography.fontFamily` is one authored family-name string. The Studio now provides an editable field with Presentation FontResource families as suggestions, so a family such as `MS Sans Serif` may be authored even when no FontResource exists. In that case the browser uses the named family only if it is available in the runtime environment; PowerShow does not search the internet or enumerate installed fonts.
+`typography.fontFamily` is one authored family-name string. The Studio provides an editable field with Presentation FontResource families as suggestions, so a family such as `MS Sans Serif` may be authored even when no FontResource exists. In that case the browser uses the named family only if it is available in the runtime environment; PowerShow does not search the internet or enumerate installed fonts.
 
 Portable fonts use the existing canonical path:
 
@@ -312,7 +312,9 @@ An iPhone 14 Plus is a concrete mobile acceptance device used during current dev
 
 ## Topics
 
-Topics is already canonical and recursively structured:
+Topics refinement is complete in PR #152.
+
+Canonical Topics remains recursively structural rather than introducing a second list contract:
 
 ```text
 TopicsElement
@@ -322,19 +324,32 @@ TopicsElement
    └── children: TopicItem[]
 ```
 
-The canonical model supports ordered/unordered lists, root marker style, marker color, item gap, element typography/style/layout, per-item ContentSlot layout/style/typography and arbitrary canonical child elements inside each item. Studio authoring deliberately limits creation of structural `TopicItem.children` to depth 5; deeper canonical documents remain loadable/renderable/persistable.
+The canonical model supports ordered/unordered lists, marker appearance, item spacing, element typography/style/layout, ContentSlot layout/style/typography and arbitrary canonical child elements. Studio authoring still limits creation of structural `TopicItem.children` to depth 5; deeper canonical documents remain loadable/renderable/persistable.
 
-The current Inspector already provides direct text editing, add top-level item, add child, remove, list kind, marker controls and shared typography. Non-Text ContentSlot children are summarized rather than flattened into a second text contract.
+The refinement line added strict `TopicItem` validation, structural sibling reorder, deterministic indent/outdent, contextual hierarchy controls and a simplified Element Tree projection. The first usable Text child acts as the Topic row label and is implicit in the tree; additional Text and non-Text ContentSlot children remain ordinary canonical rows. Structural hierarchy is changed through dedicated hierarchy controls rather than by dragging the primary label Text.
 
-Topics is the **next refinement work area**, but no redesign is pre-assumed. It begins with **TOPICS-T0 — a read-only audit** of the current schema, renderer, hierarchy/ContentSlot ownership, item operations, selection/focus, reorder/nesting ergonomics, import/export/persistence, Player/Watch/Cover parity, touch/mobile behavior and tests. Only evidence from T0 may freeze implementation checkpoints.
-
-Direct Topics consumption of Presentation Text Styles remains deferred unless the audit and an explicit product decision promote it.
+The audit did not justify a second ContentSlot authoring model or a renderer/appearance redesign. Direct Topics consumption of Presentation Text Styles remains deferred. Cross-cutting canonical ID-integrity work remains separate from Topics.
 
 ## Embed
 
-`embed` already exists canonically and in the shared renderer. The Editor authors an absolute http/https `src`, required accessibility `title`, shared surface appearance/effects and positioned/resizable layout.
+Embed refinement is complete in PR #154.
 
-The renderer currently owns a fixed external-content iframe policy:
+The Editor authors an absolute http/https `src`, required accessibility `title`, shared surface appearance/effects, positioned/resizable layout, and an optional Embed-specific viewport:
+
+```text
+viewport?
+├── zoom?    0.1 .. 4     // 1 = 100%
+├── top?     >= 0 px
+├── right?   >= 0 px
+├── bottom?  >= 0 px
+└── left?    >= 0 px
+```
+
+Defaults are pruned: `zoom: 1`, zero edges and an empty `viewport` are not persisted. The Studio presents Zoom as a percentage and groups Top/Right/Bottom/Left as **Framing / Enquadramento**.
+
+The shared renderer implements provider-neutral framing with a clipped PowerShow-owned viewport and transform-based scaling, without accessing provider DOM. This keeps compatibility with Firefox 116 and cross-origin content while allowing a larger or smaller internal iframe viewport to be framed inside the authored Embed box.
+
+The fixed renderer-owned iframe policy remains:
 
 ```text
 sandbox="allow-scripts allow-forms allow-same-origin"
@@ -343,9 +358,11 @@ referrerpolicy="strict-origin-when-cross-origin"
 loading="lazy"
 ```
 
-It also normalizes supported YouTube watch/short URLs into embed URLs. The `allow-same-origin + allow-scripts` combination is deliberately security-sensitive and is not author-configurable.
+`allow-same-origin` is intentionally not author-configurable. Manual testing demonstrated that globally removing it breaks ordinary external web applications that rely on their own origin capabilities; cross-origin providers still remain cross-origin relative to PowerShow. Same-origin PowerShow URLs remain a focused security-review concern rather than a reason to weaken external-provider compatibility globally.
 
-Embed follows Topics in the active queue and begins with **EMBED-E0 — a read-only provider/runtime/security audit**. E0 must test real embeddable and provider-blocked sources, same-origin/cross-origin behavior, `X-Frame-Options` / CSP `frame-ancestors`, fullscreen/referrer requirements, iframe sizing/fit, Editor ergonomics, Player/Watch/Cover behavior and existing tests. Provider-specific normalization or policy changes are implemented only when concrete evidence justifies them.
+Provider refusal via `X-Frame-Options` or CSP `frame-ancestors` is a provider/browser restriction, not something PowerShow should bypass.
+
+PR #154 also fixed the Control presenter preview so stateful iframe DOM is preserved across unrelated one-second shell rerenders. Renderer hydration is separated from Gallery projection, and a real iframe node-identity regression protects the invariant. Manual acceptance with Blockly Games confirmed provider compatibility, viewport framing and stable Control behavior.
 
 ## Current completed refinement line
 
@@ -371,9 +388,11 @@ Recent merged work includes:
 - Plot remote Play/Pause/Reset controls (PR #147);
 - Plot axis color/opacity refinement (PR #148);
 - Scripted external HTTPS image capability with bounded CSP semantics (PR #149);
-- manual font-family authoring and complete FontResource usage protection (PR #150).
+- manual font-family authoring and complete FontResource usage protection (PR #150);
+- Topics structural authoring refinement and Element Tree simplification (PR #152);
+- Embed viewport framing, provider compatibility and stable Control preview DOM (PR #154).
 
-At PR #150 closure the final Studio suite passed **188 files / 2,245 tests**, with Studio typecheck, diff-check, remote Vercel Studio/Player checks and manual acceptance also passing.
+Historical suite counts belong to their respective checkpoints and should not be treated as the current expected total. Feature closure continues to require focused tests, relevant typechecks, `git diff --check`, remote review and manual acceptance where applicable.
 
 ## Development
 
@@ -452,17 +471,13 @@ See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 Current planned execution order:
 
 ```text
-TOPICS-T0 read-only audit
-→ smallest evidence-backed Topics checkpoints
-→ Topics manual acceptance
-
-→ EMBED-E0 provider/runtime/security audit
-→ smallest evidence-backed Embed checkpoints
-→ Embed manual acceptance
-
-→ P13 Production Readiness
+P13 Production Readiness
+→ end-to-end Studio → publish → Control → Player validation
+→ auth + Firebase rules review
+→ deploy / smoke / rollback readiness
+→ performance + responsive acceptance
+→ focused security review
+→ physical Android interactive display + Firefox 116 release gate
 ```
 
-P13 includes end-to-end Studio→publish→Control→Player validation, auth/rules review, deploy/smoke/rollback, constrained-hardware performance, responsive acceptance and security review. Android/Firefox 116 physical Player acceptance remains an explicit release gate.
-
-After P13, broader Diagnostics, Audience/Watch expansion and other deferred candidates remain evidence-driven. `publishNow`, direct This Presentation FontResource authoring, Library thumbnail font parity, Topics→Text Style consumption, bounded Undo/Redo, AI Import, Player offline continuity, Custom Library portability and remaining WYSIWYG/Text improvements remain backlog until explicitly promoted.
+After P13, broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes delete-and-preserve-children semantics, delete-published workflow, a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, bounded Undo/Redo, Custom Library portability and remaining WYSIWYG/Text improvements.
