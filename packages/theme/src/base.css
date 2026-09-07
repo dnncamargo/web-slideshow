@@ -90,14 +90,20 @@
 }
 
 .powershow-plot-axis {
-  stroke: var(--powershow-text-muted);
   opacity: 0.7;
 }
 
+.powershow-plot-axis:not([stroke]) {
+  stroke: var(--powershow-text-muted);
+}
+
 .powershow-plot-axis-label {
-  fill: var(--powershow-text-primary);
   font-family: var(--powershow-font-sans);
   font-weight: 700;
+}
+
+.powershow-plot-axis-label:not([fill]) {
+  fill: var(--powershow-text-primary);
 }
 
 /* ==========================================================

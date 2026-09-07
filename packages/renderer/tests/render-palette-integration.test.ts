@@ -82,6 +82,13 @@ describe("canonical palette color rendering", () => {
             type: "divider",
             style: { background: { color: reference } },
           },
+          {
+            id: "plot",
+            type: "plot",
+            hidden: false,
+            source: "y = x",
+            style: { axes: { color: reference } },
+          },
         ],
       }],
     });
@@ -90,6 +97,8 @@ describe("canonical palette color rendering", () => {
     const variable = `var(${paletteColorCssVariableName("accent")})`;
 
     expect(html).toContain(variable);
+    expect(html).toContain(`stroke="${variable}"`);
+    expect(html).toContain(`fill="${variable}"`);
     expect(html).toContain("#123456");
     expect(html).not.toContain("[object Object]");
     expect(html.split(variable).length - 1).toBeGreaterThanOrEqual(15);
