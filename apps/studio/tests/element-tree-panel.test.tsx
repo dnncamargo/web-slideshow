@@ -389,8 +389,17 @@ describe("ElementTreePanel", () => {
       "Text — Additional note",
       "Image",
     ]);
+    expect(
+      Array.from(container.querySelectorAll('li[role="treeitem"]')).some(
+        (treeItem): treeItem is HTMLLIElement =>
+          treeItem instanceof HTMLLIElement && treeItemLabel(treeItem) === "Text — A",
+      ),
+    ).toBe(false);
     expect(findTreeItem(container, "B")).toBeTruthy();
     expect(findTreeItem(container, "B.1")).toBeTruthy();
+    expect(() => findTreeItem(container, "Text — A")).toThrow();
+    expect(() => findTreeItem(container, "Text — B")).toThrow();
+    expect(() => findTreeItem(container, "Text — B.1")).toThrow();
     expect(slide.elements[0]?.type === "topics" ? slide.elements[0].items[0]?.content.children : []).toEqual([
       primaryA,
       noteA,
@@ -409,6 +418,55 @@ describe("ElementTreePanel", () => {
     expect(topicA.querySelector(':scope > div > button[aria-label="Expand"]')).toBeNull();
     expect(topicA.querySelector(':scope > div > span[aria-hidden="true"]')).not.toBeNull();
     expect(directTreeGroup(topicA)).toBeNull();
+  });
+
+  it("keeps additional Text selectable and movable while hiding only the label source", () => {
+    const note = text("topic-note", "Additional note");
+    const slide = slideWithTopics([
+      topicItem(
+        "topic-a",
+        contentSlot("slot-a", [text("topic-a-text", "A"), note, image("a-image")]),
+      ),
+    ]);
+    const { onSelectElement, onMoveElement } = renderPanel(slide, {
+      selectedElementId: note.id,
+      selectedContentSlotId: "slot-a",
+    });
+
+    const noteRow = findTreeItem(container, "Text — Additional note");
+    expect(noteRow.querySelector('[draggable="true"]')).not.toBeNull();
+    clickRow(noteRow);
+    expect(onSelectElement).toHaveBeenCalledWith({
+      id: note.id,
+      type: "text",
+    });
+
+    act(() => {
+      footerMoveDownButton(container).click();
+    });
+    expect(onMoveElement).toHaveBeenCalledWith({
+      elementId: note.id,
+      targetParentRef: { kind: "content-slot", id: "slot-a" },
+      targetIndex: 2,
+    });
+  });
+
+  it("preserves a TopicItem with no usable label Text", () => {
+    const blank = text("blank-text", "");
+    const slide = slideWithTopics([
+      topicItem("topic-empty-label", contentSlot("slot-empty-label", [blank, image("empty-image")])),
+    ]);
+
+    renderPanel(slide);
+
+    const topic = findTreeItem(container, "Topic");
+    expect(topic).toBeTruthy();
+    expect(directTopicChildren(topic).map(treeItemLabel)).toEqual([
+      "Text",
+      "Image",
+    ]);
+    expect((slide.elements[0] as TopicsElement).items[0]?.id).toBe("topic-empty-label");
+    expect((slide.elements[0] as TopicsElement).items[0]?.content.children[0]).toBe(blank);
   });
 
   it("keeps TopicItems expandable for additional content or structural children", () => {
