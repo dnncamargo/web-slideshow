@@ -14,13 +14,16 @@ type PlotNode = HTMLElement & {
 
 type PlotAnimationConfig = NonNullable<PlotElement["animation"]>;
 
+type PlotPlaybackStatus = "idle" | "playing" | "paused" | "completed";
+
 type PlotInstance = {
   readonly node: PlotNode;
   readonly elementId: string;
   element: PlotElement;
   config: PlotAnimationConfig;
+  status: PlotPlaybackStatus;
+  elapsedMs: number;
   startTimestamp: number | null;
-  active: boolean;
 };
 
 type PlotAnimationRuntimeState = {
@@ -114,9 +117,9 @@ function applyFrame(instance: PlotInstance, value: number): void {
   instance.node.innerHTML = frame.content;
 }
 
-function hasActivePlots(state: PlotAnimationRuntimeState): boolean {
+function hasPlayingPlots(state: PlotAnimationRuntimeState): boolean {
   for (const instance of state.plots.values()) {
-    if (instance.active) return true;
+    if (instance.status === "playing") return true;
   }
   return false;
 }
@@ -130,32 +133,35 @@ function cancelScheduledFrame(state: PlotAnimationRuntimeState): void {
 }
 
 function scheduleFrame(root: ParentNode, state: PlotAnimationRuntimeState): void {
-  if (state.frameId !== null || !hasActivePlots(state)) return;
+  if (state.frameId !== null || !hasPlayingPlots(state)) return;
   if (typeof globalThis.requestAnimationFrame !== "function") return;
   state.frameId = globalThis.requestAnimationFrame((timestamp) => {
     if (runtimeStates.get(root) !== state) return;
     state.frameId = null;
 
     for (const instance of state.plots.values()) {
-      if (!instance.active) continue;
+      if (instance.status !== "playing") continue;
 
       if (instance.startTimestamp === null) {
-        instance.startTimestamp = timestamp;
-        applyFrame(instance, instance.config.from);
-        continue;
+        instance.startTimestamp = timestamp - instance.elapsedMs;
       }
 
-      const elapsed = Math.max(0, timestamp - instance.startTimestamp);
-      const completed = instance.config.loop === false && elapsed >= instance.config.durationMs;
-      const progress = completed
-        ? 1
+      const rawElapsed = Math.max(0, timestamp - instance.startTimestamp);
+      const completed = instance.config.loop === false && rawElapsed >= instance.config.durationMs;
+      const elapsed = completed
+        ? instance.config.durationMs
         : instance.config.loop === false
-          ? Math.min(elapsed / instance.config.durationMs, 1)
-          : (elapsed % instance.config.durationMs) / instance.config.durationMs;
+          ? Math.min(rawElapsed, instance.config.durationMs)
+          : rawElapsed % instance.config.durationMs;
+      instance.elapsedMs = elapsed;
+      const progress = elapsed / instance.config.durationMs;
       const value = instance.config.from + (instance.config.to - instance.config.from) * progress;
       applyFrame(instance, value);
 
-      if (completed) instance.active = false;
+      if (completed) {
+        instance.status = "completed";
+        instance.startTimestamp = null;
+      }
     }
 
     scheduleFrame(root, state);
@@ -166,7 +172,7 @@ function createState(): PlotAnimationRuntimeState {
   return { plots: new Map(), frameId: null };
 }
 
-export function hydratePlotAnimations(root: ParentNode, slide: Slide): void {
+export function hydratePlotAnimations(root: ParentNode, slide: Slide, runtimeAutoplay = true): void {
   const canonicalPlots = collectAnimatedPlots(slide);
   const domNodes = collectPlotNodes(root);
   const state = runtimeStates.get(root) ?? createState();
@@ -205,12 +211,15 @@ export function hydratePlotAnimations(root: ParentNode, slide: Slide): void {
       elementId,
       element: canonical,
       config: canonical.animation,
+      status: runtimeAutoplay && canonical.animation.autoplay !== false && canonical.animation.from !== canonical.animation.to
+        ? "playing"
+        : "idle",
+      elapsedMs: 0,
       startTimestamp: null,
-      active: canonical.animation.autoplay !== false && canonical.animation.from !== canonical.animation.to,
     });
   }
 
-  if (hasActivePlots(state)) {
+  if (hasPlayingPlots(state)) {
     scheduleFrame(root, state);
   } else {
     cancelScheduledFrame(state);
@@ -223,4 +232,64 @@ export function disposePlotAnimations(root: ParentNode): void {
   cancelScheduledFrame(state);
   state.plots.clear();
   runtimeStates.delete(root);
+}
+
+export interface PlotAnimationController {
+  play(): void;
+  pause(): void;
+  reset(): void;
+}
+
+function findPlotInstance(
+  root: ParentNode,
+  elementId: string,
+): { state: PlotAnimationRuntimeState; instance: PlotInstance } | null {
+  const state = runtimeStates.get(root);
+  if (state === undefined) return null;
+  for (const instance of state.plots.values()) {
+    if (instance.elementId === elementId) return { state, instance };
+  }
+  return null;
+}
+
+export function getPlotAnimationController(
+  root: ParentNode,
+  elementId: string,
+): PlotAnimationController | null {
+  if (findPlotInstance(root, elementId) === null) return null;
+
+  return {
+    play(): void {
+      const found = findPlotInstance(root, elementId);
+      if (found === null) return;
+      const { state, instance } = found;
+      if (instance.config.from === instance.config.to) return;
+      if (instance.status === "playing") return;
+      if (instance.status === "completed") {
+        instance.elapsedMs = 0;
+      }
+      instance.status = "playing";
+      instance.startTimestamp = null;
+      scheduleFrame(root, state);
+    },
+    pause(): void {
+      const found = findPlotInstance(root, elementId);
+      if (found === null) return;
+      const { state, instance } = found;
+      if (instance.status !== "playing") return;
+      instance.status = "paused";
+      instance.startTimestamp = null;
+      if (!hasPlayingPlots(state)) cancelScheduledFrame(state);
+    },
+    reset(): void {
+      const found = findPlotInstance(root, elementId);
+      if (found === null) return;
+      const { state, instance } = found;
+      instance.status = "idle";
+      instance.elapsedMs = 0;
+      instance.startTimestamp = null;
+      applyFrame(instance, instance.config.from);
+      if (!hasPlayingPlots(state)) cancelScheduledFrame(state);
+    },
+  };
 }

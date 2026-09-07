@@ -5,6 +5,7 @@ import type { PlotElement, PowerShowElement, Slide } from "@powershow/document-s
 import { renderPlot, renderPlotFrame } from "../src/render-plot";
 import {
   disposeRendererRuntime,
+  getPlotAnimationController,
   hydrateRendererRuntime,
 } from "../src/renderer-runtime";
 
@@ -151,6 +152,175 @@ describe("Plot animation runtime", () => {
     expect(plotNode.innerHTML).toBe(expected?.content);
     expect(plotNode.innerHTML).not.toContain("powershow-plot-axis");
     expect(requestFrame).toHaveBeenCalledTimes(3);
+  });
+
+  it("registers a controller without autoplay when runtime autoplay is disabled", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    expect(controller).not.toBeNull();
+    expect(requestFrame).not.toHaveBeenCalled();
+    controller?.play();
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    runNextFrame(100);
+    const initial = plotNode.innerHTML;
+    runNextFrame(600);
+    expect(plotNode.innerHTML).not.toBe(initial);
+  });
+
+  it("allows manual play when canonical autoplay is disabled", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000, autoplay: false });
+    const root = new FakeRoot([node(element)]);
+
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]) } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    expect(controller).not.toBeNull();
+    expect(requestFrame).not.toHaveBeenCalled();
+    controller?.play();
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps play idempotent while a Plot is playing", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const root = new FakeRoot([node(element)]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    controller?.play();
+    controller?.play();
+
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    runNextFrame(100);
+    expect(requestFrame).toHaveBeenCalledTimes(2);
+  });
+
+  it("pauses and resumes from the last rendered progress", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    runNextFrame(100);
+    runNextFrame(600);
+    const pausedFrame = plotNode.innerHTML;
+    controller?.pause();
+
+    expect(plotNode.innerHTML).toBe(pausedFrame);
+    expect(callbacks.size).toBe(0);
+    controller?.play();
+    runNextFrame(2000);
+    expect(plotNode.innerHTML).toBe(pausedFrame);
+    runNextFrame(2500);
+    expect(plotNode.innerHTML).not.toBe(pausedFrame);
+  });
+
+  it("resets to from and can play again", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    runNextFrame(100);
+    runNextFrame(600);
+    controller?.reset();
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+    expect(callbacks.size).toBe(0);
+    controller?.play();
+    runNextFrame(1000);
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+  });
+
+  it("replays a completed non-looping Plot from from", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000, loop: false });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    runNextFrame(100);
+    runNextFrame(1100);
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 10 } })?.content);
+    expect(callbacks.size).toBe(0);
+    controller?.play();
+    runNextFrame(2000);
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+    runNextFrame(2500);
+    expect(plotNode.innerHTML).not.toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+  });
+
+  it("does not schedule flat-range controller playback", () => {
+    const element = plot("plot-1", { parameter: "t", from: 2, to: 2, durationMs: 1000 });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    controller?.reset();
+    expect(requestFrame).not.toHaveBeenCalled();
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 2 } })?.content);
+  });
+
+  it("keeps multiple controllers independent on one root scheduler", () => {
+    const first = plot("first", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const second = plot("second", { parameter: "t", from: 10, to: 20, durationMs: 1000 });
+    const firstNode = node(first);
+    const secondNode = node(second);
+    const root = new FakeRoot([firstNode, secondNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([first, second]), autoplay: false } });
+    const firstController = getPlotAnimationController(runtimeRoot(root), "first");
+    const secondController = getPlotAnimationController(runtimeRoot(root), "second");
+
+    firstController?.play();
+    secondController?.play();
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    runNextFrame(100);
+    firstController?.pause();
+    firstController?.reset();
+    expect(callbacks.size).toBe(1);
+    runNextFrame(600);
+    expect(firstNode.innerHTML).toBe(renderPlotFrame(first, { bindings: { t: 0 } })?.content);
+    expect(secondNode.innerHTML).not.toBe(node(second).innerHTML);
+    secondController?.pause();
+    expect(callbacks.size).toBe(0);
+  });
+
+  it("invalidates disposed controllers and resolves replacement DOM dynamically", () => {
+    const initial = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const oldNode = node(initial);
+    const root = new FakeRoot([oldNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([initial]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    disposeRendererRuntime(runtimeRoot(root));
+    expect(getPlotAnimationController(runtimeRoot(root), "plot-1")).toBeNull();
+    expect(() => {
+      controller?.play();
+      controller?.pause();
+      controller?.reset();
+    }).not.toThrow();
+    expect(requestFrame).not.toHaveBeenCalled();
+    expect(oldNode.innerHTML).toBe(node(initial).innerHTML);
+
+    const replacement = plot("plot-1", { parameter: "t", from: 5, to: 6, durationMs: 1000 });
+    const replacementNode = node(replacement);
+    root.nodes.splice(0, 1, replacementNode);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([replacement]), autoplay: false } });
+    controller?.play();
+    runNextFrame(100);
+    expect(oldNode.innerHTML).toBe(node(initial).innerHTML);
+    expect(replacementNode.innerHTML).toBe(renderPlotFrame(replacement, { bindings: { t: 5 } })?.content);
   });
 
   it("restarts a same-node Plot when its animation configuration changes", () => {
