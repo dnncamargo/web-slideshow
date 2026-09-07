@@ -17,8 +17,8 @@ type PlotAnimationConfig = NonNullable<PlotElement["animation"]>;
 type PlotInstance = {
   readonly node: PlotNode;
   readonly elementId: string;
-  readonly element: PlotElement;
-  readonly config: PlotAnimationConfig;
+  element: PlotElement;
+  config: PlotAnimationConfig;
   startTimestamp: number | null;
   active: boolean;
 };
@@ -194,7 +194,11 @@ export function hydratePlotAnimations(root: ParentNode, slide: Slide): void {
     claimedIds.add(elementId);
 
     const existing = state.plots.get(node);
-    if (existing !== undefined) continue;
+    if (existing !== undefined) {
+      existing.element = canonical;
+      existing.config = canonical.animation;
+      continue;
+    }
 
     state.plots.set(node, {
       node,

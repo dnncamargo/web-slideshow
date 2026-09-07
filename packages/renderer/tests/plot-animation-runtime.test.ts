@@ -109,6 +109,47 @@ describe("Plot animation runtime", () => {
     expect(root.innerHTML).not.toBe(firstFrame);
   });
 
+  it("refreshes the canonical source without restarting the retained timeline", () => {
+    const initial = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 }, "y = x + t");
+    const plotNode = node(initial);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([initial]) } });
+    runNextFrame(100);
+
+    const updated = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 }, "y = 2*x + t");
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([updated]) } });
+    runNextFrame(600);
+
+    const expected = renderPlotFrame(updated, { bindings: { t: 5 } });
+    const old = renderPlotFrame(initial, { bindings: { t: 5 } });
+    expect(expected).not.toBeNull();
+    expect(plotNode.className).toBe(`powershow-element ${expected?.className}`);
+    expect(plotNode.innerHTML).toBe(expected?.content);
+    expect(plotNode.innerHTML).not.toBe(old?.content);
+    expect(root.innerHTML).not.toContain("y = x + t");
+    expect(root.innerHTML).not.toContain("y = 2*x + t");
+    expect(requestFrame).toHaveBeenCalledTimes(3);
+  });
+
+  it("refreshes render-affecting canonical data without restarting", () => {
+    const initial = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const plotNode = node(initial);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([initial]) } });
+    runNextFrame(100);
+
+    const updated: PlotElement = { ...initial, showAxes: true };
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([updated]) } });
+    runNextFrame(600);
+
+    const expected = renderPlotFrame(updated, { bindings: { t: 5 } });
+    expect(expected).not.toBeNull();
+    expect(plotNode.className).toBe(`powershow-element ${expected?.className}`);
+    expect(plotNode.innerHTML).toBe(expected?.content);
+    expect(plotNode.innerHTML).toContain("powershow-plot-axis");
+    expect(requestFrame).toHaveBeenCalledTimes(3);
+  });
+
   it("renders elapsed time, endpoint, and reverse ranges", () => {
     const forward = plot("forward", { parameter: "t", from: 0, to: 10, durationMs: 1000, loop: false });
     const reverse = plot("reverse", { parameter: "t", from: 10, to: 0, durationMs: 1000, loop: false });
