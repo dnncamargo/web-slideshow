@@ -174,4 +174,43 @@ describe("EditorWorkspace Plot preview", () => {
     runNextFrame(2100);
     expect(callbacks.size).toBe(0);
   });
+
+  it("preserves active Plot preview across Canvas resize rehydration", async () => {
+    await mount();
+    await selectPlot();
+    await act(async () => previewButton("plot-animation-preview-play").click());
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+
+    const plotBeforeResize = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const viewport = container.querySelector<HTMLElement>("[class*='canvasViewport']");
+    if (!plotBeforeResize || !viewport) throw new Error("Plot viewport was not rendered");
+    const fromFrame = plotBeforeResize.innerHTML;
+
+    runNextFrame(100);
+    runNextFrame(500);
+    const beforeResize = plotBeforeResize.innerHTML;
+    const requestCountBeforeResize = requestFrame.mock.calls.length;
+    const cancelCountBeforeResize = cancelFrame.mock.calls.length;
+    expect(beforeResize).not.toBe(fromFrame);
+    expect(beforeResize).not.toContain("y = x + t");
+    expect(callbacks.size).toBe(1);
+
+    Object.defineProperty(viewport, "clientWidth", { configurable: true, value: 900 });
+    Object.defineProperty(viewport, "clientHeight", { configurable: true, value: 600 });
+    await act(async () => window.dispatchEvent(new Event("resize")));
+
+    const plotAfterResize = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    expect(plotAfterResize).toBe(plotBeforeResize);
+    expect(plotAfterResize?.innerHTML).toBe(beforeResize);
+    expect(requestFrame).toHaveBeenCalledTimes(requestCountBeforeResize);
+    expect(callbacks.size).toBe(1);
+    expect(cancelFrame).toHaveBeenCalledTimes(cancelCountBeforeResize);
+    expect(plotAfterResize?.innerHTML).not.toContain("y = x + t");
+
+    runNextFrame(800);
+    expect(plotAfterResize?.innerHTML).not.toBe(beforeResize);
+    expect(plotAfterResize?.innerHTML).not.toBe(fromFrame);
+    expect(plotAfterResize?.innerHTML).not.toContain("y = x + t");
+    expect(callbacks.size).toBe(1);
+  });
 });

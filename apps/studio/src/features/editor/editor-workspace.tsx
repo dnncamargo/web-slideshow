@@ -871,6 +871,11 @@ export function EditorWorkspace({
     return renderSlide(selectedSlide, { presentation });
   }, [selectedSlide, presentation]);
 
+  const renderedSlideHtml = useMemo(
+    () => ({ __html: renderedSlide }),
+    [renderedSlide],
+  );
+
   const renderedPaletteStyle = useMemo(() => {
     const style: CSSProperties & Record<`--${string}`, string> = {};
 
@@ -3641,9 +3646,7 @@ export function EditorWorkspace({
                 onPointerCancel={handleCanvasPointerCancel}
                 onLostPointerCapture={handleCanvasPointerCancel}
                 onClick={handleCanvasLinkClick}
-                dangerouslySetInnerHTML={{
-                  __html: renderedSlide,
-                }}
+                dangerouslySetInnerHTML={renderedSlideHtml}
               />
             </div>
             {cropEditingTarget && currentImageMediaTarget && areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget) && (
