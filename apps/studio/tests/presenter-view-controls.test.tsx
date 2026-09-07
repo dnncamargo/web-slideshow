@@ -14,6 +14,7 @@ import { PresenterView } from "../src/features/control/presenter/presenter-view"
 import type { LiveControlView } from "../src/features/control/live-control";
 import type { ControlGalleryView } from "../src/features/control/use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../src/features/control/use-live-scripted-action-control";
+import type { LivePlotAnimationTarget } from "../src/features/control/use-live-plot-animation-control";
 import type { PlayerOperationalStatus } from "../src/features/control/player-presence";
 import type { LivePlayerControls } from "../src/features/control/use-live-player-controls-control";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -115,7 +116,12 @@ describe("PresenterView controls", () => {
     galleries = [],
     scriptedActionGroups = [],
     scriptedActionsEnabled = true,
+    plotTargets = [],
+    plotActionsEnabled = true,
+    pendingPlotSlots = new Set<number>(),
     triggerScriptedAction = vi.fn(),
+    triggerPlotAction = vi.fn(),
+    triggerAllPlotActions = vi.fn(),
     nextGallery = vi.fn(),
     setGalleryExpanded = vi.fn(),
     end = vi.fn(),
@@ -146,7 +152,12 @@ describe("PresenterView controls", () => {
     galleries?: ControlGalleryView[];
     scriptedActionGroups?: ControlScriptedActionGroup[];
     scriptedActionsEnabled?: boolean;
+    plotTargets?: LivePlotAnimationTarget[];
+    plotActionsEnabled?: boolean;
+    pendingPlotSlots?: ReadonlySet<number>;
     triggerScriptedAction?: ReturnType<typeof vi.fn>;
+    triggerPlotAction?: ReturnType<typeof vi.fn>;
+    triggerAllPlotActions?: ReturnType<typeof vi.fn>;
     nextGallery?: ReturnType<typeof vi.fn>;
     setGalleryExpanded?: ReturnType<typeof vi.fn>;
     end?: ReturnType<typeof vi.fn>;
@@ -170,6 +181,9 @@ describe("PresenterView controls", () => {
             galleries={galleries}
             scriptedActionGroups={scriptedActionGroups}
             scriptedActionsEnabled={scriptedActionsEnabled}
+            plotTargets={plotTargets}
+            plotActionsEnabled={plotActionsEnabled}
+            pendingPlotSlots={pendingPlotSlots}
             promotingVersionId={null}
             failedPromotionVersionId={null}
             playerStatus={playerStatus}
@@ -188,6 +202,8 @@ describe("PresenterView controls", () => {
             nextGallery={nextGallery}
             setGalleryExpanded={setGalleryExpanded}
             triggerScriptedAction={triggerScriptedAction}
+            triggerPlotAction={triggerPlotAction}
+            triggerAllPlotActions={triggerAllPlotActions}
             end={end}
           />
         </StudioI18nProvider>,
@@ -204,6 +220,8 @@ describe("PresenterView controls", () => {
       nextGallery,
       setGalleryExpanded,
       triggerScriptedAction,
+      triggerPlotAction,
+      triggerAllPlotActions,
       end,
     };
   }
@@ -460,6 +478,56 @@ describe("PresenterView controls", () => {
     render();
 
     expect(container.querySelector('[data-gallery-controls]')).toBeNull();
+  });
+
+  it("renders Plot animation commands without exposing remote playback state", () => {
+    const target: LivePlotAnimationTarget = { plotSlot: 0, elementId: "plot-a", label: "Plot 1 · y = sin(x)" };
+    const triggerPlotAction = vi.fn();
+    const triggerAllPlotActions = vi.fn();
+    render({ plotTargets: [target], triggerPlotAction, triggerAllPlotActions });
+    const controls = container.querySelector<HTMLElement>("[data-plot-animation-controls]");
+    expect(controls?.textContent).toContain("Animations");
+    expect(controls?.textContent).toContain("All");
+    expect(controls?.textContent).toContain(target.label);
+    expect(controls?.textContent).toContain("▶");
+    expect(controls?.textContent).toContain("⏸");
+    expect(controls?.textContent).toContain("↻");
+    expect(controls?.textContent).not.toContain("⏯");
+    expect(controls?.querySelectorAll("button")).toHaveLength(6);
+    const buttons = [...controls?.querySelectorAll<HTMLButtonElement>("button") ?? []];
+    act(() => { buttons[0]?.click(); buttons[1]?.click(); buttons[2]?.click(); buttons[3]?.click(); buttons[4]?.click(); buttons[5]?.click(); });
+    expect(triggerAllPlotActions).toHaveBeenCalledWith("play");
+    expect(triggerAllPlotActions).toHaveBeenCalledWith("pause");
+    expect(triggerAllPlotActions).toHaveBeenCalledWith("reset");
+    expect(triggerPlotAction).toHaveBeenCalledTimes(3);
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Play all animations", "Pause all animations", "Reset all animations",
+      "Play Plot 1", "Pause Plot 1", "Reset Plot 1",
+    ]);
+    expect(triggerPlotAction).toHaveBeenCalledWith(target, "play");
+    expect(triggerPlotAction).toHaveBeenCalledWith(target, "pause");
+    expect(triggerPlotAction).toHaveBeenCalledWith(target, "reset");
+    expect(controls?.querySelector('[aria-pressed]')).toBeNull();
+    expect(controls?.textContent).not.toContain("playing");
+  });
+
+  it("keeps the mobile interaction surface for Plot-only slides", () => {
+    render({ plotTargets: [{ plotSlot: 0, elementId: "plot-only", label: "Plot 1" }] });
+    expect(container.querySelector("[data-mobile-interactive-elements-controls]")).not.toBeNull();
+    expect(container.querySelector("[data-mobile-interactive-elements-controls]")?.textContent).toContain("▶");
+    expect(container.querySelector("[data-gallery-controls]")).toBeNull();
+  });
+
+  it("disables Plot global and pending-target commands truthfully", () => {
+    const targets = [
+      { plotSlot: 0, elementId: "plot-a", label: "Plot 1" },
+      { plotSlot: 1, elementId: "plot-b", label: "Plot 2" },
+    ];
+    render({ plotTargets: targets, plotActionsEnabled: false, pendingPlotSlots: new Set([0]) });
+    const controls = container.querySelector<HTMLElement>("[data-plot-animation-controls]")!;
+    expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(0, 3).every((button) => button.disabled)).toBe(true);
+    expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(3, 6).every((button) => button.disabled)).toBe(true);
+    expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(6).every((button) => button.disabled)).toBe(true);
   });
 
   it("renders Gallery commands and sends exact desired intents without fullscreen", () => {

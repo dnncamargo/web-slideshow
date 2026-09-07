@@ -14,6 +14,10 @@ import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import { subscribeLiveGalleryControl } from "./live-gallery-control";
+import {
+  createLivePlotAnimationActionTracker,
+  subscribeLivePlotAnimationAction,
+} from "./live-plot-animation-action";
 import { subscribeLiveSlideTransition } from "./live-slide-transition";
 import { subscribeLivePlayerControls } from "./live-player-controls";
 import {
@@ -64,6 +68,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
+  let cleanupLivePlotAnimationAction: (() => void) | undefined;
   let cleanupLiveSlideTransition: (() => void) | undefined;
   let cleanupLivePlayerControls: (() => void) | undefined;
   let cleanupLiveScriptedAction: (() => void) | undefined;
@@ -80,6 +85,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let localRecoveryInFlight = false;
   let mountRevision = 0;
   const liveScriptedActionTracker = createLiveScriptedActionTracker();
+  const livePlotAnimationActionTracker = createLivePlotAnimationActionTracker();
   const liveScriptedInputTracker = createLiveScriptedInputTracker();
   let getCurrentScriptedMount: ((slot: number) => { pageId: string; elementId: string; mountRevision: number } | null) | undefined;
   let markAppliedScriptedInput: ((input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }) => void) | undefined;
@@ -300,6 +306,15 @@ export function startPlayer(root: HTMLElement): () => void {
         controls,
       );
       if (presenceReporter?.bootId) {
+        cleanupLivePlotAnimationAction = subscribeLivePlotAnimationAction(
+          database,
+          live.revision,
+          live.currentVersionId,
+          presenceReporter.bootId,
+          presentation,
+          controller,
+          livePlotAnimationActionTracker,
+        );
         cleanupLiveScriptedAction = subscribeLiveScriptedAction(
           database,
           live.revision,
@@ -335,6 +350,11 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachLivePlotAnimationAction(): void {
+    cleanupLivePlotAnimationAction?.();
+    cleanupLivePlotAnimationAction = undefined;
+  }
+
   function detachLiveSlideTransition(): void {
     cleanupLiveSlideTransition?.();
     cleanupLiveSlideTransition = undefined;
@@ -355,6 +375,7 @@ export function startPlayer(root: HTMLElement): () => void {
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
+    detachLivePlotAnimationAction();
     detachLiveSlideTransition();
     detachLivePlayerControls();
     detachLiveScriptedAction();

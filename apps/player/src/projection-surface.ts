@@ -4,6 +4,7 @@ import type { ScriptedReportMessage } from "@powershow/renderer";
 import {
   fitLogicalSlideGeometry,
   disposeRendererRuntime,
+  getPlotAnimationController,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
@@ -17,6 +18,7 @@ import {
 } from "./scripted-port-host";
 
 export type PlayerTransition = "none" | "fade" | "slide";
+export type PlotAnimationControlAction = "play" | "pause" | "reset";
 
 type SlideDirection = "forward" | "backward";
 
@@ -39,6 +41,7 @@ export interface ProjectionSurface {
     portId: string,
     value: boolean | number,
   ): boolean;
+  controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void;
   getCurrentIndex(): number;
   destroy(): void;
 }
@@ -461,6 +464,21 @@ export function mountProjectionSurface(
         portId,
         value,
       );
+    },
+    controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void {
+      const controller = getPlotAnimationController(slideSurface, elementId);
+      if (controller === null) return;
+      switch (action) {
+        case "play":
+          controller.play();
+          break;
+        case "pause":
+          controller.pause();
+          break;
+        case "reset":
+          controller.reset();
+          break;
+      }
     },
     getCurrentIndex(): number {
       return currentIndex;

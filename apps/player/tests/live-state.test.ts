@@ -67,6 +67,7 @@ function controller(initialIndex: number) {
     setGalleryExpanded: vi.fn(),
     sendScriptedAction: vi.fn(),
     sendScriptedInput: vi.fn(),
+    controlPlotAnimation: vi.fn(),
     getCurrentIndex: vi.fn(() => index),
   };
 }

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
 import { useLiveGalleryControl } from "./use-live-gallery-control";
+import { useLivePlotAnimationControl } from "./use-live-plot-animation-control";
 import { useLiveScriptedActionControl } from "./use-live-scripted-action-control";
 import { useLiveScriptedStateControl } from "./use-live-scripted-state-control";
 import { useLiveSlideTransitionControl } from "./use-live-slide-transition-control";
@@ -100,6 +101,15 @@ export function ControlPage() {
     playerStatus,
     controlsBlocked:
       presentationState.kind === "ready" && presentationState.pendingVersion !== null,
+  });
+  const plotAnimationControl = useLivePlotAnimationControl({
+    live: liveState.kind === "active" ? liveState.live : null,
+    livePresentation: presentationState.kind === "ready" ? presentationState.livePresentation : null,
+    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    actualPageId: view?.actualPageId ?? null,
+    controlSynced: view?.status.kind === "synced",
+    playerStatus,
+    controlsBlocked: presentationState.kind === "ready" && presentationState.pendingVersion !== null,
   });
   const scriptedStateControl = useLiveScriptedStateControl({
     live: liveState.kind === "active" ? liveState.live : null,
@@ -248,11 +258,14 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed || galleryControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed || plotAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
       presentationState={presentationState}
       galleries={galleryControl.galleries}
       scriptedActionGroups={scriptedActionControl.groups}
       scriptedActionsEnabled={scriptedActionControl.actionsEnabled}
+      plotTargets={plotAnimationControl.plotTargets}
+      plotActionsEnabled={plotAnimationControl.actionsEnabled}
+      pendingPlotSlots={plotAnimationControl.pendingPlotSlots}
       scriptedStateGroups={scriptedStateControl.groups}
       setScriptedPortValue={scriptedStateControl.setPortValue}
       previous={previous}
@@ -270,6 +283,8 @@ export function ControlPage() {
       nextGallery={galleryControl.nextGallery}
       setGalleryExpanded={galleryControl.setGalleryExpanded}
       triggerScriptedAction={scriptedActionControl.triggerAction}
+      triggerPlotAction={plotAnimationControl.triggerAction}
+      triggerAllPlotActions={plotAnimationControl.triggerAll}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}
       playerStatus={playerStatus}

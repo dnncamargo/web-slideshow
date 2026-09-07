@@ -4,9 +4,11 @@ import type { ScriptedReportMessage } from "@powershow/renderer";
 import {
   mountProjectionSurface,
   type PlayerTransition,
+  type PlotAnimationControlAction,
 } from "./projection-surface";
 
 export type { PlayerTransition } from "./projection-surface";
+export type { PlotAnimationControlAction } from "./projection-surface";
 
 // ============================================================
 // TIPOS PÚBLICOS DO PLAYER
@@ -140,6 +142,8 @@ export interface PlayerController {
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
 
   sendScriptedAction(elementId: string, portId: string): void;
+
+  controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void;
 
   sendScriptedInput(
     elementId: string,
@@ -650,6 +654,10 @@ export function mountPlayer(
 
     sendScriptedAction(elementId: string, portId: string): void {
       projection.sendScriptedAction(elementId, portId);
+    },
+
+    controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void {
+      projection.controlPlotAnimation(elementId, action);
     },
 
     sendScriptedInput(

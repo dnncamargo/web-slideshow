@@ -17,6 +17,14 @@ const mocks = vi.hoisted(() => ({
     nextGallery: vi.fn(),
     setGalleryExpanded: vi.fn(),
   },
+  plotAnimationControl: {
+    plotTargets: [],
+    actionsEnabled: false,
+    pendingPlotSlots: new Set<number>(),
+    sendFailed: false,
+    triggerAction: vi.fn(),
+    triggerAll: vi.fn(),
+  },
   scriptedStateControl: { groups: [], sendFailed: false, setPortValue: vi.fn() },
   transitionControl: { transition: "fade" as const, setTransition: vi.fn(), writeInFlight: false, sendFailed: false },
   playerControlsControl: {
@@ -52,6 +60,9 @@ vi.mock("../src/features/control/use-live-session-control", () => ({
 }));
 vi.mock("../src/features/control/use-live-gallery-control", () => ({
   useLiveGalleryControl: () => mocks.galleryControl,
+}));
+vi.mock("../src/features/control/use-live-plot-animation-control", () => ({
+  useLivePlotAnimationControl: () => mocks.plotAnimationControl,
 }));
 vi.mock("../src/features/control/use-live-scripted-state-control", () => ({
   useLiveScriptedStateControl: () => mocks.scriptedStateControl,
@@ -91,6 +102,7 @@ describe("ControlPage empty state recovery", () => {
     mocks.push.mockReset();
     mocks.presenterProps = null;
     mocks.galleryControl.sendFailed = false;
+    mocks.plotAnimationControl.sendFailed = false;
     mocks.scriptedStateControl.sendFailed = false;
     mocks.transitionControl.sendFailed = false;
     mocks.playerControlsControl.sendFailed = false;
@@ -246,6 +258,11 @@ describe("ControlPage empty state recovery", () => {
     expect(mocks.presenterProps?.setTransition).toBe(mocks.transitionControl.setTransition);
     expect(mocks.presenterProps?.playerControls).toBe(mocks.playerControlsControl.controls);
     expect(mocks.presenterProps?.setPlayerControls).toBe(mocks.playerControlsControl.setControlsOptions);
+    mocks.plotAnimationControl.sendFailed = true;
+    render();
+    expect(mocks.presenterProps?.sendFailed).toBe(true);
+    expect(mocks.presenterProps?.plotTargets).toBe(mocks.plotAnimationControl.plotTargets);
+    expect(mocks.presenterProps?.triggerPlotAction).toBe(mocks.plotAnimationControl.triggerAction);
   });
 
   it("prevents duplicate activation and allows retry after failure", async () => {

@@ -23,6 +23,8 @@ import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 import type { LiveControlView } from "../live-control";
 import type { ControlGalleryView } from "../use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../use-live-scripted-action-control";
+import type { LivePlotAnimationTarget } from "../use-live-plot-animation-control";
+import type { PlotAnimationAction } from "../../live/plot-animation-action";
 import type { ControlScriptedStateGroup, ControlScriptedStatePort } from "../use-live-scripted-state-control";
 import type { PlayerOperationalStatus } from "../player-presence";
 import type { LiveSlideTransition } from "../use-live-slide-transition-control";
@@ -157,6 +159,40 @@ function ScriptedActionControls({ groups, disabled, triggerAction }: {
  ));
 }
 
+function PlotAnimationControls({ targets, actionsEnabled, pendingPlotSlots, triggerAction, triggerAll, t }: {
+  targets: readonly LivePlotAnimationTarget[];
+  actionsEnabled: boolean;
+  pendingPlotSlots: ReadonlySet<number>;
+  triggerAction(target: LivePlotAnimationTarget, action: PlotAnimationAction): void;
+  triggerAll(action: PlotAnimationAction): void;
+  t: StudioTranslate;
+}) {
+  const pending = pendingPlotSlots.size > 0;
+  const actionButtons: readonly [PlotAnimationAction, string, "control.playPlot" | "control.pausePlot" | "control.resetPlot", string][] = [
+    ["play", "▶", "control.playPlot", "control.playAllAccessible"],
+    ["pause", "⏸", "control.pausePlot", "control.pauseAllAccessible"],
+    ["reset", "↻", "control.resetPlot", "control.resetAllAccessible"],
+  ];
+  return <>
+    <div className={presenterStyles.plotAnimationAllActions}>
+      <span className={presenterStyles.plotAnimationScope}>{t("control.all")}</span>
+      {actionButtons.map(([action, symbol, _individualKey, allKey]) => (
+        <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pending} onClick={() => triggerAll(action)} aria-label={t(allKey as "control.playAllAccessible" | "control.pauseAllAccessible" | "control.resetAllAccessible")} title={t(allKey as "control.playAllAccessible" | "control.pauseAllAccessible" | "control.resetAllAccessible")}>
+          <span aria-hidden="true">{symbol}</span>
+        </Button>
+      ))}
+    </div>
+    {targets.map((target) => <div className={presenterStyles.plotAnimationGroup} key={`${target.plotSlot}:${target.elementId}`}>
+      <span className={presenterStyles.plotAnimationLabel}>{target.label}</span>
+      <div className={presenterStyles.plotAnimationActions}>
+        {actionButtons.map(([action, symbol, individualKey]) => <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pendingPlotSlots.has(target.plotSlot)} onClick={() => triggerAction(target, action)} aria-label={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })} title={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })}>
+          <span aria-hidden="true">{symbol}</span>
+        </Button>)}
+      </div>
+    </div>)}
+  </>;
+}
+
 function stateCopy(port: ControlScriptedStatePort, t: StudioTranslate): string | null {
   if (port.status === "unavailable") return t("control.portUnavailable");
   if (port.status === "awaiting-report") return t("control.waitingForState");
@@ -188,6 +224,9 @@ export interface PresenterViewProps {
   galleries: readonly ControlGalleryView[];
   scriptedActionGroups: readonly ControlScriptedActionGroup[];
   scriptedActionsEnabled: boolean;
+  plotTargets?: readonly LivePlotAnimationTarget[];
+  plotActionsEnabled?: boolean;
+  pendingPlotSlots?: ReadonlySet<number>;
   scriptedStateGroups?: readonly ControlScriptedStateGroup[];
   promotingVersionId: string | null;
   failedPromotionVersionId: string | null;
@@ -207,6 +246,8 @@ export interface PresenterViewProps {
   nextGallery(elementId: string): void;
   setGalleryExpanded(elementId: string, expanded: boolean): void;
   triggerScriptedAction(scriptedSlot: number, portIndex: number): void;
+  triggerPlotAction?(target: LivePlotAnimationTarget, action: PlotAnimationAction): void;
+  triggerAllPlotActions?(action: PlotAnimationAction): void;
   setScriptedPortValue?(scriptedSlot: number, portIndex: number, value: boolean | number): void;
   end(): void;
 }
@@ -242,6 +283,9 @@ export function PresenterView({
   galleries,
   scriptedActionGroups,
   scriptedActionsEnabled,
+  plotTargets = [],
+  plotActionsEnabled = false,
+  pendingPlotSlots = new Set<number>(),
   scriptedStateGroups = [],
   promotingVersionId,
   failedPromotionVersionId,
@@ -261,6 +305,8 @@ export function PresenterView({
   nextGallery,
   setGalleryExpanded,
   triggerScriptedAction,
+  triggerPlotAction = () => undefined,
+  triggerAllPlotActions = () => undefined,
   setScriptedPortValue = () => undefined,
   end,
 }: PresenterViewProps) {
@@ -341,6 +387,7 @@ export function PresenterView({
   const navigationDisabled = pendingVersion !== null || disabled;
   const showGalleryControls = pendingVersion === null && galleries.length > 0;
   const showScriptedActionControls = scriptedActionGroups.length > 0;
+  const showPlotAnimationControls = plotTargets.length > 0;
   const showScriptedStateControls = scriptedStateGroups.length > 0;
   const currentGalleryTargets = showGalleryControls
     ? galleries.map(({ elementId, targetIndex }) => ({ elementId, targetIndex }))
@@ -759,9 +806,10 @@ export function PresenterView({
           </div>
         </div>
 
-        {(showGalleryControls || showScriptedActionControls || showScriptedStateControls) && (
+        {(showGalleryControls || showPlotAnimationControls || showScriptedActionControls || showScriptedStateControls) && (
           <div className={presenterStyles.mobileInteractiveElementsControls} data-mobile-gallery-controls data-mobile-interactive-elements-controls>
             {showGalleryControls && <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />}
+            {showPlotAnimationControls && <div className={presenterStyles.interactiveElementsControls}><strong>{t("control.animations")}</strong><PlotAnimationControls targets={plotTargets} actionsEnabled={plotActionsEnabled && !disabled} pendingPlotSlots={pendingPlotSlots} triggerAction={triggerPlotAction} triggerAll={triggerAllPlotActions} t={t} /></div>}
             {showScriptedActionControls && <ScriptedActionControls groups={scriptedActionGroups} disabled={!scriptedActionsEnabled} triggerAction={triggerScriptedAction} />}
             {showScriptedStateControls && <ScriptedStateControls groups={scriptedStateGroups} setPortValue={setScriptedPortValue} />}
           </div>
@@ -795,6 +843,12 @@ export function PresenterView({
             {showGalleryControls && (
               <div className={presenterStyles.interactiveElementsControls} data-gallery-controls>
                 <GalleryInteractiveControls galleries={galleries} disabled={disabled} nextGallery={nextGallery} setGalleryExpanded={setGalleryExpanded} t={t} />
+              </div>
+            )}
+            {showPlotAnimationControls && (
+              <div className={presenterStyles.interactiveElementsControls} data-plot-animation-controls>
+                <strong>{t("control.animations")}</strong>
+                <PlotAnimationControls targets={plotTargets} actionsEnabled={plotActionsEnabled && !disabled} pendingPlotSlots={pendingPlotSlots} triggerAction={triggerPlotAction} triggerAll={triggerAllPlotActions} t={t} />
               </div>
             )}
             {showScriptedActionControls && (

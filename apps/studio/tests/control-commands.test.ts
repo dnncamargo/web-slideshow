@@ -41,6 +41,7 @@ import {
   writeControlCommand,
   writeControlState,
   writeFullscreenRequest,
+  writePlotAnimationAction,
   writeSlideCommand,
   writeScriptedInput,
 } from "../src/features/control/control-command-writer";
@@ -163,6 +164,63 @@ describe("control command writer", () => {
       /publicationId/,
     );
     expect(mocks.ref).not.toHaveBeenCalled();
+  });
+
+  it("writes Plot actions transactionally and increments only within identity", async () => {
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    const request = { activationRevision: 7, currentVersionId: " version-1 ", pageId: " page-1 ", plotSlot: 2, elementId: "plot/[#]", targetBootId: " boot-a ", action: "play" as const };
+    const first = await writePlotAnimationAction({} as never, request);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/plotAnimationAction/2");
+    expect(first).toMatchObject({ revision: 1, action: "play", elementId: "plot/[#]", currentVersionId: "version-1", pageId: "page-1", targetBootId: "boot-a" });
+    let previous = first;
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const next = updater(previous) as typeof first;
+      previous = next;
+      return { committed: true, snapshot: { val: () => next } };
+    });
+    expect((await writePlotAnimationAction({} as never, { ...request, action: "pause" })).revision).toBe(2);
+    expect((await writePlotAnimationAction({} as never, { ...request, action: "reset" })).revision).toBe(3);
+    expect((await writePlotAnimationAction({} as never, { ...request, pageId: "page-2", action: "reset" })).revision).toBe(1);
+    expect((await writePlotAnimationAction({} as never, { ...request, activationRevision: 8 })).revision).toBe(1);
+    expect((await writePlotAnimationAction({} as never, { ...request, currentVersionId: "version-2" })).revision).toBe(1);
+    expect((await writePlotAnimationAction({} as never, { ...request, elementId: "plot-2" })).revision).toBe(1);
+    expect((await writePlotAnimationAction({} as never, { ...request, targetBootId: "boot-b" })).revision).toBe(1);
+  });
+
+  it("rejects invalid Plot inputs before opening a transaction", async () => {
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    const request = { activationRevision: 7, currentVersionId: "v", pageId: "p", plotSlot: 0, elementId: "plot", targetBootId: "boot", action: "play" as const };
+    await expect(writePlotAnimationAction({} as never, { ...request, plotSlot: 1.5 })).rejects.toThrow(/plotSlot/);
+    await expect(writePlotAnimationAction({} as never, { ...request, plotSlot: -1 })).rejects.toThrow(/plotSlot/);
+    await expect(writePlotAnimationAction({} as never, { ...request, activationRevision: -1 })).rejects.toThrow(/activationRevision/);
+    await expect(writePlotAnimationAction({} as never, { ...request, activationRevision: 1.5 })).rejects.toThrow(/activationRevision/);
+    await expect(writePlotAnimationAction({} as never, { ...request, currentVersionId: " " })).rejects.toThrow(/currentVersionId/);
+    await expect(writePlotAnimationAction({} as never, { ...request, pageId: " " })).rejects.toThrow(/pageId/);
+    await expect(writePlotAnimationAction({} as never, { ...request, targetBootId: " " })).rejects.toThrow(/targetBootId/);
+    await expect(writePlotAnimationAction({} as never, { ...request, action: "restart" as never })).rejects.toThrow(/action/);
+    await expect(writePlotAnimationAction({} as never, { ...request, elementId: "" })).rejects.toThrow(/elementId/);
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it("uses independent transaction addresses and requires authenticated Control", async () => {
+    const request = { activationRevision: 7, currentVersionId: "v", pageId: "p", plotSlot: 0, elementId: "plot", targetBootId: "boot", action: "play" as const };
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    await writePlotAnimationAction({} as never, request);
+    await writePlotAnimationAction({} as never, { ...request, plotSlot: 1 });
+    expect(mocks.ref).toHaveBeenNthCalledWith(1, {}, "live/plotAnimationAction/0");
+    expect(mocks.ref).toHaveBeenNthCalledWith(2, {}, "live/plotAnimationAction/1");
+    mocks.getCurrentNonAnonymousUser.mockReturnValue(null);
+    await expect(writePlotAnimationAction({} as never, request)).rejects.toThrow(/anonymous/);
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails when the Plot transaction does not commit or commits malformed data", async () => {
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    const request = { activationRevision: 7, currentVersionId: "v", pageId: "p", plotSlot: 0, elementId: "plot", targetBootId: "boot", action: "play" as const };
+    mocks.runTransaction.mockResolvedValue({ committed: false, snapshot: { val: () => null } });
+    await expect(writePlotAnimationAction({} as never, request)).rejects.toThrow(/did not commit/);
+    mocks.runTransaction.mockResolvedValue({ committed: true, snapshot: { val: () => ({}) } });
+    await expect(writePlotAnimationAction({} as never, request)).rejects.toThrow(/malformed/);
   });
 });
 

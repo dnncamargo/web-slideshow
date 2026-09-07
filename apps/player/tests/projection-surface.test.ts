@@ -155,6 +155,35 @@ describe("Projection surface", () => {
     const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
 
     expect(raf.request).not.toHaveBeenCalled();
+    expect(() => projection.controlPlotAnimation("animated-plot", "play")).not.toThrow();
+    projection.destroy();
+  });
+
+  it("delegates Plot play, pause, and reset through the active renderer runtime", () => {
+    const raf = stubPlotRaf();
+    const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
+    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    if (!plot) throw new Error("Animated Plot was not rendered");
+
+    projection.controlPlotAnimation("animated-plot", "pause");
+    expect(raf.callbacks.size).toBe(0);
+    projection.controlPlotAnimation("animated-plot", "play");
+    expect(raf.callbacks.size).toBe(1);
+    projection.controlPlotAnimation("animated-plot", "reset");
+    expect(raf.callbacks.size).toBe(0);
+    expect(() => projection.controlPlotAnimation("missing", "play")).not.toThrow();
+    projection.destroy();
+  });
+
+  it("does not control static Plots", () => {
+    const raf = stubPlotRaf();
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "static-plot", title: "Static", description: "", aspectRatio: "16:9",
+      slides: [{ id: "slide", elements: [{ id: "static-plot", type: "plot", hidden: false, source: "y = x" }] }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    expect(() => projection.controlPlotAnimation("static-plot", "play")).not.toThrow();
+    expect(raf.request).not.toHaveBeenCalled();
     projection.destroy();
   });
 
