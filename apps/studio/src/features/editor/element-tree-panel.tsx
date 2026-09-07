@@ -18,6 +18,7 @@ import styles from "./editor-workspace.module.css";
 import { ElementPropertiesPanel } from "./element-properties-panel";
 import {
   findElementSiblingPosition,
+  getTopicItemHierarchyActionState,
   type MoveElementOptions,
 } from "./element-operations";
 import { findElementById } from "./element-tree";
@@ -41,6 +42,8 @@ interface ElementTreePanelProps {
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
   onMoveTopicItem: (topicsId: string, topicItemId: string, targetIndex: number) => void;
+  onIndentTopicItem: (topicsId: string, topicItemId: string) => void;
+  onOutdentTopicItem: (topicsId: string, topicItemId: string) => void;
   onMoveGalleryItem: (galleryId: string, itemIndex: number, offset: -1 | 1) => void;
   onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
   customLibraryRepository?: CustomLibraryRepository;
@@ -94,6 +97,12 @@ interface ElementTreeNodeProps {
   onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
   onGalleryItemDrop: (galleryId: string, itemIndex: number) => void;
   selectedContentSlotId: string | null;
+  onIndentTopicItem: (topicsId: string, topicItemId: string) => void;
+  onOutdentTopicItem: (topicsId: string, topicItemId: string) => void;
+  getTopicItemHierarchyActionState: (topicsId: string, topicItemId: string) => {
+    canIndent: boolean;
+    canOutdent: boolean;
+  };
 }
 
 interface GalleryItemTreeNodeProps {
@@ -134,6 +143,12 @@ interface TopicItemTreeNodeProps {
   onGalleryItemDragStart: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
   onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
   onGalleryItemDrop: (galleryId: string, itemIndex: number) => void;
+  onIndentTopicItem: (topicsId: string, topicItemId: string) => void;
+  onOutdentTopicItem: (topicsId: string, topicItemId: string) => void;
+  getTopicItemHierarchyActionState: (topicsId: string, topicItemId: string) => {
+    canIndent: boolean;
+    canOutdent: boolean;
+  };
 }
 
 function isStructuralTopicSelection(
@@ -254,6 +269,9 @@ function ElementTreeNode({
   onGalleryItemDragOver,
   onGalleryItemDrop,
   selectedContentSlotId,
+  onIndentTopicItem,
+  onOutdentTopicItem,
+  getTopicItemHierarchyActionState,
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
   const isExpandable =
@@ -374,6 +392,9 @@ function ElementTreeNode({
                 onGalleryItemDragStart={onGalleryItemDragStart}
                 onGalleryItemDragOver={onGalleryItemDragOver}
                 onGalleryItemDrop={onGalleryItemDrop}
+                onIndentTopicItem={onIndentTopicItem}
+                onOutdentTopicItem={onOutdentTopicItem}
+                getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
               />
             ))}
           {element.type === "topics" &&
@@ -398,6 +419,9 @@ function ElementTreeNode({
                 onGalleryItemDragStart={onGalleryItemDragStart}
                 onGalleryItemDragOver={onGalleryItemDragOver}
                 onGalleryItemDrop={onGalleryItemDrop}
+                onIndentTopicItem={onIndentTopicItem}
+                onOutdentTopicItem={onOutdentTopicItem}
+                getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
               />
             ))}
           {element.type === "gallery" &&
@@ -508,6 +532,9 @@ function TopicItemTreeNode({
   onGalleryItemDragStart,
   onGalleryItemDragOver,
   onGalleryItemDrop,
+  onIndentTopicItem,
+  onOutdentTopicItem,
+  getTopicItemHierarchyActionState,
 }: TopicItemTreeNodeProps) {
   const { t } = useStudioI18n();
   const expanded = expandedIds.has(item.id);
@@ -516,6 +543,10 @@ function TopicItemTreeNode({
     selectedContentSlotId === item.content.id;
   const treeChildren = item.content.children;
   const structuralChildren = item.children;
+  const hierarchyActionState = getTopicItemHierarchyActionState(
+    owningTopicsId,
+    item.id,
+  );
 
   return (
     <li
@@ -553,6 +584,35 @@ function TopicItemTreeNode({
         >
           {getTopicItemLabel(item, t("tree.topic"))}
         </button>
+
+        <div className={styles.elementTreeTopicActions}>
+          <button
+            className={styles.elementTreeTopicAction}
+            type="button"
+            aria-label={t("tree.promoteTopic")}
+            title={t("tree.promoteTopic")}
+            disabled={!hierarchyActionState.canOutdent}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOutdentTopicItem(owningTopicsId, item.id);
+            }}
+          >
+            ←
+          </button>
+          <button
+            className={styles.elementTreeTopicAction}
+            type="button"
+            aria-label={t("tree.demoteTopic")}
+            title={t("tree.demoteTopic")}
+            disabled={!hierarchyActionState.canIndent}
+            onClick={(event) => {
+              event.stopPropagation();
+              onIndentTopicItem(owningTopicsId, item.id);
+            }}
+          >
+            →
+          </button>
+        </div>
       </div>
       {expanded && (
         <ul role="group" className={styles.elementTreeList}>
@@ -576,6 +636,9 @@ function TopicItemTreeNode({
               onGalleryItemDragStart={onGalleryItemDragStart}
               onGalleryItemDragOver={onGalleryItemDragOver}
               onGalleryItemDrop={onGalleryItemDrop}
+              onIndentTopicItem={onIndentTopicItem}
+              onOutdentTopicItem={onOutdentTopicItem}
+              getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
             />
           ))}
           {structuralChildren.map((child, childIndex) => (
@@ -599,6 +662,9 @@ function TopicItemTreeNode({
                   onGalleryItemDragStart={onGalleryItemDragStart}
                   onGalleryItemDragOver={onGalleryItemDragOver}
                   onGalleryItemDrop={onGalleryItemDrop}
+                  onIndentTopicItem={onIndentTopicItem}
+                  onOutdentTopicItem={onOutdentTopicItem}
+                  getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
             />
           ))}
         </ul>
@@ -615,6 +681,8 @@ export function ElementTreePanel({
   onSelectElement,
   onMoveElement,
   onMoveTopicItem,
+  onIndentTopicItem,
+  onOutdentTopicItem,
   onMoveGalleryItem,
   onGalleryStructureDrop,
   customLibraryRepository,
@@ -838,6 +906,14 @@ export function ElementTreePanel({
                 setDragSource(null);
                 setDropTarget(null);
               }}
+              onIndentTopicItem={onIndentTopicItem}
+              onOutdentTopicItem={onOutdentTopicItem}
+              getTopicItemHierarchyActionState={(topicsId, topicItemId) =>
+                getTopicItemHierarchyActionState(
+                  slide.elements,
+                  topicsId,
+                  topicItemId,
+                )}
             />
           ))}
         </ul>

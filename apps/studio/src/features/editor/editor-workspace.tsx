@@ -209,7 +209,9 @@ import {
   setStructuredTableShowHeader,
   appendTopicItemToTopics,
   appendChildTopicItemToTopics,
+  indentTopicItem,
   moveTopicItemToSiblingIndex,
+  outdentTopicItem,
   resolveAddElementDestination,
 } from "./element-operations";
 
@@ -3145,6 +3147,34 @@ export function EditorWorkspace({
     }));
   }
 
+  function indentTopicItemInTree(topicsId: string, topicItemId: string) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: indentTopicItem(slide.elements, topicsId, topicItemId),
+            }
+          : slide,
+      ),
+    }));
+  }
+
+  function outdentTopicItemInTree(topicsId: string, topicItemId: string) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: outdentTopicItem(slide.elements, topicsId, topicItemId),
+            }
+          : slide,
+      ),
+    }));
+  }
+
   function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
     if (!selectedSlide) return;
 
@@ -3977,6 +4007,8 @@ export function EditorWorkspace({
                   }}
                   onMoveElement={moveElementInTree}
                   onMoveTopicItem={moveTopicItemInTree}
+                  onIndentTopicItem={indentTopicItemInTree}
+                  onOutdentTopicItem={outdentTopicItemInTree}
                   onMoveGalleryItem={moveGalleryItemInTree}
                   onGalleryStructureDrop={applyGalleryStructureDrop}
                   customLibraryRepository={customLibraryRepository}

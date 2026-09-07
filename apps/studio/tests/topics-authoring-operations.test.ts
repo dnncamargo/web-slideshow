@@ -15,6 +15,7 @@ import {
   createDefaultTopicItem,
   createElement,
   findTopicItemStructuralDepthInItems,
+  getTopicItemHierarchyActionState,
   indentTopicItem,
   moveTopicItemToSiblingIndex,
   outdentTopicItem,
@@ -297,6 +298,36 @@ describe("TopicItem sibling reorder", () => {
 });
 
 describe("TopicItem hierarchy operations", () => {
+  it("reports hierarchy action availability from the same subtree depth rules", () => {
+    const items = structuralChain(4);
+    const parent = findTopicItemDepthItem(items, "topic-level-4")!;
+    const source = topicItem("source", contentSlot("source-slot"));
+    parent.children.push(
+      topicItem("previous", contentSlot("previous-slot")),
+      source,
+    );
+    const elements: PowerShowElement[] = [topics("topics", items)];
+
+    expect(getTopicItemHierarchyActionState(elements, "topics", "source")).toEqual({
+      canIndent: false,
+      canOutdent: true,
+    });
+    expect(getTopicItemHierarchyActionState(elements, "topics", "topic-level-1")).toEqual({
+      canIndent: false,
+      canOutdent: false,
+    });
+  });
+
+  it("allows outdent for imported TopicItems deeper than the authoring limit", () => {
+    const items = structuralChain(7);
+    const elements: PowerShowElement[] = [topics("topics", items)];
+
+    expect(getTopicItemHierarchyActionState(elements, "topics", "topic-level-7")).toEqual({
+      canIndent: false,
+      canOutdent: true,
+    });
+  });
+
   it("indents a top-level sibling under its immediate predecessor", () => {
     const a = topicItem("a", contentSlot("slot-a", [text("text-a")]));
     const b = topicItem("b", contentSlot("slot-b", [text("text-b")]));

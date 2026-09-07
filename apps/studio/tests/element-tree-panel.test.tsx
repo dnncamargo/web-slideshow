@@ -266,11 +266,15 @@ describe("ElementTreePanel", () => {
       onSelectElement?: ReturnType<typeof vi.fn>;
       onMoveElement?: ReturnType<typeof vi.fn>;
       onMoveTopicItem?: ReturnType<typeof vi.fn>;
+      onIndentTopicItem?: ReturnType<typeof vi.fn>;
+      onOutdentTopicItem?: ReturnType<typeof vi.fn>;
     } = {},
   ) {
     const onSelectElement = options.onSelectElement ?? vi.fn();
     const onMoveElement = options.onMoveElement ?? vi.fn();
     const onMoveTopicItem = options.onMoveTopicItem ?? vi.fn();
+    const onIndentTopicItem = options.onIndentTopicItem ?? vi.fn();
+    const onOutdentTopicItem = options.onOutdentTopicItem ?? vi.fn();
 
     act(() => {
       root.render(
@@ -283,6 +287,8 @@ describe("ElementTreePanel", () => {
             onSelectElement={onSelectElement}
             onMoveElement={onMoveElement}
             onMoveTopicItem={onMoveTopicItem}
+            onIndentTopicItem={onIndentTopicItem}
+            onOutdentTopicItem={onOutdentTopicItem}
             onMoveGalleryItem={vi.fn()}
             onGalleryStructureDrop={vi.fn()}
             onBrowseElementStyles={vi.fn()}
@@ -291,7 +297,28 @@ describe("ElementTreePanel", () => {
       );
     });
 
-    return { onSelectElement, onMoveElement, onMoveTopicItem };
+    return {
+      onSelectElement,
+      onMoveElement,
+      onMoveTopicItem,
+      onIndentTopicItem,
+      onOutdentTopicItem,
+    };
+  }
+
+  function topicActionButton(
+    treeItem: HTMLLIElement,
+    label: string,
+  ): HTMLButtonElement {
+    const button = treeItem.querySelector<HTMLButtonElement>(
+      `button[aria-label="${label}"]`,
+    );
+
+    if (!button) {
+      throw new Error(`Topic action button not found: ${label}`);
+    }
+
+    return button;
   }
 
   beforeEach(() => {
@@ -469,6 +496,76 @@ describe("ElementTreePanel", () => {
       type: "topics",
       contentSlotId: "slot-b",
     });
+  });
+
+  it("renders explicit hierarchy actions with the authoritative availability rules", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A")]), [
+        topicItem("topic-a-1", contentSlot("slot-a-1", [text("a-1-text", "A.1")])),
+        topicItem("topic-a-2", contentSlot("slot-a-2", [text("a-2-text", "A.2")])),
+      ]),
+      topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
+    ]);
+
+    renderPanel(slide);
+
+    const topicA = findTreeItem(container, "A");
+    const topicA1 = findTreeItem(container, "A.1");
+    const topicA2 = findTreeItem(container, "A.2");
+    const topicB = findTreeItem(container, "B");
+
+    expect(topicActionButton(topicA, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(topicA, "Demote topic").disabled).toBe(true);
+    expect(topicActionButton(topicA1, "Promote topic").disabled).toBe(false);
+    expect(topicActionButton(topicA1, "Demote topic").disabled).toBe(true);
+    expect(topicActionButton(topicA2, "Promote topic").disabled).toBe(false);
+    expect(topicActionButton(topicA2, "Demote topic").disabled).toBe(false);
+    expect(topicActionButton(topicB, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(topicB, "Demote topic").disabled).toBe(false);
+  });
+
+  it("routes hierarchy actions to the owning TopicsElement and preserves row selection routing", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A")])),
+      topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
+    ]);
+    const { onIndentTopicItem, onOutdentTopicItem, onMoveElement, onSelectElement } =
+      renderPanel(slide, {
+        selectedElementId: "topics-1",
+        selectedContentSlotId: "slot-b",
+      });
+
+    const topicB = findTreeItem(container, "B");
+    const promote = topicActionButton(topicB, "Promote topic");
+    const demote = topicActionButton(topicB, "Demote topic");
+
+    expect(promote.title).toBe("Promote topic");
+    expect(demote.title).toBe("Demote topic");
+
+    act(() => {
+      demote.click();
+    });
+
+    expect(onIndentTopicItem).toHaveBeenCalledWith("topics-1", "topic-b");
+    expect(onOutdentTopicItem).not.toHaveBeenCalled();
+    expect(onMoveElement).not.toHaveBeenCalled();
+    expect(onSelectElement).not.toHaveBeenCalled();
+  });
+
+  it("keeps hierarchy actions off ordinary and synthetic child rows", () => {
+    const slide = slideWithTopics([
+      topicItem(
+        "topic-a",
+        contentSlot("slot-a", [text("a-text", "A"), image("a-image")]),
+      ),
+    ]);
+
+    renderPanel(slide);
+
+    expect(container.querySelectorAll('button[aria-label="Promote topic"]')).toHaveLength(1);
+    expect(container.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
+    expect(findTreeItem(container, "Text — A").querySelector('button[aria-label="Promote topic"]')).toBeNull();
+    expect(findTreeItem(container, "Image").querySelector('button[aria-label="Demote topic"]')).toBeNull();
   });
 
   it("reorders a structurally selected middle topic row through the footer", () => {
