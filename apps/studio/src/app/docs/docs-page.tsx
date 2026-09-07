@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   defaultDocsTopicId,
@@ -17,6 +17,7 @@ function readHashTopicId(): string | null {
 
 export function DocsPage() {
   const [activeTopicId, setActiveTopicId] = useState(defaultDocsTopicId);
+  const contentRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const syncFromHash = () => {
@@ -30,6 +31,13 @@ export function DocsPage() {
     window.addEventListener("hashchange", syncFromHash);
     return () => window.removeEventListener("hashchange", syncFromHash);
   }, []);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (content !== null && typeof content.scrollIntoView === "function") {
+      content.scrollIntoView({ block: "start" });
+    }
+  }, [activeTopicId]);
 
   const activeTopic = useMemo(
     () => findDocsTopic(activeTopicId) ?? findDocsTopic(defaultDocsTopicId),
@@ -93,7 +101,11 @@ export function DocsPage() {
           </nav>
         </aside>
 
-        <article className={styles.content} aria-labelledby="docs-topic-title">
+        <article
+          ref={contentRef}
+          className={styles.content}
+          aria-labelledby="docs-topic-title"
+        >
           <div className={styles.topicHeader}>
             <span className={styles.kicker}>Documentação</span>
             <h1 id="docs-topic-title">{activeTopic.title}</h1>
