@@ -117,16 +117,17 @@ function renderPlotStyle(element: PlotElement): string {
   return styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
 }
 
-function renderPlotFallback(element: PlotElement): string {
-  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>[plot]</div>`;
-}
-
 function appendGeometry(target: MathGeometryResult, result: MathGeometryResult): void {
   target.segments.push(...result.segments);
 }
 
-export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}): string {
-  if (element.hidden) return "";
+export interface PlotFrame {
+  readonly className: "powershow-plot" | "powershow-placeholder powershow-placeholder-plot";
+  readonly content: string;
+}
+
+export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions = {}): PlotFrame | null {
+  if (element.hidden) return null;
 
   const initialBindings = element.animation === undefined
     ? {}
@@ -179,7 +180,7 @@ export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}
         }),
       });
       if (surfaceSvg !== "") {
-        return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${surfaceSvg}</div>`;
+        return { className: "powershow-plot", content: surfaceSvg };
       }
     }
   }
@@ -190,7 +191,13 @@ export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}
   const svg = renderMathGeometrySvg(geometry, displayViewport, renderedEquationCount > 0
     ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y", showAxes: element.showAxes !== false }
     : undefined);
-  if (svg === "") return renderPlotFallback(element);
+  if (svg === "") return { className: "powershow-placeholder powershow-placeholder-plot", content: "[plot]" };
 
-  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${svg}</div>`;
+  return { className: "powershow-plot", content: svg };
+}
+
+export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}): string {
+  const frame = renderPlotFrame(element, options);
+  if (frame === null) return "";
+  return `<div class="powershow-element ${frame.className}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${frame.content}</div>`;
 }
