@@ -61,6 +61,7 @@ function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle
   if (style === undefined) return undefined;
   const background = style.background?.color === undefined ? undefined : style.background;
   const axes = style.axes?.color === undefined && style.axes?.strokeWidth === undefined
+    && style.axes?.opacity === undefined
     ? undefined
     : style.axes;
   const next = { ...style };
@@ -87,6 +88,9 @@ export function PlotInspector({
   const [axisStrokeWidthDraft, setAxisStrokeWidthDraft] = useState(
     element.style?.axes?.strokeWidth === undefined ? "" : String(element.style.axes.strokeWidth),
   );
+  const [axisOpacityDraft, setAxisOpacityDraft] = useState(
+    element.style?.axes?.opacity === undefined ? "" : String(element.style.axes.opacity * 100),
+  );
   const [hydratedAxisStyle, setHydratedAxisStyle] = useState({
     id: element.id,
     style: JSON.stringify(element.style?.axes ?? null),
@@ -106,6 +110,7 @@ export function PlotInspector({
   if (hydratedAxisStyle.id !== element.id || hydratedAxisStyle.style !== currentAxisStyleIdentity) {
     setHydratedAxisStyle({ id: element.id, style: currentAxisStyleIdentity });
     setAxisStrokeWidthDraft(element.style?.axes?.strokeWidth === undefined ? "" : String(element.style.axes.strokeWidth));
+    setAxisOpacityDraft(element.style?.axes?.opacity === undefined ? "" : String(element.style.axes.opacity * 100));
   }
 
   const animationDirty = JSON.stringify(animationDraft) !== JSON.stringify(plotAnimationDraft(element.animation));
@@ -187,6 +192,25 @@ export function PlotInspector({
     updateStyle((current) => ({
       ...(current ?? {}),
       axes: { ...(current?.axes ?? {}), strokeWidth: parsed },
+    }));
+  }
+
+  function commitAxisOpacity(value = axisOpacityDraft): void {
+    if (value.trim() === "") {
+      updateStyle((current) => {
+        if (current?.axes === undefined) return current;
+        const next = { ...current, axes: { ...current.axes } };
+        delete next.axes.opacity;
+        return next;
+      });
+      return;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) return;
+    updateStyle((current) => ({
+      ...(current ?? {}),
+      axes: { ...(current?.axes ?? {}), opacity: parsed / 100 },
     }));
   }
 
@@ -418,6 +442,25 @@ export function PlotInspector({
               }),
             }}
           />
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.axisOpacity")}</span>
+          <div className={styles.unitInput}>
+            <input
+              id="plot-axis-opacity"
+              name="plotAxisOpacity"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              placeholder="70"
+              value={axisOpacityDraft}
+              onChange={(event) => setAxisOpacityDraft(event.target.value)}
+              onBlur={(event) => commitAxisOpacity(event.currentTarget.value)}
+            />
+            <span>%</span>
+          </div>
         </label>
 
         <label className={styles.field}>

@@ -96,6 +96,30 @@ describe("renderMathGeometrySvg", () => {
     expect(svg).toContain('stroke="currentColor" stroke-width="2"');
   });
 
+  it("applies authored opacity to 2D axis lines and labels only", () => {
+    const svg = renderMathGeometrySvg(geometry([
+      [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+    ]), squareViewport, {
+      x: "x",
+      y: "y",
+      axisStyle: { opacity: 0.5 },
+    });
+
+    expect(svg.match(/<line[^>]*class="powershow-plot-axis[^>]*opacity="0\.5"/g)).toHaveLength(2);
+    expect(svg.match(/<text[^>]*class="powershow-plot-axis-label[^>]*opacity="0\.5"/g)).toHaveLength(2);
+    expect(svg).toContain('stroke="currentColor" stroke-width="2"');
+    expect(svg.match(/<path[^>]*opacity="/g)).toBeNull();
+  });
+
+  it("does not emit axis opacity when it is not authored", () => {
+    const svg = renderMathGeometrySvg(geometry([
+      [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+    ]), squareViewport, { x: "x", y: "y" });
+
+    expect(svg.match(/<line[^>]*class="powershow-plot-axis[^>]*opacity="/g)).toBeNull();
+    expect(svg.match(/<text[^>]*class="powershow-plot-axis-label[^>]*opacity="/g)).toBeNull();
+  });
+
   it("uses x/y labels for non-explicit-y plots", () => {
     const svg = renderMathGeometrySvg(geometry([
       [{ x: -1, y: -1 }, { x: 1, y: 1 }],

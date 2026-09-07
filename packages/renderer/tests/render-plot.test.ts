@@ -271,11 +271,12 @@ describe("Plot renderer", () => {
 
   it("styles 2D axes independently from the curve", () => {
     const html = renderPlot("y = x", {
-      style: { color: "#00aa00", axes: { color: "#ff00aa", strokeWidth: 3 } },
+      style: { color: "#00aa00", axes: { color: "#ff00aa", strokeWidth: 3, opacity: 0.5 } },
     });
 
     expect(html).toContain('stroke="#ff00aa" stroke-width="3"');
     expect(html).toContain('fill="#ff00aa"');
+    expect(html).toContain('opacity="0.5"');
     expect(html).toContain('stroke="currentColor" stroke-width="2"');
     expect(html).not.toContain("y = x");
   });
@@ -283,13 +284,14 @@ describe("Plot renderer", () => {
   it("keeps explicit-z axes independent from Z-gradient wireframe colors", () => {
     const html = renderPlot("z = x + y", {
       style: {
-        axes: { color: "#ff00aa", strokeWidth: 3 },
+        axes: { color: "#ff00aa", strokeWidth: 3, opacity: 0.5 },
         zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
       },
     });
 
     expect(html).toContain('stroke="#ff00aa" stroke-width="3"');
     expect(html).toContain('fill="#ff00aa"');
+    expect(html).toContain('opacity="0.5"');
     expect(html).toContain("color-mix(in srgb,#7c3aed");
     expect(html).not.toContain('stroke="#ff00aa" stroke-width="1"');
   });

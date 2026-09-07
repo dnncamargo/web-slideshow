@@ -8,6 +8,7 @@ import { escapeHtml } from "./escape-html";
 interface PlotAxisStyle {
   color?: string;
   strokeWidth?: number;
+  opacity?: number;
 }
 
 const Z_GRADIENT_BAND_COUNT = 32;
@@ -339,8 +340,9 @@ export function renderMathSurfaceGeometrySvg(
     const y2 = projectionBounds.maxV - axis.end.v;
     const axisColor = options.axisStyle?.color === undefined ? "" : ` stroke="${escapeHtml(options.axisStyle.color)}"`;
     const axisStrokeWidth = options.axisStyle?.strokeWidth ?? 1;
+    const axisOpacity = options.axisStyle?.opacity === undefined ? "" : ` opacity="${options.axisStyle.opacity}"`;
     const axisLabelFill = options.axisStyle?.color === undefined ? "" : ` fill="${escapeHtml(options.axisStyle.color)}"`;
-    return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}"${axisColor} stroke-width="${axisStrokeWidth}" vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2"${axisLabelFill}>${axis.name}</text>`;
+    return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}"${axisColor} stroke-width="${axisStrokeWidth}"${axisOpacity} vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2"${axisLabelFill}${axisOpacity}>${axis.name}</text>`;
   }).join("");
 
   const wireframeMarkup = options.zGradient === undefined

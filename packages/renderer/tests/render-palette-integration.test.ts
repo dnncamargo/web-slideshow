@@ -87,7 +87,7 @@ describe("canonical palette color rendering", () => {
             type: "plot",
             hidden: false,
             source: "y = x",
-            style: { axes: { color: reference } },
+            style: { axes: { color: reference, opacity: 0.5 } },
           },
         ],
       }],
@@ -99,6 +99,7 @@ describe("canonical palette color rendering", () => {
     expect(html).toContain(variable);
     expect(html).toContain(`stroke="${variable}"`);
     expect(html).toContain(`fill="${variable}"`);
+    expect(html).toContain('opacity="0.5"');
     expect(html).toContain("#123456");
     expect(html).not.toContain("[object Object]");
     expect(html.split(variable).length - 1).toBeGreaterThanOrEqual(15);

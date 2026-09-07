@@ -100,6 +100,15 @@ describe("Plot Inspector", () => {
     input.blur();
   }
 
+  function changeAxisOpacity(value: string): void {
+    const input = host.querySelector<HTMLInputElement>("#plot-axis-opacity");
+    if (!input) throw new Error("Plot axis opacity input not found");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.focus();
+    input.blur();
+  }
+
   function changeAnimationText(id: string, value: string): void {
     const input = host.querySelector<HTMLInputElement>(`#${id}`);
     if (!input) throw new Error(`Plot animation input not found: ${id}`);
@@ -559,6 +568,7 @@ describe("Plot Inspector", () => {
 
     await act(async () => renderInspector());
     expect(host.querySelector<HTMLInputElement>("#plot-axis-color-value")?.value).toBe("#ff00aa");
+    expect(host.querySelector<HTMLInputElement>("#plot-axis-opacity")?.value).toBe("");
     expect(host.querySelector<HTMLInputElement>("#plot-axis-stroke-width")?.value).toBe("2");
     expect(updateCount).toBe(0);
 
@@ -608,6 +618,67 @@ describe("Plot Inspector", () => {
 
     expect(current.showAxes).toBe(false);
     expect(current.style?.axes).toEqual({ color: "#ff00aa", strokeWidth: 2 });
+  });
+
+  it("authors axis opacity as a percentage while preserving siblings", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x",
+      style: { axes: { color: "#ff0000", strokeWidth: 2 } },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => changeAxisOpacity("50"));
+
+    expect(current.style?.axes).toEqual({ color: "#ff0000", strokeWidth: 2, opacity: 0.5 });
+  });
+
+  it.each([["0", 0], ["100", 1]] as const)("accepts axis opacity boundary %s%%", async (input, expected) => {
+    await act(async () => renderInspector());
+
+    await act(async () => changeAxisOpacity(input));
+
+    expect(current.style?.axes?.opacity).toBe(expected);
+  });
+
+  it.each(["-1", "101", "not-a-number"])("does not persist invalid axis opacity %s", async (value) => {
+    await act(async () => renderInspector());
+
+    await act(async () => changeAxisOpacity(value));
+
+    expect(current.style?.axes?.opacity).toBeUndefined();
+  });
+
+  it("clears axis opacity without removing sibling appearance", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x",
+      style: { axes: { color: "#ff0000", strokeWidth: 2, opacity: 0.5 } },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => changeAxisOpacity(""));
+
+    expect(current.style?.axes).toEqual({ color: "#ff0000", strokeWidth: 2 });
+  });
+
+  it("removes empty axis style when clearing its only opacity", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x",
+      style: { axes: { opacity: 0.5 } },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => changeAxisOpacity(""));
+
+    expect(current.style).toBeUndefined();
   });
 
   it("edits only canonical source, preserving multiline and empty values", async () => {
