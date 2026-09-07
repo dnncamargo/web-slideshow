@@ -80,6 +80,26 @@ function extractCsp(srcdoc: string): string {
   return decodeHtmlEntities(match![1]!);
 }
 
+function cspDirectives(csp: string): Map<string, string> {
+  const directives = new Map<string, string>();
+
+  for (const directive of csp.split(";")) {
+    const trimmed = directive.trim();
+
+    if (trimmed === "") {
+      continue;
+    }
+
+    const separator = trimmed.indexOf(" ");
+    const name = separator === -1 ? trimmed : trimmed.slice(0, separator);
+    const value = separator === -1 ? "" : trimmed.slice(separator + 1).trim();
+
+    directives.set(name, value);
+  }
+
+  return directives;
+}
+
 function extractBootstrap(srcdoc: string): string {
   const match = srcdoc.match(
     /<script data-powershow-scripted-bootstrap="true">([\s\S]*)<\/script>/,
@@ -266,55 +286,72 @@ describe("renderScripted srcdoc CSP", () => {
   it("sets default-src to 'none'", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
 
-    expect(csp).toContain("default-src 'none'");
+    expect(cspDirectives(csp).get("default-src")).toBe("'none'");
+  });
+
+  it("sets the exact image sources", () => {
+    const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
+
+    expect(cspDirectives(csp).get("img-src")).toBe("https: data: blob:");
   });
 
   it("sets connect-src to 'none'", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
 
-    expect(csp).toContain("connect-src 'none'");
+    expect(cspDirectives(csp).get("connect-src")).toBe("'none'");
   });
 
   it("sets frame-src to 'none'", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
 
-    expect(csp).toContain("frame-src 'none'");
+    expect(cspDirectives(csp).get("frame-src")).toBe("'none'");
   });
 
   it("sets object-src to 'none'", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
 
-    expect(csp).toContain("object-src 'none'");
+    expect(cspDirectives(csp).get("object-src")).toBe("'none'");
   });
 
   it("sets base-uri to 'none'", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
 
-    expect(csp).toContain("base-uri 'none'");
+    expect(cspDirectives(csp).get("base-uri")).toBe("'none'");
   });
 
   it("sets form-action to 'none'", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
 
-    expect(csp).toContain("form-action 'none'");
+    expect(cspDirectives(csp).get("form-action")).toBe("'none'");
   });
 
-  it("grants no http/https/'self'/* sources", () => {
-    const srcdoc = extractSrcdoc(renderScripted(scripted()));
+  it("allows HTTPS only for images and keeps other resource directives exact", () => {
+    const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
+    const directives = cspDirectives(csp);
 
-    const csp = extractCsp(srcdoc);
+    expect(directives).toEqual(new Map([
+      ["default-src", "'none'"],
+      ["script-src", "'unsafe-inline'"],
+      ["style-src", "'unsafe-inline'"],
+      ["img-src", "https: data: blob:"],
+      ["media-src", "data: blob:"],
+      ["font-src", "data:"],
+      ["connect-src", "'none'"],
+      ["frame-src", "'none'"],
+      ["object-src", "'none'"],
+      ["base-uri", "'none'"],
+      ["form-action", "'none'"],
+    ]));
 
-    expect(csp).not.toContain("http:");
+    for (const [name, value] of directives) {
+      expect(value).not.toContain("http:");
+      expect(value).not.toContain("*");
+      expect(value).not.toContain("'self'");
 
-    expect(csp).not.toContain("https:");
-
-    expect(csp).not.toContain("'self'");
-
-    expect(csp).not.toContain("*");
-
-    expect(srcdoc).not.toContain("http:");
-
-    expect(srcdoc).not.toContain("https:");
+      if (name !== "img-src") {
+        expect(value).not.toContain("https:");
+      }
+    }
   });
 });
 

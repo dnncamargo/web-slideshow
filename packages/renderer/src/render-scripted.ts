@@ -22,8 +22,9 @@ import {
 //
 // The srcdoc is a complete renderer-generated document. The CSP meta
 // below is a fixed defense-in-depth policy layered on top of the
-// sandbox. connect/frame/object sources are all 'none' and no
-// http/https/* source is ever granted.
+// sandbox. connect/frame/object sources are all 'none'; HTTPS is granted only
+// as a deliberate narrow image-load exception through img-src. General
+// networking remains denied.
 //
 // Authored html/css/script are transported ONLY as data attribute
 // values (JSON.stringify escaped through escapeHtml). The renderer
@@ -58,7 +59,7 @@ const SCRIPTED_CSP =
   "default-src 'none';" +
   "script-src 'unsafe-inline';" +
   "style-src 'unsafe-inline';" +
-  "img-src data: blob:;" +
+  "img-src https: data: blob:;" +
   "media-src data: blob:;" +
   "font-src data:;" +
   "connect-src 'none';" +
