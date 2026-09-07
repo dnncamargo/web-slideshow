@@ -40,6 +40,7 @@ describe("live/plotAnimationAction rules", () => {
   it("requires ready matching Player presence and strict action values", () => {
     const validate = actionRules[".validate"] as string;
     expect(evaluate(validate, null, action({ action: "restart" }))).toBe(false);
+    expect(evaluate(validate, null, action({ action: "toggle" }))).toBe(false);
     expect(evaluate(validate, null, action({ targetBootId: "boot-b" }))).toBe(false);
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "starting" } } }))).toBe(false);
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: {} } }))).toBe(false);
@@ -53,7 +54,7 @@ describe("live/plotAnimationAction rules", () => {
 
   it("enforces high-water revisions and identity resets", () => {
     const validate = actionRules[".validate"] as string;
-    for (const actionName of ["play", "pause", "reset", "toggle"] as const) {
+    for (const actionName of ["play", "pause", "reset"] as const) {
       expect(evaluate(validate, null, action({ action: actionName }))).toBe(true);
     }
     expect(evaluate(validate, null, action({ revision: 2 }))).toBe(false);

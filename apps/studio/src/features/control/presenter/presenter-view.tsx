@@ -168,19 +168,15 @@ function PlotAnimationControls({ targets, actionsEnabled, pendingPlotSlots, trig
   t: StudioTranslate;
 }) {
   const pending = pendingPlotSlots.size > 0;
-  const allActionButtons: readonly [Exclude<PlotAnimationAction, "toggle">, string, string][] = [
-    ["play", "▶", "control.playAllAccessible"],
-    ["pause", "⏸", "control.pauseAllAccessible"],
-    ["reset", "⏮", "control.resetAllAccessible"],
-  ];
-  const individualActionButtons: readonly [PlotAnimationAction, string, "control.togglePlot" | "control.resetPlot"][] = [
-    ["toggle", "⏯", "control.togglePlot"],
-    ["reset", "⏮", "control.resetPlot"],
+  const actionButtons: readonly [PlotAnimationAction, string, "control.playPlot" | "control.pausePlot" | "control.resetPlot", string][] = [
+    ["play", "▶", "control.playPlot", "control.playAllAccessible"],
+    ["pause", "⏸", "control.pausePlot", "control.pauseAllAccessible"],
+    ["reset", "↻", "control.resetPlot", "control.resetAllAccessible"],
   ];
   return <>
     <div className={presenterStyles.plotAnimationAllActions}>
       <span className={presenterStyles.plotAnimationScope}>{t("control.all")}</span>
-      {allActionButtons.map(([action, symbol, allKey]) => (
+      {actionButtons.map(([action, symbol, _individualKey, allKey]) => (
         <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pending} onClick={() => triggerAll(action)} aria-label={t(allKey as "control.playAllAccessible" | "control.pauseAllAccessible" | "control.resetAllAccessible")} title={t(allKey as "control.playAllAccessible" | "control.pauseAllAccessible" | "control.resetAllAccessible")}>
           <span aria-hidden="true">{symbol}</span>
         </Button>
@@ -189,7 +185,7 @@ function PlotAnimationControls({ targets, actionsEnabled, pendingPlotSlots, trig
     {targets.map((target) => <div className={presenterStyles.plotAnimationGroup} key={`${target.plotSlot}:${target.elementId}`}>
       <span className={presenterStyles.plotAnimationLabel}>{target.label}</span>
       <div className={presenterStyles.plotAnimationActions}>
-        {individualActionButtons.map(([action, symbol, individualKey]) => <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pendingPlotSlots.has(target.plotSlot)} onClick={() => triggerAction(target, action)} aria-label={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })} title={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })}>
+        {actionButtons.map(([action, symbol, individualKey]) => <Button key={action} variant="secondary" size="compact" disabled={!actionsEnabled || pendingPlotSlots.has(target.plotSlot)} onClick={() => triggerAction(target, action)} aria-label={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })} title={t(individualKey, { plot: `${t("control.plot")} ${target.plotSlot + 1}` })}>
           <span aria-hidden="true">{symbol}</span>
         </Button>)}
       </div>

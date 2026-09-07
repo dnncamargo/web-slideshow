@@ -26,10 +26,11 @@ describe("Plot animation action protocol", () => {
   });
 
   it("strictly parses V1 actions and preserves canonical ids", () => {
-    for (const action of ["play", "pause", "reset", "toggle"] as const) {
+    for (const action of ["play", "pause", "reset"] as const) {
       expect(parseLivePlotAnimationActionRecord(record({ action }))?.action).toBe(action);
     }
     expect(parseLivePlotAnimationActionRecord(record({ action: "restart" }))).toBeNull();
+    expect(parseLivePlotAnimationActionRecord(record({ action: "toggle" }))).toBeNull();
     expect(parseLivePlotAnimationActionRecord({ ...record(), extra: true })).toBeNull();
     expect(parseLivePlotAnimationActionRecord(record({ revision: 0 }))).toBeNull();
     expect(parseLivePlotAnimationActionRecord(record({ revision: 1.5 }))).toBeNull();

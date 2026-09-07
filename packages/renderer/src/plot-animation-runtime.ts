@@ -238,7 +238,6 @@ export interface PlotAnimationController {
   play(): void;
   pause(): void;
   reset(): void;
-  toggle(): void;
 }
 
 function findPlotInstance(
@@ -259,32 +258,29 @@ export function getPlotAnimationController(
 ): PlotAnimationController | null {
   if (findPlotInstance(root, elementId) === null) return null;
 
-  const play = (): void => {
-    const found = findPlotInstance(root, elementId);
-    if (found === null) return;
-    const { state, instance } = found;
-    if (instance.config.from === instance.config.to) return;
-    if (instance.status === "playing") return;
-    if (instance.status === "completed") {
-      instance.elapsedMs = 0;
-    }
-    instance.status = "playing";
-    instance.startTimestamp = null;
-    scheduleFrame(root, state);
-  };
-  const pause = (): void => {
-    const found = findPlotInstance(root, elementId);
-    if (found === null) return;
-    const { state, instance } = found;
-    if (instance.status !== "playing") return;
-    instance.status = "paused";
-    instance.startTimestamp = null;
-    if (!hasPlayingPlots(state)) cancelScheduledFrame(state);
-  };
-
   return {
-    play,
-    pause,
+    play(): void {
+      const found = findPlotInstance(root, elementId);
+      if (found === null) return;
+      const { state, instance } = found;
+      if (instance.config.from === instance.config.to) return;
+      if (instance.status === "playing") return;
+      if (instance.status === "completed") {
+        instance.elapsedMs = 0;
+      }
+      instance.status = "playing";
+      instance.startTimestamp = null;
+      scheduleFrame(root, state);
+    },
+    pause(): void {
+      const found = findPlotInstance(root, elementId);
+      if (found === null) return;
+      const { state, instance } = found;
+      if (instance.status !== "playing") return;
+      instance.status = "paused";
+      instance.startTimestamp = null;
+      if (!hasPlayingPlots(state)) cancelScheduledFrame(state);
+    },
     reset(): void {
       const found = findPlotInstance(root, elementId);
       if (found === null) return;
@@ -294,16 +290,6 @@ export function getPlotAnimationController(
       instance.startTimestamp = null;
       applyFrame(instance, instance.config.from);
       if (!hasPlayingPlots(state)) cancelScheduledFrame(state);
-    },
-    toggle(): void {
-      const found = findPlotInstance(root, elementId);
-      if (found === null) return;
-      if (found.instance.config.from === found.instance.config.to) return;
-      if (found.instance.status === "playing") {
-        pause();
-      } else {
-        play();
-      }
     },
   };
 }

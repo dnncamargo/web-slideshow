@@ -6,7 +6,7 @@ import type { PlayerController } from "./player";
 
 export const PLOT_ANIMATION_ACTION_ROOT_PATH = "live/plotAnimationAction";
 
-export type PlotAnimationAction = "play" | "pause" | "reset" | "toggle";
+export type PlotAnimationAction = "play" | "pause" | "reset";
 
 export interface LivePlotAnimationActionRecord {
   activationRevision: number;
@@ -69,7 +69,7 @@ export function parseLivePlotAnimationActionRecord(value: unknown): LivePlotAnim
   if (!isNonNegativeInteger(record.activationRevision) || !isNonEmptyString(record.currentVersionId) ||
     !isNonNegativeInteger(record.revision) || record.revision < 1 || !isNonEmptyString(record.pageId) ||
     !isCanonicalId(record.elementId) || !isNonEmptyString(record.targetBootId) ||
-    !(record.action === "play" || record.action === "pause" || record.action === "reset" || record.action === "toggle")) return null;
+    !(record.action === "play" || record.action === "pause" || record.action === "reset")) return null;
   return {
     activationRevision: record.activationRevision,
     currentVersionId: record.currentVersionId.trim(),

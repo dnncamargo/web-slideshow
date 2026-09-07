@@ -18,7 +18,7 @@ import {
 } from "./scripted-port-host";
 
 export type PlayerTransition = "none" | "fade" | "slide";
-export type PlotAnimationControlAction = "play" | "pause" | "reset" | "toggle";
+export type PlotAnimationControlAction = "play" | "pause" | "reset";
 
 type SlideDirection = "forward" | "backward";
 
@@ -477,9 +477,6 @@ export function mountProjectionSurface(
           break;
         case "reset":
           controller.reset();
-          break;
-        case "toggle":
-          controller.toggle();
           break;
       }
     },

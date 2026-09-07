@@ -69,7 +69,7 @@ describe("useLivePlotAnimationControl", () => {
     expect(mocks.writePlotAnimationAction).not.toHaveBeenCalled();
   });
 
-  it.each(["play", "pause", "reset", "toggle"] as const)("writes the exact %s request", async (action) => {
+  it.each(["play", "pause", "reset"] as const)("writes the exact %s request", async (action) => {
     const target = result?.plotTargets[0]!;
     await act(async () => { result?.triggerAction(target, action); await Promise.resolve(); });
     expect(mocks.writePlotAnimationAction).toHaveBeenCalledWith({ database: true }, { activationRevision: 7, currentVersionId: "version-1", pageId: "page-a", targetBootId: "boot-a", plotSlot: 0, elementId: "plot-a", action });

@@ -343,7 +343,7 @@ function requirePlotAnimationActionInput(request: PlotAnimationActionRequest): {
   if (!isNonNegativeInteger(request.activationRevision)) throw new Error("Plot animation action requires a non-negative activationRevision.");
   if (!isNonNegativeInteger(request.plotSlot)) throw new Error("Plot animation action requires a non-negative integer plotSlot.");
   if (typeof request.elementId !== "string" || request.elementId.length === 0) throw new Error("Plot animation action requires an elementId.");
-  if (request.action !== "play" && request.action !== "pause" && request.action !== "reset" && request.action !== "toggle") throw new Error("Plot animation action requires a valid action.");
+  if (request.action !== "play" && request.action !== "pause" && request.action !== "reset") throw new Error("Plot animation action requires a valid action.");
   const currentVersionId = request.currentVersionId.trim();
   const pageId = request.pageId.trim();
   const targetBootId = request.targetBootId.trim();

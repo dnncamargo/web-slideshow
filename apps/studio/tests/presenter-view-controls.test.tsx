@@ -491,19 +491,21 @@ describe("PresenterView controls", () => {
     expect(controls?.textContent).toContain(target.label);
     expect(controls?.textContent).toContain("▶");
     expect(controls?.textContent).toContain("⏸");
-    expect(controls?.textContent).toContain("⏮");
-    expect(controls?.querySelectorAll("button")).toHaveLength(5);
+    expect(controls?.textContent).toContain("↻");
+    expect(controls?.textContent).not.toContain("⏯");
+    expect(controls?.querySelectorAll("button")).toHaveLength(6);
     const buttons = [...controls?.querySelectorAll<HTMLButtonElement>("button") ?? []];
-    act(() => { buttons[0]?.click(); buttons[1]?.click(); buttons[2]?.click(); buttons[3]?.click(); buttons[4]?.click(); });
+    act(() => { buttons[0]?.click(); buttons[1]?.click(); buttons[2]?.click(); buttons[3]?.click(); buttons[4]?.click(); buttons[5]?.click(); });
     expect(triggerAllPlotActions).toHaveBeenCalledWith("play");
     expect(triggerAllPlotActions).toHaveBeenCalledWith("pause");
     expect(triggerAllPlotActions).toHaveBeenCalledWith("reset");
-    expect(triggerPlotAction).toHaveBeenCalledTimes(2);
+    expect(triggerPlotAction).toHaveBeenCalledTimes(3);
     expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
       "Play all animations", "Pause all animations", "Reset all animations",
-      "Play or pause Plot 1", "Reset Plot 1",
+      "Play Plot 1", "Pause Plot 1", "Reset Plot 1",
     ]);
-    expect(triggerPlotAction).toHaveBeenCalledWith(target, "toggle");
+    expect(triggerPlotAction).toHaveBeenCalledWith(target, "play");
+    expect(triggerPlotAction).toHaveBeenCalledWith(target, "pause");
     expect(triggerPlotAction).toHaveBeenCalledWith(target, "reset");
     expect(controls?.querySelector('[aria-pressed]')).toBeNull();
     expect(controls?.textContent).not.toContain("playing");
