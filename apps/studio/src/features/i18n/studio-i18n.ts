@@ -237,6 +237,7 @@ const englishMessages = {
   "embed.viewportHelp":
     "Zoom changes how much of the embedded page fits inside the Embed. Edge values adjust the framed region.",
   "embed.zoom": "Zoom",
+  "embed.framing": "Framing",
 
   "scripted.title": "Title",
   "scripted.html": "HTML",
@@ -1320,6 +1321,7 @@ const portugueseMessages = {
   "embed.viewportHelp":
     "O zoom altera quanto da página incorporada cabe no Embed. Os valores das bordas ajustam a região enquadrada.",
   "embed.zoom": "Zoom",
+  "embed.framing": "Enquadramento",
 
   "scripted.title": "Título",
   "scripted.html": "HTML",

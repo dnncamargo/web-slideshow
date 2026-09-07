@@ -167,6 +167,7 @@ describe("EmbedInspector", () => {
     });
 
     expect(container.textContent).toContain("Embed viewport");
+    expect(container.textContent).toContain("Framing");
     expect(viewportInput("zoom").value).toBe("100");
     expect(viewportInput("top").value).toBe("0");
     expect(viewportInput("right").value).toBe("0");

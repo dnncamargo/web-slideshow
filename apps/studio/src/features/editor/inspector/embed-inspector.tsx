@@ -305,47 +305,50 @@ export function EmbedInspector({
           <span>{t("embed.viewportHelp")}</span>
         </small>
 
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>{t("embed.zoom")}</span>
-            <div className={styles.unitInput}>
-              <input
-                id="embed-viewport-zoom"
-                name="embedViewportZoom"
-                type="number"
-                min="10"
-                max="400"
-                step="1"
-                inputMode="decimal"
-                value={(element.viewport?.zoom ?? 1) * 100}
-                onChange={(event) =>
-                  updateViewportField("zoom", event.target.value)
-                }
-              />
-              <span>%</span>
-            </div>
-          </label>
+        <label className={styles.field}>
+          <span>{t("embed.zoom")}</span>
+          <div className={styles.unitInput}>
+            <input
+              id="embed-viewport-zoom"
+              name="embedViewportZoom"
+              type="number"
+              min="10"
+              max="400"
+              step="1"
+              inputMode="decimal"
+              value={(element.viewport?.zoom ?? 1) * 100}
+              onChange={(event) =>
+                updateViewportField("zoom", event.target.value)
+              }
+            />
+            <span>%</span>
+          </div>
+        </label>
 
-          {(["top", "right", "bottom", "left"] as const).map((field) => (
-            <label className={styles.field} key={field}>
-              <span>{t(`inspector.${field}`)}</span>
-              <div className={styles.unitInput}>
-                <input
-                  id={`embed-viewport-${field}`}
-                  name={`embedViewport${field[0].toUpperCase()}${field.slice(1)}`}
-                  type="number"
-                  min="0"
-                  step="1"
-                  inputMode="numeric"
-                  value={element.viewport?.[field] ?? 0}
-                  onChange={(event) =>
-                    updateViewportField(field, event.target.value)
-                  }
-                />
-                <span>px</span>
-              </div>
-            </label>
-          ))}
+        <div className={styles.field}>
+          <span>{t("embed.framing")}</span>
+          <div className={styles.fieldGrid}>
+            {(["top", "right", "bottom", "left"] as const).map((field) => (
+              <label className={styles.field} key={field}>
+                <span>{t(`inspector.${field}`)}</span>
+                <div className={styles.unitInput}>
+                  <input
+                    id={`embed-viewport-${field}`}
+                    name={`embedViewport${field[0].toUpperCase()}${field.slice(1)}`}
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={element.viewport?.[field] ?? 0}
+                    onChange={(event) =>
+                      updateViewportField(field, event.target.value)
+                    }
+                  />
+                  <span>px</span>
+                </div>
+              </label>
+            ))}
+          </div>
         </div>
       </InspectorSection>
 
