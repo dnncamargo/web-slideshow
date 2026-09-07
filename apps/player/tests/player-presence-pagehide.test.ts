@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCurrent: vi.fn(),
   subscribeLiveFullscreenRequest: vi.fn(),
   subscribeLiveGalleryControl: vi.fn(),
+  createLivePlotAnimationActionTracker: vi.fn(),
   subscribeLivePlotAnimationAction: vi.fn(),
   subscribeLiveSlideTransition: vi.fn(),
   subscribeLivePlayerControls: vi.fn(),
@@ -33,7 +34,7 @@ vi.mock("../src/live-state", () => ({ subscribeLiveProjectionState: mocks.subscr
 vi.mock("../src/live-fullscreen-request", () => ({ subscribeLiveFullscreenRequest: mocks.subscribeLiveFullscreenRequest }));
 vi.mock("../src/live-gallery-control", () => ({ subscribeLiveGalleryControl: mocks.subscribeLiveGalleryControl }));
 vi.mock("../src/live-plot-animation-action", () => ({
-  createLivePlotAnimationActionTracker: vi.fn(() => ({})),
+  createLivePlotAnimationActionTracker: mocks.createLivePlotAnimationActionTracker,
   subscribeLivePlotAnimationAction: mocks.subscribeLivePlotAnimationAction,
 }));
 vi.mock("../src/live-slide-transition", () => ({ subscribeLiveSlideTransition: mocks.subscribeLiveSlideTransition }));
@@ -65,6 +66,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
+    mocks.createLivePlotAnimationActionTracker.mockReturnValue({});
     mocks.subscribeLivePlotAnimationAction.mockReturnValue(vi.fn());
     mocks.subscribeLiveSlideTransition.mockReturnValue(vi.fn());
     mocks.subscribeLivePlayerControls.mockReturnValue(vi.fn());
@@ -259,6 +261,60 @@ describe("Player presence pagehide cleanup", () => {
       "PLAYER_RECOVERY_RETRY_ERROR",
       expect.anything(),
     );
+  });
+
+  it("attaches Plot actions only with a boot and reuses the tracker across same-boot remounts", async () => {
+    const tracker = {};
+    const cleanups = [vi.fn(), vi.fn()];
+    const starting = vi.fn();
+    const ready = vi.fn();
+    const failed = vi.fn();
+    let recoveryHandler!: (request: unknown) => void;
+    let loadCount = 0;
+    let handleLive!: (event: unknown) => void;
+    mocks.createLivePlotAnimationActionTracker.mockReturnValue(tracker);
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue({ bootId: "boot-a", starting, ready, failed, stop: vi.fn() });
+    mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
+    mocks.subscribePlayerRecoveryRequest.mockImplementation(
+      (_db, _revision, _version, _boot, _location, _navigation, onRetry) => {
+        recoveryHandler = () => void onRetry();
+        return vi.fn();
+      },
+    );
+    mocks.subscribeLivePlotAnimationAction
+      .mockReturnValueOnce(cleanups[0])
+      .mockReturnValueOnce(cleanups[1]);
+
+    startPlayer(document.querySelector("#app")!);
+    handleLive({ kind: "active", live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 } });
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
+    expect(mocks.subscribeLivePlotAnimationAction).toHaveBeenCalledTimes(1);
+    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[0]?.[3]).toBe("boot-a");
+    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[0]?.[6]).toBe(tracker);
+
+    recoveryHandler({ action: "retry" });
+    await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(2));
+    expect(cleanups[0]).toHaveBeenCalledTimes(1);
+    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[1]?.[6]).toBe(tracker);
+    expect(loadCount).toBe(0);
+  });
+
+  it("does not attach Plot actions when presence has no boot id", async () => {
+    let handleLive!: (event: unknown) => void;
+    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+      handleLive = handler;
+      return vi.fn();
+    });
+    mocks.startPlayerPresence.mockResolvedValue({ starting: vi.fn(), ready: vi.fn(), failed: vi.fn(), stop: vi.fn() });
+    mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
+    startPlayer(document.querySelector("#app")!);
+    handleLive({ kind: "active", live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 } });
+    await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
+    expect(mocks.subscribeLivePlotAnimationAction).not.toHaveBeenCalled();
   });
 
   it("keeps fatal recovery options collapsed until requested and collapses with See less", async () => {
