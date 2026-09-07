@@ -56,6 +56,7 @@ apps/
 
 packages/
   document-schema/  canonical Presentation contract and validation
+  math-source/      restricted mathematical intent for Plot
   renderer/         shared semantic rendering pipeline
   theme/            shared presentation defaults
   ui/               PowerShow Suite UI tokens and primitives
@@ -110,7 +111,7 @@ Custom Library resource
 → Presentation owns the resulting canonical data
 ```
 
-Presentation-local systems include Palette references, Text Styles and Linked Styles.
+Presentation-local systems include Palette references, FontResources, Text Styles and Linked Styles.
 
 Text Style precedence:
 
@@ -191,6 +192,7 @@ Other bounded Live contracts include:
 - `live/slideTransition` for presentation-slide transition mode;
 - `live/playerControls` for Player control position/style/counter/animation;
 - `live/playerLogs` for activation-scoped remote diagnostics mode;
+- `live/plotAnimationAction/<plotSlot>` for boot-targeted Plot play/pause/reset actions;
 - Scripted-specific runtime/input/report roots for declared ports.
 
 Runtime state remains outside the canonical Presentation.
@@ -215,9 +217,9 @@ Blocks is intentionally not an executable programming environment.
 
 ## Scripted
 
-Scripted controlled interaction is complete through PR #133.
+Scripted controlled interaction is complete through PR #133, with HTTPS image loading refined in PR #149.
 
-Canonical authored state remains self-contained in the Presentation and now includes declared `ports` in addition to `title`, `html`, `css` and `script`. Ports are explicit capabilities, not introspection of arbitrary authored JavaScript.
+Canonical authored state remains self-contained in the Presentation and includes declared `ports` in addition to `title`, `html`, `css` and `script`. Ports are explicit capabilities, not introspection of arbitrary authored JavaScript.
 
 Supported runtime semantics include:
 
@@ -235,15 +237,50 @@ referrerpolicy="no-referrer"
 fixed CSP
 ```
 
+Scripted may load image resources from HTTPS origins in addition to `data:` and `blob:` while general networking and navigation channels remain blocked. `connect-src 'none'` still blocks fetch/XHR/WebSocket/EventSource, but `img-src https:` means sandboxed JavaScript can initiate image GET requests; this is a deliberately narrow image capability, not generic networking.
+
 No same-origin permission, Firebase/session exposure, parent DOM access, storage, popup/top-navigation privileges, `eval`, `Function`, or JavaScript payload delivered through RTDB is allowed. Runtime state is transient and never persisted into the Presentation.
 
 ## Plot
 
-Plot V1 is merged in PR #142. The canonical `plot` element stores restricted mathematical intent through `source` and optional `fitToAxes`; it already reuses the shared resizable/positioned element layout contract. `@powershow/math-source` provides explicit-y, explicit-x and implicit-2d parsing with bounded evaluation and math-space geometry; the shared renderer owns the current 2D projection, and Studio authoring and Player rendering are accepted.
+Plot V1 started in PR #142 and its continuation is now complete through PRs #146–#148.
 
-Plot is now the active continuation work area. The owner has explicitly identified three remaining product goals: **3D, Position and Appearance**. These goals must begin with a read-only audit of the real current `main` before any schema or renderer change. In particular, the audit must distinguish element placement from mathematical viewport/camera concerns and must determine which appearance properties belong in canonical Plot intent versus renderer defaults or existing shared style/effect contracts.
+The canonical `plot` element stores restricted mathematical intent rather than generated geometry. `@powershow/math-source` owns parsing, semantic validation, bounded evaluation, sampling and math-space geometry; the shared renderer owns projection and visual output.
 
-Do not assume WebGL, Canvas, Three.js, persisted meshes, camera fields or a new Plot element type before evidence. Plot continues to persist restricted mathematical intent, not AST, generated samples, geometry or arbitrary JavaScript.
+Current Plot capabilities include:
+
+- explicit-y, explicit-x and implicit-2d sources;
+- explicit-z 3D surfaces with static SVG wireframe projection;
+- shared resizable/positioned element layout;
+- configurable axes, colors, background and axis appearance;
+- z-based 3D gradient;
+- one optional canonical animation parameter with transient runtime bindings;
+- local animation playback in runtime surfaces;
+- Player-targeted remote **Play / Pause / Reset** from PowerShow Control.
+
+Plot animation remains a bounded Plot capability rather than a generic scripting system. Separate Plot elements own independent runtimes; multiple equations in one Plot share the same animation parameter.
+
+Do not persist AST, generated samples, meshes, camera state or arbitrary executable JavaScript. Three.js/WebGL/Canvas are not part of the current Plot architecture.
+
+Physical performance acceptance on the target Android interactive display with Firefox 116 remains pending because that hardware has not yet been available. This is a release gate, not negative compatibility evidence.
+
+## Fonts
+
+Font authoring was refined in PR #150 without changing the canonical schema or renderer contract.
+
+`typography.fontFamily` is one authored family-name string. The Studio now provides an editable field with Presentation FontResource families as suggestions, so a family such as `MS Sans Serif` may be authored even when no FontResource exists. In that case the browser uses the named family only if it is available in the runtime environment; PowerShow does not search the internet or enumerate installed fonts.
+
+Portable fonts use the existing canonical path:
+
+```text
+Presentation.resources.fonts
+→ renderer-generated @font-face
+→ matching typography.fontFamily
+```
+
+Custom Library fonts can be materialized into the Presentation. FontResource removal is blocked while the family is referenced by any current canonical typography-bearing location, including nested Topics/Table ContentSlots, Code, Terminal body/title, Text Styles and Linked Styles.
+
+Direct manual FontResource creation under **This Presentation** remains deferred because the existing Custom Library → Presentation workflow is complete. Library-thumbnail font-resource style injection parity remains a separate backlog item.
 
 ## Player options and Maintenance
 
@@ -273,11 +310,42 @@ Current product rule for the compact Player settings control:
 
 An iPhone 14 Plus is a concrete mobile acceptance device used during current development. Breakpoint changes should still be evidence-driven rather than device-specific hacks.
 
+## Topics
+
+Topics is already canonical and recursively structured:
+
+```text
+TopicsElement
+→ TopicItem[]
+   ├── content: ContentSlot
+   │   └── children: PowerShowElement[]
+   └── children: TopicItem[]
+```
+
+The canonical model supports ordered/unordered lists, root marker style, marker color, item gap, element typography/style/layout, per-item ContentSlot layout/style/typography and arbitrary canonical child elements inside each item. Studio authoring deliberately limits creation of structural `TopicItem.children` to depth 5; deeper canonical documents remain loadable/renderable/persistable.
+
+The current Inspector already provides direct text editing, add top-level item, add child, remove, list kind, marker controls and shared typography. Non-Text ContentSlot children are summarized rather than flattened into a second text contract.
+
+Topics is the **next refinement work area**, but no redesign is pre-assumed. It begins with **TOPICS-T0 — a read-only audit** of the current schema, renderer, hierarchy/ContentSlot ownership, item operations, selection/focus, reorder/nesting ergonomics, import/export/persistence, Player/Watch/Cover parity, touch/mobile behavior and tests. Only evidence from T0 may freeze implementation checkpoints.
+
+Direct Topics consumption of Presentation Text Styles remains deferred unless the audit and an explicit product decision promote it.
+
 ## Embed
 
-`embed` exists canonically and in the shared renderer. The Editor authors an absolute http/https `src` and required accessibility `title`; renderer-owned iframe policy remains security-sensitive.
+`embed` already exists canonically and in the shared renderer. The Editor authors an absolute http/https `src`, required accessibility `title`, shared surface appearance/effects and positioned/resizable layout.
 
-Embed remains a planned refinement after the current Plot continuation. It must resume with **E0 — a concrete provider/runtime audit**, not with a new element or speculative contract. The audit should cover real provider failures, same-origin/cross-origin behavior, fullscreen, referrer behavior, sizing/fit, Editor ergonomics, Player/Watch behavior and sandbox/security implications. Only evidence from that audit should promote E1–E4 implementation checkpoints.
+The renderer currently owns a fixed external-content iframe policy:
+
+```text
+sandbox="allow-scripts allow-forms allow-same-origin"
+allow="fullscreen"
+referrerpolicy="strict-origin-when-cross-origin"
+loading="lazy"
+```
+
+It also normalizes supported YouTube watch/short URLs into embed URLs. The `allow-same-origin + allow-scripts` combination is deliberately security-sensitive and is not author-configurable.
+
+Embed follows Topics in the active queue and begins with **EMBED-E0 — a read-only provider/runtime/security audit**. E0 must test real embeddable and provider-blocked sources, same-origin/cross-origin behavior, `X-Frame-Options` / CSP `frame-ancestors`, fullscreen/referrer requirements, iframe sizing/fit, Editor ergonomics, Player/Watch/Cover behavior and existing tests. Provider-specific normalization or policy changes are implemented only when concrete evidence justifies them.
 
 ## Current completed refinement line
 
@@ -298,7 +366,14 @@ Recent merged work includes:
 - Terminal title appearance/typography and shared inline RichText authoring (PRs #139–#140);
 - Terminal title font size (PR #141);
 - Plot V1 (PR #142);
-- deterministic Studio test debt closure, tests-only (PR #144): Studio typecheck PASS and full Studio suite 185 files / 2,161 tests / 0 failures.
+- deterministic Studio test debt closure, tests-only (PR #144);
+- Plot continuation: 3D, appearance, animation and authoring/runtime refinements (PR #146);
+- Plot remote Play/Pause/Reset controls (PR #147);
+- Plot axis color/opacity refinement (PR #148);
+- Scripted external HTTPS image capability with bounded CSP semantics (PR #149);
+- manual font-family authoring and complete FontResource usage protection (PR #150).
+
+At PR #150 closure the final Studio suite passed **188 files / 2,245 tests**, with Studio typecheck, diff-check, remote Vercel Studio/Player checks and manual acceptance also passing.
 
 ## Development
 
@@ -377,14 +452,17 @@ See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 Current planned execution order:
 
 ```text
-Plot continuation
-  → PLOT-N0 read-only audit of 3D / Position / Appearance
-  → smallest evidence-driven Plot checkpoints
+TOPICS-T0 read-only audit
+→ smallest evidence-backed Topics checkpoints
+→ Topics manual acceptance
 
-→ Embed E0 provider/runtime/security audit
-  → E1–E4 only if the audit proves concrete changes are needed
+→ EMBED-E0 provider/runtime/security audit
+→ smallest evidence-backed Embed checkpoints
+→ Embed manual acceptance
 
 → P13 Production Readiness
 ```
 
-After P13, broader Diagnostics, Audience/Watch expansion and other deferred candidates remain evidence-driven. `publishNow`, Topics→Typography Style consumption, bounded Undo/Redo, AI Import, Player offline continuity, Custom Library portability and remaining WYSIWYG/Text improvements remain backlog until explicitly promoted.
+P13 includes end-to-end Studio→publish→Control→Player validation, auth/rules review, deploy/smoke/rollback, constrained-hardware performance, responsive acceptance and security review. Android/Firefox 116 physical Player acceptance remains an explicit release gate.
+
+After P13, broader Diagnostics, Audience/Watch expansion and other deferred candidates remain evidence-driven. `publishNow`, direct This Presentation FontResource authoring, Library thumbnail font parity, Topics→Text Style consumption, bounded Undo/Redo, AI Import, Player offline continuity, Custom Library portability and remaining WYSIWYG/Text improvements remain backlog until explicitly promoted.
