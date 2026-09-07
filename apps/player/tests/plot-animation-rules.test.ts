@@ -29,6 +29,12 @@ describe("live/plotAnimationAction rules", () => {
     expect(evaluate(actionRules[".write"] as string, null, action(), root(), false)).toBe(false);
     expect(evaluate(actionRules[".validate"] as string, null, action())).toBe(true);
     expect(actionRules.$other).toMatchObject({ ".validate": false });
+    const fields = ["activationRevision", "currentVersionId", "revision", "pageId", "elementId", "targetBootId", "action"] as const;
+    for (const field of fields) {
+      const missing = { ...action() };
+      delete missing[field];
+      expect(evaluate(actionRules[".validate"] as string, null, missing)).toBe(false);
+    }
   });
 
   it("requires ready matching Player presence and strict action values", () => {
@@ -40,15 +46,20 @@ describe("live/plotAnimationAction rules", () => {
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 6, currentVersionId: "version-1", connected: true } } } }))).toBe(false);
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 7, currentVersionId: "old", connected: true } } } }))).toBe(false);
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-b", activationRevision: 7, currentVersionId: "version-1", connected: true } } } }))).toBe(false);
+    expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 7, currentVersionId: "version-1", connected: false } } } }))).toBe(false);
     expect(evaluate(validate, null, action({ activationRevision: 6 }))).toBe(false);
     expect(evaluate(validate, null, action({ currentVersionId: "old" }))).toBe(false);
   });
 
   it("enforces high-water revisions and identity resets", () => {
     const validate = actionRules[".validate"] as string;
+    for (const actionName of ["play", "pause", "reset"] as const) {
+      expect(evaluate(validate, null, action({ action: actionName }))).toBe(true);
+    }
     expect(evaluate(validate, null, action({ revision: 2 }))).toBe(false);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 4, action: "pause" }))).toBe(true);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 3, action: "pause" }))).toBe(false);
+    expect(evaluate(validate, action({ revision: 3 }), action({ revision: 5, action: "pause" }))).toBe(false);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, pageId: "page-2" }))).toBe(true);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, elementId: "plot-2" }))).toBe(true);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, targetBootId: "boot-b" }), root({ playerPresence: { current: { bootId: "boot-b", stage: "ready" }, leases: { "boot-b": { bootId: "boot-b", activationRevision: 7, currentVersionId: "version-1", connected: true } } } }))).toBe(true);
