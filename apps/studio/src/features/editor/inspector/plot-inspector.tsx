@@ -1,4 +1,11 @@
-import type { PlotElement, PlotVisualStyle } from "@powershow/document-schema";
+import { useState } from "react";
+
+import {
+  PlotAnimationSchema,
+  type PlotAnimation,
+  type PlotElement,
+  type PlotVisualStyle,
+} from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -13,6 +20,43 @@ const DEFAULT_PLOT_Z_GRADIENT = {
   maxColor: "#06b6d4",
 } as const;
 
+const DEFAULT_PLOT_ANIMATION = {
+  parameter: "t",
+  from: "0",
+  to: "6.283185307179586",
+  durationMs: "4000",
+  loop: true,
+  autoplay: true,
+} as const;
+
+type PlotAnimationDraft = {
+  enabled: boolean;
+  parameter: string;
+  from: string;
+  to: string;
+  durationMs: string;
+  loop: boolean;
+  autoplay: boolean;
+};
+
+function plotAnimationDraft(animation: PlotAnimation | undefined): PlotAnimationDraft {
+  return animation === undefined
+    ? { enabled: false, ...DEFAULT_PLOT_ANIMATION }
+    : {
+      enabled: true,
+      parameter: animation.parameter,
+      from: String(animation.from),
+      to: String(animation.to),
+      durationMs: String(animation.durationMs),
+      loop: animation.loop !== false,
+      autoplay: animation.autoplay !== false,
+    };
+}
+
+function animationIdentity(animation: PlotAnimation | undefined): string {
+  return JSON.stringify(animation ?? null);
+}
+
 function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle | undefined {
   if (style === undefined) return undefined;
   const background = style.background?.color === undefined ? undefined : style.background;
@@ -26,6 +70,80 @@ export function PlotInspector({
   onUpdate,
 }: TypedInspectorProps<PlotElement>) {
   const { t } = useStudioI18n();
+  const [animationDraft, setAnimationDraft] = useState<PlotAnimationDraft>(() => plotAnimationDraft(element.animation));
+  const [hydratedAnimation, setHydratedAnimation] = useState({
+    id: element.id,
+    animation: animationIdentity(element.animation),
+  });
+  const [animationMessage, setAnimationMessage] = useState<string | null>(null);
+
+  const currentAnimationIdentity = animationIdentity(element.animation);
+  if (
+    hydratedAnimation.id !== element.id ||
+    hydratedAnimation.animation !== currentAnimationIdentity
+  ) {
+    setHydratedAnimation({ id: element.id, animation: currentAnimationIdentity });
+    setAnimationDraft(plotAnimationDraft(element.animation));
+    setAnimationMessage(null);
+  }
+
+  const animationDirty = JSON.stringify(animationDraft) !== JSON.stringify(plotAnimationDraft(element.animation));
+
+  function updateAnimationDraft(update: Partial<PlotAnimationDraft>): void {
+    setAnimationDraft((current) => ({ ...current, ...update }));
+    setAnimationMessage(null);
+  }
+
+  function applyAnimationDraft(): void {
+    if (!animationDraft.enabled) {
+      if (element.animation === undefined) return;
+      onUpdate((current) => {
+        if (current.type !== "plot" || current.animation === undefined) return current;
+        const next = { ...current };
+        delete next.animation;
+        return next;
+      });
+      return;
+    }
+
+    const parseNumber = (value: string): number | undefined => {
+      if (value.trim() === "") return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const from = parseNumber(animationDraft.from);
+    const to = parseNumber(animationDraft.to);
+    const durationMs = parseNumber(animationDraft.durationMs);
+    const candidate = {
+      parameter: animationDraft.parameter,
+      from,
+      to,
+      durationMs,
+      ...(animationDraft.loop ? {} : { loop: false }),
+      ...(animationDraft.autoplay ? {} : { autoplay: false }),
+    };
+    const parsed = PlotAnimationSchema.safeParse(candidate);
+    if (!parsed.success) {
+      setAnimationMessage(t("inspector.animation.invalid"));
+      return;
+    }
+
+    if (animationIdentity(parsed.data) === animationIdentity(element.animation)) {
+      setAnimationMessage(null);
+      return;
+    }
+
+    setAnimationMessage(null);
+    onUpdate((current) => current.type === "plot"
+      ? { ...current, animation: parsed.data }
+      : current);
+  }
+
+  function resetAnimationDraft(): void {
+    setAnimationDraft(plotAnimationDraft(element.animation));
+    setAnimationMessage(null);
+  }
+
   const updateStyle = (update: (style: PlotVisualStyle | undefined) => PlotVisualStyle | undefined) => {
     onUpdate((current) => current.type === "plot"
       ? { ...current, style: normalizePlotStyle(update(current.style)) }
@@ -65,6 +183,119 @@ export function PlotInspector({
           />
         </label>
 
+      </InspectorSection>
+
+      <InspectorSection title={t("inspector.animation")} defaultOpen>
+        <label className={styles.checkboxRow}>
+          <input
+            id="plot-animation-enabled"
+            name="plotAnimationEnabled"
+            type="checkbox"
+            checked={animationDraft.enabled}
+            onChange={(event) => updateAnimationDraft({ enabled: event.target.checked })}
+          />
+          <span>{t("inspector.animation.enabled")}</span>
+        </label>
+
+        {animationDraft.enabled ? (
+          <>
+            <label className={styles.field}>
+              <span>{t("inspector.animation.parameter")}</span>
+              <input
+                id="plot-animation-parameter"
+                name="plotAnimationParameter"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={animationDraft.parameter}
+                onChange={(event) => updateAnimationDraft({ parameter: event.target.value })}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>{t("inspector.animation.from")}</span>
+              <input
+                id="plot-animation-from"
+                name="plotAnimationFrom"
+                type="text"
+                inputMode="decimal"
+                value={animationDraft.from}
+                onChange={(event) => updateAnimationDraft({ from: event.target.value })}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>{t("inspector.animation.to")}</span>
+              <input
+                id="plot-animation-to"
+                name="plotAnimationTo"
+                type="text"
+                inputMode="decimal"
+                value={animationDraft.to}
+                onChange={(event) => updateAnimationDraft({ to: event.target.value })}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>{t("inspector.animation.durationMs")}</span>
+              <input
+                id="plot-animation-duration"
+                name="plotAnimationDuration"
+                type="text"
+                inputMode="decimal"
+                value={animationDraft.durationMs}
+                onChange={(event) => updateAnimationDraft({ durationMs: event.target.value })}
+              />
+            </label>
+
+            <label className={styles.checkboxRow}>
+              <input
+                id="plot-animation-loop"
+                name="plotAnimationLoop"
+                type="checkbox"
+                checked={animationDraft.loop}
+                onChange={(event) => updateAnimationDraft({ loop: event.target.checked })}
+              />
+              <span>{t("inspector.animation.loop")}</span>
+            </label>
+
+            <label className={styles.checkboxRow}>
+              <input
+                id="plot-animation-autoplay"
+                name="plotAnimationAutoplay"
+                type="checkbox"
+                checked={animationDraft.autoplay}
+                onChange={(event) => updateAnimationDraft({ autoplay: event.target.checked })}
+              />
+              <span>{t("inspector.animation.autoplay")}</span>
+            </label>
+          </>
+        ) : null}
+
+        {animationMessage !== null && (
+          <small className={styles.fieldHint}><span>{animationMessage}</span></small>
+        )}
+
+        <div className={styles.elementCrudActions}>
+          <button
+            id="plot-animation-apply"
+            type="button"
+            className={styles.secondaryButton}
+            disabled={!animationDirty}
+            onClick={applyAnimationDraft}
+          >
+            <span>{t("inspector.animation.apply")}</span>
+          </button>
+          <button
+            id="plot-animation-reset"
+            type="button"
+            className={styles.secondaryButton}
+            disabled={!animationDirty}
+            onClick={resetAnimationDraft}
+          >
+            <span>{t("inspector.animation.reset")}</span>
+          </button>
+        </div>
       </InspectorSection>
 
       <InspectorSection title={t("inspector.appearance")} defaultOpen>

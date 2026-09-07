@@ -15,12 +15,14 @@ describe("Plot Inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
   let current: PlotElement;
+  let updateCount: number;
 
   beforeEach(() => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     current = { id: "plot-1", type: "plot", hidden: false, source: "y = x^2" };
+    updateCount = 0;
   });
 
   afterEach(async () => {
@@ -34,6 +36,7 @@ describe("Plot Inspector", () => {
         <PlotInspector
           element={current}
           onUpdate={(update) => {
+            updateCount += 1;
             const next = update(current);
             current = next.type === "plot" ? next : current;
             renderInspector();
@@ -85,6 +88,25 @@ describe("Plot Inspector", () => {
     button.click();
   }
 
+  function changeAnimationText(id: string, value: string): void {
+    const input = host.querySelector<HTMLInputElement>(`#${id}`);
+    if (!input) throw new Error(`Plot animation input not found: ${id}`);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function toggleAnimation(enabled: boolean): void {
+    const checkbox = host.querySelector<HTMLInputElement>("#plot-animation-enabled");
+    if (!checkbox) throw new Error("Plot animation checkbox not found");
+    if (checkbox.checked !== enabled) checkbox.click();
+  }
+
+  function clickAnimationButton(id: "plot-animation-apply" | "plot-animation-reset"): void {
+    const button = host.querySelector<HTMLButtonElement>(`#${id}`);
+    if (!button) throw new Error(`Plot animation button not found: ${id}`);
+    button.click();
+  }
+
   it.each([
     [undefined, true],
     [true, true],
@@ -109,12 +131,174 @@ describe("Plot Inspector", () => {
     const details = [...host.querySelectorAll("details")];
     expect(details[0]?.textContent).toContain("Source");
     expect(details[0]?.textContent).not.toContain("Fit to axes");
-    expect(details[1]?.textContent).toContain("Fit to axes");
-    expect(details[1]?.textContent).toContain("Show axes");
-    expect(details[1]?.textContent).toContain("Color");
-    expect(details[1]?.textContent).toContain("Background");
-    expect(details[1]?.textContent).toContain("3D color");
+    const animation = details.find((detail) => detail.textContent?.includes("Animation"));
+    const appearance = details.find((detail) => detail.textContent?.includes("Fit to axes"));
+    expect(animation?.textContent).toContain("Animate parameter");
+    expect(appearance?.textContent).toContain("Fit to axes");
+    expect(appearance?.textContent).toContain("Show axes");
+    expect(appearance?.textContent).toContain("Color");
+    expect(appearance?.textContent).toContain("Background");
+    expect(appearance?.textContent).toContain("3D color");
     expect(host.querySelector<HTMLSelectElement>("#plot-z-color-mode")?.value).toBe("solid");
+  });
+
+  it("hydrates existing animation without writing canonical state", async () => {
+    current.animation = {
+      parameter: "phase",
+      from: -2,
+      to: 3,
+      durationMs: 2500,
+      loop: false,
+      autoplay: false,
+    };
+
+    await act(async () => renderInspector());
+
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-enabled")?.checked).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-parameter")?.value).toBe("phase");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-from")?.value).toBe("-2");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-to")?.value).toBe("3");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-duration")?.value).toBe("2500");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-loop")?.checked).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-autoplay")?.checked).toBe(false);
+    expect(updateCount).toBe(0);
+  });
+
+  it("keeps enable defaults local until applying, then omits true flags", async () => {
+    await act(async () => renderInspector());
+    await act(async () => toggleAnimation(true));
+
+    expect(current.animation).toBeUndefined();
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-parameter")?.value).toBe("t");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-from")?.value).toBe("0");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-to")?.value).toBe("6.283185307179586");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-duration")?.value).toBe("4000");
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-loop")?.checked).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-autoplay")?.checked).toBe(true);
+
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+    expect(current.animation).toEqual({
+      parameter: "t",
+      from: 0,
+      to: 6.283185307179586,
+      durationMs: 4000,
+    });
+  });
+
+  it("applies custom animation values while preserving unrelated Plot fields", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = sin(x + phase)",
+      layout: { width: 320, height: 180 },
+      fitToAxes: false,
+      showAxes: false,
+      style: { color: "#ff0000", background: { color: "#000000" }, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+    };
+    await act(async () => renderInspector());
+    await act(async () => toggleAnimation(true));
+    await act(async () => changeAnimationText("plot-animation-parameter", "phase"));
+    await act(async () => changeAnimationText("plot-animation-from", "-10"));
+    await act(async () => changeAnimationText("plot-animation-to", "10"));
+    await act(async () => changeAnimationText("plot-animation-duration", "5000"));
+    await act(async () => host.querySelector<HTMLInputElement>("#plot-animation-loop")?.click());
+    await act(async () => host.querySelector<HTMLInputElement>("#plot-animation-autoplay")?.click());
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+
+    expect(current).toEqual({
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = sin(x + phase)",
+      layout: { width: 320, height: 180 },
+      fitToAxes: false,
+      showAxes: false,
+      style: { color: "#ff0000", background: { color: "#000000" }, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+      animation: { parameter: "phase", from: -10, to: 10, durationMs: 5000, loop: false, autoplay: false },
+    });
+  });
+
+  it("accepts built-in-like parameters and rejects invalid drafts atomically", async () => {
+    await act(async () => renderInspector());
+    await act(async () => toggleAnimation(true));
+    await act(async () => changeAnimationText("plot-animation-parameter", "sin"));
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+    expect(current.animation?.parameter).toBe("sin");
+
+    await act(async () => changeAnimationText("plot-animation-parameter", "x"));
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+    expect(current.animation?.parameter).toBe("sin");
+    expect(host.textContent).toContain("Check the animation settings.");
+
+    await act(async () => changeAnimationText("plot-animation-parameter", "_t"));
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+    expect(current.animation?.parameter).toBe("sin");
+  });
+
+  it.each([["plot-animation-from", ""], ["plot-animation-duration", "0"], ["plot-animation-duration", "1.5"]] as const)(
+    "rejects invalid numeric draft %s=%s without a partial write",
+    async (id, value) => {
+      await act(async () => renderInspector());
+      await act(async () => toggleAnimation(true));
+      await act(async () => changeAnimationText(id, value));
+      await act(async () => clickAnimationButton("plot-animation-apply"));
+      expect(current.animation).toBeUndefined();
+      expect(host.textContent).toContain("Check the animation settings.");
+    },
+  );
+
+  it("accepts reverse and flat ranges", async () => {
+    await act(async () => renderInspector());
+    await act(async () => toggleAnimation(true));
+    await act(async () => changeAnimationText("plot-animation-from", "10"));
+    await act(async () => changeAnimationText("plot-animation-to", "-10"));
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+    expect(current.animation).toMatchObject({ from: 10, to: -10 });
+
+    await act(async () => changeAnimationText("plot-animation-to", "10"));
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+    expect(current.animation).toMatchObject({ from: 10, to: 10 });
+  });
+
+  it("removes animation while preserving unrelated Plot fields", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x + t",
+      layout: { width: 320, height: 180 },
+      style: { color: "#ff0000", background: { color: "#000000" } },
+      animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 },
+    };
+    await act(async () => renderInspector());
+    await act(async () => toggleAnimation(false));
+    await act(async () => clickAnimationButton("plot-animation-apply"));
+
+    expect(current).toEqual({
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x + t",
+      layout: { width: 320, height: 180 },
+      style: { color: "#ff0000", background: { color: "#000000" } },
+    });
+  });
+
+  it("resets drafts without writing and rehydrates after element changes", async () => {
+    current.animation = { parameter: "phase", from: 1, to: 2, durationMs: 1000 };
+    await act(async () => renderInspector());
+    await act(async () => changeAnimationText("plot-animation-from", "99"));
+    expect(current.animation.from).toBe(1);
+    await act(async () => clickAnimationButton("plot-animation-reset"));
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-from")?.value).toBe("1");
+    expect(updateCount).toBe(0);
+
+    current = { id: "plot-2", type: "plot", hidden: false, source: "y = x^2" };
+    await act(async () => renderInspector());
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-enabled")?.checked).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-from")).toBeNull();
+    expect(updateCount).toBe(0);
   });
 
   it.each([undefined, true, false] as const)("renders showAxes %j as checked", async (showAxes) => {
