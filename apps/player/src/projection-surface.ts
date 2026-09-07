@@ -3,6 +3,7 @@ import type { ScriptedReportMessage } from "@powershow/renderer";
 
 import {
   fitLogicalSlideGeometry,
+  disposeRendererRuntime,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
@@ -21,6 +22,7 @@ type SlideDirection = "forward" | "backward";
 
 export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
+  animatePlots?: boolean;
   onScriptedReport?: (report: ScriptedReportMessage) => void;
   onScriptedMount?: (mount: { pageId: string; elementId: string }) => void;
 }
@@ -116,10 +118,28 @@ export function mountProjectionSurface(
     slideSurface.style.height = `${geometry.logicalHeight}px`;
     slideSurface.style.transform = `scale(${geometry.scale})`;
 
-    hydrateRendererRuntime(slideHost);
+    hydrateCurrentSlideRuntime();
     if (expandedOverlay) {
       hydrateRendererRuntime(expandedOverlay);
     }
+  }
+
+  function prefersReducedMotion(): boolean {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  }
+
+  function hydrateCurrentSlideRuntime(): void {
+    const slide = presentation.slides[currentIndex];
+    if (
+      slide !== undefined &&
+      options.animatePlots !== false &&
+      !prefersReducedMotion()
+    ) {
+      hydrateRendererRuntime(slideSurface, { plotAnimations: { slide } });
+      return;
+    }
+
+    hydrateRendererRuntime(slideSurface);
   }
 
   function animateSlide(direction?: SlideDirection): void {
@@ -158,6 +178,7 @@ export function mountProjectionSurface(
 
   function renderCurrentSlide(direction?: SlideDirection): void {
     clearExpandedGallery();
+    disposeRendererRuntime(slideSurface);
     const slide = presentation.slides[currentIndex];
 
     if (!slide) {
@@ -168,7 +189,7 @@ export function mountProjectionSurface(
     }
 
     slideSurface.innerHTML = renderSlide(slide, { presentation });
-    hydrateRendererRuntime(slideSurface);
+    hydrateCurrentSlideRuntime();
     for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
       'iframe[data-powershow-type="scripted"][data-powershow-id]',
     )) {
@@ -454,6 +475,7 @@ export function mountProjectionSurface(
       window.removeEventListener("message", handleScriptedMessage);
       slideSurface.removeEventListener("click", handleGalleryClick);
       clearExpandedGallery();
+      disposeRendererRuntime(slideSurface);
       root.innerHTML = "";
     },
   };

@@ -45,6 +45,7 @@ export function startCover(root: HTMLElement): CoverController {
         }
         projection = mountProjectionSurface(root, result.presentation, {
           transition: "none",
+          animatePlots: false,
         });
         return;
       }

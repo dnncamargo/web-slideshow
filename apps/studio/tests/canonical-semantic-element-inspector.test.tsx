@@ -74,6 +74,72 @@ describe("canonical semantic element inspector", () => {
     expect(element()).not.toHaveProperty("style");
   });
 
+  it("authors Plot size independently and preserves it across Flow and Absolute", async () => {
+    const { element } = await renderElement({
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "",
+      layout: { width: "60%", height: 360, position: "absolute", top: 20, left: 30 },
+    });
+
+    expect(container.textContent).toContain("Size");
+    expect(container.textContent).toContain("Width");
+    expect(container.textContent).toContain("Height");
+    expect(container.querySelector<HTMLInputElement>("#element-width")?.value).toBe("60");
+    expect(container.querySelector<HTMLSelectElement>("#element-width-unit")?.value).toBe("%");
+    expect(container.querySelector<HTMLInputElement>("#element-height")?.value).toBe("360");
+    expect(container.querySelector<HTMLSelectElement>("#element-height-unit")?.value).toBe("px");
+
+    await act(async () => {
+      const width = container.querySelector<HTMLInputElement>("#element-width")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(width, "70");
+      width.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(element()).toMatchObject({
+      layout: { width: "70%", height: 360, position: "absolute", top: 20, left: 30 },
+    });
+
+    await act(async () => {
+      const height = container.querySelector<HTMLInputElement>("#element-height")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(height, "250");
+      height.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(element()).toMatchObject({
+      layout: { width: "70%", height: 250, position: "absolute", top: 20, left: 30 },
+    });
+
+    await act(async () => {
+      const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")!;
+      mode.value = "flow";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(element()).toMatchObject({ layout: { width: "70%", height: 250 } });
+    expect(element()).not.toHaveProperty("layout.position");
+    expect(element()).not.toHaveProperty("layout.top");
+    expect(element()).not.toHaveProperty("layout.left");
+
+    await act(async () => {
+      const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")!;
+      mode.value = "absolute";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(element()).toMatchObject({ layout: { width: "70%", height: 250, position: "absolute" } });
+
+    await act(async () => {
+      const widthReset = container.querySelector("#element-width")?.closest("label")?.querySelector("button");
+      (widthReset as HTMLButtonElement).click();
+    });
+    expect(element()).toMatchObject({ layout: { height: 250, position: "absolute" } });
+    expect(element()).not.toHaveProperty("layout.width");
+
+    await act(async () => {
+      const heightReset = container.querySelector("#element-height")?.closest("label")?.querySelector("button");
+      (heightReset as HTMLButtonElement).click();
+    });
+    expect(element()).toHaveProperty("layout", { position: "absolute" });
+  });
+
   it("Interactive remains unsupported and uses only canonical positioning", async () => {
     const { element } = await renderElement(interactiveElement);
 

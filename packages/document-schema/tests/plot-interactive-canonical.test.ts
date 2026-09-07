@@ -15,6 +15,91 @@ describe("Plot canonical contract", () => {
     expect(PlotElementSchema.safeParse({ ...plot, fitToAxes }).success).toBe(true);
   });
 
+  it.each([true, false])("accepts showAxes: %j", (showAxes) => {
+    expect(PlotElementSchema.safeParse({ ...plot, showAxes }).success).toBe(true);
+  });
+
+  it("accepts canonical Plot animation intent", () => {
+    const parsed = PlotElementSchema.parse({
+      ...plot,
+      animation: {
+        parameter: "t",
+        from: 0,
+        to: Math.PI * 2,
+        durationMs: 4000,
+        loop: true,
+        autoplay: false,
+      },
+    });
+
+    expect(parsed.animation).toEqual({
+      parameter: "t",
+      from: 0,
+      to: Math.PI * 2,
+      durationMs: 4000,
+      loop: true,
+      autoplay: false,
+    });
+  });
+
+  it.each(["t", "phase", "phase2", "time_value", "sin", "cos"])(
+    "accepts animation parameter %s",
+    (parameter) => {
+      expect(PlotElementSchema.safeParse({
+        ...plot,
+        animation: { parameter, from: 0, to: 1, durationMs: 1000 },
+      }).success).toBe(true);
+    },
+  );
+
+  it.each(["x", "y", "z", "pi", "e"])("rejects reserved animation parameter %s", (parameter) => {
+    expect(PlotElementSchema.safeParse({
+      ...plot,
+      animation: { parameter, from: 0, to: 1, durationMs: 1000 },
+    }).success).toBe(false);
+  });
+
+  it.each(["", "_t", "2t", "t-value", "t value"])("rejects invalid animation parameter %j", (parameter) => {
+    expect(PlotElementSchema.safeParse({
+      ...plot,
+      animation: { parameter, from: 0, to: 1, durationMs: 1000 },
+    }).success).toBe(false);
+  });
+
+  it.each([[2, 1], [2, 2]] as const)("preserves animation range %j and omitted optional fields", (from, to) => {
+    const parsed = PlotElementSchema.parse({
+      ...plot,
+      animation: { parameter: "t", from, to, durationMs: 1000 },
+    });
+
+    expect(parsed.animation).toEqual({ parameter: "t", from, to, durationMs: 1000 });
+    expect(parsed.animation).not.toHaveProperty("loop");
+    expect(parsed.animation).not.toHaveProperty("autoplay");
+  });
+
+  it.each([
+    { color: "#ff0000" },
+    { color: { kind: "palette", colorId: "accent" } },
+    { background: { color: "#ffffff" } },
+    { color: "#ff0000", background: { color: "#ffffff" } },
+    { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } },
+    {
+      zGradient: {
+        minColor: { kind: "palette", colorId: "low" },
+        maxColor: { kind: "palette", colorId: "high" },
+      },
+    },
+    {
+      color: "#ffffff",
+      background: { color: "#000000" },
+      zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+    },
+    { axes: { color: "#ff00aa", strokeWidth: 3 } },
+    { axes: { color: { kind: "palette", colorId: "axis" }, strokeWidth: 0.5 } },
+  ])("accepts minimal visual style %j", (style) => {
+    expect(PlotElementSchema.safeParse({ ...plot, style }).success).toBe(true);
+  });
+
   it.each([
     plot,
     { ...plot, source: "y = x^2" },
@@ -27,6 +112,35 @@ describe("Plot canonical contract", () => {
     { ...plot, source: "x".repeat(4097) },
     { ...plot, unknown: true },
     { ...plot, fitToAxes: "true" },
+    { ...plot, showAxes: "true" },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: 0 } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: -1 } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: 1.5 } },
+    { ...plot, animation: { parameter: "x", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "pi", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "bad-name", from: 0, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "t", from: Number.NaN, to: 1, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "t", from: 0, to: Number.POSITIVE_INFINITY, durationMs: 1000 } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: Number.NaN } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: Number.POSITIVE_INFINITY } },
+    { ...plot, animation: { parameter: "t", from: 0, to: 1, durationMs: 1000, current: 0 } },
+    { ...plot, style: { gradient: {} } },
+    { ...plot, style: { border: {} } },
+    { ...plot, style: { lineWidth: 2 } },
+    { ...plot, style: { unknown: true } },
+    { ...plot, style: { background: { border: {} } } },
+    { ...plot, style: { zGradient: {} } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed" } } },
+    { ...plot, style: { zGradient: { maxColor: "#06b6d4" } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", type: "linear" } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", angle: 90 } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", shape: "circle" } } },
+    { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", stops: [] } } },
+    { ...plot, style: { axes: { strokeWidth: 0 } } },
+    { ...plot, style: { axes: { strokeWidth: -1 } } },
+    { ...plot, style: { axes: { strokeWidth: Number.NaN } } },
+    { ...plot, style: { axes: { strokeWidth: Number.POSITIVE_INFINITY } } },
+    { ...plot, style: { axes: { color: "#ff00aa", unknown: true } } },
   ])("rejects non-canonical input %j", (input) => {
     expect(PlotElementSchema.safeParse(input).success).toBe(false);
   });
@@ -68,7 +182,6 @@ describe.each([
     { layout: { padding: 1 } },
     { layout: { margin: 1 } },
     { layout: { overflow: "hidden" } },
-    { style: {} },
     { typography: {} },
     { effect: {} },
     { link: {} },
@@ -78,5 +191,9 @@ describe.each([
     { unknown: true },
   ])("rejects non-canonical field %j", (extra) => {
     expect(schema.safeParse({ ...minimum, ...extra }).success).toBe(false);
+  });
+
+  it("rejects an empty style object for Interactive", () => {
+    expect(InteractiveElementSchema.safeParse({ ...interactive, style: {} }).success).toBe(false);
   });
 });

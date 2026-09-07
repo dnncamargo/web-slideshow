@@ -1,15 +1,19 @@
 import type { PlotElement } from "@powershow/document-schema";
 import {
   analyzeMathSource,
+  generateExplicit3DSurfaceGeometry,
   generateExplicit2DGeometry,
   generateImplicit2DGeometry,
+  type MathBindings,
   type MathGeometryResult,
   type MathViewport2D,
 } from "@powershow/math-source";
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
+import { renderColorValue } from "./render-palette";
 import { renderMathGeometrySvg } from "./render-plot-svg";
+import { renderMathSurfaceGeometrySvg } from "./render-plot-surface-svg";
 
 const PLOT_WORKING_VIEWPORT: MathViewport2D = {
   xMin: -10,
@@ -19,6 +23,10 @@ const PLOT_WORKING_VIEWPORT: MathViewport2D = {
 };
 
 const AUTO_FIT_PADDING_RATIO = 0.08;
+
+export interface PlotRenderOptions {
+  bindings?: MathBindings;
+}
 
 interface MathBounds2D {
   xMin: number;
@@ -80,39 +88,51 @@ function deriveAutoFitViewport(geometry: MathGeometryResult): MathViewport2D | u
     : undefined;
 }
 
-function renderPlotLayout(element: PlotElement): string {
+function renderPlotStyle(element: PlotElement): string {
   const layout = element.layout;
-  if (layout === undefined) return "";
-
   const styles: string[] = [];
-  for (const [property, value] of [
-    ["width", layout.width],
-    ["height", layout.height],
-    ["position", layout.position],
-    ["top", layout.top],
-    ["right", layout.right],
-    ["bottom", layout.bottom],
-    ["left", layout.left],
-  ] as const) {
-    if (value !== undefined) {
-      styles.push(`${property}:${property === "position" ? value : renderLength(value)}`);
+  if (layout !== undefined) {
+    for (const [property, value] of [
+      ["width", layout.width],
+      ["height", layout.height],
+      ["position", layout.position],
+      ["top", layout.top],
+      ["right", layout.right],
+      ["bottom", layout.bottom],
+      ["left", layout.left],
+    ] as const) {
+      if (value !== undefined) {
+        styles.push(`${property}:${property === "position" ? value : renderLength(value)}`);
+      }
     }
   }
 
-  return styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
-}
+  if (element.style?.color !== undefined) {
+    styles.push(`color:${renderColorValue(element.style.color)}`);
+  }
+  if (element.style?.background?.color !== undefined) {
+    styles.push(`background:${renderColorValue(element.style.background.color)}`);
+  }
 
-function renderPlotFallback(element: PlotElement): string {
-  return `<div class="powershow-element powershow-placeholder powershow-placeholder-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>[plot]</div>`;
+  return styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
 }
 
 function appendGeometry(target: MathGeometryResult, result: MathGeometryResult): void {
   target.segments.push(...result.segments);
 }
 
-export function renderPlot(element: PlotElement): string {
-  if (element.hidden) return "";
+export interface PlotFrame {
+  readonly className: "powershow-plot" | "powershow-placeholder powershow-placeholder-plot";
+  readonly content: string;
+}
 
+export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions = {}): PlotFrame | null {
+  if (element.hidden) return null;
+
+  const initialBindings = element.animation === undefined
+    ? {}
+    : { [element.animation.parameter]: element.animation.from };
+  const bindings = { ...initialBindings, ...options.bindings };
   const geometry: MathGeometryResult = { segments: [], diagnostics: [] };
   const analysis = analyzeMathSource(element.source);
   let renderedEquationCount = 0;
@@ -123,10 +143,10 @@ export function renderPlot(element: PlotElement): string {
     switch (equation.form) {
       case "explicit-y":
       case "explicit-x":
-        result = generateExplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings: {} });
+        result = generateExplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings });
         break;
       case "implicit-2d":
-        result = generateImplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings: {} });
+        result = generateImplicit2DGeometry(equation, PLOT_WORKING_VIEWPORT, { bindings });
         break;
       case "explicit-z":
       case "implicit-3d":
@@ -139,13 +159,58 @@ export function renderPlot(element: PlotElement): string {
     appendGeometry(geometry, result);
   }
 
+  const axisStyle = element.style?.axes === undefined
+    ? undefined
+    : {
+      ...(element.style.axes.color === undefined ? {} : { color: renderColorValue(element.style.axes.color) }),
+      ...(element.style.axes.strokeWidth === undefined ? {} : { strokeWidth: element.style.axes.strokeWidth }),
+    };
+
+  if (renderedEquationCount === 0) {
+    const explicitSurfaceEquations = analysis.equations.filter(
+      (equation) => equation.form === "explicit-z",
+    );
+
+    if (explicitSurfaceEquations.length === 1) {
+      const surfaceGeometry = generateExplicit3DSurfaceGeometry(
+        explicitSurfaceEquations[0]!,
+        PLOT_WORKING_VIEWPORT,
+        { bindings },
+      );
+      const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, {
+        showAxes: element.showAxes !== false,
+        ...(axisStyle === undefined ? {} : { axisStyle }),
+        ...(element.style?.zGradient === undefined ? {} : {
+          zGradient: {
+            minColor: renderColorValue(element.style.zGradient.minColor),
+            maxColor: renderColorValue(element.style.zGradient.maxColor),
+          },
+        }),
+      });
+      if (surfaceSvg !== "") {
+        return { className: "powershow-plot", content: surfaceSvg };
+      }
+    }
+  }
+
   const displayViewport = element.fitToAxes === false
     ? deriveAutoFitViewport(geometry) ?? PLOT_WORKING_VIEWPORT
     : PLOT_WORKING_VIEWPORT;
   const svg = renderMathGeometrySvg(geometry, displayViewport, renderedEquationCount > 0
-    ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y" }
+    ? {
+      x: "x",
+      y: allRenderedEquationsAreExplicitY ? "f(x)" : "y",
+      showAxes: element.showAxes !== false,
+      ...(axisStyle === undefined ? {} : { axisStyle }),
+    }
     : undefined);
-  if (svg === "") return renderPlotFallback(element);
+  if (svg === "") return { className: "powershow-placeholder powershow-placeholder-plot", content: "[plot]" };
 
-  return `<div class="powershow-element powershow-plot" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotLayout(element)}>${svg}</div>`;
+  return { className: "powershow-plot", content: svg };
+}
+
+export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}): string {
+  const frame = renderPlotFrame(element, options);
+  if (frame === null) return "";
+  return `<div class="powershow-element ${frame.className}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${frame.content}</div>`;
 }

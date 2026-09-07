@@ -25,6 +25,7 @@ import {
   ImageVisualStyleSchema,
   ResizablePositionedLayoutSchema,
   SurfaceVisualStyleSchema,
+  PlotVisualStyleSchema,
   GradientSurfaceVisualStyleSchema,
   CodeVisualStyleSchema,
   TerminalVisualStyleSchema,
@@ -261,6 +262,27 @@ export const TerminalElementSchema =
 export type TerminalElement =
   z.infer<typeof TerminalElementSchema>;
 
+const PLOT_ANIMATION_RESERVED_PARAMETERS = new Set(["x", "y", "z", "pi", "e"]);
+
+const PlotAnimationParameterSchema = z.string()
+  .regex(/^[A-Za-z][A-Za-z0-9_]*$/, "Plot animation parameter must be a valid identifier.")
+  .refine(
+    (parameter) => !PLOT_ANIMATION_RESERVED_PARAMETERS.has(parameter),
+    "Plot animation parameter must not be a coordinate or constant.",
+  );
+
+export const PlotAnimationSchema = z.object({
+  parameter: PlotAnimationParameterSchema,
+  from: z.number().finite(),
+  to: z.number().finite(),
+  durationMs: z.number().finite().int().positive(),
+  loop: z.boolean().optional(),
+  autoplay: z.boolean().optional(),
+}).strict();
+
+export type PlotAnimation =
+  z.infer<typeof PlotAnimationSchema>;
+
 export const PlotElementSchema =
   z.object({
     id: ElementIdSchema,
@@ -270,6 +292,9 @@ export const PlotElementSchema =
 
     source: z.string().max(4096),
     fitToAxes: z.boolean().optional(),
+    showAxes: z.boolean().optional(),
+    style: PlotVisualStyleSchema.optional(),
+    animation: PlotAnimationSchema.optional(),
   }).strict();
 
 export type PlotElement =

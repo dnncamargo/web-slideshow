@@ -35,7 +35,10 @@ describe("Player cover runtime", () => {
     await Promise.resolve();
 
     expect(mocks.resolveLiveMount).toHaveBeenCalledWith({}, mocks.loadPublishedVersion);
-    expect(mocks.mountProjectionSurface).toHaveBeenCalledWith(root, presentation, { transition: "none" });
+    expect(mocks.mountProjectionSurface).toHaveBeenCalledWith(root, presentation, {
+      transition: "none",
+      animatePlots: false,
+    });
     expect(root.querySelector(".powershow-player-controls")).toBeNull();
   });
 

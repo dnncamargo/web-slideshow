@@ -158,6 +158,29 @@ export const SurfaceVisualStyleSchema = z.object({
 
 export type SurfaceVisualStyle = z.infer<typeof SurfaceVisualStyleSchema>;
 
+const PlotBackgroundSchema = z.object({
+  color: ColorValueSchema.optional(),
+}).strict();
+
+const PlotZGradientSchema = z.object({
+  minColor: ColorValueSchema,
+  maxColor: ColorValueSchema,
+}).strict();
+
+const PlotAxesVisualStyleSchema = z.object({
+  color: ColorValueSchema.optional(),
+  strokeWidth: z.number().finite().positive().optional(),
+}).strict();
+
+export const PlotVisualStyleSchema = z.object({
+  color: ColorValueSchema.optional(),
+  background: PlotBackgroundSchema.optional(),
+  zGradient: PlotZGradientSchema.optional(),
+  axes: PlotAxesVisualStyleSchema.optional(),
+}).strict();
+
+export type PlotVisualStyle = z.infer<typeof PlotVisualStyleSchema>;
+
 export const GradientSurfaceBackgroundSchema = z.object({
   color: ColorValueSchema.optional(),
   gradient: GradientSchema.optional(),

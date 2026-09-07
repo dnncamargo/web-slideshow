@@ -58,3 +58,11 @@ export type {
 export { generateExplicit2DGeometry } from "./geometry";
 export type { MathImplicit2DOptions } from "./implicit-geometry";
 export { generateImplicit2DGeometry } from "./implicit-geometry";
+
+export type {
+  MathExplicit3DSurfaceOptions,
+  MathPoint3D,
+  MathSurfaceGeometryResult,
+} from "./surface-geometry";
+
+export { generateExplicit3DSurfaceGeometry } from "./surface-geometry";

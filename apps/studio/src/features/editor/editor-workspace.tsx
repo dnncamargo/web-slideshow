@@ -8,12 +8,15 @@ import type { CSSProperties } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import {
+  disposeRendererRuntime,
+  getPlotAnimationController,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
   fitLogicalSlideGeometry,
   resolveLogicalSlideSize,
+  type PlotAnimationController,
   type FittedSlideGeometry,
 } from "@powershow/renderer";
 import {
@@ -209,7 +212,7 @@ import {
   resolveAddElementDestination,
 } from "./element-operations";
 
-import type { TableAuthoringControls } from "./inspector/inspector-types";
+import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -868,6 +871,11 @@ export function EditorWorkspace({
     return renderSlide(selectedSlide, { presentation });
   }, [selectedSlide, presentation]);
 
+  const renderedSlideHtml = useMemo(
+    () => ({ __html: renderedSlide }),
+    [renderedSlide],
+  );
+
   const renderedPaletteStyle = useMemo(() => {
     const style: CSSProperties & Record<`--${string}`, string> = {};
 
@@ -923,10 +931,24 @@ export function EditorWorkspace({
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
-    if (canvas) {
+    if (canvas && selectedSlide !== undefined) {
+      hydrateRendererRuntime(canvas, {
+        plotAnimations: {
+          slide: selectedSlide,
+          autoplay: false,
+        },
+      });
+    } else if (canvas) {
       hydrateRendererRuntime(canvas);
     }
-  }, [canvasGeometry, renderedSlide]);
+  }, [canvasGeometry, renderedSlide, selectedSlide]);
+
+  useEffect(() => {
+    const canvas = slideCanvasRef.current;
+    return () => {
+      if (canvas) disposeRendererRuntime(canvas);
+    };
+  }, []);
 
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
@@ -1849,7 +1871,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks") {
+    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks" || selectedDocumentElement.type === "plot") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -2062,12 +2084,12 @@ export function EditorWorkspace({
                       ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
-                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
+                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "plot") {
                     return resize.canonicalTextResizeGeometry
                       ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
                       : element;
                   }
-                  if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") return element;
+                  if (element.type === "divider" || element.type === "topics" || element.type === "interactive") return element;
                   return element;
                 },
               ),
@@ -2207,6 +2229,22 @@ export function EditorWorkspace({
       }),
     }));
   }
+
+  function runSelectedPlotPreview(command: (controller: PlotAnimationController) => void): void {
+    if (selectedDocumentElement?.type !== "plot") return;
+    const canvas = slideCanvasRef.current;
+    if (!canvas) return;
+    const controller = getPlotAnimationController(canvas, selectedDocumentElement.id);
+    if (controller) command(controller);
+  }
+
+  const plotPreviewControls: PlotPreviewControls | undefined = selectedDocumentElement?.type === "plot"
+    ? {
+      onPlay: () => runSelectedPlotPreview((controller) => controller.play()),
+      onPause: () => runSelectedPlotPreview((controller) => controller.pause()),
+      onReset: () => runSelectedPlotPreview((controller) => controller.reset()),
+    }
+    : undefined;
 
   function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "container") return;
@@ -3608,9 +3646,7 @@ export function EditorWorkspace({
                 onPointerCancel={handleCanvasPointerCancel}
                 onLostPointerCapture={handleCanvasPointerCancel}
                 onClick={handleCanvasLinkClick}
-                dangerouslySetInnerHTML={{
-                  __html: renderedSlide,
-                }}
+                dangerouslySetInnerHTML={renderedSlideHtml}
               />
             </div>
             {cropEditingTarget && currentImageMediaTarget && areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget) && (
@@ -3966,6 +4002,7 @@ export function EditorWorkspace({
                         <ElementInspector
                           element={selectedDocumentElement}
                           onUpdate={updateSelectedElement}
+                          plotPreviewControls={plotPreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={

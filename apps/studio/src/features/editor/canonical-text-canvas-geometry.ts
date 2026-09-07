@@ -94,12 +94,12 @@ export function updateCanonicalImageForCanvasDrag(
 }
 
 export function updateCanonicalSurfaceForCanvasDrag(
-  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement,
+  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement,
   deltaX: number,
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
-): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement {
-  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement;
+): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement {
+  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement;
 }
 
 function serializeSize(value: number, original: string | number | undefined, parent: number): string | number {
@@ -185,12 +185,12 @@ export function updateImageForCanvasResize(
 }
 
 export function updateSurfaceForCanvasResize(
-  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement,
+  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement,
   direction: CanvasResizeDirection,
   deltaX: number,
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
-): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement {
+): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement {
   if (deltaX === 0 && deltaY === 0) return element;
   const layout = element.layout ?? {};
   const next = element.layout?.position === "absolute"
@@ -207,5 +207,5 @@ export function updateSurfaceForCanvasResize(
   const vertical = element.layout?.position === "absolute"
     ? updateAxis(next, "vertical", direction, deltaY, geometry)
     : next;
-  return { ...element, layout: vertical as ResizablePositionedLayout } as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement;
+  return { ...element, layout: vertical as ResizablePositionedLayout } as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement;
 }
