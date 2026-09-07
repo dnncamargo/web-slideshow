@@ -53,7 +53,7 @@ describe("live/plotAnimationAction rules", () => {
 
   it("enforces high-water revisions and identity resets", () => {
     const validate = actionRules[".validate"] as string;
-    for (const actionName of ["play", "pause", "reset"] as const) {
+    for (const actionName of ["play", "pause", "reset", "toggle"] as const) {
       expect(evaluate(validate, null, action({ action: actionName }))).toBe(true);
     }
     expect(evaluate(validate, null, action({ revision: 2 }))).toBe(false);

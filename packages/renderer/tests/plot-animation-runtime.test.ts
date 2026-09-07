@@ -185,6 +185,72 @@ describe("Plot animation runtime", () => {
     expect(requestFrame).toHaveBeenCalledTimes(1);
   });
 
+  it("toggles an idle Plot into playback", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000, autoplay: false });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]) } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.toggle();
+    runNextFrame(100);
+    runNextFrame(600);
+    expect(plotNode.innerHTML).not.toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+  });
+
+  it("toggles a playing Plot into a paused Plot", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    runNextFrame(100);
+    runNextFrame(600);
+    const pausedFrame = plotNode.innerHTML;
+    controller?.toggle();
+    expect(callbacks.size).toBe(0);
+    expect(plotNode.innerHTML).toBe(pausedFrame);
+  });
+
+  it("toggles a paused Plot back into playback from preserved progress", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    runNextFrame(100);
+    runNextFrame(600);
+    const pausedFrame = plotNode.innerHTML;
+    controller?.toggle();
+    controller?.toggle();
+    runNextFrame(2000);
+    expect(plotNode.innerHTML).toBe(pausedFrame);
+    runNextFrame(2500);
+    expect(plotNode.innerHTML).not.toBe(pausedFrame);
+  });
+
+  it("toggles a completed non-looping Plot into a restart", () => {
+    const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000, loop: false });
+    const plotNode = node(element);
+    const root = new FakeRoot([plotNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { plotAnimations: { slide: slide([element]), autoplay: false } });
+    const controller = getPlotAnimationController(runtimeRoot(root), "plot-1");
+
+    controller?.play();
+    runNextFrame(100);
+    runNextFrame(1100);
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 10 } })?.content);
+    controller?.toggle();
+    runNextFrame(2000);
+    expect(plotNode.innerHTML).toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+    runNextFrame(2500);
+    expect(plotNode.innerHTML).not.toBe(renderPlotFrame(element, { bindings: { t: 0 } })?.content);
+  });
+
   it("keeps play idempotent while a Plot is playing", () => {
     const element = plot("plot-1", { parameter: "t", from: 0, to: 10, durationMs: 1000 });
     const root = new FakeRoot([node(element)]);

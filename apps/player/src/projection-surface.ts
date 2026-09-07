@@ -18,7 +18,7 @@ import {
 } from "./scripted-port-host";
 
 export type PlayerTransition = "none" | "fade" | "slide";
-export type PlotAnimationControlAction = "play" | "pause" | "reset";
+export type PlotAnimationControlAction = "play" | "pause" | "reset" | "toggle";
 
 type SlideDirection = "forward" | "backward";
 
@@ -468,9 +468,20 @@ export function mountProjectionSurface(
     controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void {
       const controller = getPlotAnimationController(slideSurface, elementId);
       if (controller === null) return;
-      if (action === "play") controller.play();
-      else if (action === "pause") controller.pause();
-      else controller.reset();
+      switch (action) {
+        case "play":
+          controller.play();
+          break;
+        case "pause":
+          controller.pause();
+          break;
+        case "reset":
+          controller.reset();
+          break;
+        case "toggle":
+          controller.toggle();
+          break;
+      }
     },
     getCurrentIndex(): number {
       return currentIndex;

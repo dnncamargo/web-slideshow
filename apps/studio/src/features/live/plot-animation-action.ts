@@ -1,5 +1,5 @@
 /** One-way Control -> Player Plot animation action occurrence contract. */
-export type PlotAnimationAction = "play" | "pause" | "reset";
+export type PlotAnimationAction = "play" | "pause" | "reset" | "toggle";
 
 export interface LivePlotAnimationActionRecord {
   activationRevision: number;
@@ -35,7 +35,7 @@ function isCanonicalId(value: unknown): value is string {
 }
 
 function isPlotAnimationAction(value: unknown): value is PlotAnimationAction {
-  return value === "play" || value === "pause" || value === "reset";
+  return value === "play" || value === "pause" || value === "reset" || value === "toggle";
 }
 
 /** Strictly parses a Plot action occurrence without altering canonical ids. */

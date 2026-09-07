@@ -169,6 +169,10 @@ describe("Projection surface", () => {
     expect(raf.callbacks.size).toBe(0);
     projection.controlPlotAnimation("animated-plot", "play");
     expect(raf.callbacks.size).toBe(1);
+    projection.controlPlotAnimation("animated-plot", "toggle");
+    expect(raf.callbacks.size).toBe(0);
+    projection.controlPlotAnimation("animated-plot", "toggle");
+    expect(raf.callbacks.size).toBe(1);
     projection.controlPlotAnimation("animated-plot", "reset");
     expect(raf.callbacks.size).toBe(0);
     expect(() => projection.controlPlotAnimation("missing", "play")).not.toThrow();

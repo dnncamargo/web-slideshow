@@ -180,6 +180,7 @@ describe("control command writer", () => {
     });
     expect((await writePlotAnimationAction({} as never, { ...request, action: "pause" })).revision).toBe(2);
     expect((await writePlotAnimationAction({} as never, { ...request, action: "reset" })).revision).toBe(3);
+    expect(await writePlotAnimationAction({} as never, { ...request, action: "toggle" })).toMatchObject({ revision: 4, action: "toggle", elementId: "plot/[#]" });
     expect((await writePlotAnimationAction({} as never, { ...request, pageId: "page-2", action: "reset" })).revision).toBe(1);
     expect((await writePlotAnimationAction({} as never, { ...request, activationRevision: 8 })).revision).toBe(1);
     expect((await writePlotAnimationAction({} as never, { ...request, currentVersionId: "version-2" })).revision).toBe(1);

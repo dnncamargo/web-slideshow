@@ -25,7 +25,7 @@ const record = (overrides: Record<string, unknown> = {}) => ({
 describe("live Plot animation action parser", () => {
   it("uses the exact root and accepts all V1 actions", () => {
     expect(PLOT_ANIMATION_ACTION_ROOT_PATH).toBe("live/plotAnimationAction");
-    for (const action of ["play", "pause", "reset"] as const) {
+    for (const action of ["play", "pause", "reset", "toggle"] as const) {
       expect(parseLivePlotAnimationActionRecord(record({ action }))?.action).toBe(action);
     }
   });
@@ -125,10 +125,12 @@ describe("live Plot animation action tracker and subscriber", () => {
     expect(controlPlotAnimation).toHaveBeenCalledExactlyOnceWith("plot/[#]", "pause");
     callback?.({ val: () => ({ 0: record({ revision: 3, pageId: "page-a", action: "reset" }) }) });
     expect(controlPlotAnimation).toHaveBeenNthCalledWith(2, "plot/[#]", "reset");
+    callback?.({ val: () => ({ 0: record({ revision: 4, pageId: "page-a", action: "toggle" }) }) });
+    expect(controlPlotAnimation).toHaveBeenNthCalledWith(3, "plot/[#]", "toggle");
     callback?.({ val: () => ({ 0: record({ revision: 4, activationRevision: 6 }) }) });
     callback?.({ val: () => ({ 0: record({ revision: 5, currentVersionId: "old-version" }) }) });
     callback?.({ val: () => ({ 0: record({ revision: 6, targetBootId: "old-boot" }) }) });
-    expect(controlPlotAnimation).toHaveBeenCalledTimes(2);
+    expect(controlPlotAnimation).toHaveBeenCalledTimes(3);
     cleanup();
   });
 
