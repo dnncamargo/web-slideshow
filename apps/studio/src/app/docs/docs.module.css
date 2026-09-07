@@ -144,6 +144,7 @@
 .content {
   width: min(100%, 940px);
   padding: clamp(44px, 7vw, 88px) clamp(28px, 6vw, 84px) 100px;
+  scroll-margin-top: 58px;
 }
 
 .topicHeader {
