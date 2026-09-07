@@ -97,6 +97,7 @@ interface ElementTreeNodeProps {
   onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
   onGalleryItemDrop: (galleryId: string, itemIndex: number) => void;
   selectedContentSlotId: string | null;
+  selectedStructuralTopicItemId: string | null;
   onIndentTopicItem: (topicsId: string, topicItemId: string) => void;
   onOutdentTopicItem: (topicsId: string, topicItemId: string) => void;
   getTopicItemHierarchyActionState: (topicsId: string, topicItemId: string) => {
@@ -126,6 +127,7 @@ interface TopicItemTreeNodeProps {
   expandedIds: ReadonlySet<string>;
   selectedElementId: string | null;
   selectedContentSlotId: string | null;
+  selectedStructuralTopicItemId: string | null;
   selectedGalleryItemIndex: number | null;
   dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
   onToggle: (id: string) => void;
@@ -269,6 +271,7 @@ function ElementTreeNode({
   onGalleryItemDragOver,
   onGalleryItemDrop,
   selectedContentSlotId,
+  selectedStructuralTopicItemId,
   onIndentTopicItem,
   onOutdentTopicItem,
   getTopicItemHierarchyActionState,
@@ -297,6 +300,15 @@ function ElementTreeNode({
             ? element.layout?.position === "absolute"
         : false;
   const dropIntent = dropTarget?.id === element.id ? dropTarget.intent : null;
+  const topicHierarchyActionState =
+    element.type === "topics" &&
+    selectedElementId === element.id &&
+    selectedStructuralTopicItemId
+      ? getTopicItemHierarchyActionState(
+          element.id,
+          selectedStructuralTopicItemId,
+        )
+      : { canIndent: false, canOutdent: false };
 
   return (
     <li
@@ -352,6 +364,41 @@ function ElementTreeNode({
           {getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))}
           {indicator && <small>{indicator}</small>}
         </button>
+
+        {element.type === "topics" && (
+          <div className={styles.elementTreeTopicActions}>
+            <button
+              className={styles.elementTreeTopicAction}
+              type="button"
+              aria-label={t("tree.promoteTopic")}
+              title={t("tree.promoteTopic")}
+              disabled={!topicHierarchyActionState.canOutdent}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (selectedStructuralTopicItemId) {
+                  onOutdentTopicItem(element.id, selectedStructuralTopicItemId);
+                }
+              }}
+            >
+              ←
+            </button>
+            <button
+              className={styles.elementTreeTopicAction}
+              type="button"
+              aria-label={t("tree.demoteTopic")}
+              title={t("tree.demoteTopic")}
+              disabled={!topicHierarchyActionState.canIndent}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (selectedStructuralTopicItemId) {
+                  onIndentTopicItem(element.id, selectedStructuralTopicItemId);
+                }
+              }}
+            >
+              →
+            </button>
+          </div>
+        )}
       </div>
       {dropIntent === "inside" && element.type === "container" && (
         <div
@@ -381,6 +428,7 @@ function ElementTreeNode({
                 expandedIds={expandedIds}
                 selectedElementId={selectedElementId}
                 selectedContentSlotId={selectedContentSlotId}
+                selectedStructuralTopicItemId={selectedStructuralTopicItemId}
                 selectedGalleryItemIndex={selectedGalleryItemIndex}
                 onToggle={onToggle}
                 onSelectElement={onSelectElement}
@@ -408,6 +456,7 @@ function ElementTreeNode({
                 expandedIds={expandedIds}
                 selectedElementId={selectedElementId}
                 selectedContentSlotId={selectedContentSlotId}
+                selectedStructuralTopicItemId={selectedStructuralTopicItemId}
                 selectedGalleryItemIndex={selectedGalleryItemIndex}
                 dropTarget={dropTarget}
                 onToggle={onToggle}
@@ -532,6 +581,7 @@ function TopicItemTreeNode({
   onGalleryItemDragStart,
   onGalleryItemDragOver,
   onGalleryItemDrop,
+  selectedStructuralTopicItemId,
   onIndentTopicItem,
   onOutdentTopicItem,
   getTopicItemHierarchyActionState,
@@ -543,10 +593,6 @@ function TopicItemTreeNode({
     selectedContentSlotId === item.content.id;
   const treeChildren = item.content.children;
   const structuralChildren = item.children;
-  const hierarchyActionState = getTopicItemHierarchyActionState(
-    owningTopicsId,
-    item.id,
-  );
 
   return (
     <li
@@ -585,34 +631,6 @@ function TopicItemTreeNode({
           {getTopicItemLabel(item, t("tree.topic"))}
         </button>
 
-        <div className={styles.elementTreeTopicActions}>
-          <button
-            className={styles.elementTreeTopicAction}
-            type="button"
-            aria-label={t("tree.promoteTopic")}
-            title={t("tree.promoteTopic")}
-            disabled={!hierarchyActionState.canOutdent}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOutdentTopicItem(owningTopicsId, item.id);
-            }}
-          >
-            ←
-          </button>
-          <button
-            className={styles.elementTreeTopicAction}
-            type="button"
-            aria-label={t("tree.demoteTopic")}
-            title={t("tree.demoteTopic")}
-            disabled={!hierarchyActionState.canIndent}
-            onClick={(event) => {
-              event.stopPropagation();
-              onIndentTopicItem(owningTopicsId, item.id);
-            }}
-          >
-            →
-          </button>
-        </div>
       </div>
       {expanded && (
         <ul role="group" className={styles.elementTreeList}>
@@ -625,6 +643,7 @@ function TopicItemTreeNode({
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
               selectedContentSlotId={selectedContentSlotId}
+              selectedStructuralTopicItemId={selectedStructuralTopicItemId}
               selectedGalleryItemIndex={selectedGalleryItemIndex}
               onToggle={onToggle}
               onSelectElement={onSelectElement}
@@ -651,6 +670,7 @@ function TopicItemTreeNode({
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
               selectedContentSlotId={selectedContentSlotId}
+              selectedStructuralTopicItemId={selectedStructuralTopicItemId}
               selectedGalleryItemIndex={selectedGalleryItemIndex}
               dropTarget={dropTarget}
               onToggle={onToggle}
@@ -732,6 +752,8 @@ export function ElementTreePanel({
         selectedContentSlotId ?? "",
       )
     : null;
+  const selectedStructuralTopicItemId =
+    isStructuralTopicRow ? selectedTopicItemPosition?.topicItemId ?? null : null;
   const selectedTargets = selectedElementForMovement
     ? getParentTargets(slide, selectedElementForMovement, (key) => t(key))
     : [];
@@ -778,6 +800,7 @@ export function ElementTreePanel({
               expandedIds={expandedIds}
               selectedElementId={selectedElementId}
               selectedContentSlotId={selectedContentSlotId}
+              selectedStructuralTopicItemId={selectedStructuralTopicItemId}
               selectedGalleryItemIndex={selectedGalleryItemIndex}
               dropTarget={dropTarget}
               onToggle={(id) => {

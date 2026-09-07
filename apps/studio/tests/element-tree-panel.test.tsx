@@ -507,21 +507,29 @@ describe("ElementTreePanel", () => {
       topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
     ]);
 
+    function expectActions(
+      selectedContentSlotId: string | null,
+      canOutdent: boolean,
+      canIndent: boolean,
+    ): void {
+      renderPanel(slide, {
+        selectedElementId: selectedContentSlotId ? "topics-1" : null,
+        selectedContentSlotId,
+      });
+      const topicsRow = findTreeItem(container, "Topics");
+      expect(topicActionButton(topicsRow, "Promote topic").disabled).toBe(!canOutdent);
+      expect(topicActionButton(topicsRow, "Demote topic").disabled).toBe(!canIndent);
+    }
+
     renderPanel(slide);
+    const unselectedTopicsRow = findTreeItem(container, "Topics");
+    expect(topicActionButton(unselectedTopicsRow, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(unselectedTopicsRow, "Demote topic").disabled).toBe(true);
 
-    const topicA = findTreeItem(container, "A");
-    const topicA1 = findTreeItem(container, "A.1");
-    const topicA2 = findTreeItem(container, "A.2");
-    const topicB = findTreeItem(container, "B");
-
-    expect(topicActionButton(topicA, "Promote topic").disabled).toBe(true);
-    expect(topicActionButton(topicA, "Demote topic").disabled).toBe(true);
-    expect(topicActionButton(topicA1, "Promote topic").disabled).toBe(false);
-    expect(topicActionButton(topicA1, "Demote topic").disabled).toBe(true);
-    expect(topicActionButton(topicA2, "Promote topic").disabled).toBe(false);
-    expect(topicActionButton(topicA2, "Demote topic").disabled).toBe(false);
-    expect(topicActionButton(topicB, "Promote topic").disabled).toBe(true);
-    expect(topicActionButton(topicB, "Demote topic").disabled).toBe(false);
+    expectActions("slot-a", false, false);
+    expectActions("slot-a-1", true, false);
+    expectActions("slot-a-2", true, true);
+    expectActions("slot-b", false, true);
   });
 
   it("routes hierarchy actions to the owning TopicsElement and preserves row selection routing", () => {
@@ -535,9 +543,9 @@ describe("ElementTreePanel", () => {
         selectedContentSlotId: "slot-b",
       });
 
-    const topicB = findTreeItem(container, "B");
-    const promote = topicActionButton(topicB, "Promote topic");
-    const demote = topicActionButton(topicB, "Demote topic");
+    const topicsRow = findTreeItem(container, "Topics");
+    const promote = topicActionButton(topicsRow, "Promote topic");
+    const demote = topicActionButton(topicsRow, "Demote topic");
 
     expect(promote.title).toBe("Promote topic");
     expect(demote.title).toBe("Demote topic");
@@ -562,10 +570,44 @@ describe("ElementTreePanel", () => {
 
     renderPanel(slide);
 
+    const topicsRow = findTreeItem(container, "Topics");
+    expect(topicsRow.querySelectorAll('button[aria-label="Promote topic"]')).toHaveLength(1);
+    expect(topicsRow.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
     expect(container.querySelectorAll('button[aria-label="Promote topic"]')).toHaveLength(1);
     expect(container.querySelectorAll('button[aria-label="Demote topic"]')).toHaveLength(1);
     expect(findTreeItem(container, "Text — A").querySelector('button[aria-label="Promote topic"]')).toBeNull();
     expect(findTreeItem(container, "Image").querySelector('button[aria-label="Demote topic"]')).toBeNull();
+  });
+
+  it("enables hierarchy actions only on the owning Topics row", () => {
+    const first = topicsElement([
+      topicItem("topic-a", contentSlot("slot-a", [text("a-text", "A")])),
+    ]);
+    const second = {
+      ...topicsElement([
+        topicItem("topic-b", contentSlot("slot-b", [text("b-text", "B")])),
+        topicItem("topic-c", contentSlot("slot-c", [text("c-text", "C")])),
+      ]),
+      id: "topics-2",
+    } satisfies TopicsElement;
+    const slide: Slide = {
+      ...slideWithTopics([]),
+      elements: [first, second],
+    };
+
+    renderPanel(slide, {
+      selectedElementId: "topics-2",
+      selectedContentSlotId: "slot-c",
+    });
+
+    const topicsRows = treeItems(container).filter(
+      (treeItem) => treeItemLabel(treeItem) === "Topics",
+    );
+    expect(topicsRows).toHaveLength(2);
+    expect(topicActionButton(topicsRows[0]!, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(topicsRows[0]!, "Demote topic").disabled).toBe(true);
+    expect(topicActionButton(topicsRows[1]!, "Promote topic").disabled).toBe(true);
+    expect(topicActionButton(topicsRows[1]!, "Demote topic").disabled).toBe(false);
   });
 
   it("reorders a structurally selected middle topic row through the footer", () => {
