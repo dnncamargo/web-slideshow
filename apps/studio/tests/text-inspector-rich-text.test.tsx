@@ -1022,11 +1022,11 @@ describe("TextInspector rich text authoring", () => {
       );
     });
 
-    const fontFamily = container.querySelector<HTMLSelectElement>(
+    const fontFamily = container.querySelector<HTMLInputElement>(
       "#text-font-family",
     );
     expect(fontFamily?.value).toBe("Legacy Family");
-    expect(fontFamily?.querySelector("option[value='Presentation Font']"))
+    expect(container.querySelector("#text-font-family-suggestions option[value='Presentation Font']"))
       .not.toBeNull();
 
     await act(async () => {
@@ -1034,9 +1034,13 @@ describe("TextInspector rich text authoring", () => {
         throw new Error("text-font-family select not found");
       }
 
-      fontFamily.value = "Presentation Font";
+      fontFamily.focus();
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+      setter?.call(fontFamily, "Presentation Font");
+      fontFamily.dispatchEvent(new Event("input", { bubbles: true }));
       fontFamily.dispatchEvent(new Event("change", { bubbles: true }));
     });
+    await act(async () => fontFamily?.blur());
 
     expect(updated?.typography?.fontFamily).toBe("Presentation Font");
   });

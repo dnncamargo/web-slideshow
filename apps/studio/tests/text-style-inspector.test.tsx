@@ -105,7 +105,8 @@ describe("Text Inspector typography style attachment", () => {
     await mount(text(), source);
 
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.25");
-    expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
     expect(updates).toHaveLength(0);
     expect(source.textStyles?.[0]).toMatchObject({ id: "body", typography: { fontSize: 20 } });
@@ -115,12 +116,14 @@ describe("Text Inspector typography style attachment", () => {
     const first = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text({ typography: { fontSize: 22 } }), first);
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("22");
-    expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
 
     await mount(current, presentation([{ id: "body", typography: { fontFamily: "Roboto", fontWeight: 700 } }]));
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("22");
-    expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Roboto");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Roboto");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("700");
     expect(current).toMatchObject({ variant: "body", typography: { fontSize: 22 } });
     expect(current).not.toHaveProperty("styleDetached");
@@ -193,7 +196,7 @@ describe("Text Inspector typography style attachment", () => {
     ]));
 
     expect(current).toMatchObject({ typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 400 } });
-    expect(host.querySelector<HTMLSelectElement>("#text-font-family")?.value).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("400");
   });
 

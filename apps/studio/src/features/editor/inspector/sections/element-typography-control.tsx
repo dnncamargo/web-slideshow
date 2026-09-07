@@ -5,6 +5,8 @@ import {
   resolveEffectiveNumericStyleValue,
   type ThemeTypographyDefaults,
 } from "@powershow/theme/element-style-defaults";
+import { useEffect, useState } from "react";
+
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
@@ -165,6 +167,71 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
   return number !== undefined && number > 0 ? number : undefined;
 }
 
+function FontFamilyField({
+  controlPrefix,
+  currentValue,
+  effectiveValue,
+  fontResources,
+  onCommit,
+}: {
+  controlPrefix: string;
+  currentValue: string | undefined;
+  effectiveValue: string | undefined;
+  fontResources: readonly FontResource[];
+  onCommit: (fontFamily: string | undefined) => void;
+}) {
+  const { t } = useStudioI18n();
+  const [draft, setDraft] = useState(currentValue ?? "");
+
+  useEffect(() => {
+    setDraft(currentValue ?? "");
+  }, [currentValue]);
+
+  const suggestionId = `${controlPrefix}-font-family-suggestions`.replace(
+    /[^a-zA-Z0-9_-]/g,
+    "-",
+  );
+  const suggestions = [...new Set(fontResources.map((fontResource) => fontResource.family))];
+
+  function commit(): void {
+    const next = draft.trim();
+    const canonical = next || undefined;
+
+    setDraft(next);
+    if (canonical !== currentValue) {
+      onCommit(canonical);
+    }
+  }
+
+  return (
+    <>
+      <input
+        id={`${controlPrefix}-font-family`}
+        name={getControlName(controlPrefix, "FontFamily")}
+        type="text"
+        list={suggestionId}
+        value={draft}
+        placeholder={effectiveValue}
+        onInput={(event) => setDraft(event.currentTarget.value)}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+        aria-label={t("inspector.fontFamily")}
+      />
+      <datalist id={suggestionId}>
+        {suggestions.map((family) => (
+          <option key={family} value={family} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 // ============================================================
 // BEGIN: ELEMENT TYPOGRAPHY CONTROL
 // ============================================================
@@ -196,12 +263,7 @@ export function ElementTypographyFields({
   const showUncuratedFontWeight =
     (currentTypography?.fontWeight ?? effectiveDefaults.fontWeight) !== undefined &&
     !isCuratedFontWeight(currentTypography?.fontWeight ?? effectiveDefaults.fontWeight ?? 400);
-  const currentFontFamily = currentTypography?.fontFamily ?? effectiveDefaults.fontFamily ?? "";
-  const showUnregisteredFontFamily =
-    currentFontFamily !== "" &&
-    !fontResources.some(
-      (fontResource) => fontResource.family === currentFontFamily,
-    );
+  const currentFontFamily = currentTypography?.fontFamily;
   const effectiveFontSizePx =
     currentTypography?.fontSize === undefined
       ? effectiveDefaults.fontSize
@@ -219,32 +281,19 @@ export function ElementTypographyFields({
         <label className={styles.field}>
           <span>{t("inspector.fontFamily")}</span>
 
-          <select
-            id={`${controlPrefix}-font-family`}
-            name={getControlName(controlPrefix, "FontFamily")}
-            value={currentFontFamily}
-            onChange={(event) => {
-              const fontFamily = event.target.value || undefined;
-
+          <FontFamilyField
+            controlPrefix={controlPrefix}
+            currentValue={currentFontFamily}
+            effectiveValue={effectiveDefaults.fontFamily}
+            fontResources={fontResources}
+            onCommit={(fontFamily) => {
               onUpdateStyle((currentTypography) => ({
                 ...currentTypography,
 
                 fontFamily,
               }));
             }}
-          >
-            <option value="">{t("inspector.default")}</option>
-
-            {showUnregisteredFontFamily && (
-              <option value={currentFontFamily}>{currentFontFamily}</option>
-            )}
-
-            {fontResources.map((fontResource) => (
-              <option key={fontResource.id} value={fontResource.family}>
-                {fontResource.family}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
       </div> : null}

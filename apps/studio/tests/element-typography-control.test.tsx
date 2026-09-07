@@ -34,6 +34,7 @@ const FONT_RESOURCES: readonly FontResource[] = [
 ];
 
 const EFFECTIVE_DEFAULTS = {
+  fontFamily: "Arial",
   fontSize: 18,
   lineHeight: 1.6,
   letterSpacing: 0,
@@ -47,6 +48,14 @@ function selectValue(container: HTMLElement, id: string): string {
   return select.value;
 }
 
+function inputValue(container: HTMLElement, id: string): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>(`#${id}`);
+  if (!input) {
+    throw new Error(`input ${id} not found`);
+  }
+  return input;
+}
+
 function changeSelect(container: HTMLElement, id: string, value: string) {
   const select = container.querySelector<HTMLSelectElement>(`#${id}`);
   if (!select) {
@@ -56,13 +65,22 @@ function changeSelect(container: HTMLElement, id: string, value: string) {
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function changeInput(container: HTMLElement, id: string, value: string) {
+  const input = inputValue(container, id);
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setter) throw new Error("input value setter not found");
+  setter.call(input, value);
+  input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 describe("ElementTypographyControl text capabilities", () => {
   let container: HTMLDivElement;
   let root: Root;
   let updates: ElementTypography[];
   let styleState: ElementTypography | undefined;
 
-  function renderControl() {
+  function renderControl(fontResources = FONT_RESOURCES) {
     root.render(
       <StudioI18nProvider>
         <ElementTypographyControl
@@ -71,18 +89,18 @@ describe("ElementTypographyControl text capabilities", () => {
           onUpdateTypography={(update) => {
             styleState = update(styleState);
             updates.push(styleState);
-            renderControl();
+            renderControl(fontResources);
           }}
           controlPrefix="text"
-          fontResources={FONT_RESOURCES}
+          fontResources={fontResources}
         />
       </StudioI18nProvider>,
     );
   }
 
-  function mount(style: ElementTypography | undefined) {
+  function mount(style: ElementTypography | undefined, fontResources = FONT_RESOURCES) {
     styleState = style;
-    renderControl();
+    renderControl(fontResources);
   }
 
   beforeEach(() => {
@@ -112,27 +130,77 @@ describe("ElementTypographyControl text capabilities", () => {
     expect(selectValue(container, "text-text-decoration-line")).toBe("none");
   });
 
-  it("shows local fonts, clears Default, preserves legacy families, and has no font manager", async () => {
+  it("authors manual families, trims and clears them, and suggests registered families", async () => {
     await act(async () => {
       mount({ fontFamily: "Legacy Custom" });
     });
 
-    const fontFamily = container.querySelector<HTMLSelectElement>("#text-font-family");
-    expect(fontFamily?.value).toBe("Legacy Custom");
-    expect(fontFamily?.querySelector("option[value='Inter']")).not.toBeNull();
-    expect(fontFamily?.querySelector("option[value='Audiowide']")).not.toBeNull();
+    const fontFamily = inputValue(container, "text-font-family");
+    expect(fontFamily.value).toBe("Legacy Custom");
+    const datalist = container.querySelector("#text-font-family-suggestions");
+    expect(datalist?.querySelector("option[value='Inter']")).not.toBeNull();
+    expect(datalist?.querySelector("option[value='Audiowide']")).not.toBeNull();
     expect(container.textContent).not.toContain("Manage fonts");
     expect(container.querySelector("[data-presentation-font-manager]")).toBeNull();
 
     await act(async () => {
-      changeSelect(container, "text-font-family", "Inter");
+      changeInput(container, "text-font-family", "Inter");
     });
+    await act(async () => { const input = inputValue(container, "text-font-family"); input.focus(); input.blur(); });
     expect(updates.at(-1)).toEqual({ fontFamily: "Inter" });
 
     await act(async () => {
-      changeSelect(container, "text-font-family", "");
+      changeInput(container, "text-font-family", "  MS Sans Serif  ");
     });
+    await act(async () => { const input = inputValue(container, "text-font-family"); input.focus(); input.blur(); });
+    expect(updates.at(-1)).toEqual({ fontFamily: "MS Sans Serif" });
+
+    await act(async () => {
+      changeInput(container, "text-font-family", "");
+    });
+    await act(async () => { const input = inputValue(container, "text-font-family"); input.focus(); input.blur(); });
     expect(updates.at(-1)).toEqual({ fontFamily: undefined });
+  });
+
+  it("authors a multi-word family with no Presentation FontResources", async () => {
+    await act(async () => mount(undefined, []));
+
+    const input = inputValue(container, "text-font-family");
+    await act(async () => {
+      changeInput(container, "text-font-family", "MS Sans Serif");
+    });
+    await act(async () => { const input = inputValue(container, "text-font-family"); input.focus(); input.blur(); });
+
+    expect(updates.at(-1)).toEqual({ fontFamily: "MS Sans Serif" });
+  });
+
+  it("commits a manually entered family exactly once on Enter and blurs the input", async () => {
+    await act(async () => mount(undefined, []));
+
+    const input = inputValue(container, "text-font-family");
+    expect(styleState?.fontFamily).toBeUndefined();
+    input.focus();
+    await act(async () => {
+      changeInput(container, "text-font-family", "MS Sans Serif");
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+
+    expect(styleState?.fontFamily).toBe("MS Sans Serif");
+    expect(updates).toHaveLength(1);
+    expect(input.matches(":focus")).toBe(false);
+  });
+
+  it("does not materialize an effective default when the authored value is blank", async () => {
+    await act(async () => {
+      mount(undefined);
+    });
+
+    const input = inputValue(container, "text-font-family");
+    expect(input.value).toBe("");
+    expect(input.placeholder).toBe("Arial");
+
+    await act(async () => input.blur());
+    expect(updates).toHaveLength(0);
   });
 
   it("mounting does not write any text-capability override", async () => {

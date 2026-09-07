@@ -49,6 +49,12 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function changeFontFamily(input: HTMLInputElement, value: string): void {
+  input.focus();
+  changeInput(input, value);
+  input.blur();
+}
+
 function changeSelect(select: HTMLSelectElement, value: string): void {
   select.value = value;
   select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -186,7 +192,7 @@ describe("canonical data Appearance controls", () => {
     expect(host.querySelector("#code-text-transform")).toBeNull();
     expect(host.querySelector("#code-white-space")).toBeNull();
 
-    await act(async () => changeSelect(host.querySelector("#code-font-family")!, "Fira Code"));
+    await act(async () => changeFontFamily(host.querySelector<HTMLInputElement>("#code-font-family")!, "Fira Code"));
     await act(async () => changeSelect(host.querySelector("#code-font-size-unit")!, "px"));
     await act(async () => changeInput(host.querySelector("#code-font-size")!, "18"));
     await act(async () => changeInput(host.querySelector("#code-line-height")!, "1.5"));
@@ -216,7 +222,7 @@ describe("canonical data Appearance controls", () => {
     state = codeElement();
     await act(async () => renderInspector());
 
-    await act(async () => changeSelect(host.querySelector("#code-font-family")!, "Fira Code"));
+    await act(async () => changeFontFamily(host.querySelector<HTMLInputElement>("#code-font-family")!, "Fira Code"));
     await act(async () => changeSelect(host.querySelector("#code-font-size-unit")!, "px"));
     await act(async () => changeInput(host.querySelector("#code-font-size")!, "18"));
     await act(async () => changeInput(host.querySelector("#code-line-height")!, "1.5"));
@@ -229,7 +235,7 @@ describe("canonical data Appearance controls", () => {
       letterSpacing: "0.1em",
     });
 
-    await act(async () => changeSelect(host.querySelector("#code-font-family")!, ""));
+    await act(async () => changeFontFamily(host.querySelector<HTMLInputElement>("#code-font-family")!, ""));
     expect(state.typography?.fontFamily).toBeUndefined();
     expect(state.typography?.fontSize).toBe(18);
     expect(state.typography?.lineHeight).toBe(1.5);
@@ -457,7 +463,7 @@ describe("Terminal authoring controls", () => {
     });
     expect(state.typography?.fontSize).toBe("1.1rem");
 
-    await act(async () => changeSelect(host.querySelector("#terminal-font-family")!, "Fira Code"));
+    await act(async () => changeFontFamily(host.querySelector<HTMLInputElement>("#terminal-font-family")!, "Fira Code"));
     await act(async () => changeSelect(host.querySelector("#terminal-font-size-unit")!, "px"));
     await act(async () => changeInput(host.querySelector("#terminal-font-size")!, "18"));
     await act(async () => changeInput(host.querySelector("#terminal-line-height")!, "1.5"));
@@ -470,7 +476,7 @@ describe("Terminal authoring controls", () => {
       letterSpacing: "0.1em",
     });
 
-    await act(async () => changeSelect(host.querySelector("#terminal-font-family")!, ""));
+    await act(async () => changeFontFamily(host.querySelector<HTMLInputElement>("#terminal-font-family")!, ""));
     expect(state.typography?.fontFamily).toBeUndefined();
     expect(state.typography?.fontSize).toBe(18);
     expect(state.typography?.lineHeight).toBe(1.5);

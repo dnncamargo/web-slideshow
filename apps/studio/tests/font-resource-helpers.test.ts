@@ -25,6 +25,18 @@ function contentSlot(id: string, children: PowerShowElement[] = []): ContentSlot
   return { id, children };
 }
 
+function fontContentSlot(
+  id: string,
+  fontFamily: string | undefined,
+  children: PowerShowElement[] = [],
+): ContentSlot {
+  return {
+    id,
+    children,
+    ...(fontFamily === undefined ? {} : { typography: { fontFamily } }),
+  };
+}
+
 function topicItem(id: string, slot: ContentSlot, children: TopicItem[] = []): TopicItem {
   return { id, content: slot, children };
 }
@@ -36,6 +48,75 @@ function topics(id: string, items: TopicItem[]): TopicsElement {
     hidden: false,
     kind: "unordered",
     items,
+  };
+}
+
+function presentationWithElements(
+  elements: PowerShowElement[],
+  overrides: Partial<Presentation> = {},
+): Presentation {
+  return {
+    schemaVersion: 1,
+    id: "presentation",
+    title: "Presentation",
+    description: "",
+    aspectRatio: "16:9",
+    slides: [{ id: "slide", title: "", summary: "", speakerNotes: "", elements }],
+    ...overrides,
+  };
+}
+
+function container(id: string, typography?: { fontFamily: string }): PowerShowElement {
+  return { type: "container", id, hidden: false, children: [], typography };
+}
+
+function code(id: string): PowerShowElement {
+  return {
+    type: "code",
+    id,
+    hidden: false,
+    code: "const value = 1;",
+    language: "typescript",
+    showLineNumbers: true,
+    highlightedLines: [],
+    typography: { fontFamily: "Space Grotesk" },
+  };
+}
+
+function terminal(id: string, titleTypography?: { fontFamily: string }): PowerShowElement {
+  return {
+    type: "terminal",
+    id,
+    hidden: false,
+    lines: [],
+    typography: { fontFamily: "Space Grotesk" },
+    titleTypography,
+  };
+}
+
+function simpleTable(id: string): PowerShowElement {
+  return {
+    type: "table",
+    id,
+    hidden: false,
+    columns: [{ key: "value", label: "Value" }],
+    rows: [{ value: "text" }],
+    typography: { fontFamily: "Space Grotesk" },
+  };
+}
+
+function structuredTable(
+  header: ContentSlot,
+  cell: ContentSlot,
+): PowerShowElement {
+  return {
+    type: "table",
+    id: "structured-table",
+    hidden: false,
+    mode: "structured",
+    showHeader: true,
+    columns: [{ id: "column", header }],
+    rows: [{ id: "row", cells: [cell] }],
   };
 }
 
@@ -64,6 +145,90 @@ describe("font resource traversal", () => {
 
     expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
     expect(presentationUsesFontFamily(presentation, "Inter")).toBe(false);
+  });
+
+  it.each([
+    ["Text typography", text("text", "Space Grotesk")],
+    ["Container typography", container("container", { fontFamily: "Space Grotesk" })],
+    ["Topics typography", { ...topics("topics", []), typography: { fontFamily: "Space Grotesk" } }],
+    ["Code typography", code("code")],
+    ["Terminal body typography", terminal("terminal")],
+    ["Terminal title typography", terminal("terminal-title", { fontFamily: "Space Grotesk" })],
+    ["Table typography", simpleTable("table")],
+  ] as const)("detects %s", (_label, element) => {
+    const presentation = presentationWithElements([element]);
+    expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
+  });
+
+  it.each([
+    ["Structured Table header slot", fontContentSlot("header", "Space Grotesk")],
+    ["Structured Table cell slot", fontContentSlot("cell", "Space Grotesk")],
+  ] as const)("detects %s typography without child elements", (_label, slot) => {
+    const table = structuredTable(
+      slot.id === "header" ? slot : fontContentSlot("header", undefined),
+      slot.id === "cell" ? slot : fontContentSlot("cell", undefined),
+    );
+    expect(presentationUsesFontFamily(presentationWithElements([table]), "Space Grotesk")).toBe(true);
+  });
+
+  it("detects nested elements inside a Structured Table ContentSlot", () => {
+    const table = structuredTable(
+      fontContentSlot("header", undefined),
+      fontContentSlot("cell", undefined, [text("nested-text", "Space Grotesk")]),
+    );
+    expect(presentationUsesFontFamily(presentationWithElements([table]), "Space Grotesk")).toBe(true);
+  });
+
+  it("detects direct and nested Topics ContentSlot typography", () => {
+    const element = topics("topics", [
+      topicItem("outer", fontContentSlot("outer", undefined), [
+        topicItem("inner", fontContentSlot("inner", "Space Grotesk")),
+      ]),
+    ]);
+    expect(presentationUsesFontFamily(presentationWithElements([element]), "Space Grotesk")).toBe(true);
+
+    const direct = topics("direct-topics", [topicItem("item", fontContentSlot("slot", "Space Grotesk"))]);
+    expect(presentationUsesFontFamily(presentationWithElements([direct]), "Space Grotesk")).toBe(true);
+  });
+
+  it("detects nested elements inside a Topics ContentSlot", () => {
+    const element = topics("topics", [
+      topicItem("item", fontContentSlot("slot", undefined, [text("nested-text", "Space Grotesk")]))
+    ]);
+    expect(presentationUsesFontFamily(presentationWithElements([element]), "Space Grotesk")).toBe(true);
+  });
+
+  it("detects TextStyle and LinkedContainerStyle typography", () => {
+    const presentation = presentationWithElements([], {
+      textStyles: [{ id: "body", typography: { fontFamily: "Space Grotesk" } }],
+      linkedStyles: [{ id: "linked", name: "Linked", typography: { fontFamily: "Space Grotesk" } }],
+    });
+    expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
+  });
+
+  it("does not treat the font resource itself as usage", () => {
+    const presentation = presentationWithElements([], {
+      resources: {
+        fonts: [{ id: "space", family: "Space Grotesk", faces: [] }],
+      },
+    });
+    expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(false);
+  });
+
+  it("matches only the requested family and ignores blank or unrelated properties", () => {
+    const presentation = presentationWithElements([
+      text("different", "Inter"),
+      {
+        type: "container",
+        id: "blank",
+        hidden: false,
+        children: [],
+        typography: { fontSize: "2rem" },
+      },
+    ], {
+      linkedStyles: [{ id: "unrelated", name: "Unrelated", style: { color: "#fff" } }],
+    });
+    expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(false);
   });
 });
 
