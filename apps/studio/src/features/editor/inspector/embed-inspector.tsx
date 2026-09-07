@@ -4,6 +4,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import {
   isAbsoluteHttpHref,
+  type EmbedViewport,
   type EmbedElement,
 } from "@powershow/document-schema";
 
@@ -26,7 +27,7 @@ import { CanonicalElementEffectsSection } from "./sections/canonical-element-eff
 //
 // Embed is external web content rendered as a sandboxed iframe by
 // the shared renderer. The Studio authoring surface only edits its
-// canonical src and accessibility title.
+// canonical src, accessibility title, and Embed-specific viewport.
 //
 // The renderer sandbox, Permissions Policy and lazy loading are
 // frozen renderer-owned behavior and are NOT authored from Studio.
@@ -101,6 +102,61 @@ export function EmbedInspector({
       };
     });
   };
+
+  function updateViewportField(
+    field: keyof EmbedViewport,
+    rawValue: string,
+  ): void {
+    if (rawValue.trim() === "") {
+      return;
+    }
+
+    const value = Number(rawValue);
+
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const canonicalValue = field === "zoom" ? value / 100 : value;
+    const isValid =
+      field === "zoom"
+        ? canonicalValue >= 0.1 && canonicalValue <= 4
+        : canonicalValue >= 0;
+
+    if (!isValid) {
+      return;
+    }
+
+    onUpdate((current) => {
+      if (current.type !== "embed") {
+        return current;
+      }
+
+      const nextViewport: EmbedViewport = {
+        ...current.viewport,
+        [field]: canonicalValue,
+      };
+
+      for (const [key, nextValue] of Object.entries(nextViewport) as [
+        keyof EmbedViewport,
+        number | undefined,
+      ][]) {
+        if (
+          nextValue === undefined ||
+          (key === "zoom" ? nextValue === 1 : nextValue === 0)
+        ) {
+          delete nextViewport[key];
+        }
+      }
+
+      return {
+        ...current,
+        ...(Object.keys(nextViewport).length === 0
+          ? { viewport: undefined }
+          : { viewport: nextViewport }),
+      };
+    });
+  }
 
   function commitSrcDraft(): void {
     const src = srcDraft;
@@ -242,6 +298,55 @@ export function EmbedInspector({
         <small className={styles.fieldHint}>
           <span>{t("embed.canvasHelp")}</span>
         </small>
+      </InspectorSection>
+
+      <InspectorSection title={t("embed.viewport")} defaultOpen>
+        <small className={styles.fieldHint}>
+          <span>{t("embed.viewportHelp")}</span>
+        </small>
+
+        <div className={styles.fieldGrid}>
+          <label className={styles.field}>
+            <span>{t("embed.zoom")}</span>
+            <div className={styles.unitInput}>
+              <input
+                id="embed-viewport-zoom"
+                name="embedViewportZoom"
+                type="number"
+                min="10"
+                max="400"
+                step="1"
+                inputMode="decimal"
+                value={(element.viewport?.zoom ?? 1) * 100}
+                onChange={(event) =>
+                  updateViewportField("zoom", event.target.value)
+                }
+              />
+              <span>%</span>
+            </div>
+          </label>
+
+          {(["top", "right", "bottom", "left"] as const).map((field) => (
+            <label className={styles.field} key={field}>
+              <span>{t(`inspector.${field}`)}</span>
+              <div className={styles.unitInput}>
+                <input
+                  id={`embed-viewport-${field}`}
+                  name={`embedViewport${field[0].toUpperCase()}${field.slice(1)}`}
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                  value={element.viewport?.[field] ?? 0}
+                  onChange={(event) =>
+                    updateViewportField(field, event.target.value)
+                  }
+                />
+                <span>px</span>
+              </div>
+            </label>
+          ))}
+        </div>
       </InspectorSection>
 
       <CanonicalSurfaceAppearanceSection

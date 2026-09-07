@@ -106,6 +106,18 @@ describe("EmbedInspector", () => {
     return input;
   }
 
+  function viewportInput(
+    field: "zoom" | "top" | "right" | "bottom" | "left",
+  ): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(
+      `#embed-viewport-${field}`,
+    );
+    if (!input) {
+      throw new Error(`embed-viewport-${field} input not found`);
+    }
+    return input;
+  }
+
   function changeInput(input: HTMLInputElement, value: string): void {
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLInputElement.prototype,
@@ -147,6 +159,134 @@ describe("EmbedInspector", () => {
     });
 
     expect(titleInput().value).toBe("Live chart");
+  });
+
+  it("renders default viewport controls and localized section labels", async () => {
+    await act(async () => {
+      mount(embedElement());
+    });
+
+    expect(container.textContent).toContain("Embed viewport");
+    expect(viewportInput("zoom").value).toBe("100");
+    expect(viewportInput("top").value).toBe("0");
+    expect(viewportInput("right").value).toBe("0");
+    expect(viewportInput("bottom").value).toBe("0");
+    expect(viewportInput("left").value).toBe("0");
+  });
+
+  it("displays canonical zoom as a percentage and writes it as a scale", async () => {
+    await act(async () => {
+      mount(embedElement({ viewport: { zoom: 0.75 } }));
+    });
+
+    expect(viewportInput("zoom").value).toBe("75");
+
+    await act(async () => {
+      changeInput(viewportInput("zoom"), "75");
+    });
+
+    expect(elementState.viewport).toEqual({ zoom: 0.75 });
+  });
+
+  it.each([
+    ["10", 0.1],
+    ["400", 4],
+  ] as const)("accepts zoom percentage %s as canonical %s", async (input, expected) => {
+    await act(async () => {
+      mount(embedElement());
+    });
+
+    await act(async () => {
+      changeInput(viewportInput("zoom"), input);
+    });
+
+    expect(elementState.viewport).toEqual({ zoom: expected });
+  });
+
+  it("does not persist out-of-range zoom or negative insets", async () => {
+    await act(async () => {
+      mount(embedElement());
+    });
+
+    await act(async () => {
+      changeInput(viewportInput("zoom"), "401");
+      changeInput(viewportInput("top"), "-1");
+    });
+
+    expect(updates).toHaveLength(0);
+    expect(elementState.viewport).toBeUndefined();
+  });
+
+  it("preserves other authored viewport fields when editing one field", async () => {
+    await act(async () => {
+      mount(embedElement({ viewport: { zoom: 0.75, top: 20, left: 40 } }));
+    });
+
+    await act(async () => {
+      changeInput(viewportInput("right"), "30");
+    });
+
+    expect(elementState.viewport).toEqual({
+      zoom: 0.75,
+      top: 20,
+      right: 30,
+      left: 40,
+    });
+  });
+
+  it("prunes default viewport values, including the final value", async () => {
+    await act(async () => {
+      mount(embedElement({ viewport: { zoom: 0.75, top: 20, left: 40 } }));
+    });
+
+    await act(async () => {
+      changeInput(viewportInput("zoom"), "100");
+    });
+    expect(elementState.viewport).toEqual({ top: 20, left: 40 });
+
+    await act(async () => {
+      changeInput(viewportInput("left"), "0");
+    });
+    expect(elementState.viewport).toEqual({ top: 20 });
+
+    await act(async () => {
+      changeInput(viewportInput("top"), "0");
+    });
+    expect(elementState.viewport).toBeUndefined();
+    expect(updates.some((update) => update.viewport !== undefined)).toBe(true);
+    expect(updates.some((update) => update.viewport !== undefined && Object.keys(update.viewport).length === 0)).toBe(false);
+  });
+
+  it("does not write an empty viewport object", async () => {
+    await act(async () => {
+      mount(embedElement({ viewport: { top: 20 } }));
+    });
+
+    await act(async () => {
+      changeInput(viewportInput("top"), "0");
+    });
+
+    expect(elementState).not.toHaveProperty("viewport", {});
+    expect(elementState.viewport).toBeUndefined();
+  });
+
+  it("hydrates viewport values when switching between selected Embeds", async () => {
+    await act(async () => {
+      mount(embedElement({ viewport: { zoom: 0.75, top: 20 } }));
+    });
+
+    await act(async () => {
+      mount(
+        embedElement({
+          id: "embed-2",
+          viewport: { zoom: 1.5, left: 40 },
+        }),
+      );
+    });
+
+    expect(viewportInput("zoom").value).toBe("150");
+    expect(viewportInput("top").value).toBe("0");
+    expect(viewportInput("left").value).toBe("40");
   });
 
   it("typing src alone does not write canonical state", async () => {
