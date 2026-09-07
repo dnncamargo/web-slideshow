@@ -7,6 +7,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 import { DocsPage } from "../src/app/docs/docs-page";
 import { allDocsTopics, docsGroups } from "../src/app/docs/docs-content";
+import { parseBlocksSource } from "@powershow/renderer";
+import { analyzeMathSource } from "../../../packages/math-source/src";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -91,6 +93,31 @@ describe("public Docs", () => {
     expect(equationTable?.querySelector("th")?.textContent).toBe("Forma para o usuário");
   });
 
+  it("keeps the public examples aligned with the real Blocks, Plot, and Scripted contracts", () => {
+    const blocks = findTopic("element-blocks");
+    const blocksExample = blocks?.sections.find((section) => section.title === "Exemplo básico")?.codeBlocks?.[0]?.code ?? "";
+    expect(blocksExample).toContain("\\start");
+    expect(blocksExample).toContain("\\scope");
+    expect(blocksExample).toContain("\\statement");
+    const blocksResult = parseBlocksSource(blocksExample);
+    expect(blocksResult.ok).toBe(true);
+
+    const plotExamples = findTopic("plot-examples");
+    const multipleCurves = plotExamples?.sections.find((section) => section.title === "Múltiplas curvas no mesmo Plot")?.codeBlocks?.[0]?.code ?? "";
+    const analysis = analyzeMathSource(multipleCurves);
+    expect(analysis.diagnostics).toEqual([]);
+    expect(analysis.equations).toHaveLength(3);
+
+    const scripted = findTopicText("scripted-examples");
+    expect(scripted).toContain("increment");
+    expect(scripted).toContain("enabled");
+    expect(scripted).toContain("level");
+    expect(scripted).toContain("pulse");
+    expect(scripted).toContain("PowerShow.ports.onAction");
+    expect(scripted).toContain("PowerShow.ports.onInput");
+    expect(scripted).toContain("PowerShow.ports.report");
+  });
+
   it("opens one selected topic in the reading pane and mirrors it in the hash", async () => {
     expect(container.querySelector("h1")?.textContent).toBe("Visão geral");
 
@@ -138,7 +165,7 @@ describe("public Docs", () => {
 });
 
 function findTopicText(id: string): string {
-  const topic = allDocsTopics.find((candidate) => candidate.id === id);
+  const topic = findTopic(id);
   return topic?.sections.flatMap((section) => [
     ...(section.paragraphs ?? []),
     ...(section.bullets ?? []),
@@ -146,4 +173,8 @@ function findTopicText(id: string): string {
     ...(section.codeBlocks?.map((block) => block.code) ?? []),
     ...(section.table?.rows.flatMap((row) => row) ?? []),
   ]).join(" ") ?? "";
+}
+
+function findTopic(id: string) {
+  return allDocsTopics.find((candidate) => candidate.id === id);
 }

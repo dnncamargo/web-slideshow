@@ -139,8 +139,16 @@ export const elementDocsGroup: DocsGroup = {
       "Use para demonstrações de blocos, sem executar a fonte diretamente no Inspector.",
       "A ordem é Content (Blocks source e status de sintaxe), Appearance (cores por categoria, uncategorized, text color e block stroke) e Effects.",
       "Blocks é dimensionável e seu source é convertido pelo renderer em blocos visuais. Position é comum quando o contexto de layer controls o permite.",
-      "source: |\n  when started\n  say \"Hello\"",
-      "Uma fonte inválida mostra diagnóstico com linha/coluna. Os controles de cor usam defaults por categoria e podem voltar a Use default.",
+      String.raw`\start[events,color=#FFD500](Quando Arduino UNO iniciar)
+\scope[control,color=#FFAB19](repetir \value(3)){
+  \statement[output,color=#4C97FF](definir saída do pino \value(3) como \[ALTO\])
+  \statement[output,color=#4C97FF](definir saída do pino \value(4) como \[BAIXO\])
+  \statement[control,color=#FFAB19](esperar \value(1) segundos)
+  \statement[output,color=#4C97FF](definir saída do pino \value(3) como \[BAIXO\])
+  \statement[output,color=#4C97FF](definir saída do pino \value(4) como \[ALTO\])
+  \statement[control,color=#FFAB19](esperar \value(1) segundos)
+}`,
+      "Uma fonte inválida mostra diagnóstico com linha/coluna. `\\start(...)` é o bloco inicial; `\\statement(...)` é um comando comum; `\\scope(...){ ... }` contém outros blocos; `\\value(...)` é um reporter de valor; `\\logic(...)` é um reporter lógico/booleano; `\\variable(...)` representa uma variável; `\\[…]` é uma opção visual/dropdown; e `[category,color=#...]` é uma annotation opcional de categoria e cor. Os controles de cor usam defaults por categoria e podem voltar a Use default.",
       [["Content", "Blocks source", "Edita a fonte."], ["Content", "Syntax valid / diagnostic", "Informa o resultado do parser."], ["Appearance", "Category colors / Uncategorized / Text color", "Colore blocos e texto."], ["Appearance", "Block stroke", "Controla o traço dos blocos."], ["Effects", "Shadow", "Aplica sombra."]],
     ),
     elementTopic(
