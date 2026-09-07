@@ -141,68 +141,77 @@ describe("Player live version promotion", () => {
       },
     );
 
-    await import("../src/main");
+    const { startPlayer } = await import("../src/player-entry");
+    const root = document.querySelector<HTMLElement>("#app");
+    if (!root) {
+      throw new Error("test root missing");
+    }
+    const cleanup = startPlayer(root);
 
-    mocks.liveHandler?.({
-      kind: "active",
-      live: {
-        publicationId: "publication-1",
-        currentVersionId: "version-1",
-        revision: 5,
-      },
-    });
-    await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
+    try {
+      mocks.liveHandler?.({
+        kind: "active",
+        live: {
+          publicationId: "publication-1",
+          currentVersionId: "version-1",
+          revision: 5,
+        },
+      });
+      await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
 
-    mocks.liveHandler?.({
-      kind: "active",
-      live: {
-        publicationId: "publication-1",
-        currentVersionId: "version-2",
-        revision: 5,
-      },
-    });
-    mocks.liveHandler?.({
-      kind: "active",
-      live: {
-        publicationId: "publication-1",
-        currentVersionId: "version-3",
-        revision: 5,
-      },
-    });
+      mocks.liveHandler?.({
+        kind: "active",
+        live: {
+          publicationId: "publication-1",
+          currentVersionId: "version-2",
+          revision: 5,
+        },
+      });
+      mocks.liveHandler?.({
+        kind: "active",
+        live: {
+          publicationId: "publication-1",
+          currentVersionId: "version-3",
+          revision: 5,
+        },
+      });
 
-    expect(firstController.destroy).not.toHaveBeenCalled();
+      expect(firstController.destroy).not.toHaveBeenCalled();
 
-    v2.resolve({
-      kind: "ok",
-      presentation: presentation(["slide-1", "slide-2"]),
-    });
-    await Promise.resolve();
-    expect(mocks.mountPlayer).toHaveBeenCalledTimes(1);
+      v2.resolve({
+        kind: "ok",
+        presentation: presentation(["slide-1", "slide-2"]),
+      });
+      await Promise.resolve();
+      expect(mocks.mountPlayer).toHaveBeenCalledTimes(1);
 
-    const latest = presentation(["slide-3", "slide-1", "slide-2"]);
-    v3.resolve({ kind: "ok", presentation: latest });
+      const latest = presentation(["slide-3", "slide-1", "slide-2"]);
+      v3.resolve({ kind: "ok", presentation: latest });
 
-    await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(2));
 
-    expect(firstController.destroy).toHaveBeenCalledOnce();
-    expect(mocks.mountPlayer).toHaveBeenLastCalledWith(
-      expect.anything(),
-      latest,
-      expect.anything(),
-    );
-    expect(promotedController.goTo).toHaveBeenCalledWith(2);
-    expect(mocks.subscribeLiveProjectionState).toHaveBeenLastCalledWith(
-      expect.anything(),
-      5,
-      "version-3",
-      latest,
-      promotedController,
-      false,
-    );
-    expect(
-      promotedController.goTo.mock.invocationCallOrder[0],
-    ).toBeLessThan(
-      mocks.subscribeLiveProjectionState.mock.invocationCallOrder[1] ?? Infinity,
-    );
+      expect(firstController.destroy).toHaveBeenCalledOnce();
+      expect(mocks.mountPlayer).toHaveBeenLastCalledWith(
+        expect.anything(),
+        latest,
+        expect.anything(),
+      );
+      expect(promotedController.goTo).toHaveBeenCalledWith(2);
+      expect(mocks.subscribeLiveProjectionState).toHaveBeenLastCalledWith(
+        expect.anything(),
+        5,
+        "version-3",
+        latest,
+        promotedController,
+        false,
+      );
+      expect(
+        promotedController.goTo.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mocks.subscribeLiveProjectionState.mock.invocationCallOrder[1] ?? Infinity,
+      );
+    } finally {
+      cleanup();
+    }
   });
 });
