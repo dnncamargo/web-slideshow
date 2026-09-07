@@ -8,12 +8,15 @@ import type { CSSProperties } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
 import {
+  disposeRendererRuntime,
+  getPlotAnimationController,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
   fitLogicalSlideGeometry,
   resolveLogicalSlideSize,
+  type PlotAnimationController,
   type FittedSlideGeometry,
 } from "@powershow/renderer";
 import {
@@ -209,7 +212,7 @@ import {
   resolveAddElementDestination,
 } from "./element-operations";
 
-import type { TableAuthoringControls } from "./inspector/inspector-types";
+import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -923,10 +926,24 @@ export function EditorWorkspace({
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
-    if (canvas) {
+    if (canvas && selectedSlide !== undefined) {
+      hydrateRendererRuntime(canvas, {
+        plotAnimations: {
+          slide: selectedSlide,
+          autoplay: false,
+        },
+      });
+    } else if (canvas) {
       hydrateRendererRuntime(canvas);
     }
-  }, [canvasGeometry, renderedSlide]);
+  }, [canvasGeometry, renderedSlide, selectedSlide]);
+
+  useEffect(() => {
+    const canvas = slideCanvasRef.current;
+    return () => {
+      if (canvas) disposeRendererRuntime(canvas);
+    };
+  }, []);
 
   // ==========================================================
   // END: RENDERIZAÇÃO DO SLIDE
@@ -2207,6 +2224,22 @@ export function EditorWorkspace({
       }),
     }));
   }
+
+  function runSelectedPlotPreview(command: (controller: PlotAnimationController) => void): void {
+    if (selectedDocumentElement?.type !== "plot") return;
+    const canvas = slideCanvasRef.current;
+    if (!canvas) return;
+    const controller = getPlotAnimationController(canvas, selectedDocumentElement.id);
+    if (controller) command(controller);
+  }
+
+  const plotPreviewControls: PlotPreviewControls | undefined = selectedDocumentElement?.type === "plot"
+    ? {
+      onPlay: () => runSelectedPlotPreview((controller) => controller.play()),
+      onPause: () => runSelectedPlotPreview((controller) => controller.pause()),
+      onReset: () => runSelectedPlotPreview((controller) => controller.reset()),
+    }
+    : undefined;
 
   function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "container") return;
@@ -3966,6 +3999,7 @@ export function EditorWorkspace({
                         <ElementInspector
                           element={selectedDocumentElement}
                           onUpdate={updateSelectedElement}
+                          plotPreviewControls={plotPreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={

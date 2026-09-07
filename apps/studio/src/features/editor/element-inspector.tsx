@@ -24,6 +24,7 @@ import {
 
 import type {
   ElementInspectorUpdate,
+  PlotPreviewControls,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
@@ -35,6 +36,8 @@ interface ElementInspectorProps {
   element: PowerShowElement;
 
   onUpdate: ElementInspectorUpdate;
+
+  plotPreviewControls?: PlotPreviewControls;
 
   onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
@@ -92,6 +95,7 @@ interface ElementTypeInspectorProps extends ElementInspectorProps {
 function ElementTypeInspector({
   element,
   onUpdate,
+  plotPreviewControls,
   onContainerFitModeChange,
   fontResources,
   presentation,
@@ -148,7 +152,7 @@ function ElementTypeInspector({
       );
 
     case "plot":
-      return <PlotInspector element={element} onUpdate={onUpdate} />;
+      return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "terminal":
       return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
@@ -244,6 +248,7 @@ function ElementTypeInspector({
 export function ElementInspector({
   element,
   onUpdate,
+  plotPreviewControls,
   onContainerFitModeChange,
   fontResources,
   presentation,
@@ -295,6 +300,7 @@ export function ElementInspector({
       <ElementTypeInspector
         element={element}
         onUpdate={onUpdate}
+        plotPreviewControls={plotPreviewControls}
         onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}
         presentation={presentation}

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PlotElement } from "@powershow/document-schema";
 
 import { PlotInspector } from "../src/features/editor/inspector/plot-inspector";
+import type { PlotPreviewControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -30,7 +31,7 @@ describe("Plot Inspector", () => {
     document.body.innerHTML = "";
   });
 
-  function renderInspector(): void {
+  function renderInspector(previewControls?: PlotPreviewControls): void {
     root.render(
       <StudioI18nProvider>
         <PlotInspector
@@ -41,6 +42,7 @@ describe("Plot Inspector", () => {
             current = next.type === "plot" ? next : current;
             renderInspector();
           }}
+          previewControls={previewControls}
         />
       </StudioI18nProvider>,
     );
@@ -107,6 +109,12 @@ describe("Plot Inspector", () => {
     button.click();
   }
 
+  function clickPreviewButton(id: "plot-animation-preview-play" | "plot-animation-preview-pause" | "plot-animation-preview-reset"): void {
+    const button = host.querySelector<HTMLButtonElement>(`#${id}`);
+    if (!button) throw new Error(`Plot preview button not found: ${id}`);
+    button.click();
+  }
+
   it.each([
     [undefined, true],
     [true, true],
@@ -161,6 +169,49 @@ describe("Plot Inspector", () => {
     expect(host.querySelector<HTMLInputElement>("#plot-animation-duration")?.value).toBe("2500");
     expect(host.querySelector<HTMLInputElement>("#plot-animation-loop")?.checked).toBe(false);
     expect(host.querySelector<HTMLInputElement>("#plot-animation-autoplay")?.checked).toBe(false);
+    expect(updateCount).toBe(0);
+  });
+
+  it("shows preview only for applied animation and keeps preview commands separate", async () => {
+    const calls = { play: 0, pause: 0, reset: 0 };
+    const controls: PlotPreviewControls = {
+      onPlay: () => { calls.play += 1; },
+      onPause: () => { calls.pause += 1; },
+      onReset: () => { calls.reset += 1; },
+    };
+
+    await act(async () => renderInspector(controls));
+    expect(host.querySelector("#plot-animation-preview-play")).toBeNull();
+    await act(async () => toggleAnimation(true));
+    expect(host.querySelector("#plot-animation-preview-play")).toBeNull();
+    expect(updateCount).toBe(0);
+
+    current.animation = { parameter: "t", from: 0, to: 10, durationMs: 1000, autoplay: false };
+    await act(async () => renderInspector(controls));
+    expect(host.querySelector("#plot-animation-preview-play")).not.toBeNull();
+    expect(host.querySelector("#plot-animation-preview-pause")).not.toBeNull();
+    expect(host.querySelector("#plot-animation-preview-reset")).not.toBeNull();
+
+    await act(async () => clickPreviewButton("plot-animation-preview-play"));
+    await act(async () => clickPreviewButton("plot-animation-preview-pause"));
+    await act(async () => clickPreviewButton("plot-animation-preview-reset"));
+    expect(calls).toEqual({ play: 1, pause: 1, reset: 1 });
+    expect(updateCount).toBe(0);
+
+    await act(async () => changeAnimationText("plot-animation-from", "99"));
+    await act(async () => clickPreviewButton("plot-animation-preview-play"));
+    expect(calls.play).toBe(2);
+    expect(current.animation?.from).toBe(0);
+    expect(updateCount).toBe(0);
+
+    await act(async () => clickAnimationButton("plot-animation-reset"));
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-from")?.value).toBe("0");
+    expect(calls.reset).toBe(1);
+
+    await act(async () => changeAnimationText("plot-animation-from", "77"));
+    await act(async () => clickPreviewButton("plot-animation-preview-reset"));
+    expect(host.querySelector<HTMLInputElement>("#plot-animation-from")?.value).toBe("77");
+    expect(calls.reset).toBe(2);
     expect(updateCount).toBe(0);
   });
 

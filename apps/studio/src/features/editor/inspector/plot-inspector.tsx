@@ -12,7 +12,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
-import type { TypedInspectorProps } from "./inspector-types";
+import type { PlotPreviewControls, TypedInspectorProps } from "./inspector-types";
 import { ColorControl } from "./sections/color-control";
 
 const DEFAULT_PLOT_Z_GRADIENT = {
@@ -68,7 +68,8 @@ function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle
 export function PlotInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<PlotElement>) {
+  previewControls,
+}: TypedInspectorProps<PlotElement> & { previewControls?: PlotPreviewControls }) {
   const { t } = useStudioI18n();
   const [animationDraft, setAnimationDraft] = useState<PlotAnimationDraft>(() => plotAnimationDraft(element.animation));
   const [hydratedAnimation, setHydratedAnimation] = useState({
@@ -296,6 +297,35 @@ export function PlotInspector({
             <span>{t("inspector.animation.reset")}</span>
           </button>
         </div>
+
+        {element.animation !== undefined && previewControls !== undefined ? (
+          <div className={styles.elementCrudActions}>
+            <button
+              id="plot-animation-preview-play"
+              type="button"
+              className={styles.secondaryButton}
+              onClick={previewControls.onPlay}
+            >
+              <span>{t("inspector.animation.previewPlay")}</span>
+            </button>
+            <button
+              id="plot-animation-preview-pause"
+              type="button"
+              className={styles.secondaryButton}
+              onClick={previewControls.onPause}
+            >
+              <span>{t("inspector.animation.previewPause")}</span>
+            </button>
+            <button
+              id="plot-animation-preview-reset"
+              type="button"
+              className={styles.secondaryButton}
+              onClick={previewControls.onReset}
+            >
+              <span>{t("inspector.animation.previewReset")}</span>
+            </button>
+          </div>
+        ) : null}
       </InspectorSection>
 
       <InspectorSection title={t("inspector.appearance")} defaultOpen>

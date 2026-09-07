@@ -13,6 +13,12 @@ export type ElementInspectorUpdate = (
   update: (element: PowerShowElement) => PowerShowElement,
 ) => void;
 
+export interface PlotPreviewControls {
+  onPlay(): void;
+  onPause(): void;
+  onReset(): void;
+}
+
 export type UpdateElementTypography = (
   update: (
     typography: ElementTypography | undefined,
