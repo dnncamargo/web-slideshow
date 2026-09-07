@@ -174,6 +174,22 @@ describe("ElementTypographyControl text capabilities", () => {
     expect(updates.at(-1)).toEqual({ fontFamily: "MS Sans Serif" });
   });
 
+  it("commits a manually entered family exactly once on Enter and blurs the input", async () => {
+    await act(async () => mount(undefined, []));
+
+    const input = inputValue(container, "text-font-family");
+    expect(styleState?.fontFamily).toBeUndefined();
+    input.focus();
+    await act(async () => {
+      changeInput(container, "text-font-family", "MS Sans Serif");
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+
+    expect(styleState?.fontFamily).toBe("MS Sans Serif");
+    expect(updates).toHaveLength(1);
+    expect(input.matches(":focus")).toBe(false);
+  });
+
   it("does not materialize an effective default when the authored value is blank", async () => {
     await act(async () => {
       mount(undefined);
