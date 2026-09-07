@@ -37,6 +37,11 @@ describe("live/plotAnimationAction rules", () => {
     expect(evaluate(validate, null, action({ targetBootId: "boot-b" }))).toBe(false);
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "starting" } } }))).toBe(false);
     expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: {} } }))).toBe(false);
+    expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 6, currentVersionId: "version-1", connected: true } } } }))).toBe(false);
+    expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 7, currentVersionId: "old", connected: true } } } }))).toBe(false);
+    expect(evaluate(validate, null, action(), root({ playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-b", activationRevision: 7, currentVersionId: "version-1", connected: true } } } }))).toBe(false);
+    expect(evaluate(validate, null, action({ activationRevision: 6 }))).toBe(false);
+    expect(evaluate(validate, null, action({ currentVersionId: "old" }))).toBe(false);
   });
 
   it("enforces high-water revisions and identity resets", () => {
@@ -46,6 +51,10 @@ describe("live/plotAnimationAction rules", () => {
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 3, action: "pause" }))).toBe(false);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, pageId: "page-2" }))).toBe(true);
     expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, elementId: "plot-2" }))).toBe(true);
+    expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, targetBootId: "boot-b" }), root({ playerPresence: { current: { bootId: "boot-b", stage: "ready" }, leases: { "boot-b": { bootId: "boot-b", activationRevision: 7, currentVersionId: "version-1", connected: true } } } }))).toBe(true);
+    expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, currentVersionId: "version-2" }), root({ current: { revision: 7, currentVersionId: "version-2" }, playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 7, currentVersionId: "version-2", connected: true } } } }))).toBe(true);
+    expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, activationRevision: 8 }), root({ current: { revision: 8, currentVersionId: "version-1" }, playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 8, currentVersionId: "version-1", connected: true } } } }))).toBe(true);
+    expect(evaluate(validate, action({ revision: 3 }), action({ revision: 1, action: "pause" }))).toBe(false);
   });
 
   it("keeps whole-Live deletion valid only when the transient root is removed", () => {

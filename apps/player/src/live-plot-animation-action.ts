@@ -1,6 +1,6 @@
-import type { PlotAnimationAction } from "../../studio/src/features/live/plot-animation-action";
-
 export const PLOT_ANIMATION_ACTION_ROOT_PATH = "live/plotAnimationAction";
+
+export type PlotAnimationAction = "play" | "pause" | "reset";
 
 export interface LivePlotAnimationActionRecord {
   activationRevision: number;

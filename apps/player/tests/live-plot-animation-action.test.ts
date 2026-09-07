@@ -33,6 +33,16 @@ describe("live Plot animation action parser", () => {
     expect(parseLivePlotAnimationActionRecord({ ...record(), extra: true })).toBeNull();
     expect(parseLivePlotAnimationActionRecord({ ...record(), pageId: " " })).toBeNull();
     expect(parseLivePlotAnimationActionRecord({ ...record(), elementId: "" })).toBeNull();
+    expect(parseLivePlotAnimationActionRecord(record({ activationRevision: -1 }))).toBeNull();
+    expect(parseLivePlotAnimationActionRecord(record({ activationRevision: 1.5 }))).toBeNull();
+    expect(parseLivePlotAnimationActionRecord(record({ currentVersionId: " " }))).toBeNull();
+    expect(parseLivePlotAnimationActionRecord(record({ targetBootId: " " }))).toBeNull();
+    const fields = ["activationRevision", "currentVersionId", "revision", "pageId", "elementId", "targetBootId", "action"] as const;
+    for (const field of fields) {
+      const missing = { ...record() };
+      delete missing[field];
+      expect(parseLivePlotAnimationActionRecord(missing)).toBeNull();
+    }
   });
 
   it("accepts only canonical non-negative decimal slot keys", () => {
