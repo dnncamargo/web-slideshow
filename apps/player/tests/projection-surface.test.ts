@@ -20,6 +20,7 @@ const ORIGINAL_ANIMATE = Object.getOwnPropertyDescriptor(
   HTMLElement.prototype,
   "animate",
 );
+const ORIGINAL_MATCH_MEDIA = Object.getOwnPropertyDescriptor(window, "matchMedia");
 
 let restoreAnimate: (() => void) | undefined;
 
@@ -39,6 +40,56 @@ function stubAnimate(): ReturnType<typeof vi.fn> {
   return animate;
 }
 
+function animatedPresentation() {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "animated-presentation",
+    title: "Animated presentation",
+    slides: [{
+      id: "animated-slide",
+      elements: [{
+        id: "animated-plot",
+        type: "plot",
+        hidden: false,
+        source: "y = x + t",
+        animation: { parameter: "t", from: 0, to: 10, durationMs: 1000, loop: false },
+      }],
+    }],
+  });
+}
+
+function stubPlotRaf(): {
+  callbacks: Map<number, FrameRequestCallback>;
+  request: ReturnType<typeof vi.fn>;
+  cancel: ReturnType<typeof vi.fn>;
+  run(timestamp: number): void;
+} {
+  const callbacks = new Map<number, FrameRequestCallback>();
+  let nextId = 1;
+  const request = vi.fn((callback: FrameRequestCallback) => {
+    const id = nextId++;
+    callbacks.set(id, callback);
+    return id;
+  });
+  const cancel = vi.fn((id: number) => {
+    callbacks.delete(id);
+  });
+  vi.stubGlobal("requestAnimationFrame", request);
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+
+  return {
+    callbacks,
+    request,
+    cancel,
+    run(timestamp: number): void {
+      const next = callbacks.entries().next().value as [number, FrameRequestCallback] | undefined;
+      if (next === undefined) throw new Error("No scheduled Plot frame");
+      callbacks.delete(next[0]);
+      next[1](timestamp);
+    },
+  };
+}
+
 describe("Projection surface", () => {
   let root: HTMLElement;
 
@@ -56,7 +107,120 @@ describe("Projection surface", () => {
   afterEach(() => {
     restoreAnimate?.();
     restoreAnimate = undefined;
+    vi.unstubAllGlobals();
+    if (ORIGINAL_MATCH_MEDIA) {
+      Object.defineProperty(window, "matchMedia", ORIGINAL_MATCH_MEDIA);
+    } else {
+      Reflect.deleteProperty(window, "matchMedia");
+    }
     document.body.replaceChildren();
+  });
+
+  it("animates Plot playback by default without leaking source", () => {
+    const raf = stubPlotRaf();
+    const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
+    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    if (!plot) throw new Error("Animated Plot was not rendered");
+
+    raf.run(100);
+    const initial = plot.innerHTML;
+    raf.run(600);
+
+    expect(raf.request).toHaveBeenCalledTimes(3);
+    expect(plot.innerHTML).not.toBe(initial);
+    expect(root.innerHTML).not.toContain("y = x + t");
+    projection.destroy();
+  });
+
+  it("supports explicit Plot animation opt-out", () => {
+    const raf = stubPlotRaf();
+    const projection = mountProjectionSurface(root, animatedPresentation(), {
+      transition: "none",
+      animatePlots: false,
+    });
+    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+
+    expect(raf.request).not.toHaveBeenCalled();
+    expect(plot).not.toBeNull();
+    expect(root.innerHTML).not.toContain("y = x + t");
+    projection.destroy();
+  });
+
+  it("suppresses Plot playback when reduced motion is requested", () => {
+    const raf = stubPlotRaf();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+    });
+    const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
+
+    expect(raf.request).not.toHaveBeenCalled();
+    projection.destroy();
+  });
+
+  it("retains the Plot runtime across resize hydration", () => {
+    const raf = stubPlotRaf();
+    const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
+    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    if (!plot) throw new Error("Animated Plot was not rendered");
+
+    const initial = plot.innerHTML;
+    raf.run(100);
+    window.dispatchEvent(new Event("resize"));
+    raf.run(600);
+
+    expect(raf.request).toHaveBeenCalledTimes(3);
+    expect(plot.innerHTML).not.toBe(initial);
+    projection.destroy();
+  });
+
+  it("disposes the old Plot runtime before changing slides", () => {
+    const raf = stubPlotRaf();
+    const presentation = PresentationSchema.parse({
+      ...animatedPresentation(),
+      id: "two-slides",
+      slides: [
+        animatedPresentation().slides[0]!,
+        {
+          id: "second-slide",
+          elements: [{
+            id: "second-plot",
+            type: "plot",
+            hidden: false,
+            source: "y = x + phase",
+            animation: { parameter: "phase", from: 5, to: 6, durationMs: 1000, loop: false },
+          }],
+        },
+      ],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    const firstPlot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    if (!firstPlot) throw new Error("First Plot was not rendered");
+    const firstFrameId = Array.from(raf.callbacks.keys())[0];
+
+    projection.goTo(1);
+    expect(firstFrameId).toBeDefined();
+    expect(raf.cancel).toHaveBeenCalledWith(firstFrameId);
+    expect(root.querySelector('[data-powershow-id="animated-plot"]')).toBeNull();
+    expect(root.querySelector('[data-powershow-id="second-plot"]')).not.toBeNull();
+    expect(raf.callbacks.size).toBe(1);
+    projection.destroy();
+  });
+
+  it("disposes Plot playback when destroyed", () => {
+    const raf = stubPlotRaf();
+    const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
+    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    if (!plot) throw new Error("Animated Plot was not rendered");
+    const beforeDestroy = plot.innerHTML;
+    const pending = Array.from(raf.callbacks.values())[0];
+
+    projection.destroy();
+    projection.destroy();
+    pending?.(600);
+
+    expect(raf.cancel).toHaveBeenCalledTimes(1);
+    expect(plot.innerHTML).toBe(beforeDestroy);
   });
 
   it("renders the first slide without Player controls", () => {
