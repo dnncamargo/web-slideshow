@@ -90,6 +90,20 @@ describe("live-current activation", () => {
     expect(mocks.ref).toHaveBeenCalledWith({}, "live");
   });
 
+  it("replaces stale Plot action state during activation", async () => {
+    setupEnv();
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
+    let committed: Record<string, unknown> | undefined;
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      committed = updater({ activationRevision: 3, plotAnimationAction: { stale: true } }) as Record<string, unknown>;
+      return { committed: true, snapshot: { val: () => committed } };
+    });
+
+    await activateLivePresentation("pub-1", "ver-1");
+
+    expect(committed?.plotAnimationAction).toBeUndefined();
+  });
+
   it("first activation writes activationRevision 1 and current revision 1", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "u1", isAnonymous: false });
@@ -246,6 +260,7 @@ describe("live-current activation", () => {
         fullscreenRequest: null,
         playerRecoveryRequest: null,
         galleryControl: null,
+        plotAnimationAction: null,
         scriptedAction: null,
         scriptedRuntime: null,
         scriptedReport: null,
@@ -280,6 +295,17 @@ describe("live-current activation", () => {
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
       playerRecoveryRequest: { revision: 2 },
+      plotAnimationAction: {
+        0: {
+          activationRevision: 7,
+          currentVersionId: "ver-1",
+          revision: 3,
+          pageId: "page-1",
+          elementId: "plot-1",
+          targetBootId: "old-boot",
+          action: "pause",
+        },
+      },
       scriptedAction: { revision: 4 },
       scriptedRuntime: { currentVersionId: "ver-1" },
       scriptedReport: { currentVersionId: "ver-1" },
@@ -309,6 +335,7 @@ describe("live-current activation", () => {
       fullscreenRequest: null,
       playerRecoveryRequest: null,
       galleryControl: null,
+      plotAnimationAction: null,
       scriptedAction: null,
       scriptedRuntime: null,
       scriptedReport: null,
@@ -420,6 +447,7 @@ describe("live-current activation", () => {
       fullscreenRequest: null,
       playerRecoveryRequest: null,
       galleryControl: null,
+      plotAnimationAction: null,
       scriptedAction: null,
       scriptedRuntime: null,
       scriptedReport: null,
