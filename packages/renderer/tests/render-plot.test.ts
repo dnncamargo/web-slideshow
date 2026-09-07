@@ -269,6 +269,42 @@ describe("Plot renderer", () => {
     expect(html).toContain("#06b6d4");
   });
 
+  it("styles 2D axes independently from the curve", () => {
+    const html = renderPlot("y = x", {
+      style: { color: "#00aa00", axes: { color: "#ff00aa", strokeWidth: 3 } },
+    });
+
+    expect(html).toContain('stroke="#ff00aa" stroke-width="3"');
+    expect(html).toContain('fill="#ff00aa"');
+    expect(html).toContain('stroke="currentColor" stroke-width="2"');
+    expect(html).not.toContain("y = x");
+  });
+
+  it("keeps explicit-z axes independent from Z-gradient wireframe colors", () => {
+    const html = renderPlot("z = x + y", {
+      style: {
+        axes: { color: "#ff00aa", strokeWidth: 3 },
+        zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+      },
+    });
+
+    expect(html).toContain('stroke="#ff00aa" stroke-width="3"');
+    expect(html).toContain('fill="#ff00aa"');
+    expect(html).toContain("color-mix(in srgb,#7c3aed");
+    expect(html).not.toContain('stroke="#ff00aa" stroke-width="1"');
+  });
+
+  it("preserves axis appearance for transient animated frames", () => {
+    const element = plot("y = x + t", {
+      animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 },
+      style: { axes: { color: "#ff00aa", strokeWidth: 2 } },
+    });
+
+    const html = renderPlotWithOptions(element, { bindings: { t: 0.5 } });
+    expect(html).toContain('stroke="#ff00aa" stroke-width="2"');
+    expect(html).toContain('fill="#ff00aa"');
+  });
+
   it("renders explicit-z palette gradient colors through shared CSS variables", () => {
     const html = renderPlot("z = x + y", {
       style: {

@@ -82,6 +82,20 @@ describe("renderMathGeometrySvg", () => {
     expect(svg.match(/<path /g)).toHaveLength(1);
   });
 
+  it("applies axis color and width without changing the curve", () => {
+    const svg = renderMathGeometrySvg(geometry([
+      [{ x: -1, y: -1 }, { x: 1, y: 1 }],
+    ]), squareViewport, {
+      x: "x",
+      y: "y",
+      axisStyle: { color: "#ff00aa", strokeWidth: 3 },
+    });
+
+    expect(svg.match(/<line[^>]*stroke="#ff00aa"[^>]*stroke-width="3"/g)).toHaveLength(2);
+    expect(svg.match(/<text[^>]*fill="#ff00aa"/g)).toHaveLength(2);
+    expect(svg).toContain('stroke="currentColor" stroke-width="2"');
+  });
+
   it("uses x/y labels for non-explicit-y plots", () => {
     const svg = renderMathGeometrySvg(geometry([
       [{ x: -1, y: -1 }, { x: 1, y: 1 }],

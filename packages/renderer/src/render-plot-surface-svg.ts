@@ -5,6 +5,11 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 
+interface PlotAxisStyle {
+  color?: string;
+  strokeWidth?: number;
+}
+
 const Z_GRADIENT_BAND_COUNT = 32;
 
 interface ProjectedPoint {
@@ -297,7 +302,7 @@ function appendGradientColumns(
 /** Projects a structured 3D surface into a deterministic SVG wireframe. */
 export function renderMathSurfaceGeometrySvg(
   geometry: MathSurfaceGeometryResult,
-  options: { showAxes?: boolean; zGradient?: ZGradientOptions } = {},
+  options: { showAxes?: boolean; axisStyle?: PlotAxisStyle; zGradient?: ZGradientOptions } = {},
 ): string {
   const rows = projectRows(geometry);
   const axes = options.showAxes === false ? [] : createAxes(geometry);
@@ -332,7 +337,10 @@ export function renderMathSurfaceGeometrySvg(
     const y1 = projectionBounds.maxV - axis.start.v;
     const x2 = axis.end.u - projectionBounds.minU;
     const y2 = projectionBounds.maxV - axis.end.v;
-    return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}" stroke-width="1" vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2">${axis.name}</text>`;
+    const axisColor = options.axisStyle?.color === undefined ? "" : ` stroke="${escapeHtml(options.axisStyle.color)}"`;
+    const axisStrokeWidth = options.axisStyle?.strokeWidth ?? 1;
+    const axisLabelFill = options.axisStyle?.color === undefined ? "" : ` fill="${escapeHtml(options.axisStyle.color)}"`;
+    return `<line class="powershow-plot-axis powershow-plot-axis-${axis.name}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}"${axisColor} stroke-width="${axisStrokeWidth}" vector-effect="non-scaling-stroke"></line><text class="powershow-plot-axis-label powershow-plot-axis-label-${axis.name}" x="${formatNumber(x2)}" y="${formatNumber(y2)}" text-anchor="start" font-size="1.2"${axisLabelFill}>${axis.name}</text>`;
   }).join("");
 
   const wireframeMarkup = options.zGradient === undefined

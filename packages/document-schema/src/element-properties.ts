@@ -167,10 +167,16 @@ const PlotZGradientSchema = z.object({
   maxColor: ColorValueSchema,
 }).strict();
 
+const PlotAxesVisualStyleSchema = z.object({
+  color: ColorValueSchema.optional(),
+  strokeWidth: z.number().finite().positive().optional(),
+}).strict();
+
 export const PlotVisualStyleSchema = z.object({
   color: ColorValueSchema.optional(),
   background: PlotBackgroundSchema.optional(),
   zGradient: PlotZGradientSchema.optional(),
+  axes: PlotAxesVisualStyleSchema.optional(),
 }).strict();
 
 export type PlotVisualStyle = z.infer<typeof PlotVisualStyleSchema>;

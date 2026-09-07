@@ -60,8 +60,15 @@ function animationIdentity(animation: PlotAnimation | undefined): string {
 function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle | undefined {
   if (style === undefined) return undefined;
   const background = style.background?.color === undefined ? undefined : style.background;
-  const next = { ...style, ...(background === undefined ? { background: undefined } : { background }) };
-  if (next.color === undefined && next.background === undefined && next.zGradient === undefined) return undefined;
+  const axes = style.axes?.color === undefined && style.axes?.strokeWidth === undefined
+    ? undefined
+    : style.axes;
+  const next = { ...style };
+  if (background === undefined) delete next.background;
+  else next.background = background;
+  if (axes === undefined) delete next.axes;
+  else next.axes = axes;
+  if (next.color === undefined && next.background === undefined && next.zGradient === undefined && next.axes === undefined) return undefined;
   return next;
 }
 
@@ -77,6 +84,13 @@ export function PlotInspector({
     animation: animationIdentity(element.animation),
   });
   const [animationMessage, setAnimationMessage] = useState<string | null>(null);
+  const [axisStrokeWidthDraft, setAxisStrokeWidthDraft] = useState(
+    element.style?.axes?.strokeWidth === undefined ? "" : String(element.style.axes.strokeWidth),
+  );
+  const [hydratedAxisStyle, setHydratedAxisStyle] = useState({
+    id: element.id,
+    style: JSON.stringify(element.style?.axes ?? null),
+  });
 
   const currentAnimationIdentity = animationIdentity(element.animation);
   if (
@@ -86,6 +100,12 @@ export function PlotInspector({
     setHydratedAnimation({ id: element.id, animation: currentAnimationIdentity });
     setAnimationDraft(plotAnimationDraft(element.animation));
     setAnimationMessage(null);
+  }
+
+  const currentAxisStyleIdentity = JSON.stringify(element.style?.axes ?? null);
+  if (hydratedAxisStyle.id !== element.id || hydratedAxisStyle.style !== currentAxisStyleIdentity) {
+    setHydratedAxisStyle({ id: element.id, style: currentAxisStyleIdentity });
+    setAxisStrokeWidthDraft(element.style?.axes?.strokeWidth === undefined ? "" : String(element.style.axes.strokeWidth));
   }
 
   const animationDirty = JSON.stringify(animationDraft) !== JSON.stringify(plotAnimationDraft(element.animation));
@@ -150,6 +170,25 @@ export function PlotInspector({
       ? { ...current, style: normalizePlotStyle(update(current.style)) }
       : current);
   };
+
+  function commitAxisStrokeWidth(value = axisStrokeWidthDraft): void {
+    if (value.trim() === "") {
+      updateStyle((current) => {
+        if (current?.axes === undefined) return current;
+        const next = { ...current, axes: { ...current.axes } };
+        delete next.axes.strokeWidth;
+        return next;
+      });
+      return;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    updateStyle((current) => ({
+      ...(current ?? {}),
+      axes: { ...(current?.axes ?? {}), strokeWidth: parsed },
+    }));
+  }
 
   return (
     <>
@@ -357,6 +396,42 @@ export function PlotInspector({
             }}
           />
           <span>{t("inspector.showAxes")}</span>
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.axisColor")}</span>
+          <ColorControl
+            id="plot-axis-color"
+            name="plotAxisColor"
+            value={element.style?.axes?.color}
+            onChange={(color) => updateStyle((current) => ({
+              ...(current ?? {}),
+              axes: { ...(current?.axes ?? {}), color },
+            }))}
+            secondaryAction={{
+              label: t("inspector.remove"),
+              onClick: () => updateStyle((current) => {
+                if (current?.axes === undefined) return current;
+                const next = { ...current, axes: { ...current.axes } };
+                delete next.axes.color;
+                return next;
+              }),
+            }}
+          />
+        </label>
+
+        <label className={styles.field}>
+          <span>{t("inspector.axisThickness")}</span>
+          <input
+            id="plot-axis-stroke-width"
+            name="plotAxisStrokeWidth"
+            type="text"
+            inputMode="decimal"
+            placeholder="1"
+            value={axisStrokeWidthDraft}
+            onChange={(event) => setAxisStrokeWidthDraft(event.target.value)}
+            onBlur={(event) => commitAxisStrokeWidth(event.currentTarget.value)}
+          />
         </label>
 
         <label className={styles.field}>

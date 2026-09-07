@@ -159,6 +159,13 @@ export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions
     appendGeometry(geometry, result);
   }
 
+  const axisStyle = element.style?.axes === undefined
+    ? undefined
+    : {
+      ...(element.style.axes.color === undefined ? {} : { color: renderColorValue(element.style.axes.color) }),
+      ...(element.style.axes.strokeWidth === undefined ? {} : { strokeWidth: element.style.axes.strokeWidth }),
+    };
+
   if (renderedEquationCount === 0) {
     const explicitSurfaceEquations = analysis.equations.filter(
       (equation) => equation.form === "explicit-z",
@@ -172,6 +179,7 @@ export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions
       );
       const surfaceSvg = renderMathSurfaceGeometrySvg(surfaceGeometry, {
         showAxes: element.showAxes !== false,
+        ...(axisStyle === undefined ? {} : { axisStyle }),
         ...(element.style?.zGradient === undefined ? {} : {
           zGradient: {
             minColor: renderColorValue(element.style.zGradient.minColor),
@@ -189,7 +197,12 @@ export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions
     ? deriveAutoFitViewport(geometry) ?? PLOT_WORKING_VIEWPORT
     : PLOT_WORKING_VIEWPORT;
   const svg = renderMathGeometrySvg(geometry, displayViewport, renderedEquationCount > 0
-    ? { x: "x", y: allRenderedEquationsAreExplicitY ? "f(x)" : "y", showAxes: element.showAxes !== false }
+    ? {
+      x: "x",
+      y: allRenderedEquationsAreExplicitY ? "f(x)" : "y",
+      showAxes: element.showAxes !== false,
+      ...(axisStyle === undefined ? {} : { axisStyle }),
+    }
     : undefined);
   if (svg === "") return { className: "powershow-placeholder powershow-placeholder-plot", content: "[plot]" };
 

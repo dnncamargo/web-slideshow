@@ -121,6 +121,16 @@ describe("renderMathSurfaceGeometrySvg", () => {
     expect(svg).toBe(renderMathSurfaceGeometrySvg(value));
   });
 
+  it("applies axis color and width to lines and labels only", () => {
+    const svg = renderMathSurfaceGeometrySvg(geometry(plane((x, y) => x + y)), {
+      axisStyle: { color: "#ff00aa", strokeWidth: 3 },
+    });
+
+    expect(svg.match(/<line[^>]*stroke="#ff00aa"[^>]*stroke-width="3"/g)).toHaveLength(3);
+    expect(svg.match(/<text[^>]*fill="#ff00aa"/g)).toHaveLength(3);
+    expect(svg).toContain('class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1"');
+  });
+
   it("maps the mathematical origin to one shared SVG coordinate frame", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry([
       [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 1 }],

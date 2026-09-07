@@ -94,6 +94,8 @@ describe("Plot canonical contract", () => {
       background: { color: "#000000" },
       zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
     },
+    { axes: { color: "#ff00aa", strokeWidth: 3 } },
+    { axes: { color: { kind: "palette", colorId: "axis" }, strokeWidth: 0.5 } },
   ])("accepts minimal visual style %j", (style) => {
     expect(PlotElementSchema.safeParse({ ...plot, style }).success).toBe(true);
   });
@@ -134,6 +136,11 @@ describe("Plot canonical contract", () => {
     { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", angle: 90 } } },
     { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", shape: "circle" } } },
     { ...plot, style: { zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4", stops: [] } } },
+    { ...plot, style: { axes: { strokeWidth: 0 } } },
+    { ...plot, style: { axes: { strokeWidth: -1 } } },
+    { ...plot, style: { axes: { strokeWidth: Number.NaN } } },
+    { ...plot, style: { axes: { strokeWidth: Number.POSITIVE_INFINITY } } },
+    { ...plot, style: { axes: { color: "#ff00aa", unknown: true } } },
   ])("rejects non-canonical input %j", (input) => {
     expect(PlotElementSchema.safeParse(input).success).toBe(false);
   });

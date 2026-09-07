@@ -90,6 +90,16 @@ describe("Plot Inspector", () => {
     button.click();
   }
 
+  function changeAxisThickness(value: string): void {
+    const input = host.querySelector<HTMLInputElement>("#plot-axis-stroke-width");
+    if (!input) throw new Error("Plot axis thickness input not found");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.focus();
+    input.blur();
+  }
+
   function changeAnimationText(id: string, value: string): void {
     const input = host.querySelector<HTMLInputElement>(`#${id}`);
     if (!input) throw new Error(`Plot animation input not found: ${id}`);
@@ -144,6 +154,8 @@ describe("Plot Inspector", () => {
     expect(animation?.textContent).toContain("Animate parameter");
     expect(appearance?.textContent).toContain("Fit to axes");
     expect(appearance?.textContent).toContain("Show axes");
+    expect(appearance?.textContent).toContain("Axis color");
+    expect(appearance?.textContent).toContain("Axis thickness");
     expect(appearance?.textContent).toContain("Color");
     expect(appearance?.textContent).toContain("Background");
     expect(appearance?.textContent).toContain("3D color");
@@ -525,6 +537,77 @@ describe("Plot Inspector", () => {
     expect(current.style?.zGradient).toEqual({ minColor: "#7c3aed", maxColor: "#06b6d4" });
     await act(async () => changeZColorMode("solid"));
     expect(current.style).toBeUndefined();
+  });
+
+  it("hydrates and edits axis appearance without disturbing other Plot fields", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "z = x + y",
+      fitToAxes: false,
+      showAxes: false,
+      layout: { width: 320, height: 180 },
+      animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 },
+      style: {
+        color: "#00aa00",
+        background: { color: "#112233" },
+        zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+        axes: { color: "#ff00aa", strokeWidth: 2 },
+      },
+    };
+
+    await act(async () => renderInspector());
+    expect(host.querySelector<HTMLInputElement>("#plot-axis-color-value")?.value).toBe("#ff00aa");
+    expect(host.querySelector<HTMLInputElement>("#plot-axis-stroke-width")?.value).toBe("2");
+    expect(updateCount).toBe(0);
+
+    await act(async () => changeColor("plot-axis-color", "#abcdef"));
+    expect(current.style).toEqual({
+      color: "#00aa00",
+      background: { color: "#112233" },
+      zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
+      axes: { color: "#abcdef", strokeWidth: 2 },
+    });
+
+    await act(async () => changeAxisThickness("3"));
+    expect(current.style?.axes).toEqual({ color: "#abcdef", strokeWidth: 3 });
+    expect(current.source).toBe("z = x + y");
+    expect(current.showAxes).toBe(false);
+    expect(current.animation).toEqual({ parameter: "t", from: 0, to: 1, durationMs: 1000 });
+  });
+
+  it("removes axis properties and cleans an empty axis style", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x^2",
+      style: { axes: { color: "#ff00aa", strokeWidth: 2 } },
+    };
+    await act(async () => renderInspector());
+
+    await act(async () => removeColor("plot-axis-color"));
+    expect(current.style?.axes).toEqual({ strokeWidth: 2 });
+    await act(async () => changeAxisThickness(""));
+    expect(current.style).toBeUndefined();
+  });
+
+  it("keeps authored axis appearance while axes are hidden", async () => {
+    current = {
+      id: "plot-1",
+      type: "plot",
+      hidden: false,
+      source: "y = x^2",
+      showAxes: false,
+      style: { axes: { color: "#ff00aa", strokeWidth: 2 } },
+    };
+    await act(async () => renderInspector());
+    await act(async () => changeShowAxes(true));
+    await act(async () => changeShowAxes(false));
+
+    expect(current.showAxes).toBe(false);
+    expect(current.style?.axes).toEqual({ color: "#ff00aa", strokeWidth: 2 });
   });
 
   it("edits only canonical source, preserving multiline and empty values", async () => {
