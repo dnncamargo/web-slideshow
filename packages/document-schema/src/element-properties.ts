@@ -170,6 +170,7 @@ const PlotZGradientSchema = z.object({
 const PlotAxesVisualStyleSchema = z.object({
   color: ColorValueSchema.optional(),
   strokeWidth: z.number().finite().positive().optional(),
+  opacity: z.number().min(0).max(1).optional(),
 }).strict();
 
 export const PlotVisualStyleSchema = z.object({

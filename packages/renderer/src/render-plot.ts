@@ -164,6 +164,7 @@ export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions
     : {
       ...(element.style.axes.color === undefined ? {} : { color: renderColorValue(element.style.axes.color) }),
       ...(element.style.axes.strokeWidth === undefined ? {} : { strokeWidth: element.style.axes.strokeWidth }),
+      ...(element.style.axes.opacity === undefined ? {} : { opacity: element.style.axes.opacity }),
     };
 
   if (renderedEquationCount === 0) {

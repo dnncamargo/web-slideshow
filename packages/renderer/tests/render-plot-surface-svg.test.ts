@@ -123,12 +123,15 @@ describe("renderMathSurfaceGeometrySvg", () => {
 
   it("applies axis color and width to lines and labels only", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry(plane((x, y) => x + y)), {
-      axisStyle: { color: "#ff00aa", strokeWidth: 3 },
+      axisStyle: { color: "#ff00aa", strokeWidth: 3, opacity: 0.5 },
     });
 
     expect(svg.match(/<line[^>]*stroke="#ff00aa"[^>]*stroke-width="3"/g)).toHaveLength(3);
     expect(svg.match(/<text[^>]*fill="#ff00aa"/g)).toHaveLength(3);
+    expect(svg.match(/<line[^>]*class="powershow-plot-axis[^>]*opacity="0\.5"/g)).toHaveLength(3);
+    expect(svg.match(/<text[^>]*class="powershow-plot-axis-label[^>]*opacity="0\.5"/g)).toHaveLength(3);
     expect(svg).toContain('class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1"');
+    expect(svg.match(/powershow-plot-surface-wireframe[^>]*opacity="/g)).toBeNull();
   });
 
   it("maps the mathematical origin to one shared SVG coordinate frame", () => {
