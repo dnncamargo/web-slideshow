@@ -265,10 +265,12 @@ describe("ElementTreePanel", () => {
       selectedGalleryItemIndex?: number | null;
       onSelectElement?: ReturnType<typeof vi.fn>;
       onMoveElement?: ReturnType<typeof vi.fn>;
+      onMoveTopicItem?: ReturnType<typeof vi.fn>;
     } = {},
   ) {
     const onSelectElement = options.onSelectElement ?? vi.fn();
     const onMoveElement = options.onMoveElement ?? vi.fn();
+    const onMoveTopicItem = options.onMoveTopicItem ?? vi.fn();
 
     act(() => {
       root.render(
@@ -280,6 +282,7 @@ describe("ElementTreePanel", () => {
             selectedGalleryItemIndex={options.selectedGalleryItemIndex ?? null}
             onSelectElement={onSelectElement}
             onMoveElement={onMoveElement}
+            onMoveTopicItem={onMoveTopicItem}
             onMoveGalleryItem={vi.fn()}
             onGalleryStructureDrop={vi.fn()}
             onBrowseElementStyles={vi.fn()}
@@ -288,7 +291,7 @@ describe("ElementTreePanel", () => {
       );
     });
 
-    return { onSelectElement, onMoveElement };
+    return { onSelectElement, onMoveElement, onMoveTopicItem };
   }
 
   beforeEach(() => {
@@ -305,7 +308,7 @@ describe("ElementTreePanel", () => {
     vi.clearAllMocks();
   });
 
-  it("renders content elements under a dedicated Content group and keeps structural subtopics separate", () => {
+  it("renders content elements directly before structural subtopics", () => {
     const slide = slideWithTopics([
       topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text", "A")])),
       topicItem(
@@ -332,13 +335,11 @@ describe("ElementTreePanel", () => {
 
     const topicB = findTreeItem(container, "B");
 
-    expect(contentGroupLabel(topicB)).toBe("Content");
-    expect(contentGroupItems(topicB).map(treeItemLabel)).toEqual([
+    expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
+    expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "Text — B",
       "Image",
       "Table",
-    ]);
-    expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "B.1",
       "B.2",
     ]);
@@ -412,7 +413,7 @@ describe("ElementTreePanel", () => {
     expect(treeItems(container).map(treeItemLabel)).toEqual(["Gallery"]);
   });
 
-  it("renders recursive Content groups for structural subtopics", () => {
+  it("renders content elements directly for structural subtopics", () => {
     const slide = slideWithTopics([
       topicItem("topic-c", contentSlot("slot-c", [text("topic-c-text", "C")]), [
         topicItem(
@@ -429,8 +430,7 @@ describe("ElementTreePanel", () => {
 
     const topicC1 = findTreeItem(container, "C.1");
 
-    expect(contentGroupLabel(topicC1)).toBe("Content");
-    expect(contentGroupItems(topicC1).map(treeItemLabel)).toEqual([
+    expect(directTopicChildren(topicC1).map(treeItemLabel)).toEqual([
       "Text — C.1",
       "Image",
     ]);
@@ -445,7 +445,7 @@ describe("ElementTreePanel", () => {
     const emptyTopic = findTreeItem(container, "Topic");
 
     expect(emptyTopic).toBeTruthy();
-    expect(contentGroupLabel(emptyTopic)).toBe("Content");
+    expect(directTopicChildren(emptyTopic)).toEqual([]);
 
     clickRow(emptyTopic);
 
@@ -471,7 +471,7 @@ describe("ElementTreePanel", () => {
     });
   });
 
-  it("suppresses footer movement for a structurally selected topic row", () => {
+  it("reorders a structurally selected middle topic row through the footer", () => {
     const slide = {
       ...slideWithTopics([
         topicItem(
@@ -494,17 +494,22 @@ describe("ElementTreePanel", () => {
             "topic-b",
             contentSlot("slot-b", [text("topic-b-text", "B")]),
           ),
+          topicItem(
+            "topic-c",
+            contentSlot("slot-c", [text("topic-c-text", "C")]),
+          ),
         ]).elements,
         topicContainer("after"),
       ],
     };
-    const { onMoveElement } = renderPanel(slide, {
+    const { onMoveElement, onMoveTopicItem } = renderPanel(slide, {
+      onMoveTopicItem: vi.fn(),
       selectedElementId: "topics-1",
       selectedContentSlotId: "slot-b",
     });
 
-    expect(footerMoveUpButton(container).disabled).toBe(true);
-    expect(footerMoveDownButton(container).disabled).toBe(true);
+    expect(footerMoveUpButton(container).disabled).toBe(false);
+    expect(footerMoveDownButton(container).disabled).toBe(false);
     expect(footerMoveToSelect(container).disabled).toBe(true);
     expect(footerMoveToSelect(container).options).toHaveLength(1);
 
@@ -518,6 +523,8 @@ describe("ElementTreePanel", () => {
     });
 
     expect(onMoveElement).not.toHaveBeenCalled();
+    expect(onMoveTopicItem).toHaveBeenNthCalledWith(1, "topics-1", "topic-b", 0);
+    expect(onMoveTopicItem).toHaveBeenNthCalledWith(2, "topics-1", "topic-b", 2);
   });
 
   it("suppresses footer movement for a nested structural topic row", () => {
@@ -568,7 +575,8 @@ describe("ElementTreePanel", () => {
       ],
     };
 
-    const { onMoveElement } = renderPanel(slide, {
+    const { onMoveElement, onMoveTopicItem } = renderPanel(slide, {
+      onMoveTopicItem: vi.fn(),
       selectedElementId: "topics-1",
       selectedContentSlotId: "slot-b-1-1",
     });
@@ -584,6 +592,34 @@ describe("ElementTreePanel", () => {
     });
 
     expect(onMoveElement).not.toHaveBeenCalled();
+    expect(onMoveTopicItem).not.toHaveBeenCalled();
+  });
+
+  it("reorders a nested topic only within its structural siblings", () => {
+    const slide = slideWithTopics([
+      topicItem("topic-parent", contentSlot("slot-parent"), [
+        topicItem("topic-child-a", contentSlot("slot-child-a")),
+        topicItem("topic-child-b", contentSlot("slot-child-b")),
+      ]),
+    ]);
+    const { onMoveTopicItem } = renderPanel(slide, {
+      onMoveTopicItem: vi.fn(),
+      selectedElementId: "topics-1",
+      selectedContentSlotId: "slot-child-a",
+    });
+
+    expect(footerMoveUpButton(container).disabled).toBe(true);
+    expect(footerMoveDownButton(container).disabled).toBe(false);
+
+    act(() => {
+      footerMoveDownButton(container).click();
+    });
+
+    expect(onMoveTopicItem).toHaveBeenCalledWith(
+      "topics-1",
+      "topic-child-a",
+      1,
+    );
   });
 
   it("keeps ordinary TopicsElement movement available when no structural topic row is selected", () => {
@@ -671,10 +707,10 @@ describe("ElementTreePanel", () => {
     const { onSelectElement } = renderPanel(slide);
 
     const topicB = findTreeItem(container, "B");
-    const imageRow = contentGroupItems(topicB).find(
+    const imageRow = directTopicChildren(topicB).find(
       (treeItem) => treeItemLabel(treeItem) === "Image",
     );
-    const tableRow = contentGroupItems(topicB).find(
+    const tableRow = directTopicChildren(topicB).find(
       (treeItem) => treeItemLabel(treeItem) === "Table",
     );
 
@@ -712,14 +748,13 @@ describe("ElementTreePanel", () => {
 
     const topicB = findTreeItem(container, "B");
 
-    expect(contentGroupItems(topicB).map(treeItemLabel)).toEqual([
+    expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "Text — B",
       "Container",
-      "Text — Nested container text",
     ]);
   });
 
-  it("does not treat the Content group as a tree item or drop target", () => {
+  it("does not render a Content group row", () => {
     const slide = slideWithTopics([
       topicItem(
         "topic-b",
@@ -733,11 +768,7 @@ describe("ElementTreePanel", () => {
     renderPanel(slide);
 
     const topicB = findTreeItem(container, "B");
-    const group = contentGroup(topicB);
-
-    expect(group.getAttribute("role")).toBe("none");
-    expect(group.hasAttribute("draggable")).toBe(false);
-    expect(group.querySelector(':scope > ul[role="group"]')).not.toBeNull();
+    expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
   });
 
   it("does not mutate canonical data when rendering the selector", () => {

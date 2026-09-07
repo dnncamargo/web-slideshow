@@ -52,6 +52,7 @@ describe("ElementTreePanel Embed wiring", () => {
             selectedContentSlotId={null}
             onSelectElement={onSelectElement}
             onMoveElement={vi.fn()}
+            onMoveTopicItem={vi.fn()}
             onMoveGalleryItem={vi.fn()}
             onGalleryStructureDrop={vi.fn()}
             onBrowseElementStyles={vi.fn()}

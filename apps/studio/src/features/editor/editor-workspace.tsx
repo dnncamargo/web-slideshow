@@ -209,6 +209,7 @@ import {
   setStructuredTableShowHeader,
   appendTopicItemToTopics,
   appendChildTopicItemToTopics,
+  moveTopicItemToSiblingIndex,
   resolveAddElementDestination,
 } from "./element-operations";
 
@@ -3121,6 +3122,29 @@ export function EditorWorkspace({
     }));
   }
 
+  function moveTopicItemInTree(
+    topicsId: string,
+    topicItemId: string,
+    targetIndex: number,
+  ) {
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? {
+              ...slide,
+              elements: moveTopicItemToSiblingIndex(
+                slide.elements,
+                topicsId,
+                topicItemId,
+                targetIndex,
+              ),
+            }
+          : slide,
+      ),
+    }));
+  }
+
   function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
     if (!selectedSlide) return;
 
@@ -3952,6 +3976,7 @@ export function EditorWorkspace({
                     }
                   }}
                   onMoveElement={moveElementInTree}
+                  onMoveTopicItem={moveTopicItemInTree}
                   onMoveGalleryItem={moveGalleryItemInTree}
                   onGalleryStructureDrop={applyGalleryStructureDrop}
                   customLibraryRepository={customLibraryRepository}

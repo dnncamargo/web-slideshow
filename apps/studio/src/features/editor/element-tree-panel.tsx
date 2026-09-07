@@ -21,6 +21,7 @@ import {
   type MoveElementOptions,
 } from "./element-operations";
 import { findElementById } from "./element-tree";
+import { findTopicItemSiblingPosition } from "./element-hierarchy";
 import {
   getElementLabel,
   getElementTreeChildren,
@@ -39,6 +40,7 @@ interface ElementTreePanelProps {
   selectedGalleryItemIndex?: number | null;
   onSelectElement: (selection: ElementTreeSelection) => void;
   onMoveElement: (options: MoveElementOptions) => void;
+  onMoveTopicItem: (topicsId: string, topicItemId: string, targetIndex: number) => void;
   onMoveGalleryItem: (galleryId: string, itemIndex: number, offset: -1 | 1) => void;
   onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
   customLibraryRepository?: CustomLibraryRepository;
@@ -554,42 +556,28 @@ function TopicItemTreeNode({
       </div>
       {expanded && (
         <ul role="group" className={styles.elementTreeList}>
-          <li
-            className={styles.elementTreeTopicContentGroup}
-            role="none"
-            data-powershow-tree-content-group
-          >
-            <div className={styles.elementTreeTopicContentLabel}>
-              {t("tree.content")}
-            </div>
-            <ul
-              role="group"
-              className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}
-            >
-              {treeChildren.map((child, childIndex) => (
-                <ElementTreeNode
-                  key={child.id}
-                  element={child}
-                  index={childIndex}
-                  siblingCount={treeChildren.length}
-                  expandedIds={expandedIds}
-                  selectedElementId={selectedElementId}
-                  selectedContentSlotId={selectedContentSlotId}
-                  selectedGalleryItemIndex={selectedGalleryItemIndex}
-                  onToggle={onToggle}
-                  onSelectElement={onSelectElement}
-                  dropTarget={dropTarget}
-                  onDragStart={onDragStart}
-                  onDragOver={onDragOver}
-                onDrop={onDrop}
-                onDragEnd={onDragEnd}
-                onGalleryItemDragStart={onGalleryItemDragStart}
-                onGalleryItemDragOver={onGalleryItemDragOver}
-                onGalleryItemDrop={onGalleryItemDrop}
-                />
-              ))}
-            </ul>
-          </li>
+          {treeChildren.map((child, childIndex) => (
+            <ElementTreeNode
+              key={child.id}
+              element={child}
+              index={childIndex}
+              siblingCount={treeChildren.length}
+              expandedIds={expandedIds}
+              selectedElementId={selectedElementId}
+              selectedContentSlotId={selectedContentSlotId}
+              selectedGalleryItemIndex={selectedGalleryItemIndex}
+              onToggle={onToggle}
+              onSelectElement={onSelectElement}
+              dropTarget={dropTarget}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              onDragEnd={onDragEnd}
+              onGalleryItemDragStart={onGalleryItemDragStart}
+              onGalleryItemDragOver={onGalleryItemDragOver}
+              onGalleryItemDrop={onGalleryItemDrop}
+            />
+          ))}
           {structuralChildren.map((child, childIndex) => (
             <TopicItemTreeNode
               key={child.id}
@@ -626,6 +614,7 @@ export function ElementTreePanel({
   selectedGalleryItemIndex = null,
   onSelectElement,
   onMoveElement,
+  onMoveTopicItem,
   onMoveGalleryItem,
   onGalleryStructureDrop,
   customLibraryRepository,
@@ -668,6 +657,13 @@ export function ElementTreePanel({
   const selectedPositionForMovement = isStructuralTopicRow
     ? null
     : selectedPosition;
+  const selectedTopicItemPosition = isStructuralTopicRow
+    ? findTopicItemSiblingPosition(
+        slide.elements,
+        selectedElementId ?? "",
+        selectedContentSlotId ?? "",
+      )
+    : null;
   const selectedTargets = selectedElementForMovement
     ? getParentTargets(slide, selectedElementForMovement, (key) => t(key))
     : [];
@@ -854,11 +850,19 @@ export function ElementTreePanel({
           disabled={
             selectedGallery
               ? selectedGalleryItemIndex === 0
+              : selectedTopicItemPosition
+                ? selectedTopicItemPosition.index === 0
               : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp
           }
           onClick={() => {
             if (selectedGallery && selectedGalleryItemIndex !== null) {
               onMoveGalleryItem(selectedGallery.id, selectedGalleryItemIndex, -1);
+            } else if (selectedTopicItemPosition && selectedElementId) {
+              onMoveTopicItem(
+                selectedElementId,
+                selectedTopicItemPosition.topicItemId,
+                selectedTopicItemPosition.index - 1,
+              );
             } else if (selectedElementId && selectedPositionForMovement) {
               onMoveElement({
                 elementId: selectedElementId,
@@ -877,11 +881,19 @@ export function ElementTreePanel({
           disabled={
             selectedGallery
               ? selectedGalleryItemIndex === selectedGallery.items.length - 1
+              : selectedTopicItemPosition
+                ? selectedTopicItemPosition.index === selectedTopicItemPosition.count - 1
               : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown
           }
           onClick={() => {
             if (selectedGallery && selectedGalleryItemIndex !== null) {
               onMoveGalleryItem(selectedGallery.id, selectedGalleryItemIndex, 1);
+            } else if (selectedTopicItemPosition && selectedElementId) {
+              onMoveTopicItem(
+                selectedElementId,
+                selectedTopicItemPosition.topicItemId,
+                selectedTopicItemPosition.index + 1,
+              );
             } else if (selectedElementId && selectedPositionForMovement) {
               onMoveElement({
                 elementId: selectedElementId,
