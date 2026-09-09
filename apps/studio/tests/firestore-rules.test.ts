@@ -125,23 +125,28 @@ describe("Firestore archived publication deletion lifecycle rules", () => {
       "allow delete: if isPrivatePresentationOwner(userId)\n        && archivedOwnerCanDeleteDraft();",
     );
     const draftDelete = rulesFrom("function archivedOwnerCanDeleteDraft");
-    expect(draftDelete).toContain("'archivedAt' in resource");
-    expect(draftDelete).toContain("resource.archivedAt is timestamp");
+    // Delete authorization must inspect the pre-operation draft through
+    // resource.data, never the requested post-operation state.
+    expect(draftDelete).toContain("let draft = resource.data;");
+    expect(draftDelete).toContain("'archivedAt' in draft");
+    expect(draftDelete).toContain("draft.archivedAt is timestamp");
+    expect(draftDelete).not.toContain("let resource = request.resource.data;");
+    expect(draftDelete).not.toContain("let draft = request.resource.data;");
   });
 
   it("keeps archived never-published draft deletion authorized", () => {
     const draftDelete = rulesFrom("function archivedOwnerCanDeleteDraft");
-    expect(draftDelete).toContain("!('publication' in resource)");
+    expect(draftDelete).toContain("!('publication' in draft)");
   });
 
   it("requires the public pointer to be absent before deleting a published draft", () => {
     const draftDelete = rulesFrom("function archivedOwnerCanDeleteDraft");
     expect(draftDelete).toContain(
-      "publicationMetadataHasValidShape(resource.publication)",
+      "publicationMetadataHasValidShape(draft.publication)",
     );
     expect(draftDelete).toContain("!exists(");
     expect(draftDelete).toContain(
-      "/databases/$(database)/documents/publishedPresentations/$(resource.publication.publicationId)",
+      "/databases/$(database)/documents/publishedPresentations/$(draft.publication.publicationId)",
     );
   });
 

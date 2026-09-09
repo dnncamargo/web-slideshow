@@ -286,19 +286,24 @@ service cloud.firestore {
 
     // Private draft deletion is restricted to the archived owner.
     //
+    // Delete authorization must inspect the pre-operation document, so the
+    // existing draft is read through resource.data, never
+    // request.resource.data (the requested post-operation state, which for a
+    // delete no longer exists).
+    //
     // A never-published draft may be deleted when publication metadata is
     // absent. A previously published draft may be deleted only after its
     // public pointer no longer exists in the pre-operation state. Malformed
     // publication metadata cannot bypass the published branch.
     function archivedOwnerCanDeleteDraft() {
-      let resource = request.resource.data;
-      return 'archivedAt' in resource
-        && resource.archivedAt is timestamp
-        && (!('publication' in resource)
-            || (resource.publication is map
-                && publicationMetadataHasValidShape(resource.publication)
+      let draft = resource.data;
+      return 'archivedAt' in draft
+        && draft.archivedAt is timestamp
+        && (!('publication' in draft)
+            || (draft.publication is map
+                && publicationMetadataHasValidShape(draft.publication)
                 && !exists(
-                  /databases/$(database)/documents/publishedPresentations/$(resource.publication.publicationId)
+                  /databases/$(database)/documents/publishedPresentations/$(draft.publication.publicationId)
                 )));
     }
 
