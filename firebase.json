@@ -1,12 +1,14 @@
 {
   "firestore": {
-    "rules": "firestore.rules",
-    "emulators": {
-      "host": "127.0.0.1",
-      "port": 8080
-    }
+    "rules": "firestore.rules"
   },
   "database": {
     "rules": "database.rules.json"
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8080
+    }
   }
 }
