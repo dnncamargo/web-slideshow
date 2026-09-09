@@ -6,9 +6,13 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test:firestore-rules:emulator": "firebase emulators:exec --project demo-powershow-firestore-rules --only firestore \"pnpm --filter @powershow/studio exec vitest run tests/firestore-rules-emulator.test.ts\""
   },
   "engines": {
     "node": ">=24 <25"
+  },
+  "devDependencies": {
+    "firebase-tools": "15.29.0"
   }
 }

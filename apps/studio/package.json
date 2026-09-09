@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --exclude tests/firestore-rules-emulator.test.ts"
   },
   "dependencies": {
     "@powershow/document-schema": "workspace:*",
@@ -24,6 +24,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
