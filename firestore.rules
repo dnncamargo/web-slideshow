@@ -139,6 +139,170 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------
+    // ARCHIVED PUBLICATION CLEANUP
+    // ------------------------------------------------------------
+    //
+    // Lifecycle permissions that let the authenticated owner of an archived,
+    // published presentation permanently remove its public publication record
+    // and private draft during repository cleanup.
+
+    // Shared archived-owner contract for publication lifecycle cleanup.
+    //
+    // Resolves ownership from the existing public publication chain:
+    //   publicationId -> pointer -> pointer.currentVersionId -> current version
+    //   -> currentVersion.presentationId -> authenticated private draft
+    //   -> archivedAt -> publication metadata anchored to publicationId.
+    //
+    // Valid only while the pointer and current version still exist. Repository
+    // cleanup preserves both until the final batch.
+    function isArchivedPublicationOwner(publicationId, userId) {
+      let pointer = get(
+        /databases/$(database)/documents/publishedPresentations/$(publicationId)
+      );
+      return isSignedIn()
+        && pointer != null
+        && pointer.data.currentVersionId is string
+        && pointer.data.currentVersionId.size() > 0
+        && pointerVersionOwnedByArchivedDraft(
+          publicationId,
+          userId,
+          pointer.data.currentVersionId
+        );
+    }
+
+    // The pointer's current published version must exist, reference a valid
+    // presentationId, and be anchored to the same archived private draft whose
+    // publication metadata points at this exact current version.
+    function pointerVersionOwnedByArchivedDraft(publicationId, userId, currentVersionId) {
+      let version = get(
+        /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(currentVersionId)
+      );
+      return version != null
+        && version.data.presentationId is string
+        && version.data.presentationId.size() > 0
+        && archivedDraftOwnsPublication(
+          publicationId,
+          userId,
+          version.data.presentationId
+        )
+        && draftPublicationMatchesCurrentVersion(
+          userId,
+          version.data.presentationId,
+          currentVersionId
+        );
+    }
+
+    // The authenticated user's private draft for a presentationId must exist,
+    // be archived, and carry valid publication metadata anchored to the given
+    // publicationId.
+    function archivedDraftOwnsPublication(publicationId, userId, presentationId) {
+      let draft = get(
+        /databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)
+      );
+      return draft != null
+        && 'archivedAt' in draft.data
+        && draft.data.archivedAt is timestamp
+        && 'publication' in draft.data
+        && draft.data.publication is map
+        && publicationMetadataHasValidShape(draft.data.publication)
+        && draft.data.publication.publicationId == publicationId;
+    }
+
+    // The draft's publication metadata must point at the given current version.
+    function draftPublicationMatchesCurrentVersion(userId, presentationId, currentVersionId) {
+      let draft = get(
+        /databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)
+      );
+      return draft != null
+        && 'publication' in draft.data
+        && draft.data.publication is map
+        && draft.data.publication.currentVersionId == currentVersionId;
+    }
+
+    // Version deletion is authorized only for the archived owner of the target
+    // version's lifecycle, with the pointer still present.
+    //
+    // If the target version is the pointer's current version, deletion is
+    // allowed only when the public pointer is also removed in the same batch
+    // (!existsAfter), so a client can never leave a dangling pointer.
+    function archivedOwnerCanDeleteVersion(publicationId, userId, versionId) {
+      let pointer = get(
+        /databases/$(database)/documents/publishedPresentations/$(publicationId)
+      );
+      return isSignedIn()
+        && resource.data.presentationId is string
+        && resource.data.presentationId.size() > 0
+        && pointer != null
+        && pointer.data.currentVersionId is string
+        && pointer.data.currentVersionId.size() > 0
+        && archivedDraftOwnsPublication(
+          publicationId,
+          userId,
+          resource.data.presentationId
+        )
+        && pointerVersionReferencesDraft(
+          publicationId,
+          pointer.data.currentVersionId,
+          resource.data.presentationId
+        )
+        && (versionId != pointer.data.currentVersionId
+            || !existsAfter(
+              /databases/$(database)/documents/publishedPresentations/$(publicationId)
+            ));
+    }
+
+    // The pointer's current version must reference the same presentationId as
+    // the target version, tying both to the same publication lifecycle.
+    function pointerVersionReferencesDraft(publicationId, currentVersionId, presentationId) {
+      let version = get(
+        /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(currentVersionId)
+      );
+      return version != null
+        && version.data.presentationId == presentationId;
+    }
+
+    // Pointer deletion is coupled to current-version deletion in the same batch.
+    //
+    // Uses pre-operation get()/exists() for ownership discovery and
+    // existsAfter() for the projected post-operation integrity requirement:
+    // the current version must not survive the pointer.
+    function archivedOwnerCanDeletePointer(publicationId, userId) {
+      let pointer = get(
+        /databases/$(database)/documents/publishedPresentations/$(publicationId)
+      );
+      return isSignedIn()
+        && pointer != null
+        && pointer.data.currentVersionId is string
+        && pointer.data.currentVersionId.size() > 0
+        && pointerVersionOwnedByArchivedDraft(
+          publicationId,
+          userId,
+          pointer.data.currentVersionId
+        )
+        && !existsAfter(
+          /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(pointer.data.currentVersionId)
+        );
+    }
+
+    // Private draft deletion is restricted to the archived owner.
+    //
+    // A never-published draft may be deleted when publication metadata is
+    // absent. A previously published draft may be deleted only after its
+    // public pointer no longer exists in the pre-operation state. Malformed
+    // publication metadata cannot bypass the published branch.
+    function archivedOwnerCanDeleteDraft() {
+      let resource = request.resource.data;
+      return 'archivedAt' in resource
+        && resource.archivedAt is timestamp
+        && (!('publication' in resource)
+            || (resource.publication is map
+                && publicationMetadataHasValidShape(resource.publication)
+                && !exists(
+                  /databases/$(database)/documents/publishedPresentations/$(resource.publication.publicationId)
+                )));
+    }
+
+    // ------------------------------------------------------------
     // PRIVATE DRAFTS
     // users/{userId}/presentations/{presentationId}
     // ------------------------------------------------------------
@@ -146,7 +310,8 @@ service cloud.firestore {
       allow read: if isPrivatePresentationOwner(userId);
       allow create, update: if isPrivatePresentationOwner(userId)
         && draftHasValidShape();
-      allow delete: if isPrivatePresentationOwner(userId);
+      allow delete: if isPrivatePresentationOwner(userId)
+        && archivedOwnerCanDeleteDraft();
     }
 
     // ------------------------------------------------------------
@@ -218,7 +383,12 @@ service cloud.firestore {
         request.auth.uid
       );
 
-      // delete is intentionally omitted: the public pointer is never deleted.
+      // Delete is restricted to the archived owner performing lifecycle
+      // cleanup and is coupled to current-version deletion in the same batch.
+      allow delete: if archivedOwnerCanDeletePointer(
+        publicationId,
+        request.auth.uid
+      );
     }
 
     // ------------------------------------------------------------
@@ -229,8 +399,14 @@ service cloud.firestore {
       // Direct fetch of a known published version is intentionally public.
       allow get: if true;
 
-      // Listing/querying published versions is never allowed.
-      allow list: if false;
+      // Listing versions is restricted to the archived publication owner
+      // performing lifecycle cleanup, with an explicit bounded query limit.
+      // Ownership is resolved from the publication chain, never from a query
+      // field-equality filter.
+      allow list: if isArchivedPublicationOwner(publicationId, request.auth.uid)
+        && request.query.limit is int
+        && request.query.limit > 0
+        && request.query.limit <= 100;
 
       // Creation is allowed only for a valid publish transaction verified
       // against the author's private draft pointer and snapshot, and only when
@@ -244,8 +420,16 @@ service cloud.firestore {
         )
         && publishedVersionMatchesNewPointer(publicationId, versionId);
 
-      // update and delete are intentionally omitted. They are denied by
-      // default: published versions are immutable.
+      // Deletion is allowed only under the archived publication cleanup
+      // contract; deleting the current version requires the pointer to be
+      // removed in the same batch.
+      allow delete: if archivedOwnerCanDeleteVersion(
+        publicationId,
+        request.auth.uid,
+        versionId
+      );
+
+      // update is intentionally omitted. Published versions are immutable.
     }
   }
 }
