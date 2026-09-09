@@ -15,12 +15,14 @@ import {
   getDoc,
   getDocs,
   increment,
+  limit,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 
 import { getFirebaseFirestore } from "./firebase-client";
@@ -37,6 +39,7 @@ import {
   extractPresentationSummary,
   normalizePersistenceMetadata,
   parsePersistedPresentation,
+  type PresentationPublicationMetadata,
   type PresentationSummary,
 } from "./presentation-persistence";
 import {
@@ -69,6 +72,45 @@ function folderDocumentRef(userId: string, folderId: string) {
   const firestore = getFirebaseFirestore();
 
   return doc(firestore, "users", userId, "presentationFolders", folderId);
+}
+
+/**
+ * Validates the public publication pointer during archived-presentation
+ * cleanup. The pointer is authoritative only when its current version and
+ * published revision exactly match the private draft publication metadata;
+ * a mismatched pointer is never silently substituted.
+ */
+function validateCleanupPointerMatchesPublication(
+  pointerData: Record<string, unknown>,
+  publication: PresentationPublicationMetadata,
+  presentationId: string,
+): void {
+  const currentVersionId = pointerData.currentVersionId;
+  const publishedRevision = pointerData.publishedRevision;
+
+  if (
+    typeof currentVersionId !== "string" ||
+    currentVersionId.trim() === "" ||
+    typeof publishedRevision !== "number" ||
+    !Number.isInteger(publishedRevision) ||
+    publishedRevision < 0
+  ) {
+    throw new FirestoreOperationError(
+      `Cannot permanently delete published presentation "${presentationId}": the public pointer is malformed.`,
+    );
+  }
+
+  if (currentVersionId !== publication.currentVersionId) {
+    throw new FirestoreOperationError(
+      `Cannot permanently delete published presentation "${presentationId}": the public pointer currentVersionId does not match the private draft publication metadata.`,
+    );
+  }
+
+  if (publishedRevision !== publication.publishedRevision) {
+    throw new FirestoreOperationError(
+      `Cannot permanently delete published presentation "${presentationId}": the public pointer publishedRevision does not match the private draft publication metadata.`,
+    );
+  }
 }
 
 /**
@@ -320,13 +362,24 @@ export class FirestorePresentationRepository implements PresentationRepository {
   }
 
   /**
-   * Permanently delete the private draft of an archived, never-published
-   * presentation. Public publication artifacts (pointer and immutable
-   * versions) are intentionally untouched: deleting a published presentation
-   * is not implemented, so drafts with publication metadata are rejected.
+   * Permanently delete the private draft of an archived presentation.
+   *
+   * A never-published draft is deleted directly. A published draft first
+   * removes its public artifacts in dependency order:
+   *
+   *   1. bounded lists + delete of historical versions (repeating the fixed
+   *      query after each batch);
+   *   2. one atomic batch deleting the current version and the public pointer;
+   *   3. the private draft last.
+   *
+   * Retry safety comes from re-invoking this method: every call re-reads the
+   * current draft and the public pointer and never assumes prior progress. A
+   * missing pointer is treated only as an already-completed final public
+   * batch.
    */
   async deleteArchivedPresentation(id: string): Promise<void> {
     const user = this.requireAuthenticatedUser();
+    const firestore = getFirebaseFirestore();
     const documentRef = presentationDocumentRef(user.uid, id);
 
     try {
@@ -339,6 +392,9 @@ export class FirestorePresentationRepository implements PresentationRepository {
       }
 
       const data = snapshot.data();
+      // View-level eligibility is never trusted: decode the persisted draft
+      // through the canonical validation path before branching.
+      const presentation = parsePersistedPresentation(data);
 
       if (data.archivedAt === undefined || data.archivedAt === null) {
         throw new FirestoreOperationError(
@@ -346,14 +402,125 @@ export class FirestorePresentationRepository implements PresentationRepository {
         );
       }
 
-      if (data.publication !== undefined && data.publication !== null) {
+      if (data.publication === undefined || data.publication === null) {
+        await deleteDoc(documentRef);
+
+        return;
+      }
+
+      const publication = normalizePersistenceMetadata(
+        data.draftRevision,
+        data.publication,
+      ).publication;
+
+      if (publication === undefined) {
         throw new FirestoreOperationError(
-          `Cannot permanently delete published presentation "${id}".`,
+          `Cannot permanently delete published presentation "${id}" with malformed publication metadata.`,
         );
       }
 
-      await deleteDoc(documentRef);
+      const pointerRef = doc(
+        firestore,
+        "publishedPresentations",
+        publication.publicationId,
+      );
+      const pointerSnapshot = await getDoc(pointerRef);
 
+      if (pointerSnapshot.exists()) {
+        validateCleanupPointerMatchesPublication(
+          pointerSnapshot.data(),
+          publication,
+          id,
+        );
+
+        const versionsCollectionRef = collection(
+          firestore,
+          "publishedPresentations",
+          publication.publicationId,
+          "versions",
+        );
+        const currentVersionRef = doc(
+          firestore,
+          "publishedPresentations",
+          publication.publicationId,
+          "versions",
+          publication.currentVersionId,
+        );
+
+        // Bounded cleanup loop. Historical versions are removed in writeBatch
+        // pages and the same `limit(100)` query is re-executed after each
+        // batch: deleted documents disappear from the result, so no cursor or
+        // ordering contract is needed.
+        for (;;) {
+          const versionsSnapshot = await getDocs(
+            query(versionsCollectionRef, limit(100)),
+          );
+          const versionDocuments = versionsSnapshot.docs;
+
+          if (versionDocuments.length === 0) {
+            throw new FirestoreOperationError(
+              `Cannot permanently delete published presentation "${id}": the public publication has no published versions.`,
+            );
+          }
+
+          const historicalVersionRefs: ReturnType<typeof doc>[] = [];
+          let currentVersionFound = false;
+
+          for (const versionDocument of versionDocuments) {
+            const versionData = versionDocument.data();
+            const versionPresentationId = versionData.presentationId;
+
+            if (
+              typeof versionPresentationId !== "string" ||
+              versionPresentationId.trim() === ""
+            ) {
+              throw new FirestoreOperationError(
+                `Cannot permanently delete published presentation "${id}": published version "${versionDocument.id}" has an invalid presentationId.`,
+              );
+            }
+
+            if (versionPresentationId !== presentation.id) {
+              throw new FirestoreOperationError(
+                `Cannot permanently delete published presentation "${id}": published version "${versionDocument.id}" belongs to a different presentation.`,
+              );
+            }
+
+            if (versionDocument.id === publication.currentVersionId) {
+              currentVersionFound = true;
+            } else {
+              historicalVersionRefs.push(versionDocument.ref);
+            }
+          }
+
+          if (historicalVersionRefs.length > 0) {
+            const historicalBatch = writeBatch(firestore);
+            for (const historicalVersionRef of historicalVersionRefs) {
+              historicalBatch.delete(historicalVersionRef);
+            }
+            await historicalBatch.commit();
+
+            continue;
+          }
+
+          if (!currentVersionFound) {
+            throw new FirestoreOperationError(
+              `Cannot permanently delete published presentation "${id}": the public publication is missing the current published version.`,
+            );
+          }
+
+          // Final public batch: current version + pointer deleted atomically.
+          const finalBatch = writeBatch(firestore);
+          finalBatch.delete(currentVersionRef);
+          finalBatch.delete(pointerRef);
+          await finalBatch.commit();
+
+          break;
+        }
+      }
+
+      // The private draft is always removed last, only after every public
+      // artifact is gone.
+      await deleteDoc(documentRef);
     } catch (error) {
       if (error instanceof PersistenceError) {
         throw error;
