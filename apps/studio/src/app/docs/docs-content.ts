@@ -293,6 +293,8 @@ export const docsGroups: readonly DocsGroup[] = [
       },
     ],
   },
+  elementDocsGroup,
+  advancedDocsGroup,
   {
     title: "Superfícies de produto",
     topics: [

@@ -345,6 +345,17 @@ export const DividerElementSchema =
 export type DividerElement =
   z.infer<typeof DividerElementSchema>;
 
+export const EmbedViewportSchema = z.object({
+    zoom: z.number().finite().min(0.1).max(4).optional(),
+    top: z.number().finite().min(0).optional(),
+    right: z.number().finite().min(0).optional(),
+    bottom: z.number().finite().min(0).optional(),
+    left: z.number().finite().min(0).optional(),
+  }).strict();
+
+export type EmbedViewport =
+  z.infer<typeof EmbedViewportSchema>;
+
 export const EmbedElementSchema = z.object({
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
@@ -362,6 +373,8 @@ export const EmbedElementSchema = z.object({
       .string()
       .min(1)
       .default("Embedded content"),
+
+    viewport: EmbedViewportSchema.optional(),
   }).strict();
 
 export type EmbedElement =
@@ -655,7 +668,7 @@ export const TopicItemSchema:
       children: z.array(
         z.lazy(() => TopicItemSchema),
       ),
-    }),
+    }).strict(),
   );
 
 export type TopicsElement = {

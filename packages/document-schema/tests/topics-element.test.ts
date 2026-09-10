@@ -337,6 +337,30 @@ describe("TopicItemSchema", () => {
     ).toBe(false);
   });
 
+  it("rejects unknown fields on a topic item", () => {
+    expect(
+      TopicItemSchema.safeParse(
+        topicItem({
+          unsupported: true,
+        }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("rejects unknown fields on a nested topic item", () => {
+    expect(
+      TopicItemSchema.safeParse(
+        topicItem({
+          children: [
+            topicItem({
+              unsupported: true,
+            }),
+          ],
+        }),
+      ).success,
+    ).toBe(false);
+  });
+
   it("accepts nested topic recursion", () => {
     const result = TopicItemSchema.safeParse(
       topicItem({

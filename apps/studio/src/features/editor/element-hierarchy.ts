@@ -820,6 +820,52 @@ export function findTopicItemById(
   return null;
 }
 
+export interface TopicItemSiblingPosition {
+  topicItemId: string;
+  index: number;
+  count: number;
+}
+
+function findTopicItemSiblingPositionInItems(
+  items: readonly TopicItem[],
+  contentSlotId: string,
+): TopicItemSiblingPosition | null {
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+
+    if (!item) {
+      continue;
+    }
+
+    if (item.content.id === contentSlotId) {
+      return { topicItemId: item.id, index, count: items.length };
+    }
+
+    const nested = findTopicItemSiblingPositionInItems(
+      item.children,
+      contentSlotId,
+    );
+
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+export function findTopicItemSiblingPosition(
+  elements: readonly PowerShowElement[],
+  owningTopicsId: string,
+  contentSlotId: string,
+): TopicItemSiblingPosition | null {
+  const topics = findElementById(elements, owningTopicsId);
+
+  return topics?.type === "topics"
+    ? findTopicItemSiblingPositionInItems(topics.items, contentSlotId)
+    : null;
+}
+
 export function collectContainerIds(
   elements: readonly PowerShowElement[],
   ids: Set<string>,

@@ -78,6 +78,38 @@ describe("Embed element schema", () => {
     }
   });
 
+  it.each([1, 0.75, 0.1, 4])("accepts viewport zoom %s", (zoom) => {
+    expect(EmbedElementSchema.safeParse(embed({ viewport: { zoom } })).success).toBe(true);
+  });
+
+  it.each([0, -1, 0.099, 4.001, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects viewport zoom %s",
+    (zoom) => {
+      expect(EmbedElementSchema.safeParse(embed({ viewport: { zoom } })).success).toBe(false);
+    },
+  );
+
+  it("accepts non-negative viewport insets", () => {
+    const result = EmbedElementSchema.safeParse(embed({
+      viewport: { top: 1, right: 2, bottom: 3, left: 4 },
+    }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects non-finite viewport insets", () => {
+    expect(EmbedElementSchema.safeParse(embed({ viewport: { top: Number.NaN } })).success).toBe(false);
+    expect(EmbedElementSchema.safeParse(embed({ viewport: { right: Number.POSITIVE_INFINITY } })).success).toBe(false);
+  });
+
+  it.each(["top", "right", "bottom", "left"])("rejects negative viewport %s", (edge) => {
+    expect(EmbedElementSchema.safeParse(embed({ viewport: { [edge]: -1 } })).success).toBe(false);
+  });
+
+  it("rejects unknown viewport fields", () => {
+    expect(EmbedElementSchema.safeParse(embed({ viewport: { scale: 2 } })).success).toBe(false);
+  });
+
   it("rejects an empty title", () => {
     const result = EmbedElementSchema.safeParse(
       embed({ title: "" }),
