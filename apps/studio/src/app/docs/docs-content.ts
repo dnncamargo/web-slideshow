@@ -1,21 +1,8 @@
-export interface DocsSection {
-  title: string;
-  paragraphs?: readonly string[];
-  bullets?: readonly string[];
-  code?: string;
-}
+import type { DocsGroup, DocsTopic } from "./docs-content-types";
+import { advancedDocsGroup } from "./docs-content-advanced";
+import { elementDocsGroup } from "./docs-content-elements";
 
-export interface DocsTopic {
-  id: string;
-  title: string;
-  summary: string;
-  sections: readonly DocsSection[];
-}
-
-export interface DocsGroup {
-  title: string;
-  topics: readonly DocsTopic[];
-}
+export type { DocsCodeBlock, DocsGroup, DocsSection, DocsTable, DocsTopic } from "./docs-content-types";
 
 export const docsGroups: readonly DocsGroup[] = [
   {
