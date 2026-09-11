@@ -21,6 +21,8 @@ import type {
 
 import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 
 // ============================================================
 // BEGIN: EMBED INSPECTOR
@@ -351,6 +353,25 @@ export function EmbedInspector({
           </div>
         </div>
       </InspectorSection>
+
+      <CanonicalElementSizeSection
+        layout={element.layout}
+        onUpdateLayout={(update) => {
+          onUpdate((current) => current.type === "embed"
+            ? { ...current, layout: update(current.layout) }
+            : current);
+        }}
+      />
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="embed"
+        onUpdateLayout={(update) => {
+          onUpdate((current) => current.type === "embed"
+            ? { ...current, layout: update(current.layout) }
+            : current);
+        }}
+      />
 
       <CanonicalSurfaceAppearanceSection
         element={element}

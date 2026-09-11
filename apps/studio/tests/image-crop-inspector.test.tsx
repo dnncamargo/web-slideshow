@@ -142,7 +142,7 @@ describe("ImageInspector crop authoring", () => {
 
     const headings = Array.from(container.querySelectorAll("details > summary > span:first-child"))
       .map((heading) => heading.textContent);
-    expect(headings).toEqual(["Source", "Size", "Appearance", "Effects", "Interaction"]);
+    expect(headings).toEqual(["Source", "Size", "Spacing", "Margin sides", "Appearance", "Effects", "Interaction"]);
   });
 
   it("keeps Preserve proportion checkbox before its visible label", async () => {

@@ -14,6 +14,8 @@ import styles from "../editor-workspace.module.css";
 import { InspectorSection } from "./inspector-section";
 import type { PlotPreviewControls, TypedInspectorProps } from "./inspector-types";
 import { ColorControl } from "./sections/color-control";
+import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 
 const DEFAULT_PLOT_Z_GRADIENT = {
   minColor: "#7c3aed",
@@ -390,6 +392,25 @@ export function PlotInspector({
           </div>
         ) : null}
       </InspectorSection>
+
+      <CanonicalElementSizeSection
+        layout={element.layout}
+        onUpdateLayout={(update) => {
+          onUpdate((current) => current.type === "plot"
+            ? { ...current, layout: update(current.layout) }
+            : current);
+        }}
+      />
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="plot"
+        onUpdateLayout={(update) => {
+          onUpdate((current) => current.type === "plot"
+            ? { ...current, layout: update(current.layout) }
+            : current);
+        }}
+      />
 
       <InspectorSection title={t("inspector.appearance")} defaultOpen>
         <label className={styles.checkboxRow}>

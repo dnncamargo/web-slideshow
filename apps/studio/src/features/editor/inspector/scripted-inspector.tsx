@@ -19,6 +19,7 @@ import type {
 
 import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 
 // ============================================================
 
@@ -411,6 +412,14 @@ export function ScriptedInspector({
           <span>{t("scripted.sandboxHelp")}</span>
         </small>
       </InspectorSection>
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="scripted"
+        onUpdateLayout={(update) => onUpdate((current) => current.type === "scripted"
+          ? { ...current, layout: update(current.layout) }
+          : current)}
+      />
 
       <CanonicalSurfaceAppearanceSection
         element={element}

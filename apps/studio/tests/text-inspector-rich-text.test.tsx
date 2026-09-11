@@ -896,6 +896,8 @@ describe("TextInspector rich text authoring", () => {
     expect(sectionTitles).toEqual([
       "Content",
       "Typography",
+      "Spacing",
+      "Margin sides",
       "Appearance",
       "Effects",
       "Placement",

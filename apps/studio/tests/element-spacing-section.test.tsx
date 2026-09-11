@@ -35,7 +35,7 @@ const ELEMENT_BASES = {
   plot: { id: "plot-1", type: "plot", hidden: false, source: "" },
 } satisfies Record<string, PowerShowElement>;
 
-const MARGIN_CASES = [
+const SPACING_CASES = [
   ["text", ELEMENT_BASES.text],
   ["image", ELEMENT_BASES.image],
   ["code", ELEMENT_BASES.code],
@@ -56,7 +56,7 @@ const MARGIN_LAYOUT = {
   marginLeft: 4,
 } as const;
 
-describe("shared element margin authoring", () => {
+describe("shared element spacing section", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -99,9 +99,9 @@ describe("shared element margin authoring", () => {
     vi.clearAllMocks();
   });
 
-  function marginInput(field: string): HTMLInputElement {
-    const input = container.querySelector<HTMLInputElement>(`#element-margin${field}`);
-    if (!input) throw new Error(`margin input #element-margin${field} not found`);
+  function marginInput(prefix: string, field: string): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(`#${prefix}-margin${field}`);
+    if (!input) throw new Error(`margin input #${prefix}-margin${field} not found`);
     return input;
   }
 
@@ -111,20 +111,34 @@ describe("shared element margin authoring", () => {
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  it.each(MARGIN_CASES)(
-    "exposes the canonical margin control for %s and hydrates the existing layout",
-    async (_type, base) => {
+  function sectionTitleOf(input: HTMLInputElement): string {
+    const title = input.closest("details")?.querySelector("summary")?.textContent?.trim();
+    if (!title) throw new Error("section title not found");
+    return title;
+  }
+
+  function summaries(): string[] {
+    return Array.from(container.querySelectorAll("summary")).map((s) => s.textContent.trim());
+  }
+
+  it.each(SPACING_CASES)(
+    "exposes margin inside a SPACING section for %s and hydrates the existing layout",
+    async (prefix, base) => {
       await renderElement({
         ...base,
         layout: { ...MARGIN_LAYOUT },
       });
 
-      expect(container.querySelector("#element-margin")).not.toBeNull();
-      expect(marginInput("").value).toBe("12");
-      expect(marginInput("-top").value).toBe("1");
-      expect(marginInput("-right").value).toBe("2");
-      expect(marginInput("-bottom").value).toBe("3");
-      expect(marginInput("-left").value).toBe("4");
+      const main = marginInput(prefix, "");
+      expect(sectionTitleOf(main)).toBe("Spacing");
+      expect(main.value).toBe("12");
+      expect(marginInput(prefix, "-top").value).toBe("1");
+      expect(marginInput(prefix, "-right").value).toBe("2");
+      expect(marginInput(prefix, "-bottom").value).toBe("3");
+      expect(marginInput(prefix, "-left").value).toBe("4");
+
+      // The standalone MARGIN section is gone; the outer title is SPACING.
+      expect(summaries()).not.toContain("Margin");
     },
   );
 
@@ -134,7 +148,7 @@ describe("shared element margin authoring", () => {
       layout: { width: "50%", position: "absolute", margin: 4 },
     });
 
-    await act(async () => changeInput(marginInput(""), "16"));
+    await act(async () => changeInput(marginInput("image", ""), "16"));
 
     expect(element()).toMatchObject({
       layout: { width: "50%", position: "absolute", margin: 16 },
@@ -148,7 +162,7 @@ describe("shared element margin authoring", () => {
       layout: { width: 300, margin: 8 },
     });
 
-    await act(async () => changeInput(marginInput("-top"), "24"));
+    await act(async () => changeInput(marginInput("terminal", "-top"), "24"));
 
     expect(element()).toMatchObject({
       layout: { width: 300, margin: 8, marginTop: 24 },
@@ -161,10 +175,30 @@ describe("shared element margin authoring", () => {
       layout: { margin: 6 },
     });
 
-    await act(async () => changeInput(marginInput(""), ""));
+    await act(async () => changeInput(marginInput("code", ""), ""));
 
     expect((element() as { layout?: unknown }).layout).toBeUndefined();
   });
+
+  it.each([
+    ["image", ELEMENT_BASES.image],
+    ["plot", ELEMENT_BASES.plot],
+    ["embed", ELEMENT_BASES.embed],
+  ] as const)(
+    "orders Size before Spacing before Appearance for %s",
+    async (_type, base) => {
+      await renderElement(base);
+
+      const order = summaries();
+      const size = order.indexOf("Size");
+      const spacing = order.indexOf("Spacing");
+      const appearance = order.indexOf("Appearance");
+
+      expect(size).toBeGreaterThanOrEqual(0);
+      expect(spacing).toBeGreaterThan(size);
+      expect(appearance).toBeGreaterThan(spacing);
+    },
+  );
 });
 
 describe("shared Embed size and viewport authoring", () => {
@@ -222,7 +256,7 @@ describe("shared Embed size and viewport authoring", () => {
     return input;
   }
 
-  it("hydrates the canonical Embed size controls without touching the viewport", async () => {
+  it("keeps Embed Size and Spacing as separate sections next to the viewport", async () => {
     await renderElement({
       ...ELEMENT_BASES.embed,
       layout: { width: "70%", height: 240 },
@@ -231,6 +265,17 @@ describe("shared Embed size and viewport authoring", () => {
 
     expect(sizeInput("element-width").value).toBe("70");
     expect(sizeInput("element-height").value).toBe("240");
+
+    const sizeTitle = sizeInput("element-width").closest("details")?.querySelector("summary")?.textContent?.trim();
+    const spacingTitle = container.querySelector<HTMLInputElement>("#embed-margin")!.closest("details")?.querySelector("summary")?.textContent?.trim();
+    expect(sizeTitle).toBe("Size");
+    expect(spacingTitle).toBe("Spacing");
+    expect(sizeInput("element-width").closest("details")).not.toBe(
+      container.querySelector<HTMLInputElement>("#embed-margin")!.closest("details"),
+    );
+
+    // The Embed viewport section remains present and separate.
+    expect(container.querySelector<HTMLInputElement>("#embed-viewport-zoom")).not.toBeNull();
   });
 
   it("persists Embed size changes canonically and leaves the viewport intact", async () => {

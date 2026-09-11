@@ -11,7 +11,7 @@ import {
 
 import { InspectorSection } from "../inspector-section";
 
-export interface ElementMarginLayout {
+export interface ElementSpacingLayout {
   margin?: Length | undefined;
   marginTop?: Length | undefined;
   marginRight?: Length | undefined;
@@ -19,7 +19,7 @@ export interface ElementMarginLayout {
   marginLeft?: Length | undefined;
 }
 
-type ElementMarginField = keyof ElementMarginLayout;
+type ElementSpacingField = keyof ElementSpacingLayout;
 
 const ELEMENT_MARGIN_SIDE_FIELDS: readonly (
   | "marginTop"
@@ -38,22 +38,22 @@ const ELEMENT_MARGIN_SIDE_LABELS: Record<
   marginLeft: "inspector.left",
 };
 
-interface ElementMarginSectionProps {
-  layout: ElementMarginLayout | undefined;
+interface ElementSpacingSectionProps {
+  layout: ElementSpacingLayout | undefined;
   controlPrefix: string;
 
   onUpdateLayout: (
     update: (
-      layout: ElementMarginLayout | undefined,
-    ) => ElementMarginLayout | undefined,
+      layout: ElementSpacingLayout | undefined,
+    ) => ElementSpacingLayout | undefined,
   ) => void;
 }
 
 function updateMarginField(
-  layout: ElementMarginLayout | undefined,
-  field: ElementMarginField,
+  layout: ElementSpacingLayout | undefined,
+  field: ElementSpacingField,
   value: number | undefined,
-): ElementMarginLayout | undefined {
+): ElementSpacingLayout | undefined {
   if (layout === undefined && value === undefined) {
     return undefined;
   }
@@ -70,28 +70,29 @@ function updateMarginField(
 }
 
 // ============================================================
-// BEGIN: ELEMENT MARGIN SECTION
+// BEGIN: ELEMENT SPACING SECTION
 //
-// Shared margin authoring for canonical elements. It reuses the
-// canonical layout margins and the same authoring shape as the
-// container spacing section: an all-sides margin plus a
-// per-side details group. Only `layout.margin*` fields are
-// written; every other layout property is preserved.
+// Semantic SPACING section shared by canonical elements. It mirrors
+// the Container spacing section shape (all-sides control plus a
+// per-side details group) and reuses the same editor styles and
+// control convention. Only the canonical spacing properties actually
+// supported by these elements are written — currently the
+// `layout.margin*` family. Every other layout property is preserved.
 // ============================================================
 
-export function ElementMarginSection({
+export function ElementSpacingSection({
   layout,
   controlPrefix,
   onUpdateLayout,
-}: ElementMarginSectionProps) {
+}: ElementSpacingSectionProps) {
   const { t } = useStudioI18n();
 
-  function updateField(field: ElementMarginField, value: number | undefined) {
+  function updateField(field: ElementSpacingField, value: number | undefined) {
     onUpdateLayout((current) => updateMarginField(current, field, value));
   }
 
   return (
-    <InspectorSection title={t("inspector.margin")}>
+    <InspectorSection title={t("inspector.spacing")}>
       <label className={styles.field}>
         <span title={t("inspector.marginTooltip")}>{t("inspector.margin")}</span>
 
@@ -152,5 +153,5 @@ export function ElementMarginSection({
 }
 
 // ============================================================
-// END: ELEMENT MARGIN SECTION
+// END: ELEMENT SPACING SECTION
 // ============================================================

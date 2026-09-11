@@ -14,6 +14,7 @@ import type { TypedInspectorProps } from "./inspector-types";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
   getTextContentPlainText,
   reconcileTextContentEdit,
@@ -254,6 +255,16 @@ export function CodeInspector({
           visibleProperties={["fontFamily", "fontSize", "lineHeight", "letterSpacing"]}
         />
       </InspectorSection>
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="code"
+        onUpdateLayout={(update) => {
+          onUpdate((current) => current.type === "code"
+            ? { ...current, layout: update(current.layout) }
+            : current);
+        }}
+      />
 
       <CanonicalDataAppearanceSection
         element={element}
