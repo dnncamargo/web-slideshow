@@ -25,6 +25,11 @@ export function renderCanonicalSurfaceStyle(element: SurfaceElement): string {
       ["right", layout.right],
       ["bottom", layout.bottom],
       ["left", layout.left],
+      ["margin", layout.margin],
+      ["margin-top", layout.marginTop],
+      ["margin-right", layout.marginRight],
+      ["margin-bottom", layout.marginBottom],
+      ["margin-left", layout.marginLeft],
     ] as const) {
       if (value !== undefined) {
         output.push(`${property}:${property === "position" ? value : renderLength(value)}`);

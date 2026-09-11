@@ -25,6 +25,21 @@ describe("canonical Image contract", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts canonical Image margins in layout", () => {
+    expect(ImageElementSchema.safeParse({
+      ...baseImage,
+      layout: {
+        width: "60%",
+        height: 240,
+        margin: 8,
+        marginTop: 1,
+        marginRight: 2,
+        marginBottom: 3,
+        marginLeft: 4,
+      },
+    }).success).toBe(true);
+  });
+
   it.each([
     { style: { width: 200 } },
     { style: { height: 200 } },
@@ -34,7 +49,6 @@ describe("canonical Image contract", () => {
     { style: { color: "#fff" } },
     { style: { background: "#000" } },
     { typography: { fontSize: 20 } },
-    { layout: { margin: 2 } },
     { layout: { padding: 2 } },
     { layout: { overflow: "hidden" } },
   ])("rejects legacy or unsupported Image properties %o", (extra) => {

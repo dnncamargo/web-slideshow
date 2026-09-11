@@ -32,6 +32,22 @@ import {
   TextStrokeSchema,
 } from "./visual";
 
+export const ElementMarginFields = {
+  margin: LengthSchema.optional(),
+  marginTop: LengthSchema.optional(),
+  marginRight: LengthSchema.optional(),
+  marginBottom: LengthSchema.optional(),
+  marginLeft: LengthSchema.optional(),
+} as const;
+
+export type ElementMargin = {
+  margin?: z.infer<typeof LengthSchema> | undefined;
+  marginTop?: z.infer<typeof LengthSchema> | undefined;
+  marginRight?: z.infer<typeof LengthSchema> | undefined;
+  marginBottom?: z.infer<typeof LengthSchema> | undefined;
+  marginLeft?: z.infer<typeof LengthSchema> | undefined;
+};
+
 export const ElementLayoutSchema = z
   .object({
     width: LengthSchema.optional(),
@@ -40,11 +56,7 @@ export const ElementLayoutSchema = z
     minHeight: LengthSchema.optional(),
     maxWidth: LengthSchema.optional(),
     maxHeight: LengthSchema.optional(),
-    margin: LengthSchema.optional(),
-    marginTop: LengthSchema.optional(),
-    marginRight: LengthSchema.optional(),
-    marginBottom: LengthSchema.optional(),
-    marginLeft: LengthSchema.optional(),
+    ...ElementMarginFields,
     padding: LengthSchema.optional(),
     paddingTop: LengthSchema.optional(),
     paddingRight: LengthSchema.optional(),
@@ -112,16 +124,21 @@ export type PositionedElementLayout = z.infer<
   typeof PositionedElementLayoutSchema
 >;
 
-export const TextLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
-  requireAbsoluteEdges,
-);
+export const TextLayoutSchema = PositionedLayoutFieldsSchema
+  .extend(ElementMarginFields)
+  .strict()
+  .superRefine(requireAbsoluteEdges);
 
 export type TextLayout = z.infer<typeof TextLayoutSchema>;
 
-export const ImageLayoutSchema = PositionedLayoutFieldsSchema.extend({
-  width: LengthSchema.optional(),
-  height: LengthSchema.optional(),
-}).strict().superRefine(requireAbsoluteEdges);
+export const ImageLayoutSchema = PositionedLayoutFieldsSchema
+  .extend({
+    width: LengthSchema.optional(),
+    height: LengthSchema.optional(),
+    ...ElementMarginFields,
+  })
+  .strict()
+  .superRefine(requireAbsoluteEdges);
 
 export type ImageLayout = z.infer<typeof ImageLayoutSchema>;
 
@@ -141,6 +158,7 @@ export const ResizablePositionedLayoutSchema = z.object({
   right: LengthSchema.optional(),
   bottom: LengthSchema.optional(),
   left: LengthSchema.optional(),
+  ...ElementMarginFields,
 }).strict().superRefine(requireAbsoluteEdges);
 
 export type ResizablePositionedLayout = z.infer<typeof ResizablePositionedLayoutSchema>;

@@ -1894,6 +1894,8 @@
 
 
 .unitInput input {
+  min-width: 7ch;
+
   border: 0;
 
   border-radius: 0;

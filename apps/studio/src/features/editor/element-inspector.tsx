@@ -31,6 +31,10 @@ import type {
 import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { CanonicalElementSizeSection } from "./inspector/sections/canonical-element-size-section";
+import {
+  ElementMarginSection,
+  type ElementMarginLayout,
+} from "./inspector/sections/element-margin-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 
 interface ElementInspectorProps {
@@ -246,6 +250,68 @@ function ElementTypeInspector({
 // sua edição ao Inspector específico daquele tipo.
 // ============================================================
 
+const MARGIN_AUTHORABLE_ELEMENT_TYPES: readonly string[] = [
+  "text",
+  "image",
+  "gallery",
+  "embed",
+  "scripted",
+  "code",
+  "terminal",
+  "table",
+  "blocks",
+  "plot",
+];
+
+function supportsElementMarginAuthoring(element: PowerShowElement): boolean {
+  return MARGIN_AUTHORABLE_ELEMENT_TYPES.includes(element.type);
+}
+
+function readElementMarginLayout(
+  element: PowerShowElement,
+): ElementMarginLayout | undefined {
+  switch (element.type) {
+    case "text":
+    case "image":
+    case "gallery":
+    case "embed":
+    case "scripted":
+    case "code":
+    case "terminal":
+    case "table":
+    case "blocks":
+    case "plot":
+      return element.layout;
+
+    default:
+      return undefined;
+  }
+}
+
+function applyElementMarginLayoutUpdate(
+  element: PowerShowElement,
+  update: (
+    layout: ElementMarginLayout | undefined,
+  ) => ElementMarginLayout | undefined,
+): PowerShowElement {
+  switch (element.type) {
+    case "text":
+    case "image":
+    case "gallery":
+    case "embed":
+    case "scripted":
+    case "code":
+    case "terminal":
+    case "table":
+    case "blocks":
+    case "plot":
+      return { ...element, layout: update(element.layout) };
+
+    default:
+      return element;
+  }
+}
+
 export function ElementInspector({
   element,
   onUpdate,
@@ -326,11 +392,11 @@ export function ElementInspector({
         onGalleryItemIndexChange={onGalleryItemIndexChange}
       />
 
-      {element.type === "plot" && (
+      {(element.type === "plot" || element.type === "embed") && (
         <CanonicalElementSizeSection
           layout={element.layout}
           onUpdateLayout={(update) => {
-            onUpdate((current) => current.type === "plot"
+            onUpdate((current) => current.type === "plot" || current.type === "embed"
               ? { ...current, layout: update(current.layout) }
               : current);
           }}
@@ -369,6 +435,18 @@ export function ElementInspector({
             layerControls={layerControls}
           />
         ) : null
+      )}
+
+      {supportsElementMarginAuthoring(element) && (
+        <ElementMarginSection
+          layout={readElementMarginLayout(element)}
+          controlPrefix="element"
+          onUpdateLayout={(update) => {
+            onUpdate((current) =>
+              applyElementMarginLayoutUpdate(current, update),
+            );
+          }}
+        />
       )}
     </>
   );

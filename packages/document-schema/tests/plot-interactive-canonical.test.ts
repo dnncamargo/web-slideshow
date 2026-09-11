@@ -185,7 +185,6 @@ describe.each([
     { layout: { minWidth: 1 } },
     { layout: { maxHeight: 1 } },
     { layout: { padding: 1 } },
-    { layout: { margin: 1 } },
     { layout: { overflow: "hidden" } },
     { typography: {} },
     { effect: {} },
@@ -200,5 +199,13 @@ describe.each([
 
   it("rejects an empty style object for Interactive", () => {
     expect(InteractiveElementSchema.safeParse({ ...interactive, style: {} }).success).toBe(false);
+  });
+
+  it("only accepts canonical margins for Plot, never for Interactive", () => {
+    expect(PlotElementSchema.safeParse({
+      ...plot,
+      layout: { position: "absolute", top: 1, left: 1, margin: 8, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4 },
+    }).success).toBe(true);
+    expect(InteractiveElementSchema.safeParse({ ...interactive, layout: { margin: 1 } }).success).toBe(false);
   });
 });
