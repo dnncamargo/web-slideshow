@@ -488,120 +488,118 @@ function addChildTopic(topicItemId: string) {
             />
           </div>
         </div>
+      </InspectorSection>
 
-        <ElementSpacingSection
-          layout={element.layout}
-          controlPrefix="topics"
-          onUpdateLayout={(update) => {
-            updateCurrentTopics((current) => ({
-              ...current,
-              layout: update(current.layout),
-            }));
-          }}
-        />
+      <InspectorSection title={t("inspector.typography")}>
+        {topicStyleDefaults && (
+          <ElementTypographyControl
+            typography={element.typography}
+            effectiveDefaults={topicStyleDefaults}
+            onUpdateTypography={(update) => {
+              updateTopicsTypography((currentTypography) => update(currentTypography));
+            }}
+            controlPrefix="topics"
+            fontResources={fontResources}
+          />
+        )}
+      </InspectorSection>
 
-        <div className={styles.appearanceSubgroup}>
+      <InspectorSection title={t("inspector.topics.markers")}>
+        <div className={styles.fieldGrid}>
+          <label className={styles.field}>
+            <span>{t("inspector.topics.rootMarkerStyle")}</span>
 
-          {topicStyleDefaults && (
-            <ElementTypographyControl
-              typography={element.typography}
-              effectiveDefaults={topicStyleDefaults}
-              onUpdateTypography={(update) => {
-                updateTopicsTypography((currentTypography) => update(currentTypography));
+            <select
+              id="topics-marker-style"
+              name="topicsMarkerStyle"
+              value={element.rootMarkerStyle ?? ""}
+              onChange={(event) => {
+                const nextRootMarkerStyle =
+                  event.target.value === ""
+                    ? undefined
+                    : (event.target.value as TopicMarkerStyle);
+
+                updateCurrentTopics((current) => {
+                  const normalized = normalizeTopicMarkerStyle(
+                    current.kind,
+                    nextRootMarkerStyle,
+                  );
+
+                  if (normalized === current.rootMarkerStyle) {
+                    return current;
+                  }
+
+                  return {
+                    ...current,
+                    rootMarkerStyle: normalized,
+                  };
+                });
               }}
-              controlPrefix="topics"
-              fontResources={fontResources}
-            />
-          )}
+            >
+              <option value="">{t("inspector.default")}</option>
+
+              {markerStyleOptions.map((markerStyle) => (
+                <option key={markerStyle} value={markerStyle}>
+                  {t(`inspector.topics.rootMarkerStyle.${markerStyle}`)}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className={styles.colorControl}>
             <label className={styles.field}>
-              <span>{t("inspector.topics.textColor")}</span>
+              <span>{t("inspector.topics.markerColor")}</span>
 
               <ColorControl
-                id="topics-text-color"
-                name="topicsTextColor"
-                value={element.style?.color}
-                onChange={(color) => {
-                  updateCurrentTopics((current) => ({
+                id="topics-marker-color"
+                name="topicsMarkerColor"
+                value={element.markerColor}
+                onChange={(markerColor) => {
+                updateCurrentTopics((current) => ({
                     ...current,
-                    style: { ...current.style, color },
+                    markerColor,
                   }));
                 }}
-                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, style: { ...current.style, color: undefined } })) }}
+                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) }}
               />
             </label>
           </div>
-
-        </div>
-
-        <div className={styles.appearanceSubgroup}>
-          <span className={styles.appearanceSubheading}>
-            {t("inspector.topics.markers")}
-          </span>
-
-          <div className={styles.fieldGrid}>
-            <label className={styles.field}>
-              <span>{t("inspector.topics.rootMarkerStyle")}</span>
-
-              <select
-                id="topics-marker-style"
-                name="topicsMarkerStyle"
-                value={element.rootMarkerStyle ?? ""}
-                onChange={(event) => {
-                  const nextRootMarkerStyle =
-                    event.target.value === ""
-                      ? undefined
-                      : (event.target.value as TopicMarkerStyle);
-
-                  updateCurrentTopics((current) => {
-                    const normalized = normalizeTopicMarkerStyle(
-                      current.kind,
-                      nextRootMarkerStyle,
-                    );
-
-                    if (normalized === current.rootMarkerStyle) {
-                      return current;
-                    }
-
-                    return {
-                      ...current,
-                      rootMarkerStyle: normalized,
-                    };
-                  });
-                }}
-              >
-                <option value="">{t("inspector.default")}</option>
-
-                {markerStyleOptions.map((markerStyle) => (
-                  <option key={markerStyle} value={markerStyle}>
-                    {t(`inspector.topics.rootMarkerStyle.${markerStyle}`)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className={styles.colorControl}>
-              <label className={styles.field}>
-                <span>{t("inspector.topics.markerColor")}</span>
-
-                <ColorControl
-                  id="topics-marker-color"
-                  name="topicsMarkerColor"
-                  value={element.markerColor}
-                  onChange={(markerColor) => {
-                  updateCurrentTopics((current) => ({
-                      ...current,
-                      markerColor,
-                    }));
-                  }}
-                  secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) }}
-                />
-              </label>
-            </div>
-          </div>
         </div>
       </InspectorSection>
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="topics"
+        onUpdateLayout={(update) => {
+          updateCurrentTopics((current) => ({
+            ...current,
+            layout: update(current.layout),
+          }));
+        }}
+      />
+
+      <InspectorSection title={t("inspector.appearance")}>
+        <div className={styles.colorControl}>
+          <label className={styles.field}>
+            <span>{t("inspector.topics.textColor")}</span>
+
+            <ColorControl
+              id="topics-text-color"
+              name="topicsTextColor"
+              value={element.style?.color}
+              onChange={(color) => {
+                updateCurrentTopics((current) => ({
+                  ...current,
+                  style: { ...current.style, color },
+                }));
+              }}
+              secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, style: { ...current.style, color: undefined } })) }}
+            />
+          </label>
+        </div>
+      </InspectorSection>
+
+      <InspectorSection title={t("inspector.effects")}>{null}</InspectorSection>
     </>
   );
 }
