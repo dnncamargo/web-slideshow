@@ -44,6 +44,11 @@ function renderLayout(element: TextElement): string[] {
   addLength(output, "right", layout.right);
   addLength(output, "bottom", layout.bottom);
   addLength(output, "left", layout.left);
+  addLength(output, "margin", layout.margin);
+  addLength(output, "margin-top", layout.marginTop);
+  addLength(output, "margin-right", layout.marginRight);
+  addLength(output, "margin-bottom", layout.marginBottom);
+  addLength(output, "margin-left", layout.marginLeft);
 
   return output;
 }

@@ -50,6 +50,11 @@ export function renderCanonicalDataStyle(
         ["right", layout.right],
         ["bottom", layout.bottom],
         ["left", layout.left],
+        ["margin", layout.margin],
+        ["margin-top", layout.marginTop],
+        ["margin-right", layout.marginRight],
+        ["margin-bottom", layout.marginBottom],
+        ["margin-left", layout.marginLeft],
       ] as const
     ).flatMap(([property, value]) => {
       if (value === undefined) return [];

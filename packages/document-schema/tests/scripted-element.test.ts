@@ -435,11 +435,11 @@ describe("Scripted element schema", () => {
 
   it("accepts the canonical surface envelope and rejects legacy aggregate fields", () => {
     expect(ScriptedElementSchema.safeParse(scripted({
-      layout: { width: "80%", height: 240, position: "absolute", top: 10, right: "5%", bottom: 20, left: 30 },
+      layout: { width: "80%", height: 240, position: "absolute", top: 10, right: "5%", bottom: 20, left: 30, margin: 8, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4 },
       style: { background: { color: "#123456" }, borderRadius: 8, className: "scripted" },
       effect: { opacity: 0.8 },
     })).success).toBe(true);
     expect(ScriptedElementSchema.safeParse(scripted({ style: { shadow: { x: 0, y: 1, blur: 2, color: "#000" } } })).success).toBe(false);
-    expect(ScriptedElementSchema.safeParse(scripted({ layout: { margin: 8 } })).success).toBe(false);
+    expect(ScriptedElementSchema.safeParse(scripted({ layout: { padding: 8 } })).success).toBe(false);
   });
 });

@@ -38,6 +38,7 @@ import { CanonicalTextPositionSection } from "./sections/canonical-text-position
 import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
 
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
@@ -185,6 +186,18 @@ export function TextInspector({
           />
         )}
       </InspectorSection>
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="text"
+        onUpdateLayout={(update) => {
+          onUpdate((current) =>
+            current.type === "text"
+              ? { ...current, layout: update(current.layout) }
+              : current,
+          );
+        }}
+      />
 
       <CanonicalTextAppearanceSection
         element={element}

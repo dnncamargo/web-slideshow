@@ -21,6 +21,7 @@ import type {
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
   getTextContentPlainText,
   reconcileTextContentEdit,
@@ -784,6 +785,18 @@ function SimpleTableInspector({
             ===================================================== */}
       </InspectorSection>
 
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="table"
+        onUpdateLayout={(update) => {
+          updateTable((table) => ({
+            ...table,
+
+            layout: update(table.layout),
+          }));
+        }}
+      />
+
       <CanonicalDataAppearanceSection
         element={element}
         style={element.style}
@@ -964,6 +977,18 @@ function StructuredTableInspector({
           <span>{t("table.addRow")}</span>
         </button>
       </InspectorSection>
+
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="table"
+        onUpdateLayout={(update) => {
+          updateTable((table) => ({
+            ...table,
+
+            layout: update(table.layout),
+          }));
+        }}
+      />
 
       <CanonicalDataAppearanceSection
         element={element}

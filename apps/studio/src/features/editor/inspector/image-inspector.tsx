@@ -18,6 +18,7 @@ import { ImageSizeSection } from "./sections/image-size-section";
 import { CanonicalImageAppearanceSection } from "./sections/canonical-image-appearance-section";
 import { CanonicalImageEffectsSection } from "./sections/canonical-image-effects-section";
 import { ImageCropControl, ImageFocalPointControl } from "./sections/image-crop-control";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
@@ -175,7 +176,19 @@ export function ImageInspector({
          onPreserveImageProportionChange={onPreserveImageProportionChange}
        />
 
-      <CanonicalImageAppearanceSection
+       <ElementSpacingSection
+         layout={element.layout}
+         controlPrefix="image"
+         onUpdateLayout={(update) => {
+           onUpdate((current) =>
+             current.type === "image"
+               ? { ...current, layout: update(current.layout) }
+               : current,
+           );
+         }}
+       />
+
+       <CanonicalImageAppearanceSection
         style={element.style}
         effect={element.effect}
         onUpdateStyle={updateStyle}

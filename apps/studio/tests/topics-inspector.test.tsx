@@ -13,6 +13,11 @@ import type {
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { TopicsInspector } from "../src/features/editor/inspector/topics-inspector";
+import { ElementInspector } from "../src/features/editor/element-inspector";
+import type {
+  TableAuthoringControls,
+  TopicsAuthoringControls,
+} from "../src/features/editor/inspector/inspector-types";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -777,6 +782,118 @@ describe("TopicsInspector", () => {
     expect(updates[0]?.itemGap).toBeUndefined();
   });
 
+  describe("Topics element spacing", () => {
+    function marginInput(field: string): HTMLInputElement {
+      const input = container.querySelector<HTMLInputElement>(`#topics-margin${field}`);
+      if (!input) throw new Error(`topics-margin${field} input not found`);
+      return input;
+    }
+
+    function spacingSectionTitleOf(input: HTMLInputElement): string {
+      const title = input.closest("details")?.querySelector("summary")?.textContent?.trim();
+      if (!title) throw new Error("spacing section title not found");
+      return title;
+    }
+
+    it("exposes the Spacing section with margin controls and no standalone Margin section", async () => {
+      await act(async () => {
+        mount(topicsElement());
+      });
+
+      expect(marginInput("")).not.toBeNull();
+      expect(spacingSectionTitleOf(marginInput(""))).toBe("Spacing");
+
+      const sectionTitles = Array.from(
+        container.querySelectorAll("details > summary > span:first-child"),
+      ).map((title) => title.textContent);
+      expect(sectionTitles).toContain("Spacing");
+      expect(sectionTitles).not.toContain("Margin");
+    });
+
+    it("hydrates existing margin values without writing", async () => {
+      await act(async () => {
+        mount(topicsElement({
+          layout: { margin: 12, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4 },
+        }));
+      });
+
+      expect(marginInput("").value).toBe("12");
+      expect(marginInput("-top").value).toBe("1");
+      expect(marginInput("-right").value).toBe("2");
+      expect(marginInput("-bottom").value).toBe("3");
+      expect(marginInput("-left").value).toBe("4");
+      expect(updates).toHaveLength(0);
+    });
+
+    it("writes the all-sides margin to layout.margin while preserving the rest", async () => {
+      await act(async () => {
+        mount(topicsElement({
+          layout: { position: "absolute", margin: 6 },
+        }));
+      });
+
+      await act(async () => {
+        setNumberInputValue(marginInput(""), "16");
+      });
+
+      expect(updates).toHaveLength(1);
+      expect(elementState.layout).toEqual({ position: "absolute", margin: 16 });
+      expect(elementState.kind).toBe("unordered");
+      expect(elementState.items).toHaveLength(2);
+    });
+
+    it("writes a per-side margin preserving other margins", async () => {
+      await act(async () => {
+        mount(topicsElement({ layout: { margin: 8 } }));
+      });
+
+      await act(async () => {
+        setNumberInputValue(marginInput("-top"), "24");
+      });
+
+      expect(updates).toHaveLength(1);
+      expect(elementState.layout).toEqual({ margin: 8, marginTop: 24 });
+    });
+
+    it("clears an authored margin according to the canonical pruning behavior", async () => {
+      await act(async () => {
+        mount(topicsElement({ layout: { margin: 6 } }));
+      });
+
+      await act(async () => {
+        setNumberInputValue(marginInput(""), "");
+      });
+
+      expect(updates).toHaveLength(1);
+      expect(elementState.layout).toBeUndefined();
+    });
+
+    it("does not touch existing Topics properties when writing margin", async () => {
+      await act(async () => {
+        mount(topicsElement({
+          kind: "ordered",
+          itemGap: 12,
+          rootMarkerStyle: "decimal",
+          typography: { fontFamily: "Inter", fontSize: 20 },
+        }));
+      });
+
+      const before = elementState;
+
+      await act(async () => {
+        setNumberInputValue(marginInput(""), "10");
+      });
+
+      expect(elementState.kind).toBe(before.kind);
+      expect(elementState.items).toBe(before.items);
+      expect(elementState.itemGap).toBe(before.itemGap);
+      expect(elementState.rootMarkerStyle).toBe(before.rootMarkerStyle);
+      expect(elementState.typography).toBe(before.typography);
+      expect(elementState.style).toBe(before.style);
+      expect(elementState.layout).toEqual({ margin: 10 });
+    });
+  });
+
   it("Add Topic invokes the structural callback with the selected Topics id", async () => {
     await act(async () => {
       mount(topicsElement());
@@ -1143,5 +1260,103 @@ it("keeps editing and removing a depth-5 topic intact", async () => {
   expect(
     updates[1]?.items[0]?.children[0]?.children[0]?.children[0]?.children,
   ).toEqual([]);
+});
+
+describe("Topics inspector section hierarchy", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  const topics: TopicsAuthoringControls = { onAddTopLevelTopic: () => null, onAddChildTopic: () => null };
+  const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
+
+  async function renderTopics(initial: TopicsElement) {
+    let element: PowerShowElement = initial;
+    const renderInspector = () => root.render(
+      <StudioI18nProvider>
+        <ElementInspector
+          element={element}
+          onUpdate={(update) => { element = update(element); renderInspector(); }}
+          onContainerFitModeChange={() => true}
+          fontResources={[]}
+          preserveImageProportion={false}
+          onPreserveImageProportionChange={() => {}}
+          focalEditingImageId={null}
+          onFocalEditingImageIdChange={() => {}}
+          cropEditingImageId={null}
+          onCropEditingImageIdChange={() => {}}
+          parent={null}
+          layerControls={{ index: 0, count: 1, onMoveTo: () => {} }}
+          topicsAuthoringControls={topics}
+          tableAuthoringControls={tables}
+        />
+      </StudioI18nProvider>,
+    );
+    await act(async () => renderInspector());
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    document.body.innerHTML = "";
+  });
+
+  function topLevelSections(): HTMLDetailsElement[] {
+    return Array.from(container.querySelectorAll<HTMLDetailsElement>("details"))
+      .filter((details) => details.parentElement === container);
+  }
+
+  function sectionDetails(title: string): HTMLDetailsElement | null {
+    return topLevelSections().find((details) =>
+      details.querySelector("summary")?.textContent?.trim() === title,
+    ) ?? null;
+  }
+
+  const REQUIRED_SECTIONS = [
+    "Content",
+    "Typography",
+    "Markers",
+    "Spacing",
+    "Appearance",
+    "Effects",
+    "Placement",
+  ];
+
+  it("renders Content, Typography, Markers, Spacing, Appearance, Effects and Placement as independent expandable sections in the exact order", async () => {
+    await renderTopics(topicsElement());
+
+    expect(
+      topLevelSections().map((details) =>
+        details.querySelector("summary")?.textContent?.trim() ?? "",
+      ),
+    ).toEqual(REQUIRED_SECTIONS);
+
+    for (const title of REQUIRED_SECTIONS) {
+      expect(sectionDetails(title)).not.toBeNull();
+    }
+  });
+
+  it("keeps the Spacing, Typography and Markers controls outside the Content section", async () => {
+    await renderTopics(topicsElement());
+
+    const content = sectionDetails("Content");
+    expect(content).not.toBeNull();
+    expect(content?.querySelector("#topics-margin")).toBeNull();
+    expect(content?.querySelector("#topics-font-family")).toBeNull();
+    expect(content?.querySelector("#topics-marker-style")).toBeNull();
+    expect(content?.querySelector("#topics-marker-color")).toBeNull();
+
+    const sectionTitleOf = (id: string): string =>
+      container.querySelector<HTMLElement>(`#${id}`)?.closest("details")?.querySelector("summary")?.textContent?.trim() ?? "";
+
+    expect(sectionTitleOf("topics-margin")).toBe("Spacing");
+    expect(sectionTitleOf("topics-font-family")).toBe("Typography");
+    expect(sectionTitleOf("topics-marker-style")).toBe("Markers");
+    expect(sectionTitleOf("topics-text-color")).toBe("Appearance");
+  });
 });
 });

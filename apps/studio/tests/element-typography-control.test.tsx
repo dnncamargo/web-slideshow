@@ -285,6 +285,79 @@ describe("ElementTypographyControl text capabilities", () => {
   });
 });
 
+describe("numeric typography control values", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    document.body.innerHTML = "";
+  });
+
+  function input(id: string): HTMLInputElement {
+    const control = container.querySelector<HTMLInputElement>(`#${id}`);
+    if (!control) throw new Error(`input ${id} not found`);
+    return control;
+  }
+
+  it("keeps the complete numeric value visible for fractional and negative typography lengths", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <ElementTypographyControl
+            typography={{
+              fontSize: "1.125rem",
+              lineHeight: 1.6,
+              letterSpacing: "-0.025em",
+            }}
+            effectiveDefaults={{ fontSize: 18, lineHeight: 1.6, letterSpacing: 0 }}
+            controlPrefix="text"
+            fontResources={[]}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const fontSize = input("text-font-size");
+    const lineHeight = input("text-line-height");
+    const letterSpacing = input("text-letter-spacing");
+
+    expect(fontSize.value).toBe("1.125");
+    expect(lineHeight.value).toBe("1.6");
+    expect(letterSpacing.value).toBe("-0.025");
+
+    expect(fontSize.type).toBe("number");
+    expect(letterSpacing.inputMode).toBe("decimal");
+    expect(lineHeight.step).toBe("0.1");
+  });
+
+  it("keeps a decimal length fully visible with its authored unit", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <ElementTypographyControl
+            typography={{ fontSize: "17.25px" }}
+            effectiveDefaults={{ fontSize: 18, lineHeight: 1.6, letterSpacing: 0 }}
+            controlPrefix="text"
+            fontResources={[]}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    expect(input("text-font-size").value).toBe("17.25");
+    expect(
+      container.querySelector<HTMLSelectElement>("#text-font-size-unit")?.value,
+    ).toBe("px");
+  });
+});
+
 describe("shared text capability controls", () => {
   let container: HTMLDivElement;
   let root: Root;

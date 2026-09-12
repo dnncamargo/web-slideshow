@@ -6,6 +6,7 @@ import { InspectorSection } from "./inspector-section";
 import { BlocksContentSection } from "./sections/blocks-content-section";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 
 interface BlocksInspectorProps {
   element: BlocksElement;
@@ -32,6 +33,13 @@ export function BlocksInspector({
         onUpdate={onUpdate}
       />
     </InspectorSection>
+    <ElementSpacingSection
+      layout={element.layout}
+      controlPrefix="blocks"
+      onUpdateLayout={(update) => onUpdate((current) => current.type === "blocks"
+        ? { ...current, layout: update(current.layout) }
+        : current)}
+    />
     <CanonicalDataAppearanceSection element={element} style={element.style} effect={element.effect} onUpdateStyle={updateBlocksStyle} onUpdateEffect={updateBlocksEffect} controlPrefix="blocks" />
     <CanonicalElementEffectsSection effect={element.effect} onUpdateEffect={updateBlocksEffect} controlPrefix="blocks" />
   </>;
