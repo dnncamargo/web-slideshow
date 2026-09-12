@@ -36,6 +36,7 @@ import { InspectorSection } from "./inspector-section";
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyControl } from "./sections/element-typography-control";
 import { EffectiveNumberInput } from "./sections/effective-number-input";
+import { ElementSpacingSection } from "./sections/element-spacing-section";
 
 const UNORDERED_MARKER_STYLES: readonly TopicMarkerStyle[] = [
   "disc",
@@ -487,6 +488,17 @@ function addChildTopic(topicItemId: string) {
             />
           </div>
         </div>
+
+        <ElementSpacingSection
+          layout={element.layout}
+          controlPrefix="topics"
+          onUpdateLayout={(update) => {
+            updateCurrentTopics((current) => ({
+              ...current,
+              layout: update(current.layout),
+            }));
+          }}
+        />
 
         <div className={styles.appearanceSubgroup}>
 

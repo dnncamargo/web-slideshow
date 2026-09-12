@@ -120,6 +120,33 @@ describe("renderElement topics support", () => {
     expect(html).toContain("position:absolute");
   });
 
+  it("renders canonical root layout margins", () => {
+    const html = renderElement(
+      topicsElement({
+        id: "topics-margin",
+        layout: {
+          position: "absolute",
+          margin: 8,
+          marginTop: 1,
+          marginRight: 2,
+          marginBottom: 3,
+          marginLeft: 4,
+        },
+      }),
+    );
+
+    expect(html).toContain("margin:8px");
+    expect(html).toContain("margin-top:1px");
+    expect(html).toContain("margin-right:2px");
+    expect(html).toContain("margin-bottom:3px");
+    expect(html).toContain("margin-left:4px");
+  });
+
+  it("omits layout margins when none are authored", () => {
+    const html = renderElement(topicsElement({ id: "topics-plain" }));
+    expect(html).not.toContain("margin:");
+  });
+
   it("renders an ordered root as an ol", () => {
     const html = renderElement(
       topicsElement({

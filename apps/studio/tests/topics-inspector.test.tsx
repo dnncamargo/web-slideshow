@@ -777,6 +777,118 @@ describe("TopicsInspector", () => {
     expect(updates[0]?.itemGap).toBeUndefined();
   });
 
+  describe("Topics element spacing", () => {
+    function marginInput(field: string): HTMLInputElement {
+      const input = container.querySelector<HTMLInputElement>(`#topics-margin${field}`);
+      if (!input) throw new Error(`topics-margin${field} input not found`);
+      return input;
+    }
+
+    function spacingSectionTitleOf(input: HTMLInputElement): string {
+      const title = input.closest("details")?.querySelector("summary")?.textContent?.trim();
+      if (!title) throw new Error("spacing section title not found");
+      return title;
+    }
+
+    it("exposes the Spacing section with margin controls and no standalone Margin section", async () => {
+      await act(async () => {
+        mount(topicsElement());
+      });
+
+      expect(marginInput("")).not.toBeNull();
+      expect(spacingSectionTitleOf(marginInput(""))).toBe("Spacing");
+
+      const sectionTitles = Array.from(
+        container.querySelectorAll("details > summary > span:first-child"),
+      ).map((title) => title.textContent);
+      expect(sectionTitles).toContain("Spacing");
+      expect(sectionTitles).not.toContain("Margin");
+    });
+
+    it("hydrates existing margin values without writing", async () => {
+      await act(async () => {
+        mount(topicsElement({
+          layout: { margin: 12, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4 },
+        }));
+      });
+
+      expect(marginInput("").value).toBe("12");
+      expect(marginInput("-top").value).toBe("1");
+      expect(marginInput("-right").value).toBe("2");
+      expect(marginInput("-bottom").value).toBe("3");
+      expect(marginInput("-left").value).toBe("4");
+      expect(updates).toHaveLength(0);
+    });
+
+    it("writes the all-sides margin to layout.margin while preserving the rest", async () => {
+      await act(async () => {
+        mount(topicsElement({
+          layout: { position: "absolute", margin: 6 },
+        }));
+      });
+
+      await act(async () => {
+        setNumberInputValue(marginInput(""), "16");
+      });
+
+      expect(updates).toHaveLength(1);
+      expect(elementState.layout).toEqual({ position: "absolute", margin: 16 });
+      expect(elementState.kind).toBe("unordered");
+      expect(elementState.items).toHaveLength(2);
+    });
+
+    it("writes a per-side margin preserving other margins", async () => {
+      await act(async () => {
+        mount(topicsElement({ layout: { margin: 8 } }));
+      });
+
+      await act(async () => {
+        setNumberInputValue(marginInput("-top"), "24");
+      });
+
+      expect(updates).toHaveLength(1);
+      expect(elementState.layout).toEqual({ margin: 8, marginTop: 24 });
+    });
+
+    it("clears an authored margin according to the canonical pruning behavior", async () => {
+      await act(async () => {
+        mount(topicsElement({ layout: { margin: 6 } }));
+      });
+
+      await act(async () => {
+        setNumberInputValue(marginInput(""), "");
+      });
+
+      expect(updates).toHaveLength(1);
+      expect(elementState.layout).toBeUndefined();
+    });
+
+    it("does not touch existing Topics properties when writing margin", async () => {
+      await act(async () => {
+        mount(topicsElement({
+          kind: "ordered",
+          itemGap: 12,
+          rootMarkerStyle: "decimal",
+          typography: { fontFamily: "Inter", fontSize: 20 },
+        }));
+      });
+
+      const before = elementState;
+
+      await act(async () => {
+        setNumberInputValue(marginInput(""), "10");
+      });
+
+      expect(elementState.kind).toBe(before.kind);
+      expect(elementState.items).toBe(before.items);
+      expect(elementState.itemGap).toBe(before.itemGap);
+      expect(elementState.rootMarkerStyle).toBe(before.rootMarkerStyle);
+      expect(elementState.typography).toBe(before.typography);
+      expect(elementState.style).toBe(before.style);
+      expect(elementState.layout).toEqual({ margin: 10 });
+    });
+  });
+
   it("Add Topic invokes the structural callback with the selected Topics id", async () => {
     await act(async () => {
       mount(topicsElement());

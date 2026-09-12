@@ -460,7 +460,10 @@ export const DividerEffectSchema = z.object({
   opacity: z.number().min(0).max(1).optional(),
 }).strict();
 
-export const TopicsLayoutSchema = PositionedLayoutFieldsSchema.superRefine(
+export const TopicsLayoutSchema = PositionedLayoutFieldsSchema
+  .extend(ElementMarginFields)
+  .strict()
+  .superRefine(
   requireAbsoluteEdges,
 );
 

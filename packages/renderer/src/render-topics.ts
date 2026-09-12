@@ -101,7 +101,7 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
   const styles: string[] = [];
   if (element.layout) {
     if (element.layout.position !== undefined) styles.push(`position:${element.layout.position}`);
-    for (const [property, value] of [["top", element.layout.top], ["right", element.layout.right], ["bottom", element.layout.bottom], ["left", element.layout.left]] as const) {
+    for (const [property, value] of [["top", element.layout.top], ["right", element.layout.right], ["bottom", element.layout.bottom], ["left", element.layout.left], ["margin", element.layout.margin], ["margin-top", element.layout.marginTop], ["margin-right", element.layout.marginRight], ["margin-bottom", element.layout.marginBottom], ["margin-left", element.layout.marginLeft]] as const) {
       if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
     }
   }

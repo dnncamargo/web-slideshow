@@ -267,6 +267,12 @@ describe("TopicsElementSchema", () => {
     })).success).toBe(true);
   });
 
+  it("accepts canonical Topics layout margins", () => {
+    expect(TopicsElementSchema.safeParse(topicsElement({
+      layout: { position: "absolute", top: 8, margin: 12, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4 },
+    })).success).toBe(true);
+  });
+
   it.each([
     { layout: { width: 10 } },
     { style: { background: { color: "#fff" } } },
