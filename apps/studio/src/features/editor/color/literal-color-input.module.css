@@ -27,6 +27,13 @@
   background: transparent;
 }
 
+.textInput {
+  min-width: min(7ch, 100%) !important;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
 .control select {
   padding: 0 7px;
   border-left: 1px solid #303847;

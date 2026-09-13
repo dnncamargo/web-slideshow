@@ -107,6 +107,7 @@ export function LiteralColorInput({
       <input
         id={`${id}-value`}
         name={`${name}Value`}
+        className={styles.textInput}
         type="text"
         autoComplete="off"
         value={draft}
