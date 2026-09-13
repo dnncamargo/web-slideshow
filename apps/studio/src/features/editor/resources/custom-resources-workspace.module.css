@@ -567,6 +567,16 @@
   min-width: 0;
 }
 
+.typographyStylePropertyControl > div {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.typographyStylePropertyControl > div > * {
+  min-width: 0;
+}
+
 .typographyStylePropertyHeader {
   display: flex;
   align-items: center;
