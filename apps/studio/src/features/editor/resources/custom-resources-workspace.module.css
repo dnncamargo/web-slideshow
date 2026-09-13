@@ -206,8 +206,6 @@
 .linkedStyleCheckboxRow {
   justify-content: flex-start;
   gap: var(--ps-ui-space-6);
-  grid-column: 1;
-  grid-row: 2;
 }
 
 .linkedStyleCheckboxRow input,
@@ -221,98 +219,6 @@
   min-width: 0;
   flex-direction: column;
   gap: 7px;
-}
-
-.linkedStylePropertyRow {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) 20px;
-  grid-template-rows: auto auto;
-  align-items: start;
-  gap: var(--ps-ui-space-6);
-}
-
-.linkedStylePropertyField {
-  display: contents;
-}
-
-.linkedStylePropertyLabel {
-  grid-column: 1;
-  grid-row: 1;
-  min-width: 0;
-  color: var(--ps-ui-text-muted);
-  font-size: 10px;
-}
-
-.linkedStylePropertyControl {
-  grid-column: 1;
-  grid-row: 2;
-  min-width: 0;
-}
-
-.linkedStylePropertyControl > * {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.linkedStylePropertyControl > input,
-.linkedStylePropertyControl > select {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--ps-ui-control-compact-height);
-  padding: 0 var(--ps-ui-space-8);
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
-  color: var(--ps-ui-text-secondary);
-  font: inherit;
-}
-
-.linkedStylePropertyControl > input:focus-visible,
-.linkedStylePropertyControl > select:focus-visible {
-  border-color: var(--ps-ui-semantic-focus);
-  outline: 2px solid var(--ps-ui-semantic-focus);
-  outline-offset: 1px;
-}
-
-.linkedStylePropertyControl > input:disabled,
-.linkedStylePropertyControl > select:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.linkedStylePropertyRemove {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.linkedStylePropertyRemove {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ps-ui-text-muted);
-  font: inherit;
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.linkedStylePropertyRemove:hover:not(:disabled),
-.linkedStylePropertyRemove:focus-visible:not(:disabled) {
-  color: var(--ps-ui-semantic-danger);
-}
-
-.linkedStylePropertyRemove:focus-visible {
-  outline: 2px solid var(--ps-ui-semantic-focus);
-  outline-offset: 1px;
-}
-
-.linkedStylePropertyRemove:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .linkedStylePropertyChooser {
@@ -547,13 +453,13 @@
   border-left: 1px solid #303847;
 }
 
-.typographyStyleProperties {
+.resourcePropertyStack {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.typographyStyleProperty {
+.resourcePropertyCard {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -562,22 +468,58 @@
   border-radius: 5px;
 }
 
-.typographyStylePropertyControl {
+.resourcePropertyControl {
   width: 100%;
   min-width: 0;
 }
 
-.typographyStylePropertyControl > div {
+.resourcePropertyControl > input,
+.resourcePropertyControl > select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ps-ui-control-compact-height);
+  padding: 0 var(--ps-ui-space-8);
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-secondary);
+  font: inherit;
+}
+
+.resourcePropertyControl > input:focus-visible,
+.resourcePropertyControl > select:focus-visible {
+  border-color: var(--ps-ui-semantic-focus);
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 1px;
+}
+
+.resourcePropertyControl > input:disabled,
+.resourcePropertyControl > select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.resourcePropertyControl > div {
   width: 100%;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
 }
 
-.typographyStylePropertyControl > div > * {
+.resourcePropertyControl > div > * {
   min-width: 0;
 }
 
-.typographyStylePropertyHeader {
+.resourcePropertyVisuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.resourcePropertyHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -586,7 +528,7 @@
   font-weight: 600;
 }
 
-.typographyStyleRemove {
+.resourcePropertyRemove {
   width: 20px;
   height: 20px;
   padding: 0;
@@ -598,8 +540,8 @@
   line-height: 1;
 }
 
-.typographyStyleRemove:hover,
-.typographyStyleRemove:focus-visible {
+.resourcePropertyRemove:hover,
+.resourcePropertyRemove:focus-visible {
   color: #f87171;
 }
 

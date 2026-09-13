@@ -451,7 +451,7 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
     case "position": control = <select value={style.layout?.position ?? "absolute"} onChange={(event) => commitLayout((layout) => ({ ...layout, position: event.target.value as "absolute" }))}><option value="absolute">{t("inspector.absolute")}</option></select>; break;
     case "top": case "right": case "bottom": case "left": control = numeric(numericLayoutValue(property), (next) => numberLayout(property, next)); break;
     case "width": case "height": control = <div className={styles.unitInput}><input type="number" min="0" max="100" value={typeof style.layout?.[property] === "string" && style.layout[property].endsWith("%") ? Number(style.layout[property].slice(0, -1)) : ""} onChange={(event) => commitLayout((layout) => ({ ...layout, [property]: event.target.value === "" ? undefined : `${Number(event.target.value)}%` }))} /><span>%</span></div>; break;
-    case "preserveSize": control = <label className={styles.linkedStyleCheckboxRow}><input type="checkbox" checked={style.layout?.flexShrink === 0} onChange={(event) => commitLayout((layout) => ({ ...layout, flexShrink: event.target.checked ? 0 : undefined }))} /><span>{displayLabel}</span></label>; break;
+    case "preserveSize": control = <label className={styles.linkedStyleCheckboxRow}><input aria-label={displayLabel} type="checkbox" checked={style.layout?.flexShrink === 0} onChange={(event) => commitLayout((layout) => ({ ...layout, flexShrink: event.target.checked ? 0 : undefined }))} /><span className={styles.resourcePropertyVisuallyHidden}>{displayLabel}</span></label>; break;
     case "padding": case "paddingTop": case "paddingRight": case "paddingBottom": case "paddingLeft": case "margin": case "marginTop": case "marginRight": case "marginBottom": case "marginLeft": control = numeric(numericLayoutValue(property), (next) => numberLayout(property, next)); break;
     case "color": control = <ColorControl id={`linked-style-${style.id}-color`} name={linkedStylePropertyLabel(t, property)} value={style.style?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, color } })} />; break;
     case "backgroundColor": control = <ColorControl id={`linked-style-${style.id}-background-color`} name={linkedStylePropertyLabel(t, property)} value={style.style?.background?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, color } } })} />; break;
@@ -463,9 +463,14 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
     case "shadow": control = <ContainerEffectsSection embedded allowNone={false} showSourceMeta={false} element={{ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }} onUpdate={(update) => { const next = update({ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }); if (next.type === "container") onUpdate({ ...style, effect: next.effect }); }} />; break;
   }
   const composite = property === "color" || property === "backgroundColor" || property === "gradient" || property === "pattern" || property === "border" || property === "borderRadius" || property === "shadow";
-  return <div className={styles.linkedStylePropertyRow} data-linked-style-property={property}>
-    {property === "preserveSize" ? control : composite ? <div className={styles.linkedStylePropertyControl} data-linked-style-property-control>{control}</div> : <label className={styles.linkedStylePropertyField}><span className={styles.linkedStylePropertyLabel}>{displayLabel}</span><span className={styles.linkedStylePropertyControl} data-linked-style-property-control>{control}</span></label>}
-    <button type="button" className={styles.linkedStylePropertyRemove} data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button>
+  return <div className={styles.resourcePropertyCard} data-linked-style-property={property}>
+    <div className={styles.resourcePropertyHeader}>
+      <span>{displayLabel}</span>
+      <button type="button" className={styles.resourcePropertyRemove} data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button>
+    </div>
+    <div className={styles.resourcePropertyControl} data-linked-style-property-control>
+      {control}
+    </div>
   </div>;
 }
 
@@ -665,13 +670,13 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdate?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdate?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       {visibleProperties.length === 0 ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
-      <div className={styles.typographyStyleProperties}>
-        {visibleProperties.map((item) => <div className={styles.typographyStyleProperty} data-text-style-property={item.property} key={item.property}>
-          <div className={styles.typographyStylePropertyHeader}>
+      <div className={styles.resourcePropertyStack}>
+        {visibleProperties.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} key={item.property}>
+          <div className={styles.resourcePropertyHeader}>
             <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
-            <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
+            <button type="button" className={styles.resourcePropertyRemove} aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
           </div>
-          <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
+          <div className={styles.resourcePropertyControl} data-text-style-property-control>
             {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
             {item.property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
             {item.property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}

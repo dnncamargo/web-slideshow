@@ -164,6 +164,23 @@ describe("Linked Styles Resources contract", () => {
     expect(host.querySelector("[data-linked-style-property='borderRadius'] select")).not.toBeNull();
   });
 
+  it("uses the shared resource property-card structure for authored properties", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Cards", layout: { children: { direction: "row", gap: 16 } } }] });
+    await openStyle(value);
+    const properties = Array.from(host.querySelectorAll<HTMLElement>("[data-linked-style-property]"));
+    expect(properties.map((property) => property.dataset.linkedStyleProperty)).toEqual(["direction", "gap"]);
+    for (const property of properties) {
+      expect(property.className).toContain("resourcePropertyCard");
+      const header = Array.from(property.children).find((child) => child.className.includes("resourcePropertyHeader")) as HTMLElement | undefined;
+      expect(header).not.toBeNull();
+      expect(header?.querySelector("span")).not.toBeNull();
+      expect(header?.querySelector("[data-linked-style-property-remove]")).not.toBeNull();
+      expect(property.querySelector("[data-linked-style-property-control]")?.className).toContain("resourcePropertyControl");
+    }
+    expect(host.querySelector("[data-linked-style-section='layout'] h3")?.textContent).toBe("Layout");
+    expect(host.querySelector("[data-linked-style-preview='gap']")).not.toBeNull();
+  });
+
   it("organizes the expanded definition editor into semantic static groups", async () => {
     const base = makePresentation();
     const value = PresentationSchema.parse({ ...base, linkedStyles: [...(base.linkedStyles ?? []), { id: "card", name: "Card", layout: { padding: 100, children: { gap: 16 } }, style: { background: { pattern: { image: "linear-gradient(#000, #fff)" } }, borderRadius: 8 }, effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } } }] });
