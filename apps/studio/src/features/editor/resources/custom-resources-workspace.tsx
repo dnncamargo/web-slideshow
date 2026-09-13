@@ -729,14 +729,12 @@ const TEXT_STYLE_DISPLAY_ORDER = [
 function PropertyChooser({ properties, appearanceProperties, onAdd, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; onAdd: (property: CoreTypographyProperty) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
   const { t } = useStudioI18n();
   const [open, setOpen] = useState(false);
+  const availableProperties = new Set<string>([...properties, ...appearanceProperties]);
+  const options = TEXT_STYLE_DISPLAY_ORDER.filter(({ property }) => availableProperties.has(property));
   return <div className={styles.typographyStyleChooser}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <div className={styles.typographyStylePropertyOptions}>
-      {properties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { onAdd(property); setOpen(false); }}>{t(propertyLabelKey[property])}</button>)}
-      {appearanceProperties.length > 0 ? <div className={styles.linkedStylePropertyGroup}>
-        <span className={styles.linkedStylePropertyGroupTitle} role="heading" aria-level={4}>Appearance</span>
-        {appearanceProperties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { onAddAppearance(property); setOpen(false); }}>{t(appearanceLabelKey[property])}</button>)}
-      </div> : null}
+      {options.map((item) => <button key={item.property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { if (item.kind === "typography") onAdd(item.property); else onAddAppearance(item.property); setOpen(false); }}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</button>)}
     </div> : null}
   </div>;
 }

@@ -478,7 +478,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();
   });
 
-  it("renders Appearance as a non-addable group heading", async () => {
+  it("renders a flat add-property menu in canonical order", async () => {
     await render(addCustomTextStyle(base(), "Quote", "body"));
     await act(async () => disclosure("quote").click());
     const addPropertyButton = rowButton("quote", "+ Add property");
@@ -486,14 +486,14 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
 
     const chooser = addPropertyButton.parentElement;
     if (!chooser) throw new Error("Missing Text Style property chooser");
-    const buttons = Array.from(chooser.querySelectorAll<HTMLButtonElement>("button"));
-    const heading = Array.from(chooser.querySelectorAll<HTMLElement>("[role='heading']")).find((candidate) => candidate.textContent?.trim() === "Appearance");
+    const options = Array.from(chooser.querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate !== addPropertyButton);
 
-    expect(buttons.map((candidate) => candidate.textContent?.trim())).not.toContain("Appearance");
-    expect(heading).not.toBeUndefined();
-    expect(heading?.textContent?.trim()).toBe("Appearance");
-    expect(heading?.getAttribute("role")).toBe("heading");
-    expect(buttons.map((candidate) => candidate.textContent?.trim())).toEqual(expect.arrayContaining(["Text color", "Decoration color", "Text stroke"]));
+    expect(chooser.textContent).not.toContain("Appearance");
+    expect(chooser.querySelector("[role='heading']")).toBeNull();
+    expect(options.map((candidate) => candidate.textContent?.trim())).toEqual([
+      "Font family", "Font size", "Font weight", "Font style", "Alignment", "Line height", "Letter spacing", "Case",
+      "White space", "Wrap style", "Long words", "Decoration", "Decoration color", "Text color", "Text stroke",
+    ]);
   });
 
   it("keeps Decoration and Decoration color adjacent for imported styles", async () => {
