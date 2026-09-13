@@ -232,6 +232,10 @@ export function CustomResourcesWorkspace({
               repository={customLibraryRepository}
               onApply={onApplyElementStyle}
               actionClassName={styles.resourceAction}
+              panelClassName={styles.libraryElementStylesPanel}
+              listClassName={styles.libraryElementStylesList}
+              itemClassName={styles.resourceItem}
+              retryClassName={styles.resourceAction}
               embedded
             />
           </InspectorSection>
@@ -369,8 +373,8 @@ function LinkedStylesWorkspace({
       const editorId = `linked-style-${linkedStyle.id}-editor`;
       return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
         <button type="button" className={styles.typographyStyleDisclosure} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
-          <span className={styles.typographyStyleDetails}><strong>{linkedStyle.name}</strong><span className={styles.typographyStyleStatus}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: linkedLocations.length })}</span></span>
-          <span className={styles.typographyStyleChevron} aria-hidden="true">{editing ? "⌃" : "⌄"}</span>
+          <span className={styles.resourceItemDetails}><strong>{linkedStyle.name}</strong><span className={styles.resourceItemMeta}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: linkedLocations.length })}</span></span>
+          <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "⌃" : "⌄"}</span>
         </button>
         {editing ? <div id={editorId} className={styles.linkedStyleEditor}>
           <LinkedStyleNameField style={linkedStyle} onRename={onRename} />
@@ -416,13 +420,13 @@ function LinkedStylePropertyChooser({ properties, onChoose }: { properties: read
     ["appearance", LINKED_STYLE_PROPERTY_GROUPS.appearance],
     ["effects", LINKED_STYLE_PROPERTY_GROUPS.effects],
   ] as const;
-  return <div className={styles.linkedStylePropertyChooser} data-linked-style-property-chooser>
+  return <div className={styles.resourceChooser} data-linked-style-property-chooser>
     {groups.map(([group, groupProperties]) => {
       const available = groupProperties.filter((property): property is LinkedStyleAuthorableProperty => property !== "fit" && properties.includes(property));
       if (available.length === 0) return null;
       return <div key={group} className={styles.linkedStylePropertyGroup}>
         <span className={styles.linkedStylePropertyGroupTitle}>{t(`inspector.${group}` as "inspector.layout")}</span>
-        {available.map((property) => <button type="button" className={styles.typographyStylePropertyOption} key={property} onClick={() => onChoose(property)}>{linkedStylePropertyLabel(t, property)}</button>)}
+        {available.map((property) => <button type="button" className={styles.resourceChooserOption} key={property} onClick={() => onChoose(property)}>{linkedStylePropertyLabel(t, property)}</button>)}
       </div>;
     })}
   </div>;
@@ -466,7 +470,7 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
   return <div className={styles.resourcePropertyCard} data-linked-style-property={property}>
     <div className={styles.resourcePropertyHeader}>
       <span>{displayLabel}</span>
-      <button type="button" className={styles.resourcePropertyRemove} data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button>
+      <button type="button" className={styles.resourceIconAction} data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button>
     </div>
     <div className={styles.resourcePropertyControl} data-linked-style-property-control>
       {control}
@@ -652,11 +656,11 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
         aria-controls={editorId}
         onClick={() => onEdit(id)}
       >
-        <span className={styles.typographyStyleDetails}>
+        <span className={styles.resourceItemDetails}>
           <strong>{label}</strong>
-          <span className={styles.typographyStyleStatus}>{status}</span>
+          <span className={styles.resourceItemMeta}>{status}</span>
         </span>
-        <span className={styles.typographyStyleChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
+        <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
       </button>
     </div>
     {editing ? <div id={editorId} className={styles.typographyStyleEditor}>
@@ -674,7 +678,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
         {visibleProperties.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} key={item.property}>
           <div className={styles.resourcePropertyHeader}>
             <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
-            <button type="button" className={styles.resourcePropertyRemove} aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
+            <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
           </div>
           <div className={styles.resourcePropertyControl} data-text-style-property-control>
             {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
@@ -738,8 +742,8 @@ function PropertyChooser({ properties, appearanceProperties, onAdd, onAddAppeara
   const options = TEXT_STYLE_DISPLAY_ORDER.filter(({ property }) => availableProperties.has(property));
   return <div className={styles.typographyStyleChooser}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
-    {open ? <div className={styles.typographyStylePropertyOptions}>
-      {options.map((item) => <button key={item.property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { if (item.kind === "typography") onAdd(item.property); else onAddAppearance(item.property); setOpen(false); }}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</button>)}
+    {open ? <div className={styles.resourceChooser}>
+      {options.map((item) => <button key={item.property} type="button" className={styles.resourceChooserOption} onClick={() => { if (item.kind === "typography") onAdd(item.property); else onAddAppearance(item.property); setOpen(false); }}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</button>)}
     </div> : null}
   </div>;
 }
@@ -812,7 +816,7 @@ function LocalPresentationColorRow({
   };
 
   return (
-    <div className={styles.localColorItem} data-presentation-color-row>
+    <div className={styles.resourceItem} data-presentation-color-row>
       <input
         className={styles.localColorInlineName}
         aria-label={t("customResources.colorNameFor", { name: color.name })}
@@ -829,7 +833,7 @@ function LocalPresentationColorRow({
       />
       <div className={styles.localColorValueRow}>
         <LiteralColorInput id={`custom-resources-literal-color-${color.id}`} name={t("customResources.color")} value={color.value} onChange={(value) => onUpdate(color.id, { name: color.name, value })} />
-        <button type="button" className={styles.removeColor} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemove(color.id)}>×</button>
+        <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemove(color.id)}>×</button>
       </div>
     </div>
   );
@@ -847,17 +851,17 @@ function MasterPaletteChooser({
   const { t } = useStudioI18n();
 
   if (loadState.kind === "loading") return <p className={styles.status}>{t("customResources.loadingPalettes")}</p>;
-  if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.loadFailed")}</p><button type="button" className={styles.retryButton} onClick={onRetry}>{t("customResources.retry")}</button></div>;
+  if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.loadFailed")}</p><button type="button" className={styles.resourceAction} onClick={onRetry}>{t("customResources.retry")}</button></div>;
   if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryPalettes")}</p>;
 
   return (
     <div className={styles.masterPaletteList}>
       {loadState.records.map(({ id, palette }) => (
-        <div key={id} className={styles.masterPaletteRow} data-custom-resource-palette={id}>
+        <div key={id} className={styles.resourceItem} data-custom-resource-palette={id}>
           <strong>{palette.name}</strong>
           <ColorSwatches colors={palette.colors} />
           <span className={styles.masterPaletteCount}>{t("customResources.colorCount", { count: palette.colors.length })}</span>
-          <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterPalette", { name: palette.name })} onClick={() => onAdd(palette)}>+</button>
+          <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.addMasterPalette", { name: palette.name })} onClick={() => onAdd(palette)}>+</button>
         </div>
       ))}
     </div>
@@ -876,14 +880,14 @@ function MasterFontChooser({
   const { t } = useStudioI18n();
 
   if (loadState.kind === "loading") return <p className={styles.status}>{t("customResources.loadingFonts")}</p>;
-  if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.fontLoadFailed")}</p><button type="button" className={styles.retryButton} onClick={onRetry}>{t("customResources.retry")}</button></div>;
+  if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.fontLoadFailed")}</p><button type="button" className={styles.resourceAction} onClick={onRetry}>{t("customResources.retry")}</button></div>;
   if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryFonts")}</p>;
 
   return <div className={styles.masterFontList}>
-    {loadState.records.map(({ id, font }) => <div key={id} className={styles.masterFontRow} data-custom-resource-font={id}>
+    {loadState.records.map(({ id, font }) => <div key={id} className={styles.resourceItem} data-custom-resource-font={id}>
       <strong>{font.family}</strong>
       <span className={styles.masterPaletteCount}>{t(font.faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: font.faces.length })}</span>
-      <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFont", { family: font.family })} onClick={() => onAdd(font)}>+</button>
+      <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.addMasterFont", { family: font.family })} onClick={() => onAdd(font)}>+</button>
     </div>)}
   </div>;
 }
@@ -900,12 +904,12 @@ function LocalPresentationFontRow({
   const { t } = useStudioI18n();
   const faces = getFontResourceFaces(font);
 
-  return <div className={styles.localFontRow} data-presentation-font-row>
+  return <div className={styles.resourceItem} data-presentation-font-row>
     <div className={styles.localFontDetails}>
       <strong>{font.family}</strong>
       <span className={styles.masterPaletteCount}>{t(faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: faces.length })}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
     </div>
-    <button type="button" className={styles.removeColor} aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
+    <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
   </div>;
 }
 
