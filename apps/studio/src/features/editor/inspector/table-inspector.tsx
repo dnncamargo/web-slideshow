@@ -866,7 +866,7 @@ function StructuredTableInspector({
     <>
       <div className={styles.inspectorDivider} />
 
-      <InspectorSection title={t("inspector.general")}>
+      <InspectorSection title={t("inspector.display")}>
         <label className={styles.checkboxRow}>
           <input
             type="checkbox"
