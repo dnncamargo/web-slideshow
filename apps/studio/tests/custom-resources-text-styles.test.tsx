@@ -496,6 +496,25 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(buttons.map((candidate) => candidate.textContent?.trim())).toEqual(expect.arrayContaining(["Text color", "Decoration color", "Text stroke"]));
   });
 
+  it("keeps Decoration and Decoration color adjacent for imported styles", async () => {
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { textDecorationLine: "underline", textDecorationColor: "#222222" } }] });
+    await render(initial);
+    await act(async () => disclosure("quote").click());
+
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property]")).map((property) => property.dataset.textStyleProperty)).toEqual(["textDecorationLine", "textDecorationColor", "color"]);
+  });
+
+  it("keeps the same display order when related properties are added through the chooser", async () => {
+    await render(addCustomTextStyle(base(), "Quote", "body"));
+    await act(async () => disclosure("quote").click());
+    for (const property of ["Decoration", "Decoration color", "Text color"]) {
+      await act(async () => rowButton("quote", "+ Add property").click());
+      await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === property)?.click());
+    }
+
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property]")).map((property) => property.dataset.textStyleProperty)).toEqual(["textDecorationLine", "textDecorationColor", "color"]);
+  });
+
   it("removes only the selected property and preserves deferred appearance", async () => {
     const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, fontWeight: 500, textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }] });
     const presentationRef: { current: Presentation | undefined } = { current: undefined };

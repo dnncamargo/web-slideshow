@@ -578,13 +578,14 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     ? { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: id, content: "Aa" }
     : { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: role, content: "Aa", typography: { ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role], ...typography } };
   const editorId = `text-style-${id}-editor`;
-  const authoredProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => typography?.[property] !== undefined);
-  const appearanceProperties = [
-    ...(visual?.color !== undefined || pendingColor ? ["color" as const] : []),
-    ...(typography?.textDecorationColor !== undefined || pendingDecorationColor ? ["textDecorationColor" as const] : []),
-    ...(typography?.textStroke !== undefined || pendingStroke !== undefined ? ["textStroke" as const] : []),
-  ];
-  const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
+  const visibleProperties = TEXT_STYLE_DISPLAY_ORDER.filter((item) => {
+    if (item.kind === "typography") return typography?.[item.property] !== undefined || (item.property === "fontFamily" && pendingFontFamily);
+    if (item.property === "color") return visual?.color !== undefined || pendingColor;
+    if (item.property === "textDecorationColor") return typography?.textDecorationColor !== undefined || pendingDecorationColor;
+    return typography?.textStroke !== undefined || pendingStroke !== undefined;
+  });
+  const authoredTypographyProperties = visibleProperties.filter((item) => item.kind === "typography" && typography?.[item.property] !== undefined).map((item) => item.property);
+  const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredTypographyProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
   const availableAppearance = [
     ...(visual?.color === undefined && !pendingColor ? ["color" as const] : []),
     ...(typography?.textDecorationColor === undefined && !pendingDecorationColor ? ["textDecorationColor" as const] : []),
@@ -663,32 +664,18 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       />
       {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdate?.({ name })} /> : null}
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdate?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
-      {authoredProperties.length === 0 && appearanceProperties.length === 0 && !pendingFontFamily ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
+      {visibleProperties.length === 0 ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
       <div className={styles.typographyStyleProperties}>
-        {authoredProperties.map((property) => <div className={styles.typographyStyleProperty} data-text-style-property={property} key={property}>
+        {visibleProperties.map((item) => <div className={styles.typographyStyleProperty} data-text-style-property={item.property} key={item.property}>
           <div className={styles.typographyStylePropertyHeader}>
-            <span>{t(propertyLabelKey[property])}</span>
-            <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(propertyLabelKey[property]) })} onClick={() => removeProperty(property)}>×</button>
+            <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
+            <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
           </div>
           <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
-            <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => updateTypography(update)} />
-          </div>
-        </div>)}
-        {pendingFontFamily ? <div className={styles.typographyStyleProperty} data-text-style-property="fontFamily">
-          <div className={styles.typographyStylePropertyHeader}>
-            <span>{t(propertyLabelKey.fontFamily)}</span>
-            <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(propertyLabelKey.fontFamily) })} onClick={() => removeProperty("fontFamily")}>×</button>
-          </div>
-          <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
-            <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={["fontFamily"]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} />
-          </div>
-        </div> : null}
-        {appearanceProperties.map((property) => <div className={styles.typographyStyleProperty} data-text-style-property={property} key={property}>
-          <div className={styles.typographyStylePropertyHeader}><span>{t(appearanceLabelKey[property])}</span><button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(appearanceLabelKey[property]) })} onClick={() => removeAppearance(property)}>×</button></div>
-          <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
-            {property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
-            {property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
-            {property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
+            {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
+            {item.property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
+            {item.property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
+            {item.property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
           </div>
         </div>)}
       </div>
@@ -720,6 +707,24 @@ const appearanceLabelKey = {
   textDecorationColor: "inspector.topics.decorationColor",
   textStroke: "inspector.textStroke",
 } as const;
+
+const TEXT_STYLE_DISPLAY_ORDER = [
+  { kind: "typography" as const, property: "fontFamily" as const },
+  { kind: "typography" as const, property: "fontSize" as const },
+  { kind: "typography" as const, property: "fontWeight" as const },
+  { kind: "typography" as const, property: "fontStyle" as const },
+  { kind: "typography" as const, property: "textAlign" as const },
+  { kind: "typography" as const, property: "lineHeight" as const },
+  { kind: "typography" as const, property: "letterSpacing" as const },
+  { kind: "typography" as const, property: "textTransform" as const },
+  { kind: "typography" as const, property: "whiteSpace" as const },
+  { kind: "typography" as const, property: "textWrapStyle" as const },
+  { kind: "typography" as const, property: "overflowWrap" as const },
+  { kind: "typography" as const, property: "textDecorationLine" as const },
+  { kind: "appearance" as const, property: "textDecorationColor" as const },
+  { kind: "appearance" as const, property: "color" as const },
+  { kind: "appearance" as const, property: "textStroke" as const },
+] as const;
 
 function PropertyChooser({ properties, appearanceProperties, onAdd, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; onAdd: (property: CoreTypographyProperty) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
   const { t } = useStudioI18n();
