@@ -190,37 +190,39 @@ export function ElementBorderControl({
       )}
 
       {border !== undefined && (
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>{t("inspector.borderWidth")}</span>
+        <>
+          <div className={styles.fieldGrid}>
+            <label className={styles.field}>
+              <span>{t("inspector.borderWidth")}</span>
 
-            <div className={styles.unitInput}>
-              <input
-                id={`${controlPrefix}-border-width`}
-                name={getControlName(controlPrefix, "BorderWidth")}
-                type="number"
-                min="0"
-                value={readAbsoluteNumber(border.width)}
-                onChange={(event) => {
-                  const width =
-                    parseOptionalNumber(event.target.value) ??
-                    DEFAULT_BORDER_WIDTH;
+              <div className={styles.unitInput}>
+                <input
+                  id={`${controlPrefix}-border-width`}
+                  name={getControlName(controlPrefix, "BorderWidth")}
+                  type="number"
+                  min="0"
+                  value={readAbsoluteNumber(border.width)}
+                  onChange={(event) => {
+                    const width =
+                      parseOptionalNumber(event.target.value) ??
+                      DEFAULT_BORDER_WIDTH;
 
-                  onChange(
-                    border === undefined
-                      ? {
-                          width,
-                          style: "solid",
-                          color: DEFAULT_BORDER_COLOR,
-                        }
-                      : { ...border, width },
-                  );
-                }}
-              />
+                    onChange(
+                      border === undefined
+                        ? {
+                            width,
+                            style: "solid",
+                            color: DEFAULT_BORDER_COLOR,
+                          }
+                        : { ...border, width },
+                    );
+                  }}
+                />
 
-              <span>px</span>
-            </div>
-          </label>
+                <span>px</span>
+              </div>
+            </label>
+          </div>
 
           {!gradientPaint && (
             <label className={styles.field}>
@@ -244,7 +246,7 @@ export function ElementBorderControl({
               />
             </label>
           )}
-        </div>
+        </>
       )}
 
       {gradientPaint && border !== undefined && (

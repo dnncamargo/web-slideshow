@@ -33,12 +33,8 @@ describe("LiteralColorInput", () => {
   it("renders picker, text, and format controls", () => {
     render();
     expect(container.querySelector("input[type=color]")).toBeTruthy();
-    const textInput = container.querySelector<HTMLInputElement>("#color-value");
-    expect(textInput?.value).toBe("#facc15");
-    expect(textInput?.className).toContain("textInput");
-    const formatSelect = container.querySelector<HTMLSelectElement>("#color-format");
-    expect(formatSelect?.value).toBe("hex");
-    expect(formatSelect?.className).toContain("formatSelect");
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("#facc15");
+    expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
   });
 
   it("displays HEX and RGBA values", () => {

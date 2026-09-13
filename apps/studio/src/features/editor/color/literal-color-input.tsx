@@ -107,7 +107,6 @@ export function LiteralColorInput({
       <input
         id={`${id}-value`}
         name={`${name}Value`}
-        className={styles.textInput}
         type="text"
         autoComplete="off"
         value={draft}
@@ -128,7 +127,6 @@ export function LiteralColorInput({
       <select
         id={`${id}-format`}
         name={`${name}Format`}
-        className={styles.formatSelect}
         value={format}
         disabled={disabled}
         onChange={(event) => {

@@ -3,15 +3,11 @@
   height: 38px !important;
   padding: 4px !important;
   cursor: pointer;
-  grid-area: picker;
 }
 
 .control {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas:
-    "picker text"
-    "picker format";
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   overflow: hidden;
   border: 1px solid #303847;
@@ -31,17 +27,7 @@
   background: transparent;
 }
 
-.textInput {
-  grid-area: text;
-  min-width: 0 !important;
-  overflow: hidden;
-  text-overflow: clip;
-  white-space: nowrap;
-}
-
 .control select {
-  grid-area: format;
-  width: 100%;
   padding: 0 7px;
   border-left: 1px solid #303847;
   color: #94a3b8;

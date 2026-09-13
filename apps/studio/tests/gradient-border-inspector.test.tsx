@@ -133,6 +133,20 @@ describe("Gradient Border authoring", () => {
     expect(state.style?.border?.gradient).toBeUndefined();
   });
 
+  it("gives border color its own Inspector row", async () => {
+    await act(async () =>
+      mount(containerElement({
+        style: { border: { width: 3, style: "solid", color: "#111111" } },
+      })),
+    );
+
+    const width = host.querySelector<HTMLInputElement>("#container-border-width");
+    const color = host.querySelector<HTMLInputElement>("#container-border-color-value");
+
+    expect(width?.closest("label")?.parentElement?.className).toContain("fieldGrid");
+    expect(color?.closest("label")?.parentElement?.className).not.toContain("fieldGrid");
+  });
+
   it("2. enabling Gradient Border creates canonical border.gradient", async () => {
     await act(async () =>
       mount(

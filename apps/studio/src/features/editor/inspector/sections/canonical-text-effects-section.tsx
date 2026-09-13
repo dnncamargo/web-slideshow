@@ -74,30 +74,32 @@ export function CanonicalTextEffectsSection({
         </select>
       </label>
       {typography?.textStroke && (
-        <div className={styles.fieldGrid}>
-          <label className={styles.field}>
-            <span>{t("inspector.textStrokeWidth")}</span>
-            <div className={styles.unitInput}>
-              <input
-                id={`${controlPrefix}-text-stroke-width`}
-                name={getControlName(controlPrefix, "TextStrokeWidth")}
-                type="number"
-                min="0"
-                value={readAbsoluteNumber(typography.textStroke.width)}
-                onChange={(event) => {
-                  const width = parseOptionalNumber(event.target.value) ?? 1;
-                  onUpdateTypography((current) => ({
-                    ...current,
-                    textStroke: {
-                      ...(current?.textStroke ?? defaultTextStroke(textColor)),
-                      width: Math.max(0, width),
-                    },
-                  }));
-                }}
-              />
-              <span>px</span>
-            </div>
-          </label>
+        <>
+          <div className={styles.fieldGrid}>
+            <label className={styles.field}>
+              <span>{t("inspector.textStrokeWidth")}</span>
+              <div className={styles.unitInput}>
+                <input
+                  id={`${controlPrefix}-text-stroke-width`}
+                  name={getControlName(controlPrefix, "TextStrokeWidth")}
+                  type="number"
+                  min="0"
+                  value={readAbsoluteNumber(typography.textStroke.width)}
+                  onChange={(event) => {
+                    const width = parseOptionalNumber(event.target.value) ?? 1;
+                    onUpdateTypography((current) => ({
+                      ...current,
+                      textStroke: {
+                        ...(current?.textStroke ?? defaultTextStroke(textColor)),
+                        width: Math.max(0, width),
+                      },
+                    }));
+                  }}
+                />
+                <span>px</span>
+              </div>
+            </label>
+          </div>
           <label className={styles.field}>
             <span>{t("inspector.textStrokeColor")}</span>
             <ColorControl
@@ -115,7 +117,7 @@ export function CanonicalTextEffectsSection({
               }
             />
           </label>
-        </div>
+        </>
       )}
       <label className={styles.field}>
         <span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span>

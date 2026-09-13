@@ -276,6 +276,16 @@ describe("Text Inspector typography style attachment", () => {
     expect(host.querySelector("#text-text-decoration-line")).not.toBeNull();
   });
 
+  it("gives text stroke color its own Inspector row", async () => {
+    await mount(text({ typography: { textStroke: { width: 1, color: "#ffffff" } } }));
+
+    const width = host.querySelector<HTMLInputElement>("#text-text-stroke-width");
+    const color = host.querySelector<HTMLInputElement>("#text-text-stroke-color-value");
+
+    expect(width?.closest("label")?.parentElement?.className).toContain("fieldGrid");
+    expect(color?.closest("label")?.parentElement?.className).not.toContain("fieldGrid");
+  });
+
   it("threads the active Presentation through ElementInspector to TextInspector", async () => {
     const customPresentation = presentation([{ id: "quote", name: "Quote", role: "body" }]);
     current = text();
