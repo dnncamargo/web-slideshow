@@ -160,6 +160,7 @@ export function CustomResourcesWorkspace({
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
   const [fontLoadState, setFontLoadState] = useState<FontLoadState>({ kind: "loading" });
+  const [elementStyleChooserOpen, setElementStyleChooserOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [localColorAddOpen, setLocalColorAddOpen] = useState(false);
   const [colorName, setColorName] = useState("");
@@ -228,7 +229,10 @@ export function CustomResourcesWorkspace({
         <section className={styles.scope} aria-labelledby="custom-resources-from-library">
           <h2 id="custom-resources-from-library" className={styles.sectionTitle}>{t("customResources.fromLibrary")}</h2>
           <InspectorSection title={t("customResources.elementStyles")} open={resourceSections.elementStyles} onOpenChange={(open) => onResourceSectionChange("elementStyles", open)}>
-            <CustomLibraryApplyPicker
+            <button type="button" className={styles.resourceAction} onClick={() => setElementStyleChooserOpen((open) => !open)}>
+              {elementStyleChooserOpen ? t("customResources.close") : t("customResources.addSavedElement")}
+            </button>
+            {elementStyleChooserOpen ? <CustomLibraryApplyPicker
               repository={customLibraryRepository}
               onApply={onApplyElementStyle}
               actionClassName={styles.resourceAction}
@@ -237,7 +241,7 @@ export function CustomResourcesWorkspace({
               itemClassName={styles.resourceItem}
               retryClassName={styles.resourceAction}
               embedded
-            />
+            /> : null}
           </InspectorSection>
           <InspectorSection title={t("customResources.palettes")} open={resourceSections.libraryPalettes} onOpenChange={(open) => onResourceSectionChange("libraryPalettes", open)}>
             <div className={styles.group}>
