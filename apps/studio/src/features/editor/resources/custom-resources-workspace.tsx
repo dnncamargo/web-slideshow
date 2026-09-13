@@ -470,7 +470,7 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
   return <div className={styles.resourcePropertyCard} data-linked-style-property={property}>
     <div className={styles.resourcePropertyHeader}>
       <span>{displayLabel}</span>
-      <button type="button" className={styles.resourceIconAction} data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button>
+      <button type="button" className={styles.resourceIconAction} data-resource-action="remove" data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: displayLabel })}>×</button>
     </div>
     <div className={styles.resourcePropertyControl} data-linked-style-property-control>
       {control}
@@ -551,9 +551,7 @@ function TextStylesWorkspace({
   return <section
     className={styles.textStylesSection}
     data-presentation-text-styles
-    aria-labelledby="presentation-text-styles-title"
   >
-    <h3 id="presentation-text-styles-title" className={styles.groupTitle}>{t("customResources.textStyles")}</h3>
     <div className={styles.typographyStyleList}>
       {FUNDAMENTAL_TEXT_STYLE_IDS.map((id) => {
         const style = byId.get(id);
@@ -593,6 +591,18 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     if (item.property === "textDecorationColor") return typography?.textDecorationColor !== undefined || pendingDecorationColor;
     return typography?.textStroke !== undefined || pendingStroke !== undefined;
   });
+  const propertyGroups = [
+    {
+      id: "typography",
+      label: "inspector.typography" as const,
+      items: visibleProperties.filter((item) => item.kind === "typography" || item.property === "textDecorationColor"),
+    },
+    {
+      id: "appearance",
+      label: "inspector.appearance" as const,
+      items: visibleProperties.filter((item) => item.property === "color" || item.property === "textStroke"),
+    },
+  ] as const;
   const authoredTypographyProperties = visibleProperties.filter((item) => item.kind === "typography" && typography?.[item.property] !== undefined).map((item) => item.property);
   const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredTypographyProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
   const availableAppearance = [
@@ -675,18 +685,21 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdate?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       {visibleProperties.length === 0 ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
       <div className={styles.resourcePropertyStack}>
-        {visibleProperties.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} key={item.property}>
-          <div className={styles.resourcePropertyHeader}>
-            <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
-            <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
-          </div>
-          <div className={styles.resourcePropertyControl} data-text-style-property-control>
-            {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
-            {item.property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
-            {item.property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
-            {item.property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
-          </div>
-        </div>)}
+        {propertyGroups.map((group) => group.items.length === 0 ? null : <section className={styles.resourcePropertyGroup} data-text-style-property-group={group.id} key={group.id}>
+          <h4 className={styles.resourcePropertyGroupTitle}>{t(group.label)}</h4>
+          {group.items.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} key={item.property}>
+            <div className={styles.resourcePropertyHeader}>
+              <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
+              <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
+            </div>
+            <div className={styles.resourcePropertyControl} data-text-style-property-control>
+              {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
+              {item.property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
+              {item.property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
+              {item.property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
+            </div>
+          </div>)}
+        </section>)}
       </div>
       {availableProperties.length > 0 || availableAppearance.length > 0 ? <PropertyChooser properties={availableProperties} appearanceProperties={availableAppearance} onAdd={addProperty} onAddAppearance={addAppearance} /> : null}
       <div className={styles.linkedStyleSection} data-text-style-usage><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.usage")}</h3><ResourceUsageLocations locations={locations} onSelect={onSelectElement} onRequestDetach={onRequestDetachElement} styleName={label} /></div>
@@ -833,7 +846,7 @@ function LocalPresentationColorRow({
       />
       <div className={styles.localColorValueRow}>
         <LiteralColorInput id={`custom-resources-literal-color-${color.id}`} name={t("customResources.color")} value={color.value} onChange={(value) => onUpdate(color.id, { name: color.name, value })} />
-        <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemove(color.id)}>×</button>
+        <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemove(color.id)}>×</button>
       </div>
     </div>
   );
@@ -909,7 +922,7 @@ function LocalPresentationFontRow({
       <strong>{font.family}</strong>
       <span className={styles.masterPaletteCount}>{t(faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: faces.length })}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
     </div>
-    <button type="button" className={styles.resourceIconAction} aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
+    <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
   </div>;
 }
 

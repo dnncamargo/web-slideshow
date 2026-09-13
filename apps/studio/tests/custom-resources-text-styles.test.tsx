@@ -143,8 +143,8 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     const fromLibrary = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-from-library']");
     const textStyles = requiredElement<HTMLElement>("[data-presentation-text-styles]");
     expect(textStyles.tagName).toBe("SECTION");
-    expect(textStyles.getAttribute("aria-labelledby")).toBe("presentation-text-styles-title");
-    expect(textStyles.querySelector("#presentation-text-styles-title")?.textContent).toBe("Text Styles");
+    expect(textStyles.getAttribute("aria-labelledby")).toBeNull();
+    expect(textStyles.querySelector("#presentation-text-styles-title")).toBeNull();
     const textStylesSection = Array.from(thisPresentation.querySelectorAll("details")).find((detail) => detail.querySelector("summary")?.textContent?.includes("Text Styles"));
     expect(textStylesSection?.querySelector("summary")?.textContent).toContain("4");
     expect(thisPresentation.contains(textStyles)).toBe(true);
@@ -476,6 +476,20 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(row("quote").querySelector("#text-style-quote-font-size-unit")).not.toBeNull();
     expect(row("quote").querySelector("#text-style-quote-font-weight")).not.toBeNull();
     expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();
+  });
+
+  it("groups authored properties without changing the canonical order", async () => {
+    const initial = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, textDecorationLine: "underline", textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }],
+    });
+    await render(initial);
+    await act(async () => disclosure("quote").click());
+
+    expect(row("quote").querySelector("[data-text-style-property-group='typography'] h4")?.textContent).toBe("Typography");
+    expect(row("quote").querySelector("[data-text-style-property-group='appearance'] h4")?.textContent).toBe("Appearance");
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property-group='typography'] [data-text-style-property]")) .map((property) => property.dataset.textStyleProperty)).toEqual(["fontSize", "textDecorationLine", "textDecorationColor"]);
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property-group='appearance'] [data-text-style-property]")) .map((property) => property.dataset.textStyleProperty)).toEqual(["color", "textStroke"]);
   });
 
   it("renders a flat add-property menu in canonical order", async () => {
