@@ -728,8 +728,10 @@ function PropertyChooser({ properties, appearanceProperties, onAdd, onAddAppeara
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <div className={styles.typographyStylePropertyOptions}>
       {properties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { onAdd(property); setOpen(false); }}>{t(propertyLabelKey[property])}</button>)}
-      {appearanceProperties.length > 0 ? <span className={styles.typographyStylePropertyOption}>Appearance</span> : null}
-      {appearanceProperties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { onAddAppearance(property); setOpen(false); }}>{t(appearanceLabelKey[property])}</button>)}
+      {appearanceProperties.length > 0 ? <div className={styles.linkedStylePropertyGroup}>
+        <span className={styles.linkedStylePropertyGroupTitle} role="heading" aria-level={4}>Appearance</span>
+        {appearanceProperties.map((property) => <button key={property} type="button" className={styles.typographyStylePropertyOption} onClick={() => { onAddAppearance(property); setOpen(false); }}>{t(appearanceLabelKey[property])}</button>)}
+      </div> : null}
     </div> : null}
   </div>;
 }

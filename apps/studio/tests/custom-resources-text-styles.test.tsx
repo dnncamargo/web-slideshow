@@ -478,6 +478,24 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();
   });
 
+  it("renders Appearance as a non-addable group heading", async () => {
+    await render(addCustomTextStyle(base(), "Quote", "body"));
+    await act(async () => disclosure("quote").click());
+    const addPropertyButton = rowButton("quote", "+ Add property");
+    await act(async () => addPropertyButton.click());
+
+    const chooser = addPropertyButton.parentElement;
+    if (!chooser) throw new Error("Missing Text Style property chooser");
+    const buttons = Array.from(chooser.querySelectorAll<HTMLButtonElement>("button"));
+    const heading = Array.from(chooser.querySelectorAll<HTMLElement>("[role='heading']")).find((candidate) => candidate.textContent?.trim() === "Appearance");
+
+    expect(buttons.map((candidate) => candidate.textContent?.trim())).not.toContain("Appearance");
+    expect(heading).not.toBeUndefined();
+    expect(heading?.textContent?.trim()).toBe("Appearance");
+    expect(heading?.getAttribute("role")).toBe("heading");
+    expect(buttons.map((candidate) => candidate.textContent?.trim())).toEqual(expect.arrayContaining(["Text color", "Decoration color", "Text stroke"]));
+  });
+
   it("removes only the selected property and preserves deferred appearance", async () => {
     const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, fontWeight: 500, textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }] });
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
