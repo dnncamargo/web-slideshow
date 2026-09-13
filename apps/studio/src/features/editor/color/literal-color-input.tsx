@@ -128,6 +128,7 @@ export function LiteralColorInput({
       <select
         id={`${id}-format`}
         name={`${name}Format`}
+        className={styles.formatSelect}
         value={format}
         disabled={disabled}
         onChange={(event) => {

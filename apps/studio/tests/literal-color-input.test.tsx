@@ -36,7 +36,9 @@ describe("LiteralColorInput", () => {
     const textInput = container.querySelector<HTMLInputElement>("#color-value");
     expect(textInput?.value).toBe("#facc15");
     expect(textInput?.className).toContain("textInput");
-    expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
+    const formatSelect = container.querySelector<HTMLSelectElement>("#color-format");
+    expect(formatSelect?.value).toBe("hex");
+    expect(formatSelect?.className).toContain("formatSelect");
   });
 
   it("displays HEX and RGBA values", () => {
