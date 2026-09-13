@@ -27,11 +27,11 @@ describe("Linked Styles Resources contract", () => {
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); root = undefined; host = undefined!; });
 
-  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined) {
+  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined, onRenameLinkedStyle: (id: string, name: string) => void = () => undefined) {
     if (root) await act(async () => root?.unmount());
     host?.remove();
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} onRequestDetachLinkedStyle={onRequestDetachLinkedStyle} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} onRenameLinkedStyle={onRenameLinkedStyle} onRequestDetachLinkedStyle={onRequestDetachLinkedStyle} /></StudioI18nProvider>));
   }
 
   async function openStyle(value: ReturnType<typeof makePresentation>, onUpdate = vi.fn()) {
@@ -93,10 +93,25 @@ describe("Linked Styles Resources contract", () => {
     const reuse = host.querySelector<HTMLElement>("[data-linked-style-section='reuse']")!;
     const x = Array.from(reuse.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "x");
     expect(x).toBeDefined();
+    expect(x?.dataset.resourceAction).toBe("detach");
     expect(x?.getAttribute("aria-label")).toBe("Detach this element from Gap");
     expect(request).not.toHaveBeenCalled();
     await act(async () => x?.click());
     expect(request).toHaveBeenCalledWith("gap", "Gap", { slideIndex: 0, elementId: "linked" });
+  });
+
+  it("renames a Linked Style through the existing update boundary", async () => {
+    const value = makePresentation();
+    const rename = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, rename);
+    const linkedSection = Array.from(host.querySelectorAll("details")).find((detail) => detail.textContent?.includes("Linked Styles"));
+    await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    const input = host.querySelector<HTMLInputElement>("[data-linked-style-id='gap'] input");
+    expect(input?.value).toBe("Gap");
+    await setInput(input!, "Spacing");
+    await act(async () => input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(rename).toHaveBeenCalledWith("gap", "Spacing");
   });
 
   it("uses the compact shared action grammar and Text Styles disclosure structure", async () => {

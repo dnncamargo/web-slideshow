@@ -466,7 +466,6 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
     case "opacity": control = <input type="number" min="0" max="100" value={style.effect?.opacity === undefined ? "" : style.effect.opacity * 100} onChange={(event) => onUpdate({ ...style, effect: { ...style.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} />; break;
     case "shadow": control = <ContainerEffectsSection embedded allowNone={false} showSourceMeta={false} element={{ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }} onUpdate={(update) => { const next = update({ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }); if (next.type === "container") onUpdate({ ...style, effect: next.effect }); }} />; break;
   }
-  const composite = property === "color" || property === "backgroundColor" || property === "gradient" || property === "pattern" || property === "border" || property === "borderRadius" || property === "shadow";
   return <div className={styles.resourcePropertyCard} data-linked-style-property={property}>
     <div className={styles.resourcePropertyHeader}>
       <span>{displayLabel}</span>
@@ -520,7 +519,7 @@ function LinkedStyleLengthField({ id, label, value, onChange }: { id: string; la
 
 function ResourceUsageLocations({ locations, onSelect, onRequestDetach, styleName }: { locations: readonly { slideIndex: number; elementId: string }[]; onSelect: (location: { slideIndex: number; elementId: string }) => void; onRequestDetach?: (location: { slideIndex: number; elementId: string }) => void; styleName?: string }) {
   const { t } = useStudioI18n();
-  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <div key={`${location.slideIndex}:${location.elementId}`} className={styles.resourceUsageRow}><button type="button" className={styles.resourceAction} onClick={() => onSelect(location)}>{t("customResources.linkedStyleLocation", { slide: location.slideIndex + 1, id: location.elementId })}</button>{onRequestDetach && styleName ? <button type="button" className={styles.resourceAction} aria-label={t("customResources.detachStyleElement", { style: styleName })} onClick={(event) => { event.stopPropagation(); onRequestDetach(location); }}>x</button> : null}</div>)}</div>;
+  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <div key={`${location.slideIndex}:${location.elementId}`} className={styles.resourceUsageRow}><button type="button" className={styles.resourceAction} onClick={() => onSelect(location)}>{t("customResources.linkedStyleLocation", { slide: location.slideIndex + 1, id: location.elementId })}</button>{onRequestDetach && styleName ? <button type="button" className={styles.resourceAction} data-resource-action="detach" aria-label={t("customResources.detachStyleElement", { style: styleName })} onClick={(event) => { event.stopPropagation(); onRequestDetach(location); }}>x</button> : null}</div>)}</div>;
 }
 
 function TextStylesWorkspace({
@@ -687,7 +686,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       <div className={styles.resourcePropertyStack}>
         {propertyGroups.map((group) => group.items.length === 0 ? null : <section className={styles.resourcePropertyGroup} data-text-style-property-group={group.id} key={group.id}>
           <h4 className={styles.resourcePropertyGroupTitle}>{t(group.label)}</h4>
-          {group.items.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} key={item.property}>
+          {group.items.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} data-compact-field-label={item.kind === "typography"} key={item.property}>
             <div className={styles.resourcePropertyHeader}>
               <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
               <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>

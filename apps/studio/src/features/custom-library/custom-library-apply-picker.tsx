@@ -143,6 +143,7 @@ export function CustomLibraryApplyPicker({
                     <button
                       type="button"
                       className={`${styles.customLibraryApplyItem} ${itemClassName ?? ""}`}
+                      data-selected={selectedId === record.id}
                       aria-pressed={selectedId === record.id}
                       onClick={() => {
                         setSelectedId(record.id);

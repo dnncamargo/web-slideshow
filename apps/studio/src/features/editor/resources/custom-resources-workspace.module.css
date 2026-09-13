@@ -167,6 +167,11 @@
   text-align: left;
 }
 
+.libraryElementStylesList .resourceItem[data-selected="true"] {
+  border-color: var(--ps-ui-semantic-accent);
+  background: var(--ps-ui-background-control);
+}
+
 .linkedStyleEditor {
   display: flex;
   min-width: 0;
@@ -474,7 +479,7 @@
 
 .masterPaletteList .resourceItem {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto 20px;
+  grid-template-columns: minmax(7rem, 1fr) minmax(0, 1fr) auto 20px;
   align-items: center;
   padding: 4px 0;
 }
@@ -488,17 +493,35 @@
   overflow: hidden;
 }
 
+.masterPaletteList .swatches .swatch {
+  min-width: 0;
+  flex: 1 1 12px;
+}
+
 .masterFontList {
   display: flex;
   width: 100%;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .localFontList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+}
+
+.masterFontList .resourceItem,
+.localFontList .resourceItem {
+  padding: 4px 0;
+}
+
+.masterFontList .resourceItem > strong,
+.localFontList .localFontDetails {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .textStylesSection {
@@ -603,6 +626,17 @@
 
 .resourcePropertyControl > * {
   min-width: 0;
+}
+
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl .field > span,
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl .field > label {
+  font-size: 0;
+  line-height: 0;
+}
+
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl input,
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl select {
+  font-size: 10px;
 }
 
 .resourcePropertyVisuallyHidden {
