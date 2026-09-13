@@ -176,6 +176,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(fontSizeOption).toBeDefined();
     await act(async () => fontSizeOption?.click());
     expect(row("body").querySelector("#text-style-body-font-size")).not.toBeNull();
+    expect(row("body").querySelector("[data-text-style-property='fontSize'] [data-text-style-property-control]")).not.toBeNull();
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
     expect(presentationRef.current?.textStyles).toEqual([{ id: "body", typography: { fontSize: 18 } }]);
     expect(row("body").textContent).toContain("Customized");
@@ -459,6 +460,22 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     const role = row("quote").querySelector<HTMLSelectElement>("select");
     await act(async () => { if (role) { role.value = "caption"; role.dispatchEvent(new Event("change", { bubbles: true })); } });
     expect(presentationRef.current?.textStyles?.[0]?.typography?.fontSize).toBe(18);
+  });
+
+  it("uses the scoped full-width property control for Font size, Font weight, and Case", async () => {
+    const initial = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { fontSize: 18, fontWeight: 500, textTransform: "uppercase" } }],
+    });
+    await render(initial);
+    await act(async () => disclosure("quote").click());
+
+    for (const property of ["fontSize", "fontWeight", "textTransform"]) {
+      expect(row("quote").querySelector(`[data-text-style-property='${property}'] [data-text-style-property-control]`)).not.toBeNull();
+    }
+    expect(row("quote").querySelector("#text-style-quote-font-size-unit")).not.toBeNull();
+    expect(row("quote").querySelector("#text-style-quote-font-weight")).not.toBeNull();
+    expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();
   });
 
   it("removes only the selected property and preserves deferred appearance", async () => {

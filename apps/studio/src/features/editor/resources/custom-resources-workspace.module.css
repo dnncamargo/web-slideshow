@@ -562,6 +562,11 @@
   border-radius: 5px;
 }
 
+.typographyStylePropertyControl {
+  width: 100%;
+  min-width: 0;
+}
+
 .typographyStylePropertyHeader {
   display: flex;
   align-items: center;

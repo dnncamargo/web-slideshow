@@ -670,20 +670,26 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
             <span>{t(propertyLabelKey[property])}</span>
             <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(propertyLabelKey[property]) })} onClick={() => removeProperty(property)}>×</button>
           </div>
-          <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => updateTypography(update)} />
+          <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
+            <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => updateTypography(update)} />
+          </div>
         </div>)}
         {pendingFontFamily ? <div className={styles.typographyStyleProperty} data-text-style-property="fontFamily">
           <div className={styles.typographyStylePropertyHeader}>
             <span>{t(propertyLabelKey.fontFamily)}</span>
             <button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(propertyLabelKey.fontFamily) })} onClick={() => removeProperty("fontFamily")}>×</button>
           </div>
-          <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={["fontFamily"]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} />
+          <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
+            <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={["fontFamily"]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} />
+          </div>
         </div> : null}
         {appearanceProperties.map((property) => <div className={styles.typographyStyleProperty} data-text-style-property={property} key={property}>
           <div className={styles.typographyStylePropertyHeader}><span>{t(appearanceLabelKey[property])}</span><button type="button" className={styles.typographyStyleRemove} aria-label={t("customResources.removeProperty", { property: t(appearanceLabelKey[property]) })} onClick={() => removeAppearance(property)}>×</button></div>
-          {property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
-          {property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
-          {property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
+          <div className={styles.typographyStylePropertyControl} data-text-style-property-control>
+            {property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
+            {property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
+            {property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
+          </div>
         </div>)}
       </div>
       {availableProperties.length > 0 || availableAppearance.length > 0 ? <PropertyChooser properties={availableProperties} appearanceProperties={availableAppearance} onAdd={addProperty} onAddAppearance={addAppearance} /> : null}
