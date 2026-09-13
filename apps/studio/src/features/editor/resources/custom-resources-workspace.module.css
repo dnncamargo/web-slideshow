@@ -478,24 +478,43 @@
 }
 
 .masterPaletteList .resourceItem {
-  display: grid;
-  grid-template-columns: minmax(7rem, 1fr) minmax(0, 1fr) auto 20px;
-  align-items: center;
+  align-items: stretch;
   padding: 4px 0;
 }
 
-.masterPaletteList .resourceItem > strong {
-  min-width: 0;
+.masterPaletteItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.masterPaletteList .swatches {
+.masterPaletteHeader,
+.masterPalettePreview {
+  display: flex;
   min-width: 0;
+  align-items: center;
+  gap: var(--ps-ui-space-8);
+}
+
+.masterPaletteHeader {
+  justify-content: space-between;
+}
+
+.masterPaletteHeader > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.masterPalettePreview .swatches {
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
 }
 
-.masterPaletteList .swatches .swatch {
-  min-width: 0;
-  flex: 1 1 12px;
+.masterPalettePreview .swatch {
+  flex: none;
 }
 
 .masterFontList {
@@ -516,12 +535,20 @@
   padding: 4px 0;
 }
 
-.masterFontList .resourceItem > strong,
-.localFontList .localFontDetails {
+.masterFontList .fontResourceDetails,
+.localFontList .fontResourceDetails {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fontResourceDetails {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .textStylesSection {
@@ -574,6 +601,7 @@
   padding: 6px;
   border: 1px solid var(--ps-ui-border-default);
   border-radius: 5px;
+  background: var(--ps-ui-background-raised);
 }
 
 .resourcePropertyGroup {
@@ -626,6 +654,10 @@
 
 .resourcePropertyControl > * {
   min-width: 0;
+}
+
+.resourcePropertyControl > .unitInput {
+  width: 100%;
 }
 
 .resourcePropertyCard[data-compact-field-label] .resourcePropertyControl .field > span,
@@ -717,19 +749,6 @@
 .typographyStyleActions {
   display: flex;
   justify-content: flex-end;
-}
-
-.localFontDetails {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.localFontDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .resourceItem[data-presentation-color-row] {

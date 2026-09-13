@@ -136,7 +136,11 @@ describe("Custom Resources palette composition", () => {
     expect(container.textContent).not.toContain("Delete");
     await act(async () => button("+ Add palette").click());
     expect(container.textContent).toContain("Supernova");
-    expect(container.querySelector("[aria-label='Add Supernova']")).not.toBeNull();
+    const paletteRow = container.querySelector<HTMLElement>("[data-custom-resource-palette='master']");
+    expect(paletteRow?.querySelector("[data-palette-header] strong")?.textContent).toBe("Supernova");
+    expect(paletteRow?.querySelector("[data-palette-header] [aria-label='Add Supernova']")).not.toBeNull();
+    expect(paletteRow?.querySelector("[data-palette-preview] [data-palette-swatch]")).not.toBeNull();
+    expect(paletteRow?.querySelector("[data-palette-preview] [data-palette-count]")).not.toBeNull();
     await act(async () => button("Close").click());
     expect(container.textContent).not.toContain("Supernova");
   });

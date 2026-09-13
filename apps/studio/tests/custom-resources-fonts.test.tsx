@@ -127,6 +127,15 @@ describe("Custom Resources Fonts", () => {
     expect(error.container.textContent).toContain("Inter");
   });
 
+  it("uses the shared Close label for the open library font chooser", async () => {
+    const repository = { listFonts: vi.fn(async () => [font]) } as unknown as CustomLibraryFontRepository;
+    const rendered = renderWorkspace({ repository }); root = rendered.root;
+    await flush();
+    const open = Array.from(rendered.container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "+ Add font");
+    await act(async () => open?.click());
+    expect(Array.from(rendered.container.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent === "Close")).toBe(true);
+  });
+
   it("shows outcome feedback and presentation-local font rows", async () => {
     const repository = { listFonts: vi.fn(async () => [font]) } as unknown as CustomLibraryFontRepository;
     const outcomes = ["added", "merged", "unchanged", "conflict"] as const;
