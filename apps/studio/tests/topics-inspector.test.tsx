@@ -1322,11 +1322,10 @@ describe("Topics inspector section hierarchy", () => {
     "Markers",
     "Spacing",
     "Appearance",
-    "Effects",
     "Placement",
   ];
 
-  it("renders Content, Typography, Markers, Spacing, Appearance, Effects and Placement as independent expandable sections in the exact order", async () => {
+  it("renders Content, Typography, Markers, Spacing, Appearance and Placement as independent expandable sections in the exact order", async () => {
     await renderTopics(topicsElement());
 
     expect(

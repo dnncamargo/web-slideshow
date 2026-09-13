@@ -599,7 +599,6 @@ function addChildTopic(topicItemId: string) {
         </div>
       </InspectorSection>
 
-      <InspectorSection title={t("inspector.effects")}>{null}</InspectorSection>
     </>
   );
 }
