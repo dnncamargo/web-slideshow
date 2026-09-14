@@ -172,11 +172,12 @@
   background: var(--ps-ui-background-control);
 }
 
+.typographyStyleEditor,
 .linkedStyleEditor {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding: 4px 0 6px 8px;
   border-left: 1px solid var(--ps-ui-border-default);
 }
@@ -197,15 +198,17 @@
   background: var(--ps-ui-background-control);
 }
 
+.resourcePropertyGroup,
 .linkedStyleSection {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--ps-ui-border-subtle);
 }
 
+.resourcePropertyGroupTitle,
 .linkedStyleSectionTitle {
   margin: 0;
   color: var(--ps-ui-text-muted);
@@ -281,10 +284,17 @@
 
 .linkedStyleUnitInput,
 .unitInput {
-  display: flex;
+  display: grid;
+  width: 100%;
   min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 4px;
+  gap: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
 }
 
 .linkedStyleUnitInput > input,
@@ -293,9 +303,9 @@
   box-sizing: border-box;
   min-height: var(--ps-ui-control-compact-height);
   padding: 0 var(--ps-ui-space-8);
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--ps-ui-text-secondary);
   font: inherit;
 }
@@ -310,14 +320,20 @@
   width: auto;
   min-width: 48px;
   flex: 0 0 auto;
+  border-left: 1px solid var(--ps-ui-border-default);
+}
+
+.linkedStyleUnitInput:focus-within,
+.unitInput:focus-within {
+  border-color: var(--ps-ui-semantic-focus);
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 1px;
 }
 
 .linkedStyleUnitInput > input:focus-visible,
 .unitInput > input:focus-visible,
 .unitInput > select:focus-visible {
-  border-color: var(--ps-ui-semantic-focus);
-  outline: 2px solid var(--ps-ui-semantic-focus);
-  outline-offset: 1px;
+  outline: 0;
 }
 
 .linkedStyleUnitInput > input:disabled,
@@ -602,22 +618,6 @@
   border: 1px solid var(--ps-ui-border-default);
   border-radius: 5px;
   background: var(--ps-ui-background-raised);
-}
-
-.resourcePropertyGroup {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.resourcePropertyGroupTitle {
-  margin: 0;
-  color: var(--ps-ui-text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .resourcePropertyControl {

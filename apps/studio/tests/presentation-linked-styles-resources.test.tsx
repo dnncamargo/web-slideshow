@@ -183,6 +183,7 @@ describe("Linked Styles Resources contract", () => {
     expect(borderRadiusHeader?.querySelector("span")?.textContent).toBe("Rounded corners");
     expect(Array.from(borderRadius.querySelectorAll("label > span")).find((span) => span.className.includes("resourcePropertyVisuallyHidden"))).toBeTruthy();
     expect(borderRadius.querySelector("#linked-style-gap-border-radius")?.closest("label")?.textContent).toContain("Rounded corners");
+    expect(borderRadius.querySelector("#linked-style-gap-border-radius")?.closest("div")?.className).toContain("unitInput");
   });
 
   it("uses the shared resource property-card structure for authored properties", async () => {
@@ -198,6 +199,8 @@ describe("Linked Styles Resources contract", () => {
       expect(header?.querySelector("[data-linked-style-property-remove]")).not.toBeNull();
       expect(property.querySelector("[data-linked-style-property-control]")?.className).toContain("resourcePropertyControl");
     }
+    expect(properties.find((property) => property.dataset.linkedStyleProperty === "direction")?.querySelector("[data-linked-style-property-control] select")).not.toBeNull();
+    expect(properties.find((property) => property.dataset.linkedStyleProperty === "gap")?.querySelector("[data-linked-style-property-control] input")).not.toBeNull();
     expect(host.querySelector("[data-linked-style-section='layout'] h3")?.textContent).toBe("Layout");
     expect(host.querySelector("[data-linked-style-preview='gap']")).not.toBeNull();
   });

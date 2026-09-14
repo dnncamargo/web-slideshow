@@ -604,8 +604,11 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => rowButton("quote", "+ Add property").click());
     await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Text stroke")?.click());
     expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
-    const width = requiredElement<HTMLInputElement>("#text-style-quote-stroke-width");
-    await act(async () => { setInputValue(width, "3"); });
+    const strokeProperty = row("quote").querySelector<HTMLElement>("[data-text-style-property='textStroke']");
+    const widthControl = requiredElement<HTMLInputElement>("#text-style-quote-stroke-width");
+    expect(widthControl.closest("div")?.className).toContain("unitInput");
+    expect(strokeProperty?.querySelector("#text-style-quote-stroke-color-value")).not.toBeNull();
+    await act(async () => { setInputValue(widthControl, "3"); });
     expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
     await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Use palette")?.click());
     await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button[aria-pressed]")).find((candidate) => candidate.getAttribute("aria-label")?.includes("Outline"))?.click());
