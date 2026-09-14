@@ -141,6 +141,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
 
     const thisPresentation = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-this-presentation']");
     const fromLibrary = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-from-library']");
+    expect(Array.from(thisPresentation.children).some((child) => child.className.includes("presentationSections"))).toBe(true);
     const textStyles = requiredElement<HTMLElement>("[data-presentation-text-styles]");
     expect(textStyles.tagName).toBe("SECTION");
     expect(textStyles.getAttribute("aria-labelledby")).toBeNull();

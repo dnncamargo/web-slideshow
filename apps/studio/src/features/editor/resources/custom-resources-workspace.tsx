@@ -272,7 +272,7 @@ export function CustomResourcesWorkspace({
 
         <section className={styles.scope} aria-labelledby="custom-resources-this-presentation">
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
-          <div className={styles.group}>
+          <div className={styles.presentationSections}>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
               <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} onUpdate={onUpdateLinkedStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onRequestDetach={onRequestDetachLinkedStyle} /></PresentationColorPaletteProvider>
             </InspectorSection>

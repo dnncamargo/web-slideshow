@@ -427,6 +427,12 @@
   gap: 8px;
 }
 
+.presentationSections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-ui-space-8);
+}
+
 .groupHeader {
   display: flex;
   align-items: center;
