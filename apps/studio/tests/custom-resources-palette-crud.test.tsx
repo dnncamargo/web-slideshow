@@ -131,11 +131,22 @@ describe("Custom Resources palette composition", () => {
       deleteItem: vi.fn(async () => undefined),
     };
     await act(async () => root.render(<StudioI18nProvider><Harness repository={makeRepository()} itemRepository={itemRepository} /></StudioI18nProvider>));
+    const fromLibrary = container.querySelector("[aria-labelledby='custom-resources-from-library']");
+    const savedElementButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "+ Add saved element");
+    const paletteButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "+ Add palette");
+    const fontButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "+ Add font");
+    expect(savedElementButton?.className).toContain("resourceAction");
+    expect(paletteButton?.className).toContain("resourceAction");
+    expect(fontButton?.className).toContain("resourceAction");
+    expect(savedElementButton?.className).toBe(paletteButton?.className);
+    expect(savedElementButton?.className).toBe(fontButton?.className);
     expect(container.textContent).toContain("+ Add saved element");
     expect(container.textContent).not.toContain("Media Frame");
     expect(itemRepository.listItems).not.toHaveBeenCalled();
 
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ Add saved element")?.click());
+    const closeButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "Close");
+    expect(closeButton?.className).toBe(savedElementButton?.className);
     expect(container.textContent).toContain("Close");
     expect(itemRepository.listItems).toHaveBeenCalledOnce();
     await act(async () => { await Promise.resolve(); });

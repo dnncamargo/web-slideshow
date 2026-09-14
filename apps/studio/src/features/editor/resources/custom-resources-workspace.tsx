@@ -229,9 +229,13 @@ export function CustomResourcesWorkspace({
         <section className={styles.scope} aria-labelledby="custom-resources-from-library">
           <h2 id="custom-resources-from-library" className={styles.sectionTitle}>{t("customResources.fromLibrary")}</h2>
           <InspectorSection title={t("customResources.elementStyles")} open={resourceSections.elementStyles} onOpenChange={(open) => onResourceSectionChange("elementStyles", open)}>
-            <button type="button" className={styles.resourceAction} onClick={() => setElementStyleChooserOpen((open) => !open)}>
-              {elementStyleChooserOpen ? t("customResources.close") : t("customResources.addSavedElement")}
-            </button>
+            <div className={styles.group}>
+              <div className={styles.groupHeader}>
+                <button type="button" className={styles.resourceAction} onClick={() => setElementStyleChooserOpen((open) => !open)}>
+                  {elementStyleChooserOpen ? t("customResources.close") : t("customResources.addSavedElement")}
+                </button>
+              </div>
+            </div>
             {elementStyleChooserOpen ? <CustomLibraryApplyPicker
               repository={customLibraryRepository}
               onApply={onApplyElementStyle}
