@@ -772,7 +772,7 @@ function TextStyleStrokeFields({ id, stroke, pendingWidth, onWidthChange, onColo
   const { t } = useStudioI18n();
   const width = readAbsoluteNumber(stroke?.width ?? pendingWidth);
   return <div className={styles.fieldGrid}>
-    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={styles.unitInput}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={width} onChange={(event) => onWidthChange(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
+    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={`${styles.unitInput} ${styles.textStrokeUnitInput}`}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={width} onChange={(event) => onWidthChange(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
     <label className={styles.field}><span>{t("inspector.textStrokeColor")}</span><ColorControl id={`text-style-${id}-stroke-color`} name={t("inspector.textStrokeColor")} value={stroke?.color} onChange={onColorChange} /></label>
   </div>;
 }

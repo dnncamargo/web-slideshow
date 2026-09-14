@@ -607,6 +607,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     const strokeProperty = row("quote").querySelector<HTMLElement>("[data-text-style-property='textStroke']");
     const widthControl = requiredElement<HTMLInputElement>("#text-style-quote-stroke-width");
     expect(widthControl.closest("div")?.className).toContain("unitInput");
+    expect(widthControl.closest("div")?.className).toContain("textStrokeUnitInput");
     expect(strokeProperty?.querySelector("#text-style-quote-stroke-color-value")).not.toBeNull();
     await act(async () => { setInputValue(widthControl, "3"); });
     expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);

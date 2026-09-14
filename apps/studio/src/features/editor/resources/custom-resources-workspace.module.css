@@ -330,6 +330,12 @@
   outline-offset: 1px;
 }
 
+.textStrokeUnitInput {
+  border-color: #303847;
+  border-radius: 7px;
+  background: #0c111a;
+}
+
 .linkedStyleUnitInput > input:focus-visible,
 .unitInput > input:focus-visible,
 .unitInput > select:focus-visible {
