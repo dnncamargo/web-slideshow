@@ -336,6 +336,10 @@
   background: #0c111a;
 }
 
+.textStrokeUnitInput > span {
+  padding-inline: var(--ps-ui-space-6) var(--ps-ui-space-8);
+}
+
 .linkedStyleUnitInput > input:focus-visible,
 .unitInput > input:focus-visible,
 .unitInput > select:focus-visible {
