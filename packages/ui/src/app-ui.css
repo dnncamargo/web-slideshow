@@ -3,9 +3,11 @@
   --ps-ui-background-surface: #111620;
   --ps-ui-background-raised: #151b26;
   --ps-ui-background-control: #1b2330;
+  --ps-ui-background-input: #0c111a;
   --ps-ui-border-subtle: #232a36;
   --ps-ui-border-default: #303847;
   --ps-ui-border-strong: #475569;
+  --ps-ui-border-input: var(--ps-ui-border-default);
   --ps-ui-text-primary: #f8fafc;
   --ps-ui-text-secondary: #cbd5e1;
   --ps-ui-text-muted: #94a3b8;
@@ -24,6 +26,7 @@
   --ps-ui-radius-4: 4px;
   --ps-ui-radius-6: 6px;
   --ps-ui-radius-8: 8px;
+  --ps-ui-radius-input: 7px;
   --ps-ui-radius-12: 12px;
   --ps-ui-control-compact-height: 28px;
   --ps-ui-control-default-height: 36px;

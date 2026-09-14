@@ -239,9 +239,9 @@
   min-width: 0;
   min-height: var(--ps-ui-control-compact-height);
   padding: 0 var(--ps-ui-space-8);
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
   color: var(--ps-ui-text-secondary);
   font: inherit;
 }
@@ -292,9 +292,9 @@
   gap: 0;
   box-sizing: border-box;
   overflow: hidden;
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
 }
 
 .linkedStyleUnitInput > input,
@@ -331,9 +331,9 @@
 }
 
 .textStrokeUnitInput {
-  border-color: #303847;
-  border-radius: 7px;
-  background: #0c111a;
+  border-color: var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
 }
 
 .textStrokeUnitInput > span {
@@ -431,6 +431,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--ps-ui-space-8);
+}
+
+.presentationSections > details + details {
+  margin-top: 16px;
 }
 
 .groupHeader {
@@ -645,9 +649,9 @@
   min-width: 0;
   min-height: var(--ps-ui-control-compact-height);
   padding: 0 var(--ps-ui-space-8);
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
   color: var(--ps-ui-text-secondary);
   font: inherit;
 }
@@ -796,8 +800,8 @@
 
 .localColorInlineName:hover,
 .localColorInlineName:focus {
-  border-color: var(--ps-ui-border-default);
-  background: var(--ps-ui-background-control);
+  border-color: var(--ps-ui-border-input);
+  background: var(--ps-ui-background-input);
   outline: none;
 }
 
@@ -837,9 +841,9 @@
   box-sizing: border-box;
   width: 100%;
   padding: 5px 6px;
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
   color: var(--ps-ui-text-secondary);
   font: inherit;
 }

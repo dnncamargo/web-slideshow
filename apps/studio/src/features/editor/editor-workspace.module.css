@@ -45,8 +45,8 @@
 
 .presentationTitleInput:hover,
 .presentationTitleInput:focus-visible {
-  border-color: var(--ps-ui-border-default);
-  background: var(--ps-ui-background-control);
+  border-color: var(--ps-ui-border-input);
+  background: var(--ps-ui-background-input);
 }
 
 .presentationTitleInput:focus-visible {
@@ -1692,13 +1692,13 @@
 
   border:
     1px solid
-    #303847;
+    var(--ps-ui-border-input);
 
   border-radius:
-    7px;
+    var(--ps-ui-radius-input);
 
   background:
-    #0c111a;
+    var(--ps-ui-background-input);
 
   color:
     #e2e8f0;
@@ -1734,7 +1734,7 @@
 .field select:focus,
 .field input:focus {
   border-color:
-    #6366f1;
+    var(--ps-ui-semantic-focus);
 }
 
 
@@ -1799,11 +1799,11 @@
 
   padding: 0 8px;
 
-  border: 1px solid #303847;
+  border: 1px solid var(--ps-ui-border-input);
 
-  border-radius: 7px;
+  border-radius: var(--ps-ui-radius-input);
 
-  background: #0c111a;
+  background: var(--ps-ui-background-input);
 
   color: #e2e8f0;
 
@@ -1875,13 +1875,13 @@
 
   border:
     1px solid
-    #303847;
+    var(--ps-ui-border-input);
 
   border-radius:
-    7px;
+    var(--ps-ui-radius-input);
 
   background:
-    #0c111a;
+    var(--ps-ui-background-input);
 
   overflow: hidden;
 }
@@ -1889,7 +1889,7 @@
 
 .unitInput:focus-within {
   border-color:
-    #6366f1;
+    var(--ps-ui-semantic-focus);
 }
 
 
@@ -1929,7 +1929,7 @@
 
   border: 0;
 
-  border-left: 1px solid #303847;
+  border-left: 1px solid var(--ps-ui-border-input);
 
   border-radius: 0;
 
@@ -2012,13 +2012,13 @@
 
   border:
     1px solid
-    #303847;
+    var(--ps-ui-border-input);
 
   border-radius:
-    7px;
+    var(--ps-ui-radius-input);
 
   background:
-    #0c111a;
+    var(--ps-ui-background-input);
 
   color:
     #e2e8f0;
@@ -2035,20 +2035,20 @@
 
 .textArea:focus {
   border-color:
-    #6366f1;
+    var(--ps-ui-semantic-focus);
 }
 
 .textEditor {
   overflow: hidden;
 
-  border: 1px solid #303847;
-  border-radius: 7px;
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
 
-  background: #0c111a;
+  background: var(--ps-ui-background-input);
 }
 
 .textEditor:focus-within {
-  border-color: #6366f1;
+  border-color: var(--ps-ui-semantic-focus);
 }
 
 .textEditorToolbar {
@@ -3065,13 +3065,13 @@
 
   border:
     1px solid
-    #303847;
+    var(--ps-ui-border-input);
 
   border-radius:
-    6px;
+    var(--ps-ui-radius-input);
 
   background:
-    #0c111a;
+    var(--ps-ui-background-input);
 
   color:
     #e2e8f0;
