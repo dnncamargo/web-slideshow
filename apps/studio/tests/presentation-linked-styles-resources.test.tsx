@@ -132,8 +132,12 @@ describe("Linked Styles Resources contract", () => {
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(chevron?.textContent).toBe("▾");
     expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] .ps-ui-button--secondary")).not.toBeNull();
-    expect(host.querySelector("#linked-style-gap-editor .ps-ui-button--danger")).not.toBeNull();
-    expect(Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Add property"))?.className).toContain("resourceAction");
+    const remove = Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Remove"));
+    expect(remove?.className).toContain("resourceAction");
+    expect(remove?.className).not.toContain("ps-ui-button--danger");
+    const addProperty = Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Add property"));
+    expect(addProperty?.className).toContain("resourceAction");
+    expect(addProperty?.parentElement?.className).toContain("resourcePropertyChooser");
   });
 
   it("keeps Preserve size checkbox before its text and preserves authored semantics", async () => {
