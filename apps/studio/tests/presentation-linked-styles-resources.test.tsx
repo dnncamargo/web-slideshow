@@ -80,19 +80,27 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => row?.querySelector("button")?.click());
     expect(row?.textContent).toContain("Matching 2 elements");
     expect(row?.textContent).toContain("Attach 2 matching elements");
-    expect(row?.textContent).toContain("Slide 1 · linked");
+    expect(row?.textContent).toContain("Slide 1");
+    expect(row?.textContent).toContain("linked");
     expect(row?.textContent).not.toContain("Detach here");
   });
 
-  it("renders x only for linked usages with an accessible label", async () => {
+  it("renders quiet detach icons only for linked usages with an accessible label", async () => {
     const request = vi.fn();
     await render(makePresentation(), () => undefined, "en", request);
     const linkedSection = Array.from(host.querySelectorAll("details")).find((detail) => detail.textContent?.includes("Linked Styles"));
     await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
     const reuse = host.querySelector<HTMLElement>("[data-linked-style-section='reuse']")!;
-    const x = Array.from(reuse.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "x");
+    const detachRow = reuse.querySelector<HTMLButtonElement>("[data-resource-action='detach']")?.parentElement;
+    const target = detachRow?.querySelector<HTMLButtonElement>("button:not([data-resource-action='detach'])");
+    expect(target?.tagName).toBe("BUTTON");
+    expect(target?.className).not.toContain("resourceAction");
+    expect(target?.textContent).toContain("Slide 1");
+    expect(target?.textContent).toContain("linked");
+    const x = Array.from(reuse.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "×");
     expect(x).toBeDefined();
+    expect(x?.className).toContain("resourceIconAction");
     expect(x?.dataset.resourceAction).toBe("detach");
     expect(x?.getAttribute("aria-label")).toBe("Detach this element from Gap");
     expect(request).not.toHaveBeenCalled();

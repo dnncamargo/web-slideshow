@@ -404,18 +404,22 @@
   gap: var(--ps-ui-space-4);
 }
 
-.resourceUsageRow {
-  display: grid;
+.resourceUsageTarget {
+  display: flex;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: var(--ps-ui-space-4);
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.resourceUsageRow > .resourceAction:first-child {
-  min-width: 0;
-  white-space: normal;
-  text-align: left;
+.resourceUsageTarget:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 1px;
 }
 
 .scope {
@@ -571,15 +575,15 @@
   padding: 4px 0;
 }
 
-.masterFontList .fontResourceDetails,
-.localFontList .fontResourceDetails {
+.masterFontList .resourceItemDetailsStack,
+.localFontList .resourceItemDetailsStack {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fontResourceDetails {
+.resourceItemDetailsStack {
   display: flex;
   min-width: 0;
   flex: 1;

@@ -527,7 +527,7 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false 
 
 function ResourceUsageLocations({ locations, onSelect, onRequestDetach, styleName }: { locations: readonly { slideIndex: number; elementId: string }[]; onSelect: (location: { slideIndex: number; elementId: string }) => void; onRequestDetach?: (location: { slideIndex: number; elementId: string }) => void; styleName?: string }) {
   const { t } = useStudioI18n();
-  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <div key={`${location.slideIndex}:${location.elementId}`} className={styles.resourceUsageRow}><button type="button" className={styles.resourceAction} onClick={() => onSelect(location)}>{t("customResources.linkedStyleLocation", { slide: location.slideIndex + 1, id: location.elementId })}</button>{onRequestDetach && styleName ? <button type="button" className={styles.resourceAction} data-resource-action="detach" aria-label={t("customResources.detachStyleElement", { style: styleName })} onClick={(event) => { event.stopPropagation(); onRequestDetach(location); }}>x</button> : null}</div>)}</div>;
+  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <div key={`${location.slideIndex}:${location.elementId}`} className={styles.resourceItem}><button type="button" className={styles.resourceUsageTarget} onClick={() => onSelect(location)}><span className={styles.resourceItemDetailsStack}><strong>{t("slides.current", { number: location.slideIndex + 1 })}</strong><span className={styles.masterPaletteCount}>{location.elementId}</span></span></button>{onRequestDetach && styleName ? <button type="button" className={styles.resourceIconAction} data-resource-action="detach" aria-label={t("customResources.detachStyleElement", { style: styleName })} onClick={(event) => { event.stopPropagation(); onRequestDetach(location); }}>×</button> : null}</div>)}</div>;
 }
 
 function TextStylesWorkspace({
@@ -909,7 +909,7 @@ function MasterFontChooser({
 
   return <div className={styles.masterFontList}>
     {loadState.records.map(({ id, font }) => <div key={id} className={styles.resourceItem} data-custom-resource-font={id}>
-      <div className={styles.fontResourceDetails}>
+      <div className={styles.resourceItemDetailsStack}>
         <strong>{font.family}</strong>
         <span className={styles.masterPaletteCount}>{t(font.faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: font.faces.length })}</span>
       </div>
@@ -931,7 +931,7 @@ function LocalPresentationFontRow({
   const faces = getFontResourceFaces(font);
 
   return <div className={styles.resourceItem} data-presentation-font-row>
-    <div className={styles.fontResourceDetails}>
+    <div className={styles.resourceItemDetailsStack}>
       <strong>{font.family}</strong>
       <span className={styles.masterPaletteCount}>{t(faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: faces.length })}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
     </div>
