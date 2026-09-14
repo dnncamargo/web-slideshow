@@ -382,7 +382,7 @@ function LinkedStylesWorkspace({
       return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} className={styles.group}>
         <button type="button" className={styles.typographyStyleDisclosure} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
           <span className={styles.resourceItemDetails}><strong>{linkedStyle.name}</strong><span className={styles.resourceItemMeta}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: linkedLocations.length })}</span></span>
-          <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "⌃" : "⌄"}</span>
+          <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
         </button>
         {editing ? <div id={editorId} className={styles.linkedStyleEditor}>
           <LinkedStyleNameField style={linkedStyle} onRename={onRename} />

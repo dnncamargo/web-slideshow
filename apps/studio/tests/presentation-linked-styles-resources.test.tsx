@@ -121,11 +121,16 @@ describe("Linked Styles Resources contract", () => {
     expect(disclosure.className).toContain("typographyStyleDisclosure");
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     expect(disclosure.getAttribute("aria-controls")).toBe("linked-style-gap-editor");
+    expect(disclosure.querySelector("span[class*='resourceItemDetails']")).not.toBeNull();
+    expect(disclosure.querySelector("span[class*='resourceItemMeta']")?.textContent).toBe("Used by 1 element");
+    const chevron = disclosure.querySelector("span[class*='resourceDisclosureChevron']");
+    expect(chevron?.textContent).toBe("▸");
     const add = host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button")!;
     expect(add.className).toContain("resourceAction");
     expect(add.textContent).toBe("+ Add Linked Style");
     await act(async () => disclosure.click());
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(chevron?.textContent).toBe("▾");
     expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] .ps-ui-button--secondary")).not.toBeNull();
     expect(host.querySelector("#linked-style-gap-editor .ps-ui-button--danger")).not.toBeNull();
     expect(Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Add property"))?.className).toContain("resourceAction");
