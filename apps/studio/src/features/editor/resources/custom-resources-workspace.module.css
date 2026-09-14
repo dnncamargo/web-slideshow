@@ -660,7 +660,7 @@
   width: 100%;
 }
 
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl > div {
+.resourcePropertyCard[data-compact-field-label="true"] .resourcePropertyControl > div {
   width: 100%;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
@@ -668,8 +668,8 @@
 
 /* ElementTypographyFields owns its field classes in another CSS module. Keep
    this override semantic and scoped to the one-property resource cards. */
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl label[for],
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl label > span:first-child {
+.resourcePropertyCard[data-compact-field-label="true"] .resourcePropertyControl label[for],
+.resourcePropertyCard[data-compact-field-label="true"] .resourcePropertyControl label > span:first-child {
   position: absolute;
   width: 1px;
   height: 1px;

@@ -694,7 +694,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       <div className={styles.resourcePropertyStack}>
         {propertyGroups.map((group) => group.items.length === 0 ? null : <section className={styles.resourcePropertyGroup} data-text-style-property-group={group.id} key={group.id}>
           <h4 className={styles.resourcePropertyGroupTitle}>{t(group.label)}</h4>
-          {group.items.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} data-compact-field-label={item.kind === "typography"} key={item.property}>
+          {group.items.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} data-compact-field-label={item.kind === "typography" ? "true" : undefined} key={item.property}>
             <div className={styles.resourcePropertyHeader}>
               <span>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
               <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>

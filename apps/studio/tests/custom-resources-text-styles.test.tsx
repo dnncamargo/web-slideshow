@@ -465,7 +465,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
   it("uses the scoped full-width property control and compact labels", async () => {
     const initial = PresentationSchema.parse({
       ...addCustomTextStyle(base(), "Quote", "body"),
-      textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { fontSize: 18, fontWeight: 500, textTransform: "uppercase" } }],
+      textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, fontWeight: 500, textTransform: "uppercase", textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }],
     });
     await render(initial);
     await act(async () => disclosure("quote").click());
@@ -474,6 +474,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
       const propertyCard = row("quote").querySelector<HTMLElement>(`[data-text-style-property='${property}']`);
       expect(propertyCard?.querySelector("[data-text-style-property-control]")).not.toBeNull();
       expect(propertyCard?.hasAttribute("data-compact-field-label")).toBe(true);
+      expect(propertyCard?.getAttribute("data-compact-field-label")).toBe("true");
       const header = Array.from(propertyCard?.children ?? []).find((child) => child.className.includes("resourcePropertyHeader"));
       expect(header?.querySelector("span")?.textContent).toBeTruthy();
     }
@@ -484,6 +485,10 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(row("quote").querySelector("#text-style-quote-font-size-unit")).not.toBeNull();
     expect(row("quote").querySelector("#text-style-quote-font-weight")).not.toBeNull();
     expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();
+    for (const property of ["color", "textDecorationColor", "textStroke"]) {
+      const propertyCard = row("quote").querySelector<HTMLElement>(`[data-text-style-property='${property}']`);
+      expect(propertyCard?.hasAttribute("data-compact-field-label")).toBe(false);
+    }
   });
 
   it("groups authored properties without changing the canonical order", async () => {
