@@ -660,15 +660,25 @@
   width: 100%;
 }
 
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl .field > span,
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl .field > label {
-  font-size: 0;
-  line-height: 0;
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl > div {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl input,
-.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl select {
-  font-size: 10px;
+/* ElementTypographyFields owns its field classes in another CSS module. Keep
+   this override semantic and scoped to the one-property resource cards. */
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl label[for],
+.resourcePropertyCard[data-compact-field-label] .resourcePropertyControl label > span:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .resourcePropertyVisuallyHidden {

@@ -178,6 +178,11 @@ describe("Linked Styles Resources contract", () => {
     expect(Array.from(host.querySelectorAll("[data-linked-style-property='width'] span")).some((span) => span.textContent === "%")).toBe(true);
     expect(Array.from(host.querySelectorAll("[data-linked-style-property='height'] span")).some((span) => span.textContent === "%")).toBe(true);
     expect(host.querySelector("[data-linked-style-property='borderRadius'] select")).not.toBeNull();
+    const borderRadius = host.querySelector<HTMLElement>("[data-linked-style-property='borderRadius']")!;
+    const borderRadiusHeader = Array.from(borderRadius.children).find((child) => child.className.includes("resourcePropertyHeader"));
+    expect(borderRadiusHeader?.querySelector("span")?.textContent).toBe("Rounded corners");
+    expect(Array.from(borderRadius.querySelectorAll("label > span")).find((span) => span.className.includes("resourcePropertyVisuallyHidden"))).toBeTruthy();
+    expect(borderRadius.querySelector("#linked-style-gap-border-radius")?.closest("label")?.textContent).toContain("Rounded corners");
   });
 
   it("uses the shared resource property-card structure for authored properties", async () => {

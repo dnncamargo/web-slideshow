@@ -462,7 +462,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(presentationRef.current?.textStyles?.[0]?.typography?.fontSize).toBe(18);
   });
 
-  it("uses the scoped full-width property control for Font size, Font weight, and Case", async () => {
+  it("uses the scoped full-width property control and compact labels", async () => {
     const initial = PresentationSchema.parse({
       ...addCustomTextStyle(base(), "Quote", "body"),
       textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { fontSize: 18, fontWeight: 500, textTransform: "uppercase" } }],
@@ -471,8 +471,16 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => disclosure("quote").click());
 
     for (const property of ["fontSize", "fontWeight", "textTransform"]) {
-      expect(row("quote").querySelector(`[data-text-style-property='${property}'] [data-text-style-property-control]`)).not.toBeNull();
+      const propertyCard = row("quote").querySelector<HTMLElement>(`[data-text-style-property='${property}']`);
+      expect(propertyCard?.querySelector("[data-text-style-property-control]")).not.toBeNull();
+      expect(propertyCard?.hasAttribute("data-compact-field-label")).toBe(true);
+      const header = Array.from(propertyCard?.children ?? []).find((child) => child.className.includes("resourcePropertyHeader"));
+      expect(header?.querySelector("span")?.textContent).toBeTruthy();
     }
+    expect(row("quote").querySelector("[data-text-style-property='fontSize'] [data-text-style-property-control] > div")).not.toBeNull();
+    expect(row("quote").querySelector("[data-text-style-property='fontSize'] label[for]")).toBeTruthy();
+    expect(row("quote").querySelector("[data-text-style-property='fontSize'] label[for]")?.textContent).toBe("Font size");
+    expect(row("quote").querySelector("[data-text-style-property='fontWeight'] label > span")?.textContent).toBe("Font weight");
     expect(row("quote").querySelector("#text-style-quote-font-size-unit")).not.toBeNull();
     expect(row("quote").querySelector("#text-style-quote-font-weight")).not.toBeNull();
     expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();

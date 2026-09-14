@@ -466,7 +466,7 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
     case "gradient": control = <ElementGradientControl allowNone={false} gradient={style.style?.background?.gradient} controlPrefix={`linked-style-${style.id}`} onChange={(gradient) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, gradient } } })} />; break;
     case "pattern": control = <ContainerBackgroundPatternControl allowNone={false} element={{ id: style.id, type: "container", hidden: false, children: [], style: style.style }} controlPrefix={`linked-style-${style.id}`} onChange={(pattern, color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />; break;
     case "border": control = <ElementBorderControl allowNone={false} border={style.style?.border} controlPrefix={`linked-style-${style.id}`} onChange={(border) => onUpdate({ ...style, style: { ...style.style, border } })} />; break;
-    case "borderRadius": control = <LinkedStyleLengthField id={`linked-style-${style.id}-border-radius`} label={t("inspector.roundedCorners")} value={style.style?.borderRadius} onChange={(value) => onUpdate({ ...style, style: { ...style.style, borderRadius: value } })} />; break;
+    case "borderRadius": control = <LinkedStyleLengthField id={`linked-style-${style.id}-border-radius`} label={t("inspector.roundedCorners")} hideLabel value={style.style?.borderRadius} onChange={(value) => onUpdate({ ...style, style: { ...style.style, borderRadius: value } })} />; break;
     case "opacity": control = <input type="number" min="0" max="100" value={style.effect?.opacity === undefined ? "" : style.effect.opacity * 100} onChange={(event) => onUpdate({ ...style, effect: { ...style.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} />; break;
     case "shadow": control = <ContainerEffectsSection embedded allowNone={false} showSourceMeta={false} element={{ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }} onUpdate={(update) => { const next = update({ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }); if (next.type === "container") onUpdate({ ...style, effect: next.effect }); }} />; break;
   }
@@ -489,14 +489,14 @@ function LinkedStyleNameField({ style, onRename }: { style: LinkedContainerStyle
   return <label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); event.currentTarget.blur(); } }} /></label>;
 }
 
-function LinkedStyleLengthField({ id, label, value, onChange }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void }) {
+function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void; hideLabel?: boolean }) {
   const parsed = value === undefined ? undefined : parseAuthoringLength(value);
   const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit === "rem" ? "rem" : "px");
   useEffect(() => setUnit(parsed?.unit === "rem" ? "rem" : "px"), [parsed?.unit]);
   const numericValue = value === undefined ? "" : (convertAuthoringLength(value, unit) ?? "");
 
   return <label className={styles.field}>
-    <span>{label}</span>
+    <span className={hideLabel ? styles.resourcePropertyVisuallyHidden : undefined}>{label}</span>
     <div className={styles.unitInput}>
       <input id={id} type="number" step="any" value={numericValue} onChange={(event) => {
         if (event.target.value === "") {
