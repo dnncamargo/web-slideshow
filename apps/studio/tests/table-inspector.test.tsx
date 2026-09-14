@@ -367,6 +367,21 @@ describe("TableInspector", () => {
     expect(container.querySelector("#table-color")).toBeNull();
   });
 
+  it("renders show header inside the Display section", async () => {
+    await act(async () => {
+      mount(structuredTable());
+    });
+
+    const headerCheckbox = container.querySelector<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    const displaySection = headerCheckbox?.closest("details");
+
+    expect(displaySection?.querySelector("summary")?.textContent?.trim()).toBe("Display");
+    expect(container.textContent).not.toContain("General");
+    expect(displaySection?.contains(headerCheckbox)).toBe(true);
+  });
+
   it("adds a column keeping every row rectangular", async () => {
     await act(async () => {
       mount(structuredTable());

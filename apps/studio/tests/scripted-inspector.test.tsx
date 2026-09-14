@@ -827,6 +827,9 @@ describe("ScriptedInspector port drafts", () => {
     await act(async () => click('[data-powershow-scripted-port-add]'));
     expect(updates).toHaveLength(0);
     expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("port");
+    expect(container.querySelector<HTMLButtonElement>("[data-powershow-scripted-port-add]")?.textContent).toBe("+ Add port");
+    expect(container.querySelector<HTMLButtonElement>("[data-powershow-scripted-port-remove]")?.textContent).toBe("Remove");
+    expect(container.querySelector<HTMLButtonElement>("[data-powershow-scripted-port-remove]")?.getAttribute("aria-label")).toBe("Remove");
     await act(async () => click('[data-powershow-scripted-port-remove]'));
     await act(async () => click("#scripted-reset"));
     expect(updates).toHaveLength(0);

@@ -701,7 +701,7 @@ function SimpleTableInspector({
 
       <button
         type="button"
-        className={styles.secondaryButton}
+        className="ps-ui-action"
         onClick={addColumn}
       >
         <span>{t("table.addColumn")}</span>
@@ -776,7 +776,7 @@ function SimpleTableInspector({
         ))}
       </div>
 
-      <button type="button" className={styles.secondaryButton} onClick={addRow}>
+      <button type="button" className="ps-ui-action" onClick={addRow}>
         <span>{t("table.addRow")}</span>
       </button>
 
@@ -866,22 +866,6 @@ function StructuredTableInspector({
     <>
       <div className={styles.inspectorDivider} />
 
-      <InspectorSection title={t("inspector.general")}>
-        <label className={styles.checkboxRow}>
-          <input
-            type="checkbox"
-            checked={element.showHeader}
-            onChange={(event) => {
-              tableAuthoringControls.onShowHeaderChange(
-                element.id,
-                event.target.checked,
-              );
-            }}
-          />
-          <span>{t("table.showHeader")}</span>
-        </label>
-      </InspectorSection>
-
       <InspectorSection
         title={t("table.columns")}
         count={element.columns.length}
@@ -917,7 +901,7 @@ function StructuredTableInspector({
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action"
           data-powershow-table-add-column="true"
           onClick={() => {
             tableAuthoringControls.onAddColumn(element.id);
@@ -968,7 +952,7 @@ function StructuredTableInspector({
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action"
           data-powershow-table-add-row="true"
           onClick={() => {
             tableAuthoringControls.onAddRow(element.id);
@@ -976,6 +960,22 @@ function StructuredTableInspector({
         >
           <span>{t("table.addRow")}</span>
         </button>
+      </InspectorSection>
+
+      <InspectorSection title={t("inspector.display")}>
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={element.showHeader}
+            onChange={(event) => {
+              tableAuthoringControls.onShowHeaderChange(
+                element.id,
+                event.target.checked,
+              );
+            }}
+          />
+          <span>{t("table.showHeader")}</span>
+        </label>
       </InspectorSection>
 
       <ElementSpacingSection

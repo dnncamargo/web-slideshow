@@ -135,6 +135,18 @@ describe("CustomLibraryApplyPicker", () => {
     expect(container.querySelector("button")?.textContent).not.toContain("Delete");
   });
 
+  it("exposes the selected state through a stable data hook", async () => {
+    render(async () => [item, { ...item, id: "second", item: { ...item.item, name: "Second" } }]);
+    open();
+    await act(async () => undefined);
+    const candidates = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).filter((button) => button.textContent?.includes("Title style") || button.textContent?.includes("Second"));
+    expect(candidates).toHaveLength(2);
+    act(() => candidates[0]?.click());
+    expect(candidates[0]?.dataset.selected).toBe("true");
+    expect(candidates[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(candidates[1]?.dataset.selected).toBe("false");
+  });
+
   it("shows an empty state", async () => {
     render(async () => []);
     open();

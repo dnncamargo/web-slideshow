@@ -342,6 +342,7 @@ describe("GalleryInspector", () => {
     await act(async () => {
       mount(galleryElement());
     });
+    expect(addButton().textContent).toBe("+ Add image");
     await act(async () => {
       addButton().click();
     });
@@ -368,6 +369,7 @@ describe("GalleryInspector", () => {
     await act(async () => {
       mount(galleryElement());
     });
+    expect(removeButtons()[0]?.textContent).toBe("Remove");
     await act(async () => {
       removeButtons()[0]?.click();
     });

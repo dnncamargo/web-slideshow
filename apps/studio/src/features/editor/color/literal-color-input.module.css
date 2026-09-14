@@ -10,13 +10,13 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   overflow: hidden;
-  border: 1px solid #303847;
-  border-radius: 7px;
-  background: #0c111a;
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
 }
 
 .control:focus-within {
-  border-color: #6366f1;
+  border-color: var(--ps-ui-semantic-focus);
 }
 
 .control input[type="text"],
@@ -29,7 +29,7 @@
 
 .control select {
   padding: 0 7px;
-  border-left: 1px solid #303847;
+  border-left: 1px solid var(--ps-ui-border-input);
   color: #94a3b8;
   font: inherit;
   font-size: 11px;

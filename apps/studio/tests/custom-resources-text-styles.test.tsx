@@ -141,10 +141,11 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
 
     const thisPresentation = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-this-presentation']");
     const fromLibrary = requiredElement<HTMLElement>("[aria-labelledby='custom-resources-from-library']");
+    expect(Array.from(thisPresentation.children).some((child) => child.className.includes("presentationSections"))).toBe(true);
     const textStyles = requiredElement<HTMLElement>("[data-presentation-text-styles]");
     expect(textStyles.tagName).toBe("SECTION");
-    expect(textStyles.getAttribute("aria-labelledby")).toBe("presentation-text-styles-title");
-    expect(textStyles.querySelector("#presentation-text-styles-title")?.textContent).toBe("Text Styles");
+    expect(textStyles.getAttribute("aria-labelledby")).toBeNull();
+    expect(textStyles.querySelector("#presentation-text-styles-title")).toBeNull();
     const textStylesSection = Array.from(thisPresentation.querySelectorAll("details")).find((detail) => detail.querySelector("summary")?.textContent?.includes("Text Styles"));
     expect(textStylesSection?.querySelector("summary")?.textContent).toContain("4");
     expect(thisPresentation.contains(textStyles)).toBe(true);
@@ -176,6 +177,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(fontSizeOption).toBeDefined();
     await act(async () => fontSizeOption?.click());
     expect(row("body").querySelector("#text-style-body-font-size")).not.toBeNull();
+    expect(row("body").querySelector("[data-text-style-property='fontSize'] [data-text-style-property-control]")).not.toBeNull();
     expect(disclosure("body").getAttribute("aria-expanded")).toBe("true");
     expect(presentationRef.current?.textStyles).toEqual([{ id: "body", typography: { fontSize: 18 } }]);
     expect(row("body").textContent).toContain("Customized");
@@ -461,6 +463,86 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(presentationRef.current?.textStyles?.[0]?.typography?.fontSize).toBe(18);
   });
 
+  it("uses the scoped full-width property control and compact labels", async () => {
+    const initial = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, fontWeight: 500, textTransform: "uppercase", textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }],
+    });
+    await render(initial);
+    await act(async () => disclosure("quote").click());
+
+    for (const property of ["fontSize", "fontWeight", "textTransform"]) {
+      const propertyCard = row("quote").querySelector<HTMLElement>(`[data-text-style-property='${property}']`);
+      expect(propertyCard?.querySelector("[data-text-style-property-control]")).not.toBeNull();
+      expect(propertyCard?.hasAttribute("data-compact-field-label")).toBe(true);
+      expect(propertyCard?.getAttribute("data-compact-field-label")).toBe("true");
+      const header = Array.from(propertyCard?.children ?? []).find((child) => child.className.includes("resourcePropertyHeader"));
+      expect(header?.querySelector("span")?.textContent).toBeTruthy();
+    }
+    expect(row("quote").querySelector("[data-text-style-property='fontSize'] [data-text-style-property-control] > div")).not.toBeNull();
+    expect(row("quote").querySelector("[data-text-style-property='fontSize'] label[for]")).toBeTruthy();
+    expect(row("quote").querySelector("[data-text-style-property='fontSize'] label[for]")?.textContent).toBe("Font size");
+    expect(row("quote").querySelector("[data-text-style-property='fontWeight'] label > span")?.textContent).toBe("Font weight");
+    expect(row("quote").querySelector("#text-style-quote-font-size-unit")).not.toBeNull();
+    expect(row("quote").querySelector("#text-style-quote-font-weight")).not.toBeNull();
+    expect(row("quote").querySelector("#text-style-quote-text-transform")).not.toBeNull();
+    for (const property of ["color", "textDecorationColor", "textStroke"]) {
+      const propertyCard = row("quote").querySelector<HTMLElement>(`[data-text-style-property='${property}']`);
+      expect(propertyCard?.hasAttribute("data-compact-field-label")).toBe(false);
+    }
+  });
+
+  it("groups authored properties without changing the canonical order", async () => {
+    const initial = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, textDecorationLine: "underline", textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }],
+    });
+    await render(initial);
+    await act(async () => disclosure("quote").click());
+
+    expect(row("quote").querySelector("[data-text-style-property-group='typography'] h4")?.textContent).toBe("Typography");
+    expect(row("quote").querySelector("[data-text-style-property-group='appearance'] h4")?.textContent).toBe("Appearance");
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property-group='typography'] [data-text-style-property]")) .map((property) => property.dataset.textStyleProperty)).toEqual(["fontSize", "textDecorationLine", "textDecorationColor"]);
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property-group='appearance'] [data-text-style-property]")) .map((property) => property.dataset.textStyleProperty)).toEqual(["color", "textStroke"]);
+  });
+
+  it("renders a flat add-property menu in canonical order", async () => {
+    await render(addCustomTextStyle(base(), "Quote", "body"));
+    await act(async () => disclosure("quote").click());
+    const addPropertyButton = rowButton("quote", "+ Add property");
+    await act(async () => addPropertyButton.click());
+
+    const chooser = addPropertyButton.parentElement;
+    if (!chooser) throw new Error("Missing Text Style property chooser");
+    const options = Array.from(chooser.querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate !== addPropertyButton);
+
+    expect(chooser.textContent).not.toContain("Appearance");
+    expect(chooser.querySelector("[role='heading']")).toBeNull();
+    expect(options.map((candidate) => candidate.textContent?.trim())).toEqual([
+      "Font family", "Font size", "Font weight", "Font style", "Alignment", "Line height", "Letter spacing", "Case",
+      "White space", "Wrap style", "Long words", "Decoration", "Decoration color", "Text color", "Text stroke",
+    ]);
+  });
+
+  it("keeps Decoration and Decoration color adjacent for imported styles", async () => {
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { textDecorationLine: "underline", textDecorationColor: "#222222" } }] });
+    await render(initial);
+    await act(async () => disclosure("quote").click());
+
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property]")).map((property) => property.dataset.textStyleProperty)).toEqual(["textDecorationLine", "textDecorationColor", "color"]);
+  });
+
+  it("keeps the same display order when related properties are added through the chooser", async () => {
+    await render(addCustomTextStyle(base(), "Quote", "body"));
+    await act(async () => disclosure("quote").click());
+    for (const property of ["Decoration", "Decoration color", "Text color"]) {
+      await act(async () => rowButton("quote", "+ Add property").click());
+      await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === property)?.click());
+    }
+
+    expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property]")).map((property) => property.dataset.textStyleProperty)).toEqual(["textDecorationLine", "textDecorationColor", "color"]);
+  });
+
   it("removes only the selected property and preserves deferred appearance", async () => {
     const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: "#111111" }, typography: { fontSize: 18, fontWeight: 500, textDecorationColor: "#222222", textStroke: { width: 1, color: "#333333" } } }] });
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
@@ -523,8 +605,12 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => rowButton("quote", "+ Add property").click());
     await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Text stroke")?.click());
     expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
-    const width = requiredElement<HTMLInputElement>("#text-style-quote-stroke-width");
-    await act(async () => { setInputValue(width, "3"); });
+    const strokeProperty = row("quote").querySelector<HTMLElement>("[data-text-style-property='textStroke']");
+    const widthControl = requiredElement<HTMLInputElement>("#text-style-quote-stroke-width");
+    expect(widthControl.closest("div")?.className).toContain("unitInput");
+    expect(widthControl.closest("div")?.className).toContain("textStrokeUnitInput");
+    expect(strokeProperty?.querySelector("#text-style-quote-stroke-color-value")).not.toBeNull();
+    await act(async () => { setInputValue(widthControl, "3"); });
     expect(presentationRef.current?.textStyles).toEqual(initial.textStyles);
     await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Use palette")?.click());
     await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button[aria-pressed]")).find((candidate) => candidate.getAttribute("aria-label")?.includes("Outline"))?.click());

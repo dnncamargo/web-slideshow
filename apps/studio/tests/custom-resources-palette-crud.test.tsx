@@ -13,6 +13,7 @@ import {
 
 import type { CustomLibraryPaletteDraft } from "../src/features/custom-library/custom-library-palette";
 import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryItemRecord, CustomLibraryRepository } from "../src/features/custom-library/custom-library-repository";
 import { addCustomLibraryPaletteToPresentation } from "../src/features/custom-library/custom-library-palette-apply";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -29,6 +30,11 @@ const master: CustomLibraryPaletteRecord = {
     name: "Supernova",
     colors: [{ name: "Accent", value: "#facc15" }, { name: "Background", value: "#13040e" }],
   },
+};
+
+const savedElement: CustomLibraryItemRecord = {
+  id: "saved-element",
+  item: { name: "Media Frame", root: { type: "image", properties: [] } },
 };
 
 function makePresentation(): Presentation {
@@ -51,11 +57,12 @@ function makeRepository(): CustomLibraryPaletteRepository {
   };
 }
 
-function Harness({ repository }: { repository: CustomLibraryPaletteRepository }) {
+function Harness({ repository, itemRepository }: { repository: CustomLibraryPaletteRepository; itemRepository?: CustomLibraryRepository }) {
   const [presentation, setPresentation] = useState(makePresentation);
 
   return (
     <CustomResourcesWorkspace
+      customLibraryRepository={itemRepository}
       customLibraryPaletteRepository={repository}
       presentationFonts={[]}
       onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
@@ -116,6 +123,39 @@ describe("Custom Resources palette composition", () => {
     return repository;
   }
 
+  it("opens the saved Element Styles chooser on demand", async () => {
+    const itemRepository: CustomLibraryRepository = {
+      listItems: vi.fn(async () => [savedElement]),
+      saveItem: vi.fn(async () => "saved"),
+      getItem: vi.fn(async () => savedElement),
+      deleteItem: vi.fn(async () => undefined),
+    };
+    await act(async () => root.render(<StudioI18nProvider><Harness repository={makeRepository()} itemRepository={itemRepository} /></StudioI18nProvider>));
+    const fromLibrary = container.querySelector("[aria-labelledby='custom-resources-from-library']");
+    const savedElementButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "+ Add saved element");
+    const paletteButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "+ Add palette");
+    const fontButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "+ Add font");
+    expect(savedElementButton?.className).toContain("resourceAction");
+    expect(paletteButton?.className).toContain("resourceAction");
+    expect(fontButton?.className).toContain("resourceAction");
+    expect(savedElementButton?.className).toBe(paletteButton?.className);
+    expect(savedElementButton?.className).toBe(fontButton?.className);
+    expect(container.textContent).toContain("+ Add saved element");
+    expect(container.textContent).not.toContain("Media Frame");
+    expect(itemRepository.listItems).not.toHaveBeenCalled();
+
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ Add saved element")?.click());
+    const closeButton = Array.from(fromLibrary?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((candidate) => candidate.textContent?.trim() === "Close");
+    expect(closeButton?.className).toBe(savedElementButton?.className);
+    expect(container.textContent).toContain("Close");
+    expect(itemRepository.listItems).toHaveBeenCalledOnce();
+    await act(async () => { await Promise.resolve(); });
+    expect(container.textContent).toContain("Media Frame");
+
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Close")?.click());
+    expect(container.textContent).not.toContain("Media Frame");
+  });
+
   function button(label: string): HTMLButtonElement {
     const found = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === label);
     if (!found) throw new Error(`Button not found: ${label}`);
@@ -136,7 +176,11 @@ describe("Custom Resources palette composition", () => {
     expect(container.textContent).not.toContain("Delete");
     await act(async () => button("+ Add palette").click());
     expect(container.textContent).toContain("Supernova");
-    expect(container.querySelector("[aria-label='Add Supernova']")).not.toBeNull();
+    const paletteRow = container.querySelector<HTMLElement>("[data-custom-resource-palette='master']");
+    expect(paletteRow?.querySelector("[data-palette-header] strong")?.textContent).toBe("Supernova");
+    expect(paletteRow?.querySelector("[data-palette-header] [aria-label='Add Supernova']")).not.toBeNull();
+    expect(paletteRow?.querySelector("[data-palette-preview] [data-palette-swatch]")).not.toBeNull();
+    expect(paletteRow?.querySelector("[data-palette-preview] [data-palette-count]")).not.toBeNull();
     await act(async () => button("Close").click());
     expect(container.textContent).not.toContain("Supernova");
   });

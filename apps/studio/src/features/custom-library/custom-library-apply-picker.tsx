@@ -27,6 +27,10 @@ interface CustomLibraryApplyPickerProps {
   onApply: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   embedded?: boolean;
   actionClassName?: string;
+  panelClassName?: string;
+  listClassName?: string;
+  itemClassName?: string;
+  retryClassName?: string;
 }
 
 function rootTypeLabel(
@@ -41,6 +45,10 @@ export function CustomLibraryApplyPicker({
   onApply,
   embedded = false,
   actionClassName,
+  panelClassName,
+  listClassName,
+  itemClassName,
+  retryClassName,
 }: CustomLibraryApplyPickerProps) {
   const { t } = useStudioI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -108,7 +116,7 @@ export function CustomLibraryApplyPicker({
         </button>
       )}
       {(embedded || isOpen) && (
-        <div className={styles.customLibraryApplyPanel}>
+        <div className={`${styles.customLibraryApplyPanel} ${panelClassName ?? ""}`}>
           {isLoading && (
             <p className={styles.customLibraryApplyStatus} role="status">
               {t("customLibrary.applyLoading")}
@@ -119,7 +127,7 @@ export function CustomLibraryApplyPicker({
               <p className={`${styles.customLibraryApplyStatus} ${styles.customLibrarySaveError}`} role="alert">
                 {t("customLibrary.applyLoadFailed")}
               </p>
-              <button className={styles.customLibraryApplyPanelAction} type="button" onClick={() => setReloadToken((current) => current + 1)}>
+              <button className={retryClassName ?? styles.customLibraryApplyPanelAction} type="button" onClick={() => setReloadToken((current) => current + 1)}>
                 {t("customLibrary.applyRetry")}
               </button>
             </>
@@ -129,12 +137,13 @@ export function CustomLibraryApplyPicker({
           )}
           {!isLoading && !hasLoadFailed && items && items.length > 0 && (
             <>
-              <ul className={styles.customLibraryApplyList}>
+              <ul className={`${styles.customLibraryApplyList} ${listClassName ?? ""}`}>
                 {items.map((record) => (
                   <li key={record.id}>
                     <button
                       type="button"
-                      className={styles.customLibraryApplyItem}
+                      className={`${styles.customLibraryApplyItem} ${itemClassName ?? ""}`}
+                      data-selected={selectedId === record.id}
                       aria-pressed={selectedId === record.id}
                       onClick={() => {
                         setSelectedId(record.id);

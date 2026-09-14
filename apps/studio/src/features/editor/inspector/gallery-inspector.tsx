@@ -56,9 +56,9 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
         })}
       </div>
       <div className={styles.galleryItemActions}>
-        <button type="button" className={styles.secondaryButton} data-powershow-gallery-add="true" onClick={addItem}>{t("gallery.add")}</button>
+        <button type="button" className="ps-ui-action" data-powershow-gallery-add="true" onClick={addItem}>{t("gallery.add")}</button>
         {selectedItem && selectedItemIndex !== null && selectedItemIndex !== undefined && <>
-          <button type="button" className={`${styles.galleryItemActionIcon} ${styles.galleryItemActionDanger}`} aria-label={t("gallery.remove")} data-powershow-gallery-remove="true" onClick={removeItem}>×</button>
+          <button type="button" className="ps-ui-action" aria-label={t("inspector.remove")} data-powershow-gallery-remove="true" onClick={removeItem}><span>{t("inspector.remove")}</span></button>
         </>}
       </div>
       {selectedItem && selectedItemIndex !== null && selectedItemIndex !== undefined ? <>

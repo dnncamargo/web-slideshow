@@ -452,6 +452,8 @@ describe("TopicsInspector", () => {
 
     expect(addButton).not.toBeNull();
     expect(removeButton).not.toBeNull();
+    expect(addButton?.textContent).toBe("↳");
+    expect(addButton?.getAttribute("aria-label")).toBe("Add subtopic");
     expect(addButton?.disabled).toBe(false);
     expect(removeButton?.disabled).toBe(false);
   });
@@ -1319,14 +1321,12 @@ describe("Topics inspector section hierarchy", () => {
   const REQUIRED_SECTIONS = [
     "Content",
     "Typography",
-    "Markers",
     "Spacing",
     "Appearance",
-    "Effects",
     "Placement",
   ];
 
-  it("renders Content, Typography, Markers, Spacing, Appearance, Effects and Placement as independent expandable sections in the exact order", async () => {
+  it("renders Content, Typography, Spacing, Appearance and Placement as independent expandable sections in the exact order", async () => {
     await renderTopics(topicsElement());
 
     expect(
@@ -1340,7 +1340,7 @@ describe("Topics inspector section hierarchy", () => {
     }
   });
 
-  it("keeps the Spacing, Typography and Markers controls outside the Content section", async () => {
+  it("keeps the Spacing, Typography and Appearance controls outside the Content section", async () => {
     await renderTopics(topicsElement());
 
     const content = sectionDetails("Content");
@@ -1355,8 +1355,15 @@ describe("Topics inspector section hierarchy", () => {
 
     expect(sectionTitleOf("topics-margin")).toBe("Spacing");
     expect(sectionTitleOf("topics-font-family")).toBe("Typography");
-    expect(sectionTitleOf("topics-marker-style")).toBe("Markers");
+    expect(sectionTitleOf("topics-marker-style")).toBe("Appearance");
+    expect(sectionTitleOf("topics-marker-color")).toBe("Appearance");
     expect(sectionTitleOf("topics-text-color")).toBe("Appearance");
+
+    const appearance = sectionDetails("Appearance");
+    expect(
+      Array.from(appearance?.querySelectorAll('[class*="appearanceSubheading"]') ?? [])
+        .map((heading) => heading.textContent?.trim()),
+    ).toEqual(["Markers", "Text"]);
   });
 });
 });

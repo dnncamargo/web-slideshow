@@ -27,11 +27,11 @@ describe("Linked Styles Resources contract", () => {
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); root = undefined; host = undefined!; });
 
-  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined) {
+  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined, onRenameLinkedStyle: (id: string, name: string) => void = () => undefined) {
     if (root) await act(async () => root?.unmount());
     host?.remove();
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} onRequestDetachLinkedStyle={onRequestDetachLinkedStyle} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} onRenameLinkedStyle={onRenameLinkedStyle} onRequestDetachLinkedStyle={onRequestDetachLinkedStyle} /></StudioI18nProvider>));
   }
 
   async function openStyle(value: ReturnType<typeof makePresentation>, onUpdate = vi.fn()) {
@@ -80,23 +80,46 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => row?.querySelector("button")?.click());
     expect(row?.textContent).toContain("Matching 2 elements");
     expect(row?.textContent).toContain("Attach 2 matching elements");
-    expect(row?.textContent).toContain("Slide 1 · linked");
+    expect(row?.textContent).toContain("Slide 1");
+    expect(row?.textContent).toContain("linked");
     expect(row?.textContent).not.toContain("Detach here");
   });
 
-  it("renders x only for linked usages with an accessible label", async () => {
+  it("renders quiet detach icons only for linked usages with an accessible label", async () => {
     const request = vi.fn();
     await render(makePresentation(), () => undefined, "en", request);
     const linkedSection = Array.from(host.querySelectorAll("details")).find((detail) => detail.textContent?.includes("Linked Styles"));
     await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
     const reuse = host.querySelector<HTMLElement>("[data-linked-style-section='reuse']")!;
-    const x = Array.from(reuse.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "x");
+    const detachRow = reuse.querySelector<HTMLButtonElement>("[data-resource-action='detach']")?.parentElement;
+    const target = detachRow?.querySelector<HTMLButtonElement>("button:not([data-resource-action='detach'])");
+    expect(target?.tagName).toBe("BUTTON");
+    expect(target?.className).not.toContain("resourceAction");
+    expect(target?.textContent).toContain("Slide 1");
+    expect(target?.textContent).toContain("linked");
+    const x = Array.from(reuse.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "×");
     expect(x).toBeDefined();
+    expect(x?.className).toContain("resourceIconAction");
+    expect(x?.dataset.resourceAction).toBe("detach");
     expect(x?.getAttribute("aria-label")).toBe("Detach this element from Gap");
     expect(request).not.toHaveBeenCalled();
     await act(async () => x?.click());
     expect(request).toHaveBeenCalledWith("gap", "Gap", { slideIndex: 0, elementId: "linked" });
+  });
+
+  it("renames a Linked Style through the existing update boundary", async () => {
+    const value = makePresentation();
+    const rename = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, rename);
+    const linkedSection = Array.from(host.querySelectorAll("details")).find((detail) => detail.textContent?.includes("Linked Styles"));
+    await act(async () => linkedSection?.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
+    const input = host.querySelector<HTMLInputElement>("[data-linked-style-id='gap'] input");
+    expect(input?.value).toBe("Gap");
+    await setInput(input!, "Spacing");
+    await act(async () => input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(rename).toHaveBeenCalledWith("gap", "Spacing");
   });
 
   it("uses the compact shared action grammar and Text Styles disclosure structure", async () => {
@@ -106,13 +129,25 @@ describe("Linked Styles Resources contract", () => {
     expect(disclosure.className).toContain("typographyStyleDisclosure");
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     expect(disclosure.getAttribute("aria-controls")).toBe("linked-style-gap-editor");
+    expect(disclosure.querySelector("span[class*='resourceItemDetails']")).not.toBeNull();
+    expect(disclosure.querySelector("span[class*='resourceItemMeta']")?.textContent).toBe("Used by 1 element");
+    const chevron = disclosure.querySelector("span[class*='resourceDisclosureChevron']");
+    expect(chevron?.textContent).toBe("▸");
     const add = host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button")!;
     expect(add.className).toContain("resourceAction");
     expect(add.textContent).toBe("+ Add Linked Style");
     await act(async () => disclosure.click());
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(chevron?.textContent).toBe("▾");
     expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] .ps-ui-button--secondary")).not.toBeNull();
-    expect(host.querySelector("#linked-style-gap-editor .ps-ui-button--danger")).not.toBeNull();
+    const remove = Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Remove"));
+    expect(remove?.className).toContain("resourceAction");
+    expect(remove?.className).not.toContain("ps-ui-button--danger");
+    const addProperty = Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Add property"));
+    expect(addProperty?.className).toContain("resourceAction");
+    expect(addProperty?.parentElement?.className).toContain("resourcePropertyChooser");
+    expect(remove?.parentElement?.className).toContain("resourceStyleActions");
+    expect(remove?.disabled).toBe(true);
   });
 
   it("keeps Preserve size checkbox before its text and preserves authored semantics", async () => {
@@ -162,6 +197,31 @@ describe("Linked Styles Resources contract", () => {
     expect(Array.from(host.querySelectorAll("[data-linked-style-property='width'] span")).some((span) => span.textContent === "%")).toBe(true);
     expect(Array.from(host.querySelectorAll("[data-linked-style-property='height'] span")).some((span) => span.textContent === "%")).toBe(true);
     expect(host.querySelector("[data-linked-style-property='borderRadius'] select")).not.toBeNull();
+    const borderRadius = host.querySelector<HTMLElement>("[data-linked-style-property='borderRadius']")!;
+    const borderRadiusHeader = Array.from(borderRadius.children).find((child) => child.className.includes("resourcePropertyHeader"));
+    expect(borderRadiusHeader?.querySelector("span")?.textContent).toBe("Rounded corners");
+    expect(Array.from(borderRadius.querySelectorAll("label > span")).find((span) => span.className.includes("resourcePropertyVisuallyHidden"))).toBeTruthy();
+    expect(borderRadius.querySelector("#linked-style-gap-border-radius")?.closest("label")?.textContent).toContain("Rounded corners");
+    expect(borderRadius.querySelector("#linked-style-gap-border-radius")?.closest("div")?.className).toContain("unitInput");
+  });
+
+  it("uses the shared resource property-card structure for authored properties", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Cards", layout: { children: { direction: "row", gap: 16 } } }] });
+    await openStyle(value);
+    const properties = Array.from(host.querySelectorAll<HTMLElement>("[data-linked-style-property]"));
+    expect(properties.map((property) => property.dataset.linkedStyleProperty)).toEqual(["direction", "gap"]);
+    for (const property of properties) {
+      expect(property.className).toContain("resourcePropertyCard");
+      const header = Array.from(property.children).find((child) => child.className.includes("resourcePropertyHeader")) as HTMLElement | undefined;
+      expect(header).not.toBeNull();
+      expect(header?.querySelector("span")).not.toBeNull();
+      expect(header?.querySelector("[data-linked-style-property-remove]")).not.toBeNull();
+      expect(property.querySelector("[data-linked-style-property-control]")?.className).toContain("resourcePropertyControl");
+    }
+    expect(properties.find((property) => property.dataset.linkedStyleProperty === "direction")?.querySelector("[data-linked-style-property-control] select")).not.toBeNull();
+    expect(properties.find((property) => property.dataset.linkedStyleProperty === "gap")?.querySelector("[data-linked-style-property-control] input")).not.toBeNull();
+    expect(host.querySelector("[data-linked-style-section='layout'] h3")?.textContent).toBe("Layout");
+    expect(host.querySelector("[data-linked-style-preview='gap']")).not.toBeNull();
   });
 
   it("organizes the expanded definition editor into semantic static groups", async () => {

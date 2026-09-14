@@ -209,7 +209,7 @@ function TopicRow({
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action ps-ui-action--icon"
           data-powershow-topic-add-child="true"
           title={addChildTitle}
           aria-label={addChildTitle}
@@ -218,12 +218,12 @@ function TopicRow({
             onAddChild(item.id);
           }}
         >
-          +
+          ↳
         </button>
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action ps-ui-action--icon"
           data-powershow-topic-remove="true"
           title={removeLabel}
           aria-label={removeLabel}
@@ -417,7 +417,7 @@ function addChildTopic(topicItemId: string) {
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action"
           onClick={addTopLevelTopic}
         >
           <span>{t("inspector.topics.add")}</span>
@@ -504,8 +504,23 @@ function addChildTopic(topicItemId: string) {
         )}
       </InspectorSection>
 
-      <InspectorSection title={t("inspector.topics.markers")}>
-        <div className={styles.fieldGrid}>
+      <ElementSpacingSection
+        layout={element.layout}
+        controlPrefix="topics"
+        onUpdateLayout={(update) => {
+          updateCurrentTopics((current) => ({
+            ...current,
+            layout: update(current.layout),
+          }));
+        }}
+      />
+
+      <InspectorSection title={t("inspector.appearance")}>
+        <div className={styles.appearanceSubgroup}>
+          <span className={styles.appearanceSubheading}>
+            {t("inspector.topics.markers")}
+          </span>
+
           <label className={styles.field}>
             <span>{t("inspector.topics.rootMarkerStyle")}</span>
 
@@ -555,7 +570,7 @@ function addChildTopic(topicItemId: string) {
                 name="topicsMarkerColor"
                 value={element.markerColor}
                 onChange={(markerColor) => {
-                updateCurrentTopics((current) => ({
+                  updateCurrentTopics((current) => ({
                     ...current,
                     markerColor,
                   }));
@@ -565,41 +580,33 @@ function addChildTopic(topicItemId: string) {
             </label>
           </div>
         </div>
-      </InspectorSection>
 
-      <ElementSpacingSection
-        layout={element.layout}
-        controlPrefix="topics"
-        onUpdateLayout={(update) => {
-          updateCurrentTopics((current) => ({
-            ...current,
-            layout: update(current.layout),
-          }));
-        }}
-      />
+        <div className={styles.appearanceSubgroup}>
+          <span className={styles.appearanceSubheading}>
+            {t("inspector.text")}
+          </span>
 
-      <InspectorSection title={t("inspector.appearance")}>
-        <div className={styles.colorControl}>
-          <label className={styles.field}>
-            <span>{t("inspector.topics.textColor")}</span>
+          <div className={styles.colorControl}>
+            <label className={styles.field}>
+              <span>{t("inspector.topics.textColor")}</span>
 
-            <ColorControl
-              id="topics-text-color"
-              name="topicsTextColor"
-              value={element.style?.color}
-              onChange={(color) => {
-                updateCurrentTopics((current) => ({
-                  ...current,
-                  style: { ...current.style, color },
-                }));
-              }}
-              secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, style: { ...current.style, color: undefined } })) }}
-            />
-          </label>
+              <ColorControl
+                id="topics-text-color"
+                name="topicsTextColor"
+                value={element.style?.color}
+                onChange={(color) => {
+                  updateCurrentTopics((current) => ({
+                    ...current,
+                    style: { ...current.style, color },
+                  }));
+                }}
+                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, style: { ...current.style, color: undefined } })) }}
+              />
+            </label>
+          </div>
         </div>
       </InspectorSection>
 
-      <InspectorSection title={t("inspector.effects")}>{null}</InspectorSection>
     </>
   );
 }

@@ -260,7 +260,7 @@ export function TerminalInspector({
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action"
           onClick={addLine}
         >
           <span>{t("inspector.addLine")}</span>
