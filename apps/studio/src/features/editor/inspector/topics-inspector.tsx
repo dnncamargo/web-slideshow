@@ -209,7 +209,7 @@ function TopicRow({
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action ps-ui-action--icon"
           data-powershow-topic-add-child="true"
           title={addChildTitle}
           aria-label={addChildTitle}
@@ -218,12 +218,12 @@ function TopicRow({
             onAddChild(item.id);
           }}
         >
-          +
+          ↳
         </button>
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action ps-ui-action--icon"
           data-powershow-topic-remove="true"
           title={removeLabel}
           aria-label={removeLabel}
@@ -417,7 +417,7 @@ function addChildTopic(topicItemId: string) {
 
         <button
           type="button"
-          className={styles.secondaryButton}
+          className="ps-ui-action"
           onClick={addTopLevelTopic}
         >
           <span>{t("inspector.topics.add")}</span>
@@ -521,65 +521,63 @@ function addChildTopic(topicItemId: string) {
             {t("inspector.topics.markers")}
           </span>
 
-          <div className={styles.fieldGrid}>
+          <label className={styles.field}>
+            <span>{t("inspector.topics.rootMarkerStyle")}</span>
+
+            <select
+              id="topics-marker-style"
+              name="topicsMarkerStyle"
+              value={element.rootMarkerStyle ?? ""}
+              onChange={(event) => {
+                const nextRootMarkerStyle =
+                  event.target.value === ""
+                    ? undefined
+                    : (event.target.value as TopicMarkerStyle);
+
+                updateCurrentTopics((current) => {
+                  const normalized = normalizeTopicMarkerStyle(
+                    current.kind,
+                    nextRootMarkerStyle,
+                  );
+
+                  if (normalized === current.rootMarkerStyle) {
+                    return current;
+                  }
+
+                  return {
+                    ...current,
+                    rootMarkerStyle: normalized,
+                  };
+                });
+              }}
+            >
+              <option value="">{t("inspector.default")}</option>
+
+              {markerStyleOptions.map((markerStyle) => (
+                <option key={markerStyle} value={markerStyle}>
+                  {t(`inspector.topics.rootMarkerStyle.${markerStyle}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className={styles.colorControl}>
             <label className={styles.field}>
-              <span>{t("inspector.topics.rootMarkerStyle")}</span>
+              <span>{t("inspector.topics.markerColor")}</span>
 
-              <select
-                id="topics-marker-style"
-                name="topicsMarkerStyle"
-                value={element.rootMarkerStyle ?? ""}
-                onChange={(event) => {
-                  const nextRootMarkerStyle =
-                    event.target.value === ""
-                      ? undefined
-                      : (event.target.value as TopicMarkerStyle);
-
-                  updateCurrentTopics((current) => {
-                    const normalized = normalizeTopicMarkerStyle(
-                      current.kind,
-                      nextRootMarkerStyle,
-                    );
-
-                    if (normalized === current.rootMarkerStyle) {
-                      return current;
-                    }
-
-                    return {
-                      ...current,
-                      rootMarkerStyle: normalized,
-                    };
-                  });
+              <ColorControl
+                id="topics-marker-color"
+                name="topicsMarkerColor"
+                value={element.markerColor}
+                onChange={(markerColor) => {
+                  updateCurrentTopics((current) => ({
+                    ...current,
+                    markerColor,
+                  }));
                 }}
-              >
-                <option value="">{t("inspector.default")}</option>
-
-                {markerStyleOptions.map((markerStyle) => (
-                  <option key={markerStyle} value={markerStyle}>
-                    {t(`inspector.topics.rootMarkerStyle.${markerStyle}`)}
-                  </option>
-                ))}
-              </select>
+                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) }}
+              />
             </label>
-
-            <div className={styles.colorControl}>
-              <label className={styles.field}>
-                <span>{t("inspector.topics.markerColor")}</span>
-
-                <ColorControl
-                  id="topics-marker-color"
-                  name="topicsMarkerColor"
-                  value={element.markerColor}
-                  onChange={(markerColor) => {
-                    updateCurrentTopics((current) => ({
-                      ...current,
-                      markerColor,
-                    }));
-                  }}
-                  secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) }}
-                />
-              </label>
-            </div>
           </div>
         </div>
 

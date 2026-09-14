@@ -452,6 +452,8 @@ describe("TopicsInspector", () => {
 
     expect(addButton).not.toBeNull();
     expect(removeButton).not.toBeNull();
+    expect(addButton?.textContent).toBe("↳");
+    expect(addButton?.getAttribute("aria-label")).toBe("Add subtopic");
     expect(addButton?.disabled).toBe(false);
     expect(removeButton?.disabled).toBe(false);
   });

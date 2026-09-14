@@ -477,30 +477,7 @@
 }
 
 .resourceAction {
-  min-width: 0;
-  min-height: var(--ps-ui-control-compact-height);
-  padding: 0 var(--ps-ui-space-8);
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-4);
-  background: var(--ps-ui-background-control);
-  color: var(--ps-ui-text-secondary);
-  font: inherit;
-  font-size: 10px;
-  cursor: pointer;
-}
-
-.resourceAction:hover:not(:disabled) {
-  border-color: var(--ps-ui-semantic-accent);
-}
-
-.resourceAction:focus-visible {
-  outline: 2px solid var(--ps-ui-semantic-focus);
-  outline-offset: 1px;
-}
-
-.resourceAction:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+  composes: ps-ui-action from global;
 }
 
 .masterPaletteList,

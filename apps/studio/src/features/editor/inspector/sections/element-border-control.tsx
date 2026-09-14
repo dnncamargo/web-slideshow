@@ -145,53 +145,53 @@ export function ElementBorderControl({
         </select>
       </label>
 
-      {allowGradient && border !== undefined && (
-        <label className={styles.field}>
-          <span title={t("inspector.borderPaintHelp")}>
-            {t("inspector.borderPaint")}
-          </span>
-
-          <select
-            id={`${controlPrefix}-border-paint`}
-            name={getControlName(controlPrefix, "BorderPaint")}
-            value={paintSelection}
-            onChange={(event) => {
-              const paint = event.target.value;
-
-              if (paint !== "color" && paint !== "gradient") {
-                return;
-              }
-
-              if (border === undefined) return;
-
-              onChange(
-                paint === "gradient"
-                  ? {
-                      ...border,
-                      style: "solid",
-                      color: undefined,
-                      gradient: createDefaultGradient("linear"),
-                    }
-                  : {
-                      ...border,
-                      color: DEFAULT_BORDER_COLOR,
-                      gradient: undefined,
-                    },
-              );
-            }}
-          >
-            <option value="color">{t("inspector.borderPaint.color")}</option>
-
-            <option value="gradient">
-              {t("inspector.borderPaint.gradient")}
-            </option>
-          </select>
-        </label>
-      )}
-
       {border !== undefined && (
         <>
           <div className={styles.fieldGrid}>
+            {allowGradient && (
+              <label className={styles.field}>
+                <span title={t("inspector.borderPaintHelp")}>
+                  {t("inspector.borderPaint")}
+                </span>
+
+                <select
+                  id={`${controlPrefix}-border-paint`}
+                  name={getControlName(controlPrefix, "BorderPaint")}
+                  value={paintSelection}
+                  onChange={(event) => {
+                    const paint = event.target.value;
+
+                    if (paint !== "color" && paint !== "gradient") {
+                      return;
+                    }
+
+                    if (border === undefined) return;
+
+                    onChange(
+                      paint === "gradient"
+                        ? {
+                            ...border,
+                            style: "solid",
+                            color: undefined,
+                            gradient: createDefaultGradient("linear"),
+                          }
+                        : {
+                            ...border,
+                            color: DEFAULT_BORDER_COLOR,
+                            gradient: undefined,
+                          },
+                    );
+                  }}
+                >
+                  <option value="color">{t("inspector.borderPaint.color")}</option>
+
+                  <option value="gradient">
+                    {t("inspector.borderPaint.gradient")}
+                  </option>
+                </select>
+              </label>
+            )}
+
             <label className={styles.field}>
               <span>{t("inspector.borderWidth")}</span>
 

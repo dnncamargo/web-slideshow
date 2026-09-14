@@ -61,6 +61,24 @@
 .ps-ui-button:disabled { opacity: .45; cursor: not-allowed; }
 .ps-ui-button:focus-visible { outline: 2px solid var(--ps-ui-semantic-focus); outline-offset: 2px; }
 
+.ps-ui-action {
+  min-width: 0;
+  min-height: var(--ps-ui-control-compact-height);
+  padding: 0 var(--ps-ui-space-8);
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-secondary);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.ps-ui-action:hover:not(:disabled) { border-color: var(--ps-ui-semantic-accent); }
+.ps-ui-action:focus-visible { outline: 2px solid var(--ps-ui-semantic-focus); outline-offset: 1px; }
+.ps-ui-action:disabled { cursor: not-allowed; opacity: .55; }
+.ps-ui-action--icon { width: var(--ps-ui-control-compact-height); padding: 0; line-height: 1; }
+
 .ps-ui-status { min-width: 0; color: var(--ps-ui-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ps-ui-status--success { color: var(--ps-ui-semantic-success); }
 .ps-ui-status--warning { color: var(--ps-ui-semantic-warning); }
