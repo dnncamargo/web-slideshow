@@ -773,7 +773,7 @@
   margin: 0;
 }
 
-.typographyStyleActions {
+.resourceStyleActions {
   display: flex;
   justify-content: flex-end;
 }
@@ -830,11 +830,14 @@
 .localColorName {
   display: flex;
   min-width: 0;
-  flex: 1 1 110px;
   flex-direction: column;
   gap: 3px;
   color: #94a3b8;
   font-size: 10px;
+}
+
+.localColorAdd > .localColorName {
+  flex: 1 1 110px;
 }
 
 .localColorName input {

@@ -138,6 +138,8 @@ describe("Linked Styles Resources contract", () => {
     const addProperty = Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Add property"));
     expect(addProperty?.className).toContain("resourceAction");
     expect(addProperty?.parentElement?.className).toContain("resourcePropertyChooser");
+    expect(remove?.parentElement?.className).toContain("resourceStyleActions");
+    expect(remove?.disabled).toBe(true);
   });
 
   it("keeps Preserve size checkbox before its text and preserves authored semantics", async () => {
