@@ -106,12 +106,6 @@ export function PresentationToolbar({
                 </Button>
               ) : null}
 
-              {state.actions.includes("end") ? (
-                <Button variant="danger" size="compact" onClick={onEnd}>
-                  {t("library.end")}
-                </Button>
-              ) : null}
-
               {state.actions.includes("edit") && selected ? (
                 <Button
                   className={styles.mobileHidden}
@@ -125,12 +119,18 @@ export function PresentationToolbar({
 
               {state.actions.includes("archive") && selected ? (
                 <Button
-                  variant="danger"
+                  variant="archive"
                   size="compact"
                   disabled={archivingId !== null}
                   onClick={() => onArchive(selected.id)}
                 >
                   {archivingId === selected.id ? t("library.archiving") : t("library.archive")}
+                </Button>
+              ) : null}
+
+              {state.actions.includes("stop") ? (
+                <Button variant="stop" size="compact" onClick={onEnd}>
+                  {t("library.stop")}
                 </Button>
               ) : null}
 

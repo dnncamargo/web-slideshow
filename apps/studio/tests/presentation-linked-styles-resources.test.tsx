@@ -141,7 +141,7 @@ describe("Linked Styles Resources contract", () => {
     await act(async () => disclosure.click());
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(chevron?.textContent).toBe("▾");
-    expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] .ps-ui-button--secondary")).not.toBeNull();
+    expect(host.querySelector("#linked-style-gap-editor [data-linked-style-section='reuse'] button[class*='resourceAction']")).not.toBeNull();
     const remove = Array.from(host.querySelectorAll<HTMLButtonElement>("#linked-style-gap-editor button")).find((button) => button.textContent?.includes("Remove"));
     expect(remove?.className).toContain("resourceAction");
     expect(remove?.className).not.toContain("ps-ui-button--danger");

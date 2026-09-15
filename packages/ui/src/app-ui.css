@@ -14,7 +14,12 @@
   --ps-ui-semantic-accent: #22d3ee;
   --ps-ui-semantic-success: #4ade80;
   --ps-ui-semantic-warning: #fbbf24;
+  --ps-ui-semantic-archive: #b9a45c;
+  --ps-ui-semantic-archive-hover: #292719;
+  --ps-ui-semantic-stop: #b98a67;
+  --ps-ui-semantic-stop-hover: #2b211a;
   --ps-ui-semantic-danger: #f87171;
+  --ps-ui-semantic-danger-border: #a83d4d;
   --ps-ui-semantic-focus: #22d3ee;
   --ps-ui-space-4: 4px;
   --ps-ui-space-6: 6px;
@@ -32,6 +37,9 @@
   --ps-ui-control-default-height: 36px;
   --ps-ui-control-touch-height: 44px;
   --ps-ui-resource-preview-min-height: 76px;
+  --ps-ui-resource-workspace-header-height: 44px;
+  --ps-ui-inspector-unit-select-min-width: 48px;
+  --ps-ui-resource-color-name-basis: 110px;
   --ps-ui-text-placeholder: var(--ps-ui-text-muted);
   --ps-ui-inspector-control-line-height: normal;
   --ps-ui-inspector-control-height: 34px;
@@ -46,9 +54,6 @@
   --ps-ui-space-5: 5px;
   --ps-ui-space-7: 7px;
   --ps-ui-space-14: 14px;
-  --ps-ui-space-44: 44px;
-  --ps-ui-space-48: 48px;
-  --ps-ui-space-110: 110px;
   --ps-ui-radius-5: 5px;
   --ps-ui-font-size-2xs: 9px;
   --ps-ui-font-size-xs: 10px;
@@ -62,12 +67,12 @@
   --ps-ui-line-height-tight: 1;
   --ps-ui-control-icon-size: 20px;
   --ps-ui-control-swatch-size: 20px;
+  --ps-ui-color-input-sample-size: 30px;
   --ps-ui-border-width-default: 1px;
   --ps-ui-focus-outline-width: 2px;
   --ps-ui-focus-outline-offset: 1px;
   --ps-ui-opacity-disabled: 0.5;
   --ps-ui-text-resource-primary: #e2e8f0;
-  --ps-ui-border-swatch: rgb(255 255 255 / 24%);
   --ps-ui-shadow-resource-chooser: 0 8px 20px rgb(0 0 0 / 25%);
 }
 
@@ -76,7 +81,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--ps-ui-space-6);
-  border: 1px solid var(--ps-ui-border-default);
+  border: var(--ps-ui-border-width-default) solid var(--ps-ui-border-default);
   border-radius: var(--ps-ui-radius-6);
   background: var(--ps-ui-background-raised);
   color: var(--ps-ui-text-secondary);
@@ -92,12 +97,19 @@
 .ps-ui-button--touch { min-height: var(--ps-ui-control-touch-height); padding: 0 var(--ps-ui-space-16); }
 .ps-ui-button--primary { border-color: #0e7490; background: #164e63; color: #ecfeff; }
 .ps-ui-button--ghost { background: transparent; }
-.ps-ui-button--danger { border-color: #7f1d1d; background: transparent; color: #fca5a5; }
+.ps-ui-button--archive { border-color: var(--ps-ui-semantic-archive); background: var(--ps-ui-background-raised); color: var(--ps-ui-semantic-archive); }
+.ps-ui-button--stop { border-color: var(--ps-ui-semantic-stop); background: var(--ps-ui-background-raised); color: var(--ps-ui-semantic-stop); }
+.ps-ui-button--danger { border-color: var(--ps-ui-semantic-danger-border); background: transparent; color: #fca5a5; }
 .ps-ui-button:hover:not(:disabled) { border-color: var(--ps-ui-border-strong); background: var(--ps-ui-background-control); }
 .ps-ui-button--primary:hover:not(:disabled) { border-color: var(--ps-ui-semantic-accent); background: #0f394e; }
+.ps-ui-button--archive:hover:not(:disabled) { border-color: var(--ps-ui-semantic-archive); background: var(--ps-ui-semantic-archive-hover); }
+.ps-ui-button--stop:hover:not(:disabled) { border-color: var(--ps-ui-semantic-stop); background: var(--ps-ui-semantic-stop-hover); }
 .ps-ui-button--danger:hover:not(:disabled) { border-color: var(--ps-ui-semantic-danger); background: #261317; }
 .ps-ui-button:disabled { opacity: .45; cursor: not-allowed; }
 .ps-ui-button:focus-visible { outline: 2px solid var(--ps-ui-semantic-focus); outline-offset: 2px; }
+.ps-ui-button--archive:focus-visible { outline-color: var(--ps-ui-semantic-archive); }
+.ps-ui-button--stop:focus-visible { outline-color: var(--ps-ui-semantic-stop); }
+.ps-ui-button--danger:focus-visible { outline-color: var(--ps-ui-semantic-danger); }
 
 .ps-ui-action {
   min-width: 0;

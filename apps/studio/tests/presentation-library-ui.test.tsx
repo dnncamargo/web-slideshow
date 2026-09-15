@@ -665,6 +665,11 @@ describe("presentation library workspace controls", () => {
 
   it("shows contextual actions for published, unpublished, and live selections", () => {
     act(() => root.render(renderToolbar(summary("published", "published"))));
+    expect(Array.from(container.querySelector('[role="toolbar"] [role="group"]')?.querySelectorAll("button") ?? []).map((button) => button.textContent)).toEqual([
+      "Present",
+      "Edit",
+      "Archive",
+    ]);
     expect(container.textContent).toContain("Present");
     expect(container.textContent).toContain("Edit");
     expect(container.textContent).toContain("Archive");
@@ -688,9 +693,16 @@ describe("presentation library workspace controls", () => {
       ),
     );
     expect(container.textContent).toContain("Control");
-    expect(container.textContent).toContain("End");
+    expect(container.textContent).toContain("Stop");
     expect(container.textContent).toContain("Edit");
     expect(container.textContent).not.toContain("Archive");
+    expect(Array.from(container.querySelector('[role="toolbar"] [role="group"]')?.querySelectorAll("button") ?? []).map((button) => button.textContent)).toEqual([
+      "Control",
+      "Edit",
+      "Stop",
+    ]);
+    expect(container.querySelector('button.ps-ui-button--stop')).toBeTruthy();
+    expect(container.querySelector('button.ps-ui-button--primary')?.textContent).toBe("Control");
   });
 
   it("exposes Restore and Delete for an archived unpublished selection", () => {
@@ -704,6 +716,10 @@ describe("presentation library workspace controls", () => {
 
     expect(container.textContent).toContain("Restore");
     expect(container.textContent).toContain("Delete");
+    expect(Array.from(container.querySelector('[role="toolbar"] [role="group"]')?.querySelectorAll("button") ?? []).map((button) => button.textContent)).toEqual([
+      "Restore",
+      "Delete",
+    ]);
   });
 
   it("does not expose Delete for an active selection", () => {

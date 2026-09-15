@@ -105,7 +105,7 @@ export function CustomLibraryPaletteAddPicker({
           </ul>
           <div className={styles.customLibraryPalettePickerActions}>
             <button type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</button>
-            <button type="button" disabled={!selected || isAdding || feedback === "added"} onClick={handleAdd}>{t("customLibrary.palette.addToPresentation")}</button>
+            <button className="ps-ui-action" type="button" disabled={!selected || isAdding || feedback === "added"} onClick={handleAdd}>{t("customLibrary.palette.addToPresentation")}</button>
           </div>
         </>
       ) : !isLoading && !loadFailed ? <button type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</button> : null}

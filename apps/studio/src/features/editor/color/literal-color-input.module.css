@@ -1,8 +1,29 @@
 .input {
-  width: 38px !important;
-  height: 38px !important;
-  padding: 4px !important;
+  width: var(--ps-ui-color-input-sample-size) !important;
+  height: var(--ps-ui-color-input-sample-size) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  appearance: none;
+  background: transparent;
   cursor: pointer;
+}
+
+.input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.input::-webkit-color-swatch,
+.input::-moz-color-swatch {
+  width: var(--ps-ui-color-input-sample-size);
+  height: var(--ps-ui-color-input-sample-size);
+  box-sizing: border-box;
+  border: var(--ps-ui-border-width-default) solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+}
+
+.input:focus-visible {
+  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
+  outline-offset: var(--ps-ui-focus-outline-offset);
 }
 
 .control {

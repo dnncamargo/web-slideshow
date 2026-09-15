@@ -11,6 +11,8 @@ export const BUTTON_VARIANTS = [
   "primary",
   "secondary",
   "ghost",
+  "archive",
+  "stop",
   "danger",
 ] as const;
 

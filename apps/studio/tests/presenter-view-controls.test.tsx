@@ -447,7 +447,7 @@ describe("PresenterView controls", () => {
     expect(next?.parentElement).toBe(primary);
     expect(fullscreen?.parentElement).toBe(primary);
     expect(counter?.textContent).toBe("2 / 3");
-    expect(Array.from(primary?.querySelectorAll("button") ?? []).some((button) => button.className.includes("mobileEndButton"))).toBe(true);
+    expect(Array.from(primary?.querySelectorAll("button") ?? []).some((button) => button.className.includes("mobileStopButton"))).toBe(true);
     expect(container.querySelector('[data-mobile-gallery-controls]')).not.toBeNull();
     expect(Array.from(container.querySelectorAll("div")).some((element) => element.className.includes("mobilePlayerStatus"))).toBe(true);
     expect(Array.from(container.querySelectorAll("*")).some((element) => element.className.includes("controlTopbar"))).toBe(true);

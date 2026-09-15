@@ -143,14 +143,14 @@ describe("archived toolbar resolution", () => {
     });
   });
 
-  it("does not offer Present, Edit, Archive, Control, or End for archived", () => {
+  it("does not offer Present, Edit, Archive, Control, or Stop for archived", () => {
     const state = resolvePresentationToolbarState(archivedSummary, { kind: "none" });
 
     expect(state.actions).not.toContain("present");
     expect(state.actions).not.toContain("edit");
     expect(state.actions).not.toContain("archive");
     expect(state.actions).not.toContain("control");
-    expect(state.actions).not.toContain("end");
+    expect(state.actions).not.toContain("stop");
     expect(state.canPresent).toBe(false);
   });
 });

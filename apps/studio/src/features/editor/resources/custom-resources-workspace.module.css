@@ -2,7 +2,7 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: var(--ps-ui-space-44) minmax(0, 1fr);
+  grid-template-rows: var(--ps-ui-resource-workspace-header-height) minmax(0, 1fr);
   overflow: hidden;
   border-left: var(--ps-ui-border-width-default) solid var(--ps-ui-border-subtle);
   background: var(--ps-ui-background-surface);
@@ -326,7 +326,7 @@
 
 .unitInput > select {
   width: auto;
-  min-width: var(--ps-ui-space-48);
+  min-width: var(--ps-ui-inspector-unit-select-min-width);
   flex: 0 0 auto;
   border-left: var(--ps-ui-border-width-default) solid var(--ps-ui-border-default);
 }
@@ -670,6 +670,10 @@
   width: 100%;
 }
 
+.resourcePropertyControl > .unitInput:has(> span) > span {
+  padding-inline: var(--ps-ui-space-6) var(--ps-ui-space-8);
+}
+
 .resourcePropertyCard[data-compact-field-label="true"] .resourcePropertyControl > div {
   width: 100%;
   min-width: 0;
@@ -823,7 +827,7 @@
 }
 
 .localColorAdd > .localColorName {
-  flex: 1 1 var(--ps-ui-space-110);
+  flex: 1 1 var(--ps-ui-resource-color-name-basis);
 }
 
 .localColorName input {
@@ -847,7 +851,6 @@
 .swatch {
   width: var(--ps-ui-control-swatch-size);
   height: var(--ps-ui-control-swatch-size);
-  border: var(--ps-ui-border-width-default) solid var(--ps-ui-border-swatch);
   border-radius: var(--ps-ui-radius-4);
 }
 
