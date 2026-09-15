@@ -49,6 +49,9 @@ describe("Container linked style Inspector section", () => {
     expect(host.querySelector("#container-linked-style-name")).toBeNull();
     expect(host.textContent).toContain("Attached to Linked Style · Card");
     expect(host.textContent).toContain("Detach from Card");
+    const linkedStatus = host.querySelector<HTMLElement>("[role='status']");
+    expect(linkedStatus?.querySelector("span")?.textContent).toBe("Attached to Linked Style · Card");
+    expect(linkedStatus?.querySelector("button")?.textContent).toBe("Detach from Card");
 
     await act(async () => {
       select.value = "hero";
