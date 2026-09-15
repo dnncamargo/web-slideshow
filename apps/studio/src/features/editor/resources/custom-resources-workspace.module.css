@@ -59,9 +59,15 @@
   display: flex;
   min-width: 0;
   flex: 1;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ps-ui-space-8);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--ps-ui-space-2);
+}
+
+.resourceDisclosure .resourceItemDetails > strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .resourceItemMeta {
@@ -254,15 +260,14 @@
   font: inherit;
 }
 
-.linkedStyleField > input:focus-visible,
-.linkedStyleField > select:focus-visible,
-.field > input:focus-visible,
-.field > select:focus-visible,
-.localColorName > input:focus-visible,
-.localColorName > select:focus-visible {
+.linkedStyleField > input:focus,
+.linkedStyleField > select:focus,
+.field > input:focus,
+.field > select:focus,
+.localColorName > input:focus,
+.localColorName > select:focus {
   border-color: var(--ps-ui-semantic-focus);
-  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
-  outline-offset: var(--ps-ui-focus-outline-offset);
+  outline: 0;
 }
 
 .linkedStyleField > input:disabled,
@@ -334,8 +339,6 @@
 .linkedStyleUnitInput:focus-within,
 .unitInput:focus-within {
   border-color: var(--ps-ui-semantic-focus);
-  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
-  outline-offset: var(--ps-ui-focus-outline-offset);
 }
 
 .textStrokeUnitInput {
@@ -348,9 +351,9 @@
   padding-inline: var(--ps-ui-space-6) var(--ps-ui-space-8);
 }
 
-.linkedStyleUnitInput > input:focus-visible,
-.unitInput > input:focus-visible,
-.unitInput > select:focus-visible {
+.linkedStyleUnitInput > input:focus,
+.unitInput > input:focus,
+.unitInput > select:focus {
   outline: 0;
 }
 
@@ -437,6 +440,14 @@
 .group,
 .localColorList {
   gap: var(--ps-ui-space-8);
+}
+
+.group[data-linked-style-id] + .group[data-linked-style-id] {
+  margin-top: calc(var(--ps-ui-space-8) + var(--ps-ui-space-2));
+}
+
+[data-presentation-linked-styles] > [data-linked-style-id] + .resourceAction {
+  margin-top: var(--ps-ui-space-12);
 }
 
 .presentationSections {
@@ -588,12 +599,13 @@
 
 .textStylesSection > .resourceAction {
   align-self: flex-start;
+  margin-top: var(--ps-ui-space-4);
 }
 
 .typographyStyleList {
   display: flex;
   flex-direction: column;
-  gap: var(--ps-ui-space-4);
+  gap: calc(var(--ps-ui-space-8) + var(--ps-ui-space-2));
 }
 
 .typographyStyleRow {
@@ -649,11 +661,10 @@
   font: inherit;
 }
 
-.resourcePropertyControl > input:focus-visible,
-.resourcePropertyControl > select:focus-visible {
+.resourcePropertyControl > input:focus,
+.resourcePropertyControl > select:focus {
   border-color: var(--ps-ui-semantic-focus);
-  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
-  outline-offset: var(--ps-ui-focus-outline-offset);
+  outline: 0;
 }
 
 .resourcePropertyControl > input:disabled,
