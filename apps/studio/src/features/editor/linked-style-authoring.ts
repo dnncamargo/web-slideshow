@@ -1,13 +1,16 @@
 import {
   PresentationSchema,
   resolveLinkedContainerStyle,
+  resolveLinkedTopicsStyle,
   type ContainerElement,
   type ContainerLayout,
   type ElementEffect,
   type ElementTypography,
   type ElementVisualStyle,
   type LinkedContainerStyle,
+  type LinkedTopicsStyle,
   type Presentation,
+  type TopicsElement,
 } from "@powershow/document-schema";
 
 import { findElementById, updateElementById } from "./element-tree";
@@ -221,6 +224,115 @@ export function attachLinkedStyle(
   const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
   if (linked === undefined) return presentation;
   return replaceContainerInSlide(presentation, slideIndex, containerId, (container) => adoptLinkedContainerStyle(container, linked));
+}
+
+type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
+
+function removeLinkedTopicsProperties(topics: TopicsElement, linked: LinkedTopicsStyle): TopicsElement {
+  const { layout: localLayout, rootMarkerStyle, markerColor, itemGap, ...structural } = topics;
+  const layout = removeLinkedLayoutProperties(localLayout, linked.layout);
+  return {
+    ...structural,
+    ...(layout === undefined ? {} : { layout }),
+    ...(linked.rootMarkerStyle === undefined && rootMarkerStyle !== undefined ? { rootMarkerStyle } : {}),
+    ...(linked.markerColor === undefined && markerColor !== undefined ? { markerColor } : {}),
+    ...(linked.itemGap === undefined && itemGap !== undefined ? { itemGap } : {}),
+    linkedStyleId: linked.id,
+  };
+}
+
+function replaceTopicsInSlide(
+  presentation: Presentation,
+  slideIndex: number,
+  topicsId: string,
+  update: (topics: TopicsElement) => TopicsElement,
+): Presentation {
+  return PresentationSchema.parse({
+    ...presentation,
+    slides: presentation.slides.map((slide, index) => index === slideIndex
+      ? { ...slide, elements: updateElementById(slide.elements, topicsId, (element) => element.type === "topics" ? update(element) : element) }
+      : slide),
+  });
+}
+
+function topicsLinkedStyleProperties(topics: TopicsElement): LinkedTopicsStylePatch {
+  const layout = authoredObject(topics.layout);
+  return {
+    ...(layout === undefined ? {} : { layout }),
+    ...(topics.rootMarkerStyle === undefined ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
+    ...(topics.markerColor === undefined ? {} : { markerColor: topics.markerColor }),
+    ...(topics.itemGap === undefined ? {} : { itemGap: topics.itemGap }),
+  };
+}
+
+export function canCreateLinkedStyleFromTopics(topics: TopicsElement): boolean {
+  return topics.linkedStyleId === undefined && Object.keys(topicsLinkedStyleProperties(topics)).length > 0;
+}
+
+export function createLinkedStyleFromTopics(
+  presentation: Presentation,
+  slideIndex: number,
+  topicsId: string,
+  name: string,
+): Presentation {
+  const trimmedName = name.trim();
+  const element = presentation.slides[slideIndex] === undefined ? undefined : findElementById(presentation.slides[slideIndex]!.elements, topicsId);
+  if (!trimmedName || element?.type !== "topics" || !canCreateLinkedStyleFromTopics(element)) return presentation;
+  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const linkedStyle: LinkedTopicsStyle = { target: "topics", id, name: trimmedName, ...topicsLinkedStyleProperties(element) };
+  return replaceTopicsInSlide(
+    { ...presentation, linkedStyles: [...(presentation.linkedStyles ?? []), linkedStyle] },
+    slideIndex,
+    topicsId,
+    (current) => {
+      const { layout: _layout, rootMarkerStyle: _rootMarkerStyle, markerColor: _markerColor, itemGap: _itemGap, linkedStyleId: _linkedStyleId, ...local } = current;
+      return { ...local, linkedStyleId: id };
+    },
+  );
+}
+
+export function attachLinkedTopicsStyle(
+  presentation: Presentation,
+  slideIndex: number,
+  topicsId: string,
+  linkedStyleId: string,
+): Presentation {
+  const linked = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === linkedStyleId);
+  if (linked === undefined) return presentation;
+  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => removeLinkedTopicsProperties(topics, linked));
+}
+
+export function detachLinkedTopicsStyle(
+  presentation: Presentation,
+  slideIndex: number,
+  topicsId: string,
+): Presentation {
+  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => {
+    if (topics.linkedStyleId === undefined) return topics;
+    const linked = presentation.linkedStyles?.find((style) => style.id === topics.linkedStyleId);
+    if (linked === undefined || !("target" in linked) || linked.target !== "topics") return topics;
+    const resolved = resolveLinkedTopicsStyle(presentation, topics);
+    const { linkedStyleId: _linkedStyleId, ...unlinked } = topics;
+    return {
+      ...unlinked,
+      ...(resolved.layout === undefined ? {} : { layout: resolved.layout }),
+      ...(resolved.rootMarkerStyle === undefined ? {} : { rootMarkerStyle: resolved.rootMarkerStyle }),
+      ...(resolved.markerColor === undefined ? {} : { markerColor: resolved.markerColor }),
+      ...(resolved.itemGap === undefined ? {} : { itemGap: resolved.itemGap }),
+    };
+  });
+}
+
+export function updateLinkedTopicsStyle(
+  presentation: Presentation,
+  linkedStyleId: string,
+  patch: LinkedTopicsStylePatch,
+): Presentation {
+  const current = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === linkedStyleId);
+  if (current === undefined) return presentation;
+  const updated = { ...current, ...patch, ...(patch.layout === undefined ? {} : { layout: authoredObject(patch.layout) }) };
+  const parsed = PresentationSchema.safeParse({ ...presentation, linkedStyles: presentation.linkedStyles!.map((style) => style.id === linkedStyleId ? updated : style) });
+  return parsed.success ? parsed.data : presentation;
 }
 
 export function detachLinkedStyle(

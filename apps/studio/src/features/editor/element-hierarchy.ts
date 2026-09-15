@@ -1002,6 +1002,10 @@ export function collectLinkedStyleReferenceCounts(
       collectLinkedStyleReferenceCounts(element.children, counts);
     }
 
+    if (element.type === "topics" && element.linkedStyleId !== undefined) {
+      counts.set(element.linkedStyleId, (counts.get(element.linkedStyleId) ?? 0) + 1);
+    }
+
     if (isStructuredTable(element)) {
       for (const column of element.columns) collectLinkedStyleReferenceCounts(column.header.children, counts);
       for (const row of element.rows) for (const cell of row.cells) collectLinkedStyleReferenceCounts(cell.children, counts);
