@@ -16,6 +16,7 @@ export type ResolvedLinkedContainerStyle = {
 };
 
 export type ResolvedLinkedTopicsStyle = {
+  kind: NonNullable<TopicsElement["kind"]>;
   layout?: TopicsLayout;
   rootMarkerStyle?: TopicMarkerStyle;
   markerColor?: TopicsElement["markerColor"];
@@ -125,7 +126,7 @@ export function resolveLinkedContainerStyle(
 
 /** Resolves canonical Linked Style values with authored Topics overrides. */
 export function resolveLinkedTopicsStyle(
-  presentation: Presentation,
+  presentation: Pick<Presentation, "linkedStyles">,
   topics: TopicsElement,
 ): ResolvedLinkedTopicsStyle {
   const linked = topics.linkedStyleId === undefined
@@ -139,6 +140,7 @@ export function resolveLinkedTopicsStyle(
     throw new Error(`Linked style is not compatible with Topics: ${topics.linkedStyleId}`);
   }
 
+  const kind = topics.kind ?? linked?.kind ?? "unordered";
   const layout = linked?.layout === undefined && topics.layout === undefined
     ? undefined
     : { ...authoredProperties(linked?.layout), ...authoredProperties(topics.layout) };
@@ -147,6 +149,7 @@ export function resolveLinkedTopicsStyle(
   const itemGap = topics.itemGap ?? linked?.itemGap;
 
   return {
+    kind,
     ...(layout === undefined ? {} : { layout }),
     ...(rootMarkerStyle === undefined ? {} : { rootMarkerStyle }),
     ...(markerColor === undefined ? {} : { markerColor }),

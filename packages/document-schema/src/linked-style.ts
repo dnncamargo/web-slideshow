@@ -36,6 +36,7 @@ export type LinkedTopicsStyle = {
   target: "topics";
   id: string;
   name: string;
+  kind?: "unordered" | "ordered" | undefined;
   layout?: (z.infer<typeof TopicsLayoutSchema> & { children?: never; flexShrink?: never; overflow?: never }) | undefined;
   rootMarkerStyle?: z.infer<typeof TopicMarkerStyleSchema> | undefined;
   markerColor?: z.infer<typeof ColorValueSchema> | undefined;
@@ -87,6 +88,7 @@ export const LinkedTopicsStyleSchema: z.ZodType<LinkedTopicsStyle> = z
     target: z.literal("topics"),
     id: NonEmptyTrimmedStringSchema,
     name: NonEmptyTrimmedStringSchema,
+    kind: z.enum(["unordered", "ordered"]).optional(),
     layout: TopicsLayoutSchema.optional(),
     rootMarkerStyle: TopicMarkerStyleSchema.optional(),
     markerColor: ColorValueSchema.optional(),
@@ -96,6 +98,7 @@ export const LinkedTopicsStyleSchema: z.ZodType<LinkedTopicsStyle> = z
   .refine(
     (style) =>
       hasAuthoredLeaf(style.layout) ||
+      hasAuthoredLeaf(style.kind) ||
       hasAuthoredLeaf(style.rootMarkerStyle) ||
       hasAuthoredLeaf(style.markerColor) ||
       hasAuthoredLeaf(style.itemGap),

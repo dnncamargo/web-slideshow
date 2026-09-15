@@ -4,6 +4,7 @@ import { PresentationSchema, resolveLinkedTopicsStyle, type Presentation } from 
 
 import {
   attachLinkedTopicsStyle,
+  canCreateLinkedStyleFromTopics,
   createLinkedStyleFromTopics,
   detachLinkedTopicsStyle,
   removeUnusedLinkedStyle,
@@ -61,6 +62,16 @@ describe("Topics Linked Style authoring", () => {
     expect(JSON.stringify(linked)).not.toContain("undefined");
   });
 
+  it("creates an ordered kind-only resource without persisting decimal", () => {
+    const initial = presentation(topics({ kind: "ordered", rootMarkerStyle: "decimal" }));
+
+    expect(canCreateLinkedStyleFromTopics(selected(initial))).toBe(true);
+    const result = createLinkedStyleFromTopics(initial, 0, "topics", "Ordered");
+    expect(result.linkedStyles).toEqual([{ target: "topics", id: "ordered", name: "Ordered", kind: "ordered" }]);
+    expect(selected(result)).not.toHaveProperty("kind");
+    expect(selected(result).items).toEqual(selected(initial).items);
+  });
+
   it("removes Topics resource properties by absence rather than explicit undefined", () => {
     const initial = presentation(topics({}), [
       { target: "topics", id: "shared", name: "Shared", layout: { margin: 12 }, rootMarkerStyle: "square", markerColor: "#112233", itemGap: 8 },
@@ -94,6 +105,34 @@ describe("Topics Linked Style authoring", () => {
     expect(selected(attached)).not.toHaveProperty("rootMarkerStyle");
     expect(attached.linkedStyles).toHaveLength(2);
     expect(attachLinkedTopicsStyle(initial, 0, "topics", "container")).toEqual(initial);
+  });
+
+  it("transfers, updates, overrides, and detaches effective kind", () => {
+    const initial = presentation(topics({ kind: "unordered" }), [
+      { target: "topics", id: "shared", name: "Shared", kind: "ordered", itemGap: 8 },
+    ]);
+    const attached = attachLinkedTopicsStyle(initial, 0, "topics", "shared");
+    expect(selected(attached)).not.toHaveProperty("kind");
+    expect(resolveLinkedTopicsStyle(attached, selected(attached)).kind).toBe("ordered");
+
+    const overridden = {
+      ...attached,
+      slides: attached.slides.map((slide) => ({
+        ...slide,
+        elements: slide.elements.map((element) => element.type === "topics" ? { ...element, kind: "unordered" as const } : element),
+      })),
+    };
+    const updated = updateLinkedTopicsStyle(overridden, "shared", { kind: "unordered" });
+    expect(updated.linkedStyles?.[0]).not.toHaveProperty("kind");
+    expect(resolveLinkedTopicsStyle(updated, selected(updated)).kind).toBe("unordered");
+
+    const restored = updateLinkedTopicsStyle(updated, "shared", { kind: "ordered" });
+    expect(restored.linkedStyles?.[0]).toMatchObject({ kind: "ordered" });
+    expect(resolveLinkedTopicsStyle(restored, selected(restored)).kind).toBe("unordered");
+
+    const detached = detachLinkedTopicsStyle(attachLinkedTopicsStyle(initial, 0, "topics", "shared"), 0, "topics");
+    expect(selected(detached)).toMatchObject({ kind: "ordered" });
+    expect(selected(detached)).not.toHaveProperty("linkedStyleId");
   });
 
   it("updates the resource and resolves the new baseline without rewriting the element", () => {

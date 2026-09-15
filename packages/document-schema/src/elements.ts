@@ -677,7 +677,7 @@ export type TopicsElement = {
 
   type: "topics";
 
-  kind: "unordered" | "ordered";
+  kind?: "unordered" | "ordered" | undefined;
 
   items: TopicItem[];
 
@@ -721,7 +721,7 @@ export const TopicsElementSchema:
     kind: z.enum([
       "unordered",
       "ordered",
-    ]),
+    ]).optional(),
 
     items: z.array(TopicItemSchema),
 

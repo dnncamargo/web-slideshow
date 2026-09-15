@@ -84,6 +84,7 @@ describe("Linked Styles canonical definitions", () => {
       target: "topics",
       id: "topics-shared",
       name: "Topics",
+      kind: "ordered",
       layout: { position: "absolute", top: 10 },
       rootMarkerStyle: "square",
       markerColor: "#ff0000",
@@ -91,6 +92,7 @@ describe("Linked Styles canonical definitions", () => {
     }]));
     expect(parsed.schemaVersion).toBe(1);
     expect(LinkedTopicsStyleSchema.safeParse(parsed.linkedStyles?.[0]).success).toBe(true);
+    expect(parsed.linkedStyles?.[0]).toMatchObject({ kind: "ordered" });
   });
 
   it("rejects unsupported Topics Linked Style properties", () => {

@@ -63,7 +63,7 @@ interface CustomResourcesWorkspaceProps {
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
   onUpdateLinkedStyle?: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
-  onUpdateLinkedTopicsStyle?: (id: string, patch: Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
+  onUpdateLinkedTopicsStyle?: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
   onCreateLinkedStyle?: (name: string, property: LinkedStyleAuthorableProperty) => void;
   onRenameLinkedStyle?: (id: string, name: string) => void;
   onRemoveLinkedStyle?: (id: string) => void;
@@ -132,7 +132,6 @@ function createLinkedStylePreviewTopics(linkedStyleId: string): TopicsElement {
     type: "topics",
     hidden: false,
     linkedStyleId,
-    kind: "unordered",
     items: ["A topic", "Another topic", "A subtopic"].map((content, index) => ({
       id: `linked-topics-preview-${linkedStyleId}-${index}`,
       content: { id: `linked-topics-preview-slot-${linkedStyleId}-${index}`, children: [{ id: `linked-topics-preview-text-${linkedStyleId}-${index}`, type: "text" as const, hidden: false, variant: "body" as const, content }] },
@@ -365,7 +364,7 @@ function LinkedStylesWorkspace({
 }: {
   presentation?: Presentation;
   onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
-  onUpdateTopics: (id: string, patch: Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
+  onUpdateTopics: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
   onCreate: (name: string, property: LinkedStyleAuthorableProperty) => void;
   onRename: (id: string, name: string) => void;
   onRemove: (id: string) => void;
@@ -442,17 +441,18 @@ function LinkedStylesWorkspace({
   </div>;
 }
 
-function TopicsLinkedStyleRow({ style, presentation, editing, onEdit, onRename, onUpdate, onRemove }: { style: LinkedTopicsStyle; presentation?: Presentation; editing: boolean; onEdit: () => void; onRename: (id: string, name: string) => void; onUpdate: (id: string, patch: Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onRemove: (id: string) => void }) {
+function TopicsLinkedStyleRow({ style, presentation, editing, onEdit, onRename, onUpdate, onRemove }: { style: LinkedTopicsStyle; presentation?: Presentation; editing: boolean; onEdit: () => void; onRename: (id: string, name: string) => void; onUpdate: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onRemove: (id: string) => void }) {
   const { t } = useStudioI18n();
   const locations = presentation ? findElementsLinkedToStyle(presentation, style.id) : [];
   return <div data-linked-style-id={style.id} className={styles.group}><button type="button" className={styles.typographyStyleDisclosure} aria-expanded={editing} onClick={onEdit}><span className={styles.resourceItemDetails}><strong>{style.name}</strong><span className={styles.resourceItemMeta}>{t(locations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: locations.length })}</span></span><span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span></button>{editing ? <div className={styles.linkedStyleEditor}><LinkedStyleNameField style={style} onRename={onRename} /><div className={styles.linkedStylePreview} data-linked-style-preview={style.id} aria-hidden="true" dangerouslySetInnerHTML={{ __html: presentation ? renderElement(createLinkedStylePreviewTopics(style.id), { presentation }) : "" }} /><TopicsLinkedStyleEditor style={style} onUpdate={(patch) => onUpdate(style.id, patch)} /><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={locations.length > 0} onClick={() => onRemove(style.id)}>{t("customResources.linkedStyleRemove")}</button></div></div> : null}</div>;
 }
 
-function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle; onUpdate: (patch: Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
+function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
   const { t } = useStudioI18n();
   const layoutProperties = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const;
   const configuredLayout = layoutProperties.filter((property) => style.layout?.[property] !== undefined);
   const configuredAppearance = [
+    ...(style.kind === undefined ? [] : ["kind" as const]),
     ...(style.rootMarkerStyle === undefined ? [] : ["rootMarkerStyle" as const]),
     ...(style.markerColor === undefined ? [] : ["markerColor" as const]),
   ];
@@ -469,6 +469,8 @@ function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle
       onUpdate({ itemGap: TOPICS_ITEM_GAP_DEFAULT_PX });
     } else if (property === "rootMarkerStyle") {
       onUpdate({ rootMarkerStyle: "disc" });
+    } else if (property === "kind") {
+      onUpdate({ kind: "ordered" });
     } else {
       onUpdate({ markerColor: "#ffffff" });
     }
@@ -493,23 +495,26 @@ function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle
   </div>;
 }
 
-type TopicsLinkedStyleProperty = "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" | "itemGap" | "rootMarkerStyle" | "markerColor";
+type TopicsLinkedStyleProperty = "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" | "itemGap" | "kind" | "rootMarkerStyle" | "markerColor";
 type TopicsLinkedStyleLayoutProperty = "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft";
-const TOPICS_LINKED_STYLE_PROPERTY_ORDER: readonly TopicsLinkedStyleProperty[] = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft", "itemGap", "rootMarkerStyle", "markerColor"];
+const TOPICS_UNORDERED_MARKERS: readonly TopicMarkerStyle[] = ["disc", "circle", "square", "none"];
+const TOPICS_ORDERED_MARKERS: readonly TopicMarkerStyle[] = ["decimal", "lower-alpha", "upper-alpha", "lower-roman", "upper-roman", "none"];
+const TOPICS_LINKED_STYLE_PROPERTY_ORDER: readonly TopicsLinkedStyleProperty[] = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft", "itemGap", "kind", "rootMarkerStyle", "markerColor"];
 const TOPICS_LINKED_STYLE_LAYOUT_PROPERTIES: readonly TopicsLinkedStyleLayoutProperty[] = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft"];
 
 function isTopicsLinkedStyleLayoutProperty(property: TopicsLinkedStyleProperty): property is TopicsLinkedStyleLayoutProperty {
   return TOPICS_LINKED_STYLE_LAYOUT_PROPERTIES.includes(property as TopicsLinkedStyleLayoutProperty);
 }
 
-function TopicsLinkedStylePropertyCard({ style, property, onUpdateLayoutProperty, onUpdate }: { style: LinkedTopicsStyle; property: TopicsLinkedStyleProperty; onUpdateLayoutProperty: (property: "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", value: Length | undefined) => void; onUpdate: (patch: Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
+function TopicsLinkedStylePropertyCard({ style, property, onUpdateLayoutProperty, onUpdate }: { style: LinkedTopicsStyle; property: TopicsLinkedStyleProperty; onUpdateLayoutProperty: (property: "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", value: Length | undefined) => void; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
   const { t } = useStudioI18n();
   const canRemove = topicsLinkedStyleAuthoredPropertyCount(style) > 1;
-  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
+  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
   const label = t(labels[property]);
   const remove = () => {
     if (isTopicsLinkedStyleLayoutProperty(property)) onUpdateLayoutProperty(property, undefined);
     else if (property === "itemGap") onUpdate({ itemGap: undefined });
+    else if (property === "kind") onUpdate({ kind: undefined });
     else if (property === "rootMarkerStyle") onUpdate({ rootMarkerStyle: undefined });
     else onUpdate({ markerColor: undefined });
   };
@@ -519,7 +524,10 @@ function TopicsLinkedStylePropertyCard({ style, property, onUpdateLayoutProperty
   } else if (property === "itemGap") {
     control = <input id={`linked-topics-style-${style.id}-item-gap`} type="number" min="0" value={style.itemGap ?? ""} onChange={(event) => onUpdate({ itemGap: event.target.value === "" ? undefined : Number(event.target.value) })} />;
   } else if (property === "rootMarkerStyle") {
-    control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined })}><option value="">{t("inspector.default")}</option>{["disc", "circle", "square", "none", "decimal", "lower-alpha", "upper-alpha", "lower-roman", "upper-roman"].map((value) => <option key={value} value={value}>{value}</option>)}</select>;
+    const markerOptions = style.kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS;
+    control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined })}><option value="">{t("inspector.default")}</option>{markerOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>;
+  } else if (property === "kind") {
+    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => { const kind = event.target.value === "ordered" ? "ordered" : undefined; const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS; onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined }); }}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option></select>;
   } else {
     control = <ColorControl id={`linked-topics-style-${style.id}-marker-color`} name={label} value={style.markerColor} onChange={(markerColor) => onUpdate({ markerColor })} />;
   }
@@ -532,6 +540,7 @@ function TopicsLinkedStylePropertyCard({ style, property, onUpdateLayoutProperty
 function topicsLinkedStyleAuthoredPropertyCount(style: LinkedTopicsStyle): number {
   const layoutProperties = Object.values(style.layout ?? {}).filter((value) => value !== undefined).length;
   return layoutProperties
+    + (style.kind === undefined ? 0 : 1)
     + (style.rootMarkerStyle === undefined ? 0 : 1)
     + (style.markerColor === undefined ? 0 : 1)
     + (style.itemGap === undefined ? 0 : 1);
@@ -540,7 +549,7 @@ function topicsLinkedStyleAuthoredPropertyCount(style: LinkedTopicsStyle): numbe
 function TopicsLinkedStylePropertyChooser({ properties, onAdd }: { properties: readonly TopicsLinkedStyleProperty[]; onAdd: (property: TopicsLinkedStyleProperty) => void }) {
   const { t } = useStudioI18n();
   const [open, setOpen] = useState(false);
-  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
+  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
   return <div className={styles.resourcePropertyChooser} data-topics-linked-style-property-chooser>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <div className={styles.resourceChooser}>{properties.map((property) => <button key={property} type="button" className={styles.resourceChooserOption} onClick={() => { onAdd(property); setOpen(false); }}>{t(labels[property])}</button>)}</div> : null}

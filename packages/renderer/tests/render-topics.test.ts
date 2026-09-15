@@ -134,6 +134,24 @@ describe("renderElement topics support", () => {
     expect(html).toContain("--powershow-topic-item-gap:4px");
   });
 
+  it("renders the effective linked kind and defaults omitted standalone kind to unordered", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [{ target: "topics", id: "ordered-style", name: "Ordered", kind: "ordered", itemGap: 8 }],
+      slides: [{ id: "s", title: "S", elements: [
+        { ...topicsElement({ id: "linked-ordered", kind: undefined, linkedStyleId: "ordered-style" }) },
+        { ...topicsElement({ id: "standalone-unordered", kind: undefined }) },
+      ] }],
+    });
+
+    const linkedHtml = renderElement(presentation.slides[0]!.elements[0]!, { presentation });
+    const standaloneHtml = renderElement(presentation.slides[0]!.elements[1]!);
+    expect(linkedHtml).toContain("<ol ");
+    expect(standaloneHtml).toContain("<ul ");
+  });
+
   it("renders canonical root layout margins", () => {
     const html = renderElement(
       topicsElement({

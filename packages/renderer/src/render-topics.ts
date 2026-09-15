@@ -16,7 +16,7 @@ import { renderColorValue } from "./render-palette";
 type RenderChild = (element: PowerShowElement) => string;
 
 type TopicsListContext = {
-  kind: TopicsElement["kind"];
+  kind: NonNullable<TopicsElement["kind"]>;
 
   rootMarkerStyle: TopicMarkerStyle | undefined;
 };
@@ -58,7 +58,7 @@ function sequenceAt<T extends string>(
 // An autonomous nested TopicsElement starts a new depth-0 context because
 // it is rendered by a separate renderTopics() call.
 export function resolveTopicMarkerStyle(
-  kind: TopicsElement["kind"],
+  kind: NonNullable<TopicsElement["kind"]>,
   rootMarkerStyle: TopicMarkerStyle | undefined,
   depth: number,
 ): TopicMarkerStyle {
@@ -101,6 +101,7 @@ export function resolveTopicMarkerStyle(
 
 function renderTopicsStyleOverrides(element: TopicsElement): string {
   const styles: string[] = [];
+  const kind = element.kind ?? "unordered";
   if (element.layout) {
     if (element.layout.position !== undefined) styles.push(`position:${element.layout.position}`);
     for (const [property, value] of [["top", element.layout.top], ["right", element.layout.right], ["bottom", element.layout.bottom], ["left", element.layout.left], ["margin", element.layout.margin], ["margin-top", element.layout.marginTop], ["margin-right", element.layout.marginRight], ["margin-bottom", element.layout.marginBottom], ["margin-left", element.layout.marginLeft]] as const) {
@@ -124,7 +125,7 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
 
   styles.push(
     `--powershow-topic-marker-style:${resolveTopicMarkerStyle(
-      element.kind,
+      kind,
       element.rootMarkerStyle,
       0,
     )}`,
@@ -142,7 +143,7 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
 }
 
 function renderTopicListTag(
-  kind: TopicsElement["kind"],
+  kind: NonNullable<TopicsElement["kind"]>,
 ): "ul" | "ol" {
   return kind === "ordered" ? "ol" : "ul";
 }
@@ -231,8 +232,9 @@ export function renderTopics(
   const renderedElement: TopicsElement = resolved
     ? { ...element, ...resolved }
     : element;
+  const effectiveKind = renderedElement.kind ?? "unordered";
 
-  const tag = renderTopicListTag(renderedElement.kind);
+  const tag = renderTopicListTag(effectiveKind);
 
   const classes = ["powershow-element", "powershow-topics"];
 
@@ -254,7 +256,7 @@ export function renderTopics(
     .join(" ");
 
   const context: TopicsListContext = {
-    kind: renderedElement.kind,
+    kind: effectiveKind,
     rootMarkerStyle: renderedElement.rootMarkerStyle,
   };
 

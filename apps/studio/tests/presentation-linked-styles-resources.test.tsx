@@ -465,7 +465,7 @@ describe("Linked Styles Resources contract", () => {
 
   it("renders the typed Topics editor, preview, update boundary, and usage protection", async () => {
     const topics = { id: "topics", type: "topics" as const, hidden: false, kind: "unordered" as const, itemGap: 8, rootMarkerStyle: "disc" as const, markerColor: "#ff0000" as const, items: [] };
-    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ ...topics, linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Card", layout: { margin: 4 }, rootMarkerStyle: "square", markerColor: "#00ff00", itemGap: 12 }, { id: "container-style", name: "Card", layout: { padding: 4 } }] });
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ ...topics, kind: undefined, linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Card", kind: "ordered", layout: { margin: 4 }, rootMarkerStyle: "none", markerColor: "#00ff00", itemGap: 12 }, { id: "container-style", name: "Card", layout: { padding: 4 } }] });
     const updateTopics = vi.fn();
     await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
     await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
@@ -474,13 +474,30 @@ describe("Linked Styles Resources contract", () => {
     expect(editor.textContent).toContain("First-level marker");
     expect(editor.querySelector("#linked-topics-style-topics-style-marker-color")).not.toBeNull();
     expect(editor.textContent).toContain("Topic spacing");
+    expect(editor.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind")?.value).toBe("ordered");
     expect(editor.querySelector("[data-linked-style-property]" )).toBeNull();
-    expect(host.querySelector("[data-linked-style-id='topics-style'] [data-linked-style-preview]")).not.toBeNull();
+    const preview = host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] [data-linked-style-preview]");
+    expect(preview).not.toBeNull();
+    expect(preview?.querySelector("ol")).not.toBeNull();
     const remove = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='topics-style'] button")).find((button) => button.textContent?.includes("Remove"))!;
     expect(remove.disabled).toBe(true);
     const gap = editor.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap")!;
     await setInput(gap, "20");
     expect(updateTopics).toHaveBeenCalledWith("topics-style", expect.objectContaining({ itemGap: 20 }));
+    await act(async () => {
+      const kind = editor.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind")!;
+      kind.value = "unordered";
+      kind.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: undefined, rootMarkerStyle: "none" });
+  });
+
+  it("uses unordered fallback for a sparse Topics resource preview", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ id: "topics", type: "topics", hidden: false, items: [], linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Sparse", itemGap: 8 }] });
+    await render(value);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    const preview = host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] [data-linked-style-preview]");
+    expect(preview?.querySelector("ul")).not.toBeNull();
   });
 
   it("keeps the Topics resource editor sparse and removes individual properties", async () => {
@@ -564,7 +581,10 @@ describe("Linked Styles Resources contract", () => {
     expect(created?.id).not.toBe("shared");
     expect(current.slides[0]?.elements[0]).toMatchObject({ id: source.id, linkedStyleId: created?.id });
     expect(current.slides[0]?.elements[1]).not.toHaveProperty("linkedStyleId");
-    expect(current.slides[0]?.elements[0]).toMatchObject({ kind: before.kind, items: before.items });
+    expect(created).toMatchObject({ kind: "ordered" });
+    expect(created).not.toHaveProperty("rootMarkerStyle");
+    expect(current.slides[0]?.elements[0]).not.toHaveProperty("kind");
+    expect(current.slides[0]?.elements[0]).toMatchObject({ items: before.items });
     expect(current.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
     expect(current.linkedStyles?.find((style) => style.id === "shared")).toMatchObject({ layout: { margin: 2 } });
   });

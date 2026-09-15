@@ -15,6 +15,7 @@ import type {
   LinkedStyle,
   Presentation,
 } from "@powershow/document-schema";
+import { resolveLinkedTopicsStyle } from "@powershow/document-schema";
 
 import {
   resolveEffectiveElementStyleDefaults,
@@ -134,7 +135,7 @@ function summarizeTopicContent(labels: readonly string[]): string | null {
 }
 
 function normalizeTopicMarkerStyle(
-  kind: TopicsElement["kind"],
+  kind: NonNullable<TopicsElement["kind"]>,
   rootMarkerStyle: TopicMarkerStyle | undefined,
 ): TopicMarkerStyle | undefined {
   if (rootMarkerStyle === undefined || rootMarkerStyle === "none") {
@@ -152,7 +153,7 @@ function normalizeTopicMarkerStyle(
 }
 
 function topicMarkerStyleOptions(
-  kind: TopicsElement["kind"],
+  kind: NonNullable<TopicsElement["kind"]>,
 ): readonly TopicMarkerStyle[] {
   return kind === "ordered" ? ORDERED_MARKER_STYLES : UNORDERED_MARKER_STYLES;
 }
@@ -395,7 +396,10 @@ function addChildTopic(topicItemId: string) {
     variant: "body",
   }).typography;
 
-  const markerStyleOptions = topicMarkerStyleOptions(element.kind);
+  const effectiveKind = presentation && element.linkedStyleId !== undefined
+    ? resolveLinkedTopicsStyle(presentation, element).kind
+    : element.kind ?? "unordered";
+  const markerStyleOptions = topicMarkerStyleOptions(effectiveKind);
   const linkedTopicsStyles = (presentation?.linkedStyles ?? []).filter(isLinkedTopicsStyle);
   const linkedStyleName = linkedTopicsStyles.find((style) => style.id === element.linkedStyleId)?.name;
 
@@ -480,9 +484,9 @@ function addChildTopic(topicItemId: string) {
             <select
               id="topics-kind"
               name="topicsKind"
-              value={element.kind}
+              value={effectiveKind}
               onChange={(event) => {
-                const kind = event.target.value as TopicsElement["kind"];
+                const kind = event.target.value as NonNullable<TopicsElement["kind"]>;
 
                 updateCurrentTopics((current) => {
                   const rootMarkerStyle = normalizeTopicMarkerStyle(
@@ -586,7 +590,7 @@ function addChildTopic(topicItemId: string) {
 
                 updateCurrentTopics((current) => {
                   const normalized = normalizeTopicMarkerStyle(
-                    current.kind,
+                    effectiveKind,
                     nextRootMarkerStyle,
                   );
 
