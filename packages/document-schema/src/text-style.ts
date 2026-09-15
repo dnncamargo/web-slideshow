@@ -19,6 +19,7 @@ export const POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID =
   "powershow:table-column-header" as const;
 export const POWERSHOW_TABLE_CELL_TEXT_STYLE_ID =
   "powershow:table-cell" as const;
+export const POWERSHOW_TOPICS_TEXT_STYLE_ID = "powershow:topics" as const;
 
 export const FundamentalTextStyleIdSchema = z.enum(
   FUNDAMENTAL_TEXT_STYLE_IDS,

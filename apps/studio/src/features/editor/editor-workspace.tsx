@@ -147,7 +147,7 @@ import { findElementById, updateElementById } from "./element-tree";
 import { detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, ensureStructuredTableTextStyles, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -2568,7 +2568,9 @@ export function EditorWorkspace({
     setPresentation((current) => {
       const prepared = type === "table"
         ? ensureStructuredTableTextStyles(current).presentation
-        : current;
+        : type === "topics"
+          ? ensureTopicsTextStyle(current)
+          : current;
 
       return {
       ...prepared,
@@ -2708,9 +2710,10 @@ export function EditorWorkspace({
     }
 
     setPresentation((current) => {
+      const prepared = ensureTopicsTextStyle(current);
       let changed = false;
 
-      const slides = current.slides.map((slide, index) => {
+      const slides = prepared.slides.map((slide, index) => {
         if (index !== selectedSlideIndex) {
           return slide;
         }
@@ -2735,10 +2738,10 @@ export function EditorWorkspace({
 
       return changed
         ? {
-            ...current,
+            ...prepared,
             slides,
           }
-        : current;
+        : prepared;
     });
 
     return created.item.id;
@@ -2766,9 +2769,10 @@ export function EditorWorkspace({
     }
 
     setPresentation((current) => {
+      const prepared = ensureTopicsTextStyle(current);
       let changed = false;
 
-      const slides = current.slides.map((slide, index) => {
+      const slides = prepared.slides.map((slide, index) => {
         if (index !== selectedSlideIndex) {
           return slide;
         }
@@ -2794,10 +2798,10 @@ export function EditorWorkspace({
 
       return changed
         ? {
-            ...current,
+            ...prepared,
             slides,
           }
-        : current;
+        : prepared;
     });
 
     return created.item.id;

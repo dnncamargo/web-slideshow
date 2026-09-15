@@ -22,6 +22,7 @@ import {
   removeTopicItemFromTopicItems,
   updateTopicItemTextContent,
 } from "../src/features/editor/element-operations";
+import { POWERSHOW_TOPICS_TEXT_STYLE_ID } from "@powershow/document-schema";
 
 import {
   collectAuthoringIds,
@@ -483,7 +484,11 @@ describe("default topic item creation", () => {
     expect(item.children).toEqual([]);
     expect(item.content.children).toHaveLength(1);
     expect(item.content.children[0]?.id).toBe(textId);
-    expect(item.content.children[0]?.type).toBe("text");
+    const textChild = item.content.children[0];
+    expect(textChild?.type).toBe("text");
+    if (textChild?.type === "text") {
+      expect(textChild.variant).toBe(POWERSHOW_TOPICS_TEXT_STYLE_ID);
+    }
   });
 
   it("generates distinct fresh structural IDs", () => {
@@ -808,7 +813,7 @@ describe("default topic item creation", () => {
     if (textChild?.type === "text") {
       expect(textChild).not.toHaveProperty("style");
       expect(textChild.content).toBe("New topic");
-      expect(textChild.variant).toBe("body");
+      expect(textChild.variant).toBe(POWERSHOW_TOPICS_TEXT_STYLE_ID);
     }
   });
   it("does not append a child outside the owning TopicsElement", () => {
