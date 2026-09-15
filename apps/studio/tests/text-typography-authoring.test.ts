@@ -7,6 +7,7 @@ import {
 } from "@powershow/document-schema";
 
 import {
+  createTextStyleFromText,
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
 } from "../src/features/editor/text-typography-authoring";
@@ -32,6 +33,31 @@ function text(overrides: Record<string, unknown> = {}) {
 }
 
 describe("effective text typography for authoring", () => {
+  it("creates a sparse style and preserves non-style text properties", () => {
+    const original = text({
+      variant: "body",
+      content: "Keep me",
+      layout: { position: "absolute", top: "10px" },
+      typography: { fontSize: "22px" },
+    });
+    const created = createTextStyleFromText(presentation(), original, "Saved");
+
+    expect(created?.textStyleId).toBe("saved");
+    expect(created?.presentation.textStyles).toContainEqual({
+      id: "saved",
+      name: "Saved",
+      role: "body",
+      typography: { fontSize: "22px" },
+    });
+    expect(created?.text).toMatchObject({
+      id: "text",
+      content: "Keep me",
+      variant: "saved",
+      layout: { position: "absolute", top: "10px" },
+    });
+    expect(created?.text).not.toHaveProperty("typography");
+  });
+
   it("uses the Body baseline for a plain linked fundamental", () => {
     const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation(),

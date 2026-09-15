@@ -59,6 +59,7 @@ interface CustomResourcesWorkspaceProps {
   onUpdateFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption", patch: TextStylePatch) => void;
   onResetFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption") => void;
   onAddTextStyle?: (name: string, role: TextStyleRole) => void;
+  onCreateTextStyleFromSelected?: (name: string) => void;
   onUpdateTextStyle?: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
@@ -159,6 +160,7 @@ export function CustomResourcesWorkspace({
   onUpdateFundamentalTextStyle = () => undefined,
   onResetFundamentalTextStyle = () => undefined,
   onAddTextStyle = () => undefined,
+  onCreateTextStyleFromSelected = () => undefined,
   onUpdateTextStyle = () => undefined,
   onRemoveTextStyle = () => undefined,
   isTextStyleInUse = () => false,
@@ -310,11 +312,13 @@ export function CustomResourcesWorkspace({
                 adding={addingStyle}
                 onCancelAdd={() => setAddingStyle(false)}
                 onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
+                onCreateFromSelected={(name) => { onCreateTextStyleFromSelected(name); setAddingStyle(false); }}
                 onUpdate={onUpdateTextStyle}
                 onRemove={onRemoveTextStyle}
                 isInUse={isTextStyleInUse}
                 onSelectElement={onSelectTextStyleElement}
                 onRequestDetachElement={onRequestDetachTextStyleElement}
+                selectedElement={selectedElement}
               />
             </InspectorSection>
             </PresentationColorPaletteProvider>
@@ -437,7 +441,7 @@ function LinkedStylesWorkspace({
         </div> : null}
       </div>;
     })}
-    {adding || addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label>{addingFromSelected ? <button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button> : <><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={create} /> : null}</>}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setAddingFromSelected(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button> <button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
+    {adding || addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label>{addingFromSelected ? <button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button> : <><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={create} /> : null}</>}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setAddingFromSelected(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
   </div>;
 }
 
@@ -680,6 +684,7 @@ function ResourceUsageLocations({ locations, onSelect, onRequestDetach, styleNam
 function TextStylesWorkspace({
   presentationStyles, presentation, presentationFonts, editingStyleId, onEdit, onUpdateFundamental, onResetFundamental,
   onAdd, adding, onCancelAdd, onCreate, onUpdate, onRemove, isInUse, onSelectElement, onRequestDetachElement,
+  onCreateFromSelected, selectedElement,
 }: {
   presentationStyles: readonly TextStyle[];
   presentation?: Presentation;
@@ -692,13 +697,16 @@ function TextStylesWorkspace({
   adding: boolean;
   onCancelAdd: () => void;
   onCreate: (name: string, role: TextStyleRole) => void;
+  onCreateFromSelected: (name: string) => void;
   onUpdate: (id: string, patch: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onRemove: (id: string) => void;
   onSelectElement: (location: TextStyleUsageLocation) => void;
   onRequestDetachElement: (styleId: string, styleName: string, location: TextStyleUsageLocation) => void;
   isInUse: (id: string) => boolean;
+  selectedElement?: PowerShowElement | null;
 }) {
   const { t } = useStudioI18n();
+  const [addingFromSelected, setAddingFromSelected] = useState(false);
   const projectedStyles = listPresentationTextStyles({ textStyles: presentationStyles });
   const byId = new Map(projectedStyles.filter((item) => item.style !== undefined).map((item) => [item.id, item.style]));
   const customStyles = projectedStyles.filter((item) => !FUNDAMENTAL_TEXT_STYLE_IDS.some((fundamentalId) => fundamentalId === item.id) && item.style !== undefined).map((item) => item.style as TextStyle);
@@ -714,8 +722,18 @@ function TextStylesWorkspace({
       })}
       {customStyles.map((style) => { const locations = presentation ? findTextStyleUsageLocations(presentation, style.id) : []; const styleName = "name" in style ? style.name : style.id; return <TextStyleRow key={style.id} id={style.id} label={styleName} status={`${"role" in style ? t(`customResources.role.${style.role}`) : ""} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} onRequestDetachElement={(location) => onRequestDetachElement(style.id, styleName, location)} editing={editingStyleId === style.id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdate(style.id, patch)} onRemove={() => onRemove(style.id)} removeDisabled={presentation ? locations.length > 0 : isInUse(style.id)} />; })}
     </div>
-    {adding ? <NewTextStyleForm fonts={presentationFonts} onCancel={onCancelAdd} onCreate={onCreate} /> : <button type="button" className={styles.resourceAction} onClick={onAdd}>{t("customResources.addStyle")}</button>}
+    {adding ? <NewTextStyleForm fonts={presentationFonts} onCancel={onCancelAdd} onCreate={onCreate} /> : addingFromSelected ? <NewTextStyleFromSelectedForm onCancel={() => setAddingFromSelected(false)} onCreate={(name) => { onCreateFromSelected(name); setAddingFromSelected(false); }} /> : <div className={styles.resourceActionRow}><button type="button" className={styles.resourceAction} onClick={onAdd}>{t("customResources.addStyle")}</button><button type="button" className={styles.resourceAction} disabled={selectedElement?.type !== "text"} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToTextStyles")}</button></div>}
   </section>;
+}
+
+function NewTextStyleFromSelectedForm({ onCancel, onCreate }: { onCancel: () => void; onCreate: (name: string) => void }) {
+  const { t } = useStudioI18n();
+  const [name, setName] = useState("");
+  return <div className={styles.resourcePropertyEditor}>
+    <label className={styles.field}><span>{t("customResources.styleName")}</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>
+    <button type="button" className={styles.resourceAction} disabled={!name.trim()} onClick={() => onCreate(name)}>{t("customResources.addStyle")}</button>
+    <Button variant="ghost" size="compact" onClick={onCancel}>{t("customResources.close")}</Button>
+  </div>;
 }
 
 

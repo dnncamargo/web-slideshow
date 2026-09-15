@@ -446,8 +446,18 @@
   margin-top: calc(var(--ps-ui-space-8) + var(--ps-ui-space-2));
 }
 
-[data-presentation-linked-styles] > [data-linked-style-id] + .resourceAction {
+.group[data-linked-style-id] + .resourceAction {
   margin-top: var(--ps-ui-space-12);
+}
+
+.resourceActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ps-ui-space-8);
+}
+
+[data-presentation-linked-styles] > .resourceAction + .resourceAction {
+  margin-left: var(--ps-ui-space-8);
 }
 
 .presentationSections {
@@ -597,7 +607,7 @@
   composes: resourcePropertyEditor;
 }
 
-.textStylesSection > .resourceAction {
+.textStylesSection > .resourceActionRow {
   align-self: flex-start;
   margin-top: var(--ps-ui-space-4);
 }

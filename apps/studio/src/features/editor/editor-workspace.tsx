@@ -144,7 +144,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
-import { detachTextStyle } from "./text-typography-authoring";
+import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
@@ -2510,6 +2510,23 @@ export function EditorWorkspace({
   function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
   function requestResetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPendingTextStyleReset(id); }
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
+  function createTextStyleFromSelectedText(name: string): void {
+    if (selectedDocumentElement?.type !== "text") return;
+    setPresentation((current) => {
+      const slide = current.slides[selectedSlideIndex];
+      if (!slide) return current;
+      const text = findElementById(slide.elements, selectedDocumentElement.id);
+      if (text?.type !== "text") return current;
+      const created = createTextStyleFromText(current, text, name);
+      if (!created) return current;
+      return {
+        ...created.presentation,
+        slides: current.slides.map((candidate, index) => index === selectedSlideIndex
+          ? { ...candidate, elements: updateElementById(candidate.elements, text.id, () => created.text) }
+          : candidate),
+      };
+    });
+  }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
@@ -3961,6 +3978,7 @@ export function EditorWorkspace({
             onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
             onResetFundamentalTextStyle={requestResetFundamentalTextStyle}
             onAddTextStyle={addTextStyle}
+            onCreateTextStyleFromSelected={createTextStyleFromSelectedText}
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
