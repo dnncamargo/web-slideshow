@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TopicItem, TopicsElement } from "@powershow/document-schema";
+import { PresentationSchema, type TopicItem, type TopicsElement } from "@powershow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -118,6 +118,20 @@ describe("renderElement topics support", () => {
     expect(html).toContain('data-powershow-id="topics-root"');
     expect(html).toContain('data-powershow-type="topics"');
     expect(html).toContain("position:absolute");
+  });
+
+  it("applies linked Topics properties while preserving local overrides", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [{ target: "topics", id: "shared", name: "Shared", rootMarkerStyle: "square", markerColor: "#123456", itemGap: 18 }],
+      slides: [{ id: "s", title: "S", elements: [{ ...topicsElement({ linkedStyleId: "shared", itemGap: 4, items: [topicItem()] }) }] }],
+    });
+    const html = renderElement(presentation.slides[0]!.elements[0]!, { presentation });
+    expect(html).toContain("--powershow-topic-marker-style:square");
+    expect(html).toContain("--powershow-topic-marker-color:#123456");
+    expect(html).toContain("--powershow-topic-item-gap:4px");
   });
 
   it("renders canonical root layout margins", () => {

@@ -5,7 +5,10 @@ import {
   ElementEffectSchema,
   ElementTypographySchema,
   ElementVisualStyleSchema,
+  TopicsLayoutSchema,
 } from "./element-properties";
+import { ColorValueSchema } from "./palette";
+import { TopicMarkerStyleSchema } from "./elements";
 
 const NonEmptyTrimmedStringSchema = z.string().trim().min(1);
 
@@ -19,6 +22,30 @@ export const LinkedContainerStyleVisualSchema = ElementVisualStyleSchema.omit({
 export type LinkedContainerStyleVisual = z.infer<
   typeof LinkedContainerStyleVisualSchema
 >;
+
+export type LinkedContainerStyle = {
+  id: string;
+  name: string;
+  layout?: z.infer<typeof ContainerLayoutSchema> | undefined;
+  style?: LinkedContainerStyleVisual | undefined;
+  typography?: z.infer<typeof ElementTypographySchema> | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
+};
+
+export type LinkedTopicsStyle = {
+  target: "topics";
+  id: string;
+  name: string;
+  layout?: (z.infer<typeof TopicsLayoutSchema> & { children?: never; flexShrink?: never; overflow?: never }) | undefined;
+  rootMarkerStyle?: z.infer<typeof TopicMarkerStyleSchema> | undefined;
+  markerColor?: z.infer<typeof ColorValueSchema> | undefined;
+  itemGap?: number | undefined;
+  style?: never | undefined;
+  typography?: never | undefined;
+  effect?: never | undefined;
+};
+
+export type LinkedStyle = LinkedContainerStyle | LinkedTopicsStyle;
 
 function hasAuthoredLeaf(value: unknown): boolean {
   if (value === undefined) {
@@ -36,7 +63,7 @@ function hasAuthoredLeaf(value: unknown): boolean {
   return Object.values(value).some(hasAuthoredLeaf);
 }
 
-export const LinkedContainerStyleSchema = z
+export const LinkedContainerStyleSchema: z.ZodType<LinkedContainerStyle> = z
   .object({
     id: NonEmptyTrimmedStringSchema,
     name: NonEmptyTrimmedStringSchema,
@@ -55,10 +82,33 @@ export const LinkedContainerStyleSchema = z
     { message: "Linked container style cannot be empty." },
   );
 
-export type LinkedContainerStyle = z.infer<typeof LinkedContainerStyleSchema>;
+export const LinkedTopicsStyleSchema: z.ZodType<LinkedTopicsStyle> = z
+  .object({
+    target: z.literal("topics"),
+    id: NonEmptyTrimmedStringSchema,
+    name: NonEmptyTrimmedStringSchema,
+    layout: TopicsLayoutSchema.optional(),
+    rootMarkerStyle: TopicMarkerStyleSchema.optional(),
+    markerColor: ColorValueSchema.optional(),
+    itemGap: z.number().min(0).optional(),
+  })
+  .strict()
+  .refine(
+    (style) =>
+      hasAuthoredLeaf(style.layout) ||
+      hasAuthoredLeaf(style.rootMarkerStyle) ||
+      hasAuthoredLeaf(style.markerColor) ||
+      hasAuthoredLeaf(style.itemGap),
+    { message: "Linked topics style cannot be empty." },
+  );
 
-export const LinkedContainerStylesSchema = z
-  .array(LinkedContainerStyleSchema)
+export const LinkedStyleSchema: z.ZodType<LinkedStyle> = z.union([
+  LinkedContainerStyleSchema,
+  LinkedTopicsStyleSchema,
+]);
+
+export const LinkedContainerStylesSchema: z.ZodType<LinkedStyle[]> = z
+  .array(LinkedStyleSchema)
   .superRefine((styles, context) => {
     const ids = new Set<string>();
 

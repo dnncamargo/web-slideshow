@@ -25,7 +25,7 @@ import type {
 import type { Slide, SlideBackground } from "./slide";
 import type { Presentation } from "./presentation";
 import type { TextStyle } from "./text-style";
-import type { LinkedContainerStyle } from "./linked-style";
+import type { LinkedStyle } from "./linked-style";
 
 export type PaletteColorPath = (string | number)[];
 
@@ -43,7 +43,7 @@ export function visitPresentationColorValues(
   presentation: {
     slides: Slide[];
     textStyles?: TextStyle[] | undefined;
-    linkedStyles?: LinkedContainerStyle[] | undefined;
+    linkedStyles?: LinkedStyle[] | undefined;
   },
   visitor: PresentationColorValueVisitor,
 ): void {
@@ -198,6 +198,16 @@ export function visitPresentationColorValues(
   });
 
   presentation.linkedStyles?.forEach((linkedStyle, index) => {
+    if ("target" in linkedStyle) {
+      visitColor(
+        {
+          value: linkedStyle.markerColor,
+          set: (value) => { linkedStyle.markerColor = value; },
+        },
+        ["linkedStyles", index, "markerColor"],
+      );
+      return;
+    }
     visitStyle(linkedStyle.style, ["linkedStyles", index, "style"]);
     visitTypography(linkedStyle.typography, ["linkedStyles", index, "typography"]);
     visitEffect(linkedStyle.effect, ["linkedStyles", index, "effect"]);
@@ -229,7 +239,7 @@ export function validatePresentationPaletteReferences(
     palette?: PresentationPalette | undefined;
     slides: Slide[];
     textStyles?: TextStyle[] | undefined;
-    linkedStyles?: LinkedContainerStyle[] | undefined;
+    linkedStyles?: LinkedStyle[] | undefined;
   },
   context: z.RefinementCtx,
 ): void {

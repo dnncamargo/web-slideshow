@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   resolveLinkedContainerStyle,
+  resolveLinkedTopicsStyle,
   type ContainerElement,
   type Presentation,
 } from "../src";
@@ -160,5 +161,19 @@ describe("resolveLinkedContainerStyle", () => {
     expect(() => resolveLinkedContainerStyle(presentation(), container({ linkedStyleId: "missing" }))).toThrow(
       "Unresolved linked container style: missing",
     );
+  });
+
+  it("resolves Topics values with local authored overrides without mutation", () => {
+    const source = presentation([{ target: "topics", id: "topics", name: "Topics", layout: { position: "absolute", top: 10 }, rootMarkerStyle: "square", itemGap: 8 }]);
+    const target = { id: "topics-element", type: "topics" as const, hidden: false, kind: "unordered" as const, items: [], linkedStyleId: "topics", layout: { position: "absolute" as const, top: 20 } };
+    const snapshot = structuredClone({ source, target });
+    expect(resolveLinkedTopicsStyle(source, target)).toEqual({ layout: { position: "absolute", top: 20 }, rootMarkerStyle: "square", itemGap: 8 });
+    expect({ source, target }).toEqual(snapshot);
+  });
+
+  it("fails loudly for unresolved or incompatible Topics references", () => {
+    const target = { id: "topics-element", type: "topics" as const, hidden: false, kind: "unordered" as const, items: [], linkedStyleId: "missing" };
+    expect(() => resolveLinkedTopicsStyle(presentation(), target)).toThrow("Unresolved linked topics style: missing");
+    expect(() => resolveLinkedTopicsStyle(presentation([{ id: "container", name: "Container", layout: { padding: 1 } }]), { ...target, linkedStyleId: "container" })).toThrow("not compatible");
   });
 });

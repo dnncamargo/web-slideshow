@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   LinkedContainerStyleSchema,
+  LinkedTopicsStyleSchema,
   PresentationSchema,
   removePresentationPaletteColor,
 } from "../src";
@@ -76,6 +77,39 @@ describe("Linked Styles canonical definitions", () => {
 
   it("requires unique definition IDs", () => {
     expect(PresentationSchema.safeParse(presentation([], [style, { ...style, name: "Other", effect: { opacity: 0.5 } }])).success).toBe(false);
+  });
+
+  it("accepts a typed Topics Linked Style and keeps schemaVersion 1", () => {
+    const parsed = PresentationSchema.parse(presentation([], [{
+      target: "topics",
+      id: "topics-shared",
+      name: "Topics",
+      layout: { position: "absolute", top: 10 },
+      rootMarkerStyle: "square",
+      markerColor: "#ff0000",
+      itemGap: 12,
+    }]));
+    expect(parsed.schemaVersion).toBe(1);
+    expect(LinkedTopicsStyleSchema.safeParse(parsed.linkedStyles?.[0]).success).toBe(true);
+  });
+
+  it("rejects unsupported Topics Linked Style properties", () => {
+    expect(LinkedTopicsStyleSchema.safeParse({
+      target: "topics", id: "topics", name: "Topics", typography: { fontSize: 20 },
+    }).success).toBe(false);
+  });
+
+  it("rejects cross-type Linked Style references", () => {
+    const topics = { id: "topics", type: "topics", kind: "unordered", items: [], linkedStyleId: "container" };
+    const containerWithTopics = container({ linkedStyleId: "topics" });
+    expect(PresentationSchema.safeParse(presentation([topics], [{ target: "topics", id: "topics", name: "Topics", itemGap: 4 }])).success).toBe(false);
+    expect(PresentationSchema.safeParse(presentation([containerWithTopics], [{ target: "topics", id: "topics", name: "Topics", itemGap: 4 }])).success).toBe(false);
+  });
+
+  it("rejects a missing Topics Linked Style reference", () => {
+    expect(PresentationSchema.safeParse(presentation([
+      { id: "topics", type: "topics", kind: "unordered", items: [], linkedStyleId: "missing" },
+    ], [])).success).toBe(false);
   });
 });
 
@@ -181,5 +215,30 @@ describe("Linked Style palette integrity", () => {
       palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
     });
     expect(PresentationSchema.parse(JSON.parse(JSON.stringify(canonical)))).toEqual(canonical);
+  });
+
+  it("validates palette references in Linked Topics markerColor", () => {
+    const topics = { target: "topics", id: "topics-palette", name: "Topics", markerColor: reference };
+    expect(PresentationSchema.safeParse({
+      ...presentation([], [topics]),
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    }).success).toBe(true);
+    expect(PresentationSchema.safeParse({
+      ...presentation([], [topics]),
+      palette: { colors: [{ id: "other", name: "Other", value: "#facc15" }] },
+    }).success).toBe(false);
+  });
+
+  it("detaches Linked Topics markerColor when removing its palette", () => {
+    const parsed = PresentationSchema.parse({
+      ...presentation([], [{ target: "topics", id: "topics-palette", name: "Topics", markerColor: reference }]),
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    });
+    const result = removePresentationPaletteColor(parsed, "accent");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.detachedCount).toBe(1);
+    expect(result.presentation.linkedStyles?.[0]).toMatchObject({ markerColor: "#facc15" });
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
   });
 });

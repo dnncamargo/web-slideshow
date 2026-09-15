@@ -693,6 +693,8 @@ export type TopicsElement = {
     | number
     | undefined;
 
+  linkedStyleId?: string | undefined;
+
   layout?: z.infer<typeof TopicsLayoutSchema> | undefined;
 
   style?: z.infer<typeof TopicsVisualStyleSchema> | undefined;
@@ -728,6 +730,8 @@ export const TopicsElementSchema:
     markerColor: ColorValueSchema.optional(),
 
     itemGap: z.number().min(0).optional(),
+
+    linkedStyleId: z.string().trim().min(1).optional(),
   }).strict();
 
 export type ContainerElement = {

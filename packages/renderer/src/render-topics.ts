@@ -3,7 +3,9 @@ import type {
   TopicItem,
   TopicMarkerStyle,
   TopicsElement,
+  Presentation,
 } from "@powershow/document-schema";
+import { resolveLinkedTopicsStyle } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";
@@ -211,26 +213,40 @@ function renderTopicList(
 export function renderTopics(
   element: TopicsElement,
   renderChild: RenderChild,
+  presentation?: Presentation,
 ): string {
   if (element.hidden) {
     return "";
   }
 
-  const tag = renderTopicListTag(element.kind);
+  if (element.linkedStyleId !== undefined && presentation === undefined) {
+    throw new Error(
+      `Cannot render linked topics style without presentation context: ${element.linkedStyleId}`,
+    );
+  }
+
+  const resolved = presentation
+    ? resolveLinkedTopicsStyle(presentation, element)
+    : undefined;
+  const renderedElement: TopicsElement = resolved
+    ? { ...element, ...resolved }
+    : element;
+
+  const tag = renderTopicListTag(renderedElement.kind);
 
   const classes = ["powershow-element", "powershow-topics"];
 
-  const customClass = element.style?.className?.trim();
+  const customClass = renderedElement.style?.className?.trim();
 
   if (customClass) {
     classes.push(customClass);
   }
 
-  const combinedStyle = renderTopicsStyleOverrides(element);
+  const combinedStyle = renderTopicsStyleOverrides(renderedElement);
 
   const attributes = [
     `class="${escapeHtml(classes.join(" "))}"`,
-    `data-powershow-id="${escapeHtml(element.id)}"`,
+    `data-powershow-id="${escapeHtml(renderedElement.id)}"`,
     `data-powershow-type="topics"`,
     combinedStyle ? `style="${escapeHtml(combinedStyle)}"` : "",
   ]
@@ -238,11 +254,11 @@ export function renderTopics(
     .join(" ");
 
   const context: TopicsListContext = {
-    kind: element.kind,
-    rootMarkerStyle: element.rootMarkerStyle,
+    kind: renderedElement.kind,
+    rootMarkerStyle: renderedElement.rootMarkerStyle,
   };
 
-  const items = element.items
+  const items = renderedElement.items
     .map((item) => renderTopicItem(item, context, 0, renderChild))
     .join("");
 
