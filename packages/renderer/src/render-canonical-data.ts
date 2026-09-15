@@ -10,7 +10,7 @@ import type {
 
 import { renderLength } from "./render-length";
 import { renderColorValue } from "./render-palette";
-import { renderBorder, renderGradient, renderShadow } from "./render-visual";
+import { renderBackground, renderBorder, renderShadow } from "./render-visual";
 
 type CanonicalDataElement =
   | CodeElement
@@ -34,6 +34,11 @@ function addLength(
 
 export function renderCanonicalDataStyle(
   element: Pick<CanonicalDataElement, "layout" | "style" | "effect">,
+  options: {
+    includeSurface?: boolean;
+    includeBorder?: boolean;
+    includeRadius?: boolean;
+  } = {},
 ): string {
   const output: string[] = [];
   const layout = element.layout;
@@ -64,19 +69,15 @@ export function renderCanonicalDataStyle(
     }));
   }
 
-  if (style?.background?.color !== undefined) {
-    output.push(`background:${renderColorValue(style.background.color)}`);
+  if (options.includeSurface !== false && style?.background !== undefined) {
+    output.push(...renderBackground(style.background));
   }
 
-  if (style?.background?.gradient !== undefined) {
-    output.push(`background-image:${renderGradient(style.background.gradient)}`);
-  }
-
-  if (style?.border !== undefined) {
+  if (options.includeBorder !== false && style?.border !== undefined) {
     output.push(...renderBorder(style.border));
   }
 
-  if (style?.borderRadius !== undefined) {
+  if (options.includeRadius !== false && style?.borderRadius !== undefined) {
     addLength(output, "border-radius", style.borderRadius);
   }
 

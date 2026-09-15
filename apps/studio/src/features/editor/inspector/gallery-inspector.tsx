@@ -46,12 +46,12 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
     <div className={styles.inspectorDivider} />
     <InspectorSection title={t("inspector.content")} count={element.items.length} defaultOpen>
       <label className={styles.field}><span>{t("gallery.fit")}</span><select id="gallery-fit" name="galleryFit" value={element.fit} onChange={(event) => updateGallery((gallery) => ({ ...gallery, fit: event.target.value as GalleryFit }))}><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
-      <div className={styles.galleryItemSelector} role="group" aria-label={t("gallery.items", { count: element.items.length })}>
+      <div className={styles.collectionSelector} role="group" aria-label={t("gallery.items", { count: element.items.length })}>
         {element.items.map((item, index) => {
           const name = getGalleryItemDisplayName(item, t("gallery.newImage"));
-          return <div key={index} className={styles.galleryItemSelectorRow}>
-            <span className={styles.galleryItemOrdinal} aria-hidden="true">{index + 1}.</span>
-            <button type="button" className={`${styles.secondaryButton} ${styles.galleryItemSelectorButton} ${index === selectedItemIndex ? styles.galleryItemSelectorButtonSelected : ""}`} aria-label={`${index + 1}. ${name}`} title={name} aria-pressed={index === selectedItemIndex} data-powershow-gallery-select="true" data-powershow-gallery-index={index} onClick={() => onSelectedItemIndexChange(index)}><span className={styles.galleryItemName}>{name}</span></button>
+          return <div key={index} className={styles.collectionSelectorRow}>
+            <span className={styles.collectionOrdinal} aria-hidden="true">{index + 1}.</span>
+            <button type="button" className={`${styles.secondaryButton} ${styles.collectionSelectorButton} ${index === selectedItemIndex ? styles.collectionSelectorButtonSelected : ""}`} aria-label={`${index + 1}. ${name}`} title={name} aria-pressed={index === selectedItemIndex} data-powershow-gallery-select="true" data-powershow-gallery-index={index} onClick={() => onSelectedItemIndexChange(index)}><span className={styles.collectionItemName}>{name}</span></button>
           </div>;
         })}
       </div>

@@ -6,6 +6,7 @@ import type {
   TopicItem,
   FontResource,
   PresentationPalette,
+  StructuredTableElement,
 } from "@powershow/document-schema";
 import { useState } from "react";
 import type { DragEvent } from "react";
@@ -22,6 +23,7 @@ import {
   type MoveElementOptions,
 } from "./element-operations";
 import { findElementById } from "./element-tree";
+import { isStructuredTableContentSlotId } from "./element-hierarchy";
 import { findTopicItemSiblingPosition } from "./element-hierarchy";
 import {
   getElementLabel,
@@ -33,6 +35,16 @@ import {
 } from "./element-tree-helpers";
 import { getTextContentPlainText } from "./rich-text-authoring";
 import { getGalleryItemDisplayName } from "./gallery-item-display-name";
+import {
+  getStructuredColumnLabel,
+  getStructuredContentChildren,
+  getStructuredRowLabel,
+  getTableColumnNodeId,
+  getTableColumnsNodeId,
+  getTableRowNodeId,
+  getTableRowsNodeId,
+  type TableStructuralSelection,
+} from "./table-tree-helpers";
 
 interface ElementTreePanelProps {
   slide: Slide;
@@ -46,10 +58,14 @@ interface ElementTreePanelProps {
   onOutdentTopicItem: (topicsId: string, topicItemId: string) => void;
   onMoveGalleryItem: (galleryId: string, itemIndex: number, offset: -1 | 1) => void;
   onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
+  onMoveTableColumn?: (tableId: string, columnId: string, offset: -1 | 1) => void;
+  onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
   customLibraryRepository?: CustomLibraryRepository;
   onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
+  selectedTableStructuralNode?: TableStructuralSelection;
+  onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 }
 
 interface ElementTreeSelection {
@@ -104,6 +120,11 @@ interface ElementTreeNodeProps {
     canIndent: boolean;
     canOutdent: boolean;
   };
+  selectedTableStructuralNode?: TableStructuralSelection;
+  onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
+  onMoveTableColumn?: (tableId: string, columnId: string, offset: -1 | 1) => void;
+  onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
+  contentSlotId?: string;
 }
 
 interface GalleryItemTreeNodeProps {
@@ -240,9 +261,20 @@ function collectInitiallyExpandedIds(
     if (
       element.type === "container" ||
       element.type === "topics" ||
+      (element.type === "table" && element.mode === "structured") ||
       (element.type === "gallery" && element.items.length > 0)
     ) {
       ids.add(element.id);
+      if (element.type === "table" && element.mode === "structured") {
+        ids.add(getTableColumnsNodeId(element.id));
+        ids.add(getTableRowsNodeId(element.id));
+        for (const column of element.columns) {
+          if (getStructuredContentChildren(column.header).length > 1) ids.add(getTableColumnNodeId(element.id, column.id));
+        }
+        for (const row of element.rows) {
+          if (row.cells[0] && getStructuredContentChildren(row.cells[0]).length > 1) ids.add(getTableRowNodeId(element.id, row.id));
+        }
+      }
     }
 
     if (element.type === "container") {
@@ -278,11 +310,17 @@ function ElementTreeNode({
   onIndentTopicItem,
   onOutdentTopicItem,
   getTopicItemHierarchyActionState,
+  selectedTableStructuralNode,
+  onSelectTableStructuralNode,
+  onMoveTableColumn,
+  onMoveTableRow,
+  contentSlotId,
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
   const isExpandable =
     element.type === "container" ||
     element.type === "topics" ||
+    (element.type === "table" && element.mode === "structured") ||
     (element.type === "gallery" && element.items.length > 0);
   const expanded = isExpandable && expandedIds.has(element.id);
   const treeChildren = getElementTreeChildren(element);
@@ -291,7 +329,8 @@ function ElementTreeNode({
       ? selectedElementId === element.id && selectedContentSlotId === null
       : element.type === "gallery"
         ? selectedElementId === element.id && selectedGalleryItemIndex === null
-        : selectedElementId === element.id;
+        : selectedElementId === element.id &&
+          (contentSlotId === undefined || selectedContentSlotId === contentSlotId);
   const indicator =
     isExpandable && element.type === "container"
       ? `[${t(element.layout?.children?.mode === "stack" ? "inspector.stack" : "inspector.flow")}]`
@@ -358,10 +397,11 @@ function ElementTreeNode({
           className={styles.elementTreeSelect}
           type="button"
           onClick={() =>
-            onSelectElement({
-              id: element.id,
-              type: element.type,
-            })
+            onSelectElement(
+              contentSlotId === undefined
+                ? { id: element.id, type: element.type }
+                : { id: element.id, type: element.type, contentSlotId },
+            )
           }
         >
           {getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))}
@@ -446,6 +486,11 @@ function ElementTreeNode({
                 onIndentTopicItem={onIndentTopicItem}
                 onOutdentTopicItem={onOutdentTopicItem}
                 getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
+                selectedTableStructuralNode={selectedTableStructuralNode}
+                onSelectTableStructuralNode={onSelectTableStructuralNode}
+                onMoveTableColumn={onMoveTableColumn}
+                onMoveTableRow={onMoveTableRow}
+                contentSlotId={contentSlotId}
               />
             ))}
           {element.type === "topics" &&
@@ -495,10 +540,136 @@ function ElementTreeNode({
                 onDragEnd={onDragEnd}
               />
             ))}
+          {element.type === "table" && element.mode === "structured" && (
+            <StructuredTableTreeNodes
+              element={element}
+              expandedIds={expandedIds}
+              onToggle={onToggle}
+              selected={selectedTableStructuralNode ?? null}
+              onSelect={(selection) => {
+                onSelectElement({ id: element.id, type: "table" });
+                (onSelectTableStructuralNode ?? (() => undefined))(selection);
+              }}
+              treeNodeProps={{
+                expandedIds,
+                selectedElementId,
+                selectedContentSlotId,
+                selectedStructuralTopicItemId,
+                selectedGalleryItemIndex,
+                dropTarget,
+                onToggle,
+                onSelectElement,
+                onDragStart,
+                onDragOver,
+                onDrop,
+                onDragEnd,
+                onGalleryItemDragStart,
+                onGalleryItemDragOver,
+                onGalleryItemDrop,
+                onIndentTopicItem,
+                onOutdentTopicItem,
+                getTopicItemHierarchyActionState,
+                selectedTableStructuralNode,
+                onSelectTableStructuralNode,
+                onMoveTableColumn,
+                onMoveTableRow,
+              }}
+            />
+          )}
         </ul>
       )}
     </li>
   );
+}
+
+function StructuredTableTreeNodes({
+  element,
+  expandedIds,
+  onToggle,
+  selected,
+  onSelect,
+  treeNodeProps,
+}: {
+  element: StructuredTableElement;
+  expandedIds: ReadonlySet<string>;
+  onToggle: (id: string) => void;
+  selected: TableStructuralSelection;
+  onSelect: (selection: TableStructuralSelection) => void;
+  treeNodeProps: Omit<ElementTreeNodeProps, "element" | "index" | "siblingCount" | "contentSlotId">;
+}) {
+  const { t } = useStudioI18n();
+  const columnsId = getTableColumnsNodeId(element.id);
+  const rowsId = getTableRowsNodeId(element.id);
+  return <>
+    <li className={styles.elementTreeNode} role="treeitem" aria-expanded={expandedIds.has(columnsId)}>
+      <div className={styles.elementTreeRow}>
+        <button className={styles.elementTreeExpand} type="button" aria-label={t(expandedIds.has(columnsId) ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(columnsId)}>{expandedIds.has(columnsId) ? "▾" : "▸"}</button>
+        <button className={styles.elementTreeSelect} type="button" onClick={() => onToggle(columnsId)}>{t("table.columns")}</button>
+      </div>
+      {expandedIds.has(columnsId) && <ul role="group" className={styles.elementTreeList}>
+        {element.columns.map((column, index) => {
+          const id = getTableColumnNodeId(element.id, column.id);
+          const isSelected = selected?.kind === "column" && selected.tableId === element.id && selected.id === column.id;
+          const children = getStructuredContentChildren(column.header);
+          const expanded = expandedIds.has(id);
+          return <li key={id} className={styles.elementTreeNode} role="treeitem" aria-selected={isSelected} aria-expanded={children.length > 1 ? expanded : undefined}>
+            <div className={isSelected ? `${styles.elementTreeRow} ${styles.elementTreeSelected}` : styles.elementTreeRow}>
+              {children.length > 1 ? <button className={styles.elementTreeExpand} type="button" aria-label={t(expanded ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(id)}>{expanded ? "▾" : "▸"}</button> : <span className={styles.elementTreeExpand} aria-hidden="true" />}
+              <button className={styles.elementTreeSelect} type="button" data-powershow-table-tree-column-id={column.id} onClick={() => onSelect({ kind: "column", tableId: element.id, id: column.id })}>{getStructuredColumnLabel(element, index, t)}</button>
+            </div>
+            {expanded && children.length > 1 && (
+              <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
+                {children.map((child, childIndex) => (
+                  <ElementTreeNode
+                    key={child.id}
+                    {...treeNodeProps}
+                    element={child}
+                    index={childIndex}
+                    siblingCount={column.header.children.length}
+                    contentSlotId={column.header.id}
+                  />
+                ))}
+              </ul>
+            )}
+          </li>;
+        })}
+      </ul>}
+    </li>
+    <li className={styles.elementTreeNode} role="treeitem" aria-expanded={expandedIds.has(rowsId)}>
+      <div className={styles.elementTreeRow}>
+        <button className={styles.elementTreeExpand} type="button" aria-label={t(expandedIds.has(rowsId) ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(rowsId)}>{expandedIds.has(rowsId) ? "▾" : "▸"}</button>
+        <button className={styles.elementTreeSelect} type="button" onClick={() => onToggle(rowsId)}>{t("table.rows")}</button>
+      </div>
+      {expandedIds.has(rowsId) && <ul role="group" className={styles.elementTreeList}>
+        {element.rows.map((row, index) => {
+          const id = getTableRowNodeId(element.id, row.id);
+          const isSelected = selected?.kind === "row" && selected.tableId === element.id && selected.id === row.id;
+          const children = row.cells[0] ? getStructuredContentChildren(row.cells[0]) : [];
+          const expanded = expandedIds.has(id);
+          return <li key={id} className={styles.elementTreeNode} role="treeitem" aria-selected={isSelected} aria-expanded={children.length > 1 ? expanded : undefined}>
+            <div className={isSelected ? `${styles.elementTreeRow} ${styles.elementTreeSelected}` : styles.elementTreeRow}>
+              {children.length > 1 ? <button className={styles.elementTreeExpand} type="button" aria-label={t(expanded ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(id)}>{expanded ? "▾" : "▸"}</button> : <span className={styles.elementTreeExpand} aria-hidden="true" />}
+              <button className={styles.elementTreeSelect} type="button" data-powershow-table-tree-row-id={row.id} onClick={() => onSelect({ kind: "row", tableId: element.id, id: row.id })}>{getStructuredRowLabel(element, index, t)}</button>
+            </div>
+            {expanded && children.length > 1 ? (
+              <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
+                {children.map((child, childIndex) => (
+                  <ElementTreeNode
+                    key={child.id}
+                    {...treeNodeProps}
+                    element={child}
+                    index={childIndex}
+                    siblingCount={children.length}
+                    contentSlotId={row.cells[0]!.id}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </li>;
+        })}
+      </ul>}
+    </li>
+  </>;
 }
 
 function GalleryItemTreeNode({
@@ -717,12 +888,26 @@ export function ElementTreePanel({
   onOutdentTopicItem,
   onMoveGalleryItem,
   onGalleryStructureDrop,
+  onMoveTableColumn,
+  onMoveTableRow,
+  selectedTableStructuralNode,
+  onSelectTableStructuralNode,
   customLibraryRepository,
   onBrowseElementStyles,
   palette,
   fontResources,
 }: ElementTreePanelProps) {
   const { t } = useStudioI18n();
+  const [localSelectedTableStructuralNode, setLocalSelectedTableStructuralNode] =
+    useState<TableStructuralSelection>(null);
+  const currentSelectedTableStructuralNode = selectedTableStructuralNode === undefined
+    ? localSelectedTableStructuralNode
+    : selectedTableStructuralNode;
+  const setSelectedTableStructuralNode = onSelectTableStructuralNode ?? setLocalSelectedTableStructuralNode;
+  const selectRealElement = (selection: ElementTreeSelection) => {
+    setSelectedTableStructuralNode(null);
+    onSelectElement(selection);
+  };
   const [expandedIds, setExpandedIds] = useState(() => {
     const ids = new Set<string>();
     collectInitiallyExpandedIds(slide.elements, ids);
@@ -776,6 +961,17 @@ export function ElementTreePanel({
         selectedPositionForMovement.parentRef,
       )
     : null;
+  const selectedTable = currentSelectedTableStructuralNode
+    ? findElementById(slide.elements, currentSelectedTableStructuralNode.tableId)
+    : null;
+  const selectedTableColumnIndex = selectedTable?.type === "table" && selectedTable.mode === "structured" && currentSelectedTableStructuralNode?.kind === "column"
+    ? selectedTable.columns.findIndex((column) => column.id === currentSelectedTableStructuralNode.id)
+    : -1;
+  const selectedTableRowIndex = selectedTable?.type === "table" && selectedTable.mode === "structured" && currentSelectedTableStructuralNode?.kind === "row"
+    ? selectedTable.rows.findIndex((row) => row.id === currentSelectedTableStructuralNode.id)
+    : -1;
+  const selectedTableRepresentativeChild = selectedPositionForMovement?.parentRef.kind === "content-slot" &&
+    isStructuredTableContentSlotId(slide.elements, selectedPositionForMovement.parentRef.id);
 
   function getDropIntent(
     target: PowerShowElement,
@@ -822,12 +1018,12 @@ export function ElementTreePanel({
                   return next;
                 });
               }}
-              onSelectElement={onSelectElement}
+              onSelectElement={selectRealElement}
               onDragStart={(element, event) => {
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", element.id);
                 setDragSource({ kind: "element", elementId: element.id });
-                onSelectElement({
+                selectRealElement({
                   id: element.id,
                   type: element.type,
                 });
@@ -916,7 +1112,7 @@ export function ElementTreePanel({
               onGalleryItemDragStart={(galleryId, itemIndex, event) => {
                 event.dataTransfer.effectAllowed = "move";
                 setDragSource({ kind: "gallery-item", galleryId, itemIndex });
-                onSelectElement({ id: galleryId, type: "gallery", galleryItemIndex: itemIndex });
+                selectRealElement({ id: galleryId, type: "gallery", galleryItemIndex: itemIndex });
               }}
               onGalleryItemDragOver={(galleryId, itemIndex, event) => {
                 if (!dragSource) return;
@@ -949,6 +1145,10 @@ export function ElementTreePanel({
                   topicsId,
                   topicItemId,
                 )}
+              selectedTableStructuralNode={currentSelectedTableStructuralNode}
+              onSelectTableStructuralNode={setSelectedTableStructuralNode}
+              onMoveTableColumn={onMoveTableColumn}
+              onMoveTableRow={onMoveTableRow}
             />
           ))}
         </ul>
@@ -956,17 +1156,25 @@ export function ElementTreePanel({
       <div className={styles.elementTreeFooter}>
         <button
           type="button"
-          aria-label={t("tree.moveUp")}
-          title={t("tree.moveUp")}
+          aria-label={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveLeft") : t("tree.moveUp")}
+          title={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveLeft") : t("tree.moveUp")}
           disabled={
-            selectedGallery
+            currentSelectedTableStructuralNode?.kind === "column"
+              ? selectedTableColumnIndex <= 0
+              : currentSelectedTableStructuralNode?.kind === "row"
+                ? selectedTableRowIndex <= 0
+                : selectedGallery
               ? selectedGalleryItemIndex === 0
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === 0
               : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp
           }
           onClick={() => {
-            if (selectedGallery && selectedGalleryItemIndex !== null) {
+            if (currentSelectedTableStructuralNode?.kind === "column" && selectedTableColumnIndex >= 0) {
+              onMoveTableColumn?.(currentSelectedTableStructuralNode.tableId, currentSelectedTableStructuralNode.id, -1);
+            } else if (currentSelectedTableStructuralNode?.kind === "row" && selectedTableRowIndex >= 0) {
+              onMoveTableRow?.(currentSelectedTableStructuralNode.tableId, currentSelectedTableStructuralNode.id, -1);
+            } else if (selectedGallery && selectedGalleryItemIndex !== null) {
               onMoveGalleryItem(selectedGallery.id, selectedGalleryItemIndex, -1);
             } else if (selectedTopicItemPosition && selectedElementId) {
               onMoveTopicItem(
@@ -987,17 +1195,25 @@ export function ElementTreePanel({
         </button>
         <button
           type="button"
-          aria-label={t("tree.moveDown")}
-          title={t("tree.moveDown")}
+          aria-label={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveRight") : t("tree.moveDown")}
+          title={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveRight") : t("tree.moveDown")}
           disabled={
-            selectedGallery
+            currentSelectedTableStructuralNode?.kind === "column"
+              ? selectedTableColumnIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableColumnIndex >= selectedTable.columns.length - 1
+              : currentSelectedTableStructuralNode?.kind === "row"
+                ? selectedTableRowIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableRowIndex >= selectedTable.rows.length - 1
+                : selectedGallery
               ? selectedGalleryItemIndex === selectedGallery.items.length - 1
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === selectedTopicItemPosition.count - 1
               : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown
           }
           onClick={() => {
-            if (selectedGallery && selectedGalleryItemIndex !== null) {
+            if (currentSelectedTableStructuralNode?.kind === "column" && selectedTableColumnIndex >= 0) {
+              onMoveTableColumn?.(currentSelectedTableStructuralNode.tableId, currentSelectedTableStructuralNode.id, 1);
+            } else if (currentSelectedTableStructuralNode?.kind === "row" && selectedTableRowIndex >= 0) {
+              onMoveTableRow?.(currentSelectedTableStructuralNode.tableId, currentSelectedTableStructuralNode.id, 1);
+            } else if (selectedGallery && selectedGalleryItemIndex !== null) {
               onMoveGalleryItem(selectedGallery.id, selectedGalleryItemIndex, 1);
             } else if (selectedTopicItemPosition && selectedElementId) {
               onMoveTopicItem(
@@ -1018,7 +1234,7 @@ export function ElementTreePanel({
         </button>
         <select
           aria-label={t("tree.moveTo")}
-          disabled={!selectedElementForMovement || selectedGallery !== null}
+          disabled={!selectedElementForMovement || selectedGallery !== null || selectedTableRepresentativeChild}
           value=""
           onChange={(event) => {
             if (selectedElementId && selectedElementForMovement) {

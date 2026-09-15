@@ -3,6 +3,7 @@ import type {
   TableElement,
   PowerShowElement,
   TextContent,
+  StructuredTableVisualStyle,
 } from "@powershow/document-schema";
 
 import { escapeHtml } from "./escape-html";
@@ -11,6 +12,7 @@ import { renderLength } from "./render-length";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderContentSlotStyle } from "./render-content-slot";
 import { renderColorValue } from "./render-palette";
+import { renderBackground, renderGradient } from "./render-visual";
 import { renderRichText, renderTextContent } from "./render-rich-text";
 
 type RenderChild = (element: PowerShowElement) => string;
@@ -55,6 +57,10 @@ export function renderTable(
   }
 
   const styleParts = [renderCanonicalDataStyle(element)];
+
+  if (element.mode === "structured" && element.style?.dividerOpacity !== undefined) {
+    styleParts.push(`--powershow-table-divider-opacity:${element.style.dividerOpacity}`);
+  }
 
   if (element.mode !== "structured") {
     const typography = element.typography;
@@ -128,13 +134,67 @@ export function renderTable(
     throw new Error("Structured tables require a child renderer.");
   }
 
+  const frameClasses = ["powershow-element", "powershow-table-frame"];
+  if (customClass) frameClasses.push(customClass);
+
+  const frameStyleParts = [
+    renderCanonicalDataStyle(element, {
+      includeSurface: false,
+      includeBorder: false,
+      includeRadius: false,
+    }),
+    element.style?.borderRadius !== undefined
+      ? `--powershow-table-frame-radius:${renderLength(element.style.borderRadius)}`
+      : "",
+    "--powershow-table-border-width:1px",
+    "--powershow-table-border-color:var(--powershow-border)",
+  ];
+  const border = element.style?.border;
+  if (border) {
+    frameStyleParts.push(`--powershow-table-border-width:${renderLength(border.width)}`);
+    if (border.gradient) {
+      frameClasses.push("powershow-table-frame-gradient-border");
+      frameStyleParts.push(`--powershow-table-border-gradient:${renderGradient(border.gradient)}`);
+    } else {
+      frameStyleParts.push(`border-width:${renderLength(border.width)}`);
+      frameStyleParts.push(`border-style:${border.style ?? "solid"}`);
+      if (border.color) {
+        frameStyleParts.push(`border-color:${renderColorValue(border.color)}`);
+        frameStyleParts.push(`--powershow-table-border-color:${renderColorValue(border.color)}`);
+      }
+    }
+  }
+  if (element.style?.borderRadius !== undefined) {
+    frameStyleParts.push(`border-radius:${renderLength(element.style.borderRadius)}`);
+  }
+  const frameStyle = frameStyleParts.filter(Boolean).join(";");
+  const frameStyleAttribute = frameStyle ? ` style="${escapeHtml(frameStyle)}"` : "";
+
+  const tableClasses = ["powershow-table", "powershow-table-structured"];
+  if (element.style?.background !== undefined) tableClasses.push("powershow-table-has-surface");
+  if (element.layout?.height !== undefined) tableClasses.push("powershow-table-fills-frame");
+  const tableStyleParts = [
+    element.style?.background ? renderBackground(element.style.background).join(";") : "",
+  ];
+  if (element.style?.dividerOpacity !== undefined) {
+    tableStyleParts.push(`--powershow-table-divider-opacity:${element.style.dividerOpacity}`);
+  }
+  const tableStyle = tableStyleParts.filter(Boolean).join(";");
+  const tableStyleAttribute = tableStyle ? ` style="${escapeHtml(tableStyle)}"` : "";
+
   const renderSlot = (
     slot: ContentSlot,
     tag: "th" | "td",
     columnId?: string,
+    background?: StructuredTableVisualStyle["headerBackground"],
   ): string => {
     const classes = slot.style?.className?.trim();
-    const style = renderContentSlotStyle(slot);
+    const styleParts = [renderContentSlotStyle(slot)];
+    const hasExplicitBackground = slot.style?.background?.color !== undefined;
+    if (!hasExplicitBackground && background !== undefined) {
+      styleParts.push(`background:${renderColorValue(background)}`);
+    }
+    const style = styleParts.filter(Boolean).join(";");
     const attributes = [
       tag === "th" ? `scope="col"` : "",
       `data-powershow-content-slot-id="${escapeHtml(slot.id)}"`,
@@ -162,30 +222,38 @@ export function renderTable(
 
   const header = element.showHeader
     ? `<thead><tr>${element.columns.map((column) =>
-        renderSlot(column.header, "th", column.id),
+        renderSlot(
+          column.header,
+          "th",
+          column.id,
+          element.style?.headerBackground,
+        ),
       ).join("")}</tr></thead>`
     : "";
 
-  const rows = element.rows.map((row) =>
-    `<tr data-powershow-table-row-id="${escapeHtml(row.id)}">${row.cells.map((cell) => renderSlot(cell, "td")).join("")}</tr>`,
+  const bodyParityOffset = element.showHeader && element.style?.headerBackground === undefined ? 1 : 0;
+  const rows = element.rows.map((row, rowIndex) =>
+    `<tr data-powershow-table-row-id="${escapeHtml(row.id)}">${row.cells.map((cell) => {
+      const background = (rowIndex + bodyParityOffset) % 2 === 1
+        ? element.style?.bodyRowAlternateBackground
+        : undefined;
+      return renderSlot(cell, "td", undefined, background);
+    }).join("")}</tr>`,
   ).join("");
 
   return (
-    `<table` +
-    ` class="${escapeHtml(
-      classes.join(" "),
-    )}"` +
-    ` data-powershow-id="${escapeHtml(
-      element.id,
-    )}"` +
+    `<div class="${escapeHtml(frameClasses.join(" "))}"` +
+    ` data-powershow-id="${escapeHtml(element.id)}"` +
     ` data-powershow-type="table"` +
-    styleAttribute +
+    frameStyleAttribute +
     `>` +
+    `<table class="${escapeHtml(tableClasses.join(" "))}"${tableStyleAttribute}>` +
     colgroup +
     header +
     `<tbody>` +
     rows +
     `</tbody>` +
-    `</table>`
+    `</table>` +
+    `</div>`
   );
 }

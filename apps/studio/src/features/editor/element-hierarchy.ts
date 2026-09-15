@@ -150,6 +150,27 @@ function findContentSlotInStructuredTable(
   return null;
 }
 
+export function isStructuredTableContentSlotId(
+  elements: readonly PowerShowElement[],
+  slotId: string,
+): boolean {
+  for (const element of elements) {
+    if (isContainer(element) && isStructuredTableContentSlotId(element.children, slotId)) {
+      return true;
+    }
+    if (isStructuredTable(element) && findContentSlotInStructuredTable(element, slotId)) {
+      return true;
+    }
+    if (isTopics(element)) {
+      for (const item of element.items) {
+        if (isStructuredTableContentSlotId(item.content.children, slotId)) return true;
+        if (item.children.some((child) => isStructuredTableContentSlotId(child.content.children, slotId))) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Maps the children of every Structured Table header/cell ContentSlot through
  * `transform`. Returns null when no slot changed (immutability guard used by

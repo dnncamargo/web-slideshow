@@ -147,6 +147,12 @@ export function visitPresentationColorValues(
         visitStyle(element.style, [...path, "style"]);
         visitEffect(element.effect, [...path, "effect"]);
         if (element.mode === "structured") {
+          for (const key of ["headerBackground", "bodyRowAlternateBackground"] as const) {
+            visitColor({
+              value: element.style?.[key],
+              set: (value) => { element.style = { ...element.style, [key]: value }; },
+            }, [...path, "style", key]);
+          }
           element.columns.forEach((column, index) => visitContentSlot(column.header, [...path, "columns", index, "header"]));
           element.rows.forEach((row, rowIndex) => row.cells.forEach((cell, cellIndex) => visitContentSlot(cell, [...path, "rows", rowIndex, "cells", cellIndex])));
         }

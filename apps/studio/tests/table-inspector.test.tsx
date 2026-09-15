@@ -13,8 +13,10 @@ import type {
 } from "@powershow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
 import { TableInspector } from "../src/features/editor/inspector/table-inspector";
 import type { TableAuthoringControls } from "../src/features/editor/inspector/inspector-types";
+import type { TableStructuralSelection } from "../src/features/editor/table-tree-helpers";
 import {
   addColumnToStructuredTable,
   addRowToStructuredTable,
@@ -134,10 +136,12 @@ describe("TableInspector", () => {
   let elementState: PowerShowElement;
   let updates: PowerShowElement[];
   let controls: TableAuthoringControls;
+  let selectedTableStructuralNode: TableStructuralSelection = null;
 
   function renderInspector() {
     root.render(
       <StudioI18nProvider>
+        <PresentationColorPaletteProvider colors={[{ id: "dark-surface", name: "Dark surface", value: "#202020" }]}>
         <TableInspector
           element={elementState as SimpleTableElement | StructuredTableElement}
           onUpdate={(update) => {
@@ -148,7 +152,13 @@ describe("TableInspector", () => {
           }}
           fontResources={FONT_RESOURCES}
           tableAuthoringControls={controls}
+          selectedTableStructuralNode={selectedTableStructuralNode}
+          onSelectTableStructuralNode={(selection) => {
+            selectedTableStructuralNode = selection;
+            renderInspector();
+          }}
         />
+        </PresentationColorPaletteProvider>
       </StudioI18nProvider>,
     );
   }
@@ -156,6 +166,7 @@ describe("TableInspector", () => {
   function mount(initial: PowerShowElement) {
     elementState = initial;
     updates = [];
+    selectedTableStructuralNode = null;
     controls = {
       onAddColumn: (tableId) => {
         const slides = addColumnToStructuredTable(wrapSlide(elementState), tableId);
@@ -198,6 +209,62 @@ describe("TableInspector", () => {
     renderInspector();
   }
 
+  it("shows Structured Table appearance controls and authors optional fields", async () => {
+    await act(async () => {
+      mount(structuredTable());
+    });
+    expect(container.querySelector('[data-powershow-table-appearance="true"]')).not.toBeNull();
+
+    const headerInput = container.querySelector<HTMLInputElement>("#table-header-background");
+    expect(headerInput).not.toBeNull();
+    await act(async () => {
+      headerInput!.value = "#123456";
+      headerInput!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect((elementState as StructuredTableElement).style?.headerBackground).toBe("#123456");
+  });
+
+  it("resets Structured Table background and clears Alternate", async () => {
+    await act(async () => {
+      mount(structuredTable());
+    });
+    elementState = {
+      ...(elementState as StructuredTableElement),
+      style: {
+        background: { color: "#ffffff" },
+        headerBackground: "#111111",
+        bodyRowAlternateBackground: "#222222",
+      },
+    } as StructuredTableElement;
+    await act(async () => renderInspector());
+
+    const reset = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Reset");
+    expect(reset).not.toBeNull();
+    await act(async () => reset?.click());
+
+    expect((elementState as StructuredTableElement).style?.background).toBeUndefined();
+    expect((elementState as StructuredTableElement).style?.bodyRowAlternateBackground).toBeUndefined();
+    expect((elementState as StructuredTableElement).style?.headerBackground).toBe("#111111");
+  });
+
+  it("suggests Alternate from a resolved palette-linked Background", async () => {
+    await act(async () => mount({
+      ...structuredTable(),
+      style: { background: { color: { kind: "palette", colorId: "dark-surface" } } },
+    }));
+
+    const suggest = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Suggest alternate");
+    expect(suggest?.disabled).toBe(false);
+    await act(async () => suggest?.click());
+
+    const updated = elementState as StructuredTableElement;
+    expect(updated.style?.background?.color).toEqual({ kind: "palette", colorId: "dark-surface" });
+    expect(updated.style?.bodyRowAlternateBackground).toBe("#303030");
+    expect(container.querySelector("#table-body-row-alternate-background")).not.toBeNull();
+  });
+
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -222,6 +289,14 @@ describe("TableInspector", () => {
     return Array.from(
       container.querySelectorAll<HTMLElement>("[data-powershow-table-row]"),
     );
+  }
+
+  function columnSummary(): HTMLElement[] {
+    return Array.from(container.querySelectorAll<HTMLElement>("[data-powershow-table-column-summary] > li"));
+  }
+
+  function rowSummary(): HTMLElement[] {
+    return Array.from(container.querySelectorAll<HTMLElement>("[data-powershow-table-row-summary] > li"));
   }
 
   function addColumnButton(): HTMLButtonElement | null {
@@ -344,7 +419,8 @@ describe("TableInspector", () => {
     expect((elementState as SimpleTableElement).style?.background?.color).toBe("#101218");
     expect((elementState as SimpleTableElement).style?.borderRadius).toBe(4);
     await act(async () => {
-      colorInput.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button")?.click();
+      Array.from(colorInput.parentElement?.parentElement?.querySelectorAll<HTMLButtonElement>("button") ?? [])
+        .find((button) => button.textContent?.trim() === "Use theme default")?.click();
     });
     expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
     expect((elementState as SimpleTableElement).style?.background?.color).toBe("#101218");
@@ -357,14 +433,36 @@ describe("TableInspector", () => {
     });
 
     expect(headerCheckbox()?.checked).toBe(true);
-    expect(columnRows()).toHaveLength(2);
-    expect(rowRows()).toHaveLength(1);
+    expect(columnRows()).toHaveLength(0);
+    expect(rowRows()).toHaveLength(0);
+    expect(columnSummary().map((item) => item.textContent)).toEqual(["1.Column 1 (Column 1)", "2.Column 2 (Column 2)"]);
+    expect(rowSummary().map((item) => item.textContent)).toEqual(["1.Row 1 (a)"]);
+    expect(columnSummary().every((item) => item.querySelector("button") !== null)).toBe(true);
+    expect(rowSummary().every((item) => item.querySelector("button") !== null)).toBe(true);
+    expect(container.querySelectorAll("[aria-pressed]")).toHaveLength(3);
     expect(addColumnButton()).not.toBeNull();
     expect(addRowButton()).not.toBeNull();
     expect(container.querySelector("#table-font-family")).toBeNull();
     expect(container.querySelector("#table-font-size")).toBeNull();
     expect(container.querySelector("#table-line-height")).toBeNull();
     expect(container.querySelector("#table-color")).toBeNull();
+  });
+
+  it("uses the shared structural selection for summary buttons", async () => {
+    await act(async () => mount(structuredTable()));
+
+    const columnButton = columnSummary()[1]?.querySelector<HTMLButtonElement>("button");
+    if (!columnButton) throw new Error("Column summary button not found");
+    await act(async () => columnButton.click());
+    expect(selectedTableStructuralNode).toEqual({ kind: "column", tableId: "structured-table", id: "col-2" });
+    expect(columnButton.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1);
+
+    const rowButton = rowSummary()[0]?.querySelector<HTMLButtonElement>("button");
+    if (!rowButton) throw new Error("Row summary button not found");
+    await act(async () => rowButton.click());
+    expect(selectedTableStructuralNode).toEqual({ kind: "row", tableId: "structured-table", id: "row-1" });
+    expect(container.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1);
   });
 
   it("renders show header inside the Display section", async () => {
@@ -382,6 +480,29 @@ describe("TableInspector", () => {
     expect(displaySection?.contains(headerCheckbox)).toBe(true);
   });
 
+  it("keeps structural removal disabled without matching tree selection", async () => {
+    await act(async () => mount(structuredTable()));
+
+    expect(container.querySelector<HTMLButtonElement>("[data-powershow-table-remove-column]")?.disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>("[data-powershow-table-remove-row]")?.disabled).toBe(true);
+
+    selectedTableStructuralNode = { kind: "column", tableId: "another-table", id: "col-1" };
+    await act(async () => renderInspector());
+    expect(container.querySelector<HTMLButtonElement>("[data-powershow-table-remove-column]")?.disabled).toBe(true);
+  });
+
+  it("cancels structural removal without mutation", async () => {
+    await act(async () => mount(structuredTable()));
+    selectedTableStructuralNode = { kind: "column", tableId: "structured-table", id: "col-1" };
+    await act(async () => renderInspector());
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-powershow-table-remove-column]")?.click());
+    const cancel = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Cancel");
+    await act(async () => cancel?.click());
+    expect(updates).toHaveLength(0);
+    expect((elementState as StructuredTableElement).columns).toHaveLength(2);
+    expect(selectedTableStructuralNode).toEqual({ kind: "column", tableId: "structured-table", id: "col-1" });
+  });
+
   it("adds a column keeping every row rectangular", async () => {
     await act(async () => {
       mount(structuredTable());
@@ -393,25 +514,24 @@ describe("TableInspector", () => {
 
     const updated = elementState as StructuredTableElement;
     expect(updated.columns).toHaveLength(3);
-    expect(columnRows()).toHaveLength(3);
+    expect(columnRows()).toHaveLength(0);
     for (const row of updated.rows) {
       expect(row.cells).toHaveLength(updated.columns.length);
     }
   });
 
-  it("removes a column keeping every row rectangular", async () => {
+  it("removes a selected column only after confirmation", async () => {
     await act(async () => {
       mount(structuredTable());
     });
 
-    await act(async () => {
-      const removeButtons = Array.from(
-        container.querySelectorAll<HTMLButtonElement>(
-          "[data-powershow-table-remove-column]",
-        ),
-      );
-      removeButtons[0]?.click();
-    });
+    selectedTableStructuralNode = { kind: "column", tableId: "structured-table", id: "col-1" };
+    await act(async () => renderInspector());
+    const removeButton = container.querySelector<HTMLButtonElement>("[data-powershow-table-remove-column]");
+    expect(removeButton?.disabled).toBe(false);
+    await act(async () => removeButton?.click());
+    expect(container.querySelector("[data-studio-danger-confirm-dialog]")).not.toBeNull();
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Remove column 1")?.click());
 
     const updated = elementState as StructuredTableElement;
     expect(updated.columns).toHaveLength(1);
@@ -431,22 +551,18 @@ describe("TableInspector", () => {
     const updated = elementState as StructuredTableElement;
     expect(updated.rows).toHaveLength(2);
     expect(updated.rows[1]?.cells).toHaveLength(updated.columns.length);
-    expect(rowRows()).toHaveLength(2);
+    expect(rowRows()).toHaveLength(0);
   });
 
-  it("removes only the selected structural row", async () => {
+  it("removes only the selected structural row after confirmation", async () => {
     await act(async () => {
       mount(structuredTable());
     });
 
-    await act(async () => {
-      const removeButtons = Array.from(
-        container.querySelectorAll<HTMLButtonElement>(
-          "[data-powershow-table-remove-row]",
-        ),
-      );
-      removeButtons[0]?.click();
-    });
+    selectedTableStructuralNode = { kind: "row", tableId: "structured-table", id: "row-1" };
+    await act(async () => renderInspector());
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-powershow-table-remove-row]")?.click());
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Remove row 1")?.click());
 
     const updated = elementState as StructuredTableElement;
     expect(updated.rows).toHaveLength(0);

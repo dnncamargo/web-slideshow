@@ -220,6 +220,17 @@ export type GradientSurfaceVisualStyle = z.infer<
   typeof GradientSurfaceVisualStyleSchema
 >;
 
+export const StructuredTableVisualStyleSchema =
+  GradientSurfaceVisualStyleSchema.extend({
+    headerBackground: ColorValueSchema.optional(),
+    bodyRowAlternateBackground: ColorValueSchema.optional(),
+    dividerOpacity: z.number().min(0).max(1).optional(),
+  }).strict();
+
+export type StructuredTableVisualStyle = z.infer<
+  typeof StructuredTableVisualStyleSchema
+>;
+
 export const BlocksVisualStyleSchema = z.object({
   background: GradientSurfaceBackgroundSchema.optional(),
   border: BorderSchema.optional(),

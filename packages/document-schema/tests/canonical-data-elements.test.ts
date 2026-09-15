@@ -251,6 +251,47 @@ describe("canonical data element contracts", () => {
     ).toBe(true);
   });
 
+  it("accepts the Structured Table appearance fields", () => {
+    const result = StructuredTableElementSchema.parse({
+      id: "table-appearance",
+      type: "table",
+      hidden: false,
+      mode: "structured",
+      style: {
+        headerBackground: { kind: "palette", colorId: "header" },
+        bodyRowAlternateBackground: { kind: "palette", colorId: "alternate" },
+        dividerOpacity: 0,
+      },
+      columns: [{ id: "column-1", header: { id: "header-1", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
+    });
+
+    expect(result.style?.dividerOpacity).toBe(0);
+    expect(result.style?.headerBackground).toEqual({ kind: "palette", colorId: "header" });
+    for (const key of ["headerBackground", "bodyRowAlternateBackground"] as const) {
+      expect(StructuredTableElementSchema.safeParse({
+        ...result,
+        style: { ...result.style, [key]: { gradient } },
+      }).success).toBe(false);
+    }
+    expect(StructuredTableElementSchema.safeParse({
+      ...result,
+      style: { ...result.style, unknown: true },
+    }).success).toBe(false);
+    expect(StructuredTableElementSchema.safeParse({
+      ...result,
+      style: { ...result.style, dividerOpacity: 1.1 },
+    }).success).toBe(false);
+    expect(StructuredTableElementSchema.safeParse({
+      ...result,
+      style: { ...result.style, firstColumnBackground: "#111111" },
+    }).success).toBe(false);
+    expect(StructuredTableElementSchema.safeParse({
+      ...result,
+      style: { ...result.style, bodyRowBackground: "#222222" },
+    }).success).toBe(false);
+  });
+
   it.each(["width", "height", "position", "top", "right", "bottom", "left", "opacity", "shadow"] as const)("rejects legacy aggregate style.%s", (field) => {
     const result = CodeElementSchema.safeParse({ id: "code-1", hidden: false, code: "x", style: { [field]: field === "opacity" ? 0.5 : 1 } });
     expect(result.success).toBe(false);

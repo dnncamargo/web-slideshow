@@ -30,6 +30,7 @@ import {
   CodeVisualStyleSchema,
   TerminalVisualStyleSchema,
   SimpleTableVisualStyleSchema,
+  StructuredTableVisualStyleSchema,
   BlocksVisualStyleSchema,
   DividerLayoutSchema,
   DividerVisualStyleSchema,
@@ -600,7 +601,7 @@ export type StructuredTableRow =
 const StructuredTableElementBaseSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
-    style: GradientSurfaceVisualStyleSchema.optional(),
+    style: StructuredTableVisualStyleSchema.optional(),
     mode: z.literal("structured"),
     showHeader: z.boolean().default(true),
     columns: z.array(StructuredTableColumnSchema),

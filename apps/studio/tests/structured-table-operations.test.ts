@@ -11,6 +11,11 @@ import type {
 } from "@powershow/document-schema";
 
 import {
+  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+} from "@powershow/document-schema";
+
+import {
   addColumnToStructuredTable,
   addRowToStructuredTable,
   appendElementToContentSlot,
@@ -18,6 +23,8 @@ import {
   duplicateElement,
   findElementSiblingPosition,
   moveElement,
+  moveColumnInStructuredTable,
+  moveRowInStructuredTable,
   removeColumnFromStructuredTable,
   removeElementById,
   removeRowFromStructuredTable,
@@ -389,6 +396,23 @@ describe("structured table hierarchy traversal", () => {
     }
   });
 
+  it("rejects moving a Structured Table child across representative slots", () => {
+    const table = structuredTable({
+      columns: [{ id: "col-1", header: { id: "hdr-1", children: [text("header-child")] } }, { id: "col-2", header: { id: "hdr-2", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1-1", children: [] }, { id: "cell-1-2", children: [] }] }],
+    });
+
+    const moved = moveElement([table], {
+      elementId: "header-child",
+      targetParentRef: { kind: "content-slot", id: "hdr-2" },
+      targetIndex: 0,
+    });
+
+    expect(moved.moved).toBe(false);
+    expect(moved.error).toBe("invalid-target-parent");
+    expect(findElementById(moved.elements, "header-child")?.id).toBe("header-child");
+  });
+
   it("collects all Structured Table structural and content IDs", () => {
     const ids = collectIds(structuredTable());
 
@@ -592,6 +616,23 @@ describe("structured table creation and structure", () => {
     }
   });
 
+  it("assigns canonical styles to every auto-created header and body Text", () => {
+    const created = createElement("table", [slide([])]);
+    if (created.type !== "table" || created.mode !== "structured") throw new Error("Expected a Structured Table");
+
+    expect(created.columns[0]?.header.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(created.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID });
+
+    const withColumn = addColumnToStructuredTable([slide([created])], created.id)[0]?.elements[0];
+    if (withColumn?.type !== "table" || withColumn.mode !== "structured") throw new Error("Expected a Structured Table");
+    expect(withColumn.columns[1]?.header.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(withColumn.rows[0]?.cells[1]?.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID });
+
+    const withRow = addRowToStructuredTable([slide([withColumn])], withColumn.id)[0]?.elements[0];
+    if (withRow?.type !== "table" || withRow.mode !== "structured") throw new Error("Expected a Structured Table");
+    expect(withRow.rows[1]?.cells.every((cell) => cell.children[0]?.type === "text" && cell.children[0].variant === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
+  });
+
   it("adds a column preserving every row length", () => {
     let slides = [
       slide([structuredTable()]),
@@ -621,6 +662,29 @@ describe("structured table creation and structure", () => {
         expect(row.cells).toHaveLength(1);
       }
       expect(table.columns[0]?.id).toBe("col-1");
+    }
+  });
+
+  it("moves a column and its cells by stable column ID", () => {
+    const table = structuredTable();
+    const withColumn = addColumnToStructuredTable([slide([table])], "table-1");
+    const slides = moveColumnInStructuredTable(withColumn, "table-1", "col-2", 1);
+    const result = slides[0]?.elements[0];
+    if (result?.type === "table" && result.mode === "structured") {
+      expect(result.columns.map((column) => column.id)).toEqual(["col-1", "table-column", "col-2"]);
+      expect(result.rows[0]?.cells[2]?.id).toBe("cell-1-2");
+      expect(result.rows[0]?.cells[1]?.id).not.toBe("cell-1-2");
+    }
+    expect(moveColumnInStructuredTable(withColumn, "table-1", "missing", 1)).toEqual(withColumn);
+  });
+
+  it("moves a complete row by stable row ID", () => {
+    const table = structuredTable();
+    const slides = moveRowInStructuredTable([slide([table])], "table-1", "row-2", -1);
+    const result = slides[0]?.elements[0];
+    if (result?.type === "table" && result.mode === "structured") {
+      expect(result.rows.map((row) => row.id)).toEqual(["row-2", "row-1"]);
+      expect(result.rows[0]?.cells[0]?.id).toBe("cell-2-1");
     }
   });
 

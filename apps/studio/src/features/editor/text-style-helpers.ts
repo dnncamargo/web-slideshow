@@ -10,6 +10,8 @@ import {
   FUNDAMENTAL_TEXT_STYLE_IDS,
   FundamentalTextStyleIdSchema,
   PresentationSchema,
+  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
 } from "@powershow/document-schema";
 
 import { visitElements } from "./element-hierarchy";
@@ -121,6 +123,35 @@ export function addCustomTextStyle(
     ...(presentation.textStyles ?? []),
     { id, name: trimmedName, role },
   ]);
+}
+
+export type StructuredTableTextStyleIds = {
+  columnHeader: typeof POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID;
+  tableCell: typeof POWERSHOW_TABLE_CELL_TEXT_STYLE_ID;
+};
+
+export function ensureStructuredTableTextStyles(
+  presentation: Presentation,
+): { presentation: Presentation; ids: StructuredTableTextStyleIds } {
+  const existing = presentation.textStyles ?? [];
+  const missing = [
+    !existing.some((style) => style.id === POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID)
+      ? { id: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Column header", role: "body" as const }
+      : undefined,
+    !existing.some((style) => style.id === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)
+      ? { id: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, name: "Table cell", role: "body" as const }
+      : undefined,
+  ].filter((style): style is NonNullable<typeof style> => style !== undefined);
+
+  return {
+    presentation: missing.length === 0
+      ? presentation
+      : withTextStyles(presentation, [...existing, ...missing]),
+    ids: {
+      columnHeader: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+      tableCell: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+    },
+  };
 }
 
 export function updateCustomTextStyle(

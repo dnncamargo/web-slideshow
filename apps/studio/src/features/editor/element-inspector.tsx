@@ -31,6 +31,7 @@ import type {
 import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
+import type { TableStructuralSelection } from "./table-tree-helpers";
 
 interface ElementInspectorProps {
   element: PowerShowElement;
@@ -79,6 +80,10 @@ interface ElementInspectorProps {
 
   tableAuthoringControls: TableAuthoringControls;
 
+  selectedTableStructuralNode?: TableStructuralSelection;
+
+  onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
+
   galleryItemIndex?: number | null;
 
   onGalleryItemIndexChange?: (index: number | null) => void;
@@ -116,6 +121,8 @@ function ElementTypeInspector({
   layerControls,
   topicsAuthoringControls,
   tableAuthoringControls,
+  selectedTableStructuralNode,
+  onSelectTableStructuralNode,
   galleryItemIndex,
   onGalleryItemIndexChange,
 }: ElementTypeInspectorProps) {
@@ -186,6 +193,8 @@ function ElementTypeInspector({
           onUpdate={onUpdate}
           fontResources={fontResources}
           tableAuthoringControls={tableAuthoringControls}
+          selectedTableStructuralNode={selectedTableStructuralNode}
+          onSelectTableStructuralNode={onSelectTableStructuralNode}
         />
       );
 
@@ -268,6 +277,8 @@ export function ElementInspector({
   layerControls,
   topicsAuthoringControls,
   tableAuthoringControls,
+  selectedTableStructuralNode,
+  onSelectTableStructuralNode,
   galleryItemIndex,
   onGalleryItemIndexChange,
 }: ElementInspectorProps) {
@@ -321,6 +332,8 @@ export function ElementInspector({
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
         topicsAuthoringControls={topicsAuthoringControls}
         tableAuthoringControls={tableAuthoringControls}
+        selectedTableStructuralNode={selectedTableStructuralNode}
+        onSelectTableStructuralNode={onSelectTableStructuralNode}
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}
       />
