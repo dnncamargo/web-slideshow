@@ -1746,14 +1746,8 @@
 .field input:focus {
   border-color:
     var(--ps-ui-semantic-focus);
-}
 
-.inspectorControl:focus-visible,
-.field select:focus-visible,
-.field input:focus-visible,
-.textArea:focus-visible {
-  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
-  outline-offset: var(--ps-ui-focus-outline-offset);
+  outline: 0;
 }
 
 .inspectorControl::placeholder,
@@ -1809,7 +1803,7 @@
 
   color: #94a3b8;
 
-  font-size: 16px;
+  font-size: var(--ps-ui-font-size-md);
 
   line-height: 1;
 
@@ -1872,6 +1866,8 @@
 .unitInput {
   display: grid;
 
+  height: var(--ps-ui-inspector-control-height);
+
   grid-template-columns:
     minmax(0, 1fr)
     auto;
@@ -1891,13 +1887,15 @@
   overflow: hidden;
 }
 
+.unitInput input,
+.unitInput select {
+  height: 100%;
+}
+
 
 .unitInput:focus-within {
   border-color:
     var(--ps-ui-semantic-focus);
-
-  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
-  outline-offset: var(--ps-ui-focus-outline-offset);
 }
 
 
@@ -2043,6 +2041,8 @@
 .textArea:focus {
   border-color:
     var(--ps-ui-semantic-focus);
+
+  outline: 0;
 }
 
 .textEditor {
@@ -2973,6 +2973,7 @@
   flex: 0 0 auto;
   color: #94a3b8;
   font-variant-numeric: tabular-nums;
+  font-size: var(--ps-ui-font-size-md);
 }
 
 .collectionSelectorButton,
