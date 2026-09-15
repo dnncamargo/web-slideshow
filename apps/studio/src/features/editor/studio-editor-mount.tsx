@@ -6,6 +6,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { useRouter } from "next/navigation";
 
 import type { Presentation } from "@powershow/document-schema";
+import { Button } from "@powershow/ui";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -212,30 +213,42 @@ export function StudioEditorMount({
   }
 
   if (status.kind === "loading") {
-    return <div>{t("editor.loading")}</div>;
+    return (
+      <RecoveryPanel>
+        <p className={styles.statusMessage} role="status" aria-live="polite">
+          {t("editor.loading")}
+        </p>
+      </RecoveryPanel>
+    );
   }
 
   if (status.kind === "not-found") {
     return (
-      <div>
-        {t("library.notFound")}
-
-        <button type="button" onClick={() => router.push(STUDIO_ROUTES.library)}>
-          {t("editor.backToLibrary")}
-        </button>
-      </div>
+      <RecoveryPanel data-powershow-recovery-not-found="true">
+        <header className={styles.recoveryHeader}>
+          <h1 className={styles.recoveryTitle}>{t("library.notFound")}</h1>
+        </header>
+        <div className={styles.recoveryActions}>
+          <Button size="compact" onClick={() => router.push(STUDIO_ROUTES.library)}>
+            {t("editor.backToLibrary")}
+          </Button>
+        </div>
+      </RecoveryPanel>
     );
   }
 
   if (status.kind === "error") {
     return (
-      <div>
-        {t("editor.couldNotLoad")}
-
-        <button type="button" onClick={() => router.push(STUDIO_ROUTES.library)}>
-          {t("editor.backToLibrary")}
-        </button>
-      </div>
+      <RecoveryPanel data-powershow-recovery-error="true">
+        <header className={styles.recoveryHeader}>
+          <h1 className={styles.recoveryTitle}>{t("editor.couldNotLoad")}</h1>
+        </header>
+        <div className={styles.recoveryActions}>
+          <Button size="compact" onClick={() => router.push(STUDIO_ROUTES.library)}>
+            {t("editor.backToLibrary")}
+          </Button>
+        </div>
+      </RecoveryPanel>
     );
   }
 
