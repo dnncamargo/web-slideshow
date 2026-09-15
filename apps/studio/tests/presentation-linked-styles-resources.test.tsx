@@ -2,13 +2,15 @@
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type LinkedContainerStyle } from "@powershow/document-schema";
+import { PresentationSchema, type LinkedContainerStyle, type LinkedTopicsStyle, type PowerShowElement } from "@powershow/document-schema";
+import { createLinkedStyleFromContainer, createLinkedStyleFromTopics, updateLinkedTopicsStyle } from "../src/features/editor/linked-style-authoring";
 import { createLinkedStylePreviewContainer, CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { paletteColorCssVariableName } from "@powershow/renderer";
 import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
 const repository = { listPalettes: async () => [], listFonts: async () => [] } as never;
 type LinkedStylePatch = { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] };
+type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
 const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion: 1, id, title: "P", slides: [{ id: "s", title: "S", elements: [
   { id: "linked", type: "container", hidden: false, linkedStyleId: "gap", children: [] },
   { id: "match-a", type: "container", hidden: false, layout: { children: { gap: 16 } }, children: [] },
@@ -27,11 +29,11 @@ describe("Linked Styles Resources contract", () => {
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); root = undefined; host = undefined!; });
 
-  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined, onRenameLinkedStyle: (id: string, name: string) => void = () => undefined) {
+  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined, onRenameLinkedStyle: (id: string, name: string) => void = () => undefined, selectedElement: PowerShowElement | null = null, onCreateFromSelected: (name: string) => void = () => undefined, onUpdateLinkedTopicsStyle: (id: string, patch: LinkedTopicsStylePatch) => void = () => undefined, onRemoveLinkedStyle: (id: string) => void = () => undefined) {
     if (root) await act(async () => root?.unmount());
     host?.remove();
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
-    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} onRenameLinkedStyle={onRenameLinkedStyle} onRequestDetachLinkedStyle={onRequestDetachLinkedStyle} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><CustomResourcesWorkspace customLibraryPaletteRepository={repository} customLibraryFontRepository={repository} presentation={value} presentationColors={[]} presentationFonts={[]} presentationTextStyles={[]} onAddLibraryPalette={() => ({ ok: true, addedColors: [] })} onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })} onApplyElementStyle={() => ({ ok: true })} onAddPresentationColor={() => undefined} onUpdatePresentationColor={() => undefined} onRemovePresentationColor={() => undefined} onRemovePresentationFont={() => "not-found"} isPresentationFontInUse={() => false} onUpdateLinkedStyle={onUpdateLinkedStyle} onUpdateLinkedTopicsStyle={onUpdateLinkedTopicsStyle} onCreateLinkedStyleFromSelected={onCreateFromSelected} selectedElement={selectedElement} onRenameLinkedStyle={onRenameLinkedStyle} onRemoveLinkedStyle={onRemoveLinkedStyle} onRequestDetachLinkedStyle={onRequestDetachLinkedStyle} /></StudioI18nProvider>));
   }
 
   async function openStyle(value: ReturnType<typeof makePresentation>, onUpdate = vi.fn()) {
@@ -438,5 +440,165 @@ describe("Linked Styles Resources contract", () => {
     const remove = host.querySelector<HTMLElement>("[data-linked-style-section='legacy-typography'] button") as HTMLButtonElement;
     expect(remove.disabled).toBe(true);
     expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("enables Add to Linked Styles only for canonically creatable selected elements", async () => {
+    const action = () => host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button:last-of-type");
+    await render(makePresentation(), () => undefined, "en", () => undefined, () => undefined, null);
+    expect(action()?.textContent).toContain("Add to Linked Styles");
+    expect(action()?.disabled).toBe(true);
+
+    const unsupported = { id: "text", type: "text" as const, hidden: false, variant: "body" as const, content: "Text" };
+    await render(makePresentation(), () => undefined, "en", () => undefined, () => undefined, unsupported);
+    expect(action()?.disabled).toBe(true);
+
+    const container = { id: "source", type: "container" as const, hidden: false, layout: { margin: 8 }, children: [] };
+    await render(makePresentation(), () => undefined, "en", () => undefined, () => undefined, container);
+    expect(action()?.disabled).toBe(false);
+
+    const topics = { id: "topics", type: "topics" as const, hidden: false, kind: "unordered" as const, itemGap: 8, items: [] };
+    await render(makePresentation(), () => undefined, "en", () => undefined, () => undefined, topics);
+    expect(action()?.disabled).toBe(false);
+    await render(makePresentation(), () => undefined, "en", () => undefined, () => undefined, { ...topics, linkedStyleId: "existing" });
+    expect(action()?.disabled).toBe(true);
+  });
+
+  it("renders the typed Topics editor, preview, update boundary, and usage protection", async () => {
+    const topics = { id: "topics", type: "topics" as const, hidden: false, kind: "unordered" as const, itemGap: 8, rootMarkerStyle: "disc" as const, markerColor: "#ff0000" as const, items: [] };
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ ...topics, linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Card", layout: { margin: 4 }, rootMarkerStyle: "square", markerColor: "#00ff00", itemGap: 12 }, { id: "container-style", name: "Card", layout: { padding: 4 } }] });
+    const updateTopics = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    const editor = host.querySelector<HTMLElement>("[data-linked-topics-style-editor]")!;
+    expect(editor.querySelector("#linked-topics-style-topics-style-margin")).not.toBeNull();
+    expect(editor.textContent).toContain("First-level marker");
+    expect(editor.querySelector("#linked-topics-style-topics-style-marker-color")).not.toBeNull();
+    expect(editor.textContent).toContain("Topic spacing");
+    expect(editor.querySelector("[data-linked-style-property]" )).toBeNull();
+    expect(host.querySelector("[data-linked-style-id='topics-style'] [data-linked-style-preview]")).not.toBeNull();
+    const remove = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='topics-style'] button")).find((button) => button.textContent?.includes("Remove"))!;
+    expect(remove.disabled).toBe(true);
+    const gap = editor.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap")!;
+    await setInput(gap, "20");
+    expect(updateTopics).toHaveBeenCalledWith("topics-style", expect.objectContaining({ itemGap: 20 }));
+  });
+
+  it("keeps the Topics resource editor sparse and removes individual properties", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ id: "topics", type: "topics", hidden: false, kind: "unordered", items: [], linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Sparse", itemGap: 8, markerColor: "#00ff00" }] });
+    const updateTopics = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    const editor = host.querySelector<HTMLElement>("[data-linked-topics-style-editor]")!;
+    expect(editor.querySelector("[data-linked-topics-property='margin']")).toBeNull();
+    expect(editor.querySelector("[data-linked-topics-property='itemGap']")).not.toBeNull();
+    expect(editor.querySelector("[data-linked-topics-property='markerColor']")).not.toBeNull();
+    expect(editor.querySelector("[data-linked-topics-property-group='spacing'] h4")?.textContent).toBe("Spacing");
+    expect(editor.querySelectorAll("[data-linked-topics-property-group='spacing'] h4")).toHaveLength(1);
+    expect(editor.querySelectorAll("[data-linked-topics-property='itemGap'] [data-resource-action='remove']")).toHaveLength(1);
+    await act(async () => editor.querySelector<HTMLButtonElement>("[data-linked-topics-property='itemGap'] [data-resource-action='remove']")?.click());
+    expect(updateTopics).toHaveBeenCalledWith("topics-style", { itemGap: undefined });
+
+    const afterRemoval = updateLinkedTopicsStyle(value, "topics-style", { itemGap: undefined });
+    await render(afterRemoval, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    expect(host.querySelector("[data-linked-topics-property='itemGap']")).toBeNull();
+    expect(host.querySelector("[data-linked-topics-property='markerColor']")).not.toBeNull();
+  });
+
+  it("reuses the Text Styles add-property interaction without duplicate options", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ id: "topics", type: "topics", hidden: false, kind: "unordered", items: [], linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Sparse", itemGap: 8 }] });
+    const updateTopics = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    const editor = host.querySelector<HTMLElement>("[data-linked-topics-style-editor]")!;
+    const addButton = editor.querySelector<HTMLButtonElement>("[data-topics-linked-style-property-chooser] > button")!;
+    await act(async () => addButton.click());
+    const chooser = editor.querySelector<HTMLElement>("[data-topics-linked-style-property-chooser] > div")!;
+    expect(chooser.textContent).not.toContain("Topic spacing");
+    expect(chooser.textContent).toContain("Margin");
+    await act(async () => Array.from(chooser.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Margin")?.click());
+    expect(updateTopics).toHaveBeenCalledWith("topics-style", { layout: { margin: 0 } });
+  });
+
+  it.each([
+    ["itemGap", { itemGap: 8 }],
+    ["markerColor", { markerColor: "#00ff00" }],
+    ["rootMarkerStyle", { rootMarkerStyle: "square" }],
+    ["layout margin", { layout: { margin: 12 } }],
+  ] as const)("disables the final Topics property removal for %s", async (_property, authored) => {
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ id: "topics", type: "topics", hidden: false, kind: "unordered", items: [], linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Sole", ...authored }] });
+    await render(value);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    expect(host.querySelector<HTMLButtonElement>("[data-linked-topics-property] [data-resource-action='remove']")?.disabled).toBe(true);
+  });
+
+  it("enables removal with two Topics properties, then disables the remaining property", async () => {
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [{ id: "topics", type: "topics", hidden: false, kind: "unordered", items: [], linkedStyleId: "topics-style" }] }], linkedStyles: [{ target: "topics", id: "topics-style", name: "Pair", itemGap: 8, markerColor: "#00ff00" }] });
+    const updateTopics = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    const editor = host.querySelector<HTMLElement>("[data-linked-topics-style-editor]")!;
+    expect(Array.from(editor.querySelectorAll<HTMLButtonElement>("[data-resource-action='remove']")).every((button) => !button.disabled)).toBe(true);
+    await act(async () => editor.querySelector<HTMLButtonElement>("[data-linked-topics-property='markerColor'] [data-resource-action='remove']")?.click());
+    expect(updateTopics).toHaveBeenCalledWith("topics-style", { markerColor: undefined });
+    const remaining = updateLinkedTopicsStyle(value, "topics-style", { markerColor: undefined });
+    await render(remaining);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    expect(host.querySelector<HTMLButtonElement>("[data-linked-topics-property='itemGap'] [data-resource-action='remove']")?.disabled).toBe(true);
+  });
+
+  it("performs the Topics Add-to state transition without bulk-linking or name collisions", async () => {
+    const source = { id: "topics-source", type: "topics" as const, hidden: false, kind: "ordered" as const, itemGap: 8, rootMarkerStyle: "decimal" as const, items: [{ id: "item", content: { id: "slot", children: [{ id: "text", type: "text" as const, hidden: false, variant: "body" as const, content: "Keep me" }] }, children: [] }] };
+    const other = { id: "topics-other", type: "topics" as const, hidden: false, kind: "unordered" as const, itemGap: 8, items: [] };
+    const before = structuredClone(source);
+    let current = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [source, other] }], linkedStyles: [{ id: "shared", name: "Shared", layout: { margin: 2 } }] });
+    const create = (name: string) => { current = createLinkedStyleFromTopics(current, 0, source.id, name); };
+    await render(current, () => undefined, "en", () => undefined, () => undefined, source, create);
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button:last-of-type")?.click());
+    const nameInput = host.querySelector<HTMLInputElement>("[data-presentation-linked-styles] input")!;
+    await setInput(nameInput, "Shared");
+    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-linked-styles] button")).find((button) => button.textContent?.includes("Add to Linked Styles") && button !== host.querySelector("[data-presentation-linked-styles] > button:last-of-type"))?.click());
+    const created = current.linkedStyles?.find((style) => style.id !== "shared");
+    expect(current.linkedStyles).toHaveLength(2);
+    expect(created).toMatchObject({ target: "topics", name: "Shared" });
+    expect(created?.id).not.toBe("shared");
+    expect(current.slides[0]?.elements[0]).toMatchObject({ id: source.id, linkedStyleId: created?.id });
+    expect(current.slides[0]?.elements[1]).not.toHaveProperty("linkedStyleId");
+    expect(current.slides[0]?.elements[0]).toMatchObject({ kind: before.kind, items: before.items });
+    expect(current.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(current.linkedStyles?.find((style) => style.id === "shared")).toMatchObject({ layout: { margin: 2 } });
+  });
+
+  it("performs the Container Add-to state transition for only the selected source", async () => {
+    const source = { id: "container-source", type: "container" as const, hidden: false, layout: { margin: 8 }, children: [] };
+    const other = { id: "container-other", type: "container" as const, hidden: false, layout: { margin: 8 }, children: [] };
+    let current = PresentationSchema.parse({ ...makePresentation(), linkedStyles: undefined, slides: [{ id: "s", title: "S", elements: [source, other] }] });
+    const create = (name: string) => { current = createLinkedStyleFromContainer(current, 0, source.id, name); };
+    await render(current, () => undefined, "en", () => undefined, () => undefined, source, create);
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button:last-of-type")?.click());
+    const nameInput = host.querySelector<HTMLInputElement>("[data-presentation-linked-styles] input")!;
+    await setInput(nameInput, "Container");
+    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-linked-styles] button")).find((button) => button.textContent?.includes("Add to Linked Styles") && button !== host.querySelector("[data-presentation-linked-styles] > button:last-of-type"))?.click());
+    const created = current.linkedStyles?.[0];
+    expect(current.linkedStyles).toHaveLength(1);
+    expect(created).toMatchObject({ name: "Container" });
+    expect(current.slides[0]?.elements[0]).toMatchObject({ linkedStyleId: created?.id });
+    expect(current.slides[0]?.elements[1]).not.toHaveProperty("linkedStyleId");
+  });
+
+  it("removes unused Topics resources but protects referenced ones", async () => {
+    const topics = { id: "topics", type: "topics" as const, hidden: false, kind: "unordered" as const, linkedStyleId: "used", items: [] };
+    const value = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [topics] }], linkedStyles: [{ target: "topics", id: "unused", name: "Unused", itemGap: 4 }, { target: "topics", id: "used", name: "Used", itemGap: 4 }] });
+    const remove = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, () => undefined, remove);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='unused'] button")?.click());
+    const unusedRemove = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='unused'] button")).find((button) => button.textContent?.includes("Remove"));
+    expect(unusedRemove?.disabled).toBe(false);
+    await act(async () => unusedRemove?.click());
+    expect(remove).toHaveBeenCalledWith("unused");
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='used'] button")?.click());
+    const usedRemove = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='used'] button")).find((button) => button.textContent?.includes("Remove"));
+    expect(usedRemove?.disabled).toBe(true);
+    expect(remove).not.toHaveBeenCalledWith("used");
   });
 });

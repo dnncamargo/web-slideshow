@@ -12,6 +12,7 @@ import {
   type Presentation,
   type TopicsElement,
 } from "@powershow/document-schema";
+import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@powershow/theme/element-style-defaults";
 
 import { findElementById, updateElementById } from "./element-tree";
 import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";
@@ -123,6 +124,15 @@ function authoredObject<T extends object>(value: T | undefined): T | undefined {
       .filter(([, entry]) => entry !== undefined),
   ) as T;
   return Object.keys(result).length === 0 ? undefined : result;
+}
+
+function isDefaultTopicsMargin(value: unknown): boolean {
+  if (typeof value !== "number" && typeof value !== "string") return false;
+  return parseAuthoringLength(value)?.value === 0;
+}
+
+function isDefaultTopicsRootMarker(kind: TopicsElement["kind"], value: TopicsElement["rootMarkerStyle"]): boolean {
+  return value === (kind === "ordered" ? "decimal" : "disc");
 }
 
 function shareableStyle(style: ContainerElement["style"]): ShareableStyle | undefined {
@@ -257,11 +267,16 @@ function replaceTopicsInSlide(
 
 function topicsLinkedStyleProperties(topics: TopicsElement): LinkedTopicsStylePatch {
   const layout = authoredObject(topics.layout);
+  const sparseLayout = layout === undefined
+    ? undefined
+    : authoredObject(Object.fromEntries(
+        Object.entries(layout).filter(([key, value]) => !key.startsWith("margin") || !isDefaultTopicsMargin(value)),
+      ) as NonNullable<TopicsElement["layout"]>);
   return {
-    ...(layout === undefined ? {} : { layout }),
-    ...(topics.rootMarkerStyle === undefined ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
+    ...(sparseLayout === undefined ? {} : { layout: sparseLayout }),
+    ...(topics.rootMarkerStyle === undefined || isDefaultTopicsRootMarker(topics.kind, topics.rootMarkerStyle) ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
     ...(topics.markerColor === undefined ? {} : { markerColor: topics.markerColor }),
-    ...(topics.itemGap === undefined ? {} : { itemGap: topics.itemGap }),
+    ...(topics.itemGap === undefined || topics.itemGap === TOPICS_ITEM_GAP_DEFAULT_PX ? {} : { itemGap: topics.itemGap }),
   };
 }
 
@@ -330,7 +345,23 @@ export function updateLinkedTopicsStyle(
 ): Presentation {
   const current = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === linkedStyleId);
   if (current === undefined) return presentation;
-  const updated = { ...current, ...patch, ...(patch.layout === undefined ? {} : { layout: authoredObject(patch.layout) }) };
+  const updated: LinkedTopicsStyle = { ...current };
+  if (Object.prototype.hasOwnProperty.call(patch, "layout")) {
+    if (patch.layout === undefined) delete updated.layout;
+    else updated.layout = authoredObject(patch.layout);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "rootMarkerStyle")) {
+    if (patch.rootMarkerStyle === undefined) delete updated.rootMarkerStyle;
+    else updated.rootMarkerStyle = patch.rootMarkerStyle;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "markerColor")) {
+    if (patch.markerColor === undefined) delete updated.markerColor;
+    else updated.markerColor = patch.markerColor;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "itemGap")) {
+    if (patch.itemGap === undefined) delete updated.itemGap;
+    else updated.itemGap = patch.itemGap;
+  }
   const parsed = PresentationSchema.safeParse({ ...presentation, linkedStyles: presentation.linkedStyles!.map((style) => style.id === linkedStyleId ? updated : style) });
   return parsed.success ? parsed.data : presentation;
 }

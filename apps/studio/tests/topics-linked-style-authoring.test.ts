@@ -34,16 +34,51 @@ function selected(document: Presentation) {
 describe("Topics Linked Style authoring", () => {
   it("creates a typed resource, transfers only allowed properties, and preserves content", () => {
     const initial = presentation(topics({
-      layout: { margin: 12 }, rootMarkerStyle: "disc", markerColor: "#112233", itemGap: 8,
+      layout: { margin: 12 }, rootMarkerStyle: "square", markerColor: "#112233", itemGap: 8,
       style: { color: "#445566" }, typography: { fontSize: 24 },
     }));
     const result = createLinkedStyleFromTopics({ ...initial, linkedStyles: [{ id: "topics", name: "Topics", layout: { margin: 4 } }] }, 0, "topics", "Topics");
-    expect(result.linkedStyles).toEqual([{ id: "topics", name: "Topics", layout: { margin: 4 } }, { target: "topics", id: "topics-2", name: "Topics", layout: { margin: 12 }, rootMarkerStyle: "disc", markerColor: "#112233", itemGap: 8 }]);
+    expect(result.linkedStyles).toEqual([{ id: "topics", name: "Topics", layout: { margin: 4 } }, { target: "topics", id: "topics-2", name: "Topics", layout: { margin: 12 }, rootMarkerStyle: "square", markerColor: "#112233", itemGap: 8 }]);
     expect(selected(result)).toMatchObject({ linkedStyleId: "topics-2", style: { color: "#445566" }, typography: { fontSize: 24 } });
     expect(selected(result)).not.toHaveProperty("layout");
     expect(selected(result)).not.toHaveProperty("rootMarkerStyle");
     expect(selected(result).items).toEqual(selected(initial).items);
     expect(PresentationSchema.safeParse(result).success).toBe(true);
+  });
+
+  it("strips default-equivalent Topics margins while preserving customized properties", () => {
+    const initial = presentation(topics({
+      layout: { margin: 0, marginTop: "0px", marginRight: 12 },
+      rootMarkerStyle: "disc", itemGap: 6,
+    }));
+    const result = createLinkedStyleFromTopics(initial, 0, "topics", "Sparse");
+    const linked = result.linkedStyles?.[0];
+    expect(linked).not.toHaveProperty("layout.margin");
+    expect(linked).not.toHaveProperty("layout.marginTop");
+    expect(linked).toHaveProperty("layout.marginRight", 12);
+    expect(linked).not.toHaveProperty("rootMarkerStyle");
+    expect(linked).not.toHaveProperty("itemGap");
+    expect(JSON.stringify(linked)).not.toContain("undefined");
+  });
+
+  it("removes Topics resource properties by absence rather than explicit undefined", () => {
+    const initial = presentation(topics({}), [
+      { target: "topics", id: "shared", name: "Shared", layout: { margin: 12 }, rootMarkerStyle: "square", markerColor: "#112233", itemGap: 8 },
+    ]);
+    const result = updateLinkedTopicsStyle(initial, "shared", { layout: undefined, markerColor: undefined, itemGap: undefined });
+    const linked = result.linkedStyles?.[0];
+    expect(linked).not.toHaveProperty("layout");
+    expect(linked).not.toHaveProperty("markerColor");
+    expect(linked).not.toHaveProperty("itemGap");
+    expect(linked).toHaveProperty("rootMarkerStyle", "square");
+  });
+
+  it("defensively rejects removing the final authored property", () => {
+    const initial = presentation(topics({ itemGap: 8 }), [
+      { target: "topics", id: "shared", name: "Shared", itemGap: 8 },
+    ]);
+    expect(updateLinkedTopicsStyle(initial, "shared", { itemGap: undefined })).toEqual(initial);
+    expect(initial.linkedStyles?.[0]).not.toHaveProperty("layout");
   });
 
   it("attaches only a Topics resource and preserves unrelated local overrides", () => {

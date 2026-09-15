@@ -155,6 +155,13 @@ import { addPickedColor, removePickedColor } from "./inspector/sections/picked-c
 import {
   attachLinkedStyle,
   detachLinkedStyle,
+  attachLinkedTopicsStyle,
+  detachLinkedTopicsStyle,
+  createLinkedStyleFromContainer,
+  createLinkedStyleFromTopics,
+  canCreateLinkedStyleFromContainer,
+  canCreateLinkedStyleFromTopics,
+  updateLinkedTopicsStyle,
   updateLinkedStyle,
   renameLinkedStyle,
   removeUnusedLinkedStyle,
@@ -2273,6 +2280,16 @@ export function EditorWorkspace({
     ));
   }
 
+  function attachSelectedTopicsLinkedStyle(linkedStyleId: string): void {
+    if (selectedDocumentElement?.type !== "topics") return;
+    setPresentation((current) => attachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id, linkedStyleId));
+  }
+
+  function detachSelectedTopicsLinkedStyle(): void {
+    if (selectedDocumentElement?.type !== "topics") return;
+    setPresentation((current) => detachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id));
+  }
+
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
@@ -2498,6 +2515,15 @@ export function EditorWorkspace({
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
   function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
     setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
+  }
+  function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void { setPresentation((current) => updateLinkedTopicsStyle(current, id, patch)); }
+  function createLinkedStyleFromSelectedElement(name: string): void {
+    if (!selectedDocumentElement) return;
+    setPresentation((current) => {
+      if (selectedDocumentElement.type === "container" && canCreateLinkedStyleFromContainer(selectedDocumentElement)) return createLinkedStyleFromContainer(current, selectedSlideIndex, selectedDocumentElement.id, name);
+      if (selectedDocumentElement.type === "topics" && canCreateLinkedStyleFromTopics(selectedDocumentElement)) return createLinkedStyleFromTopics(current, selectedSlideIndex, selectedDocumentElement.id, name);
+      return current;
+    });
   }
   function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
   function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
@@ -3939,6 +3965,7 @@ export function EditorWorkspace({
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onUpdateLinkedTopicsStyle={updatePresentationLinkedTopicsStyle}
              onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
@@ -3947,6 +3974,8 @@ export function EditorWorkspace({
              onSelectTextStyleElement={selectTextStyleElement}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
              onRequestDetachTextStyleElement={requestTextStyleDetach}
+             selectedElement={selectedDocumentElement}
+             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />
@@ -4098,6 +4127,8 @@ export function EditorWorkspace({
                           presentation={presentation}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
+                          onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
+                          onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition

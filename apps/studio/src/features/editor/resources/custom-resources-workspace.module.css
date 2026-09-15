@@ -180,15 +180,18 @@
   gap: 8px;
   padding: 4px 0 6px 8px;
   border-left: 1px solid var(--ps-ui-border-default);
+  font-size: 11px;
 }
 
+.typographyStylePreview,
 .linkedStylePreview {
   position: relative;
-  display: grid;
+  display: flex;
   width: 100%;
-  height: 94px;
+  min-height: 76px;
   min-width: 0;
   box-sizing: border-box;
+  align-items: center;
   overflow: hidden;
   pointer-events: none;
   user-select: none;
@@ -196,6 +199,12 @@
   border: 1px solid var(--ps-ui-border-default);
   border-radius: var(--ps-ui-radius-6);
   background: var(--ps-ui-background-control);
+}
+
+.typographyStylePreview :global(.powershow-text),
+.linkedStylePreview :global(.powershow-text) {
+  width: 100%;
+  margin: 0;
 }
 
 .resourcePropertyGroup,
@@ -568,10 +577,14 @@
   gap: 2px;
 }
 
-.textStylesSection {
+.resourcePropertyEditor {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.textStylesSection {
+  composes: resourcePropertyEditor;
 }
 
 .textStylesSection > .resourceAction {
@@ -692,6 +705,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.resourcePropertyLabel {
   color: var(--ps-ui-text-primary);
   font-size: 10px;
   font-weight: 600;
@@ -733,25 +749,6 @@
 .resourceChooserOption:disabled {
   color: var(--ps-ui-text-muted);
   cursor: not-allowed;
-}
-
-.typographyStylePreview {
-  display: flex;
-  width: 100%;
-  min-height: 76px;
-  box-sizing: border-box;
-  align-items: center;
-  overflow: hidden;
-  padding: 8px;
-  border: 1px solid var(--ps-ui-border-default);
-  border-radius: var(--ps-ui-radius-6);
-  background: var(--ps-ui-background-control);
-  color: var(--ps-ui-text-primary);
-}
-
-.typographyStylePreview :global(.powershow-text) {
-  width: 100%;
-  margin: 0;
 }
 
 .resourceStyleActions {
