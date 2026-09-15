@@ -265,7 +265,7 @@ function TableCellEditor({
       <select
         id={`${controlIdPrefix}-type`}
         name={`${controlNamePrefix}Type`}
-        className={styles.tableCellType}
+        className={`${styles.inspectorControl} ${styles.tableCellType}`}
         value={type}
         onChange={(event) => {
           onChange(
@@ -291,6 +291,7 @@ function TableCellEditor({
           id={`${controlIdPrefix}-value`}
           name={`${controlNamePrefix}Value`}
           type="text"
+          className={styles.inspectorControl}
           value={value === undefined || value === null || (typeof value !== "string" && typeof value !== "object")
             ? ""
             : getTextContentPlainText(value)}
@@ -311,6 +312,7 @@ function TableCellEditor({
           id={`${controlIdPrefix}-value`}
           name={`${controlNamePrefix}Value`}
           type="number"
+          className={styles.inspectorControl}
           value={typeof value === "number" ? value : 0}
           onChange={(event) => {
             const number = Number(event.target.value);
@@ -324,6 +326,7 @@ function TableCellEditor({
         <select
           id={`${controlIdPrefix}-value`}
           name={`${controlNamePrefix}Value`}
+          className={styles.inspectorControl}
           value={value === true ? "true" : "false"}
           onChange={(event) => {
             onChange(event.target.value === "true");

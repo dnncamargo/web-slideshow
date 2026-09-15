@@ -1672,23 +1672,24 @@
   flex-direction:
     column;
 
-  gap: 7px;
+  gap: var(--ps-ui-space-7);
 
   color:
-    #94a3b8;
+    var(--ps-ui-text-muted);
 
   font-size:
-    12px;
+    var(--ps-ui-font-size-md);
 }
 
 
+.inspectorControl,
 .field select,
 .field input {
   width: 100%;
 
   min-width: 0;
 
-  height: 34px;
+  height: var(--ps-ui-inspector-control-height);
 
   border:
     1px solid
@@ -1701,40 +1702,65 @@
     var(--ps-ui-background-input);
 
   color:
-    #e2e8f0;
+    var(--ps-ui-text-resource-primary);
 
   font:
     inherit;
 
-  outline: none;
+  font-size:
+    var(--ps-ui-font-size-md);
+
+  line-height:
+    var(--ps-ui-inspector-control-line-height);
+
 }
 
 
+.inspectorControl,
 .field select {
   padding:
     0
-    9px;
+    var(--ps-ui-inspector-control-padding-inline);
 }
 
 
-.field select:disabled {
-  opacity: 0.5;
+.inspectorControl:disabled,
+.field select:disabled,
+.field input:disabled {
+  opacity: var(--ps-ui-opacity-disabled);
 
   cursor: not-allowed;
 }
 
 
+.inspectorControl,
 .field input {
   padding:
     0
-    8px;
+    var(--ps-ui-inspector-control-padding-inline);
 }
 
 
+.inspectorControl:focus,
 .field select:focus,
 .field input:focus {
   border-color:
     var(--ps-ui-semantic-focus);
+}
+
+.inspectorControl:focus-visible,
+.field select:focus-visible,
+.field input:focus-visible,
+.textArea:focus-visible {
+  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
+  outline-offset: var(--ps-ui-focus-outline-offset);
+}
+
+.inspectorControl::placeholder,
+.field input::placeholder,
+.textArea::placeholder {
+  color: var(--ps-ui-text-placeholder);
+  opacity: 1;
 }
 
 
@@ -1795,31 +1821,10 @@
 
   min-width: 0;
 
-  height: 34px;
-
-  padding: 0 8px;
-
-  border: 1px solid var(--ps-ui-border-input);
-
-  border-radius: var(--ps-ui-radius-input);
-
-  background: var(--ps-ui-background-input);
-
-  color: #e2e8f0;
-
-  font: inherit;
-
-  box-sizing: border-box;
-
-  outline: none;
 }
 
 .topicsInput {
   overflow: hidden;
-}
-
-.topicsInput:focus {
-  border-color: #6366f1;
 }
 
 .topicsReadOnlyField {
@@ -1890,6 +1895,9 @@
 .unitInput:focus-within {
   border-color:
     var(--ps-ui-semantic-focus);
+
+  outline: var(--ps-ui-focus-outline-width) solid var(--ps-ui-semantic-focus);
+  outline-offset: var(--ps-ui-focus-outline-offset);
 }
 
 
@@ -2007,8 +2015,8 @@
   resize: vertical;
 
   padding:
-    9px
-    10px;
+    var(--ps-ui-inspector-textarea-padding-block)
+    var(--ps-ui-inspector-textarea-padding-inline);
 
   border:
     1px solid
@@ -2021,16 +2029,14 @@
     var(--ps-ui-background-input);
 
   color:
-    #e2e8f0;
+    var(--ps-ui-text-resource-primary);
 
   font:
     inherit;
 
   line-height:
-    1.45;
+    var(--ps-ui-inspector-textarea-line-height);
 
-  outline:
-    none;
 }
 
 .textArea:focus {
@@ -2160,8 +2166,8 @@
 
 .textEditor > .textArea {
   display: block;
-  min-height: 112px;
-  padding: 10px;
+  min-height: var(--ps-ui-inspector-textarea-min-height);
+  padding: var(--ps-ui-inspector-textarea-padding-block) var(--ps-ui-inspector-textarea-padding-inline);
 
   border: 0;
   border-radius: 0;
@@ -3068,39 +3074,8 @@
 }
 
 
-.tableCellEditor input,
-.tableCellEditor select {
-  width: 100%;
-
-  min-width: 0;
-
-  height: 32px;
-
-  padding:
-    0
-    7px;
-
-  border:
-    1px solid
-    var(--ps-ui-border-input);
-
-  border-radius:
-    var(--ps-ui-radius-input);
-
-  background:
-    var(--ps-ui-background-input);
-
-  color:
-    #e2e8f0;
-
-  font-size:
-    11px;
-}
-
-
 .tableCellType {
-  color:
-    #94a3b8 !important;
+  color: var(--ps-ui-text-muted);
 }
 
 

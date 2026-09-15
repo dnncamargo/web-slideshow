@@ -31,6 +31,44 @@
   --ps-ui-control-compact-height: 28px;
   --ps-ui-control-default-height: 36px;
   --ps-ui-control-touch-height: 44px;
+  --ps-ui-resource-preview-min-height: 76px;
+  --ps-ui-text-placeholder: var(--ps-ui-text-muted);
+  --ps-ui-inspector-control-line-height: normal;
+  --ps-ui-inspector-control-height: 34px;
+  --ps-ui-inspector-control-padding-inline: var(--ps-ui-space-8);
+  --ps-ui-inspector-textarea-padding-block: 9px;
+  --ps-ui-inspector-textarea-padding-inline: 10px;
+  --ps-ui-inspector-textarea-line-height: 1.45;
+  --ps-ui-inspector-textarea-min-height: 112px;
+  --ps-ui-space-1: 1px;
+  --ps-ui-space-2: 2px;
+  --ps-ui-space-3: 3px;
+  --ps-ui-space-5: 5px;
+  --ps-ui-space-7: 7px;
+  --ps-ui-space-14: 14px;
+  --ps-ui-space-44: 44px;
+  --ps-ui-space-48: 48px;
+  --ps-ui-space-110: 110px;
+  --ps-ui-radius-5: 5px;
+  --ps-ui-font-size-2xs: 9px;
+  --ps-ui-font-size-xs: 10px;
+  --ps-ui-font-size-sm: 11px;
+  --ps-ui-font-size-md: 12px;
+  --ps-ui-font-size-lg: 14px;
+  --ps-ui-font-size-xl: 15px;
+  --ps-ui-font-weight-semibold: 600;
+  --ps-ui-letter-spacing-wide: 0.08em;
+  --ps-ui-text-transform-uppercase: uppercase;
+  --ps-ui-line-height-tight: 1;
+  --ps-ui-control-icon-size: 20px;
+  --ps-ui-control-swatch-size: 20px;
+  --ps-ui-border-width-default: 1px;
+  --ps-ui-focus-outline-width: 2px;
+  --ps-ui-focus-outline-offset: 1px;
+  --ps-ui-opacity-disabled: 0.5;
+  --ps-ui-text-resource-primary: #e2e8f0;
+  --ps-ui-border-swatch: rgb(255 255 255 / 24%);
+  --ps-ui-shadow-resource-chooser: 0 8px 20px rgb(0 0 0 / 25%);
 }
 
 .ps-ui-button {

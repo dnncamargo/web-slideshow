@@ -200,7 +200,7 @@ function TopicRow({
             ref={(node) => {
               registerInputRef(item.id, node);
             }}
-            className={`${styles.topicsField} ${styles.topicsInput}`}
+            className={`${styles.inspectorControl} ${styles.topicsField} ${styles.topicsInput}`}
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
@@ -211,7 +211,7 @@ function TopicRow({
           />
         ) : (
           <span
-            className={`${styles.topicsField} ${styles.topicsReadOnlyField}`}
+            className={`${styles.inspectorControl} ${styles.topicsField} ${styles.topicsReadOnlyField}`}
             data-powershow-topic-content-state={
               contentLabels.length > 0 ? "descriptor" : "empty"
             }
