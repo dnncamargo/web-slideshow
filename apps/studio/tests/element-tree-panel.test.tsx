@@ -11,6 +11,7 @@ import type {
   PowerShowElement,
   Slide,
   TableElement,
+  StructuredTableElement,
   TopicItem,
   TopicsElement,
 } from "@powershow/document-schema";
@@ -48,6 +49,24 @@ function table(id: string): TableElement {
     hidden: false,
     columns: [{ key: "value", label: "Value" }],
     rows: [{ value: id }],
+  };
+}
+
+function structuredTable(id: string): StructuredTableElement {
+  return {
+    type: "table",
+    id,
+    hidden: false,
+    mode: "structured",
+    showHeader: true,
+    columns: [
+      { id: "column-1", header: contentSlot(`${id}-header-1`, [text(`${id}-header-text-1`, "Name")]) },
+      { id: "column-2", header: contentSlot(`${id}-header-2`, [text(`${id}-header-text-2`, "Year")]) },
+    ],
+    rows: [
+      { id: "row-1", cells: [contentSlot(`${id}-cell-1-1`, [text(`${id}-cell-text-1-1`, "Matrix")]), contentSlot(`${id}-cell-1-2`, [text(`${id}-cell-text-1-2`, "1999")])] },
+      { id: "row-2", cells: [contentSlot(`${id}-cell-2-1`, [text(`${id}-cell-text-2-1`, "Arrival")]), contentSlot(`${id}-cell-2-2`, [text(`${id}-cell-text-2-2`, "2016")])] },
+    ],
   };
 }
 
@@ -268,6 +287,8 @@ describe("ElementTreePanel", () => {
       onMoveTopicItem?: ReturnType<typeof vi.fn>;
       onIndentTopicItem?: ReturnType<typeof vi.fn>;
       onOutdentTopicItem?: ReturnType<typeof vi.fn>;
+      onMoveTableColumn?: ReturnType<typeof vi.fn>;
+      onMoveTableRow?: ReturnType<typeof vi.fn>;
     } = {},
   ) {
     const onSelectElement = options.onSelectElement ?? vi.fn();
@@ -291,6 +312,8 @@ describe("ElementTreePanel", () => {
             onOutdentTopicItem={onOutdentTopicItem}
             onMoveGalleryItem={vi.fn()}
             onGalleryStructureDrop={vi.fn()}
+            onMoveTableColumn={options.onMoveTableColumn ?? vi.fn()}
+            onMoveTableRow={options.onMoveTableRow ?? vi.fn()}
             onBrowseElementStyles={vi.fn()}
           />
         </StudioI18nProvider>,
@@ -303,6 +326,8 @@ describe("ElementTreePanel", () => {
       onMoveTopicItem,
       onIndentTopicItem,
       onOutdentTopicItem,
+      onMoveTableColumn: options.onMoveTableColumn,
+      onMoveTableRow: options.onMoveTableRow,
     };
   }
 
@@ -501,6 +526,108 @@ describe("ElementTreePanel", () => {
       "2. Image 2",
       "3. Image 3",
     ]);
+  });
+
+  it("projects Structured Table columns and rows as synthetic tree nodes", () => {
+    const slide: Slide = {
+      id: "slide-table",
+      title: "Table",
+      summary: "",
+      speakerNotes: "",
+      elements: [structuredTable("table-1")],
+    };
+    const onMoveTableColumn = vi.fn();
+    const onMoveTableRow = vi.fn();
+    renderPanel(slide, { selectedElementId: "table-1", onMoveTableColumn, onMoveTableRow });
+
+    expect(container.textContent).toContain("Columns");
+    expect(container.textContent).toContain("Rows");
+    expect(container.textContent).toContain("Column 1 (Name)");
+    expect(container.textContent).toContain("Row 1 (Matrix)");
+    expect(container.querySelectorAll('[data-powershow-table-tree-column-id]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-powershow-table-tree-row-id]')).toHaveLength(2);
+    expect(container.textContent).toContain("Name");
+    expect(container.textContent).toContain("Matrix");
+    expect(container.textContent).not.toContain("1999");
+    expect(container.querySelector('[data-powershow-table-tree-column-id="column-1"]')?.closest('li[role="treeitem"]')?.getAttribute("aria-selected")).toBe("false");
+
+    act(() => {
+      container.querySelector<HTMLButtonElement>('[data-powershow-table-tree-column-id="column-2"]')?.click();
+    });
+    expect(container.querySelector('[data-powershow-table-tree-column-id="column-2"]')?.closest('li[role="treeitem"]')?.getAttribute("aria-selected")).toBe("true");
+    act(() => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Move left"]')?.click();
+    });
+    expect(onMoveTableColumn).toHaveBeenCalledWith("table-1", "column-2", -1);
+    expect(onMoveTableRow).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-powershow-table-tree-column-id="table-1:cell"]')).toBeNull();
+  });
+
+  it("keeps single representative elements summarized and expands only multi-element slots", () => {
+    const element = structuredTable("table-leaf-rules");
+    element.columns[1]!.header.children = [image("column-image"), text("column-text", "Year")];
+    element.rows[1]!.cells[0]!.children = [text("row-text", "Arrival"), image("row-image")];
+    const slide: Slide = {
+      id: "slide-table-leaf-rules",
+      title: "Table",
+      summary: "",
+      speakerNotes: "",
+      elements: [element],
+    };
+
+    renderPanel(slide, { selectedElementId: element.id });
+
+    const singleColumn = container.querySelector<HTMLElement>('[data-powershow-table-tree-column-id="column-1"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const multiColumn = container.querySelector<HTMLElement>('[data-powershow-table-tree-column-id="column-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const singleRow = container.querySelector<HTMLElement>('[data-powershow-table-tree-row-id="row-1"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const multiRow = container.querySelector<HTMLElement>('[data-powershow-table-tree-row-id="row-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+
+    expect(singleColumn?.getAttribute("aria-expanded")).toBeNull();
+    expect(singleColumn ? directTreeGroup(singleColumn) : null).toBeNull();
+    expect(singleRow?.getAttribute("aria-expanded")).toBeNull();
+    expect(singleRow ? directTreeGroup(singleRow) : null).toBeNull();
+    expect(multiColumn?.getAttribute("aria-expanded")).toBe("true");
+    expect(multiRow?.getAttribute("aria-expanded")).toBe("true");
+    expect(multiColumn ? directTopicChildren(multiColumn).map(treeItemLabel) : []).toEqual(["Image", "Text — Year"]);
+    expect(multiRow ? directTopicChildren(multiRow).map(treeItemLabel) : []).toEqual(["Text — Arrival", "Image"]);
+
+    const collapseColumn = multiColumn?.querySelector<HTMLButtonElement>('button[aria-label="Collapse"]');
+    act(() => collapseColumn?.click());
+    expect(multiColumn?.getAttribute("aria-expanded")).toBe("false");
+    expect(multiColumn ? directTreeGroup(multiColumn) : null).toBeNull();
+  });
+
+  it("switches between structural and real-child targets and reorders the child", () => {
+    const element = structuredTable("table-selection");
+    element.rows[1]!.cells[0]!.children = [text("row-child-text", "Arrival"), image("row-child-image")];
+    const slide: Slide = {
+      id: "slide-table-selection",
+      title: "Table",
+      summary: "",
+      speakerNotes: "",
+      elements: [element],
+    };
+    const onSelectElement = vi.fn();
+    const onMoveElement = vi.fn();
+    const onMoveTableRow = vi.fn();
+
+    renderPanel(slide, { selectedElementId: element.id, onSelectElement, onMoveElement, onMoveTableRow });
+    const rowNode = container.querySelector<HTMLElement>('[data-powershow-table-tree-row-id="row-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement;
+    const childImage = directTopicChildren(rowNode).find((item) => treeItemLabel(item) === "Image");
+    if (!childImage) throw new Error("representative Image child not found");
+
+    clickRow(rowNode);
+    expect(rowNode.getAttribute("aria-selected")).toBe("true");
+    clickRow(childImage);
+    expect(onSelectElement).toHaveBeenLastCalledWith({ id: "row-child-image", type: "image", contentSlotId: "table-selection-cell-2-1" });
+
+    renderPanel(slide, { selectedElementId: "row-child-image", selectedContentSlotId: "table-selection-cell-2-1", onSelectElement, onMoveElement, onMoveTableRow });
+    expect(rowNode.getAttribute("aria-selected")).toBe("false");
+    expect(childImage.getAttribute("aria-selected")).toBe("true");
+    expect(footerMoveUpButton(container).disabled).toBe(false);
+    act(() => footerMoveUpButton(container).click());
+    expect(onMoveElement).toHaveBeenCalledWith({ elementId: "row-child-image", targetParentRef: { kind: "content-slot", id: "table-selection-cell-2-1" }, targetIndex: 0 });
+    expect(onMoveTableRow).not.toHaveBeenCalled();
   });
 
   it("selects a Gallery Image as a synthetic, draggable child row", () => {

@@ -9,6 +9,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 
 import styles from "../editor-workspace.module.css";
 
@@ -26,6 +27,11 @@ import {
   getTextContentPlainText,
   reconcileTextContentEdit,
 } from "../rich-text-authoring";
+import {
+  getStructuredColumnLabel,
+  getStructuredRowLabel,
+  type TableStructuralSelection,
+} from "../table-tree-helpers";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -52,6 +58,10 @@ interface TableInspectorProps {
   tableAuthoringControls: TableAuthoringControls;
 
   fontResources?: readonly FontResource[];
+
+  selectedTableStructuralNode?: TableStructuralSelection;
+
+  onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 }
 
 // ============================================================
@@ -350,6 +360,8 @@ export function TableInspector({
   onUpdate,
   fontResources = [],
   tableAuthoringControls,
+  selectedTableStructuralNode,
+  onSelectTableStructuralNode,
 }: TableInspectorProps) {
   if (element.mode !== "structured") {
     return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
@@ -360,6 +372,8 @@ export function TableInspector({
       element={element}
       onUpdate={onUpdate}
       tableAuthoringControls={tableAuthoringControls}
+      selectedTableStructuralNode={selectedTableStructuralNode}
+      onSelectTableStructuralNode={onSelectTableStructuralNode}
     />
   );
 }
@@ -830,14 +844,21 @@ interface StructuredTableInspectorProps {
   onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
 
   tableAuthoringControls: TableAuthoringControls;
+
+  selectedTableStructuralNode?: TableStructuralSelection;
+
+  onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 }
 
 function StructuredTableInspector({
   element,
   onUpdate,
   tableAuthoringControls,
+  selectedTableStructuralNode,
+  onSelectTableStructuralNode,
 }: StructuredTableInspectorProps) {
   const { t } = useStudioI18n();
+  const [pendingRemoval, setPendingRemoval] = useState<TableStructuralSelection>(null);
 
   function updateTable(
     update: (table: StructuredTableElement) => StructuredTableElement,
@@ -871,44 +892,32 @@ function StructuredTableInspector({
         count={element.columns.length}
         defaultOpen
       >
-        <div className={styles.tableEditorList}>
-          {element.columns.map((column, index) => (
-            <div
-              key={column.id}
-              className={styles.tableColumnEditor}
-              data-powershow-table-column="true"
-            >
-              <div className={styles.tableEditorHeader}>
-                <strong>
-                  <span>{t("table.column", { number: index + 1 })}</span>
-                </strong>
-
-                <button
-                  type="button"
-                  className={styles.iconButtonDanger}
-                  aria-label={t("table.removeColumn", { number: index + 1 })}
-                  data-powershow-table-remove-column="true"
-                  onClick={() => {
-                    tableAuthoringControls.onRemoveColumn(element.id, index);
-                  }}
-                >
-                  <span aria-hidden="true">×</span>
-                </button>
-              </div>
-            </div>
-          ))}
+        <ul className={styles.collectionSelector} data-powershow-table-column-summary>
+          {element.columns.map((column, index) => {
+            const selected = selectedTableStructuralNode?.kind === "column" && selectedTableStructuralNode.tableId === element.id && selectedTableStructuralNode.id === column.id;
+            const label = getStructuredColumnLabel(element, index, t);
+            return <li key={column.id} className={styles.collectionSelectorRow}>
+              <span className={styles.collectionOrdinal} aria-hidden="true">{index + 1}.</span>
+              <button type="button" className={`${styles.secondaryButton} ${styles.collectionSelectorButton} ${selected ? styles.collectionSelectorButtonSelected : ""}`} aria-pressed={selected} aria-label={label} onClick={() => onSelectTableStructuralNode?.({ kind: "column", tableId: element.id, id: column.id })}>
+                <span className={styles.collectionItemName}>{label}</span>
+              </button>
+            </li>;
+          })}
+        </ul>
+        <div className={styles.tableEditorActions}>
+          <button type="button" className="ps-ui-action" data-powershow-table-add-column="true" onClick={() => tableAuthoringControls.onAddColumn(element.id)}>
+            <span>{t("table.addColumn")}</span>
+          </button>
+          <button
+            type="button"
+            className="ps-ui-action"
+            data-powershow-table-remove-column="true"
+            disabled={!isSelectedColumn(element, selectedTableStructuralNode)}
+            onClick={() => setPendingRemoval(selectedTableStructuralNode ?? null)}
+          >
+            <span>{t("table.removeColumnAction")}</span>
+          </button>
         </div>
-
-        <button
-          type="button"
-          className="ps-ui-action"
-          data-powershow-table-add-column="true"
-          onClick={() => {
-            tableAuthoringControls.onAddColumn(element.id);
-          }}
-        >
-          <span>{t("table.addColumn")}</span>
-        </button>
       </InspectorSection>
 
       <InspectorSection
@@ -916,50 +925,32 @@ function StructuredTableInspector({
         count={element.rows.length}
         defaultOpen
       >
-        <div className={styles.tableEditorList}>
-          {element.rows.length === 0 && (
-            <div className={styles.emptyInspectorList}>
-              <span>{t("table.noRows")}</span>
-            </div>
-          )}
-
-          {element.rows.map((row, rowIndex) => (
-            <div
-              key={row.id}
-              className={styles.tableRowEditor}
-              data-powershow-table-row="true"
-            >
-              <div className={styles.tableEditorHeader}>
-                <strong>
-                  <span>{t("table.row", { number: rowIndex + 1 })}</span>
-                </strong>
-
-                <button
-                  type="button"
-                  className={styles.iconButtonDanger}
-                  aria-label={t("table.removeRow", { number: rowIndex + 1 })}
-                  data-powershow-table-remove-row="true"
-                  onClick={() => {
-                    tableAuthoringControls.onRemoveRow(element.id, rowIndex);
-                  }}
-                >
-                  <span aria-hidden="true">×</span>
-                </button>
-              </div>
-            </div>
-          ))}
+        <ul className={styles.collectionSelector} data-powershow-table-row-summary>
+          {element.rows.map((row, index) => {
+            const selected = selectedTableStructuralNode?.kind === "row" && selectedTableStructuralNode.tableId === element.id && selectedTableStructuralNode.id === row.id;
+            const label = getStructuredRowLabel(element, index, t);
+            return <li key={row.id} className={styles.collectionSelectorRow}>
+              <span className={styles.collectionOrdinal} aria-hidden="true">{index + 1}.</span>
+              <button type="button" className={`${styles.secondaryButton} ${styles.collectionSelectorButton} ${selected ? styles.collectionSelectorButtonSelected : ""}`} aria-pressed={selected} aria-label={label} onClick={() => onSelectTableStructuralNode?.({ kind: "row", tableId: element.id, id: row.id })}>
+                <span className={styles.collectionItemName}>{label}</span>
+              </button>
+            </li>;
+          })}
+        </ul>
+        <div className={styles.tableEditorActions}>
+          <button type="button" className="ps-ui-action" data-powershow-table-add-row="true" onClick={() => tableAuthoringControls.onAddRow(element.id)}>
+            <span>{t("table.addRow")}</span>
+          </button>
+          <button
+            type="button"
+            className="ps-ui-action"
+            data-powershow-table-remove-row="true"
+            disabled={!isSelectedRow(element, selectedTableStructuralNode)}
+            onClick={() => setPendingRemoval(selectedTableStructuralNode ?? null)}
+          >
+            <span>{t("table.removeRowAction")}</span>
+          </button>
         </div>
-
-        <button
-          type="button"
-          className="ps-ui-action"
-          data-powershow-table-add-row="true"
-          onClick={() => {
-            tableAuthoringControls.onAddRow(element.id);
-          }}
-        >
-          <span>{t("table.addRow")}</span>
-        </button>
       </InspectorSection>
 
       <InspectorSection title={t("inspector.display")}>
@@ -1004,8 +995,52 @@ function StructuredTableInspector({
         onUpdateEffect={updateEffect}
         controlPrefix="table"
       />
+      {pendingRemoval ? (() => {
+        const index = pendingRemoval.kind === "column"
+          ? element.columns.findIndex((column) => column.id === pendingRemoval.id)
+          : element.rows.findIndex((row) => row.id === pendingRemoval.id);
+        const label = pendingRemoval.kind === "column"
+          ? getStructuredColumnLabel(element, index, t)
+          : getStructuredRowLabel(element, index, t);
+        return <DangerConfirmDialog
+          title={t("table.removeConfirmTitle", { label })}
+          message={t("table.removeConfirmBody")}
+          confirmLabel={pendingRemoval.kind === "column" ? t("table.removeColumn", { number: index + 1 }) : t("table.removeRow", { number: index + 1 })}
+          cancelLabel={t("elementCrud.cancel")}
+          onCancel={() => setPendingRemoval(null)}
+          onConfirm={() => {
+            const currentIndex = pendingRemoval.kind === "column"
+              ? element.columns.findIndex((column) => column.id === pendingRemoval.id)
+              : element.rows.findIndex((row) => row.id === pendingRemoval.id);
+            if (currentIndex >= 0) {
+              if (pendingRemoval.kind === "column") tableAuthoringControls.onRemoveColumn(element.id, currentIndex);
+              else tableAuthoringControls.onRemoveRow(element.id, currentIndex);
+              const nextIndex = Math.min(currentIndex, (pendingRemoval.kind === "column" ? element.columns.length : element.rows.length) - 2);
+              const nextId = pendingRemoval.kind === "column" ? element.columns[nextIndex]?.id : element.rows[nextIndex]?.id;
+              onSelectTableStructuralNode?.(nextId ? { ...pendingRemoval, id: nextId } : null);
+            }
+            setPendingRemoval(null);
+          }}
+        />;
+      })() : null}
     </>
   );
+}
+
+function selectedColumnIndex(element: StructuredTableElement, selection?: TableStructuralSelection): number {
+  return selection?.kind === "column" && selection.tableId === element.id ? element.columns.findIndex((column) => column.id === selection.id) : -1;
+}
+
+function selectedRowIndex(element: StructuredTableElement, selection?: TableStructuralSelection): number {
+  return selection?.kind === "row" && selection.tableId === element.id ? element.rows.findIndex((row) => row.id === selection.id) : -1;
+}
+
+function isSelectedColumn(element: StructuredTableElement, selection?: TableStructuralSelection): boolean {
+  return selectedColumnIndex(element, selection) >= 0;
+}
+
+function isSelectedRow(element: StructuredTableElement, selection?: TableStructuralSelection): boolean {
+  return selectedRowIndex(element, selection) >= 0;
 }
 
 // ============================================================

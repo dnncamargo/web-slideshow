@@ -11,6 +11,11 @@ import type {
 } from "@powershow/document-schema";
 
 import {
+  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+} from "@powershow/document-schema";
+
+import {
   getTextContentPlainText,
   reconcileTextContentEdit,
 } from "./rich-text-authoring";
@@ -19,6 +24,7 @@ import {
   collectAuthoringIds,
   findElementLocation,
   getElementsForParentRef,
+  isStructuredTableContentSlotId,
   type ElementParentRef,
   findElementById,
   isStructuredTable,
@@ -1069,7 +1075,7 @@ export function createElement(
         id: headerTextId,
         type: "text",
         hidden: false,
-        variant: "body",
+        variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
         content: "Column 1",
       };
 
@@ -1077,7 +1083,7 @@ export function createElement(
         id: cellTextId,
         type: "text",
         hidden: false,
-        variant: "body",
+        variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
         content: "Value",
       };
 
@@ -2227,6 +2233,26 @@ export function moveElement(
     return { elements, moved: false, error: "element-not-found" };
   }
 
+  // Table representative children may only be reordered within their own
+  // ContentSlot. Their stable slot identity is the ownership boundary; do
+  // not allow generic tree moves to reparent them into another slot/container.
+  if (
+    source.parentRef.kind === "content-slot" &&
+    isStructuredTableContentSlotId(elements, source.parentRef.id) &&
+    (options.targetParentRef.kind !== "content-slot" ||
+      options.targetParentRef.id !== source.parentRef.id)
+  ) {
+    return { elements, moved: false, error: "invalid-target-parent" };
+  }
+
+  if (
+    source.parentRef.kind !== "content-slot" &&
+    options.targetParentRef.kind === "content-slot" &&
+    isStructuredTableContentSlotId(elements, options.targetParentRef.id)
+  ) {
+    return { elements, moved: false, error: "invalid-target-parent" };
+  }
+
   const targetElements = getTargetElementsForParentRef(
     elements,
     options.targetParentRef,
@@ -2524,7 +2550,7 @@ function buildStructuredText(usedIds: Set<string>, content: string): PowerShowEl
     id: textId,
     type: "text",
     hidden: false,
-    variant: "body",
+    variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
     content,
   };
 }
@@ -2558,7 +2584,7 @@ function buildStructuredColumn(usedIds: Set<string>): StructuredTableColumn {
           id: headerTextId,
           type: "text",
           hidden: false,
-          variant: "body",
+          variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
           content: "Column",
         },
       ],
@@ -2653,6 +2679,42 @@ export function removeColumnFromStructuredTable(
   });
 }
 
+export function moveColumnInStructuredTable(
+  slides: readonly Slide[],
+  tableId: string,
+  columnId: string,
+  offset: -1 | 1,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table) => {
+    const index = table.columns.findIndex((column) => column.id === columnId);
+    const targetIndex = index + offset;
+    if (index < 0 || targetIndex < 0 || targetIndex >= table.columns.length) {
+      return table;
+    }
+
+    const columns = [...table.columns];
+    const column = columns[index];
+    const targetColumn = columns[targetIndex];
+    if (!column || !targetColumn) return table;
+    columns[index] = targetColumn;
+    columns[targetIndex] = column;
+
+    return {
+      ...table,
+      columns,
+      rows: table.rows.map((row) => {
+        const cells = [...row.cells];
+        const cell = cells[index];
+        const targetCell = cells[targetIndex];
+        if (!cell || !targetCell) return row;
+        cells[index] = targetCell;
+        cells[targetIndex] = cell;
+        return { ...row, cells };
+      }),
+    };
+  });
+}
+
 export function addRowToStructuredTable(
   slides: readonly Slide[],
   tableId: string,
@@ -2672,6 +2734,29 @@ export function removeRowFromStructuredTable(
     ...table,
     rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
   }));
+}
+
+export function moveRowInStructuredTable(
+  slides: readonly Slide[],
+  tableId: string,
+  rowId: string,
+  offset: -1 | 1,
+): Slide[] {
+  return applyStructuredTableMutation(slides, tableId, (table) => {
+    const index = table.rows.findIndex((row) => row.id === rowId);
+    const targetIndex = index + offset;
+    if (index < 0 || targetIndex < 0 || targetIndex >= table.rows.length) {
+      return table;
+    }
+
+    const rows = [...table.rows];
+    const row = rows[index];
+    const targetRow = rows[targetIndex];
+    if (!row || !targetRow) return table;
+    rows[index] = targetRow;
+    rows[targetIndex] = row;
+    return { ...table, rows };
+  });
 }
 
 export function setStructuredTableShowHeader(

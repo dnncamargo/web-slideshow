@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
-import { addCustomTextStyle, createTextStyleId, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
+import { PresentationSchema, POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID } from "@powershow/document-schema";
+import { addCustomTextStyle, createTextStyleId, ensureStructuredTableTextStyles, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 
 const base = () => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "", elements: [] }] });
 
@@ -38,6 +38,29 @@ describe("presentation typography style authoring", () => {
     }
     expect(createTextStyleId("Body", [])).toBe("body-2");
     expect(createTextStyleId("Title", [])).toBe("title-2");
+  });
+
+  it("uses reserved Structured Table IDs without adding styles to a new presentation", () => {
+    expect(base()).not.toHaveProperty("textStyles");
+    expect(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID).toBe("powershow:table-column-header");
+    expect(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID).toBe("powershow:table-cell");
+    expect(createTextStyleId("powershow:table-column-header", [])).not.toBe(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
+    expect(createTextStyleId("powershow:table-cell", [])).not.toBe(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID);
+  });
+
+  it("ensures canonical Table styles by ID and preserves same-name and renamed styles", () => {
+    const sameName = addCustomTextStyle(base(), "Column header", "body");
+    const prepared = ensureStructuredTableTextStyles(sameName);
+    expect(prepared.presentation.textStyles).toEqual([
+      { id: "column-header", name: "Column header", role: "body" },
+      { id: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Column header", role: "body" },
+      { id: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, name: "Table cell", role: "body" },
+    ]);
+
+    const renamed = updateCustomTextStyle(prepared.presentation, POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, { name: "My headers" });
+    const reused = ensureStructuredTableTextStyles(renamed);
+    expect(reused.presentation).toEqual(renamed);
+    expect(reused.ids.columnHeader).toBe(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
   });
 
   it("preserves IDs when editing and validates custom style creation", () => {

@@ -1,5 +1,6 @@
 import type {
   Border,
+  GradientSurfaceBackground,
   Gradient,
   Shadow,
 } from "@powershow/document-schema";
@@ -42,6 +43,22 @@ export function renderGradient(
       );
     }
   }
+}
+
+export function renderBackground(
+  background: GradientSurfaceBackground,
+): string[] {
+  const styles: string[] = [];
+
+  if (background.color !== undefined) {
+    styles.push(`background:${renderColorValue(background.color)}`);
+  }
+
+  if (background.gradient !== undefined) {
+    styles.push(`background-image:${renderGradient(background.gradient)}`);
+  }
+
+  return styles;
 }
 
 export function renderShadow(

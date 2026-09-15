@@ -247,6 +247,86 @@ describe("renderTable", () => {
     expect(html).toContain("color:#f8fafc");
   });
 
+  it("renders a Structured Table gradient border through the outer frame", () => {
+    const html = renderElement({
+      type: "table",
+      id: "structured-gradient-border",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      style: {
+        border: {
+          width: 2,
+          style: "solid",
+          gradient: {
+            type: "linear",
+            angle: 90,
+            stops: [
+              { color: "#7c3aed", position: 0 },
+              { color: "#06b6d4", position: 100 },
+            ],
+          },
+        },
+      },
+      columns: [{ id: "column-1", header: { id: "header-1", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
+    });
+
+    expect(html).toContain("--powershow-table-border-width:2px");
+    expect(html).toContain("powershow-table-frame-gradient-border");
+    expect(html).toContain("--powershow-table-border-gradient:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)");
+    expect(html).toContain("--powershow-table-border-width:2px");
+    expect(html).not.toContain("border-image:");
+  });
+
+  it("fills an explicitly sized frame without changing intrinsic sizing", () => {
+    const sized = renderElement({
+      type: "table", id: "sized-table", mode: "structured", showHeader: true, hidden: false,
+      layout: { width: 320, height: 180 },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+    });
+    const intrinsic = renderElement({
+      type: "table", id: "intrinsic-table", mode: "structured", showHeader: true, hidden: false,
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+    });
+
+    expect(sized).toContain('data-powershow-id="sized-table"');
+    expect(sized).toContain('class="powershow-table powershow-table-structured powershow-table-fills-frame"');
+    expect(sized).toContain("height:180px");
+    expect(intrinsic).not.toContain("powershow-table-fills-frame");
+  });
+
+  it("keeps the gradient ring visual-only and above the inner surface", () => {
+    const html = renderElement({
+      type: "table", id: "ring-table", mode: "structured", showHeader: true, hidden: false,
+      style: { border: { width: 3, style: "solid", gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } } },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+    });
+
+    expect(html).toContain("powershow-table-frame-gradient-border");
+    expect(html).not.toContain("border-image:");
+  });
+
+  it("derives the inner surface radius from the frame radius and border width", () => {
+    const html = renderElement({
+      type: "table", id: "rounded-table", mode: "structured", showHeader: true, hidden: false,
+      style: {
+        border: { width: 3, style: "solid", color: "#000" },
+        borderRadius: 12,
+      },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+    });
+
+    expect(html).toContain("--powershow-table-frame-radius:12px");
+    expect(html).toContain("--powershow-table-border-width:3px");
+    expect(html).toContain("border-radius:12px");
+    expect(html).toContain('data-powershow-id="rounded-table"');
+  });
+
   it("renders structured tables with recursive semantic content", () => {
     const html = renderElement({
       type: "table",
@@ -321,5 +401,100 @@ describe("renderTable", () => {
     expect(html).not.toContain("<thead>");
     expect(html).toContain("data-powershow-id=\"no-header-table\"");
     expect(html).toContain("<tbody>");
+  });
+
+  it("renders semantic backgrounds with explicit slot precedence and divider opacity", () => {
+    const html = renderElement({
+      type: "table",
+      id: "styled-table",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      style: {
+        headerBackground: "#111111",
+        bodyRowAlternateBackground: "#444444",
+        dividerOpacity: 0.5,
+      },
+      columns: [{ id: "column-1", header: { id: "header-1", children: [] } }, { id: "column-2", header: { id: "header-2", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }, { id: "cell-2", style: { background: { color: "#555555" } }, children: [] }] }, { id: "row-2", cells: [{ id: "cell-3", children: [] }, { id: "cell-4", children: [] }] }],
+    });
+
+    expect(html).toContain("--powershow-table-divider-opacity:0.5");
+    expect(html).toContain('data-powershow-content-slot-id="header-1" data-powershow-table-column-id="column-1" style="background:#111111"');
+    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
+    expect(html).toContain('data-powershow-content-slot-id="cell-2" style="background:#555555"');
+    expect(html).toContain('data-powershow-content-slot-id="cell-4" style="background:#444444"');
+  });
+
+  it("includes an unoverridden visible header in zebra parity", () => {
+    const html = renderElement({
+      type: "table", id: "header-parity", mode: "structured", showHeader: true, hidden: false,
+      style: { background: { color: "#101010" }, bodyRowAlternateBackground: "#202020" },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [
+        { id: "row-1", cells: [{ id: "cell-1", children: [] }] },
+        { id: "row-2", cells: [{ id: "cell-2", children: [] }] },
+      ],
+    });
+    expect(html).toContain('class="powershow-table powershow-table-structured powershow-table-has-surface"');
+    expect(html).not.toContain('data-powershow-content-slot-id="header" style=');
+    expect(html).toContain('data-powershow-content-slot-id="cell-1" style="background:#202020"');
+    expect(html).not.toContain('data-powershow-content-slot-id="cell-2" style=');
+  });
+
+  it("restarts body parity when the header has an explicit override", () => {
+    const html = renderElement({
+      type: "table", id: "header-override-parity", mode: "structured", showHeader: true, hidden: false,
+      style: { background: { color: "#101010" }, headerBackground: "#303030", bodyRowAlternateBackground: "#202020" },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [
+        { id: "row-1", cells: [{ id: "cell-1", children: [] }] },
+        { id: "row-2", cells: [{ id: "cell-2", children: [] }] },
+      ],
+    });
+    expect(html).toContain('data-powershow-content-slot-id="header" data-powershow-table-column-id="column" style="background:#303030"');
+    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
+    expect(html).toContain('data-powershow-content-slot-id="cell-2" style="background:#202020"');
+  });
+
+  it("starts body parity at the first row when the header is hidden", () => {
+    const html = renderElement({
+      type: "table", id: "hidden-header-parity", mode: "structured", showHeader: false, hidden: false,
+      style: { background: { color: "#101010" }, bodyRowAlternateBackground: "#202020" },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [
+        { id: "row-1", cells: [{ id: "cell-1", children: [] }] },
+        { id: "row-2", cells: [{ id: "cell-2", children: [] }] },
+      ],
+    });
+    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
+    expect(html).toContain('data-powershow-content-slot-id="cell-2" style="background:#202020"');
+  });
+
+  it("lets semantic backgrounds fall through to the generic table surface", () => {
+    const html = renderElement({
+      type: "table", id: "fallback-table", mode: "structured", showHeader: true, hidden: false,
+      style: { background: { color: "#101010" } },
+      columns: [{ id: "column-1", header: { id: "header-1", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
+    });
+
+    expect(html).toContain("powershow-table-has-surface");
+    expect(html).toContain('style="background:#101010"');
+    expect(html).not.toContain('data-powershow-content-slot-id="header-1" style=');
+    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
+  });
+
+  it("renders an explicitly transparent reset surface without a gradient", () => {
+    const html = renderElement({
+      type: "table", id: "transparent-table", mode: "structured", showHeader: true, hidden: false,
+      style: { background: { color: "#00000000" }, bodyRowAlternateBackground: "#222222" },
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }, { id: "row-2", cells: [{ id: "cell-2", children: [] }] }],
+    });
+    expect(html).toContain('style="background:#00000000"');
+    expect(html).toContain('data-powershow-content-slot-id="cell-1" style="background:#222222"');
+    expect(html).not.toContain('data-powershow-content-slot-id="cell-2" style=');
+    expect(html).not.toContain("background-image:");
   });
 });

@@ -147,7 +147,7 @@ import { findElementById, updateElementById } from "./element-tree";
 import { detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, ensureStructuredTableTextStyles, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -202,6 +202,8 @@ import {
   insertElementAfterId,
   moveElement,
   moveElementToSiblingIndexById,
+  moveColumnInStructuredTable,
+  moveRowInStructuredTable,
   reorderGalleryItem,
   removeColumnFromStructuredTable,
   removeElementById,
@@ -216,6 +218,7 @@ import {
 } from "./element-operations";
 
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
+import type { TableStructuralSelection } from "./table-tree-helpers";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -529,6 +532,8 @@ export function EditorWorkspace({
     useState<SelectedElementInfo | null>(null);
   const [galleryItemSelection, setGalleryItemSelection] =
     useState<GalleryItemSelection | null>(null);
+  const [selectedTableStructuralNode, setSelectedTableStructuralNode] =
+    useState<TableStructuralSelection>(null);
   const [pendingElementDeletion, setPendingElementDeletion] =
     useState<PendingElementDeletion | null>(null);
   const [pendingTextStyleReset, setPendingTextStyleReset] = useState<"title" | "subtitle" | "body" | "caption" | null>(null);
@@ -2560,10 +2565,15 @@ export function EditorWorkspace({
   function addElement(type: ElementCreateType) {
     const newElement = createElement(type, presentation.slides);
 
-    setPresentation((current) => ({
-      ...current,
+    setPresentation((current) => {
+      const prepared = type === "table"
+        ? ensureStructuredTableTextStyles(current).presentation
+        : current;
 
-      slides: current.slides.map((slide, index) => {
+      return {
+      ...prepared,
+
+      slides: prepared.slides.map((slide, index) => {
         if (index !== selectedSlideIndex) {
           return slide;
         }
@@ -2613,7 +2623,8 @@ export function EditorWorkspace({
             };
         }
       }),
-    }));
+      };
+    });
 
     setSelectedElement({
       id: newElement.id,
@@ -3279,10 +3290,10 @@ export function EditorWorkspace({
 
   const tableAuthoringControls: TableAuthoringControls = {
     onAddColumn: (tableId) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: addColumnToStructuredTable(current.slides, tableId),
-      }));
+      setPresentation((current) => {
+        const prepared = ensureStructuredTableTextStyles(current).presentation;
+        return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId) };
+      });
     },
 
     onRemoveColumn: (tableId, index) => {
@@ -3293,10 +3304,10 @@ export function EditorWorkspace({
     },
 
     onAddRow: (tableId) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: addRowToStructuredTable(current.slides, tableId),
-      }));
+      setPresentation((current) => {
+        const prepared = ensureStructuredTableTextStyles(current).presentation;
+        return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId) };
+      });
     },
 
     onRemoveRow: (tableId, index) => {
@@ -4011,6 +4022,10 @@ export function EditorWorkspace({
                   onOutdentTopicItem={outdentTopicItemInTree}
                   onMoveGalleryItem={moveGalleryItemInTree}
                   onGalleryStructureDrop={applyGalleryStructureDrop}
+                  onMoveTableColumn={(tableId, columnId, offset) => setPresentation((current) => ({ ...current, slides: moveColumnInStructuredTable(current.slides, tableId, columnId, offset) }))}
+                  onMoveTableRow={(tableId, rowId, offset) => setPresentation((current) => ({ ...current, slides: moveRowInStructuredTable(current.slides, tableId, rowId, offset) }))}
+                  selectedTableStructuralNode={selectedTableStructuralNode}
+                  onSelectTableStructuralNode={setSelectedTableStructuralNode}
                   customLibraryRepository={customLibraryRepository}
                   onBrowseElementStyles={() => setRightPanelMode("resources")}
                   palette={presentation.palette}
@@ -4101,6 +4116,8 @@ export function EditorWorkspace({
                             onAddChildTopic: addChildTopic,
                           }}
                           tableAuthoringControls={tableAuthoringControls}
+                          selectedTableStructuralNode={selectedTableStructuralNode}
+                          onSelectTableStructuralNode={setSelectedTableStructuralNode}
                         />
                       </PresentationColorPaletteProvider>
                     </PickedColorsProvider>

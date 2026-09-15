@@ -2883,6 +2883,13 @@
   gap: 10px;
 }
 
+.tableEditorActions {
+  display: flex;
+
+  gap: 8px;
+}
+
+
 
 .tableColumnEditor,
 .tableRowEditor {
@@ -2936,12 +2943,17 @@
   margin-bottom: 12px;
 }
 
+.collectionSelector,
 .galleryItemSelector {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
+.collectionSelectorRow,
 .galleryItemSelectorRow {
   display: flex;
   align-items: center;
@@ -2949,18 +2961,21 @@
   gap: 6px;
 }
 
+.collectionOrdinal,
 .galleryItemOrdinal {
   flex: 0 0 auto;
   color: #94a3b8;
   font-variant-numeric: tabular-nums;
 }
 
+.collectionSelectorButton,
 .galleryItemSelectorButton {
   min-width: 0;
   flex: 1 1 auto;
   text-align: left;
 }
 
+.collectionItemName,
 .galleryItemName {
   display: block;
   overflow: hidden;
@@ -2968,12 +2983,14 @@
   white-space: nowrap;
 }
 
+.collectionSelectorButtonSelected,
 .galleryItemSelectorButtonSelected {
   border-color: #0e7490;
   background: #164e63;
   color: #ecfeff;
 }
 
+.collectionSelectorButtonSelected:hover:not(:disabled),
 .galleryItemSelectorButtonSelected:hover:not(:disabled) {
   border-color: #22d3ee;
   background: #155e75;

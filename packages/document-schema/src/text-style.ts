@@ -14,6 +14,12 @@ export const FUNDAMENTAL_TEXT_STYLE_IDS = [
   "caption",
 ] as const;
 
+/** Reserved presentation-level styles used by Structured Table authoring. */
+export const POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID =
+  "powershow:table-column-header" as const;
+export const POWERSHOW_TABLE_CELL_TEXT_STYLE_ID =
+  "powershow:table-cell" as const;
+
 export const FundamentalTextStyleIdSchema = z.enum(
   FUNDAMENTAL_TEXT_STYLE_IDS,
 );

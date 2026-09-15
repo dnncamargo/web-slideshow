@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PlotElement, InteractiveElement, PowerShowElement } from "@powershow/document-schema";
+import type { PlotElement, InteractiveElement, PowerShowElement, StructuredTableElement } from "@powershow/document-schema";
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import type { TableAuthoringControls, TopicsAuthoringControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -72,6 +72,49 @@ describe("canonical semantic element inspector", () => {
     });
     expect(element()).toHaveProperty("layout.left", 24);
     expect(element()).not.toHaveProperty("style");
+  });
+
+  it("forwards shared Table structural selection through the dispatcher", async () => {
+    const table: StructuredTableElement = {
+      id: "table-1",
+      type: "table",
+      mode: "structured",
+      hidden: false,
+      showHeader: true,
+      columns: [
+        { id: "column-1", header: { id: "header-1", children: [] } },
+        { id: "column-2", header: { id: "header-2", children: [] } },
+      ],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }, { id: "cell-2", children: [] }] }],
+    };
+    let selection: { kind: "column"; tableId: string; id: string } | null = null;
+
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <ElementInspector
+          element={table}
+          onUpdate={() => {}}
+          onContainerFitModeChange={() => true}
+          fontResources={fonts}
+          preserveImageProportion={false}
+          onPreserveImageProportionChange={() => {}}
+          focalEditingImageId={null}
+          onFocalEditingImageIdChange={() => {}}
+          parent={null}
+          layerControls={{ index: 0, count: 1, onMoveTo: () => {}}}
+          topicsAuthoringControls={topics}
+          tableAuthoringControls={tables}
+          onSelectTableStructuralNode={(next) => {
+            if (next?.kind === "column") selection = next;
+          }}
+        />
+      </StudioI18nProvider>,
+    ));
+
+    const button = container.querySelector<HTMLButtonElement>('[aria-label="Column 2"]');
+    expect(button).not.toBeNull();
+    await act(async () => button?.click());
+    expect(selection).toEqual({ kind: "column", tableId: "table-1", id: "column-2" });
   });
 
   it("authors Plot size independently and preserves it across Flow and Absolute", async () => {
