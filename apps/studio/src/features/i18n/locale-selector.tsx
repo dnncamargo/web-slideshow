@@ -12,7 +12,11 @@ import styles from "./locale-selector.module.css";
  * the Editor's locale control visual treatment exactly. Used by the Editor
  * top bar and the Library header.
  */
-export function LocaleSelector() {
+export function LocaleSelector({
+  chromeOsNativeSelectCompat = false,
+}: {
+  chromeOsNativeSelectCompat?: boolean;
+}) {
   const { t, locale, setLocale } = useStudioI18n();
 
   return (
@@ -38,17 +42,42 @@ export function LocaleSelector() {
         </svg>
       </span>
 
-      <select
-        value={locale}
-        aria-label={t("locale.language")}
-        onChange={(event) => {
-          setLocale(event.target.value as StudioLocale);
-        }}
-      >
-        <option value="en">US</option>
+      {chromeOsNativeSelectCompat ? (
+        <span
+          className={styles.localeOptions}
+          role="group"
+          aria-label={t("locale.language")}
+        >
+          <button
+            type="button"
+            className={styles.localeOption}
+            aria-pressed={locale === "en"}
+            onClick={() => setLocale("en")}
+          >
+            US
+          </button>
+          <button
+            type="button"
+            className={styles.localeOption}
+            aria-pressed={locale === "pt-BR"}
+            onClick={() => setLocale("pt-BR")}
+          >
+            PT
+          </button>
+        </span>
+      ) : (
+        <select
+          value={locale}
+          aria-label={t("locale.language")}
+          onChange={(event) => {
+            setLocale(event.target.value as StudioLocale);
+          }}
+        >
+          <option value="en">US</option>
 
-        <option value="pt-BR">PT</option>
-      </select>
+          <option value="pt-BR">PT</option>
+        </select>
+      )}
     </label>
   );
 }

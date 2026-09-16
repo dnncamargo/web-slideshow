@@ -3570,7 +3570,9 @@ export function EditorWorkspace({
       END: TOPBAR CONTROLS
       ======================================================== */}
         <TopbarLocale>
-          <LocaleSelector />
+          <LocaleSelector
+            chromeOsNativeSelectCompat={chromeOsNativeSelectCompat}
+          />
         </TopbarLocale>
       </Topbar>
 

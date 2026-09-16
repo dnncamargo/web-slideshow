@@ -637,8 +637,7 @@
 }
 
 .chromeOsNativeSelectCompatTopbar {
-  --ps-studio-chromeos-select-safe-area: 18px;
-  padding-right: calc(18px + var(--ps-studio-chromeos-select-safe-area));
+  padding-right: 36px;
 }
 
 .rightPanelTab,
@@ -836,6 +835,10 @@
 .chromeOsNativeSelectCompatInspector .elementTreeFooter select {
   flex: 0 0 100%;
   width: 100%;
+}
+
+.chromeOsNativeSelectCompatInspector .elementTreeFooter {
+  flex-wrap: wrap;
 }
 
 .elementProperties {
@@ -1771,6 +1774,15 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.chromeOsNativeSelectCompatInspector {
+  --ps-studio-literal-color-columns: auto minmax(0, 1fr);
+  --ps-studio-literal-color-rows: auto auto;
+  --ps-studio-literal-color-format-column: 1 / -1;
+  --ps-studio-literal-color-format-width: 100%;
+  --ps-studio-literal-color-format-border-left: 0;
+  --ps-studio-literal-color-format-border-top: 1px solid var(--ps-ui-border-input);
+}
+
 .topicsList {
   display: grid;
 
@@ -1960,7 +1972,6 @@
 .chromeOsNativeSelectCompatInspector .unitInput {
   display: flex;
   height: auto;
-  grid-template-columns: minmax(0, 1fr);
   flex-direction: column;
   gap: 6px;
   border: 0;
@@ -1983,6 +1994,11 @@
   padding: 0 var(--ps-ui-inspector-control-padding-inline);
   color: var(--ps-ui-text-resource-primary);
   font-size: var(--ps-ui-font-size-md);
+}
+
+.chromeOsNativeSelectCompatInspector .unitInput input:focus,
+.chromeOsNativeSelectCompatInspector .unitInput select:focus {
+  border-color: var(--ps-ui-semantic-focus);
 }
 
 

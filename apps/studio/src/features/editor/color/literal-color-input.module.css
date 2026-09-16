@@ -28,7 +28,8 @@
 
 .control {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: var(--ps-studio-literal-color-columns, auto minmax(0, 1fr) auto);
+  grid-template-rows: var(--ps-studio-literal-color-rows, auto);
   align-items: center;
   overflow: hidden;
   border: 1px solid var(--ps-ui-border-input);
@@ -49,8 +50,11 @@
 }
 
 .control select {
+  grid-column: var(--ps-studio-literal-color-format-column, auto);
+  width: var(--ps-studio-literal-color-format-width, auto);
   padding: 0 7px;
-  border-left: 1px solid var(--ps-ui-border-input);
+  border-left: var(--ps-studio-literal-color-format-border-left, 1px solid var(--ps-ui-border-input));
+  border-top: var(--ps-studio-literal-color-format-border-top, 0);
   color: #94a3b8;
   font: inherit;
   font-size: 11px;
