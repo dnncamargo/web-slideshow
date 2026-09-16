@@ -121,6 +121,7 @@ describe("ElementInteractionSection", () => {
   let root: Root;
   let elementState: LinkableElement;
   let updates: LinkableElement[];
+  const onCreateQrFromLink = vi.fn();
 
   function renderSection() {
     root.render(
@@ -145,6 +146,7 @@ describe("ElementInteractionSection", () => {
             updates.push(elementState);
             renderSection();
           }}
+          onCreateQrFromLink={onCreateQrFromLink}
         />
       </StudioI18nProvider>,
     );
@@ -153,6 +155,7 @@ describe("ElementInteractionSection", () => {
   function mount(initial: LinkableElement) {
     elementState = initial;
     updates = [];
+    onCreateQrFromLink.mockReset();
     renderSection();
   }
 
@@ -187,6 +190,44 @@ describe("ElementInteractionSection", () => {
 
     expect(updates).toHaveLength(0);
     expect(elementState).not.toHaveProperty("link");
+  });
+
+  it("offers QR creation only from the canonical URL", async () => {
+    await act(async () => {
+      mount(textElement({ link: { kind: "url", href: "https://example.com/a" } }));
+    });
+
+    const button = Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent?.includes("Create QR code from link"),
+    );
+
+    expect(button).toBeDefined();
+    expect(button?.disabled).toBe(false);
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onCreateQrFromLink).toHaveBeenCalledWith("https://example.com/a");
+    expect(elementState.link?.href).toBe("https://example.com/a");
+  });
+
+  it("disables QR creation for an invalid canonical URL", async () => {
+    await act(async () => {
+      mount(textElement({ link: { kind: "url", href: "javascript:alert(1)" } }));
+    });
+
+    const button = Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent?.includes("Create QR code from link"),
+    );
+
+    expect(button?.disabled).toBe(true);
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onCreateQrFromLink).not.toHaveBeenCalled();
   });
 
   it("typing a URL without committing writes nothing", async () => {

@@ -13,6 +13,7 @@ import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 
 import type { ElementInspectorUpdate } from "../inspector-types";
+import type { CreateQrCodeFromLink } from "../inspector-types";
 
 type LinkableElement = Extract<
   PowerShowElement,
@@ -27,6 +28,8 @@ interface ElementInteractionSectionProps {
   onUpdate: ElementInspectorUpdate;
 
   controlPrefix: string;
+
+  onCreateQrFromLink?: CreateQrCodeFromLink;
 }
 
 function isLinkableElement(
@@ -75,6 +78,7 @@ export function ElementInteractionSection({
   element,
   onUpdate,
   controlPrefix,
+  onCreateQrFromLink,
 }: ElementInteractionSectionProps) {
   const { t } = useStudioI18n();
 
@@ -271,13 +275,31 @@ export function ElementInteractionSection({
       </label>
 
       {element.link && (
-        <button
-          type="button"
-          className={styles.secondaryButton}
-          onClick={handleRemoveLink}
-        >
-          <span>{t("inspector.link.remove")}</span>
-        </button>
+        <>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            disabled={!isAbsoluteHttpHref(canonicalHref ?? "")}
+            onClick={() => {
+              if (
+                canonicalHref !== undefined &&
+                isAbsoluteHttpHref(canonicalHref)
+              ) {
+                onCreateQrFromLink?.(canonicalHref);
+              }
+            }}
+          >
+            <span>{t("inspector.link.createQr")}</span>
+          </button>
+
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={handleRemoveLink}
+          >
+            <span>{t("inspector.link.remove")}</span>
+          </button>
+        </>
       )}
     </InspectorSection>
   );
