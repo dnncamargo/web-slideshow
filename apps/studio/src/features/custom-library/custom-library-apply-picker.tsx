@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@powershow/ui";
+
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
@@ -105,15 +107,16 @@ export function CustomLibraryApplyPicker({
   return (
     <div className={styles.customLibraryApply}>
       {!embedded && (
-        <button
-          className={styles.customLibrarySaveButton}
+        <Button
+          size="compact"
+          className={styles.customLibraryApplyTrigger}
           type="button"
           data-custom-library-apply
           aria-expanded={isOpen}
           onClick={() => setIsOpen((current) => !current)}
         >
           {t("customLibrary.applyOpen")}
-        </button>
+        </Button>
       )}
       {(embedded || isOpen) && (
         <div className={`${styles.customLibraryApplyPanel} ${panelClassName ?? ""}`}>
@@ -127,9 +130,9 @@ export function CustomLibraryApplyPicker({
               <p className={`${styles.customLibraryApplyStatus} ${styles.customLibrarySaveError}`} role="alert">
                 {t("customLibrary.applyLoadFailed")}
               </p>
-              <button className={retryClassName ?? styles.customLibraryApplyPanelAction} type="button" onClick={() => setReloadToken((current) => current + 1)}>
+              <Button size="compact" className={retryClassName} type="button" onClick={() => setReloadToken((current) => current + 1)}>
                 {t("customLibrary.applyRetry")}
-              </button>
+              </Button>
             </>
           )}
           {!isLoading && !hasLoadFailed && items !== null && items.length === 0 && (
@@ -157,9 +160,9 @@ export function CustomLibraryApplyPicker({
                   </li>
                 ))}
               </ul>
-              <button className={actionClassName ?? styles.customLibraryApplyPanelAction} type="button" disabled={!selectedItem} onClick={handleApply}>
+              <Button size="compact" className={actionClassName} type="button" disabled={!selectedItem} onClick={handleApply}>
                 {t("customLibrary.apply")}
-              </button>
+              </Button>
             </>
           )}
           {feedback === "applied" && <p className={styles.customLibraryApplyStatus} role="status">{t("customLibrary.applySuccess")}</p>}

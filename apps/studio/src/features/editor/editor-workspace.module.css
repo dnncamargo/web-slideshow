@@ -884,6 +884,11 @@
   text-align: left;
 }
 
+.customLibraryApplyTrigger {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
 .customLibraryApply {
   margin-bottom: 8px;
 }
@@ -934,14 +939,8 @@
   white-space: nowrap;
 }
 
-.customLibraryApplyPanelAction {
+.customLibraryApplyPanel > :global(.ps-ui-button) {
   align-self: flex-end;
-  padding: 4px 7px;
-  border: 1px solid #334155;
-  border-radius: 3px;
-  background: #172033;
-  color: #cbd5e1;
-  font-size: 10px;
 }
 
 .customLibraryApplyStatus {
@@ -989,16 +988,6 @@
   gap: 5px;
 }
 
-.customLibrarySaveActions button {
-  padding: 4px 7px;
-  border: 1px solid #334155;
-  border-radius: 3px;
-  background: #172033;
-  color: #cbd5e1;
-  font-size: 10px;
-}
-
-.customLibrarySaveActions button:disabled,
 .customLibrarySaveButton:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -1040,7 +1029,7 @@
 
 .customLibraryPalettePickerActions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 5px;
 }
 

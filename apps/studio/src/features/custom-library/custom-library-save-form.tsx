@@ -1,6 +1,7 @@
 "use client";
 
 import type { FontResource, PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import { Button } from "@powershow/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
@@ -108,12 +109,12 @@ export function CustomLibrarySaveForm({
         </p>
       )}
       <div className={styles.customLibrarySaveActions}>
-        <button type="button" disabled={isSaving} onClick={onCancel}>
+        <Button size="compact" disabled={isSaving} onClick={onCancel}>
           {t("customLibrary.cancel")}
-        </button>
-        <button type="submit" disabled={isSaving || name.trim().length === 0}>
+        </Button>
+        <Button type="submit" size="compact" disabled={isSaving || name.trim().length === 0}>
           {isSaving ? t("customLibrary.saving") : t("customLibrary.submit")}
-        </button>
+        </Button>
       </div>
     </form>
   );

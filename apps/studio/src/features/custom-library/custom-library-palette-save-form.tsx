@@ -1,6 +1,7 @@
 "use client";
 
 import type { PresentationPalette } from "@powershow/document-schema";
+import { Button } from "@powershow/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";
@@ -68,10 +69,10 @@ export function CustomLibraryPaletteSaveForm({
         </p>
       ) : null}
       <div className={styles.customLibrarySaveActions}>
-        <button type="button" disabled={isSaving} onClick={onCancel}>{t("customLibrary.cancel")}</button>
-        <button type="submit" disabled={isSaving || name.trim().length === 0}>
+        <Button size="compact" disabled={isSaving} onClick={onCancel}>{t("customLibrary.cancel")}</Button>
+        <Button type="submit" size="compact" disabled={isSaving || name.trim().length === 0}>
           {isSaving ? t("customLibrary.palette.saving") : t("customLibrary.palette.save")}
-        </button>
+        </Button>
       </div>
     </form>
   );

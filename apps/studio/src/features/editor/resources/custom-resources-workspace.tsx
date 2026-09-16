@@ -335,7 +335,7 @@ export function CustomResourcesWorkspace({
               ))}
             </div>
             <span className={styles.colorCount}>{t("customResources.colorCount", { count: presentationColors.length })}</span>
-            <button type="button" className={styles.resourceAction} onClick={() => setLocalColorAddOpen((open) => !open)}>
+            <button type="button" className={`${styles.resourceAction} ${styles.presentationPaletteAction}`} onClick={() => setLocalColorAddOpen((open) => !open)}>
               {localColorAddOpen ? t("customResources.close") : t("customResources.addToPresentation")}
             </button>
             {localColorAddOpen ? (

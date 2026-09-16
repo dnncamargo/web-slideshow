@@ -509,6 +509,10 @@
   composes: ps-ui-action from global;
 }
 
+.presentationPaletteAction {
+  align-self: flex-start;
+}
+
 .masterPaletteList,
 .localColorAdd {
   display: flex;
