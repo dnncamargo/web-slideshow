@@ -6,6 +6,8 @@ import type {
   TopicItem,
   FontResource,
   PresentationPalette,
+  LinkedStyle,
+  TextStyle,
   StructuredTableElement,
 } from "@powershow/document-schema";
 import { useState } from "react";
@@ -64,6 +66,8 @@ interface ElementTreePanelProps {
   onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
+  textStyles?: readonly TextStyle[];
+  linkedStyles?: readonly LinkedStyle[];
   selectedTableStructuralNode?: TableStructuralSelection;
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 }
@@ -896,6 +900,8 @@ export function ElementTreePanel({
   onBrowseElementStyles,
   palette,
   fontResources,
+  textStyles,
+  linkedStyles,
 }: ElementTreePanelProps) {
   const { t } = useStudioI18n();
   const [localSelectedTableStructuralNode, setLocalSelectedTableStructuralNode] =
@@ -1264,6 +1270,8 @@ export function ElementTreePanel({
         onBrowseElementStyles={onBrowseElementStyles}
         palette={palette}
         fontResources={fontResources}
+        textStyles={textStyles}
+        linkedStyles={linkedStyles}
       />
     </div>
   );

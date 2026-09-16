@@ -1,4 +1,4 @@
-import type { FontResource, PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import type { FontResource, LinkedStyle, PowerShowElement, PresentationPalette, TextStyle } from "@powershow/document-schema";
 
 import {
   composeCustomLibraryElementRecipe,
@@ -6,7 +6,7 @@ import {
   type ElementPropertySelectionMap,
 } from "./custom-library-recipe";
 import {
-  snapshotCustomLibraryStyleFontDependencies,
+  snapshotCustomLibraryStyleDependencies,
   type CustomLibraryStyleDependencies,
 } from "./custom-library-style-dependencies";
 
@@ -24,6 +24,8 @@ export interface CreateCustomLibraryItemDraftInput {
   selections: ElementPropertySelectionMap;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
+  textStyles?: readonly TextStyle[];
+  linkedStyles?: readonly LinkedStyle[];
 }
 
 export function createCustomLibraryItemDraft(
@@ -36,7 +38,13 @@ export function createCustomLibraryItemDraft(
 
   const description = input.description?.trim();
   const root = composeCustomLibraryElementRecipe(input.root, input.selections, input.palette);
-  const dependencies = snapshotCustomLibraryStyleFontDependencies(root, input.fontResources);
+  const dependencies = snapshotCustomLibraryStyleDependencies(
+    root,
+    input.fontResources,
+    input.textStyles,
+    input.linkedStyles,
+    input.palette,
+  );
   const draft: CustomLibraryItemDraft = {
     name,
     root,

@@ -6,7 +6,7 @@ import {
   createCustomLibraryItemDraft,
   type CreateCustomLibraryItemDraftInput,
 } from "../src/features/custom-library/custom-library-item";
-import { snapshotCustomLibraryStyleFontDependencies } from "../src/features/custom-library/custom-library-style-dependencies";
+import { snapshotCustomLibraryStyleDependencies } from "../src/features/custom-library/custom-library-style-dependencies";
 
 const text = (id = "text-1"): PowerShowElement => ({
   type: "text",
@@ -56,6 +56,144 @@ describe("createCustomLibraryItemDraft", () => {
       }],
     });
     expect(draft.dependencies?.fonts?.[0]).not.toHaveProperty("id");
+  });
+
+  it("captures selected custom Text Style definitions and their transitive fonts", () => {
+    const custom = text() as Extract<PowerShowElement, { type: "text" }>;
+    custom.variant = "example";
+    const draft = createCustomLibraryItemDraft(inputFor(custom, {
+      selections: new Map([["text-1", new Set(["variant"])] ]),
+      textStyles: [{ id: "example", name: "Example", role: "body", typography: { fontFamily: "Fira Code" } }],
+      fontResources,
+    }));
+
+    expect(draft.dependencies?.textStyles).toEqual([
+      { id: "example", name: "Example", role: "body", typography: { fontFamily: "Fira Code" } },
+    ]);
+    expect(draft.dependencies?.fonts?.map((font) => font.family)).toEqual(["Fira Code"]);
+  });
+
+  it("does not capture fundamental variants", () => {
+    const draft = createCustomLibraryItemDraft(inputFor(text(), {
+      selections: new Map([["text-1", new Set(["variant"])] ]),
+      textStyles: [{ id: "body", name: "Body override", role: "body", typography: { fontSize: 20 } }],
+    }));
+
+    expect(draft.dependencies).toBeUndefined();
+  });
+
+  it("rejects an unresolved custom variant during capture", () => {
+    const custom = text() as Extract<PowerShowElement, { type: "text" }>;
+    custom.variant = "missing";
+
+    expect(() => createCustomLibraryItemDraft(inputFor(custom, {
+      selections: new Map([["text-1", new Set(["variant"])] ]),
+    }))).toThrow("Unresolved custom text style dependency: missing");
+  });
+
+  it.each([
+    { type: "container" as const, linkedStyle: { id: "card", name: "Card", layout: { padding: 8 }, typography: { fontFamily: "Fira Code" } } },
+    { type: "topics" as const, linkedStyle: { target: "topics" as const, id: "topics-style", name: "Topics", kind: "ordered" as const, itemGap: 8 } },
+  ])("captures a $type Linked Style", ({ type, linkedStyle }) => {
+    const root: PowerShowElement = type === "container"
+      ? { type, id: "root", hidden: false, linkedStyleId: linkedStyle.id, children: [] }
+      : { type, id: "root", hidden: false, linkedStyleId: linkedStyle.id, items: [] };
+    const draft = createCustomLibraryItemDraft(inputFor(root, {
+      selections: new Map([["root", new Set(["linkedStyleId"])] ]),
+      linkedStyles: [linkedStyle],
+      fontResources,
+    }));
+
+    expect(draft.dependencies?.linkedStyles).toEqual([linkedStyle]);
+    if (type === "container") expect(draft.dependencies?.fonts?.map((font) => font.family)).toEqual(["Fira Code"]);
+  });
+
+  it("captures a custom variant inside a Topics bounded payload", () => {
+    const topicText = text("topic-text") as Extract<PowerShowElement, { type: "text" }>;
+    topicText.variant = "example";
+    const topics: PowerShowElement = {
+      type: "topics", id: "topics", hidden: false, kind: "unordered",
+      items: [{ id: "topic", content: { id: "slot", children: [topicText] }, children: [] }],
+    };
+    const draft = createCustomLibraryItemDraft(inputFor(topics, {
+      selections: new Map([["topics", new Set(["items"])]]),
+      textStyles: [{ id: "example", name: "Example", role: "body" }],
+    }));
+
+    expect(draft.dependencies?.textStyles).toEqual([
+      { id: "example", name: "Example", role: "body" },
+    ]);
+  });
+
+  it("captures a custom variant inside a Structured Table bounded payload once", () => {
+    const headerText = text("header-text") as Extract<PowerShowElement, { type: "text" }>;
+    headerText.variant = "example";
+    const table: PowerShowElement = {
+      type: "table", id: "table", hidden: false, mode: "structured", showHeader: true,
+      columns: [{ id: "column", header: { id: "header", children: [headerText] } }],
+      rows: [],
+    };
+    const draft = createCustomLibraryItemDraft(inputFor(table, {
+      selections: new Map([["table", new Set(["columns"])]]),
+      textStyles: [{ id: "example", name: "Example", role: "body" }],
+    }));
+
+    expect(draft.dependencies?.textStyles).toEqual([
+      { id: "example", name: "Example", role: "body" },
+    ]);
+  });
+
+  it("literalizes palette colors inside a captured Linked Style", () => {
+    const root: PowerShowElement = { type: "container", id: "root", hidden: false, linkedStyleId: "card", children: [] };
+    const draft = createCustomLibraryItemDraft(inputFor(root, {
+      selections: new Map([["root", new Set(["linkedStyleId"])]]),
+      linkedStyles: [{ id: "card", name: "Card", style: { color: { kind: "palette", colorId: "accent" } } }],
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    }));
+
+    expect(draft.dependencies?.linkedStyles?.[0]?.style?.color).toBe("#facc15");
+    expect(JSON.stringify(draft.dependencies?.linkedStyles)).not.toContain('"kind":"palette"');
+  });
+
+  it("captures references in recipe children once", () => {
+    const first = text("first") as Extract<PowerShowElement, { type: "text" }>;
+    const second = text("second") as Extract<PowerShowElement, { type: "text" }>;
+    first.variant = "example";
+    second.variant = "example";
+    const root: PowerShowElement = { type: "container", id: "root", hidden: false, children: [first, second] };
+
+    const draft = createCustomLibraryItemDraft(inputFor(root, {
+      selections: new Map([
+        ["root", new Set<string>()],
+        ["first", new Set(["variant"])],
+        ["second", new Set(["variant"])],
+      ]),
+      textStyles: [{ id: "example", name: "Example", role: "body" }],
+    }));
+
+    expect(draft.dependencies?.textStyles).toHaveLength(1);
+  });
+
+  it("rejects an unresolved Linked Style during capture", () => {
+    const root: PowerShowElement = { type: "container", id: "root", hidden: false, linkedStyleId: "missing", children: [] };
+
+    expect(() => createCustomLibraryItemDraft(inputFor(root, {
+      selections: new Map([["root", new Set(["linkedStyleId"])] ]),
+      linkedStyles: [],
+    }))).toThrow("Unresolved linked style dependency: missing");
+  });
+
+  it("converts palette references in captured definitions to literal values", () => {
+    const custom = text() as Extract<PowerShowElement, { type: "text" }>;
+    custom.variant = "example";
+    const draft = createCustomLibraryItemDraft(inputFor(custom, {
+      selections: new Map([["text-1", new Set(["variant"])] ]),
+      textStyles: [{ id: "example", name: "Example", role: "body", style: { color: { kind: "palette", colorId: "accent" } } }],
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    }));
+
+    expect(draft.dependencies?.textStyles?.[0]?.style?.color).toBe("#facc15");
+    expect(JSON.stringify(draft)).not.toContain('"kind":"palette"');
   });
 
   it("omits dependencies for unselected or unregistered families", () => {
@@ -113,8 +251,8 @@ describe("createCustomLibraryItemDraft", () => {
       }],
     };
 
-    expect(snapshotCustomLibraryStyleFontDependencies(topicRecipe, fontResources)).toEqual({ fonts: [{ family: "Fira Code", faces: fontResources[0]!.faces }] });
-    expect(snapshotCustomLibraryStyleFontDependencies(tableRecipe, fontResources)).toEqual({ fonts: [{ family: "Inter", faces: [{ source: fontResources[1]!.source! }] }] });
+    expect(snapshotCustomLibraryStyleDependencies(topicRecipe, fontResources)).toEqual({ fonts: [{ family: "Fira Code", faces: fontResources[0]!.faces }] });
+    expect(snapshotCustomLibraryStyleDependencies(tableRecipe, fontResources)).toEqual({ fonts: [{ family: "Inter", faces: [{ source: fontResources[1]!.source! }] }] });
   });
 
   it("does not scan arbitrary payloads for fontFamily", () => {

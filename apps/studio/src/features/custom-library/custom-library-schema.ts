@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import {
+  CustomTextStyleSchema,
+  LinkedStyleSchema,
+  type PowerShowElement,
+} from "@powershow/document-schema";
 
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
 import type { CustomLibraryItemDraft } from "./custom-library-item";
@@ -95,10 +99,15 @@ export const CustomLibraryItemDraftSchema: z.ZodType<CustomLibraryItemDraft> = z
     root: CustomLibraryElementRecipeSchema,
     dependencies: z
       .object({
-        fonts: z.array(CustomLibraryFontDraftSchema).min(1),
+        fonts: z.array(CustomLibraryFontDraftSchema).min(1).optional(),
+        textStyles: z.array(CustomTextStyleSchema).min(1).optional(),
+        linkedStyles: z.array(LinkedStyleSchema).min(1).optional(),
       })
       .strict()
       .superRefine((dependencies: CustomLibraryStyleDependencies, context) => {
+        if (dependencies.fonts === undefined && dependencies.textStyles === undefined && dependencies.linkedStyles === undefined) {
+          context.addIssue({ code: "custom", message: "Dependencies must contain at least one dependency collection", path: [] });
+        }
         const families = new Set<string>();
         dependencies.fonts?.forEach((font, index) => {
           const normalizedFamily = normalizeFontFamily(font.family);
@@ -111,6 +120,19 @@ export const CustomLibraryItemDraftSchema: z.ZodType<CustomLibraryItemDraft> = z
           }
           families.add(normalizedFamily);
         });
+        for (const [field, values] of [["textStyles", dependencies.textStyles], ["linkedStyles", dependencies.linkedStyles]] as const) {
+          const ids = new Set<string>();
+          values?.forEach((value, index) => {
+            if (ids.has(value.id)) {
+              context.addIssue({
+                code: "custom",
+                message: `${field} dependency IDs must be unique`,
+                path: [field, index, "id"],
+              });
+            }
+            ids.add(value.id);
+          });
+        }
       })
       .optional(),
   })

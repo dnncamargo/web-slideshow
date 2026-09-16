@@ -1,6 +1,6 @@
 "use client";
 
-import type { FontResource, PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import type { FontResource, LinkedStyle, PowerShowElement, PresentationPalette, TextStyle } from "@powershow/document-schema";
 import { Button } from "@powershow/ui";
 import { useEffect, useRef, useState } from "react";
 
@@ -18,6 +18,8 @@ interface CustomLibrarySaveFormProps {
   selections: ElementPropertySelectionMap;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];
+  textStyles?: readonly TextStyle[];
+  linkedStyles?: readonly LinkedStyle[];
   repository?: CustomLibraryRepository;
   onSaved: () => void;
   onCancel: () => void;
@@ -28,6 +30,8 @@ export function CustomLibrarySaveForm({
   selections,
   palette,
   fontResources,
+  textStyles,
+  linkedStyles,
   repository = getDefaultCustomLibraryRepository(),
   onSaved,
   onCancel,
@@ -63,6 +67,8 @@ export function CustomLibrarySaveForm({
         selections,
         palette,
         fontResources,
+        textStyles,
+        linkedStyles,
       });
       await repository.saveItem(draft);
       if (isActiveRef.current) {

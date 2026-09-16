@@ -49,6 +49,10 @@ describe("Custom Library persisted contract", () => {
     expectInvalid({ ...item(), dependencies: { fonts: [] } });
     expectInvalid({ ...item(), dependencies: { fonts: [font], extra: true } });
     expectInvalid({ ...item(), dependencies: { fonts: [{ family: "Fira Code", faces: [] }] } });
+    expect(parseCustomLibraryItemDraft({ ...item(), dependencies: { textStyles: [{ id: "example", name: "Example", role: "body" }] } })).toEqual({ ...item(), dependencies: { textStyles: [{ id: "example", name: "Example", role: "body" }] } });
+    expect(parseCustomLibraryItemDraft({ ...item(), dependencies: { linkedStyles: [{ id: "card", name: "Card", layout: { padding: 8 } }] } })).toEqual({ ...item(), dependencies: { linkedStyles: [{ id: "card", name: "Card", layout: { padding: 8 } }] } });
+    expectInvalid({ ...item(), dependencies: { textStyles: [{ id: "example", name: "Example", role: "body" }, { id: "example", name: "Other", role: "body" }] } });
+    expectInvalid({ ...item(), dependencies: { linkedStyles: [{ id: "card", name: "Card", layout: { padding: 8 } }, { id: "card", name: "Other", layout: { padding: 9 } }] } });
   });
 
   it("accepts a builder-produced text item", () => {

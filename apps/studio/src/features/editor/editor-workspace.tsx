@@ -4134,6 +4134,8 @@ export function EditorWorkspace({
                   onBrowseElementStyles={() => setRightPanelMode("resources")}
                   palette={presentation.palette}
                   fontResources={presentation.resources?.fonts}
+                  textStyles={presentation.textStyles}
+                  linkedStyles={presentation.linkedStyles}
                 />
               ) : (
                 <>
