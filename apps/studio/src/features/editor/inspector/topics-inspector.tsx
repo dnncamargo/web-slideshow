@@ -11,7 +11,11 @@ import type {
   TopicsElement,
   TopicMarkerStyle,
   FontResource,
+  LinkedTopicsStyle,
+  LinkedStyle,
+  Presentation,
 } from "@powershow/document-schema";
+import { resolveLinkedTopicsStyle } from "@powershow/document-schema";
 
 import {
   resolveEffectiveElementStyleDefaults,
@@ -62,6 +66,12 @@ interface TopicsInspectorProps {
   topicsAuthoringControls: TopicsAuthoringControls;
 
   fontResources: readonly FontResource[];
+
+  presentation?: Pick<Presentation, "linkedStyles">;
+
+  onAttachLinkedTopicsStyle?: (linkedStyleId: string) => void;
+
+  onDetachLinkedTopicsStyle?: () => void;
 }
 
 interface TopicRowProps {
@@ -125,7 +135,7 @@ function summarizeTopicContent(labels: readonly string[]): string | null {
 }
 
 function normalizeTopicMarkerStyle(
-  kind: TopicsElement["kind"],
+  kind: NonNullable<TopicsElement["kind"]>,
   rootMarkerStyle: TopicMarkerStyle | undefined,
 ): TopicMarkerStyle | undefined {
   if (rootMarkerStyle === undefined || rootMarkerStyle === "none") {
@@ -143,9 +153,13 @@ function normalizeTopicMarkerStyle(
 }
 
 function topicMarkerStyleOptions(
-  kind: TopicsElement["kind"],
+  kind: NonNullable<TopicsElement["kind"]>,
 ): readonly TopicMarkerStyle[] {
   return kind === "ordered" ? ORDERED_MARKER_STYLES : UNORDERED_MARKER_STYLES;
+}
+
+function isLinkedTopicsStyle(style: LinkedStyle): style is LinkedTopicsStyle {
+  return "target" in style && style.target === "topics";
 }
 
 function TopicRow({
@@ -187,7 +201,7 @@ function TopicRow({
             ref={(node) => {
               registerInputRef(item.id, node);
             }}
-            className={`${styles.topicsField} ${styles.topicsInput}`}
+            className={`${styles.inspectorControl} ${styles.topicsField} ${styles.topicsInput}`}
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
@@ -198,7 +212,7 @@ function TopicRow({
           />
         ) : (
           <span
-            className={`${styles.topicsField} ${styles.topicsReadOnlyField}`}
+            className={`${styles.inspectorControl} ${styles.topicsField} ${styles.topicsReadOnlyField}`}
             data-powershow-topic-content-state={
               contentLabels.length > 0 ? "descriptor" : "empty"
             }
@@ -271,6 +285,9 @@ export function TopicsInspector({
   onUpdate,
   topicsAuthoringControls,
   fontResources,
+  presentation,
+  onAttachLinkedTopicsStyle = () => {},
+  onDetachLinkedTopicsStyle = () => {},
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
   const [pendingFocusTopicItemId, setPendingFocusTopicItemId] = useState<
@@ -379,11 +396,48 @@ function addChildTopic(topicItemId: string) {
     variant: "body",
   }).typography;
 
-  const markerStyleOptions = topicMarkerStyleOptions(element.kind);
+  const effectiveKind = presentation && element.linkedStyleId !== undefined
+    ? resolveLinkedTopicsStyle(presentation, element).kind
+    : element.kind ?? "unordered";
+  const markerStyleOptions = topicMarkerStyleOptions(effectiveKind);
+  const linkedTopicsStyles = (presentation?.linkedStyles ?? []).filter(isLinkedTopicsStyle);
+  const linkedStyleName = linkedTopicsStyles.find((style) => style.id === element.linkedStyleId)?.name;
 
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      <InspectorSection title={t("inspector.linkedTopicsStyle")} defaultOpen>
+        <label className={styles.field}>
+          <span>{t("inspector.linkedTopicsStyle")}</span>
+          <select
+            id="topics-linked-style"
+            value={element.linkedStyleId ?? ""}
+            onChange={(event) => {
+              if (event.target.value) onAttachLinkedTopicsStyle(event.target.value);
+              else if (element.linkedStyleId !== undefined) onDetachLinkedTopicsStyle();
+            }}
+          >
+            <option value="">{t("inspector.noLinkedTopicsStyle")}</option>
+            {linkedTopicsStyles.map((style) => (
+              <option key={style.id} value={style.id}>{style.name}</option>
+            ))}
+          </select>
+        </label>
+
+        {element.linkedStyleId !== undefined ? (
+          <div className={styles.colorLinkedStatus} role="status">
+            <span>{t("inspector.linkedTopicsStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}</span>
+            <button type="button" onClick={onDetachLinkedTopicsStyle}>
+              {t("inspector.detachLinkedTopicsStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}
+            </button>
+          </div>
+        ) : (
+          <div className={styles.colorLinkedStatus} role="status">
+            {t("inspector.noLinkedTopicsStyleAttached")}
+          </div>
+        )}
+      </InspectorSection>
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
         <span className={styles.fieldHint}>
@@ -430,9 +484,9 @@ function addChildTopic(topicItemId: string) {
             <select
               id="topics-kind"
               name="topicsKind"
-              value={element.kind}
+              value={effectiveKind}
               onChange={(event) => {
-                const kind = event.target.value as TopicsElement["kind"];
+                const kind = event.target.value as NonNullable<TopicsElement["kind"]>;
 
                 updateCurrentTopics((current) => {
                   const rootMarkerStyle = normalizeTopicMarkerStyle(
@@ -536,7 +590,7 @@ function addChildTopic(topicItemId: string) {
 
                 updateCurrentTopics((current) => {
                   const normalized = normalizeTopicMarkerStyle(
-                    current.kind,
+                    effectiveKind,
                     nextRootMarkerStyle,
                   );
 

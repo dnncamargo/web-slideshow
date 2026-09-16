@@ -31,14 +31,19 @@ function validateElement(
   addIssue: (path: (string | number)[], message: string) => void,
 ): void {
   if (element.type === "container") {
-    if (
-      element.linkedStyleId !== undefined &&
-      !presentation.linkedStyles?.some((style) => style.id === element.linkedStyleId)
-    ) {
-      addIssue(
-        [...path, "linkedStyleId"],
-        "Linked container style reference does not resolve.",
-      );
+    if (element.linkedStyleId !== undefined) {
+      const linked = presentation.linkedStyles?.find((style) => style.id === element.linkedStyleId);
+      if (linked === undefined) {
+        addIssue(
+          [...path, "linkedStyleId"],
+          "Linked container style reference does not resolve.",
+        );
+      } else if ("target" in linked) {
+        addIssue(
+          [...path, "linkedStyleId"],
+          "Container linked style reference must target Container.",
+        );
+      }
     }
     element.children.forEach((child, index) =>
       validateElement(presentation, child, [...path, "children", index], addIssue),
@@ -53,6 +58,20 @@ function validateElement(
       ),
     );
   } else if (element.type === "topics") {
+    if (element.linkedStyleId !== undefined) {
+      const linked = presentation.linkedStyles?.find((style) => style.id === element.linkedStyleId);
+      if (linked === undefined) {
+        addIssue(
+          [...path, "linkedStyleId"],
+          "Linked topics style reference does not resolve.",
+        );
+      } else if (!("target" in linked) || linked.target !== "topics") {
+        addIssue(
+          [...path, "linkedStyleId"],
+          "Topics linked style reference must target Topics.",
+        );
+      }
+    }
     element.items.forEach((item, index) =>
       validateTopic(presentation, item, [...path, "items", index], addIssue),
     );

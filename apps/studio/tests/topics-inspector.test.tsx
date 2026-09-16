@@ -9,6 +9,7 @@ import type {
   TopicItem,
   TopicsElement,
   TextRun,
+  Presentation,
 } from "@powershow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -92,6 +93,9 @@ describe("TopicsInspector", () => {
   let addTopLevelTopic: ReturnType<typeof vi.fn>;
   let addChildTopic: ReturnType<typeof vi.fn>;
   let fontResources: [];
+  let presentation: Pick<Presentation, "linkedStyles"> | undefined;
+  let attachLinkedTopicsStyle: ReturnType<typeof vi.fn>;
+  let detachLinkedTopicsStyle: ReturnType<typeof vi.fn>;
 
   function renderInspector() {
     root.render(
@@ -112,6 +116,9 @@ describe("TopicsInspector", () => {
             onAddChildTopic: addChildTopic,
           }}
           fontResources={fontResources}
+          presentation={presentation}
+          onAttachLinkedTopicsStyle={attachLinkedTopicsStyle}
+          onDetachLinkedTopicsStyle={detachLinkedTopicsStyle}
         />
       </StudioI18nProvider>,
     );
@@ -123,6 +130,9 @@ describe("TopicsInspector", () => {
     addTopLevelTopic = vi.fn(() => "topic-created");
     addChildTopic = vi.fn(() => "child-topic-created");
     fontResources = [];
+    presentation = undefined;
+    attachLinkedTopicsStyle = vi.fn();
+    detachLinkedTopicsStyle = vi.fn();
     renderInspector();
   }
 
@@ -1264,6 +1274,46 @@ it("keeps editing and removing a depth-5 topic intact", async () => {
   ).toEqual([]);
 });
 
+  it("filters Topics linked styles and wires attach/detach through the section", async () => {
+    const topics = topicsElement({ linkedStyleId: "topics-style" });
+    mount(topics);
+    presentation = {
+      linkedStyles: [
+        { id: "container-style", name: "Same name", layout: { margin: 4 } },
+        { id: "topics-style", name: "Same name", target: "topics", itemGap: 8 },
+      ],
+    };
+    await act(async () => renderInspector());
+
+    const select = container.querySelector<HTMLSelectElement>("#topics-linked-style")!;
+    expect(Array.from(select.options).map((option) => option.value)).toEqual(["", "topics-style"]);
+    expect(select.value).toBe("topics-style");
+    const status = container.querySelector<HTMLElement>("[role='status']")!;
+    expect(status.querySelector("span")?.textContent).toContain("Same name");
+    expect(status.querySelector("button")?.textContent).toContain("Same name");
+
+    await act(async () => {
+      select.value = "";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(detachLinkedTopicsStyle).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      select.value = "topics-style";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(attachLinkedTopicsStyle).toHaveBeenCalledWith("topics-style");
+  });
+
+  it("keeps the existing sections when no Topics linked styles are available", async () => {
+    mount(topicsElement());
+    await act(async () => renderInspector());
+    const select = container.querySelector<HTMLSelectElement>("#topics-linked-style")!;
+    expect(select.options).toHaveLength(1);
+    expect(container.textContent).toContain("No Linked Style attached");
+  });
+});
+
 describe("Topics inspector section hierarchy", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -1319,6 +1369,7 @@ describe("Topics inspector section hierarchy", () => {
   }
 
   const REQUIRED_SECTIONS = [
+    "Linked style",
     "Content",
     "Typography",
     "Spacing",
@@ -1365,5 +1416,5 @@ describe("Topics inspector section hierarchy", () => {
         .map((heading) => heading.textContent?.trim()),
     ).toEqual(["Markers", "Text"]);
   });
-});
+
 });

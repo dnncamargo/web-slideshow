@@ -41,12 +41,12 @@ export function ContainerLinkedStyleSection({
       </label>
 
       {element.linkedStyleId !== undefined ? (
-        <>
-          <div className={styles.colorLinkedStatus} role="status">{t("inspector.linkedContainerStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}</div>
-          <button type="button" className={styles.resourceAction} onClick={onDetach}>
+        <div className={styles.colorLinkedStatus} role="status">
+          <span>{t("inspector.linkedContainerStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}</span>
+          <button type="button" onClick={onDetach}>
             {t("inspector.detachLinkedContainerStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}
           </button>
-        </>
+        </div>
       ) : <div className={styles.colorLinkedStatus} role="status">{t("inspector.noLinkedContainerStyleAttached")}</div>}
 
     </InspectorSection>

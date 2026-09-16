@@ -144,10 +144,10 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
-import { detachTextStyle } from "./text-typography-authoring";
+import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, ensureStructuredTableTextStyles, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -155,6 +155,13 @@ import { addPickedColor, removePickedColor } from "./inspector/sections/picked-c
 import {
   attachLinkedStyle,
   detachLinkedStyle,
+  attachLinkedTopicsStyle,
+  detachLinkedTopicsStyle,
+  createLinkedStyleFromContainer,
+  createLinkedStyleFromTopics,
+  canCreateLinkedStyleFromContainer,
+  canCreateLinkedStyleFromTopics,
+  updateLinkedTopicsStyle,
   updateLinkedStyle,
   renameLinkedStyle,
   removeUnusedLinkedStyle,
@@ -2273,6 +2280,16 @@ export function EditorWorkspace({
     ));
   }
 
+  function attachSelectedTopicsLinkedStyle(linkedStyleId: string): void {
+    if (selectedDocumentElement?.type !== "topics") return;
+    setPresentation((current) => attachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id, linkedStyleId));
+  }
+
+  function detachSelectedTopicsLinkedStyle(): void {
+    if (selectedDocumentElement?.type !== "topics") return;
+    setPresentation((current) => detachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id));
+  }
+
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
@@ -2493,11 +2510,37 @@ export function EditorWorkspace({
   function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
   function requestResetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPendingTextStyleReset(id); }
   function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
+  function createTextStyleFromSelectedText(name: string): void {
+    if (selectedDocumentElement?.type !== "text") return;
+    setPresentation((current) => {
+      const slide = current.slides[selectedSlideIndex];
+      if (!slide) return current;
+      const text = findElementById(slide.elements, selectedDocumentElement.id);
+      if (text?.type !== "text") return current;
+      const created = createTextStyleFromText(current, text, name);
+      if (!created) return current;
+      return {
+        ...created.presentation,
+        slides: current.slides.map((candidate, index) => index === selectedSlideIndex
+          ? { ...candidate, elements: updateElementById(candidate.elements, text.id, () => created.text) }
+          : candidate),
+      };
+    });
+  }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
   function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
   function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
     setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
+  }
+  function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void { setPresentation((current) => updateLinkedTopicsStyle(current, id, patch)); }
+  function createLinkedStyleFromSelectedElement(name: string): void {
+    if (!selectedDocumentElement) return;
+    setPresentation((current) => {
+      if (selectedDocumentElement.type === "container" && canCreateLinkedStyleFromContainer(selectedDocumentElement)) return createLinkedStyleFromContainer(current, selectedSlideIndex, selectedDocumentElement.id, name);
+      if (selectedDocumentElement.type === "topics" && canCreateLinkedStyleFromTopics(selectedDocumentElement)) return createLinkedStyleFromTopics(current, selectedSlideIndex, selectedDocumentElement.id, name);
+      return current;
+    });
   }
   function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
   function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
@@ -2568,7 +2611,9 @@ export function EditorWorkspace({
     setPresentation((current) => {
       const prepared = type === "table"
         ? ensureStructuredTableTextStyles(current).presentation
-        : current;
+        : type === "topics"
+          ? ensureTopicsTextStyle(current)
+          : current;
 
       return {
       ...prepared,
@@ -2708,9 +2753,10 @@ export function EditorWorkspace({
     }
 
     setPresentation((current) => {
+      const prepared = ensureTopicsTextStyle(current);
       let changed = false;
 
-      const slides = current.slides.map((slide, index) => {
+      const slides = prepared.slides.map((slide, index) => {
         if (index !== selectedSlideIndex) {
           return slide;
         }
@@ -2735,10 +2781,10 @@ export function EditorWorkspace({
 
       return changed
         ? {
-            ...current,
+            ...prepared,
             slides,
           }
-        : current;
+        : prepared;
     });
 
     return created.item.id;
@@ -2766,9 +2812,10 @@ export function EditorWorkspace({
     }
 
     setPresentation((current) => {
+      const prepared = ensureTopicsTextStyle(current);
       let changed = false;
 
-      const slides = current.slides.map((slide, index) => {
+      const slides = prepared.slides.map((slide, index) => {
         if (index !== selectedSlideIndex) {
           return slide;
         }
@@ -2794,10 +2841,10 @@ export function EditorWorkspace({
 
       return changed
         ? {
-            ...current,
+            ...prepared,
             slides,
           }
-        : current;
+        : prepared;
     });
 
     return created.item.id;
@@ -3931,10 +3978,12 @@ export function EditorWorkspace({
             onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
             onResetFundamentalTextStyle={requestResetFundamentalTextStyle}
             onAddTextStyle={addTextStyle}
+            onCreateTextStyleFromSelected={createTextStyleFromSelectedText}
             onUpdateTextStyle={updateTextStyle}
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onUpdateLinkedTopicsStyle={updatePresentationLinkedTopicsStyle}
              onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
@@ -3943,6 +3992,8 @@ export function EditorWorkspace({
              onSelectTextStyleElement={selectTextStyleElement}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
              onRequestDetachTextStyleElement={requestTextStyleDetach}
+             selectedElement={selectedDocumentElement}
+             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />
@@ -4094,6 +4145,8 @@ export function EditorWorkspace({
                           presentation={presentation}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
+                          onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
+                          onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
                           parent={selectedElementParent}
                           layerControls={
                             selectedElementPosition

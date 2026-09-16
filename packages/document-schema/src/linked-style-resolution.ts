@@ -3,8 +3,9 @@ import type {
   ElementEffect,
   ElementTypography,
   ElementVisualStyle,
+  TopicsLayout,
 } from "./element-properties";
-import type { ContainerElement } from "./elements";
+import type { ContainerElement, TopicsElement, TopicMarkerStyle } from "./elements";
 import type { Presentation } from "./presentation";
 
 export type ResolvedLinkedContainerStyle = {
@@ -12,6 +13,14 @@ export type ResolvedLinkedContainerStyle = {
   style?: ElementVisualStyle;
   typography?: ElementTypography;
   effect?: ElementEffect;
+};
+
+export type ResolvedLinkedTopicsStyle = {
+  kind: NonNullable<TopicsElement["kind"]>;
+  layout?: TopicsLayout;
+  rootMarkerStyle?: TopicMarkerStyle;
+  markerColor?: TopicsElement["markerColor"];
+  itemGap?: number;
 };
 
 function authoredProperties<T extends object>(value: T | undefined): Partial<T> {
@@ -98,6 +107,9 @@ export function resolveLinkedContainerStyle(
   if (container.linkedStyleId !== undefined && linked === undefined) {
     throw new Error(`Unresolved linked container style: ${container.linkedStyleId}`);
   }
+  if (linked !== undefined && "target" in linked) {
+    throw new Error(`Linked style is not compatible with Container: ${container.linkedStyleId}`);
+  }
 
   const layout = resolveLayout(linked?.layout, container.layout);
   const style = resolveStyle(linked?.style, container.style);
@@ -109,5 +121,38 @@ export function resolveLinkedContainerStyle(
     ...(style === undefined ? {} : { style }),
     ...(typography === undefined ? {} : { typography }),
     ...(effect === undefined ? {} : { effect }),
+  };
+}
+
+/** Resolves canonical Linked Style values with authored Topics overrides. */
+export function resolveLinkedTopicsStyle(
+  presentation: Pick<Presentation, "linkedStyles">,
+  topics: TopicsElement,
+): ResolvedLinkedTopicsStyle {
+  const linked = topics.linkedStyleId === undefined
+    ? undefined
+    : presentation.linkedStyles?.find((style) => style.id === topics.linkedStyleId);
+
+  if (topics.linkedStyleId !== undefined && linked === undefined) {
+    throw new Error(`Unresolved linked topics style: ${topics.linkedStyleId}`);
+  }
+  if (linked !== undefined && (!("target" in linked) || linked.target !== "topics")) {
+    throw new Error(`Linked style is not compatible with Topics: ${topics.linkedStyleId}`);
+  }
+
+  const kind = topics.kind ?? linked?.kind ?? "unordered";
+  const layout = linked?.layout === undefined && topics.layout === undefined
+    ? undefined
+    : { ...authoredProperties(linked?.layout), ...authoredProperties(topics.layout) };
+  const rootMarkerStyle = topics.rootMarkerStyle ?? linked?.rootMarkerStyle;
+  const markerColor = topics.markerColor ?? linked?.markerColor;
+  const itemGap = topics.itemGap ?? linked?.itemGap;
+
+  return {
+    kind,
+    ...(layout === undefined ? {} : { layout }),
+    ...(rootMarkerStyle === undefined ? {} : { rootMarkerStyle }),
+    ...(markerColor === undefined ? {} : { markerColor }),
+    ...(itemGap === undefined ? {} : { itemGap }),
   };
 }

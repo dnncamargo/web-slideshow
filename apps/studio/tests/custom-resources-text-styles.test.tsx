@@ -2,12 +2,12 @@
 import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { PresentationSchema, type FontResource, type Presentation, type PresentationPaletteColor } from "@powershow/document-schema";
+import { PresentationSchema, TextElementSchema, type FontResource, type Presentation, type PresentationPaletteColor, type PowerShowElement } from "@powershow/document-schema";
 import { paletteColorCssVariableName } from "@powershow/renderer";
 import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { findElementById, updateElementById } from "../src/features/editor/element-tree";
-import { detachTextStyle } from "../src/features/editor/text-typography-authoring";
+import { createTextStyleFromText, detachTextStyle } from "../src/features/editor/text-typography-authoring";
 import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
@@ -43,12 +43,14 @@ function Harness({
   paletteColors,
   presentationFonts = [presentationFont],
   onSelectTextStyleElement = () => undefined,
+  selectedElement = null,
 }: {
   initial?: Presentation;
   presentationRef?: { current: Presentation | undefined };
   paletteColors?: readonly PresentationPaletteColor[];
   presentationFonts?: readonly FontResource[];
   onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void;
+  selectedElement?: PowerShowElement | null;
 }) {
   const [presentation, setPresentation] = useState(initial);
   presentationRef && (presentationRef.current = presentation);
@@ -71,6 +73,15 @@ function Harness({
     onUpdateFundamentalTextStyle={(id, typography) => setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, typography))}
     onResetFundamentalTextStyle={(id) => setPresentation((current) => resetFundamentalTextStyleOverride(current, id))}
     onAddTextStyle={(name, role) => setPresentation((current) => addCustomTextStyle(current, name, role))}
+    onCreateTextStyleFromSelected={(name) => setPresentation((current) => {
+      if (selectedElement?.type !== "text") return current;
+      const slide = current.slides[0];
+      const text = slide ? findElementById(slide.elements, selectedElement.id) : null;
+      if (text?.type !== "text" || !slide) return current;
+      const created = createTextStyleFromText(current, text, name);
+      if (!created) return current;
+      return { ...created.presentation, slides: current.slides.map((candidate, index) => index === 0 ? { ...candidate, elements: updateElementById(candidate.elements, text.id, () => created.text) } : candidate) };
+    })}
     onUpdateTextStyle={(id, patch) => setPresentation((current) => updateCustomTextStyle(current, id, patch))}
     onRemoveTextStyle={(id) => setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current)}
     isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
@@ -81,6 +92,7 @@ function Harness({
       if (target?.type !== "text" || target.variant !== styleId || target.styleDetached === true || !slide) return current;
       return { ...current, slides: current.slides.map((candidate, index) => index === location.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, location.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
     })}
+    selectedElement={selectedElement}
   />;
 }
 
@@ -94,11 +106,11 @@ describe("Custom Resources Text Styles", () => {
     root = undefined;
   });
 
-async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont]): Promise<void> {
+async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont], selectedElement: PowerShowElement | null = null): Promise<void> {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} presentationFonts={presentationFonts} onSelectTextStyleElement={onSelectTextStyleElement} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} presentationFonts={presentationFonts} onSelectTextStyleElement={onSelectTextStyleElement} selectedElement={selectedElement} /></StudioI18nProvider>));
   }
 
   function requiredElement<T extends Element>(selector: string): T {
@@ -128,6 +140,54 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     if (!found) throw new Error(`Missing disclosure button for ${id}`);
     return found;
   }
+
+  it("disables Add to Text Styles without a text selection", async () => {
+    await render();
+    expect(button("Add to Text Styles").disabled).toBe(true);
+
+    const nonText = { id: "container", type: "container" as const, hidden: false, children: [] };
+    await render(PresentationSchema.parse({ ...base(), slides: [{ id: "s", title: "", elements: [nonText] }] }), undefined, [], undefined, "en", [presentationFont], nonText);
+    expect(button("Add to Text Styles").disabled).toBe(true);
+  });
+
+  it("creates and attaches a style from the selected text's effective appearance", async () => {
+    const selectedText = TextElementSchema.parse({
+      id: "selected-text",
+      type: "text",
+      content: "Hello",
+      variant: "title",
+      style: { color: "#123456" },
+      typography: { fontSize: "24px", fontWeight: 700, textDecorationLine: "underline" },
+    });
+    const initial = PresentationSchema.parse({
+      ...base(),
+      slides: [{ id: "s", title: "", elements: [selectedText] }],
+      textStyles: [{ id: "title", typography: { fontFamily: "Inter" } }],
+    });
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef, [], undefined, "en", [presentationFont], selectedText);
+    expect(button("Add to Text Styles").disabled).toBe(false);
+    await act(async () => button("Add to Text Styles").click());
+
+    const nameInput = requiredElement<HTMLInputElement>("[data-presentation-text-styles] input");
+    await act(async () => setInputValue(nameInput, "Saved title"));
+    await act(async () => button("+ Add Style").click());
+
+    const result = presentationRef.current;
+    expect(result?.textStyles).toContainEqual({
+      id: "saved-title",
+      name: "Saved title",
+      role: "title",
+      style: { color: "#123456" },
+      typography: { fontFamily: "Inter", fontSize: "24px", textDecorationLine: "underline" },
+    });
+    const updated = result?.slides[0]?.elements[0];
+    expect(updated).toMatchObject({ id: "selected-text", type: "text", content: "Hello", variant: "saved-title" });
+    expect(updated).not.toHaveProperty("styleDetached");
+    expect(updated).not.toHaveProperty("style");
+    expect(updated).not.toHaveProperty("typography");
+    expect(row("saved-title").textContent).toContain("Used by 1 element");
+  });
 
   it("shows virtual fundamentals as built-in in This Presentation only", async () => {
     await render();

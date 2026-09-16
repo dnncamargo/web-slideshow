@@ -314,7 +314,7 @@ export function renderElement(
       return renderTable(element, (child) => renderElement(child, context));
 
     case "topics":
-      return renderTopics(element, (child) => renderElement(child, context));
+      return renderTopics(element, (child) => renderElement(child, context), context?.presentation);
 
     case "divider":
       return renderDivider(element);

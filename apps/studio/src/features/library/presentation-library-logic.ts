@@ -33,7 +33,7 @@ export type CustomLibraryDestination =
 export type PresentationToolbarAction =
   | "present"
   | "control"
-  | "end"
+  | "stop"
   | "edit"
   | "archive"
   | "restore"
@@ -196,7 +196,7 @@ export function resolveFolderName(
  *
  * CONTEXTUAL (additional, only when a presentation is selected):
  * - inactive: Present, Edit, Archive
- * - live:     Control, End, Edit
+ * - live:     Control, Edit, Stop
  * - archived: Restore, Delete (Delete is separately gated on publication by
  *   the toolbar: published archived items keep the visible control disabled)
  */
@@ -225,7 +225,7 @@ export function resolvePresentationToolbarState(
   if (isLivePresentation(selected, liveState)) {
     return {
       mode: "live",
-      actions: ["control", "end", "edit"],
+      actions: ["control", "edit", "stop"],
       transferAction: "export",
       canPresent: false,
     };

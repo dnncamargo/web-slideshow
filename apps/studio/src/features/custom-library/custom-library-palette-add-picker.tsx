@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@powershow/ui";
+
 import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { CustomLibraryPaletteDraft } from "./custom-library-palette";
@@ -83,7 +85,7 @@ export function CustomLibraryPaletteAddPicker({
       {!isLoading && loadFailed ? (
         <>
           <p className={`${styles.customLibraryApplyStatus} ${styles.customLibrarySaveError}`} role="alert">{t("customLibrary.palette.loadFailed")}</p>
-          <button type="button" onClick={() => setReloadToken((current) => current + 1)}>{t("customLibrary.palette.retry")}</button>
+          <Button size="compact" type="button" onClick={() => setReloadToken((current) => current + 1)}>{t("customLibrary.palette.retry")}</Button>
         </>
       ) : null}
       {!isLoading && !loadFailed && records?.length === 0 ? <p className={styles.customLibraryApplyStatus}>{t("customLibrary.palette.empty")}</p> : null}
@@ -104,11 +106,11 @@ export function CustomLibraryPaletteAddPicker({
             ))}
           </ul>
           <div className={styles.customLibraryPalettePickerActions}>
-            <button type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</button>
-            <button type="button" disabled={!selected || isAdding || feedback === "added"} onClick={handleAdd}>{t("customLibrary.palette.addToPresentation")}</button>
+            <Button size="compact" type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</Button>
+            <Button size="compact" type="button" disabled={!selected || isAdding || feedback === "added"} onClick={handleAdd}>{t("customLibrary.palette.addToPresentation")}</Button>
           </div>
         </>
-      ) : !isLoading && !loadFailed ? <button type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</button> : null}
+      ) : !isLoading && !loadFailed ? <Button size="compact" type="button" onClick={onCancel}>{t("customLibrary.palette.close")}</Button> : null}
       {feedback === "added" ? <p className={styles.customLibraryApplyStatus} role="status">{t("customLibrary.palette.added")}</p> : null}
       {feedback === "failed" ? <p className={`${styles.customLibraryApplyStatus} ${styles.customLibrarySaveError}`} role="alert">{t("customLibrary.palette.addFailed")}</p> : null}
     </div>

@@ -139,14 +139,14 @@ describe("TopicsElementSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects a missing kind", () => {
-    expect(
-      TopicsElementSchema.safeParse(
-        topicsElement({
-          kind: undefined,
-        }),
-      ).success,
-    ).toBe(false);
+  it("accepts an omitted kind for effective unordered Topics", () => {
+    const { kind: _kind, ...withoutKind } = topicsElement();
+    const result = TopicsElementSchema.safeParse(
+      withoutKind,
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).not.toHaveProperty("kind");
   });
 
   it("rejects an unsupported kind", () => {

@@ -269,7 +269,7 @@ export interface PresenterViewProps {
  *
  * The shell follows the Studio Editor visual structure: a 52px top bar with
  * PowerShow Control branding, centered presentation title, Locale selector,
- * local clock, Live sync/latency status and End action. The body contains the
+ * local clock, Live sync/latency status and Stop action. The body contains the
  * slide summary, current preview and next preview + notes. Previous/Next,
  * Fullscreen and the desired slide counter belong to the control row below the
  * current slide. Fullscreen sends an intent to the mounted Player.
@@ -517,8 +517,8 @@ export function PresenterView({
             Maintenance
           </Link>
 
-          <Button className={presenterStyles.topbarEndButton} variant="danger" size="compact" onClick={end}>
-            {t("control.end")}
+          <Button className={presenterStyles.topbarStopButton} variant="stop" size="compact" onClick={end}>
+            {t("control.stop")}
           </Button>
         </TopbarActions>
 
@@ -733,13 +733,15 @@ export function PresenterView({
               </span>
             </button>
 
-            <button
+            <Button
               type="button"
-              className={presenterStyles.mobileEndButton}
+              className={presenterStyles.mobileStopButton}
+              variant="stop"
+              size="compact"
               onClick={end}
             >
-              {t("control.end")}
-            </button>
+              {t("control.stop")}
+            </Button>
 
           <div className={styles.controlDivider} aria-hidden="true" />
 

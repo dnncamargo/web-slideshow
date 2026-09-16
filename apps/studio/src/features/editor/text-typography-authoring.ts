@@ -5,16 +5,77 @@ import type {
   TextStyleRole,
 } from "@powershow/document-schema";
 import {
+  PresentationSchema,
   resolveTextStyle,
   stripLocalTextStyleProperties,
   TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
 } from "@powershow/document-schema";
 import { resolveThemeTextTypographyBaseline } from "@powershow/theme/element-style-defaults";
 
+import { createTextStyleId } from "./text-style-helpers";
+
 export interface EffectiveTextStyleForAuthoring {
   role: TextStyleRole;
   style: TextElement["style"];
   typography: ElementTypography;
+}
+
+export interface CreatedTextStyleFromText {
+  presentation: Presentation;
+  textStyleId: string;
+  text: TextElement;
+}
+
+export function createTextStyleFromText(
+  presentation: Presentation,
+  text: TextElement,
+  name: string,
+): CreatedTextStyleFromText | null {
+  const trimmedName = name.trim();
+  if (!trimmedName) return null;
+
+  const resolved = resolveEffectiveTextStyleForAuthoring(presentation, text);
+  const baseline = resolveThemeTextTypographyBaseline(resolved.role);
+  const typography = Object.fromEntries(
+    TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.flatMap((property) => {
+      const value = resolved.typography[property];
+      const baselineValue = property in baseline
+        ? baseline[property as keyof typeof baseline]
+        : undefined;
+      return value !== undefined && !Object.is(value, baselineValue)
+        ? [[property, value]]
+        : [];
+    }),
+  );
+  const style = resolved.style?.color === undefined ? undefined : { color: resolved.style.color };
+  const textStyleId = createTextStyleId(
+    trimmedName,
+    (presentation.textStyles ?? []).map((candidate) => candidate.id),
+  );
+  const nextStyle = {
+    id: textStyleId,
+    name: trimmedName,
+    role: resolved.role,
+    ...(Object.keys(style ?? {}).length > 0 ? { style } : {}),
+    ...(Object.keys(typography).length > 0 ? { typography } : {}),
+  };
+  const { styleDetached: _styleDetached, typography: _typography, style: _style, ...attached } = text;
+  const local = stripLocalTextStyleProperties(text.typography, text.style);
+  const nextText = {
+    ...attached,
+    variant: textStyleId,
+    ...(local.style === undefined ? {} : { style: local.style }),
+    ...(local.typography === undefined ? {} : { typography: local.typography }),
+  };
+
+  return {
+    presentation: PresentationSchema.parse({
+      ...presentation,
+      textStyles: [...(presentation.textStyles ?? []), nextStyle],
+    }),
+    textStyleId,
+    text: nextText,
+  };
 }
 
 export function resolveEffectiveTextStyleForAuthoring(

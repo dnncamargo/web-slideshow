@@ -6,7 +6,7 @@ import {
 } from "@powershow/document-schema";
 
 import { updateElementById } from "./element-tree";
-import { visitContainers } from "./element-hierarchy";
+import { visitContainers, visitElements } from "./element-hierarchy";
 import { adoptLinkedContainerStyle } from "./linked-style-authoring";
 
 type PropertyBag = Record<string, unknown>;
@@ -84,6 +84,19 @@ export function findMatchingContainersForLinkedStyle(presentation: Presentation,
 
 export function findContainersLinkedToStyle(presentation: Presentation, linkedStyleId: string): LinkedStyleContainerLocation[] {
   return locationsFor(presentation, (container) => container.linkedStyleId === linkedStyleId);
+}
+
+/** Finds all supported Linked Style references through the canonical hierarchy traversal. */
+export function findElementsLinkedToStyle(presentation: Presentation, linkedStyleId: string): LinkedStyleContainerLocation[] {
+  const locations: LinkedStyleContainerLocation[] = [];
+  presentation.slides.forEach((slide, slideIndex) => {
+    visitElements(slide.elements, (element) => {
+      if ((element.type === "container" || element.type === "topics") && element.linkedStyleId === linkedStyleId) {
+        locations.push({ slideIndex, elementId: element.id });
+      }
+    });
+  });
+  return locations;
 }
 
 export function attachLinkedStyleToMatchingContainers(presentation: Presentation, linkedStyleId: string): { presentation: Presentation; attachedLocations: LinkedStyleContainerLocation[] } {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema, POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID } from "@powershow/document-schema";
-import { addCustomTextStyle, createTextStyleId, ensureStructuredTableTextStyles, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
+import { PresentationSchema, POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, POWERSHOW_TOPICS_TEXT_STYLE_ID } from "@powershow/document-schema";
+import { addCustomTextStyle, createTextStyleId, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 
 const base = () => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "", elements: [] }] });
 
@@ -61,6 +61,18 @@ describe("presentation typography style authoring", () => {
     const reused = ensureStructuredTableTextStyles(renamed);
     expect(reused.presentation).toEqual(renamed);
     expect(reused.ids.columnHeader).toBe(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
+  });
+
+  it("lazily ensures one canonical Topics style by ID", () => {
+    const sameName = addCustomTextStyle(base(), "Topics", "body");
+    const prepared = ensureTopicsTextStyle(sameName);
+
+    expect(prepared.textStyles).toEqual([
+      { id: "topics", name: "Topics", role: "body" },
+      { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
+    ]);
+    expect(ensureTopicsTextStyle(prepared)).toBe(prepared);
+    expect(POWERSHOW_TOPICS_TEXT_STYLE_ID).toBe("powershow:topics");
   });
 
   it("preserves IDs when editing and validates custom style creation", () => {

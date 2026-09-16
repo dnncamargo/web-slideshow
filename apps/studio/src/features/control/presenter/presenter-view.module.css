@@ -562,7 +562,7 @@
    Hidden on desktop
    ========================================================== */
 
-.mobileEndButton {
+.mobileStopButton {
   display: none;
 
   align-items: center;
@@ -586,19 +586,6 @@
   cursor: pointer;
 }
 
-.mobileEndButton:hover {
-  border-color: #7f1d1d;
-
-  background: #261317;
-
-  color: #fecaca;
-}
-
-.mobileEndButton:focus-visible {
-  outline: 2px solid #22d3ee;
-  outline-offset: 2px;
-}
-
 .mobilePlayerStatus {
   display: none;
 }
@@ -618,7 +605,7 @@
   gap: 12px;
 }
 
-.topbarEndButton {
+.topbarStopButton {
   flex: none;
 }
 
@@ -785,7 +772,7 @@
     text-align: left;
   }
   .desktopTopbarControls,
-  .topbarEndButton,
+  .topbarStopButton,
   .mobileTopbarLocale {
     display: none;
   }
@@ -878,7 +865,7 @@
     justify-content: space-between;
   }
 
-  .mobileEndButton {
+  .mobileStopButton {
     display: inline-flex;
 
     height: 40px;

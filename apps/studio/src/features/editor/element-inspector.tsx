@@ -50,6 +50,10 @@ interface ElementInspectorProps {
 
   onDetachLinkedStyle?: () => void;
 
+  onAttachLinkedTopicsStyle?: (linkedStyleId: string) => void;
+
+  onDetachLinkedTopicsStyle?: () => void;
+
   preserveImageProportion: boolean;
 
   onPreserveImageProportionChange: (value: boolean) => void;
@@ -106,6 +110,8 @@ function ElementTypeInspector({
   presentation,
   onAttachLinkedStyle = () => {},
   onDetachLinkedStyle = () => {},
+  onAttachLinkedTopicsStyle = () => {},
+  onDetachLinkedTopicsStyle = () => {},
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditing,
@@ -223,6 +229,9 @@ function ElementTypeInspector({
           onUpdate={onUpdate}
           fontResources={fontResources}
           topicsAuthoringControls={topicsAuthoringControls}
+          presentation={presentation}
+          onAttachLinkedTopicsStyle={onAttachLinkedTopicsStyle}
+          onDetachLinkedTopicsStyle={onDetachLinkedTopicsStyle}
         />
       );
 
@@ -263,6 +272,8 @@ export function ElementInspector({
   presentation,
   onAttachLinkedStyle,
   onDetachLinkedStyle,
+  onAttachLinkedTopicsStyle,
+  onDetachLinkedTopicsStyle,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditing,
@@ -317,6 +328,8 @@ export function ElementInspector({
         presentation={presentation}
         onAttachLinkedStyle={onAttachLinkedStyle}
         onDetachLinkedStyle={onDetachLinkedStyle}
+        onAttachLinkedTopicsStyle={onAttachLinkedTopicsStyle}
+        onDetachLinkedTopicsStyle={onDetachLinkedTopicsStyle}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditing={focalEditing}

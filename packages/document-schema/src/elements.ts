@@ -677,7 +677,7 @@ export type TopicsElement = {
 
   type: "topics";
 
-  kind: "unordered" | "ordered";
+  kind?: "unordered" | "ordered" | undefined;
 
   items: TopicItem[];
 
@@ -692,6 +692,8 @@ export type TopicsElement = {
   itemGap?:
     | number
     | undefined;
+
+  linkedStyleId?: string | undefined;
 
   layout?: z.infer<typeof TopicsLayoutSchema> | undefined;
 
@@ -719,7 +721,7 @@ export const TopicsElementSchema:
     kind: z.enum([
       "unordered",
       "ordered",
-    ]),
+    ]).optional(),
 
     items: z.array(TopicItemSchema),
 
@@ -728,6 +730,8 @@ export const TopicsElementSchema:
     markerColor: ColorValueSchema.optional(),
 
     itemGap: z.number().min(0).optional(),
+
+    linkedStyleId: z.string().trim().min(1).optional(),
   }).strict();
 
 export type ContainerElement = {

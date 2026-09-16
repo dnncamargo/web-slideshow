@@ -12,6 +12,7 @@ import {
   PresentationSchema,
   POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
   POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  POWERSHOW_TOPICS_TEXT_STYLE_ID,
 } from "@powershow/document-schema";
 
 import { visitElements } from "./element-hierarchy";
@@ -152,6 +153,18 @@ export function ensureStructuredTableTextStyles(
       tableCell: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
     },
   };
+}
+
+export function ensureTopicsTextStyle(presentation: Presentation): Presentation {
+  const existing = presentation.textStyles ?? [];
+  if (existing.some((style) => style.id === POWERSHOW_TOPICS_TEXT_STYLE_ID)) {
+    return presentation;
+  }
+
+  return withTextStyles(presentation, [
+    ...existing,
+    { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
+  ]);
 }
 
 export function updateCustomTextStyle(

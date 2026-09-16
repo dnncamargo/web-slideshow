@@ -102,7 +102,7 @@ describe("presentation library logic", () => {
     });
   });
 
-  it("resolves the currently live selection to Control, End, and Edit with the Export transfer slot", () => {
+  it("resolves the currently live selection to Control, Edit, and Stop with the Export transfer slot", () => {
     const liveSummary: PresentationSummary = {
       ...summary("live"),
       publication: {
@@ -123,7 +123,7 @@ describe("presentation library logic", () => {
       },
     })).toEqual({
       mode: "live",
-      actions: ["control", "end", "edit"],
+      actions: ["control", "edit", "stop"],
       transferAction: "export",
       canPresent: false,
     });

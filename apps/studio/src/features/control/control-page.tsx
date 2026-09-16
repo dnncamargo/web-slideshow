@@ -243,12 +243,9 @@ export function ControlPage() {
                 )}
               </Button>
             )}
-            <button
-              type="button"
-              onClick={() => router.push(STUDIO_ROUTES.library)}
-            >
+            <Button onClick={() => router.push(STUDIO_ROUTES.library)}>
               {t("editor.backToLibrary")}
-            </button>
+            </Button>
           </div>
         </div>
       </main>

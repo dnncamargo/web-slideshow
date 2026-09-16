@@ -13,6 +13,7 @@ import type {
 import {
   POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
   POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  POWERSHOW_TOPICS_TEXT_STYLE_ID,
 } from "@powershow/document-schema";
 
 import {
@@ -158,7 +159,7 @@ function buildDefaultTopicItem(usedIds: Set<string>): CreatedTopicItem {
 
           hidden: false,
 
-          variant: "body",
+          variant: POWERSHOW_TOPICS_TEXT_STYLE_ID,
 
           content: "New topic",
         },
