@@ -284,7 +284,33 @@ describe("linked Container containing block strategy", () => {
     expect(tag).toContain("z-index:0");
 
     // The surface is absolute, so it must not consume a grid cell.
-    expect(html).toContain('style="grid-area:1 / 1"');
+    expect(html).toContain('style="grid-area:1 / 1;z-index:0"');
+  });
+
+  it("keeps a linked Stack child at its canonical layer", () => {
+    const html = renderElement(
+      createContainerElement({
+        layout: { children: { mode: "stack" } },
+        children: [
+          createTextElement({ id: "back-text" }),
+          containerElement({
+            id: "linked-stack-child",
+            link: HTTPS_LINK,
+            layout: { children: { mode: "stack" } },
+            children: [createTextElement({ id: "linked-child-text" })],
+          }),
+          createTextElement({ id: "front-text" }),
+        ],
+      }),
+    );
+
+    const linkedStart = html.indexOf('data-powershow-id="linked-stack-child"');
+    const linkedTag = html.slice(html.lastIndexOf("<div ", linkedStart), html.indexOf(">", linkedStart));
+    expect(linkedTag).toContain("grid-area:1 / 1;z-index:1");
+    expect(linkedTag).not.toContain("z-index:0");
+    expect(html).toContain('style="position:absolute;inset:0;z-index:100"');
+    expect(html).toContain('data-powershow-id="front-text"');
+    expect(html).toContain('style="grid-area:1 / 1;z-index:2"');
   });
 
   it("renders a linked row flow Container with flex layout intact", () => {

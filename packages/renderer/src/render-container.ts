@@ -189,17 +189,29 @@ function renderCrossAxisAlignment(value: Alignment): string {
   }
 }
 
-function renderStackChild(child: string): string {
+function renderStackChild(child: string, layerIndex: number): string {
   if (!child) {
     return "";
   }
 
-  return child.includes(" style=")
-    ? child.replace(" style=\"", " style=\"grid-area:1 / 1;")
-    : child.replace(
+  const openingTagEnd = child.indexOf(">");
+  if (openingTagEnd === -1) {
+    return child;
+  }
+
+  const openingTag = child.slice(0, openingTagEnd);
+  const remainder = child.slice(openingTagEnd);
+  const withoutRootZIndex = openingTag.replace(/z-index:[^;\"]*;?/g, "");
+  const layerStyle = `grid-area:1 / 1;z-index:${layerIndex}`;
+
+  const styledOpeningTag = withoutRootZIndex.includes(" style=\"")
+    ? withoutRootZIndex.replace(" style=\"", ` style=\"${layerStyle};`)
+    : withoutRootZIndex.replace(
         /^(<[\s\S]*?)(?=\s|>)/,
-        "$1 style=\"grid-area:1 / 1\"",
+        `$1 style=\"${layerStyle}\"`,
       );
+
+  return styledOpeningTag + remainder;
 }
 
 function renderChildLayout(
@@ -365,9 +377,9 @@ export function renderContainer(
       )}"></div>`
     : "";
   const children = element.children
-    .map((child) => {
+    .map((child, index) => {
       const rendered = renderChild(child);
-      return isStack ? renderStackChild(rendered) : rendered;
+      return isStack ? renderStackChild(rendered, index) : rendered;
     })
     .join("");
   const role = element.role

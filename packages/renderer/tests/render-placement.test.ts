@@ -74,6 +74,7 @@ describe("semantic placement rendering", () => {
     expect(html).toContain('data-powershow-id="absolute-text"');
     expect(html.match(/position:relative/g)).toHaveLength(1);
     expect(html.indexOf("Background")).toBeLessThan(html.indexOf("absolute-text"));
-    expect(html).not.toContain("z-index:");
+    expect(html).toContain("grid-area:1 / 1;z-index:0");
+    expect(html).toContain("grid-area:1 / 1;z-index:1");
   });
 });
