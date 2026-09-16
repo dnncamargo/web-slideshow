@@ -131,7 +131,7 @@ describe("canonical data Appearance controls", () => {
     expect(state.style?.background?.gradient).toEqual(gradient);
   });
 
-  it("adapts RichText Code source through the existing textarea", async () => {
+  it("authors RichText Code source through the shared rich-text control", async () => {
     state = codeElement({
       code: { type: "rich-text", runs: [{ text: "  const", marks: { bold: true } }, { text: " value = 1;\nnext" }] },
     });
@@ -140,9 +140,41 @@ describe("canonical data Appearance controls", () => {
     const source = host.querySelector<HTMLTextAreaElement>("#code-source");
     expect(source?.value).toBe("  const value = 1;\nnext");
     expect(source?.value).not.toContain("[object Object]");
+    const editor = source?.closest<HTMLElement>('[data-powershow-text-editor="true"]');
+    expect(editor).not.toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-format="bold"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-format="italic"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-format="underline"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-format="code"]')).toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-line-break="true"]')).toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-color="true"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-format-clear-formatting="true"]')).not.toBeNull();
+    expect(source?.rows).toBe(10);
+    expect(source?.className).toContain("codeTextArea");
+    expect(source?.getAttribute("spellcheck")).toBe("false");
 
     await act(async () => changeTextarea(source!, "  const value = 2;\nnext"));
     expect(state.code).toEqual({ type: "rich-text", runs: [{ text: "  const", marks: { bold: true } }, { text: " value = 2;\nnext" }] });
+  });
+
+  it("applies inline formatting to selected Code text without changing Code settings", async () => {
+    state = codeElement({ code: "const value = 1;", language: "typescript", showLineNumbers: false, highlightedLines: [1] });
+    await act(async () => renderInspector());
+
+    let editor: HTMLElement | null = null;
+    await act(async () => { editor = selectEditorRange(host, "code-source", 0, 5); });
+    await act(async () => editorButton(editor!, '[data-powershow-inline-format="bold"]').click());
+    editor = host.querySelector<HTMLElement>('[data-powershow-text-editor="true"]');
+
+    expect(state.code).toEqual({
+      type: "rich-text",
+      runs: [{ text: "const", marks: { bold: true } }, { text: " value = 1;" }],
+    });
+    expect(editor?.querySelector('[data-powershow-inline-format="italic"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-powershow-inline-format="underline"]')).not.toBeNull();
+    expect(state.language).toBe("typescript");
+    expect(state.showLineNumbers).toBe(false);
+    expect(state.highlightedLines).toEqual([1]);
   });
 
   it("preserves the sibling while changing or clearing either background property", async () => {

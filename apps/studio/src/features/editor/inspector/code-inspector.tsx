@@ -15,10 +15,7 @@ import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./secti
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
-import {
-  getTextContentPlainText,
-  reconcileTextContentEdit,
-} from "../rich-text-authoring";
+import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -113,33 +110,29 @@ export function CodeInspector({
       <div className={styles.inspectorDivider} />
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
-        <label className={styles.field}>
+        <div className={styles.field}>
           <span>{t("inspector.source")}</span>
 
-          <textarea
+          <RichTextAuthoringControl
+            content={element.code}
             id="code-source"
             name="codeSource"
-            className={`${styles.textArea} ${styles.codeTextArea}`}
             rows={10}
+            inputClassName={styles.codeTextArea}
             spellCheck={false}
-            value={getTextContentPlainText(element.code)}
-            onChange={(event) => {
-              const nextPlainText = event.target.value;
-
-              onUpdate((current) => {
-                if (current.type !== "code") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  code: reconcileTextContentEdit(current.code, nextPlainText),
-                };
-              });
+            visibleMarks={{
+              bold: true,
+              italic: true,
+              underline: true,
+              code: false,
             }}
+            showLineBreak={false}
+            ariaLabel={t("inspector.source")}
+            onChange={(code) => onUpdate((current) => current.type === "code"
+              ? { ...current, code }
+              : current)}
           />
-        </label>
+        </div>
 
         <label className={styles.field}>
           <span>{t("inspector.language")}</span>
