@@ -13,6 +13,8 @@ export type ElementInspectorUpdate = (
   update: (element: PowerShowElement) => PowerShowElement,
 ) => void;
 
+export type CreateQrCodeFromLink = (href: string) => void;
+
 export interface PlotPreviewControls {
   onPlay(): void;
   onPause(): void;

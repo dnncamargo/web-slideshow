@@ -21,6 +21,7 @@ import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { InspectorSection } from "./inspector-section";
 
 import type {
+  CreateQrCodeFromLink,
   TypographyInspectorProps,
 } from "./inspector-types";
 
@@ -58,9 +59,11 @@ export function TextInspector({
   presentation,
   parent = null,
   layerControls = null,
+  onCreateQrFromLink,
 }: TypographyInspectorProps<TextInspectorElement> & {
   parent?: ContainerElement | null;
   layerControls?: ElementLayerControls | null;
+  onCreateQrFromLink?: CreateQrCodeFromLink;
 }) {
   const { t } = useStudioI18n();
 
@@ -243,6 +246,7 @@ export function TextInspector({
         element={element}
         onUpdate={onUpdate}
         controlPrefix="text"
+        onCreateQrFromLink={onCreateQrFromLink}
       />
     </>
   );

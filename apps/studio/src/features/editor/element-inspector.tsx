@@ -24,6 +24,7 @@ import {
 
 import type {
   ElementInspectorUpdate,
+  CreateQrCodeFromLink,
   PlotPreviewControls,
   TableAuthoringControls,
   TopicsAuthoringControls,
@@ -91,6 +92,8 @@ interface ElementInspectorProps {
   galleryItemIndex?: number | null;
 
   onGalleryItemIndexChange?: (index: number | null) => void;
+
+  onCreateQrFromLink?: CreateQrCodeFromLink;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -131,6 +134,7 @@ function ElementTypeInspector({
   onSelectTableStructuralNode,
   galleryItemIndex,
   onGalleryItemIndexChange,
+  onCreateQrFromLink,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -144,6 +148,7 @@ function ElementTypeInspector({
           onDetachLinkedStyle={onDetachLinkedStyle}
           parent={parent}
           layerControls={layerControls}
+          onCreateQrFromLink={onCreateQrFromLink}
         />
       );
 
@@ -156,6 +161,7 @@ function ElementTypeInspector({
           presentation={presentation}
           parent={parent}
           layerControls={layerControls}
+          onCreateQrFromLink={onCreateQrFromLink}
         />
       );
 
@@ -189,6 +195,7 @@ function ElementTypeInspector({
             if (onCropEditingChange) onCropEditingChange(editing);
             else onCropEditingImageIdChange?.(editing ? element.id : null);
           }}
+          onCreateQrFromLink={onCreateQrFromLink}
         />
       );
 
@@ -292,6 +299,7 @@ export function ElementInspector({
   onSelectTableStructuralNode,
   galleryItemIndex,
   onGalleryItemIndexChange,
+  onCreateQrFromLink,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
@@ -349,6 +357,7 @@ export function ElementInspector({
         onSelectTableStructuralNode={onSelectTableStructuralNode}
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}
+        onCreateQrFromLink={onCreateQrFromLink}
       />
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (

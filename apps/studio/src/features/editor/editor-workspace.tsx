@@ -226,6 +226,7 @@ import {
 
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
+import { createQrImageElement } from "./qr-image-authoring";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -2678,6 +2679,44 @@ export function EditorWorkspace({
     });
   }
 
+  function createQrFromSelectedLink(href: string): void {
+    if (
+      !selectedDocumentElement ||
+      (selectedDocumentElement.type !== "text" &&
+        selectedDocumentElement.type !== "image" &&
+        selectedDocumentElement.type !== "container") ||
+      !selectedDocumentElement.link ||
+      selectedDocumentElement.link.href !== href
+    ) {
+      return;
+    }
+
+    const newElement = createQrImageElement(href, presentation.slides);
+    if (!newElement || !selectedElement) {
+      return;
+    }
+
+    setPresentation((current) => ({
+      ...current,
+      slides: current.slides.map((slide, index) => {
+        if (index !== selectedSlideIndex) {
+          return slide;
+        }
+
+        return {
+          ...slide,
+          elements: insertElementAfterId(
+            slide.elements,
+            selectedElement.id,
+            newElement,
+          ),
+        };
+      }),
+    }));
+
+    setSelectedElement({ id: newElement.id, type: "image" });
+  }
+
   // ==========================================================
   // END: ADD ELEMENT
   // ==========================================================
@@ -4143,6 +4182,7 @@ export function EditorWorkspace({
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
+                          onCreateQrFromLink={createQrFromSelectedLink}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}

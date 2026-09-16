@@ -22,6 +22,7 @@ import { ContainerPositionSection } from "./sections/container-position-section"
 
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 import { ContainerLinkedStyleSection } from "./sections/container-linked-style-section";
+import type { CreateQrCodeFromLink } from "./inspector-types";
 
 interface ContainerInspectorProps {
   element: ContainerElement;
@@ -43,6 +44,8 @@ interface ContainerInspectorProps {
     count: number;
     onMoveTo: (index: number) => void;
   } | null;
+
+  onCreateQrFromLink?: CreateQrCodeFromLink;
 }
 
 // ============================================================
@@ -58,6 +61,7 @@ export function ContainerInspector({
   onDetachLinkedStyle = () => {},
   parent = null,
   layerControls = null,
+  onCreateQrFromLink,
 }: ContainerInspectorProps) {
   const effective = presentation === undefined || !("slides" in presentation)
     ? element
@@ -114,6 +118,7 @@ export function ContainerInspector({
         element={element}
         onUpdate={onUpdate}
         controlPrefix="container"
+        onCreateQrFromLink={onCreateQrFromLink}
       />
 
     </>
