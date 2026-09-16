@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isChromeOsSelectEdgeSpacingUserAgent } from "../src/features/editor/chrome-os-select-compat";
+import { isChromeOsNativeSelectCompatUserAgent } from "../src/features/editor/chrome-os-select-compat";
 
-describe("ChromeOS select edge spacing detection", () => {
+describe("ChromeOS native select compatibility detection", () => {
   it.each([
     ["Chrome on ChromeOS", "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"],
   ])("enables spacing for %s", (_label, userAgent) => {
-    expect(isChromeOsSelectEdgeSpacingUserAgent(userAgent)).toBe(true);
+    expect(isChromeOsNativeSelectCompatUserAgent(userAgent)).toBe(true);
   });
 
   it.each([
@@ -17,6 +17,6 @@ describe("ChromeOS select edge spacing detection", () => {
     ["Opera on ChromeOS", "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36 OPR/105.0.0.0"],
     ["Firefox on ChromeOS", "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0; rv:121.0) Gecko/20100101 Firefox/121.0"],
   ])("does not enable spacing for %s", (_label, userAgent) => {
-    expect(isChromeOsSelectEdgeSpacingUserAgent(userAgent)).toBe(false);
+    expect(isChromeOsNativeSelectCompatUserAgent(userAgent)).toBe(false);
   });
 });

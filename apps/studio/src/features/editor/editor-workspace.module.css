@@ -636,17 +636,9 @@
     contain;
 }
 
-.chromeOsSelectEdgeSpacingInspector,
-.chromeOsSelectEdgeSpacingTopbar {
-  --ps-studio-select-edge-safe-area: 18px;
-}
-
-.chromeOsSelectEdgeSpacingInspector {
-  padding-right: calc(16px + var(--ps-studio-select-edge-safe-area));
-}
-
-.chromeOsSelectEdgeSpacingTopbar {
-  padding-right: calc(18px + var(--ps-studio-select-edge-safe-area));
+.chromeOsNativeSelectCompatTopbar {
+  --ps-studio-chromeos-select-safe-area: 18px;
+  padding-right: calc(18px + var(--ps-studio-chromeos-select-safe-area));
 }
 
 .rightPanelTab,
@@ -839,6 +831,11 @@
 
 .elementTreeFooter select {
   padding-left: 4px;
+}
+
+.chromeOsNativeSelectCompatInspector .elementTreeFooter select {
+  flex: 0 0 100%;
+  width: 100%;
 }
 
 .elementProperties {
@@ -1770,6 +1767,10 @@
   gap: 10px;
 }
 
+.chromeOsNativeSelectCompatInspector .fieldGrid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .topicsList {
   display: grid;
 
@@ -1954,6 +1955,34 @@
 
 .unitInput select:focus {
   outline: 0;
+}
+
+.chromeOsNativeSelectCompatInspector .unitInput {
+  display: flex;
+  height: auto;
+  grid-template-columns: minmax(0, 1fr);
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.chromeOsNativeSelectCompatInspector .unitInput input,
+.chromeOsNativeSelectCompatInspector .unitInput select {
+  width: 100%;
+  height: var(--ps-ui-inspector-control-height);
+  border: 1px solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
+}
+
+.chromeOsNativeSelectCompatInspector .unitInput select {
+  border-left: 1px solid var(--ps-ui-border-input);
+  padding: 0 var(--ps-ui-inspector-control-padding-inline);
+  color: var(--ps-ui-text-resource-primary);
+  font-size: var(--ps-ui-font-size-md);
 }
 
 
