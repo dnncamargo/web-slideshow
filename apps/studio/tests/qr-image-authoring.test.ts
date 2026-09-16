@@ -45,4 +45,20 @@ describe("QR image authoring", () => {
     expect(nextParent.children.map((element) => element.type)).toEqual(["text", "image"]);
     expect(source.link?.href).toBe("https://example.com");
   });
+
+  it("keeps a Container source and its QR as siblings", () => {
+    const source = {
+      id: "source-container",
+      type: "container" as const,
+      hidden: false,
+      link: { kind: "url" as const, href: "https://example.com/container" },
+      children: [],
+    };
+    const image = createQrImageElement(source.link.href, [slide([source])]);
+    const elements = insertElementAfterId([source], source.id, image!);
+
+    expect(elements.map((element) => element.type)).toEqual(["container", "image"]);
+    expect(elements[0]?.type === "container" ? elements[0].children : []).toHaveLength(0);
+    expect(source.link.href).toBe("https://example.com/container");
+  });
 });

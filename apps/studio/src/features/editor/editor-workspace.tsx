@@ -2703,23 +2703,14 @@ export function EditorWorkspace({
           return slide;
         }
 
-        const destination = resolveAddElementDestination(
-          slide.elements,
-          selectedElement.id,
-          newElement,
-          selectedElement.contentSlotId ?? null,
-        );
-
-        switch (destination.kind) {
-          case "slide-root":
-            return { ...slide, elements: [...slide.elements, newElement] };
-          case "append-container":
-            return { ...slide, elements: appendElementToContainer(slide.elements, destination.containerId, newElement) };
-          case "append-content-slot":
-            return { ...slide, elements: appendElementToContentSlot(slide.elements, destination.contentSlotId, newElement) };
-          case "insert-after":
-            return { ...slide, elements: insertElementAfterId(slide.elements, destination.targetId, newElement) };
-        }
+        return {
+          ...slide,
+          elements: insertElementAfterId(
+            slide.elements,
+            selectedElement.id,
+            newElement,
+          ),
+        };
       }),
     }));
 
