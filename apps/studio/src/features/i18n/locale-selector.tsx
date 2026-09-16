@@ -2,6 +2,7 @@
 
 import type { StudioLocale } from "./studio-i18n";
 import { useStudioI18n } from "./studio-i18n-context";
+import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 
 import styles from "./locale-selector.module.css";
 
@@ -12,12 +13,9 @@ import styles from "./locale-selector.module.css";
  * the Editor's locale control visual treatment exactly. Used by the Editor
  * top bar and the Library header.
  */
-export function LocaleSelector({
-  chromeOsNativeSelectCompat = false,
-}: {
-  chromeOsNativeSelectCompat?: boolean;
-}) {
+export function LocaleSelector() {
   const { t, locale, setLocale } = useStudioI18n();
+  const chromeOsNativeSelectCompat = useChromeOsNativeSelectCompat();
 
   return (
     <label className={styles.localeControl} title={t("locale.language")}>

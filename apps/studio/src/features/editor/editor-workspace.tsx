@@ -227,7 +227,7 @@ import {
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrImageElement } from "./qr-image-authoring";
-import { useChromeOsNativeSelectCompat } from "./chrome-os-select-compat";
+import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -3570,9 +3570,7 @@ export function EditorWorkspace({
       END: TOPBAR CONTROLS
       ======================================================== */}
         <TopbarLocale>
-          <LocaleSelector
-            chromeOsNativeSelectCompat={chromeOsNativeSelectCompat}
-          />
+          <LocaleSelector />
         </TopbarLocale>
       </Topbar>
 

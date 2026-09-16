@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isChromeOsNativeSelectCompatUserAgent } from "../src/features/editor/chrome-os-select-compat";
+import { isChromeOsNativeSelectCompatUserAgent } from "../src/features/app/chrome-os-native-select-compat";
 
 describe("ChromeOS native select compatibility detection", () => {
   it.each([
