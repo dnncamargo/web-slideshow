@@ -150,6 +150,8 @@ describe("canonical data Appearance controls", () => {
     expect(editor?.querySelector('[data-powershow-inline-color="true"]')).not.toBeNull();
     expect(editor?.querySelector('[data-powershow-inline-format-clear-formatting="true"]')).not.toBeNull();
     expect(source?.rows).toBe(10);
+    expect(source?.className).toContain("codeTextArea");
+    expect(source?.getAttribute("spellcheck")).toBe("false");
 
     await act(async () => changeTextarea(source!, "  const value = 2;\nnext"));
     expect(state.code).toEqual({ type: "rich-text", runs: [{ text: "  const", marks: { bold: true } }, { text: " value = 2;\nnext" }] });

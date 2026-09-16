@@ -93,6 +93,8 @@ export interface RichTextAuthoringControlProps {
   name?: string;
   multiline?: boolean;
   rows?: number;
+  inputClassName?: string;
+  spellCheck?: boolean;
   visibleMarks?: Partial<Record<"bold" | "italic" | "underline" | "code", boolean>>;
   showLineBreak?: boolean;
   placeholder?: string;
@@ -106,6 +108,8 @@ export function RichTextAuthoringControl({
   name = "textContent",
   multiline = true,
   rows = 5,
+  inputClassName,
+  spellCheck,
   visibleMarks = { bold: true, italic: true, underline: true, code: true },
   showLineBreak = true,
   placeholder,
@@ -358,13 +362,14 @@ export function RichTextAuthoringControl({
       {multiline ? <textarea
         id={id}
         name={name}
-        className={styles.textArea}
+        className={`${styles.textArea}${inputClassName ? ` ${inputClassName}` : ""}`}
         ref={(node) => {
           textareaRef.current = node;
         }}
         aria-label={ariaLabel ?? t("inspector.text")}
         placeholder={placeholder}
         rows={rows}
+        spellCheck={spellCheck}
         value={plainText}
         onSelect={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onMouseUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
@@ -380,12 +385,13 @@ export function RichTextAuthoringControl({
         id={id}
         name={name}
         type="text"
-        className={styles.textArea}
+        className={`${styles.textArea}${inputClassName ? ` ${inputClassName}` : ""}`}
         ref={(node) => {
           textareaRef.current = node;
         }}
         aria-label={ariaLabel ?? t("inspector.text")}
         placeholder={placeholder}
+        spellCheck={spellCheck}
         value={plainText}
         onSelect={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onMouseUp={(event) => updateSelectionFromTextarea(event.currentTarget)}

@@ -118,6 +118,8 @@ export function CodeInspector({
             id="code-source"
             name="codeSource"
             rows={10}
+            inputClassName={styles.codeTextArea}
+            spellCheck={false}
             visibleMarks={{
               bold: true,
               italic: true,
