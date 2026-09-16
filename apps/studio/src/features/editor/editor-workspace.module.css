@@ -636,6 +636,19 @@
     contain;
 }
 
+.chromeOsSelectEdgeSpacingInspector,
+.chromeOsSelectEdgeSpacingTopbar {
+  --ps-studio-select-edge-safe-area: 18px;
+}
+
+.chromeOsSelectEdgeSpacingInspector {
+  padding-right: calc(16px + var(--ps-studio-select-edge-safe-area));
+}
+
+.chromeOsSelectEdgeSpacingTopbar {
+  padding-right: calc(18px + var(--ps-studio-select-edge-safe-area));
+}
+
 .rightPanelTab,
 .rightPanelTabActive {
   flex: 1;

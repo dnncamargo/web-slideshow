@@ -227,6 +227,7 @@ import {
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrImageElement } from "./qr-image-authoring";
+import { useChromeOsSelectEdgeSpacing } from "./chrome-os-select-compat";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -495,6 +496,7 @@ export function EditorWorkspace({
   customLibraryFontRepository?: CustomLibraryFontRepository;
 } = {}) {
   const { locale, t } = useStudioI18n();
+  const chromeOsSelectEdgeSpacing = useChromeOsSelectEdgeSpacing();
 
   // ==========================================================
   // BEGIN: DOCUMENTO EDITÁVEL
@@ -3445,7 +3447,13 @@ export function EditorWorkspace({
     BEGIN: TOP BAR
     ========================================================== */}
 
-      <Topbar>
+      <Topbar
+        className={
+          chromeOsSelectEdgeSpacing
+            ? styles.chromeOsSelectEdgeSpacingTopbar
+            : undefined
+        }
+      >
         {/* ========================================================
       BEGIN: BRAND
       ======================================================== */}
@@ -4065,7 +4073,13 @@ export function EditorWorkspace({
               </button>
             </div>
 
-            <div className={styles.inspectorContent}>
+            <div
+              className={`${styles.inspectorContent} ${
+                chromeOsSelectEdgeSpacing
+                  ? styles.chromeOsSelectEdgeSpacingInspector
+                  : ""
+              }`}
+            >
               {editorPanelView === "elements" ? (
                 <ElementTreePanel
                   key={selectedSlide.id}
