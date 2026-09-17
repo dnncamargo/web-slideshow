@@ -201,12 +201,41 @@ describe("production canonical Container renderer", () => {
     })));
 
     expect(tag).toContain("presentation-gradient-border");
-    expect(tag).toContain("border-width:2px");
-    expect(tag).toContain("border-style:solid");
-    expect(tag).toContain("border-color:transparent");
+    expect(tag).toContain("border:0");
+    expect(tag).toContain("padding-top:2px");
+    expect(tag).toContain("padding-right:2px");
+    expect(tag).toContain("padding-bottom:2px");
+    expect(tag).toContain("padding-left:2px");
     expect(tag).toContain("--presentation-gradient-border-width:2px");
     expect(tag).toContain("--presentation-gradient-border-paint:linear-gradient(90deg,#111111 0%,#ffffff 100%)");
     expect(tag).not.toContain("border-image:");
+    expect(tag).not.toMatch(/(?:^|;)border-width:2px(?:;|$)/);
+  });
+
+  it("adds gradient width after the authored padding cascade", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      layout: { padding: 12, paddingLeft: 20 },
+      style: { border: { width: 3, gradient: GRADIENT } },
+    })));
+
+    expect(tag).toContain("padding-top:15px");
+    expect(tag).toContain("padding-right:15px");
+    expect(tag).toContain("padding-bottom:15px");
+    expect(tag).toContain("padding-left:23px");
+    expect(tag).not.toContain("padding:12px");
+    expect(tag).not.toContain("padding-left:20px");
+  });
+
+  it("uses valid calc padding for CSS length values", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      layout: { padding: "12%", paddingLeft: "2rem" },
+      style: { border: { width: 3, gradient: GRADIENT } },
+    })));
+
+    expect(tag).toContain("padding-top:calc(12% + 3px)");
+    expect(tag).toContain("padding-right:calc(12% + 3px)");
+    expect(tag).toContain("padding-bottom:calc(12% + 3px)");
+    expect(tag).toContain("padding-left:calc(2rem + 3px)");
   });
 
   it("keeps gradient backgrounds and effects on the same Container root", () => {
@@ -261,7 +290,10 @@ describe("production canonical Container renderer", () => {
     expect(tag).toContain("width:300px");
     expect(tag).toContain("height:180px");
     expect(tag).toContain("margin:4px");
-    expect(tag).toContain("padding:8px");
+    expect(tag).toContain("padding-top:10px");
+    expect(tag).toContain("padding-right:10px");
+    expect(tag).toContain("padding-bottom:10px");
+    expect(tag).toContain("padding-left:10px");
     expect(tag).toContain("overflow:hidden");
     expect(tag).toContain("hero");
   });
