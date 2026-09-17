@@ -255,6 +255,7 @@ import {
   type EditorHistoryState,
   type HistoryActionMeta,
 } from "./editor-history-state";
+import { reconcileSelectedElementAfterReplay } from "./editor-history-selection-reconciliation";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -998,13 +999,7 @@ export function EditorWorkspace({
       Math.min(selectedSlideIndex, Math.max(0, next.slides.length - 1)),
     );
     setSelectedSlideIndex(nextSlideIndex);
-    setSelectedElement((current) => {
-      if (!current) return null;
-      const slide = next.slides[nextSlideIndex];
-      return slide && findElementById(slide.elements, current.id)
-        ? { ...current, contentSlotId: null }
-        : null;
-    });
+    setSelectedElement((current) => reconcileSelectedElementAfterReplay(current, next, nextSlideIndex));
     setGalleryItemSelection(null);
     setSelectedTableStructuralNode(null);
     setPendingElementDeletion(null);
