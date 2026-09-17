@@ -74,6 +74,15 @@ const englishMessages = {
 
   "canvas.noElementSelected": "No element selected",
 
+  "editor.primaryViews": "Primary editor views",
+  "editor.sessionViews": "Clipboard and history views",
+  "editor.clipboard": "Clipboard",
+  "editor.history": "History",
+  "editor.clearClipboard": "Clear Clipboard",
+  "editor.clipboardEmpty": "No snapshots in this Clipboard session.",
+  "editor.pinnedSnapshots": "Pinned",
+  "editor.historyEmpty": "History is not populated yet.",
+
   "notes.toggle": "Notes",
   "notes.title": "Notes",
   "notes.placeholder": "Write private notes for this slide…",
@@ -1178,6 +1187,15 @@ const portugueseMessages = {
   "slides.emptyPresentation": "A apresentação não possui slides.",
 
   "canvas.noElementSelected": "Nenhum elemento selecionado",
+
+  "editor.primaryViews": "Visualizações principais do editor",
+  "editor.sessionViews": "Visualizações de Clipboard e histórico",
+  "editor.clipboard": "Clipboard",
+  "editor.history": "Histórico",
+  "editor.clearClipboard": "Limpar Clipboard",
+  "editor.clipboardEmpty": "Nenhum snapshot nesta sessão de Clipboard.",
+  "editor.pinnedSnapshots": "Fixados",
+  "editor.historyEmpty": "O histórico ainda não foi preenchido.",
 
   "notes.toggle": "Notas",
   "notes.title": "Notas",

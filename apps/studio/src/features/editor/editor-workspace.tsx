@@ -60,6 +60,12 @@ import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
+import { ClipboardPanel, HistoryPanel } from "./clipboard-panel";
+import {
+  clearDisposableClipboardEntries,
+  EMPTY_CLIPBOARD_SESSION,
+  type ClipboardSessionState,
+} from "./clipboard-session";
 import {
   EDITOR_AUTOSAVE_DELAY_MS,
   editorSaveReducer,
@@ -282,6 +288,8 @@ interface SelectedElementInfo {
    */
   contentSlotId?: string | null;
 }
+
+type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
 
 interface GalleryItemSelection {
   galleryId: string;
@@ -561,9 +569,17 @@ export function EditorWorkspace({
     }
   }, [presentation.id]);
 
-  const [editorPanelView, setEditorPanelView] = useState<
-    "inspector" | "elements"
-  >("inspector");
+  const [editorPanelView, setEditorPanelView] =
+    useState<EditorPanelView>("inspector");
+  const [clipboardSession, setClipboardSession] =
+    useState<ClipboardSessionState>(EMPTY_CLIPBOARD_SESSION);
+  const clipboardPresentationId = useRef(presentation.id);
+  useEffect(() => {
+    if (clipboardPresentationId.current !== presentation.id) {
+      clipboardPresentationId.current = presentation.id;
+      setClipboardSession(EMPTY_CLIPBOARD_SESSION);
+    }
+  }, [presentation.id]);
 
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
@@ -4048,29 +4064,34 @@ export function EditorWorkspace({
           <aside className={styles.inspector}>
             <div className={styles.panelHeader}>
               <button
-                className={
-                  editorPanelView === "inspector"
-                    ? styles.rightPanelTabActive
-                    : styles.rightPanelTab
-                }
+                className={styles.panelGroupSwitch}
                 type="button"
-                aria-pressed={editorPanelView === "inspector"}
-                onClick={() => setEditorPanelView("inspector")}
-              >
-                {t("inspector.title")}
-              </button>
-              <button
-                className={
-                  editorPanelView === "elements"
-                    ? styles.rightPanelTabActive
-                    : styles.rightPanelTab
+                aria-label={
+                  editorPanelView === "inspector" || editorPanelView === "elements"
+                    ? t("editor.sessionViews")
+                    : t("editor.primaryViews")
                 }
-                type="button"
-                aria-pressed={editorPanelView === "elements"}
-                onClick={() => setEditorPanelView("elements")}
+                onClick={() =>
+                  setEditorPanelView(
+                    editorPanelView === "inspector" || editorPanelView === "elements"
+                      ? "clipboard"
+                      : "inspector",
+                  )
+                }
               >
-                {t("tree.elements")}
+                ‹
               </button>
+              {editorPanelView === "inspector" || editorPanelView === "elements" ? (
+                <>
+                  <button className={editorPanelView === "inspector" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "inspector"} onClick={() => setEditorPanelView("inspector")}>{t("inspector.title")}</button>
+                  <button className={editorPanelView === "elements" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "elements"} onClick={() => setEditorPanelView("elements")}>{t("tree.elements")}</button>
+                </>
+              ) : (
+                <>
+                  <button className={editorPanelView === "clipboard" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "clipboard"} onClick={() => setEditorPanelView("clipboard")}>{t("editor.clipboard")}</button>
+                  <button className={editorPanelView === "history" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "history"} onClick={() => setEditorPanelView("history")}>{t("editor.history")}</button>
+                </>
+              )}
             </div>
 
             <div
@@ -4080,7 +4101,19 @@ export function EditorWorkspace({
                   : ""
               }`}
             >
-              {editorPanelView === "elements" ? (
+              {editorPanelView === "clipboard" ? (
+                <ClipboardPanel
+                  session={clipboardSession}
+                  clearLabel={t("editor.clearClipboard")}
+                  emptyLabel={t("editor.clipboardEmpty")}
+                  pinnedLabel={t("editor.pinnedSnapshots")}
+                  onClear={() =>
+                    setClipboardSession(clearDisposableClipboardEntries)
+                  }
+                />
+              ) : editorPanelView === "history" ? (
+                <HistoryPanel emptyLabel={t("editor.historyEmpty")} />
+              ) : editorPanelView === "elements" ? (
                 <ElementTreePanel
                   key={selectedSlide.id}
                   slide={selectedSlide}
