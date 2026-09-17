@@ -67,6 +67,9 @@ import {
   createPendingClipboardCut,
   createClipboardEntry,
   EMPTY_CLIPBOARD_SESSION,
+  pinClipboardEntry,
+  removeClipboardEntry,
+  unpinClipboardEntry,
   type ClipboardSessionState,
   type PendingClipboardCut,
 } from "./clipboard-session";
@@ -154,6 +157,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
@@ -1211,6 +1215,14 @@ export function EditorWorkspace({
       element.classList.remove("powershow-editor-draggable");
     });
 
+    const previousPendingCuts = canvas.querySelectorAll(
+      ".powershow-editor-pending-cut",
+    );
+
+    previousPendingCuts.forEach((element) => {
+      element.classList.remove("powershow-editor-pending-cut");
+    });
+
     const candidates = canvas.querySelectorAll<HTMLElement>(
       "[data-powershow-id]",
     );
@@ -1222,6 +1234,10 @@ export function EditorWorkspace({
         : null;
 
       if (documentElement) {
+        if (id === pendingCut?.sourceElementId) {
+          candidate.classList.add("powershow-editor-pending-cut");
+        }
+
         const draggable =
           documentElement.type === "container"
             ? isContainerCanvasDraggable(documentElement)
@@ -1276,6 +1292,7 @@ export function EditorWorkspace({
     selectedDocumentElement,
     selectedElement,
     selectedSlide,
+    pendingCut,
   ]);
 
   useEffect(() => {
@@ -4309,6 +4326,7 @@ export function EditorWorkspace({
                   session={clipboardSession}
                   pendingCut={pendingCut}
                   pendingCutLabel={t("editor.pendingCut")}
+                  presentation={presentation}
                   clearLabel={t("editor.clearClipboard")}
                   emptyLabel={t("editor.clipboardEmpty")}
                   pinnedLabel={t("editor.pinnedSnapshots")}
@@ -4322,6 +4340,22 @@ export function EditorWorkspace({
                     pasteClipboardEntry(entryId);
                   }}
                   onCancelPendingCut={() => setPendingCut(null)}
+                  pinLabel={t("editor.pinSnapshot")}
+                  unpinLabel={t("editor.unpinSnapshot")}
+                  removeLabel={t("editor.removeSnapshot")}
+                  onPin={(entryId) =>
+                    setClipboardSession((current) =>
+                      current.entries.find((entry) => entry.id === entryId)?.pinned
+                        ? unpinClipboardEntry(current, entryId)
+                        : pinClipboardEntry(current, entryId),
+                    )
+                  }
+                  onRemove={(entryId) =>
+                    setClipboardSession((current) => removeClipboardEntry(current, entryId))
+                  }
+                  typeLabel={(element) =>
+                    getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))
+                  }
                 />
                     );
                   case "history":

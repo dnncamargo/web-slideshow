@@ -102,7 +102,7 @@ describe("Editor Clipboard panel foundation", () => {
         cancelable: true,
       }));
     });
-    expect(container.querySelectorAll("[data-powershow-id]").length).toBe(1);
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]").length).toBe(1);
 
     const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
     if (!image) throw new Error("expected the source image");
@@ -137,7 +137,7 @@ describe("Editor Clipboard panel foundation", () => {
         cancelable: true,
       }));
     });
-    expect(container.querySelectorAll("[data-powershow-id]").length).toBe(1);
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]").length).toBe(1);
 
     const clipboardTab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Clipboard");
@@ -145,6 +145,16 @@ describe("Editor Clipboard panel foundation", () => {
     act(() => clipboardTab.click());
     expect(container.querySelector("[class*='clipboardEntry']")).not.toBeNull();
     expect(container.querySelector("[class*='clipboardEntrySelected']")).not.toBeNull();
+    expect(container.querySelector('[class*="clipboardPreview"] [data-powershow-id="image-1"]')).not.toBeNull();
+
+    const pin = container.querySelector<HTMLButtonElement>('button[aria-label^="Pin "]');
+    expect(pin).not.toBeNull();
+    act(() => pin!.click());
+    expect(container.textContent).toContain("Pinned");
+    expect(container.querySelector("[class*='clipboardEntrySelected']")).not.toBeNull();
+    const unpin = container.querySelector<HTMLButtonElement>('button[aria-label^="Unpin "]');
+    expect(unpin).not.toBeNull();
+    act(() => unpin!.click());
 
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", {
@@ -155,7 +165,7 @@ describe("Editor Clipboard panel foundation", () => {
         cancelable: true,
       }));
     });
-    expect(container.querySelectorAll("[data-powershow-id]").length).toBe(1);
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]").length).toBe(1);
 
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", {
@@ -165,7 +175,7 @@ describe("Editor Clipboard panel foundation", () => {
         cancelable: true,
       }));
     });
-    expect(container.querySelectorAll("[data-powershow-id]").length).toBe(2);
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]").length).toBe(2);
     expect(container.querySelectorAll(".powershow-editor-selected")).toHaveLength(1);
 
     await act(async () => {
@@ -176,7 +186,7 @@ describe("Editor Clipboard panel foundation", () => {
         cancelable: true,
       }));
     });
-    expect(container.querySelectorAll("[data-powershow-id]").length).toBe(3);
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]").length).toBe(3);
   });
 
   it("keeps a Cut source until Paste, then consumes it atomically", async () => {
@@ -201,6 +211,7 @@ describe("Editor Clipboard panel foundation", () => {
       }));
     });
     expect(container.querySelector('[data-powershow-id="image-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-powershow-id="image-1"]')?.classList.contains("powershow-editor-pending-cut")).toBe(true);
 
     const clipboardTab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Clipboard");
@@ -216,9 +227,32 @@ describe("Editor Clipboard panel foundation", () => {
         cancelable: true,
       }));
     });
-    const moved = container.querySelectorAll("[data-powershow-id]");
+    const moved = container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]");
     expect(moved).toHaveLength(1);
     expect(moved[0]?.getAttribute("data-powershow-id")).not.toBe("image-1");
+    expect(container.querySelector(".powershow-editor-pending-cut")).toBeNull();
     expect(container.textContent).not.toContain("Pending Cut");
+  });
+
+  it("keeps card actions separate from selection and Paste", async () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={presentation()} />
+        </StudioI18nProvider>,
+      );
+    });
+    const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!;
+    await act(async () => image.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true, cancelable: true })));
+    const clipboardTab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Clipboard");
+    act(() => clipboardTab!.click());
+
+    const remove = container.querySelector<HTMLButtonElement>('button[aria-label^="Remove "]');
+    expect(remove).not.toBeNull();
+    await act(async () => remove!.click());
+    expect(container.querySelector("[class*='clipboardEntry']")).toBeNull();
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]")).toHaveLength(1);
   });
 });
