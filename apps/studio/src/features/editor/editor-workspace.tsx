@@ -248,6 +248,7 @@ import { createQrImageElement } from "./qr-image-authoring";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 import {
   beginHistoryTransaction,
+  applyUntrackedHistoryUpdate,
   cancelHistoryTransaction,
   commitHistory,
   commitHistoryTransaction,
@@ -570,7 +571,7 @@ export function EditorWorkspace({
           const next = typeof action.update === "function"
             ? action.update(state.present)
             : action.update;
-          return next === state.present ? state : resetHistory(next);
+          return applyUntrackedHistoryUpdate(state, next);
         }
         case "undo": return undoHistory(state);
         case "redo": return redoHistory(state);

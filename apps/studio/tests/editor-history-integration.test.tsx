@@ -191,7 +191,7 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')?.value).toBe("Changed again");
   });
 
-  it("groups slide title typing separately and finalizes on slide context change", async () => {
+  it("groups slide title typing and finalizes when changing slide context", async () => {
     const secondSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[1]!;
     await act(async () => secondSlide.click());
     const input = container.querySelector<HTMLInputElement>('input[placeholder]')!;
@@ -199,13 +199,45 @@ describe("EditorWorkspace history integration", () => {
       input.focus();
       changeInput(input, "Renamed");
       changeInput(input, "Renamed twice");
-      input.blur();
     });
 
     expect(input.value).toBe("Renamed twice");
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[0]!.click());
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[1]!.click());
     expect(container.querySelector<HTMLInputElement>('input[placeholder]')?.value).toBe("Slide 2");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLInputElement>('input[placeholder]')?.value).toBe("Renamed twice");
+  });
+
+  it("keeps a title session separate from a tracked Add Slide action", async () => {
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "Renamed");
+      changeInput(input, "Renamed twice");
+    });
+
+    const openNewSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.includes("New slide"))!;
+    await act(async () => openNewSlide.click());
+    const createNewSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ New")!;
+    await act(async () => createNewSlide.click());
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(3);
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(2);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')?.value).toBe("History integration");
+  });
+
+  it("leaves native Undo alone while a title transaction is active", async () => {
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "Changed");
+    });
+    const nativeUndo = key("z", { ctrlKey: true });
+    await act(async () => input.dispatchEvent(nativeUndo));
+    expect(nativeUndo.defaultPrevented).toBe(false);
   });
 });

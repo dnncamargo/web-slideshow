@@ -80,6 +80,14 @@ export function cancelHistoryTransaction(
   return { ...withoutTransaction, present: transaction.baseline };
 }
 
+/** Applies the temporary CP2 boundary for authoring surfaces not yet tracked. */
+export function applyUntrackedHistoryUpdate(
+  state: EditorHistoryState,
+  nextPresentation: Presentation,
+): EditorHistoryState {
+  return nextPresentation === state.present ? state : resetHistory(nextPresentation);
+}
+
 function commitHistoryFrom(
   state: EditorHistoryState,
   before: Presentation,

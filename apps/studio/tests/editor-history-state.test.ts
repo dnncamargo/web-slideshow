@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EDITOR_HISTORY_LIMIT,
+  applyUntrackedHistoryUpdate,
   beginHistoryTransaction,
   cancelHistoryTransaction,
   commitHistory,
@@ -231,6 +232,22 @@ describe("editor history state", () => {
     const state = beginHistoryTransaction(createHistoryState(a), "field", action("edit"));
     expect(state.present).toBe(a);
     expect(state.transaction?.key).toBe("field");
+    expect(applyUntrackedHistoryUpdate(state, a)).toBe(state);
+  });
+
+  it("resets all history and clears a transaction for a real untracked mutation", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const state = updateHistoryTransaction(
+      beginHistoryTransaction(createHistoryState(a), "field", action("edit")),
+      "field",
+      b,
+    );
+    const next = presentation("untracked");
+    const reset = applyUntrackedHistoryUpdate(state, next);
+
+    expect(reset).toEqual({ past: [], present: next, future: [] });
+    expect(reset.transaction).toBeUndefined();
   });
 
   it("keeps a finalized continuous action separate from a discrete action", () => {
