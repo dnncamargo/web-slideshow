@@ -25,7 +25,20 @@ function embed(
   };
 }
 
+const gradient = {
+  type: "linear" as const,
+  stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+};
+
 describe("renderEmbed", () => {
+  it("keeps gradient borders on the legacy canonical surface path", () => {
+    const html = renderEmbed(embed({
+      style: { border: { width: 2, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("border-image:linear-gradient");
+    expect(html).not.toContain("presentation-gradient-border");
+  });
   it("renders an iframe root", () => {
     expect(renderEmbed(embed())).toContain("<iframe");
   });

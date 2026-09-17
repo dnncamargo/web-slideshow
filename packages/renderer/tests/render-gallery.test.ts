@@ -4,6 +4,7 @@ import type { GalleryElement } from "@powershow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderGallery } from "../src/render-gallery";
+import { renderCanonicalSurfaceStyle } from "../src/render-canonical-surface";
 
 function gallery(overrides: Partial<GalleryElement> = {}): GalleryElement {
   return {
@@ -18,6 +19,11 @@ function gallery(overrides: Partial<GalleryElement> = {}): GalleryElement {
     ...overrides,
   };
 }
+
+const gradient = {
+  type: "linear" as const,
+  stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+};
 
 describe("renderGallery", () => {
   it("renders the canonical root and authored surface class", () => {
@@ -137,6 +143,122 @@ describe("renderGallery", () => {
     expect(html).toContain("powershow-gallery");
     expect(html).not.toContain("<img");
     expect(html).not.toContain("scroll-snap");
+  });
+
+  it("uses a fixed root frame and an inner surface for gradient borders", () => {
+    const html = renderGallery(gallery({
+      layout: { width: 600, height: 400, position: "absolute", top: 12, margin: 8 },
+      style: {
+        className: "gallery-class",
+        background: { color: "#101218" },
+        border: { width: 3, style: "dashed", gradient },
+        borderRadius: 16,
+      },
+      effect: { opacity: 0.8, shadow: { x: 0, y: 4, blur: 12, color: "#000" } },
+    }));
+
+    const surfaceStart = html.indexOf('class="presentation-gallery-gradient-surface');
+    const root = html.slice(0, surfaceStart);
+    const surface = html.slice(surfaceStart);
+
+    expect(root).toContain("powershow-gallery presentation-gallery-gradient-frame presentation-gradient-border gallery-class");
+    expect(root).toContain('data-powershow-id="gallery-1"');
+    expect(root).toContain('data-powershow-type="gallery"');
+    expect(root).toContain("width:600px");
+    expect(root).toContain("height:400px");
+    expect(root).toContain("position:absolute");
+    expect(root).toContain("top:12px");
+    expect(root).toContain("margin:8px");
+    expect(root).toContain("background:#101218");
+    expect(root).toContain("border-radius:16px");
+    expect(root).toContain("box-shadow");
+    expect(root).toContain("border:0");
+    expect(root).toContain("--presentation-gradient-border-width:3px");
+    expect(root).toContain("--presentation-gradient-border-paint:linear-gradient(180deg,#000 0%,#fff 100%)");
+    expect(root).not.toContain("border-image:");
+    expect(surface).toContain("presentation-gallery-gradient-surface-constrained");
+    expect(surface).toContain('data-powershow-gallery-index="0"');
+  });
+
+  it("keeps intrinsic gradient Galleries unconstrained and preserves crop metadata", () => {
+    const html = renderGallery(gallery({
+      fit: "cover",
+      style: { border: { width: 2, gradient }, borderRadius: 10 },
+      items: [{
+        src: "/photo.png",
+        alt: "Photo",
+        focalPoint: { x: 25, y: 75 },
+        crop: { x: 10, y: 20, width: 60, height: 50 },
+      }, { src: "/second.png", alt: "Second" }],
+    }));
+
+    const surfaceStart = html.indexOf('class="presentation-gallery-gradient-surface');
+    const surface = html.slice(surfaceStart);
+    const first = surface.slice(surface.indexOf('data-powershow-gallery-index="0"'), surface.indexOf('data-powershow-gallery-index="1"'));
+
+    expect(surface).not.toContain("presentation-gallery-gradient-surface-constrained");
+    expect(first).toContain("position:relative");
+    expect(first).toContain("width:100%");
+    expect(first).toContain("height:auto");
+    expect(first).toContain('data-powershow-image-height-authored="false"');
+    expect(first).toContain('data-powershow-image-focal-x="25"');
+    expect(first).toContain('data-powershow-image-focal-y="75"');
+    expect(first).toContain("powershow-image-crop-viewport");
+  });
+
+  it("preserves constrained crop metadata inside a fixed gradient Gallery surface", () => {
+    const html = renderGallery(gallery({
+      layout: { width: 600, height: 400 },
+      style: { border: { width: 2, gradient } },
+      items: [{
+        src: "/photo.png",
+        alt: "Photo",
+        fit: "cover",
+        focalPoint: { x: 10, y: 90 },
+        crop: { x: 10, y: 20, width: 60, height: 50 },
+      }],
+    }));
+
+    expect(html).toContain("presentation-gallery-gradient-surface-constrained");
+    expect(html).toContain('data-powershow-image-width-authored="true"');
+    expect(html).toContain('data-powershow-image-height-authored="true"');
+    expect(html).toContain('data-powershow-image-fit="cover"');
+    expect(html).toContain('data-powershow-image-focal-x="10"');
+    expect(html).toContain('data-powershow-image-focal-y="90"');
+  });
+
+  it("keeps solid Gallery borders and direct item children unchanged", () => {
+    const html = renderGallery(gallery({
+      style: { border: { width: 2, style: "dashed", color: "#fff" } },
+    }));
+
+    expect(html).not.toContain("presentation-gallery-gradient-frame");
+    expect(html).not.toContain("presentation-gallery-gradient-surface");
+    expect(html).not.toContain("presentation-gradient-border");
+    expect(html).toContain("border-width:2px");
+    expect(html).toContain("border-style:dashed");
+    expect(html).toContain("border-color:#fff");
+    expect(html.indexOf('data-powershow-gallery-index="0"')).toBeGreaterThan(html.indexOf(">"));
+  });
+
+  it("keeps canonical surface border inclusion defaulted and opt-out narrow", () => {
+    const element = gallery({
+      layout: { width: 300 },
+      style: { background: { color: "#101218" }, border: { width: 2, style: "solid", color: "#fff" }, borderRadius: 8 },
+      effect: { opacity: 0.75 },
+    });
+
+    const defaultStyle = renderCanonicalSurfaceStyle(element);
+    const withoutBorder = renderCanonicalSurfaceStyle(element, { includeBorder: false });
+
+    expect(defaultStyle).toContain("border-width:2px");
+    expect(defaultStyle).toContain("border-style:solid");
+    expect(defaultStyle).toContain("border-color:#fff");
+    expect(withoutBorder).not.toContain("border:");
+    expect(withoutBorder).toContain("width:300px");
+    expect(withoutBorder).toContain("background:#101218");
+    expect(withoutBorder).toContain("border-radius:8px");
+    expect(withoutBorder).toContain("opacity:0.75");
   });
 
   it("emits no interaction code and dispatches through renderElement", () => {

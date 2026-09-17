@@ -367,6 +367,29 @@
   padding: var(--presentation-gradient-border-width, 1px);
 }
 
+.presentation-gallery-gradient-frame {
+  padding: var(--presentation-gradient-border-width);
+}
+
+.presentation-gallery-gradient-surface {
+  position: relative;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  background: transparent;
+  border-radius: max(
+    0px,
+    calc(
+      var(--presentation-gallery-outer-radius, 0px) -
+      var(--presentation-gradient-border-width)
+    )
+  );
+}
+
+.presentation-gallery-gradient-surface-constrained {
+  height: 100%;
+}
+
 .powershow-table-frame-gradient-border {
   border: 0;
   --powershow-table-border-color: transparent;

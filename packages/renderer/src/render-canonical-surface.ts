@@ -9,8 +9,14 @@ import { renderLength } from "./render-length";
 import { renderColorValue } from "./render-palette";
 
 type SurfaceElement = GalleryElement | EmbedElement | ScriptedElement;
+type CanonicalSurfaceOptions = Readonly<{
+  includeBorder?: boolean;
+}>;
 
-export function renderCanonicalSurfaceStyle(element: SurfaceElement): string {
+export function renderCanonicalSurfaceStyle(
+  element: SurfaceElement,
+  options: CanonicalSurfaceOptions = {},
+): string {
   const output: string[] = [];
   const layout = element.layout;
   const style = element.style;
@@ -40,7 +46,9 @@ export function renderCanonicalSurfaceStyle(element: SurfaceElement): string {
   if (style?.background?.color !== undefined) {
     output.push(`background:${renderColorValue(style.background.color)}`);
   }
-  if (style?.border) output.push(...renderBorder(style.border));
+  if (options.includeBorder !== false && style?.border) {
+    output.push(...renderBorder(style.border));
+  }
   if (style?.borderRadius !== undefined) {
     output.push(`border-radius:${renderLength(style.borderRadius)}`);
   }

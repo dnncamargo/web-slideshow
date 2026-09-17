@@ -64,4 +64,20 @@ describe("gradient border theme ownership", () => {
     expect(surface).toContain("padding: var(--presentation-code-content-padding)");
     expect(surface).toContain("var(--presentation-code-outer-radius, var(--powershow-radius-md))");
   });
+
+  it("keeps Gallery gradient sizing on a neutral inner surface", () => {
+    const surface = cssBlock(".presentation-gallery-gradient-surface");
+    const constrained = cssBlock(".presentation-gallery-gradient-surface-constrained");
+    const frame = cssBlock(".presentation-gallery-gradient-frame");
+
+    expect(frame).toContain("padding: var(--presentation-gradient-border-width)");
+    expect(surface).toContain("position: relative");
+    expect(surface).toContain("width: 100%");
+    expect(surface).toContain("height: auto");
+    expect(surface).toContain("overflow: hidden");
+    expect(surface).toContain("background: transparent");
+    expect(surface).toContain("var(--presentation-gallery-outer-radius, 0px)");
+    expect(constrained).toContain("height: 100%");
+    expect(baseCss.match(/\.presentation-gradient-border::before\s*\{/g)).toHaveLength(1);
+  });
 });

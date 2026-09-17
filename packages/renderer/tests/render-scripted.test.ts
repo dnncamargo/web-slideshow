@@ -32,6 +32,11 @@ function scripted(
   };
 }
 
+const gradient = {
+  type: "linear" as const,
+  stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+};
+
 function decodeHtmlEntities(value: string): string {
   return value
     .replaceAll("&quot;", '"')
@@ -111,6 +116,14 @@ function extractBootstrap(srcdoc: string): string {
 }
 
 describe("renderScripted", () => {
+  it("keeps gradient borders on the legacy canonical surface path", () => {
+    const html = renderScripted(scripted({
+      style: { border: { width: 2, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("border-image:linear-gradient");
+    expect(html).not.toContain("presentation-gradient-border");
+  });
   it("renders an empty string when hidden", () => {
     expect(renderScripted(scripted({ hidden: true }))).toBe("");
 
