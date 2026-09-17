@@ -44,4 +44,24 @@ describe("gradient border theme ownership", () => {
       baseCss.indexOf(".powershow-image"),
     );
   });
+
+  it("keeps gradient Code scrolling on the inner surface", () => {
+    const frame = cssBlock(".presentation-code-gradient-frame");
+    const surface = cssBlock(".presentation-code-gradient-frame > .presentation-code-gradient-surface");
+    const codeBase = cssBlock(".powershow-code");
+    const highlighted = cssBlock(".powershow-code-line-highlighted");
+
+    expect(codeBase).toContain("--presentation-code-content-padding: 20px");
+    expect(codeBase).toContain("padding: var(--presentation-code-content-padding)");
+    expect(codeBase).toContain("overflow: auto");
+    expect(highlighted).toContain("var(--presentation-code-content-padding)");
+    expect(frame).toContain("border: 0");
+    expect(frame).toContain("overflow: hidden");
+    expect(frame).toContain("var(--presentation-gradient-border-width)");
+    expect(surface).toContain("overflow: auto");
+    expect(surface).toContain("height: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding))");
+    expect(surface).toContain("margin: calc(0px - var(--presentation-code-content-padding))");
+    expect(surface).toContain("padding: var(--presentation-code-content-padding)");
+    expect(surface).toContain("var(--presentation-code-outer-radius, var(--powershow-radius-md))");
+  });
 });

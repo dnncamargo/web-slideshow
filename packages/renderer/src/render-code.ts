@@ -7,6 +7,7 @@ import { quoteCssString } from "./escape-css-string";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderColorValue } from "./render-palette";
 import { renderLength } from "./render-length";
+import { renderGradientBorder } from "./render-visual";
 import {
   renderRichText,
   renderTextContent,
@@ -21,11 +22,27 @@ export function renderCode(
   }
 
   const styles: string[] = [];
+  const gradientBorder = element.style?.border?.gradient;
 
-  const baseStyle = renderCanonicalDataStyle(element);
+  const baseStyle = renderCanonicalDataStyle(element, {
+    includeBorder: gradientBorder === undefined,
+  });
 
   if (baseStyle) {
     styles.push(baseStyle);
+  }
+
+  if (gradientBorder) {
+    styles.push(
+      "border:0",
+      ...renderGradientBorder(gradientBorder, element.style?.border?.width ?? 0),
+    );
+    if (element.layout?.position === undefined) {
+      styles.push("position:relative");
+    }
+    if (element.style?.borderRadius !== undefined) {
+      styles.push(`--presentation-code-outer-radius:${renderLength(element.style.borderRadius)}`);
+    }
   }
 
   const typography = element.typography;
@@ -60,6 +77,10 @@ export function renderCode(
 
   if (customClass) {
     classes.push(customClass);
+  }
+
+  if (gradientBorder) {
+    classes.push("presentation-code-gradient-frame", "presentation-gradient-border");
   }
 
   const lines = splitTextContentLines(element.code);
@@ -117,6 +138,10 @@ export function renderCode(
         )}"`
       : "";
 
+  const codeClass = gradientBorder
+    ? " class=\"presentation-code-gradient-surface\""
+    : "";
+
   return (
     `<pre` +
     ` class="${escapeHtml(
@@ -131,7 +156,7 @@ export function renderCode(
     )}"` +
     styleAttribute +
     `>` +
-    `<code>` +
+    `<code${codeClass}>` +
     content +
     `</code>` +
     `</pre>`
