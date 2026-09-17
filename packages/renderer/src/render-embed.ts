@@ -4,6 +4,8 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
+import { renderLength } from "./render-length";
+import { renderGradientBorder } from "./render-visual";
 
 // ============================================================
 // BEGIN: EMBED SANDBOX
@@ -133,10 +135,37 @@ export function renderEmbed(
     "display:block",
   ];
 
-  const baseStyle = renderCanonicalSurfaceStyle(element);
+  const gradientBorder = element.style?.border?.gradient;
+  const hasGradientBorder = gradientBorder !== undefined;
+  const borderWidth = element.style?.border?.width;
+  const baseStyle = renderCanonicalSurfaceStyle(element, {
+    includeBorder: !hasGradientBorder,
+  });
 
   if (baseStyle) {
     styles.push(baseStyle);
+  }
+
+  if (hasGradientBorder && gradientBorder && borderWidth !== undefined) {
+    styles.push(
+      "border:0",
+      `padding:${renderLength(borderWidth)}`,
+      ...renderGradientBorder(gradientBorder, borderWidth),
+    );
+
+    if (!element.viewport && element.layout?.width === undefined) {
+      styles.push("width:max-content");
+    }
+
+    if (element.layout?.position === undefined) {
+      styles.push("position:relative");
+    }
+
+    if (element.style?.borderRadius !== undefined) {
+      styles.push(
+        `--presentation-embed-inner-radius:max(0px,calc(${renderLength(element.style.borderRadius)} - ${renderLength(borderWidth)}))`,
+      );
+    }
   }
 
   // The browser iframe default is a visible border or not. When no
@@ -147,25 +176,79 @@ export function renderEmbed(
     styles.push("border:0");
   }
 
+  const iframeStyles = element.viewport
+    ? renderEmbedViewport(element)
+    : hasGradientBorder
+      ? [
+        "display:block",
+        ...(element.layout?.width !== undefined ? ["width:100%"] : []),
+        ...(element.layout?.height !== undefined ? ["height:100%"] : []),
+        "border:0",
+        ...(element.style?.borderRadius !== undefined
+          ? ["border-radius:var(--presentation-embed-inner-radius)"]
+          : []),
+      ].join(";")
+      : styles.join(";");
+
   const iframe = (
     `<iframe` +
     (element.viewport
       ? ""
-      : ` class="${escapeHtml(classes.join(" "))}"` +
-        ` data-powershow-id="${escapeHtml(element.id)}"` +
-        ` data-powershow-type="embed"`) +
+      : hasGradientBorder
+        ? ""
+        : ` class="${escapeHtml(classes.join(" "))}"` +
+          ` data-powershow-id="${escapeHtml(element.id)}"` +
+          ` data-powershow-type="embed"`) +
     ` src="${escapeHtml(resolveEmbedSrc(element.src))}"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${EMBED_SANDBOX}"` +
     ` allow="${EMBED_ALLOW}"` +
     ` referrerpolicy="${EMBED_REFERRERPOLICY}"` +
     ` loading="lazy"` +
-    ` style="${escapeHtml(element.viewport ? renderEmbedViewport(element) : styles.join(";"))}"` +
+    ` style="${escapeHtml(iframeStyles)}"` +
     `></iframe>`
   );
 
-  if (!element.viewport) {
+  if (!element.viewport && !hasGradientBorder) {
     return iframe;
+  }
+
+  if (!element.viewport) {
+    return (
+      `<div class="${escapeHtml([...classes, "presentation-gradient-border"].join(" "))}"` +
+      ` data-powershow-id="${escapeHtml(element.id)}"` +
+      ` data-powershow-type="embed"` +
+      ` style="${escapeHtml(styles.join(";"))}">` +
+      iframe +
+      `</div>`
+    );
+  }
+
+  if (hasGradientBorder) {
+    const surfaceStyles = [
+      "display:block",
+      "position:relative",
+      "width:100%",
+      "height:100%",
+      "overflow:hidden",
+    ];
+
+    if (element.style?.borderRadius !== undefined) {
+      surfaceStyles.push(
+        "border-radius:var(--presentation-embed-inner-radius)",
+      );
+    }
+
+    return (
+      `<div class="${escapeHtml([...classes, "presentation-gradient-border"].join(" "))}"` +
+      ` data-powershow-id="${escapeHtml(element.id)}"` +
+      ` data-powershow-type="embed"` +
+      ` style="${escapeHtml(styles.join(";"))}">` +
+      `<div class="presentation-embed-gradient-surface" style="${escapeHtml(surfaceStyles.join(";"))}">` +
+      iframe +
+      `</div>` +
+      `</div>`
+    );
   }
 
   return (
