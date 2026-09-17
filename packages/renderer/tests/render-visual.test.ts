@@ -6,6 +6,7 @@ import {
 
 import {
   renderBorder,
+  renderGradientBorder,
   renderGradient,
   renderShadow,
 } from "../src/render-visual";
@@ -104,6 +105,22 @@ describe("renderShadow", () => {
     ).toBe(
       "inset 0px 2px 8px #000",
     );
+  });
+});
+
+describe("renderGradientBorder", () => {
+  it("renders the shared gradient-border width and gradient contract", () => {
+    expect(renderGradientBorder({
+      type: "linear",
+      angle: 90,
+      stops: [
+        { color: "#7c3aed", position: 0 },
+        { color: "#06b6d4", position: 100 },
+      ],
+    }, 3)).toEqual([
+      "--presentation-gradient-border-width:3px",
+      "--presentation-gradient-border-paint:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)",
+    ]);
   });
 });
 

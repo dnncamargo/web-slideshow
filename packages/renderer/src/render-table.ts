@@ -12,7 +12,7 @@ import { renderLength } from "./render-length";
 import { renderCanonicalDataStyle } from "./render-canonical-data";
 import { renderContentSlotStyle } from "./render-content-slot";
 import { renderColorValue } from "./render-palette";
-import { renderBackground, renderGradient } from "./render-visual";
+import { renderBackground, renderGradientBorder } from "./render-visual";
 import { renderRichText, renderTextContent } from "./render-rich-text";
 
 type RenderChild = (element: PowerShowElement) => string;
@@ -153,8 +153,8 @@ export function renderTable(
   if (border) {
     frameStyleParts.push(`--powershow-table-border-width:${renderLength(border.width)}`);
     if (border.gradient) {
-      frameClasses.push("powershow-table-frame-gradient-border");
-      frameStyleParts.push(`--powershow-table-border-gradient:${renderGradient(border.gradient)}`);
+      frameClasses.push("presentation-gradient-border", "powershow-table-frame-gradient-border");
+      frameStyleParts.push(...renderGradientBorder(border.gradient, border.width));
     } else {
       frameStyleParts.push(`border-width:${renderLength(border.width)}`);
       frameStyleParts.push(`border-style:${border.style ?? "solid"}`);

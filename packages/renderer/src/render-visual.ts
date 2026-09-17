@@ -45,6 +45,16 @@ export function renderGradient(
   }
 }
 
+export function renderGradientBorder(
+  gradient: Gradient,
+  width: Border["width"],
+): string[] {
+  return [
+    `--presentation-gradient-border-width:${renderLength(width)}`,
+    `--presentation-gradient-border-paint:${renderGradient(gradient)}`,
+  ];
+}
+
 export function renderBackground(
   background: GradientSurfaceBackground,
 ): string[] {
