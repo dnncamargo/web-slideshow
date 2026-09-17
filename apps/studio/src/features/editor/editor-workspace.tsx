@@ -924,14 +924,24 @@ export function EditorWorkspace({
       const modifierPressed = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
 
-      if (modifierPressed && !event.altKey && key === "c") {
+      if (
+        modifierPressed &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "c"
+      ) {
         if (copySelectedElement()) {
           event.preventDefault();
         }
         return;
       }
 
-      if (modifierPressed && !event.altKey && key === "v") {
+      if (
+        modifierPressed &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "v"
+      ) {
         if (
           clipboardSession.selectedEntryId !== null &&
           pasteClipboardEntry(clipboardSession.selectedEntryId)
