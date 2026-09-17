@@ -546,13 +546,13 @@ export function EditorWorkspace({
   // removable as each continuous surface moves to transactions.
   const [history, dispatchHistory] = useReducer(
     (state: EditorHistoryState, action:
-      | { type: "commit"; next: Presentation; meta: HistoryActionMeta }
+      | { type: "commit"; update: (current: Presentation) => Presentation; meta: HistoryActionMeta }
       | { type: "untracked"; update: Presentation | ((current: Presentation) => Presentation) }
       | { type: "undo" }
       | { type: "redo" }
       | { type: "reset"; next: Presentation }) => {
       switch (action.type) {
-        case "commit": return commitHistory(state, action.next, action.meta);
+        case "commit": return commitHistory(state, action.update(state.present), action.meta);
         case "untracked": return resetHistory(
           typeof action.update === "function"
             ? action.update(state.present)
@@ -575,6 +575,12 @@ export function EditorWorkspace({
       update,
     });
   };
+  function commitPresentationAction(
+    meta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    dispatchHistory({ type: "commit", meta, update });
+  }
 
   const [saveState, dispatchSave] = useReducer(editorSaveReducer, {
     lastSavedPresentation: initialEditableRef.current,
@@ -916,37 +922,39 @@ export function EditorWorkspace({
       return false;
     }
 
-    let committed = false;
-    dispatchHistory({
-      type: "commit",
-      meta: { kind: "element.paste", labelKey: "history.element.paste", labelParams: { elementType: entry.element.type } },
-      next: (() => {
-        const currentSlide = history.present.slides[selectedSlideIndex];
-        if (!currentSlide) return history.present;
+    const currentSlide = history.present.slides[selectedSlideIndex];
+    if (!currentSlide || !resolveClipboardPasteDestination(
+      currentSlide.elements, entry.element.id, selectedDocumentElement,
+      selectedElement?.contentSlotId ?? null,
+    )) return false;
+    commitPresentationAction(
+      { kind: "element.paste", labelKey: "history.element.paste", labelParams: { elementType: entry.element.type } },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (!slide) return current;
         const destination = resolveClipboardPasteDestination(
-          currentSlide.elements,
+          slide.elements,
           entry.element.id,
           selectedDocumentElement,
           selectedElement?.contentSlotId ?? null,
         );
-        if (!destination) return history.present;
-        const pastedElement = duplicateElement(entry.element, history.present.slides);
+        if (!destination) return current;
+        const pastedElement = duplicateElement(entry.element, current.slides);
         const nextElements = destination.kind === "slide"
-          ? [...currentSlide.elements, pastedElement]
+          ? [...slide.elements, pastedElement]
           : destination.kind === "container"
-            ? appendElementToContainer(currentSlide.elements, destination.id, pastedElement)
-            : appendElementToContentSlot(currentSlide.elements, destination.id, pastedElement);
-        if (nextElements === currentSlide.elements) return history.present;
-        committed = true;
+            ? appendElementToContainer(slide.elements, destination.id, pastedElement)
+            : appendElementToContentSlot(slide.elements, destination.id, pastedElement);
+        if (nextElements === slide.elements) return current;
         return {
-          ...history.present,
-          slides: history.present.slides.map((slide, index) =>
+          ...current,
+          slides: current.slides.map((slide, index) =>
             index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
           ),
         };
-      })(),
-    });
-    return committed;
+      },
+    );
+    return true;
   }
 
   function pastePendingCut(): boolean {
@@ -968,11 +976,17 @@ export function EditorWorkspace({
       return false;
     }
 
-    dispatchHistory({
-      type: "commit",
-      next: nextPresentation,
-      meta: { kind: "element.move", labelKey: "history.element.move" },
-    });
+    commitPresentationAction(
+      { kind: "element.move", labelKey: "history.element.move" },
+      (current) => moveClipboardElement(
+        current,
+        pendingCut.sourceSlideId,
+        pendingCut.sourceElementId,
+        selectedSlideIndex,
+        selectedDocumentElement,
+        selectedElement?.contentSlotId ?? null,
+      ) ?? current,
+    );
     setPendingCut(null);
     return true;
   }
@@ -986,7 +1000,9 @@ export function EditorWorkspace({
     setSelectedElement((current) => {
       if (!current) return null;
       const slide = next.slides[nextSlideIndex];
-      return slide && findElementById(slide.elements, current.id) ? current : null;
+      return slide && findElementById(slide.elements, current.id)
+        ? { ...current, contentSlotId: null }
+        : null;
     });
     setGalleryItemSelection(null);
     setSelectedTableStructuralNode(null);
@@ -3283,25 +3299,19 @@ export function EditorWorkspace({
       setSelectedElement((selected) => selected?.id === deletion.elementId ? null : selected);
       return;
     }
-    const next = {
-      ...current,
-
-      slides: current.slides.map((slide, index) => {
-        if (index !== deletion.slideIndex) {
-          return slide;
-        }
-
+    commitPresentationAction(
+      { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } },
+      (currentPresentation) => {
+        const slide = currentPresentation.slides[deletion.slideIndex];
+        if (!slide || !findElementById(slide.elements, deletion.elementId)) return currentPresentation;
         return {
-          ...slide,
-
-          elements: removeElementById(
-            slide.elements,
-            deletion.elementId,
-          ),
+          ...currentPresentation,
+          slides: currentPresentation.slides.map((candidate, index) => index === deletion.slideIndex
+            ? { ...candidate, elements: removeElementById(candidate.elements, deletion.elementId) }
+            : candidate),
         };
-      }),
-    };
-    dispatchHistory({ type: "commit", next, meta: { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } } });
+      },
+    );
 
     setSelectedElement((current) =>
       current?.id === deletion.elementId ? null : current,
@@ -3349,10 +3359,13 @@ export function EditorWorkspace({
 
     const newSlide = createSlideFromPreset(preset, presentation.slides);
 
-    dispatchHistory({ type: "commit", meta: { kind: "slide.add", labelKey: "history.slide.add" }, next: {
-      ...presentation,
-      slides: [...presentation.slides.slice(0, insertionIndex), newSlide, ...presentation.slides.slice(insertionIndex)],
-    } });
+    commitPresentationAction(
+      { kind: "slide.add", labelKey: "history.slide.add" },
+      (current) => ({
+        ...current,
+        slides: [...current.slides.slice(0, insertionIndex), newSlide, ...current.slides.slice(insertionIndex)],
+      }),
+    );
 
     setSelectedSlideIndex(insertionIndex);
 
@@ -3392,10 +3405,13 @@ export function EditorWorkspace({
       presentation.slides,
     );
 
-    dispatchHistory({ type: "commit", meta: { kind: "slide.duplicate", labelKey: "history.slide.duplicate" }, next: {
-      ...presentation,
-      slides: [...presentation.slides.slice(0, insertionIndex), duplicatedSlide, ...presentation.slides.slice(insertionIndex)],
-    } });
+    commitPresentationAction(
+      { kind: "slide.duplicate", labelKey: "history.slide.duplicate" },
+      (current) => ({
+        ...current,
+        slides: [...current.slides.slice(0, insertionIndex), duplicatedSlide, ...current.slides.slice(insertionIndex)],
+      }),
+    );
 
     setSelectedSlideIndex(insertionIndex);
 
@@ -3438,12 +3454,15 @@ export function EditorWorkspace({
 
     const nextIndex = Math.min(selectedSlideIndex, nextSlides.length - 1);
 
-    dispatchHistory({ type: "commit", meta: { kind: "slide.delete", labelKey: "history.slide.delete" }, next: {
-      ...presentation,
-      slides: presentation.slides.filter(
+    commitPresentationAction(
+      { kind: "slide.delete", labelKey: "history.slide.delete" },
+      (current) => ({
+      ...current,
+      slides: current.slides.filter(
         (_slide, index) => index !== selectedSlideIndex,
       ),
-    } });
+      }),
+    );
 
     setSelectedSlideIndex(nextIndex);
 
@@ -3476,10 +3495,13 @@ export function EditorWorkspace({
       return;
     }
 
-    dispatchHistory({ type: "commit", meta: { kind: "slide.move", labelKey: "history.slide.move" }, next: {
-      ...presentation,
-      slides: moveSlide(presentation.slides, selectedSlideIndex, targetIndex),
-    } });
+    commitPresentationAction(
+      { kind: "slide.move", labelKey: "history.slide.move" },
+      (current) => ({
+        ...current,
+        slides: moveSlide(current.slides, selectedSlideIndex, targetIndex),
+      }),
+    );
 
     setSelectedSlideIndex(targetIndex);
   }
