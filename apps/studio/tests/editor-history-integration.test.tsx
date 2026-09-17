@@ -33,6 +33,13 @@ function key(key: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options });
 }
 
+function changeInput(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setter) throw new Error("expected HTMLInputElement.value setter");
+  setter.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 describe("EditorWorkspace history integration", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -166,5 +173,39 @@ describe("EditorWorkspace history integration", () => {
     await act(async () => window.dispatchEvent(redo));
     expect(redo.defaultPrevented).toBe(true);
     expect(container.querySelector('[data-powershow-id="image-1"]')).toBeNull();
+  });
+
+  it("groups presentation title typing into one undoable session", async () => {
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "Changed");
+      changeInput(input, "Changed again");
+      input.blur();
+    });
+
+    expect(input.value).toBe("Changed again");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')?.value).toBe("History integration");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')?.value).toBe("Changed again");
+  });
+
+  it("groups slide title typing separately and finalizes on slide context change", async () => {
+    const secondSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[1]!;
+    await act(async () => secondSlide.click());
+    const input = container.querySelector<HTMLInputElement>('input[placeholder]')!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "Renamed");
+      changeInput(input, "Renamed twice");
+      input.blur();
+    });
+
+    expect(input.value).toBe("Renamed twice");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>('input[placeholder]')?.value).toBe("Slide 2");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>('input[placeholder]')?.value).toBe("Renamed twice");
   });
 });

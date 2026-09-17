@@ -19,10 +19,81 @@ export interface EditorHistoryState {
   readonly present: Presentation;
   /** The first entry is the next transition available to redo. */
   readonly future: readonly HistoryEntry[];
+  readonly transaction?: HistoryTransaction;
+}
+
+export interface HistoryTransaction {
+  readonly key: string;
+  readonly baseline: Presentation;
+  readonly action: HistoryActionMeta;
 }
 
 export function createHistoryState(present: Presentation): EditorHistoryState {
   return { past: [], present, future: [] };
+}
+
+export function beginHistoryTransaction(
+  state: EditorHistoryState,
+  key: string,
+  action: HistoryActionMeta,
+): EditorHistoryState {
+  if (state.transaction?.key === key) return state;
+  const finalized = state.transaction === undefined
+    ? state
+    : commitHistoryTransaction(state);
+  return { ...finalized, transaction: { key, baseline: finalized.present, action } };
+}
+
+export function updateHistoryTransaction(
+  state: EditorHistoryState,
+  key: string,
+  nextPresentation: Presentation,
+): EditorHistoryState {
+  if (state.transaction?.key !== key || nextPresentation === state.present) {
+    return state;
+  }
+  return { ...state, present: nextPresentation };
+}
+
+export function commitHistoryTransaction(
+  state: EditorHistoryState,
+  key?: string,
+): EditorHistoryState {
+  const transaction = state.transaction;
+  if (transaction === undefined || (key !== undefined && transaction.key !== key)) {
+    return state;
+  }
+  const { transaction: _transaction, ...cleared } = state;
+  if (state.present === transaction.baseline) return cleared;
+  return commitHistoryFrom(cleared, transaction.baseline, state.present, transaction.action);
+}
+
+export function cancelHistoryTransaction(
+  state: EditorHistoryState,
+  key?: string,
+): EditorHistoryState {
+  const transaction = state.transaction;
+  if (transaction === undefined || (key !== undefined && transaction.key !== key)) {
+    return state;
+  }
+  const { transaction: _transaction, ...withoutTransaction } = state;
+  return { ...withoutTransaction, present: transaction.baseline };
+}
+
+function commitHistoryFrom(
+  state: EditorHistoryState,
+  before: Presentation,
+  after: Presentation,
+  action: HistoryActionMeta,
+): EditorHistoryState {
+  const nextPast = [...state.past, { before, after, action }];
+  return {
+    past: nextPast.length > EDITOR_HISTORY_LIMIT
+      ? nextPast.slice(nextPast.length - EDITOR_HISTORY_LIMIT)
+      : nextPast,
+    present: after,
+    future: [],
+  };
 }
 
 export function commitHistory(
@@ -34,29 +105,15 @@ export function commitHistory(
     return state;
   }
 
-  const nextEntry: HistoryEntry = {
-    before: state.present,
-    after: nextPresentation,
-    action,
-  };
-  const nextPast = [...state.past, nextEntry];
-
-  return {
-    past:
-      nextPast.length > EDITOR_HISTORY_LIMIT
-        ? nextPast.slice(nextPast.length - EDITOR_HISTORY_LIMIT)
-        : nextPast,
-    present: nextPresentation,
-    future: [],
-  };
+  return commitHistoryFrom(state, state.present, nextPresentation, action);
 }
 
 export function undoHistory(state: EditorHistoryState): EditorHistoryState {
-  return undoSteps(state, 1);
+  return undoSteps(commitHistoryTransaction(state), 1);
 }
 
 export function redoHistory(state: EditorHistoryState): EditorHistoryState {
-  return redoSteps(state, 1);
+  return redoSteps(commitHistoryTransaction(state), 1);
 }
 
 export function undoSteps(

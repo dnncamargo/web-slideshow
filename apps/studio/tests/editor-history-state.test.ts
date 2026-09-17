@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   EDITOR_HISTORY_LIMIT,
+  beginHistoryTransaction,
+  cancelHistoryTransaction,
   commitHistory,
+  commitHistoryTransaction,
   createHistoryState,
   redoHistory,
   redoSteps,
   resetHistory,
+  updateHistoryTransaction,
   undoHistory,
   undoSteps,
 } from "../src/features/editor/editor-history-state";
@@ -129,5 +133,119 @@ describe("editor history state", () => {
     expect(reset).toEqual({ past: [], present: next, future: [] });
     expect(reset.past).not.toBe(state.past);
     expect(reset.present).toBe(next);
+  });
+
+  it("groups live transaction updates into one immutable action", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const c = presentation("C");
+    let state = beginHistoryTransaction(createHistoryState(a), "title", action("rename"));
+    state = updateHistoryTransaction(state, "title", b);
+    state = updateHistoryTransaction(state, "title", c);
+
+    expect(state.present).toBe(c);
+    expect(state.past).toEqual([]);
+    const committed = commitHistoryTransaction(state, "title");
+    expect(committed.past).toHaveLength(1);
+    expect(committed.past[0]).toMatchObject({ before: a, after: c, action: action("rename") });
+    expect(committed.transaction).toBeUndefined();
+  });
+
+  it("cancels without changing past or future", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const c = presentation("C");
+    const afterUndo = undoHistory(commitHistory(commitHistory(createHistoryState(a), b, action("b")), c, action("c")));
+    const live = updateHistoryTransaction(beginHistoryTransaction(afterUndo, "field", action("edit")), "field", presentation("D"));
+    const cancelled = cancelHistoryTransaction(live, "field");
+    expect(cancelled.present).toBe(b);
+    expect(cancelled.past).toEqual(afterUndo.past);
+    expect(cancelled.future).toEqual(afterUndo.future);
+  });
+
+  it("preserves future for a transaction no-op and clears it on commit", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const c = presentation("C");
+    const afterUndo = undoHistory(commitHistory(commitHistory(createHistoryState(a), b, action("b")), c, action("c")));
+    const noOp = commitHistoryTransaction(beginHistoryTransaction(afterUndo, "field", action("edit")), "field");
+    expect(noOp.future[0]?.after).toBe(c);
+
+    const committed = commitHistoryTransaction(
+      updateHistoryTransaction(beginHistoryTransaction(afterUndo, "field", action("edit")), "field", presentation("D")),
+      "field",
+    );
+    expect(committed.past.at(-1)?.before).toBe(b);
+    expect(committed.past.at(-1)?.after.id).toBe("D");
+    expect(committed.future).toEqual([]);
+  });
+
+  it("finalizes an active transaction before undo", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const state = updateHistoryTransaction(
+      beginHistoryTransaction(createHistoryState(a), "field", action("edit")),
+      "field",
+      b,
+    );
+    const undone = undoHistory(state);
+    expect(undone.present).toBe(a);
+    expect(undone.past).toEqual([]);
+    expect(undone.future[0]?.after).toBe(b);
+  });
+
+  it("finalizes a changed transaction before beginning a different key", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const c = presentation("C");
+    let state = updateHistoryTransaction(
+      beginHistoryTransaction(createHistoryState(a), "first", action("first")),
+      "first",
+      b,
+    );
+    state = beginHistoryTransaction(state, "second", action("second"));
+
+    expect(state.past[0]).toMatchObject({ before: a, after: b });
+    expect(state.transaction?.key).toBe("second");
+    expect(state.transaction?.baseline).toBe(b);
+    expect(updateHistoryTransaction(state, "first", c)).toBe(state);
+  });
+
+  it("does not reset the baseline when beginning the same key again", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const state = updateHistoryTransaction(
+      beginHistoryTransaction(createHistoryState(a), "field", action("edit")),
+      "field",
+      b,
+    );
+    const repeated = beginHistoryTransaction(state, "field", action("replacement"));
+
+    expect(repeated).toBe(state);
+    expect(repeated.transaction?.baseline).toBe(a);
+    expect(repeated.transaction?.action).toEqual(action("edit"));
+  });
+
+  it("keeps a same-root untracked no-op transaction intact", () => {
+    const a = presentation("A");
+    const state = beginHistoryTransaction(createHistoryState(a), "field", action("edit"));
+    expect(state.present).toBe(a);
+    expect(state.transaction?.key).toBe("field");
+  });
+
+  it("keeps a finalized continuous action separate from a discrete action", () => {
+    const a = presentation("A");
+    const b = presentation("B");
+    const c = presentation("C");
+    const editing = updateHistoryTransaction(
+      beginHistoryTransaction(createHistoryState(a), "title", action("rename")),
+      "title",
+      b,
+    );
+    const finalized = commitHistoryTransaction(editing);
+    const discrete = commitHistory(finalized, c, action("slide.add"));
+
+    expect(discrete.past.map((entry) => entry.action.kind)).toEqual(["rename", "slide.add"]);
+    expect(discrete.past[1]?.before).toBe(b);
   });
 });

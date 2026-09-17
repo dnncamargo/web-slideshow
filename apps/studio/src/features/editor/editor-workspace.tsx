@@ -247,11 +247,15 @@ import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrImageElement } from "./qr-image-authoring";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 import {
+  beginHistoryTransaction,
+  cancelHistoryTransaction,
   commitHistory,
+  commitHistoryTransaction,
   createHistoryState,
   redoHistory,
   resetHistory,
   undoHistory,
+  updateHistoryTransaction,
   type EditorHistoryState,
   type HistoryActionMeta,
 } from "./editor-history-state";
@@ -548,12 +552,20 @@ export function EditorWorkspace({
   const [history, dispatchHistory] = useReducer(
     (state: EditorHistoryState, action:
       | { type: "commit"; update: (current: Presentation) => Presentation; meta: HistoryActionMeta }
+      | { type: "transaction-begin"; key: string; meta: HistoryActionMeta }
+      | { type: "transaction-update"; key: string; update: (current: Presentation) => Presentation }
+      | { type: "transaction-commit"; key?: string }
+      | { type: "transaction-cancel"; key?: string }
       | { type: "untracked"; update: Presentation | ((current: Presentation) => Presentation) }
       | { type: "undo" }
       | { type: "redo" }
       | { type: "reset"; next: Presentation }) => {
       switch (action.type) {
         case "commit": return commitHistory(state, action.update(state.present), action.meta);
+        case "transaction-begin": return beginHistoryTransaction(state, action.key, action.meta);
+        case "transaction-update": return updateHistoryTransaction(state, action.key, action.update(state.present));
+        case "transaction-commit": return commitHistoryTransaction(state, action.key);
+        case "transaction-cancel": return cancelHistoryTransaction(state, action.key);
         case "untracked": {
           const next = typeof action.update === "function"
             ? action.update(state.present)
@@ -581,7 +593,23 @@ export function EditorWorkspace({
     meta: HistoryActionMeta,
     update: (current: Presentation) => Presentation,
   ): void {
+    dispatchHistory({ type: "transaction-commit" });
     dispatchHistory({ type: "commit", meta, update });
+  }
+
+  function beginPresentationTransaction(key: string, meta: HistoryActionMeta): void {
+    dispatchHistory({ type: "transaction-begin", key, meta });
+  }
+
+  function updatePresentationTransaction(
+    key: string,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    dispatchHistory({ type: "transaction-update", key, update });
+  }
+
+  function finishPresentationTransaction(key?: string): void {
+    dispatchHistory({ type: "transaction-commit", ...(key === undefined ? {} : { key }) });
   }
 
   const [saveState, dispatchSave] = useReducer(editorSaveReducer, {
@@ -1015,7 +1043,8 @@ export function EditorWorkspace({
   }
 
   function undoEditorHistory(): boolean {
-    if (history.past.length === 0) return false;
+    if (history.transaction !== undefined) dispatchHistory({ type: "transaction-commit" });
+    if (history.past.length === 0 && history.transaction === undefined) return false;
     const nextState = undoHistory(history);
     dispatchHistory({ type: "undo" });
     reconcileAfterHistoryReplay(nextState.present);
@@ -1023,7 +1052,8 @@ export function EditorWorkspace({
   }
 
   function redoEditorHistory(): boolean {
-    if (history.future.length === 0) return false;
+    if (history.transaction !== undefined) dispatchHistory({ type: "transaction-commit" });
+    if (history.future.length === 0 && history.transaction === undefined) return false;
     const nextState = redoHistory(history);
     dispatchHistory({ type: "redo" });
     reconcileAfterHistoryReplay(nextState.present);
@@ -1555,6 +1585,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function selectSlide(index: number) {
+    finishPresentationTransaction();
     setSelectedSlideIndex(index);
 
     setSelectedElement(null);
@@ -3802,12 +3833,14 @@ export function EditorWorkspace({
             className={styles.presentationTitleInput}
             value={presentation.title}
             aria-label={t("topbar.editor")}
+            onFocus={() => beginPresentationTransaction("presentation:title", { kind: "presentation.rename", labelKey: "history.presentation.rename" })}
             onChange={(event) => {
               const title = event.target.value;
-              setPresentation((current) =>
+              updatePresentationTransaction("presentation:title", (current) =>
                 updatePresentationTitle(current, title),
               );
             }}
+            onBlur={() => finishPresentationTransaction("presentation:title")}
           />
         </TopbarTitle>
 
@@ -4488,6 +4521,7 @@ export function EditorWorkspace({
                       selectedElement.type !== selection.type ||
                       selectedElement.contentSlotId !== selection.contentSlotId
                     ) {
+                      finishPresentationTransaction();
                       setSelectedElement({
                         id: selection.id,
                         type: selection.type,
@@ -4625,15 +4659,16 @@ export function EditorWorkspace({
                           type="text"
                           value={selectedSlide.title}
                           placeholder={t("slides.untitled")}
+                          onFocus={() => beginPresentationTransaction(`slide:${selectedSlide.id}:title`, { kind: "slide.rename", labelKey: "history.slide.rename" })}
                           onChange={(event) => {
                             const title = event.target.value;
 
-                            updateSelectedSlide((slide) => ({
-                              ...slide,
-
-                              title,
+                            updatePresentationTransaction(`slide:${selectedSlide.id}:title`, (current) => ({
+                              ...current,
+                              slides: current.slides.map((slide) => slide.id === selectedSlide.id ? { ...slide, title } : slide),
                             }));
                           }}
+                          onBlur={() => finishPresentationTransaction(`slide:${selectedSlide.id}:title`)}
                         />
                       </label>
 
