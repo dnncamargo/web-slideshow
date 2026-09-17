@@ -6,6 +6,7 @@ import type { TypedInspectorProps, UpdateSurfaceStyle } from "./inspector-types"
 import { CanonicalSurfaceAppearanceSection } from "./sections/canonical-surface-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
+import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
 import { ImageCropControl, ImageFocalPointControl } from "./sections/image-crop-control";
 import { getGalleryItemDisplayName } from "../gallery-item-display-name";
 
@@ -69,6 +70,15 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
         <ImageFocalPointControl focalPoint={selectedItem.focalPoint} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onFocalPointChange={(focalPoint) => updateSelectedItem((item) => ({ ...item, focalPoint }))} onResetFocalPoint={() => updateSelectedItem((item) => ({ ...item, focalPoint: undefined }))} canvasEdit={{ editing: focalEditing, onEditingChange: onFocalEditingChange }} />
       </> : <div className={styles.emptyInspectorList}><span>{t("gallery.items", { count: 0 })}</span></div>}
     </InspectorSection>
+    <CanonicalElementSizeSection
+      layout={element.layout}
+      onUpdateLayout={(update) =>
+        updateGallery((gallery) => ({
+          ...gallery,
+          layout: update(gallery.layout),
+        }))
+      }
+    />
     <ElementSpacingSection
       layout={element.layout}
       controlPrefix="gallery"
