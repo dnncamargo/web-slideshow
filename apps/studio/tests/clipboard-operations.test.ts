@@ -18,6 +18,11 @@ describe("Clipboard paste destination", () => {
     expect(
       resolveClipboardPasteDestination([container], "source", source, null),
     ).toEqual({ kind: "container", id: "container" });
+
+    const rootContainer = { id: "root-container", type: "container", children: [] } as unknown as PowerShowElement;
+    expect(
+      resolveClipboardPasteDestination([rootContainer], "root-container", rootContainer, null),
+    ).toEqual({ kind: "slide" });
   });
 
   it("uses a different selected Container as the explicit receiver", () => {
@@ -42,6 +47,27 @@ describe("Clipboard paste destination", () => {
       ).toEqual({ kind: "container", id: "receiver" });
     },
   );
+
+  it("keeps a Container receiver stable for repeated insertions", () => {
+    const receiver = {
+      id: "receiver",
+      type: "container",
+      children: [],
+    } as unknown as Extract<PowerShowElement, { type: "container" }>;
+    const snapshot = divider("snapshot");
+    const first = {
+      ...receiver,
+      children: [...receiver.children, snapshot],
+    };
+    const second = {
+      ...first,
+      children: [...first.children, divider("snapshot-copy")],
+    };
+
+    expect(first.children).toHaveLength(1);
+    expect(second.children).toHaveLength(2);
+    expect(second.id).toBe(receiver.id);
+  });
 
   it("uses an explicit existing ContentSlot before falling back to root", () => {
     const topics = {
