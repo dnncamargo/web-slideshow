@@ -74,8 +74,8 @@ const englishMessages = {
 
   "canvas.noElementSelected": "No element selected",
 
-  "editor.primaryViews": "Primary editor views",
-  "editor.sessionViews": "Clipboard and history views",
+  "editor.scrollTabsEarlier": "Scroll editor tabs left",
+  "editor.scrollTabsLater": "Scroll editor tabs right",
   "editor.clipboard": "Clipboard",
   "editor.history": "History",
   "editor.clearClipboard": "Clear Clipboard",
@@ -1188,8 +1188,8 @@ const portugueseMessages = {
 
   "canvas.noElementSelected": "Nenhum elemento selecionado",
 
-  "editor.primaryViews": "Visualizações principais do editor",
-  "editor.sessionViews": "Visualizações de Clipboard e histórico",
+  "editor.scrollTabsEarlier": "Rolar abas do editor para a esquerda",
+  "editor.scrollTabsLater": "Rolar abas do editor para a direita",
   "editor.clipboard": "Clipboard",
   "editor.history": "Histórico",
   "editor.clearClipboard": "Limpar Clipboard",

@@ -25,7 +25,7 @@ describe("Editor Clipboard panel foundation", () => {
     document.body.innerHTML = "";
   });
 
-  it("keeps primary views and switches into Clipboard and History", () => {
+  it("keeps all four views in one tab strip and arrows only scroll it", () => {
     act(() => {
       root.render(
         <StudioI18nProvider>
@@ -34,33 +34,33 @@ describe("Editor Clipboard panel foundation", () => {
       );
     });
 
-    expect(container.textContent).toContain("Inspector");
-    expect(container.textContent).toContain("Elements");
-    expect(container.textContent).not.toContain("Clipboard");
+    const tabs = ["Inspector", "Elements", "Clipboard", "History"].map((label) => {
+      const tab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.trim() === label);
+      if (!tab) throw new Error("expected the " + label + " tab");
+      return tab;
+    });
+    expect(tabs).toHaveLength(4);
 
-    const primaryGroupSwitches = container.querySelectorAll<HTMLButtonElement>(
-      'button[aria-label="Clipboard and history views"]',
-    );
-    expect(primaryGroupSwitches).toHaveLength(2);
-    act(() => primaryGroupSwitches[1]?.click());
-
-    expect(container.textContent).toContain("Clipboard");
-    expect(container.textContent).toContain("History");
-    expect(container.textContent).toContain("No snapshots in this Clipboard session.");
-    expect(container.textContent).not.toContain("Inspector");
-
-    const history = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.trim() === "History");
-    if (!history) throw new Error("expected the History tab");
-    act(() => history.click());
+    for (const tab of tabs) {
+      act(() => tab.click());
+      expect(tab.getAttribute("aria-pressed")).toBe("true");
+    }
     expect(container.textContent).toContain("History is not populated yet.");
 
-    const sessionGroupSwitches = container.querySelectorAll<HTMLButtonElement>(
-      'button[aria-label="Primary editor views"]',
+    const leftArrow = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Scroll editor tabs left"]',
     );
-    expect(sessionGroupSwitches).toHaveLength(2);
-    act(() => sessionGroupSwitches[1]?.click());
-    expect(container.textContent).toContain("Inspector");
-    expect(container.textContent).not.toContain("Clipboard");
+    const rightArrow = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Scroll editor tabs right"]',
+    );
+    if (!leftArrow || !rightArrow) throw new Error("expected both tab scroll controls");
+    expect(container.querySelectorAll('button[aria-label^="Scroll editor tabs"]').length).toBe(2);
+
+    act(() => leftArrow.click());
+    act(() => rightArrow.click());
+    expect(tabs[3]?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.textContent).not.toContain("Primary editor views");
+    expect(container.textContent).not.toContain("Clipboard and history views");
   });
 });

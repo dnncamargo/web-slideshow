@@ -571,6 +571,11 @@ export function EditorWorkspace({
 
   const [editorPanelView, setEditorPanelView] =
     useState<EditorPanelView>("inspector");
+  const editorPanelTabsRef = useRef<HTMLDivElement>(null);
+  const scrollEditorPanelTabs = (amount: number) => {
+    const tabStrip = editorPanelTabsRef.current;
+    if (tabStrip) tabStrip.scrollLeft += amount;
+  };
   const [clipboardSession, setClipboardSession] =
     useState<ClipboardSessionState>(EMPTY_CLIPBOARD_SESSION);
   const clipboardPresentationId = useRef(presentation.id);
@@ -4066,47 +4071,24 @@ export function EditorWorkspace({
               <button
                 className={styles.panelGroupSwitch}
                 type="button"
-                aria-label={
-                  editorPanelView === "inspector" || editorPanelView === "elements"
-                    ? t("editor.sessionViews")
-                    : t("editor.primaryViews")
-                }
-                onClick={() =>
-                  setEditorPanelView(
-                    editorPanelView === "inspector" || editorPanelView === "elements"
-                      ? "clipboard"
-                      : "inspector",
-                  )
-                }
+                aria-label={t("editor.scrollTabsEarlier")}
+                onClick={() => scrollEditorPanelTabs(-120)}
               >
                 ‹
               </button>
-              {editorPanelView === "inspector" || editorPanelView === "elements" ? (
-                <>
+              <div className={styles.panelTabViewport}>
+                <div className={styles.panelTabStrip} ref={editorPanelTabsRef}>
                   <button className={editorPanelView === "inspector" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "inspector"} onClick={() => setEditorPanelView("inspector")}>{t("inspector.title")}</button>
                   <button className={editorPanelView === "elements" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "elements"} onClick={() => setEditorPanelView("elements")}>{t("tree.elements")}</button>
-                </>
-              ) : (
-                <>
                   <button className={editorPanelView === "clipboard" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "clipboard"} onClick={() => setEditorPanelView("clipboard")}>{t("editor.clipboard")}</button>
                   <button className={editorPanelView === "history" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "history"} onClick={() => setEditorPanelView("history")}>{t("editor.history")}</button>
-                </>
-              )}
+                </div>
+              </div>
               <button
                 className={styles.panelGroupSwitch}
                 type="button"
-                aria-label={
-                  editorPanelView === "inspector" || editorPanelView === "elements"
-                    ? t("editor.sessionViews")
-                    : t("editor.primaryViews")
-                }
-                onClick={() =>
-                  setEditorPanelView(
-                    editorPanelView === "inspector" || editorPanelView === "elements"
-                      ? "clipboard"
-                      : "inspector",
-                  )
-                }
+                aria-label={t("editor.scrollTabsLater")}
+                onClick={() => scrollEditorPanelTabs(120)}
               >
                 ›
               </button>

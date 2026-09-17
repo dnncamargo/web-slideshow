@@ -671,6 +671,28 @@
   cursor: pointer;
 }
 
+.panelTabViewport {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.panelTabStrip {
+  display: flex;
+  min-width: max-content;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.panelTabStrip::-webkit-scrollbar {
+  display: none;
+}
+
+.panelTabStrip .rightPanelTab,
+.panelTabStrip .rightPanelTabActive {
+  flex: 0 0 auto;
+}
+
 .clipboardPanel {
   min-height: 0;
   display: flex;
