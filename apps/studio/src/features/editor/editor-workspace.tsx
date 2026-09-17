@@ -4076,8 +4076,11 @@ export function EditorWorkspace({
               >
                 ‹
               </button>
-              <div className={styles.panelTabViewport}>
-                <div className={styles.panelTabStrip} ref={editorPanelTabsRef}>
+              <div
+                className={styles.panelTabViewport}
+                ref={editorPanelTabsRef}
+              >
+                <div className={styles.panelTabStrip}>
                   <button className={editorPanelView === "inspector" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "inspector"} onClick={() => setEditorPanelView("inspector")}>{t("inspector.title")}</button>
                   <button className={editorPanelView === "elements" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "elements"} onClick={() => setEditorPanelView("elements")}>{t("tree.elements")}</button>
                   <button className={editorPanelView === "clipboard" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "clipboard"} onClick={() => setEditorPanelView("clipboard")}>{t("editor.clipboard")}</button>

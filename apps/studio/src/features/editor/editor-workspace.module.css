@@ -674,18 +674,18 @@
 .panelTabViewport {
   min-width: 0;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.panelTabViewport::-webkit-scrollbar {
+  display: none;
 }
 
 .panelTabStrip {
   display: flex;
   min-width: max-content;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.panelTabStrip::-webkit-scrollbar {
-  display: none;
 }
 
 .panelTabStrip .rightPanelTab,
