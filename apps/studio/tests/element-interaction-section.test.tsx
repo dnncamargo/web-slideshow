@@ -1220,6 +1220,39 @@ describe("shared Interaction control in inspectors", () => {
     expect(updated.style ?? {}).not.toHaveProperty("shadow");
   });
 
+  it("ImageInspector writes and resets Background members independently", async () => {
+    const initial = imageElement({
+      style: {
+        background: {
+          color: "#111111",
+          gradient: { type: "linear", stops: [{ color: "#111111", position: 0 }, { color: "#ffffff", position: 100 }] },
+        },
+      },
+    });
+    let updated: ImageElement = initial;
+
+    await act(async () => {
+      root.render(<StudioI18nProvider><ImageInspector element={initial} onUpdate={(update) => { const next = update(updated); if (next.type === "image") updated = next; }} preserveImageProportion={false} onPreserveImageProportionChange={() => {}} focalEditing={false} onFocalEditingChange={() => {}} /></StudioI18nProvider>);
+    });
+
+    expect(container.querySelector("#image-background")).not.toBeNull();
+    await act(async () => changeInput(container.querySelector<HTMLInputElement>("#image-background-value")!, "#222222"));
+    expect(updated.style?.background?.color).toBe("#222222");
+    expect(updated.style?.background?.gradient).toBeDefined();
+
+    await act(async () => changeSelect(container.querySelector<HTMLSelectElement>("#image-background-gradient-type")!, "radial"));
+    expect(updated.style?.background?.gradient?.type).toBe("radial");
+    expect(updated.style?.background?.color).toBe("#222222");
+
+    await act(async () => changeSelect(container.querySelector<HTMLSelectElement>("#image-background-gradient-type")!, "none"));
+    expect(updated.style?.background?.gradient).toBeUndefined();
+    expect(updated.style?.background?.color).toBe("#222222");
+
+    const colorReset = container.querySelector<HTMLInputElement>("#image-background")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+    await act(async () => colorReset?.click());
+    expect(updated.style?.background).toBeUndefined();
+  });
+
   it("ContainerInspector renders the same Interaction section", async () => {
     await act(async () => {
       root.render(

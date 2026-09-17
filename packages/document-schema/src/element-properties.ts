@@ -142,7 +142,17 @@ export const ImageLayoutSchema = PositionedLayoutFieldsSchema
 
 export type ImageLayout = z.infer<typeof ImageLayoutSchema>;
 
+export const GradientSurfaceBackgroundSchema = z.object({
+  color: ColorValueSchema.optional(),
+  gradient: GradientSchema.optional(),
+}).strict();
+
+export type GradientSurfaceBackground = z.infer<
+  typeof GradientSurfaceBackgroundSchema
+>;
+
 export const ImageVisualStyleSchema = z.object({
+  background: GradientSurfaceBackgroundSchema.optional(),
   border: BorderSchema.optional(),
   borderRadius: LengthSchema.optional(),
   className: z.string().optional(),
@@ -199,15 +209,6 @@ export const PlotVisualStyleSchema = z.object({
 }).strict();
 
 export type PlotVisualStyle = z.infer<typeof PlotVisualStyleSchema>;
-
-export const GradientSurfaceBackgroundSchema = z.object({
-  color: ColorValueSchema.optional(),
-  gradient: GradientSchema.optional(),
-}).strict();
-
-export type GradientSurfaceBackground = z.infer<
-  typeof GradientSurfaceBackgroundSchema
->;
 
 export const GradientSurfaceVisualStyleSchema = z.object({
   background: GradientSurfaceBackgroundSchema.optional(),

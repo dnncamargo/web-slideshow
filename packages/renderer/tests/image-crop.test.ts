@@ -243,3 +243,41 @@ describe("cropped Image DOM", () => {
     expect(html).not.toContain("data-powershow-image-crop");
   });
 });
+
+describe("Image background", () => {
+  const background = {
+    color: { kind: "palette" as const, colorId: "surface" },
+    gradient: {
+      type: "radial" as const,
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    },
+  };
+
+  it.each([
+    ["normal", image({ crop: undefined, style: { background } })],
+    ["crop", image({ style: { background } })],
+    ["link", image({ crop: undefined, link: { kind: "url", href: "https://example.com" }, style: { background } })],
+  ] as const)("emits Background on the %s Image root without a wrapper", (_kind, element) => {
+    const html = renderElement(element);
+    const root = html.slice(0, html.indexOf(">") + 1);
+    expect(root).toContain("background:var(--ps-palette-0073007500720066006100630065)");
+    expect(root).toContain("background-image:radial-gradient(ellipse,#000000 0%,#ffffff 100%)");
+    expect(html.match(/powershow-image-crop-viewport/g)?.length ?? 0).toBe(element.crop ? 1 : 0);
+  });
+
+  it("does not emit background styles when Background is absent", () => {
+    const html = renderElement(image({ crop: undefined }));
+    expect(html).not.toContain("background:");
+    expect(html).not.toContain("background-image:");
+  });
+
+  it("emits a literal color-only Background on the normal Image root", () => {
+    const html = renderElement(image({ crop: undefined, style: { background: { color: "#123456" } } }));
+    const root = html.slice(0, html.indexOf(">") + 1);
+    expect(root).toContain("background:#123456");
+    expect(root).not.toContain("background-image:");
+  });
+});

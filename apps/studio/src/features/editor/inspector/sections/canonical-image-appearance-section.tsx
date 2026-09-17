@@ -4,10 +4,26 @@ import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-s
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
-import { parseOptionalNumber } from "../inspector-helpers";
+import { getControlName, parseOptionalNumber } from "../inspector-helpers";
 import { InspectorSection } from "../inspector-section";
 import { EffectiveLengthInput } from "./effective-length-input";
 import { ElementBorderControl } from "./element-border-control";
+import { ColorControl } from "./color-control";
+import { ElementGradientControl } from "./element-gradient-control";
+
+type BackgroundKey = "color" | "gradient";
+
+function updateBackground(
+  style: ImageVisualStyle | undefined,
+  key: BackgroundKey,
+  value: NonNullable<ImageVisualStyle["background"]>[BackgroundKey] | undefined,
+): ImageVisualStyle {
+  const background = { ...style?.background, [key]: value };
+  if (background.color === undefined && background.gradient === undefined) {
+    return { ...style, background: undefined };
+  }
+  return { ...style, background };
+}
 
 interface Props {
   style: ImageVisualStyle | undefined;
@@ -31,6 +47,26 @@ export function CanonicalImageAppearanceSection({
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
+      <div className={styles.colorControl}>
+        <label className={styles.field}>
+          <span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span>
+          <ColorControl
+            id="image-background"
+            name={getControlName("image", "Background")}
+            value={style?.background?.color}
+            onChange={(color) => onUpdateStyle((current) => updateBackground(current, "color", color))}
+            secondaryAction={{
+              label: t("inspector.remove"),
+              onClick: () => onUpdateStyle((current) => updateBackground(current, "color", undefined)),
+            }}
+          />
+        </label>
+      </div>
+      <ElementGradientControl
+        gradient={style?.background?.gradient}
+        controlPrefix="image-background"
+        onChange={(gradient) => onUpdateStyle((current) => updateBackground(current, "gradient", gradient))}
+      />
       <div className={styles.fieldGrid}>
         <div className={styles.field}>
           <label htmlFor="image-border-radius" title={t("inspector.roundedCornersHelp")}>

@@ -8,6 +8,15 @@ const baseImage = {
   src: "/image.png",
 };
 
+const gradient = {
+  type: "linear" as const,
+  angle: 90,
+  stops: [
+    { color: "#000000", position: 0 },
+    { color: { kind: "palette" as const, colorId: "accent" }, position: 100 },
+  ],
+};
+
 describe("canonical Image contract", () => {
   it("accepts only the canonical layout, visual, effect, link, and image fields", () => {
     const result = ImageElementSchema.safeParse({
@@ -38,6 +47,30 @@ describe("canonical Image contract", () => {
         marginLeft: 4,
       },
     }).success).toBe(true);
+  });
+
+  it("accepts Image background color, palette, gradient, and coexistence", () => {
+    expect(ImageElementSchema.safeParse({
+      ...baseImage,
+      style: { background: { color: "#ffffff" } },
+    }).success).toBe(true);
+    expect(ImageElementSchema.safeParse({
+      ...baseImage,
+      style: { background: { color: { kind: "palette", colorId: "accent" } } },
+    }).success).toBe(true);
+    const parsed = ImageElementSchema.parse({
+      ...baseImage,
+      style: { background: { color: "#ffffff", gradient } },
+    });
+    expect(parsed.style?.background).toEqual({ color: "#ffffff", gradient });
+  });
+
+  it("accepts and preserves a gradient-only Image background", () => {
+    const parsed = ImageElementSchema.parse({
+      ...baseImage,
+      style: { background: { gradient } },
+    });
+    expect(parsed.style?.background).toEqual({ gradient });
   });
 
   it.each([

@@ -1,7 +1,7 @@
 import type { ImageElement } from "@powershow/document-schema";
 
 import { renderLength } from "./render-length";
-import { renderBorder, renderShadow } from "./render-visual";
+import { renderBackground, renderBorder, renderShadow } from "./render-visual";
 import { escapeHtml } from "./escape-html";
 
 function renderImageLayout(element: ImageElement): string[] {
@@ -35,6 +35,7 @@ export function renderCanonicalImageStyle(element: ImageElement): string {
   const style = element.style;
   const effect = element.effect;
 
+  if (style?.background) output.push(...renderBackground(style.background));
   if (style?.border) output.push(...renderBorder(style.border));
   if (style?.borderRadius !== undefined) {
     output.push(`border-radius:${renderLength(style.borderRadius)}`);
