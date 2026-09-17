@@ -3,6 +3,8 @@ import type { GalleryElement } from "@powershow/document-schema";
 import { escapeHtml } from "./escape-html";
 import { renderImageCropMetadata } from "./render-canonical-image";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
+import { renderGradientBorder } from "./render-visual";
+import { renderLength } from "./render-length";
 
 const GALLERY_ROOT_STYLES = ["position:relative", "overflow:hidden"];
 const GALLERY_OVERLAY_ITEM_STYLES = [
@@ -21,13 +23,26 @@ const GALLERY_IMAGE_STYLES = [
 export function renderGallery(element: GalleryElement): string {
   if (element.hidden) return "";
 
+  const gradientBorder = element.style?.border?.gradient;
+  const hasGradientBorder = gradientBorder !== undefined;
   const classes = ["powershow-element", "powershow-gallery"];
+  if (hasGradientBorder) {
+    classes.push("presentation-gallery-gradient-frame", "presentation-gradient-border");
+  }
   const customClass = element.style?.className?.trim();
   if (customClass) classes.push(customClass);
 
   const styles: string[] = [];
-  const baseStyle = renderCanonicalSurfaceStyle(element);
+  const baseStyle = renderCanonicalSurfaceStyle(element, {
+    includeBorder: !hasGradientBorder,
+  });
   if (baseStyle) styles.push(baseStyle);
+  if (hasGradientBorder && gradientBorder) {
+    styles.push("border:0", ...renderGradientBorder(gradientBorder, element.style?.border?.width ?? 0));
+    if (element.style?.borderRadius !== undefined) {
+      styles.push(`--presentation-gallery-outer-radius:${renderLength(element.style.borderRadius)}`);
+    }
+  }
   if (element.layout?.position !== "absolute") {
     styles.push(...GALLERY_ROOT_STYLES);
   } else {
@@ -78,5 +93,9 @@ export function renderGallery(element: GalleryElement): string {
     return `<div ${itemAttributes.join(" ")}>${image}</div>`;
   }).join("");
 
-  return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="gallery" style="${escapeHtml(styles.join(";"))}">${items}</div>`;
+  const renderedItems = hasGradientBorder
+    ? `<div class="presentation-gallery-gradient-surface${element.layout?.height !== undefined ? " presentation-gallery-gradient-surface-constrained" : ""}">${items}</div>`
+    : items;
+
+  return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="gallery" style="${escapeHtml(styles.join(";"))}">${renderedItems}</div>`;
 }

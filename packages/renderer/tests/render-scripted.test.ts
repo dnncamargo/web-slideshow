@@ -32,6 +32,11 @@ function scripted(
   };
 }
 
+const gradient = {
+  type: "linear" as const,
+  stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+};
+
 function decodeHtmlEntities(value: string): string {
   return value
     .replaceAll("&quot;", '"')
@@ -111,6 +116,159 @@ function extractBootstrap(srcdoc: string): string {
 }
 
 describe("renderScripted", () => {
+  it("renders gradient borders on an outer frame with the iframe as the runtime target", () => {
+    const html = renderScripted(scripted({
+      style: {
+        border: { width: 2, style: "solid", gradient },
+        borderRadius: 12,
+        className: "custom-scripted-stage",
+      },
+    }));
+
+    expect(html).toContain('<div class="presentation-gradient-border"');
+    expect(html).toContain('<iframe class="powershow-element powershow-scripted custom-scripted-stage"');
+    expect(html).toContain('data-powershow-id="scripted-1"');
+    expect(html).toContain('data-powershow-type="scripted"');
+    expect(html).toContain("--presentation-gradient-border-width:2px");
+    expect(html).toContain("--presentation-gradient-border-paint:linear-gradient");
+    expect(html).toContain("border:0");
+    expect(html).toContain("padding:2px");
+    expect(html).toContain("border-radius:12px");
+    expect(html).toContain("border-radius:max(0px,calc(12px - 2px))");
+    expect(html).not.toContain("border-image:");
+    expect(html).not.toContain('class="presentation-gradient-border powershow-element');
+  });
+
+  it("maps authored dimensions to the frame and iframe viewport", () => {
+    const html = renderScripted(scripted({
+      layout: { width: "80%", height: "60%" },
+      style: { border: { width: 4, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("width:80%;height:60%");
+    expect(html).toContain('style="display:block;width:100%;height:100%;border:0"');
+
+    const iframeStyle = html.match(/<iframe[^>]*style="([^"]*)"/)?.[1] ?? "";
+    expect(iframeStyle).not.toContain("width:80%");
+    expect(iframeStyle).not.toContain("height:60%");
+  });
+
+  it("maps width-only sizing without forcing iframe height", () => {
+    const html = renderScripted(scripted({
+      layout: { width: 320 },
+      style: { border: { width: 4, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("width:320px");
+    expect(html).toContain('style="display:block;width:100%;border:0"');
+
+    const iframeStyle = html.match(/<iframe[^>]*style="([^"]*)"/)?.[1] ?? "";
+    expect(iframeStyle).not.toContain("height:100%");
+  });
+
+  it("keeps omitted dimensions auto-sized and shrink-wraps the frame", () => {
+    const html = renderScripted(scripted({
+      style: { border: { width: 3, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("width:max-content");
+    expect(html).toContain('style="display:block;border:0"');
+    expect(html).not.toContain("width:100%;height:100%;border:0");
+  });
+
+  it("keeps height-only sizing on the frame and iframe", () => {
+    const html = renderScripted(scripted({
+      layout: { height: 240 },
+      style: { border: { width: 3, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("height:240px");
+    expect(html).toContain("width:max-content");
+    expect(html).toContain('style="display:block;height:100%;border:0"');
+    expect(html).not.toContain("width:100%;height:100%");
+  });
+
+  it("keeps absolute positioning and margins on the outer frame", () => {
+    const html = renderScripted(scripted({
+      layout: {
+        position: "absolute",
+        top: 10,
+        right: "5%",
+        margin: 6,
+        marginLeft: 8,
+      },
+      style: { border: { width: 2, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("position:absolute");
+    expect(html).toContain("top:10px");
+    expect(html).toContain("right:5%");
+    expect(html).toContain("margin:6px");
+    expect(html).toContain("margin-left:8px");
+    expect(html).not.toContain("position:relative");
+
+    const iframeStyle = html.match(/<iframe[^>]*style="([^"]*)"/)?.[1] ?? "";
+    expect(iframeStyle).not.toContain("position:absolute");
+    expect(iframeStyle).not.toContain("margin:");
+    expect(iframeStyle).not.toContain("top:");
+  });
+
+  it("adds a positioning context for non-positioned gradient frames", () => {
+    const html = renderScripted(scripted({
+      style: { border: { width: 2, style: "solid", gradient } },
+    }));
+
+    expect(html).toContain("position:relative");
+  });
+
+  it("keeps background, opacity, and shadow on the outer frame", () => {
+    const html = renderScripted(scripted({
+      style: {
+        background: { color: "#123456" },
+        border: { width: 2, style: "solid", gradient },
+      },
+      effect: {
+        opacity: 0.5,
+        shadow: { x: 1, y: 2, blur: 3, color: "#000" },
+      },
+    }));
+
+    expect(html).toContain("background:#123456");
+    expect(html).toContain("opacity:0.5");
+    expect(html).toContain("box-shadow:1px 2px 3px #000");
+
+    const iframeStyle = html.match(/<iframe[^>]*style="([^"]*)"/)?.[1] ?? "";
+    expect(iframeStyle).not.toContain("background:");
+    expect(iframeStyle).not.toContain("opacity:");
+    expect(iframeStyle).not.toContain("box-shadow:");
+  });
+
+  it("keeps non-gradient Scripted as a single iframe", () => {
+    const html = renderScripted(scripted({
+      style: { border: { width: 2, style: "dashed", color: "#f87171" } },
+    }));
+
+    expect(html.match(/<iframe/g)).toHaveLength(1);
+    expect(html).not.toContain("presentation-gradient-border");
+    expect(html).toContain("border-style:dashed");
+    expect(html).toContain("border-color:#f87171");
+    expect(html).not.toContain("border-image:");
+  });
+
+  it.each([
+    ["solid", "#f87171"],
+    ["dotted", "#22d3ee"],
+  ] as const)("keeps %s color borders native", (style, color) => {
+    const html = renderScripted(scripted({
+      style: { border: { width: 2, style, color } },
+    }));
+
+    expect(html.match(/<iframe/g)).toHaveLength(1);
+    expect(html).not.toContain("presentation-gradient-border");
+    expect(html).toContain(`border-style:${style}`);
+    expect(html).toContain(`border-color:${color}`);
+    expect(html).not.toContain("border-image:");
+  });
   it("renders an empty string when hidden", () => {
     expect(renderScripted(scripted({ hidden: true }))).toBe("");
 

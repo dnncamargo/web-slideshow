@@ -363,6 +363,29 @@ describe("renderElement linked Image support", () => {
     expect(mediaTag(html)).not.toContain("opacity:");
   });
 
+  it("keeps linked gradient border ownership on the anchor", () => {
+    const html = renderElement(
+      imageElement({
+        link: HTTPS_LINK,
+        style: {
+          border: { width: 3, style: "dotted", gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } },
+          borderRadius: 16,
+        },
+      }),
+    );
+
+    const anchor = anchorTag(html);
+    expect(anchor).toContain("presentation-gradient-border");
+    expect(anchor).toContain("border-width:3px");
+    expect(anchor).toContain("border-style:solid");
+    expect(anchor).toContain("border-color:transparent");
+    expect(anchor).toContain("--presentation-gradient-border-width:3px");
+    expect(anchor).toContain("--presentation-gradient-border-paint:linear-gradient(180deg,#000 0%,#fff 100%)");
+    expect(anchor).toContain('href="https://example.com/photo"');
+    expect(anchor).toContain("border-radius:16px");
+    expect(html).not.toContain("border-image:");
+  });
+
   it("keeps the unlinked Image structure byte-compatible (no anchor)", () => {
     const html = renderElement(imageElement());
 

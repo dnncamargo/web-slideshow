@@ -4,6 +4,8 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
+import { renderGradientBorder } from "./render-visual";
+import { renderLength } from "./render-length";
 import {
   SCRIPTED_ACTION_MESSAGE_TYPE,
   SCRIPTED_INPUT_MESSAGE_TYPE,
@@ -329,25 +331,69 @@ export function renderScripted(
     classes.push(customClass);
   }
 
-  const styles: string[] = [
+  const gradientBorder = element.style?.border?.gradient;
+  const hasGradientBorder = gradientBorder !== undefined;
+  const borderWidth = element.style?.border?.width;
+
+  const outerStyles: string[] = [
     "display:block",
   ];
 
-  const baseStyle = renderCanonicalSurfaceStyle(element);
+  const baseStyle = renderCanonicalSurfaceStyle(element, {
+    includeBorder: !hasGradientBorder,
+  });
 
   if (baseStyle) {
-    styles.push(baseStyle);
+    outerStyles.push(baseStyle);
   }
 
-  // The browser iframe default is a visible border. When no canonical
-  // border is authored, the renderer collapses it so the Scripted box
-  // matches other PowerShow elements. An authored border remains
-  // authoritative and is never overridden.
-  if (element.style?.border === undefined) {
-    styles.push("border:0");
+  if (hasGradientBorder && gradientBorder && borderWidth !== undefined) {
+    outerStyles.push(
+      "border:0",
+      `padding:${renderLength(borderWidth)}`,
+      ...renderGradientBorder(gradientBorder, borderWidth),
+    );
+
+    if (element.layout?.width === undefined) {
+      outerStyles.push("width:max-content");
+    }
+
+    if (element.layout?.position === undefined) {
+      outerStyles.push("position:relative");
+    }
+  } else if (element.style?.border === undefined) {
+    // The browser iframe default is a visible border. When no canonical
+    // border is authored, the renderer collapses it so the Scripted box
+    // matches other PowerShow elements. An authored border remains
+    // authoritative and is never overridden.
+    outerStyles.push("border:0");
   }
 
-  return (
+  const iframeStyles: string[] = [
+    "display:block",
+  ];
+
+  if (hasGradientBorder && gradientBorder && borderWidth !== undefined) {
+    if (element.layout?.width !== undefined) {
+      iframeStyles.push("width:100%");
+    }
+
+    if (element.layout?.height !== undefined) {
+      iframeStyles.push("height:100%");
+    }
+
+    iframeStyles.push("border:0");
+
+    if (element.style?.borderRadius !== undefined) {
+      iframeStyles.push(
+        `border-radius:max(0px,calc(${renderLength(element.style.borderRadius)} - ${renderLength(borderWidth)}))`,
+      );
+    }
+  } else {
+    iframeStyles.push(...outerStyles);
+  }
+
+  const iframe = (
     `<iframe` +
     ` class="${escapeHtml(classes.join(" "))}"` +
     ` data-powershow-id="${escapeHtml(element.id)}"` +
@@ -356,7 +402,17 @@ export function renderScripted(
     ` sandbox="${SCRIPTED_SANDBOX}"` +
     ` referrerpolicy="${SCRIPTED_REFERRERPOLICY}"` +
     ` srcdoc="${escapeHtml(buildScriptedDocument(element))}"` +
-    ` style="${escapeHtml(styles.join(";"))}"` +
+    ` style="${escapeHtml(iframeStyles.join(";"))}"` +
     `></iframe>`
+  );
+
+  if (!hasGradientBorder) {
+    return iframe;
+  }
+
+  return (
+    `<div class="presentation-gradient-border"` +
+    ` style="${escapeHtml(outerStyles.join(";"))}"` +
+    `>${iframe}</div>`
   );
 }

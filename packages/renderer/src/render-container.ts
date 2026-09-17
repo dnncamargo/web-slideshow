@@ -10,7 +10,7 @@ import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
 import { renderBackgroundPattern } from "./render-background-pattern";
 import { renderLength } from "./render-length";
-import { renderBorder, renderGradient, renderShadow } from "./render-visual";
+import { renderBorder, renderGradient, renderGradientBorder, renderShadow } from "./render-visual";
 import { renderColorValue } from "./render-palette";
 
 type RenderChild = (element: PowerShowElement) => string;
@@ -38,11 +38,30 @@ function addLength(
   }
 }
 
-function renderLayout(element: ContainerElement): string[] {
+function renderEffectivePadding(
+  value: Parameters<typeof renderLength>[0] | undefined,
+  borderWidth: Parameters<typeof renderLength>[0],
+): string {
+  if (value === undefined) return renderLength(borderWidth);
+  if (typeof value === "number" && typeof borderWidth === "number") {
+    return renderLength(value + borderWidth);
+  }
+  return `calc(${renderLength(value)} + ${renderLength(borderWidth)})`;
+}
+
+function renderLayout(
+  element: ContainerElement,
+  gradientBorderWidth?: Parameters<typeof renderLength>[0],
+): string[] {
   const layout = element.layout;
   const output: string[] = [];
 
   if (!layout) {
+    if (gradientBorderWidth !== undefined) {
+      for (const side of ["top", "right", "bottom", "left"] as const) {
+        output.push(`padding-${side}:${renderEffectivePadding(undefined, gradientBorderWidth)}`);
+      }
+    }
     return output;
   }
 
@@ -58,11 +77,20 @@ function renderLayout(element: ContainerElement): string[] {
     ["margin-right", layout.marginRight],
     ["margin-bottom", layout.marginBottom],
     ["margin-left", layout.marginLeft],
-    ["padding", layout.padding],
-    ["padding-top", layout.paddingTop],
-    ["padding-right", layout.paddingRight],
-    ["padding-bottom", layout.paddingBottom],
-    ["padding-left", layout.paddingLeft],
+    ...(gradientBorderWidth === undefined
+      ? [
+          ["padding", layout.padding],
+          ["padding-top", layout.paddingTop],
+          ["padding-right", layout.paddingRight],
+          ["padding-bottom", layout.paddingBottom],
+          ["padding-left", layout.paddingLeft],
+        ] as const
+      : [
+          ["padding-top", renderEffectivePadding(layout.paddingTop ?? layout.padding, gradientBorderWidth)],
+          ["padding-right", renderEffectivePadding(layout.paddingRight ?? layout.padding, gradientBorderWidth)],
+          ["padding-bottom", renderEffectivePadding(layout.paddingBottom ?? layout.padding, gradientBorderWidth)],
+          ["padding-left", renderEffectivePadding(layout.paddingLeft ?? layout.padding, gradientBorderWidth)],
+        ] as const),
   ] as const;
 
   for (const [property, value] of lengths) {
@@ -106,7 +134,12 @@ function renderVisualStyle(element: ContainerElement): string[] {
   }
 
   if (style.border) {
-    output.push(...renderBorder(style.border));
+    if (style.border.gradient) {
+      output.push("border:0");
+      output.push(...renderGradientBorder(style.border.gradient, style.border.width));
+    } else {
+      output.push(...renderBorder(style.border));
+    }
   }
 
   addLength(output, "border-radius", style.borderRadius);
@@ -324,9 +357,13 @@ export function renderContainer(
   const renderedElement: ContainerElement = resolved
     ? { ...element, ...resolved }
     : element;
+  const hasGradientBorder = renderedElement.style?.border?.gradient !== undefined;
 
   const styles = [
-    ...renderLayout(renderedElement),
+    ...renderLayout(
+      renderedElement,
+      hasGradientBorder ? renderedElement.style?.border?.width : undefined,
+    ),
     ...renderVisualStyle(renderedElement),
     ...renderTypography(renderedElement),
     ...renderEffect(renderedElement),
@@ -340,8 +377,8 @@ export function renderContainer(
   const isLinked = element.link !== undefined;
   const hasPattern = renderedElement.style?.background?.pattern !== undefined;
   const needsContainingBlock = isFitted
-    ? isLinked || hasPattern
-    : containsAbsoluteChild || isLinked || hasPattern;
+    ? isLinked || hasPattern || hasGradientBorder
+    : containsAbsoluteChild || isLinked || hasPattern || hasGradientBorder;
   const hasAuthoredAbsolute = renderedElement.layout?.position === "absolute";
 
   if (isFitted) {
@@ -366,6 +403,7 @@ export function renderContainer(
   if (isStack) classes.push("powershow-container-stack");
   if (isFitted) classes.push("powershow-container-fit");
   if (element.role) classes.push(`powershow-container-${element.role}`);
+  if (hasGradientBorder) classes.push("presentation-gradient-border");
   if (element.style?.className?.trim()) classes.push(element.style.className.trim());
 
   const tag = getTagName(element.role);

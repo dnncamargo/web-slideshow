@@ -1,7 +1,7 @@
 import type { ImageElement } from "@powershow/document-schema";
 
 import { renderLength } from "./render-length";
-import { renderBackground, renderBorder, renderShadow } from "./render-visual";
+import { renderBackground, renderBorder, renderGradientBorder, renderGradientBorderBox, renderShadow } from "./render-visual";
 import { escapeHtml } from "./escape-html";
 
 function renderImageLayout(element: ImageElement): string[] {
@@ -36,7 +36,14 @@ export function renderCanonicalImageStyle(element: ImageElement): string {
   const effect = element.effect;
 
   if (style?.background) output.push(...renderBackground(style.background));
-  if (style?.border) output.push(...renderBorder(style.border));
+  if (style?.border) {
+    if (style.border.gradient) {
+      output.push(...renderGradientBorderBox(style.border.width));
+      output.push(...renderGradientBorder(style.border.gradient, style.border.width));
+    } else {
+      output.push(...renderBorder(style.border));
+    }
+  }
   if (style?.borderRadius !== undefined) {
     output.push(`border-radius:${renderLength(style.borderRadius)}`);
   }
@@ -57,6 +64,10 @@ export function renderCanonicalImageMediaStyle(element: ImageElement): string {
   if (element.layout?.height !== undefined) output.push("height:100%");
   if (element.style?.borderRadius !== undefined) {
     output.push(`border-radius:${renderLength(element.style.borderRadius)}`);
+  }
+
+  if (element.style?.border?.gradient !== undefined) {
+    output.push("max-width:100%", "max-height:100%");
   }
 
   return output.join(";");

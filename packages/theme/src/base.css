@@ -113,7 +113,9 @@
 .powershow-code {
   margin: 0;
 
-  padding: 20px;
+  --presentation-code-content-padding: 20px;
+
+  padding: var(--presentation-code-content-padding);
 
   overflow: auto;
 
@@ -150,9 +152,9 @@
    ========================================================== */
 
 .powershow-code-line-highlighted {
-  margin-inline: -20px;
+  margin-inline: calc(0px - var(--presentation-code-content-padding));
 
-  padding-inline: 20px;
+  padding-inline: var(--presentation-code-content-padding);
 
   background: rgba(34, 211, 238, 0.08);
 }
@@ -174,6 +176,34 @@
 /* ==========================================================
    END: CODE
    ========================================================== */
+
+.presentation-code-gradient-frame {
+  border: 0;
+  padding: calc(
+    var(--presentation-code-content-padding) +
+    var(--presentation-gradient-border-width)
+  );
+  overflow: hidden;
+}
+
+.presentation-code-gradient-frame > .presentation-code-gradient-surface {
+  display: block;
+  box-sizing: border-box;
+  width: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding));
+  height: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding));
+  min-width: 0;
+  margin: calc(0px - var(--presentation-code-content-padding));
+  padding: var(--presentation-code-content-padding);
+  overflow: auto;
+  background: transparent;
+  border-radius: max(
+    0px,
+    calc(
+      var(--presentation-code-outer-radius, var(--powershow-radius-md)) -
+      var(--presentation-gradient-border-width)
+    )
+  );
+}
 
 .powershow-terminal {
   width: 100%;
@@ -322,28 +352,49 @@
   height: 100%;
 }
 
-.powershow-table-frame-gradient-border {
-  border: 0;
-  --powershow-table-border-color: transparent;
-  padding: var(--powershow-table-border-width);
-}
-
-.powershow-table-frame-gradient-border::before {
+.presentation-gradient-border::before {
   position: absolute;
   z-index: 2;
   inset: 0;
   border-radius: inherit;
-  background: var(--powershow-table-border-color);
+  background: var(--presentation-gradient-border-paint);
   content: "";
   pointer-events: none;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  padding: var(--powershow-table-border-width, 1px);
+  padding: var(--presentation-gradient-border-width, 1px);
 }
 
-.powershow-table-frame-gradient-border::before { background: var(--powershow-table-border-gradient); }
+.presentation-gallery-gradient-frame {
+  padding: var(--presentation-gradient-border-width);
+}
+
+.presentation-gallery-gradient-surface {
+  position: relative;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  background: transparent;
+  border-radius: max(
+    0px,
+    calc(
+      var(--presentation-gallery-outer-radius, 0px) -
+      var(--presentation-gradient-border-width)
+    )
+  );
+}
+
+.presentation-gallery-gradient-surface-constrained {
+  height: 100%;
+}
+
+.powershow-table-frame-gradient-border {
+  border: 0;
+  --powershow-table-border-color: transparent;
+  padding: var(--powershow-table-border-width);
+}
 
 .powershow-table th,
 .powershow-table td {
@@ -516,6 +567,13 @@ ol.powershow-element.powershow-topics {
   max-height: 100%;
 
   object-fit: contain;
+}
+
+.presentation-image-gradient-frame {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .powershow-image-crop-viewport {

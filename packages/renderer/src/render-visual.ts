@@ -45,6 +45,26 @@ export function renderGradient(
   }
 }
 
+export function renderGradientBorder(
+  gradient: Gradient,
+  width: Border["width"],
+): string[] {
+  return [
+    `--presentation-gradient-border-width:${renderLength(width)}`,
+    `--presentation-gradient-border-paint:${renderGradient(gradient)}`,
+  ];
+}
+
+export function renderGradientBorderBox(
+  width: Border["width"],
+): string[] {
+  return [
+    `border-width:${renderLength(width)}`,
+    "border-style:solid",
+    "border-color:transparent",
+  ];
+}
+
 export function renderBackground(
   background: GradientSurfaceBackground,
 ): string[] {

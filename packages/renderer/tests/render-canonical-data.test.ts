@@ -8,7 +8,7 @@ const canonicalStyle = { background: { color: "#101218", gradient }, border: { w
 const effect = { opacity: 0.5, shadow: { x: 0, y: 4, blur: 12, spread: 2, color: "#000000" } };
 const layout = { width: 320, height: 180, position: "absolute" as const, top: 10, right: 20, bottom: 30, left: 40 };
 
-function expectRootStyle(html: string): void {
+function expectRootStyle(html: string, expectLegacyGradientBorder = true): void {
   expect(html).toContain("width:320px");
   expect(html).toContain("height:180px");
   expect(html).toContain("position:absolute");
@@ -16,7 +16,9 @@ function expectRootStyle(html: string): void {
   expect(html).toContain("right:20px");
   expect(html).toContain("background:#101218");
   expect(html).toContain("background-image:linear-gradient");
-  expect(html).toContain("border-image:linear-gradient");
+  if (expectLegacyGradientBorder) {
+    expect(html).toContain("border-image:linear-gradient");
+  }
   expect(html).toContain("border-radius:8px");
   expect(html).toContain("opacity:0.5");
   expect(html).toContain("box-shadow:0px 4px 12px 2px #000000");
@@ -29,8 +31,8 @@ describe("canonical data root rendering", () => {
     ["terminal", createTerminalElement({ layout, style: canonicalStyle, effect } as Partial<TerminalElement>)],
     ["table", createTableElement({ layout, style: canonicalStyle, effect } as Partial<SimpleTableElement>)],
     ["blocks", { id: "blocks", type: "blocks", hidden: false, layout, style: { ...canonicalStyle, statementColor: "#f00" }, effect, source: "move [10] steps" } satisfies BlocksElement],
-  ] as const)("renders canonical root style for %s", (_name, element) => {
-    expectRootStyle(renderElement(element));
+  ] as const)("renders canonical root style for %s", (name, element) => {
+    expectRootStyle(renderElement(element), name !== "code");
   });
 
   it("keeps structured ContentSlot style on the slot while the table root is canonical", () => {

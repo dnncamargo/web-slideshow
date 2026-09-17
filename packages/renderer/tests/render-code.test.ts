@@ -257,6 +257,53 @@ describe("renderCode", () => {
     expect(html).toContain("letter-spacing:0.02em");
     expect(html).toContain("color:#f8fafc");
   });
+
+  it("uses the existing pre as a fixed gradient frame and code as its scroll surface", () => {
+    const html = renderCode(createCodeElement({
+      code: "one\ntwo",
+      style: {
+        border: { width: 3, style: "dotted", gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } },
+        borderRadius: 16,
+      },
+    }));
+    const pre = html.slice(0, html.indexOf(">"));
+    const code = html.slice(html.indexOf("<code"), html.indexOf(">", html.indexOf("<code")));
+
+    expect(pre).toContain("presentation-code-gradient-frame");
+    expect(pre).toContain("presentation-gradient-border");
+    expect(pre).toContain("border:0");
+    expect(pre).toContain("--presentation-gradient-border-width:3px");
+    expect(pre).toContain("--presentation-gradient-border-paint:linear-gradient(180deg,#000 0%,#fff 100%)");
+    expect(pre).toContain("position:relative");
+    expect(pre).toContain("--presentation-code-outer-radius:16px");
+    expect(code).toContain("presentation-code-gradient-surface");
+    expect(html).not.toContain("border-image:");
+  });
+
+  it("preserves authored absolute positioning on a gradient frame", () => {
+    const pre = renderCode(createCodeElement({
+      layout: { position: "absolute", top: 12, left: 24, width: 320, height: 180 },
+      style: { border: { width: 2, gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } } },
+    })).slice(0, 300);
+
+    expect(pre).toContain("position:absolute");
+    expect(pre).toContain("top:12px");
+    expect(pre).toContain("left:24px");
+    expect(pre).not.toContain("position:relative");
+  });
+
+  it("leaves solid Code on the existing scrolling native-border path", () => {
+    const html = renderCode(createCodeElement({
+      style: { border: { width: 2, style: "dashed", color: "#fff" } },
+    }));
+    const pre = html.slice(0, html.indexOf(">"));
+
+    expect(pre).not.toContain("presentation-gradient-border");
+    expect(pre).not.toContain("presentation-code-gradient-frame");
+    expect(pre).toContain("border-width:2px");
+    expect(pre).toContain("border-style:dashed");
+    expect(pre).toContain("border-color:#fff");
+  });
 });
 
 // ============================================================

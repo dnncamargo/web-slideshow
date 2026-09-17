@@ -27,6 +27,7 @@ import { renderContainer } from "./render-container";
 import { renderCanonicalTextStyle } from "./render-canonical-text";
 import { renderPlot } from "./render-plot";
 import { renderLength } from "./render-length";
+import { renderGradientBorder } from "./render-visual";
 import {
   renderCanonicalImageCropMetadata,
   renderCanonicalImageMediaStyle,
@@ -34,6 +35,10 @@ import {
 } from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
+
+function hasGradientBorder(element: ImageElement): boolean {
+  return element.style?.border?.gradient !== undefined;
+}
 
 export type RenderContext = Readonly<{
   presentation: Presentation;
@@ -80,6 +85,7 @@ function buildAttributes(
   classes: string[],
   context?: RenderContext,
   extraStyle?: string,
+  options: { includeTextBorder?: boolean } = {},
 ): string {
   const outputClasses = ["powershow-element", ...classes];
 
@@ -104,6 +110,7 @@ function buildAttributes(
         ...element.style,
         ...(resolved?.style.color === undefined ? {} : { color: resolved.style.color }),
       },
+      options.includeTextBorder === false ? { includeBorder: false } : {},
     );
   } else if (element.type === "image") {
     baseStyle = renderCanonicalImageStyle(element);
@@ -142,11 +149,26 @@ function renderText(element: TextElement, context?: RenderContext): string {
     ? resolveTextStyle(context.presentation, element)
     : undefined;
   const role = resolved?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
-
-  const attributes = buildAttributes(element, [
+  const gradientBorder = element.style?.border?.gradient;
+  const migratesGradientBorder = gradientBorder !== undefined &&
+    (role === "title" || role === "subtitle" || role === "body");
+  const gradientStyles = migratesGradientBorder && gradientBorder
+    ? [
+      "border:0",
+      `padding:${renderLength(element.style?.border?.width ?? 0)}`,
+      ...renderGradientBorder(gradientBorder, element.style?.border?.width ?? 0),
+      ...(element.layout?.position === undefined ? ["position:relative"] : []),
+    ].join(";")
+    : undefined;
+  const textClasses = [
     "powershow-text",
     `powershow-text-${role}`,
-  ], context);
+    ...(migratesGradientBorder ? ["presentation-gradient-border"] : []),
+  ];
+
+  const attributes = buildAttributes(element, textClasses, context, gradientStyles, {
+    includeTextBorder: !migratesGradientBorder,
+  });
 
   switch (role) {
     case "title":
@@ -166,6 +188,10 @@ function renderText(element: TextElement, context?: RenderContext): string {
 function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   const classes = ["powershow-element", "powershow-image"];
 
+  if (hasGradientBorder(element)) {
+    classes.push("presentation-gradient-border");
+  }
+
   const customClass = element.style?.className?.trim();
 
   if (customClass) {
@@ -177,6 +203,10 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   // text-decoration-line) keeps precedence while the browser link look
   // stays suppressed otherwise.
   const styleParts = ["display:inline-block", AUTHORED_LINK_APPEARANCE];
+
+  if (hasGradientBorder(element) && element.layout?.position === undefined) {
+    styleParts.push("position:relative");
+  }
 
   const elementStyle = renderCanonicalImageStyle(element);
 
@@ -230,9 +260,12 @@ function renderImage(element: ImageElement): string {
   }
 
   if (element.crop) {
+    const gradientClass = hasGradientBorder(element)
+      ? "presentation-gradient-border"
+      : undefined;
     const attributes = buildAttributes(
       element,
-      ["powershow-image"],
+      ["powershow-image", ...(gradientClass ? [gradientClass] : [])],
       undefined,
       renderImageCropBoxStyle(element),
     );
@@ -241,6 +274,24 @@ function renderImage(element: ImageElement): string {
       `<div class="powershow-image-crop-viewport">` +
       renderCroppedImageMedia(element) +
       `</div></div>`
+    );
+  }
+
+  if (hasGradientBorder(element)) {
+    const attributes = buildAttributes(
+      element,
+      ["powershow-image", "presentation-image-gradient-frame", "presentation-gradient-border"],
+      undefined,
+      element.layout?.position === undefined ? "position:relative" : undefined,
+    );
+
+    return (
+      `<div ${attributes}>` +
+      `<img class="powershow-image-media"` +
+      ` src="${escapeHtml(element.src)}"` +
+      ` alt="${escapeHtml(element.alt)}"` +
+      ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">` +
+      `</div>`
     );
   }
 

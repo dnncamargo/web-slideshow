@@ -273,8 +273,10 @@ describe("renderTable", () => {
     });
 
     expect(html).toContain("--powershow-table-border-width:2px");
+    expect(html).toContain("presentation-gradient-border");
     expect(html).toContain("powershow-table-frame-gradient-border");
-    expect(html).toContain("--powershow-table-border-gradient:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)");
+    expect(html).toContain("--presentation-gradient-border-width:2px");
+    expect(html).toContain("--presentation-gradient-border-paint:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)");
     expect(html).toContain("--powershow-table-border-width:2px");
     expect(html).not.toContain("border-image:");
   });
