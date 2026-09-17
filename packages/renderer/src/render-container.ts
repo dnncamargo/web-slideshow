@@ -10,7 +10,7 @@ import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
 import { renderBackgroundPattern } from "./render-background-pattern";
 import { renderLength } from "./render-length";
-import { renderBorder, renderGradient, renderShadow } from "./render-visual";
+import { renderBorder, renderGradient, renderGradientBorder, renderGradientBorderBox, renderShadow } from "./render-visual";
 import { renderColorValue } from "./render-palette";
 
 type RenderChild = (element: PowerShowElement) => string;
@@ -106,7 +106,12 @@ function renderVisualStyle(element: ContainerElement): string[] {
   }
 
   if (style.border) {
-    output.push(...renderBorder(style.border));
+    if (style.border.gradient) {
+      output.push(...renderGradientBorderBox(style.border.width));
+      output.push(...renderGradientBorder(style.border.gradient, style.border.width));
+    } else {
+      output.push(...renderBorder(style.border));
+    }
   }
 
   addLength(output, "border-radius", style.borderRadius);
@@ -339,9 +344,10 @@ export function renderContainer(
   const isFitted = fit !== undefined;
   const isLinked = element.link !== undefined;
   const hasPattern = renderedElement.style?.background?.pattern !== undefined;
+  const hasGradientBorder = renderedElement.style?.border?.gradient !== undefined;
   const needsContainingBlock = isFitted
-    ? isLinked || hasPattern
-    : containsAbsoluteChild || isLinked || hasPattern;
+    ? isLinked || hasPattern || hasGradientBorder
+    : containsAbsoluteChild || isLinked || hasPattern || hasGradientBorder;
   const hasAuthoredAbsolute = renderedElement.layout?.position === "absolute";
 
   if (isFitted) {
@@ -366,6 +372,7 @@ export function renderContainer(
   if (isStack) classes.push("powershow-container-stack");
   if (isFitted) classes.push("powershow-container-fit");
   if (element.role) classes.push(`powershow-container-${element.role}`);
+  if (hasGradientBorder) classes.push("presentation-gradient-border");
   if (element.style?.className?.trim()) classes.push(element.style.className.trim());
 
   const tag = getTagName(element.role);

@@ -200,10 +200,81 @@ describe("production canonical Container renderer", () => {
       },
     })));
 
+    expect(tag).toContain("presentation-gradient-border");
+    expect(tag).toContain("border-width:2px");
+    expect(tag).toContain("border-style:solid");
     expect(tag).toContain("border-color:transparent");
-    expect(tag).toContain(
-      "border-image:linear-gradient(90deg,#111111 0%,#ffffff 100%) 1",
-    );
+    expect(tag).toContain("--presentation-gradient-border-width:2px");
+    expect(tag).toContain("--presentation-gradient-border-paint:linear-gradient(90deg,#111111 0%,#ffffff 100%)");
+    expect(tag).not.toContain("border-image:");
+  });
+
+  it("keeps gradient backgrounds and effects on the same Container root", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      style: {
+        background: { color: "#101218", gradient: GRADIENT },
+        border: { width: 3, style: "dotted", gradient: GRADIENT },
+        borderRadius: 18,
+      },
+      effect: { opacity: 0.75, shadow: { x: 0, y: 2, blur: 8, color: "#000" } },
+    })));
+
+    expect(tag).toContain("presentation-gradient-border");
+    expect(tag).toContain("background:#101218");
+    expect(tag).toContain("background-image:linear-gradient");
+    expect(tag).toContain("border-radius:18px");
+    expect(tag).toContain("opacity:0.75");
+    expect(tag).toContain("box-shadow:0px 2px 8px #000");
+    expect(tag.match(/opacity:/g)).toHaveLength(1);
+    expect(tag.match(/box-shadow:/g)).toHaveLength(1);
+  });
+
+  it("establishes containment for a non-positioned gradient Container", () => {
+    const html = renderElement(createContainerElement({
+      style: { border: { width: 2, gradient: GRADIENT } },
+      children: [createTextElement({ id: "gradient-child" })],
+    }));
+
+    expect(rootTag(html)).toContain("position:relative");
+    expect(tagForId(html, "gradient-child")).toContain('data-powershow-id="gradient-child"');
+  });
+
+  it("preserves authored absolute positioning, spacing, and overflow", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      layout: {
+        position: "absolute",
+        top: 10,
+        left: 20,
+        width: 300,
+        height: 180,
+        margin: 4,
+        padding: 8,
+        overflow: "hidden",
+      },
+      style: { border: { width: 2, gradient: GRADIENT }, className: "hero" },
+    })));
+
+    expect(tag).toContain("position:absolute");
+    expect(tag).not.toContain("position:relative");
+    expect(tag).toContain("top:10px");
+    expect(tag).toContain("left:20px");
+    expect(tag).toContain("width:300px");
+    expect(tag).toContain("height:180px");
+    expect(tag).toContain("margin:4px");
+    expect(tag).toContain("padding:8px");
+    expect(tag).toContain("overflow:hidden");
+    expect(tag).toContain("hero");
+  });
+
+  it("keeps solid Container borders on the native path", () => {
+    const tag = rootTag(renderElement(createContainerElement({
+      style: { border: { width: 2, style: "dashed", color: "#fff" } },
+    })));
+
+    expect(tag).toContain("border-width:2px");
+    expect(tag).toContain("border-style:dashed");
+    expect(tag).toContain("border-color:#fff");
+    expect(tag).not.toContain("presentation-gradient-border");
   });
 
   it("quotes and escapes a font family through the production renderer", () => {
