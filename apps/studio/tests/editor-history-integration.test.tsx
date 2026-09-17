@@ -256,6 +256,36 @@ describe("EditorWorkspace history integration", () => {
     expect(nativeUndo.defaultPrevented).toBe(false);
   });
 
+  it("groups inline picker previews into one color history action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = container.querySelector<HTMLTextAreaElement>("#text-content")!;
+    await act(async () => {
+      textarea.focus();
+      textarea.setSelectionRange(0, 1);
+      textarea.dispatchEvent(new Event("select", { bubbles: true }));
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-inline-color="true"]')!.click());
+    const picker = container.querySelector<HTMLInputElement>("#text-inline-color")!;
+    const baselineMarkup = container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML;
+    await act(async () => {
+      changeInput(picker, "#112233");
+      changeInput(picker, "#223344");
+      changeInput(picker, "#334455");
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const finalMarkup = container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML;
+    expect(finalMarkup).not.toBe(baselineMarkup);
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-controls="text-inline-color-palette-chooser"]')!.click());
+    expect(container.querySelector('[data-powershow-picked-colors] button[aria-label*="#334455"]')).not.toBeNull();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML).toBe(baselineMarkup);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML).toBe(finalMarkup);
+  });
+
   it("groups slide title typing and finalizes when changing slide context", async () => {
     const secondSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[1]!;
     await act(async () => secondSlide.click());

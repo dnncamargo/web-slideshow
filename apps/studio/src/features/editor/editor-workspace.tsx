@@ -584,7 +584,7 @@ export function EditorWorkspace({
   );
   const presentation = history.present;
   const authoringIntentRef = useRef<
-    | { type: "continuous"; key: string; meta: HistoryActionMeta }
+    | { type: "continuous"; key: string }
     | { type: "discrete"; meta: HistoryActionMeta }
     | null
   >(null);
@@ -625,7 +625,6 @@ export function EditorWorkspace({
       authoringIntentRef.current = {
         type: "continuous",
         key,
-        meta: { kind: "text.edit", labelKey: "history.text.edit" },
       };
       try { callback(); } finally { authoringIntentRef.current = null; }
     },

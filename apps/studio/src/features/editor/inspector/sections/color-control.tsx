@@ -18,6 +18,7 @@ import styles from "../../editor-workspace.module.css";
 import { usePresentationColorPalette } from "./presentation-color-palette";
 import { usePickedColors } from "./picked-colors-provider";
 import { useAuthoringHistory } from "../../authoring-history-context";
+import type { HistoryActionMeta } from "../../editor-history-state";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -33,6 +34,7 @@ interface ColorControlProps {
     disabled?: boolean;
   };
   disabled?: boolean;
+  historyMeta?: HistoryActionMeta;
 }
 
 type ColorChangeSource = LiteralColorChangeSource | "palette" | "picked" | "detach";
@@ -45,6 +47,7 @@ export function ColorControl({
   onChange,
   secondaryAction,
   disabled = false,
+  historyMeta = { kind: "color.change", labelKey: "history.color.change" },
 }: ColorControlProps) {
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
@@ -80,7 +83,7 @@ export function ColorControl({
       authoringHistory.update(historyKey, () => onChange(color, source));
     } else {
       authoringHistory.finish(historyKey);
-      authoringHistory.discrete({ kind: "color.change", labelKey: "history.color.change" }, () => onChange(color, source));
+      authoringHistory.discrete(historyMeta, () => onChange(color, source));
     }
   };
   const emitDiscreteColor = (color: ColorValue, source: ColorChangeSource) => {
@@ -89,7 +92,7 @@ export function ColorControl({
       return;
     }
     authoringHistory.finish(historyKey);
-    authoringHistory.discrete({ kind: "color.change", labelKey: "history.color.change" }, () => onChange(color, source));
+    authoringHistory.discrete(historyMeta, () => onChange(color, source));
   };
   const hasReusableChoices = paletteColors.length > 0 || (picked?.colors.length ?? 0) > 0;
 
@@ -142,10 +145,7 @@ export function ColorControl({
                   secondaryAction.onClick();
                 } else {
                   authoringHistory.finish(historyKey);
-                  authoringHistory.discrete(
-                    { kind: "color.change", labelKey: "history.color.change" },
-                    secondaryAction.onClick,
-                  );
+                  authoringHistory.discrete(historyMeta, secondaryAction.onClick);
                 }
               }}
             >

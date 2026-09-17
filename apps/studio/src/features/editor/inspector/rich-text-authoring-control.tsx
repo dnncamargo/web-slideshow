@@ -378,22 +378,15 @@ export function RichTextAuthoringControl({
             id={`${id.replace(/-content$/, "")}-inline-color`}
             name={`${name}InlineColor`}
             value={selectionColor}
+            historyMeta={{ kind: "text.color", labelKey: "history.text.color" }}
             disabled={!hasSelection}
             onChange={(color: ColorValue) => {
-              discreteTextAction("text.color", "history.text.color", () => {
-                applySelectionTransform((current, range) =>
-                  applyTextContentColor(current, range, color),
-                );
-              });
+              applySelectionTransform((current, range) => applyTextContentColor(current, range, color));
             }}
             secondaryAction={{
               label: t("inspector.inlineFormat.clearColor"),
               onClick: () => {
-                discreteTextAction("text.color", "history.text.color", () => {
-                  applySelectionTransform((current, range) =>
-                    clearTextContentColor(current, range),
-                  );
-                });
+                applySelectionTransform((current, range) => clearTextContentColor(current, range));
               },
             }}
           />
