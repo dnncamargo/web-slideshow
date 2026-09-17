@@ -7,6 +7,7 @@ import {
 import {
   renderBorder,
   renderGradientBorder,
+  renderGradientBorderBox,
   renderGradient,
   renderShadow,
 } from "../src/render-visual";
@@ -120,6 +121,16 @@ describe("renderGradientBorder", () => {
     }, 3)).toEqual([
       "--presentation-gradient-border-width:3px",
       "--presentation-gradient-border-paint:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)",
+    ]);
+  });
+});
+
+describe("renderGradientBorderBox", () => {
+  it("renders transparent native geometry for a continuous gradient ring", () => {
+    expect(renderGradientBorderBox(3)).toEqual([
+      "border-width:3px",
+      "border-style:solid",
+      "border-color:transparent",
     ]);
   });
 });

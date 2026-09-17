@@ -281,3 +281,138 @@ describe("Image background", () => {
     expect(root).not.toContain("background-image:");
   });
 });
+
+describe("Image gradient borders", () => {
+  const gradient = {
+    type: "linear" as const,
+    angle: 90,
+    stops: [
+      { color: "#7c3aed", position: 0 },
+      { color: "#06b6d4", position: 100 },
+    ],
+  };
+
+  it("wraps an uncropped Image so the frame owns the gradient ring", () => {
+    const html = renderElement(image({
+      crop: undefined,
+      style: { border: { width: 3, style: "dotted", gradient }, borderRadius: 16 },
+      effect: { opacity: 0.8, shadow: { x: 0, y: 4, blur: 12, color: "#000" } },
+      layout: { width: 400, height: 300 },
+    }));
+
+    expect(html).toMatch(/^<div /);
+    expect(html).toContain('data-powershow-id="image-crop"');
+    expect(html).toContain('data-powershow-type="image"');
+    expect(html).toContain("presentation-gradient-border");
+    expect(html).toContain("presentation-image-gradient-frame");
+    expect(html).toContain("border-width:3px");
+    expect(html).toContain("border-style:solid");
+    expect(html).toContain("border-color:transparent");
+    expect(html).toContain("--presentation-gradient-border-width:3px");
+    expect(html).toContain("--presentation-gradient-border-paint:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)");
+    expect(html).toContain("border-radius:16px");
+    expect(html).toContain("width:400px");
+    expect(html).toContain("height:300px");
+    expect(html).toContain("max-width:100%");
+    expect(html).toContain("max-height:100%");
+    expect(html).toContain("opacity:0.8");
+    expect(html).toContain("box-shadow:0px 4px 12px #000");
+    expect(html).not.toContain("border-image:");
+    expect(html).toContain('class="powershow-image-media"');
+  });
+
+  it.each([
+    ["intrinsic", {}, false, false],
+    ["width-only", { width: 400 }, true, false],
+    ["height-only", { height: 300 }, false, true],
+    ["width-and-height", { width: 400, height: 300 }, true, true],
+  ] as const)("preserves %s normal gradient Image sizing", (_name, dimensions, fillsWidth, fillsHeight) => {
+    const html = renderElement(image({
+      crop: undefined,
+      layout: dimensions,
+      style: { border: { width: 2, style: "dashed", gradient } },
+    }));
+    const mediaStart = html.indexOf("<img");
+    const root = html.slice(0, html.indexOf(">"));
+    const media = html.slice(mediaStart, html.indexOf(">", mediaStart));
+
+    expect(root).toContain("presentation-image-gradient-frame");
+    expect(media).toContain("max-width:100%");
+    expect(media).toContain("max-height:100%");
+    expect(media).toContain(fillsWidth ? "width:100%" : "object-fit:contain");
+    expect(media).toContain(fillsHeight ? "height:100%" : "object-position:50% 50%");
+    if (!fillsWidth) expect(media).not.toMatch(/(?:^|;)width:100%(?:;|$)/);
+    if (!fillsHeight) expect(media).not.toMatch(/(?:^|;)height:100%(?:;|$)/);
+  });
+
+  it("reuses the crop box as the gradient owner", () => {
+    const html = renderElement(image({
+      crop,
+      style: { border: { width: 2, style: "dashed", gradient }, borderRadius: 12 },
+    }));
+    const root = html.slice(0, html.indexOf(">"));
+
+    expect(root).toContain("presentation-gradient-border");
+    expect(root).toContain("border-width:2px");
+    expect(root).toContain("border-style:solid");
+    expect(root).toContain("border-color:transparent");
+    expect(root).toContain("--presentation-gradient-border-width:2px");
+    expect(root).toContain("border-radius:12px");
+    expect(html).toContain("powershow-image-crop-viewport");
+    expect(html).not.toContain("border-image:");
+  });
+
+  it("keeps a linked cropped gradient owner on the existing anchor", () => {
+    const html = renderElement(image({
+      crop,
+      link: { kind: "url", href: "https://example.com/crop" },
+      style: { border: { width: 2, style: "solid", gradient }, borderRadius: 12 },
+    }));
+    const root = html.slice(0, html.indexOf(">"));
+
+    expect(html).toMatch(/^<a /);
+    expect(root).toContain("presentation-gradient-border");
+    expect(root).toContain("border-width:2px");
+    expect(root).toContain("border-style:solid");
+    expect(root).toContain("border-color:transparent");
+    expect(root).toContain('href="https://example.com/crop"');
+    expect(html).toContain("powershow-image-crop-viewport");
+    expect(html).not.toContain("border-image:");
+  });
+
+  it("keeps solid Image borders on the existing native path", () => {
+    const html = renderElement(image({
+      crop: undefined,
+      style: { border: { width: 2, style: "dashed", color: "#fff" }, borderRadius: 12 },
+    }));
+
+    expect(html).toMatch(/^<img /);
+    expect(html).toContain("border-width:2px");
+    expect(html).toContain("border-style:dashed");
+    expect(html).toContain("border-color:#fff");
+    expect(html).not.toContain("presentation-gradient-border");
+  });
+
+  it("keeps Background declarations independent from the gradient ring", () => {
+    const html = renderElement(image({
+      style: {
+        background: {
+          color: "#101218",
+          gradient: { type: "radial", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] },
+        },
+        border: { width: 2, style: "solid", gradient },
+      },
+    }));
+
+    expect(html).toContain("background:#101218");
+    expect(html).toContain("background-image:radial-gradient(ellipse,#000 0%,#fff 100%)");
+    expect(html).toContain("--presentation-gradient-border-paint:");
+    const mediaStart = html.indexOf("<img");
+    const media = html.slice(mediaStart, html.indexOf(">", mediaStart));
+    expect(media).not.toContain("background:");
+    expect(media).not.toContain("opacity:");
+    expect(media).not.toContain("box-shadow:");
+    expect(media).not.toContain("border-width:");
+    expect(html).not.toContain("border-image:");
+  });
+});

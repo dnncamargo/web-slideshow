@@ -55,6 +55,16 @@ export function renderGradientBorder(
   ];
 }
 
+export function renderGradientBorderBox(
+  width: Border["width"],
+): string[] {
+  return [
+    `border-width:${renderLength(width)}`,
+    "border-style:solid",
+    "border-color:transparent",
+  ];
+}
+
 export function renderBackground(
   background: GradientSurfaceBackground,
 ): string[] {

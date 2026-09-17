@@ -35,6 +35,10 @@ import {
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
 
+function hasGradientBorder(element: ImageElement): boolean {
+  return element.style?.border?.gradient !== undefined;
+}
+
 export type RenderContext = Readonly<{
   presentation: Presentation;
 }>;
@@ -166,6 +170,10 @@ function renderText(element: TextElement, context?: RenderContext): string {
 function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   const classes = ["powershow-element", "powershow-image"];
 
+  if (hasGradientBorder(element)) {
+    classes.push("presentation-gradient-border");
+  }
+
   const customClass = element.style?.className?.trim();
 
   if (customClass) {
@@ -177,6 +185,10 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   // text-decoration-line) keeps precedence while the browser link look
   // stays suppressed otherwise.
   const styleParts = ["display:inline-block", AUTHORED_LINK_APPEARANCE];
+
+  if (hasGradientBorder(element) && element.layout?.position === undefined) {
+    styleParts.push("position:relative");
+  }
 
   const elementStyle = renderCanonicalImageStyle(element);
 
@@ -230,9 +242,12 @@ function renderImage(element: ImageElement): string {
   }
 
   if (element.crop) {
+    const gradientClass = hasGradientBorder(element)
+      ? "presentation-gradient-border"
+      : undefined;
     const attributes = buildAttributes(
       element,
-      ["powershow-image"],
+      ["powershow-image", ...(gradientClass ? [gradientClass] : [])],
       undefined,
       renderImageCropBoxStyle(element),
     );
@@ -241,6 +256,24 @@ function renderImage(element: ImageElement): string {
       `<div class="powershow-image-crop-viewport">` +
       renderCroppedImageMedia(element) +
       `</div></div>`
+    );
+  }
+
+  if (hasGradientBorder(element)) {
+    const attributes = buildAttributes(
+      element,
+      ["powershow-image", "presentation-image-gradient-frame", "presentation-gradient-border"],
+      undefined,
+      element.layout?.position === undefined ? "position:relative" : undefined,
+    );
+
+    return (
+      `<div ${attributes}>` +
+      `<img class="powershow-image-media"` +
+      ` src="${escapeHtml(element.src)}"` +
+      ` alt="${escapeHtml(element.alt)}"` +
+      ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">` +
+      `</div>`
     );
   }
 

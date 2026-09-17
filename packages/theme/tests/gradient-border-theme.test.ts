@@ -32,4 +32,16 @@ describe("gradient border theme ownership", () => {
     expect(sharedRing).toContain("mask-composite: exclude");
     expect(sharedRing).toContain("-webkit-mask-composite: xor");
   });
+
+  it("keeps normal Image frame sizing separate from the shared painter", () => {
+    const imageFrame = cssBlock(".presentation-image-gradient-frame");
+
+    expect(imageFrame).toContain("display: block");
+    expect(imageFrame).toContain("width: fit-content");
+    expect(imageFrame).toContain("max-width: 100%");
+    expect(imageFrame).toContain("max-height: 100%");
+    expect(baseCss.indexOf(".presentation-image-gradient-frame")).toBeGreaterThan(
+      baseCss.indexOf(".powershow-image"),
+    );
+  });
 });
