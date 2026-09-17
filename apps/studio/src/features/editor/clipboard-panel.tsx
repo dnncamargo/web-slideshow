@@ -1,30 +1,52 @@
 "use client";
 
-import type { ClipboardSessionState } from "./clipboard-session";
+import type { ClipboardSessionState, PendingClipboardCut } from "./clipboard-session";
 import styles from "./editor-workspace.module.css";
 
 export function ClipboardPanel({
   session,
+  pendingCut,
+  pendingCutLabel,
   clearLabel,
   emptyLabel,
   pinnedLabel,
   onClear,
   onSelect,
   onPaste,
+  onCancelPendingCut,
 }: {
   session: ClipboardSessionState;
+  pendingCut: PendingClipboardCut | null;
+  pendingCutLabel: string;
   clearLabel: string;
   emptyLabel: string;
   pinnedLabel: string;
   onClear: () => void;
   onSelect: (entryId: string) => void;
   onPaste: (entryId: string) => void;
+  onCancelPendingCut: () => void;
 }) {
   const disposableEntries = session.entries.filter((entry) => !entry.pinned);
   const pinnedEntries = session.entries.filter((entry) => entry.pinned);
 
   return (
     <div className={styles.clipboardPanel}>
+      {pendingCut ? (
+        <section className={styles.clipboardPendingCutSection} aria-label={pendingCutLabel}>
+          <div className={styles.clipboardSectionLabel}>{pendingCutLabel}</div>
+          <div className={styles.clipboardPendingCut}>
+            <span>{pendingCut.elementType}</span>
+            <button
+              className={styles.clipboardPendingCutCancel}
+              type="button"
+              aria-label={pendingCutLabel + " ×"}
+              onClick={onCancelPendingCut}
+            >
+              ×
+            </button>
+          </div>
+        </section>
+      ) : null}
       <section className={styles.clipboardDisposableSection} aria-label={emptyLabel}>
         {disposableEntries.length === 0 ? (
           <p className={styles.clipboardEmptyState}>{emptyLabel}</p>
@@ -49,7 +71,7 @@ export function ClipboardPanel({
         <button
           className={styles.clipboardClearButton}
           type="button"
-          disabled={disposableEntries.length === 0}
+          disabled={disposableEntries.length === 0 && pendingCut === null}
           onClick={onClear}
         >
           {clearLabel}

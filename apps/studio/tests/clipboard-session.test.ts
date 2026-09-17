@@ -7,6 +7,7 @@ import {
   canPinClipboardEntry,
   clearDisposableClipboardEntries,
   createClipboardEntry,
+  createPendingClipboardCut,
   MAX_DISPOSABLE_CLIPBOARD_ENTRIES,
   MAX_PINNED_CLIPBOARD_ENTRIES,
   pinClipboardEntry,
@@ -31,7 +32,16 @@ const stateWith = (...entries: ClipboardEntry[]): ClipboardSessionState => ({
 });
 
 describe("Clipboard session state", () => {
-  it("creates an independent complete snapshot with its source parent kind", () => {
+  it("stores only the live source identity and type for a Pending Cut", () => {
+    const source = element("source");
+    expect(createPendingClipboardCut(source, "slide-1")).toEqual({
+      sourceElementId: "source",
+      sourceSlideId: "slide-1",
+      elementType: "divider",
+    });
+  });
+
+  it("creates an independent complete snapshot", () => {
     const source = {
       id: "container",
       type: "container",

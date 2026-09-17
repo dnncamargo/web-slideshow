@@ -1,10 +1,16 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PowerShowElement, Presentation } from "@powershow/document-schema";
 
 import {
   findContentSlotById,
   findElementById,
   findElementLocation,
 } from "./element-hierarchy";
+import {
+  appendElementToContainer,
+  appendElementToContentSlot,
+  duplicateElement,
+  removeElementById,
+} from "./element-operations";
 
 export type ClipboardPasteDestination =
   | { kind: "slide" }
@@ -46,4 +52,68 @@ export function resolveClipboardPasteDestination(
   }
 
   return { kind: "slide" };
+}
+
+export function moveClipboardElement(
+  presentation: Presentation,
+  sourceSlideId: string,
+  sourceElementId: string,
+  receiverSlideIndex: number,
+  selectedElement: PowerShowElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceSlide = presentation.slides.find((slide) => slide.id === sourceSlideId);
+  const receiverSlide = presentation.slides[receiverSlideIndex];
+  if (!sourceSlide || !receiverSlide) return null;
+
+  const sourceLocation = findElementLocation(sourceSlide.elements, sourceElementId);
+  if (!sourceLocation) return null;
+
+  const destination = resolveClipboardPasteDestination(
+    receiverSlide.elements,
+    sourceElementId,
+    selectedElement,
+    selectedContentSlotId,
+  );
+  if (!destination) return null;
+
+  if (sourceLocation.element.type === "container" && destination.kind !== "slide") {
+    const destinationIsDescendant = destination.kind === "container"
+      ? findElementById(sourceLocation.element.children, destination.id) !== null
+      : findContentSlotById(sourceLocation.element.children, destination.id) !== null;
+    if (destinationIsDescendant) return null;
+  }
+
+  const movedElement = duplicateElement(sourceLocation.element, presentation.slides);
+  const nextReceiverElements = destination.kind === "slide"
+    ? [...receiverSlide.elements, movedElement]
+    : destination.kind === "container"
+      ? appendElementToContainer(receiverSlide.elements, destination.id, movedElement)
+      : appendElementToContentSlot(receiverSlide.elements, destination.id, movedElement);
+
+  if (nextReceiverElements === receiverSlide.elements) return null;
+
+  const nextSlides = presentation.slides.map((slide, index) => {
+    if (index === receiverSlideIndex) {
+      return { ...slide, elements: nextReceiverElements };
+    }
+    return slide;
+  });
+  const sourceSlideIndex = presentation.slides.findIndex((slide) => slide.id === sourceSlideId);
+  const nextSourceElements = removeElementById(
+    sourceSlideIndex === receiverSlideIndex
+      ? nextReceiverElements
+      : sourceSlide.elements,
+    sourceElementId,
+  );
+
+  if (nextSourceElements === sourceSlide.elements) return null;
+
+  if (sourceSlideIndex === receiverSlideIndex) {
+    nextSlides[receiverSlideIndex] = { ...receiverSlide, elements: nextSourceElements };
+  } else {
+    nextSlides[sourceSlideIndex] = { ...sourceSlide, elements: nextSourceElements };
+  }
+
+  return { ...presentation, slides: nextSlides };
 }

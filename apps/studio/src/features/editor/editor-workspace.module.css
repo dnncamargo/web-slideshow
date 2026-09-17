@@ -707,11 +707,34 @@
 }
 
 .clipboardDisposableSection,
-.clipboardPinnedSection {
+.clipboardPinnedSection,
+.clipboardPendingCutSection {
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.clipboardPendingCut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid #0e7490;
+  border-radius: 6px;
+  background: #164e63;
+  color: #ecfeff;
+  font-size: 12px;
+}
+
+.clipboardPendingCutCancel {
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .clipboardDisposableSection {

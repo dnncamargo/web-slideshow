@@ -80,6 +80,7 @@ const englishMessages = {
   "editor.history": "History",
   "editor.clearClipboard": "Clear Clipboard",
   "editor.clipboardEmpty": "No snapshots in this Clipboard session.",
+  "editor.pendingCut": "Pending Cut",
   "editor.pinnedSnapshots": "Pinned",
   "editor.historyEmpty": "History is not populated yet.",
 
@@ -1194,6 +1195,7 @@ const portugueseMessages = {
   "editor.history": "Histórico",
   "editor.clearClipboard": "Limpar Clipboard",
   "editor.clipboardEmpty": "Nenhum snapshot nesta sessão de Clipboard.",
+  "editor.pendingCut": "Corte pendente",
   "editor.pinnedSnapshots": "Fixados",
   "editor.historyEmpty": "O histórico ainda não foi preenchido.",
 

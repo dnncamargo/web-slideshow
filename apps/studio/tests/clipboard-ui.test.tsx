@@ -178,4 +178,47 @@ describe("Editor Clipboard panel foundation", () => {
     });
     expect(container.querySelectorAll("[data-powershow-id]").length).toBe(3);
   });
+
+  it("keeps a Cut source until Paste, then consumes it atomically", async () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={presentation()} />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    expect(image).not.toBeNull();
+    await act(async () => image!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "x",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+    expect(container.querySelector('[data-powershow-id="image-1"]')).not.toBeNull();
+
+    const clipboardTab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Clipboard");
+    expect(clipboardTab).toBeDefined();
+    act(() => clipboardTab!.click());
+    expect(container.textContent).toContain("Pending Cut");
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "v",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+    const moved = container.querySelectorAll("[data-powershow-id]");
+    expect(moved).toHaveLength(1);
+    expect(moved[0]?.getAttribute("data-powershow-id")).not.toBe("image-1");
+    expect(container.textContent).not.toContain("Pending Cut");
+  });
 });

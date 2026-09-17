@@ -64,9 +64,11 @@ import { ClipboardPanel, HistoryPanel } from "./clipboard-panel";
 import {
   addClipboardEntry,
   clearDisposableClipboardEntries,
+  createPendingClipboardCut,
   createClipboardEntry,
   EMPTY_CLIPBOARD_SESSION,
   type ClipboardSessionState,
+  type PendingClipboardCut,
 } from "./clipboard-session";
 import {
   EDITOR_AUTOSAVE_DELAY_MS,
@@ -231,7 +233,10 @@ import {
   outdentTopicItem,
   resolveAddElementDestination,
 } from "./element-operations";
-import { resolveClipboardPasteDestination } from "./clipboard-operations";
+import {
+  moveClipboardElement,
+  resolveClipboardPasteDestination,
+} from "./clipboard-operations";
 
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
@@ -586,11 +591,13 @@ export function EditorWorkspace({
   };
   const [clipboardSession, setClipboardSession] =
     useState<ClipboardSessionState>(EMPTY_CLIPBOARD_SESSION);
+  const [pendingCut, setPendingCut] = useState<PendingClipboardCut | null>(null);
   const clipboardPresentationId = useRef(presentation.id);
   useEffect(() => {
     if (clipboardPresentationId.current !== presentation.id) {
       clipboardPresentationId.current = presentation.id;
       setClipboardSession(EMPTY_CLIPBOARD_SESSION);
+      setPendingCut(null);
     }
   }, [presentation.id]);
 
@@ -819,6 +826,7 @@ export function EditorWorkspace({
   }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined]);
 
   function selectClipboardEntry(entryId: string): void {
+    setPendingCut(null);
     setClipboardSession((current) =>
       current.entries.some((entry) => entry.id === entryId)
         ? { ...current, selectedEntryId: entryId }
@@ -834,10 +842,23 @@ export function EditorWorkspace({
     const entry = createClipboardEntry(
       selectedDocumentElement,
     );
+    setPendingCut(null);
     setClipboardSession((current) => ({
       ...addClipboardEntry(current, entry),
       selectedEntryId: entry.id,
     }));
+    return true;
+  }
+
+  function cutSelectedElement(): boolean {
+    if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
+      return false;
+    }
+
+    setPendingCut(
+      createPendingClipboardCut(selectedDocumentElement, selectedSlide.id),
+    );
+    setClipboardSession((current) => ({ ...current, selectedEntryId: null }));
     return true;
   }
 
@@ -893,6 +914,30 @@ export function EditorWorkspace({
     return true;
   }
 
+  function pastePendingCut(): boolean {
+    if (!pendingCut) return false;
+
+    const nextPresentation = moveClipboardElement(
+      presentation,
+      pendingCut.sourceSlideId,
+      pendingCut.sourceElementId,
+      selectedSlideIndex,
+      selectedDocumentElement,
+      selectedElement?.contentSlotId ?? null,
+    );
+    if (!nextPresentation) {
+      if (!presentation.slides.some((slide) => slide.id === pendingCut.sourceSlideId)
+        || !presentation.slides.some((slide) => findElementById(slide.elements, pendingCut.sourceElementId))) {
+        setPendingCut(null);
+      }
+      return false;
+    }
+
+    setPresentation(nextPresentation);
+    setPendingCut(null);
+    return true;
+  }
+
   function requestElementDeletion() {
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
       return;
@@ -938,12 +983,26 @@ export function EditorWorkspace({
         modifierPressed &&
         !event.altKey &&
         !event.shiftKey &&
+        key === "x"
+      ) {
+        if (cutSelectedElement()) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (
+        modifierPressed &&
+        !event.altKey &&
+        !event.shiftKey &&
         key === "v"
       ) {
-        if (
-          clipboardSession.selectedEntryId !== null &&
-          pasteClipboardEntry(clipboardSession.selectedEntryId)
-        ) {
+        const pasted = pendingCut
+          ? pastePendingCut()
+          : clipboardSession.selectedEntryId !== null
+            ? pasteClipboardEntry(clipboardSession.selectedEntryId)
+            : false;
+        if (pasted) {
           event.preventDefault();
         }
         return;
@@ -965,6 +1024,7 @@ export function EditorWorkspace({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     clipboardSession,
+    pendingCut,
     pendingElementDeletion,
     presentation,
     rightPanelMode,
@@ -1344,6 +1404,16 @@ export function EditorWorkspace({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        const hasMediaEditing = Boolean(
+          canvasCropDragRef.current ||
+            canvasFocalDragRef.current ||
+            cropEditingTarget ||
+            focalEditingTarget,
+        );
+        if (pendingCut && !hasMediaEditing) {
+          setPendingCut(null);
+          return;
+        }
         if (canvasCropDragRef.current) {
           canvasCropDragRef.current = null;
           setCanvasCropPreview(null);
@@ -1360,7 +1430,7 @@ export function EditorWorkspace({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [cropEditingTarget, focalEditingTarget, pendingCut]);
 
   // ==========================================================
   // END: OUTLINE DO ELEMENTO SELECIONADO
@@ -4237,17 +4307,21 @@ export function EditorWorkspace({
                     return (
                 <ClipboardPanel
                   session={clipboardSession}
+                  pendingCut={pendingCut}
+                  pendingCutLabel={t("editor.pendingCut")}
                   clearLabel={t("editor.clearClipboard")}
                   emptyLabel={t("editor.clipboardEmpty")}
                   pinnedLabel={t("editor.pinnedSnapshots")}
-                  onClear={() =>
-                    setClipboardSession(clearDisposableClipboardEntries)
-                  }
+                  onClear={() => {
+                    setPendingCut(null);
+                    setClipboardSession(clearDisposableClipboardEntries);
+                  }}
                   onSelect={selectClipboardEntry}
                   onPaste={(entryId) => {
                     selectClipboardEntry(entryId);
                     pasteClipboardEntry(entryId);
                   }}
+                  onCancelPendingCut={() => setPendingCut(null)}
                 />
                     );
                   case "history":

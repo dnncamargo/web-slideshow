@@ -14,6 +14,23 @@ export interface ClipboardSessionState {
   selectedEntryId: string | null;
 }
 
+export interface PendingClipboardCut {
+  sourceElementId: string;
+  sourceSlideId: string;
+  elementType: PowerShowElement["type"];
+}
+
+export function createPendingClipboardCut(
+  element: PowerShowElement,
+  sourceSlideId: string,
+): PendingClipboardCut {
+  return {
+    sourceElementId: element.id,
+    sourceSlideId,
+    elementType: element.type,
+  };
+}
+
 export const EMPTY_CLIPBOARD_SESSION: ClipboardSessionState = {
   entries: [],
   selectedEntryId: null,
