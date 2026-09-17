@@ -114,6 +114,18 @@ describe("GalleryInspector", () => {
     return select;
   }
 
+  function sizeInput(dimension: "width" | "height"): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(`#element-${dimension}`);
+    if (!input) throw new Error(`Gallery ${dimension} input not found`);
+    return input;
+  }
+
+  function resetSize(dimension: "width" | "height"): HTMLButtonElement {
+    const button = sizeInput(dimension).closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!button) throw new Error(`Gallery ${dimension} reset not found`);
+    return button;
+  }
+
   function itemSrc(id: string): HTMLTextAreaElement {
     const input = container.querySelector<HTMLTextAreaElement>(id);
     if (!input) {
@@ -206,6 +218,80 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     expect(fitSelect().value).toBe("contain");
+  });
+
+  it("renders Size after Content and before Spacing, Appearance, and Effects", async () => {
+    await act(async () => mount(galleryElement()));
+    const sections = Array.from(container.querySelectorAll<HTMLDetailsElement>("details"))
+      .map((section) => section.querySelector("summary")?.textContent?.trim())
+      .filter((title) => title !== "Margin sides");
+    expect(sections.slice(0, 5)).toEqual(["Content2", "Size", "Spacing", "Appearance", "Effects"]);
+  });
+
+  it("authors Gallery size while preserving layout and media state", async () => {
+    await act(async () => mount(galleryElement({
+      fit: "cover",
+      layout: {
+        width: "60%",
+        height: 360,
+        position: "absolute",
+        top: 20,
+        right: "5%",
+        bottom: 30,
+        left: 10,
+        margin: 8,
+        marginTop: 1,
+        marginRight: 2,
+        marginBottom: 3,
+        marginLeft: 4,
+      },
+      items: [{
+        src: "/one.png",
+        alt: "One",
+        fit: "contain",
+        crop: { x: 10, y: 20, width: 60, height: 50 },
+        focalPoint: { x: 25, y: 70 },
+      }, DEFAULT_ITEMS[1]!],
+    })));
+
+    expect(sizeInput("width").value).toBe("60");
+    expect(container.querySelector<HTMLSelectElement>("#element-width-unit")?.value).toBe("%");
+    expect(sizeInput("height").value).toBe("360");
+    expect(container.querySelector<HTMLSelectElement>("#element-height-unit")?.value).toBe("px");
+
+    await act(async () => changeInput(sizeInput("width"), "70"));
+    expect(elementState.layout).toEqual({
+      width: "70%", height: 360, position: "absolute", top: 20, right: "5%", bottom: 30, left: 10,
+      margin: 8, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4,
+    });
+    expect(elementState.fit).toBe("cover");
+    expect(elementState.items[0]).toMatchObject({ fit: "contain", crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 25, y: 70 } });
+
+    await act(async () => changeInput(sizeInput("height"), "250"));
+    expect(elementState.layout).toEqual({
+      width: "70%", height: 250, position: "absolute", top: 20, right: "5%", bottom: 30, left: 10,
+      margin: 8, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4,
+    });
+
+    await act(async () => resetSize("width").click());
+    expect(elementState.layout).toEqual({
+      height: 250, position: "absolute", top: 20, right: "5%", bottom: 30, left: 10,
+      margin: 8, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4,
+    });
+
+    await act(async () => resetSize("height").click());
+    expect(elementState.layout).toEqual({
+      position: "absolute", top: 20, right: "5%", bottom: 30, left: 10,
+      margin: 8, marginTop: 1, marginRight: 2, marginBottom: 3, marginLeft: 4,
+    });
+    expect(elementState.fit).toBe("cover");
+    expect(elementState.items[0]).toMatchObject({ crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 25, y: 70 } });
+  });
+
+  it("removes the final Gallery size layout property on reset", async () => {
+    await act(async () => mount(galleryElement({ layout: { height: 360 } })));
+    await act(async () => resetSize("height").click());
+    expect(elementState.layout).toBeUndefined();
   });
 
   it("displays Image children in canonical order with the selected child pressed", async () => {
