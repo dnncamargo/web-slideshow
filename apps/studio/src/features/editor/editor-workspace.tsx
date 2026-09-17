@@ -246,6 +246,15 @@ import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/in
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrImageElement } from "./qr-image-authoring";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
+import {
+  commitHistory,
+  createHistoryState,
+  redoHistory,
+  resetHistory,
+  undoHistory,
+  type EditorHistoryState,
+  type HistoryActionMeta,
+} from "./editor-history-state";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -530,9 +539,42 @@ export function EditorWorkspace({
       : structuredClone(editorDemoPresentation);
   }
 
-  const [presentation, setPresentation] = useState<Presentation>(
+  // History owns the one editable Presentation. The compatibility setter is
+  // deliberately an untracked boundary for CP3 authoring surfaces: changing
+  // one of those surfaces resets the stack, so an old entry can never undo
+  // through an untracked mutation. This is temporary and mechanically
+  // removable as each continuous surface moves to transactions.
+  const [history, dispatchHistory] = useReducer(
+    (state: EditorHistoryState, action:
+      | { type: "commit"; next: Presentation; meta: HistoryActionMeta }
+      | { type: "untracked"; update: Presentation | ((current: Presentation) => Presentation) }
+      | { type: "undo" }
+      | { type: "redo" }
+      | { type: "reset"; next: Presentation }) => {
+      switch (action.type) {
+        case "commit": return commitHistory(state, action.next, action.meta);
+        case "untracked": return resetHistory(
+          typeof action.update === "function"
+            ? action.update(state.present)
+            : action.update,
+        );
+        case "undo": return undoHistory(state);
+        case "redo": return redoHistory(state);
+        case "reset": return resetHistory(action.next);
+      }
+    },
     initialEditableRef.current,
+    createHistoryState,
   );
+  const presentation = history.present;
+  const setPresentation = (
+    update: Presentation | ((current: Presentation) => Presentation),
+  ) => {
+    dispatchHistory({
+      type: "untracked",
+      update,
+    });
+  };
 
   const [saveState, dispatchSave] = useReducer(editorSaveReducer, {
     lastSavedPresentation: initialEditableRef.current,
@@ -874,55 +916,44 @@ export function EditorWorkspace({
       return false;
     }
 
-    const destination = resolveClipboardPasteDestination(
-      selectedSlide.elements,
-      entry.element.id,
-      selectedDocumentElement,
-      selectedElement?.contentSlotId ?? null,
-    );
-    if (!destination) {
-      return false;
-    }
-
-    const pastedElement = duplicateElement(
-      entry.element,
-      presentation.slides,
-    );
-    const nextElements =
-      destination.kind === "slide"
-        ? [...selectedSlide.elements, pastedElement]
-        : destination.kind === "container"
-          ? appendElementToContainer(
-              selectedSlide.elements,
-              destination.id,
-              pastedElement,
-            )
-          : appendElementToContentSlot(
-              selectedSlide.elements,
-              destination.id,
-              pastedElement,
-            );
-
-    if (nextElements === selectedSlide.elements) {
-      return false;
-    }
-
-    setPresentation({
-      ...presentation,
-      slides: presentation.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? { ...slide, elements: nextElements }
-          : slide,
-      ),
+    let committed = false;
+    dispatchHistory({
+      type: "commit",
+      meta: { kind: "element.paste", labelKey: "history.element.paste", labelParams: { elementType: entry.element.type } },
+      next: (() => {
+        const currentSlide = history.present.slides[selectedSlideIndex];
+        if (!currentSlide) return history.present;
+        const destination = resolveClipboardPasteDestination(
+          currentSlide.elements,
+          entry.element.id,
+          selectedDocumentElement,
+          selectedElement?.contentSlotId ?? null,
+        );
+        if (!destination) return history.present;
+        const pastedElement = duplicateElement(entry.element, history.present.slides);
+        const nextElements = destination.kind === "slide"
+          ? [...currentSlide.elements, pastedElement]
+          : destination.kind === "container"
+            ? appendElementToContainer(currentSlide.elements, destination.id, pastedElement)
+            : appendElementToContentSlot(currentSlide.elements, destination.id, pastedElement);
+        if (nextElements === currentSlide.elements) return history.present;
+        committed = true;
+        return {
+          ...history.present,
+          slides: history.present.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      })(),
     });
-    return true;
+    return committed;
   }
 
   function pastePendingCut(): boolean {
     if (!pendingCut) return false;
 
     const nextPresentation = moveClipboardElement(
-      presentation,
+      history.present,
       pendingCut.sourceSlideId,
       pendingCut.sourceElementId,
       selectedSlideIndex,
@@ -930,15 +961,60 @@ export function EditorWorkspace({
       selectedElement?.contentSlotId ?? null,
     );
     if (!nextPresentation) {
-      if (!presentation.slides.some((slide) => slide.id === pendingCut.sourceSlideId)
-        || !presentation.slides.some((slide) => findElementById(slide.elements, pendingCut.sourceElementId))) {
+      if (!history.present.slides.some((slide) => slide.id === pendingCut.sourceSlideId)
+        || !history.present.slides.some((slide) => findElementById(slide.elements, pendingCut.sourceElementId))) {
         setPendingCut(null);
       }
       return false;
     }
 
-    setPresentation(nextPresentation);
+    dispatchHistory({
+      type: "commit",
+      next: nextPresentation,
+      meta: { kind: "element.move", labelKey: "history.element.move" },
+    });
     setPendingCut(null);
+    return true;
+  }
+
+  function reconcileAfterHistoryReplay(next: Presentation): void {
+    const nextSlideIndex = Math.max(
+      0,
+      Math.min(selectedSlideIndex, Math.max(0, next.slides.length - 1)),
+    );
+    setSelectedSlideIndex(nextSlideIndex);
+    setSelectedElement((current) => {
+      if (!current) return null;
+      const slide = next.slides[nextSlideIndex];
+      return slide && findElementById(slide.elements, current.id) ? current : null;
+    });
+    setGalleryItemSelection(null);
+    setSelectedTableStructuralNode(null);
+    setPendingElementDeletion(null);
+    setPendingStyleDetach(null);
+    setPendingTextStyleReset(null);
+    setPendingCut(null);
+    closeCanvasMediaEditing();
+    canvasDragRef.current = null;
+    canvasResizeRef.current = null;
+    setCanvasResizeOverlay(null);
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
+  }
+
+  function undoEditorHistory(): boolean {
+    if (history.past.length === 0) return false;
+    const nextState = undoHistory(history);
+    dispatchHistory({ type: "undo" });
+    reconcileAfterHistoryReplay(nextState.present);
+    return true;
+  }
+
+  function redoEditorHistory(): boolean {
+    if (history.future.length === 0) return false;
+    const nextState = redoHistory(history);
+    dispatchHistory({ type: "redo" });
+    reconcileAfterHistoryReplay(nextState.present);
     return true;
   }
 
@@ -970,6 +1046,12 @@ export function EditorWorkspace({
 
       const modifierPressed = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
+
+      if (modifierPressed && !event.altKey && key === "z") {
+        const replayed = event.shiftKey ? redoEditorHistory() : undoEditorHistory();
+        if (replayed) event.preventDefault();
+        return;
+      }
 
       if (
         modifierPressed &&
@@ -1031,6 +1113,7 @@ export function EditorWorkspace({
     pendingCut,
     pendingElementDeletion,
     presentation,
+    history,
     rightPanelMode,
     selectedElement,
     selectedDocumentElement,
@@ -3192,11 +3275,19 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
+    const deletion = pendingElementDeletion;
+    const current = history.present;
+    const deletionSlide = current.slides[deletion.slideIndex];
+    if (!deletionSlide || !findElementById(deletionSlide.elements, deletion.elementId)) {
+      setPendingElementDeletion(null);
+      setSelectedElement((selected) => selected?.id === deletion.elementId ? null : selected);
+      return;
+    }
+    const next = {
       ...current,
 
       slides: current.slides.map((slide, index) => {
-        if (index !== pendingElementDeletion.slideIndex) {
+        if (index !== deletion.slideIndex) {
           return slide;
         }
 
@@ -3205,14 +3296,15 @@ export function EditorWorkspace({
 
           elements: removeElementById(
             slide.elements,
-            pendingElementDeletion.elementId,
+            deletion.elementId,
           ),
         };
       }),
-    }));
+    };
+    dispatchHistory({ type: "commit", next, meta: { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } } });
 
     setSelectedElement((current) =>
-      current?.id === pendingElementDeletion.elementId ? null : current,
+      current?.id === deletion.elementId ? null : current,
     );
     setPendingElementDeletion(null);
   }
@@ -3257,17 +3349,10 @@ export function EditorWorkspace({
 
     const newSlide = createSlideFromPreset(preset, presentation.slides);
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: [
-        ...current.slides.slice(0, insertionIndex),
-
-        newSlide,
-
-        ...current.slides.slice(insertionIndex),
-      ],
-    }));
+    dispatchHistory({ type: "commit", meta: { kind: "slide.add", labelKey: "history.slide.add" }, next: {
+      ...presentation,
+      slides: [...presentation.slides.slice(0, insertionIndex), newSlide, ...presentation.slides.slice(insertionIndex)],
+    } });
 
     setSelectedSlideIndex(insertionIndex);
 
@@ -3307,17 +3392,10 @@ export function EditorWorkspace({
       presentation.slides,
     );
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: [
-        ...current.slides.slice(0, insertionIndex),
-
-        duplicatedSlide,
-
-        ...current.slides.slice(insertionIndex),
-      ],
-    }));
+    dispatchHistory({ type: "commit", meta: { kind: "slide.duplicate", labelKey: "history.slide.duplicate" }, next: {
+      ...presentation,
+      slides: [...presentation.slides.slice(0, insertionIndex), duplicatedSlide, ...presentation.slides.slice(insertionIndex)],
+    } });
 
     setSelectedSlideIndex(insertionIndex);
 
@@ -3360,13 +3438,12 @@ export function EditorWorkspace({
 
     const nextIndex = Math.min(selectedSlideIndex, nextSlides.length - 1);
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: current.slides.filter(
+    dispatchHistory({ type: "commit", meta: { kind: "slide.delete", labelKey: "history.slide.delete" }, next: {
+      ...presentation,
+      slides: presentation.slides.filter(
         (_slide, index) => index !== selectedSlideIndex,
       ),
-    }));
+    } });
 
     setSelectedSlideIndex(nextIndex);
 
@@ -3399,11 +3476,10 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: moveSlide(current.slides, selectedSlideIndex, targetIndex),
-    }));
+    dispatchHistory({ type: "commit", meta: { kind: "slide.move", labelKey: "history.slide.move" }, next: {
+      ...presentation,
+      slides: moveSlide(presentation.slides, selectedSlideIndex, targetIndex),
+    } });
 
     setSelectedSlideIndex(targetIndex);
   }
