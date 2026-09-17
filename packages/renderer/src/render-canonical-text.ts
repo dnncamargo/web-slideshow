@@ -11,6 +11,10 @@ import { renderBorder, renderGradient, renderShadow } from "./render-visual";
 import { renderLength } from "./render-length";
 import { renderColorValue } from "./render-palette";
 
+type CanonicalTextOptions = Readonly<{
+  includeBorder?: boolean;
+}>;
+
 function addStyle(
   output: string[],
   property: string,
@@ -53,7 +57,10 @@ function renderLayout(element: TextElement): string[] {
   return output;
 }
 
-function renderVisualStyle(style: TextVisualStyle | undefined): string[] {
+function renderVisualStyle(
+  style: TextVisualStyle | TextStyleVisualProperties | undefined,
+  options: CanonicalTextOptions = {},
+): string[] {
   const output: string[] = [];
 
   if (!style) {
@@ -62,19 +69,21 @@ function renderVisualStyle(style: TextVisualStyle | undefined): string[] {
 
   if (style.color !== undefined) addStyle(output, "color", renderColorValue(style.color));
 
-  if (style.background?.color) {
+  if ("background" in style && style.background?.color) {
     addStyle(output, "background", renderColorValue(style.background.color));
   }
 
-  if (style.background?.gradient) {
+  if ("background" in style && style.background?.gradient) {
     output.push(`background-image:${renderGradient(style.background.gradient)}`);
   }
 
-  if (style.border) {
+  if (options.includeBorder !== false && "border" in style && style.border) {
     output.push(...renderBorder(style.border));
   }
 
-  addLength(output, "border-radius", style.borderRadius);
+  if ("borderRadius" in style) {
+    addLength(output, "border-radius", style.borderRadius);
+  }
   return output;
 }
 
@@ -131,10 +140,11 @@ export function renderCanonicalTextStyle(
   element: TextElement,
   typography: ElementTypography | undefined = element.typography,
   style: TextVisualStyle | TextStyleVisualProperties | undefined = element.style,
+  options: CanonicalTextOptions = {},
 ): string {
   return [
     ...renderLayout(element),
-    ...renderVisualStyle(style),
+    ...renderVisualStyle(style, options),
     ...renderTypography(typography),
     ...renderEffect(element.effect),
   ].join(";");
