@@ -59,6 +59,7 @@ import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
+import { AuthoringHistoryContext, type AuthoringHistoryContextValue } from "./authoring-history-context";
 import { ElementTreePanel } from "./element-tree-panel";
 import { ClipboardPanel, HistoryPanel } from "./clipboard-panel";
 import {
@@ -582,6 +583,11 @@ export function EditorWorkspace({
     createHistoryState,
   );
   const presentation = history.present;
+  const authoringIntentRef = useRef<
+    | { type: "continuous"; key: string; meta: HistoryActionMeta }
+    | { type: "discrete"; meta: HistoryActionMeta }
+    | null
+  >(null);
   const setPresentation = (
     update: Presentation | ((current: Presentation) => Presentation),
   ) => {
@@ -612,6 +618,24 @@ export function EditorWorkspace({
   function finishPresentationTransaction(key?: string): void {
     dispatchHistory({ type: "transaction-commit", ...(key === undefined ? {} : { key }) });
   }
+
+  const authoringHistory: AuthoringHistoryContextValue = {
+    begin: beginPresentationTransaction,
+    update: (key, callback) => {
+      authoringIntentRef.current = {
+        type: "continuous",
+        key,
+        meta: { kind: "text.edit", labelKey: "history.text.edit" },
+      };
+      try { callback(); } finally { authoringIntentRef.current = null; }
+    },
+    finish: finishPresentationTransaction,
+    discrete: (meta, callback) => {
+      finishPresentationTransaction();
+      authoringIntentRef.current = { type: "discrete", meta };
+      try { callback(); } finally { authoringIntentRef.current = null; }
+    },
+  };
 
   const [saveState, dispatchSave] = useReducer(editorSaveReducer, {
     lastSavedPresentation: initialEditableRef.current,
@@ -1836,6 +1860,7 @@ export function EditorWorkspace({
     );
 
     if (!selection) {
+      finishPresentationTransaction();
       setSelectedElement(null);
 
       return;
@@ -1843,6 +1868,13 @@ export function EditorWorkspace({
 
     const contentSlotId = contentSlotTarget?.dataset.powershowContentSlotId;
 
+    if (
+      selectedElement?.id !== selection.id ||
+      selectedElement.type !== selection.type ||
+      selectedElement?.contentSlotId !== (contentSlotId ?? null)
+    ) {
+      finishPresentationTransaction();
+    }
     setSelectedElement({
       id: selection.id,
       type: selection.type,
@@ -2589,7 +2621,7 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
+    const applyUpdate = (current: Presentation): Presentation => ({
       ...current,
 
       slides: current.slides.map((slide, index) => {
@@ -2607,7 +2639,15 @@ export function EditorWorkspace({
           ),
         };
       }),
-    }));
+    });
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update: applyUpdate });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update: applyUpdate });
+    } else {
+      setPresentation(applyUpdate);
+    }
   }
 
   function runSelectedPlotPreview(command: (controller: PlotAnimationController) => void): void {
@@ -4590,6 +4630,7 @@ export function EditorWorkspace({
                       <PresentationColorPaletteProvider
                         colors={presentation.palette?.colors ?? []}
                       >
+                        <AuthoringHistoryContext.Provider value={authoringHistory}>
                         <ElementInspector
                           element={selectedDocumentElement}
                           onUpdate={updateSelectedElement}
@@ -4641,6 +4682,7 @@ export function EditorWorkspace({
                           selectedTableStructuralNode={selectedTableStructuralNode}
                           onSelectTableStructuralNode={setSelectedTableStructuralNode}
                         />
+                        </AuthoringHistoryContext.Provider>
                       </PresentationColorPaletteProvider>
                     </PickedColorsProvider>
                   ) : (

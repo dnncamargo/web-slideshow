@@ -21,6 +21,7 @@ export interface LiteralColorInputProps {
   disabled?: boolean;
   onChange: (color: Color, source: LiteralColorChangeSource) => void;
   onCommit?: (color: Color, source: "picker") => void;
+  onBlur?: () => void;
 }
 
 function getColorFormat(value: string): ColorFormat {
@@ -44,6 +45,7 @@ export function LiteralColorInput({
   disabled = false,
   onChange,
   onCommit,
+  onBlur,
 }: LiteralColorInputProps) {
   const pickerRef = useRef<HTMLInputElement>(null);
   const lastPickerPreviewRef = useRef<Color | undefined>(undefined);
@@ -122,6 +124,7 @@ export function LiteralColorInput({
             onChange(normalized, "text");
           }
         }}
+        onBlur={onBlur}
       />
 
       <select

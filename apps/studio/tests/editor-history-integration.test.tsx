@@ -29,6 +29,25 @@ function presentation(slides = 2): Presentation {
   });
 }
 
+function richTextPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "rich-text-history",
+    title: "Rich text history",
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      elements: [{
+        type: "text",
+        id: "text-1",
+        hidden: false,
+        variant: "body",
+        content: "A",
+      }],
+    }],
+  });
+}
+
 function key(key: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options });
 }
@@ -189,6 +208,52 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')?.value).toBe("History integration");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')?.value).toBe("Changed again");
+  });
+
+  it("groups RichText typing and keeps formatting as a separate action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    const canvasText = container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!;
+    await act(async () => canvasText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = container.querySelector<HTMLTextAreaElement>("#text-content")!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    await act(async () => {
+      textarea.focus();
+      setter.call(textarea, "AB");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      setter.call(textarea, "ABC");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.blur();
+    });
+    expect(textarea.value).toBe("ABC");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("A");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("ABC");
+    const edited = container.querySelector<HTMLTextAreaElement>("#text-content")!;
+    await act(async () => {
+      edited.focus();
+      edited.setSelectionRange(0, 3);
+      edited.dispatchEvent(new Event("select", { bubbles: true }));
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-inline-format="bold"]')!.click());
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("ABC");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("A");
+  });
+
+  it("leaves native RichText Undo shortcuts untouched", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    const canvasText = container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!;
+    await act(async () => canvasText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = container.querySelector<HTMLTextAreaElement>("#text-content")!;
+    const nativeUndo = key("z", { ctrlKey: true });
+    await act(async () => textarea.dispatchEvent(nativeUndo));
+    expect(nativeUndo.defaultPrevented).toBe(false);
   });
 
   it("groups slide title typing and finalizes when changing slide context", async () => {

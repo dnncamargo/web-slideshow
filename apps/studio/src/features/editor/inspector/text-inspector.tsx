@@ -134,6 +134,7 @@ export function TextInspector({
       <InspectorSection title={t("inspector.content")} defaultOpen>
         <RichTextAuthoringControl
           content={element.content}
+          historyKey={`element:${element.id}:content`}
           onChange={(content) => onUpdate((current) => current.type === "text" ? { ...current, content } : current)}
         />
       </InspectorSection>

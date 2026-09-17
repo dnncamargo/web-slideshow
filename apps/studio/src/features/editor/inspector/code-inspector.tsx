@@ -115,6 +115,7 @@ export function CodeInspector({
 
           <RichTextAuthoringControl
             content={element.code}
+            historyKey={`element:${element.id}:code`}
             id="code-source"
             name="codeSource"
             rows={10}

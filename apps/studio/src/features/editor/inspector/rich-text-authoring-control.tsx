@@ -24,6 +24,7 @@ import {
 } from "../rich-text-authoring";
 import { ColorControl } from "./sections/color-control";
 import { usePresentationColorPalette } from "./sections/presentation-color-palette";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type TextInputElement = HTMLTextAreaElement | HTMLInputElement;
 
@@ -99,6 +100,7 @@ export interface RichTextAuthoringControlProps {
   showLineBreak?: boolean;
   placeholder?: string;
   ariaLabel?: string;
+  historyKey?: string;
 }
 
 export function RichTextAuthoringControl({
@@ -114,6 +116,7 @@ export function RichTextAuthoringControl({
   showLineBreak = true,
   placeholder,
   ariaLabel,
+  historyKey,
 }: RichTextAuthoringControlProps) {
   const { t } = useStudioI18n();
   const selectionRef = useRef<TextSelectionRange | null>(null);
@@ -123,6 +126,8 @@ export function RichTextAuthoringControl({
   const [selection, setSelection] = useState<TextSelectionRange | null>(null);
   const [isInlineColorOpen, setIsInlineColorOpen] = useState(false);
   const presentationPalette = usePresentationColorPalette();
+  const authoringHistory = useAuthoringHistory();
+  const transactionKey = historyKey ?? `rich-text:${id}`;
 
   const plainText = getTextContentPlainText(content);
   const normalizedSelection = normalizeTextSelectionRange(
@@ -161,8 +166,40 @@ export function RichTextAuthoringControl({
     pendingCaretRef.current = null;
   }, [plainText]);
 
-  function updateContent(update: (current: TextContent) => TextContent) {
-    onChange(normalizeTextContent(update(content)));
+  function updateContent(
+    update: (current: TextContent) => TextContent,
+    track = true,
+  ) {
+    const next = normalizeTextContent(update(content));
+    if (authoringHistory && track) {
+      authoringHistory.update(transactionKey, () => onChange(next));
+    } else {
+      onChange(next);
+    }
+  }
+
+  function beginTyping() {
+    authoringHistory?.begin(transactionKey, {
+      kind: "text.edit",
+      labelKey: "history.text.edit",
+    });
+  }
+
+  function finishTyping() {
+    authoringHistory?.finish(transactionKey);
+  }
+
+  function discreteTextAction(
+    kind: string,
+    labelKey: string,
+    callback: () => void,
+  ) {
+    authoringHistory?.finish(transactionKey);
+    if (authoringHistory) {
+      authoringHistory.discrete({ kind, labelKey }, callback);
+    } else {
+      callback();
+    }
   }
 
   function updateSelectionFromTextarea(textarea: TextInputElement) {
@@ -186,7 +223,9 @@ export function RichTextAuthoringControl({
     const end = Math.min(Math.max(range.end, start), plainText.length);
     const nextText = `${plainText.slice(0, start)}\n${plainText.slice(end)}`;
 
-    updateContent((current) => reconcileTextContentEdit(current, nextText));
+    discreteTextAction("text.lineBreak", "history.text.lineBreak", () => {
+      updateContent((current) => reconcileTextContentEdit(current, nextText), false);
+    });
     pendingCaretRef.current = start + 1;
   }
 
@@ -205,7 +244,7 @@ export function RichTextAuthoringControl({
       );
 
       return normalized ? transform(current, normalized) : current;
-    });
+    }, false);
 
     setSelection(nextSelection);
     selectionRef.current = nextSelection;
@@ -229,11 +268,9 @@ export function RichTextAuthoringControl({
               format,
             )}
             disabled={!hasSelection}
-            onClick={() => {
-              applySelectionTransform((current, range) =>
-                toggleTextContentBooleanMark(current, range, format),
-              );
-            }}
+            onClick={() => discreteTextAction("text.format", "history.text.format", () => {
+              applySelectionTransform((current, range) => toggleTextContentBooleanMark(current, range, format));
+            })}
           />
         ))}
 
@@ -317,9 +354,9 @@ export function RichTextAuthoringControl({
           title={t("inspector.inlineFormat.clearFormatting")}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
-            applySelectionTransform((current, range) =>
-              clearTextContentFormatting(current, range),
-            );
+            discreteTextAction("text.format", "history.text.format", () => {
+              applySelectionTransform((current, range) => clearTextContentFormatting(current, range));
+            });
           }}
         >
           T×
@@ -343,16 +380,20 @@ export function RichTextAuthoringControl({
             value={selectionColor}
             disabled={!hasSelection}
             onChange={(color: ColorValue) => {
-              applySelectionTransform((current, range) =>
-                applyTextContentColor(current, range, color),
-              );
+              discreteTextAction("text.color", "history.text.color", () => {
+                applySelectionTransform((current, range) =>
+                  applyTextContentColor(current, range, color),
+                );
+              });
             }}
             secondaryAction={{
               label: t("inspector.inlineFormat.clearColor"),
               onClick: () => {
-                applySelectionTransform((current, range) =>
-                  clearTextContentColor(current, range),
-                );
+                discreteTextAction("text.color", "history.text.color", () => {
+                  applySelectionTransform((current, range) =>
+                    clearTextContentColor(current, range),
+                  );
+                });
               },
             }}
           />
@@ -371,11 +412,14 @@ export function RichTextAuthoringControl({
         rows={rows}
         spellCheck={spellCheck}
         value={plainText}
+        onFocus={beginTyping}
+        onBlur={finishTyping}
         onSelect={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onMouseUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onClick={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onKeyUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onChange={(event) => {
+          beginTyping();
           updateContent((current) =>
             reconcileTextContentEdit(current, event.currentTarget.value),
           );
@@ -393,11 +437,14 @@ export function RichTextAuthoringControl({
         placeholder={placeholder}
         spellCheck={spellCheck}
         value={plainText}
+        onFocus={beginTyping}
+        onBlur={finishTyping}
         onSelect={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onMouseUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onClick={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onKeyUp={(event) => updateSelectionFromTextarea(event.currentTarget)}
         onChange={(event) => {
+          beginTyping();
           updateContent((current) =>
             reconcileTextContentEdit(current, event.currentTarget.value.replace(/[\r\n]/g, "")),
           );

@@ -162,6 +162,7 @@ export function TerminalInspector({
 
           <RichTextAuthoringControl
             content={element.title ?? ""}
+            historyKey={`element:${element.id}:title`}
             id="terminal-title"
             name="terminalTitle"
             multiline={false}
@@ -243,6 +244,7 @@ export function TerminalInspector({
 
               <RichTextAuthoringControl
                 content={line.content}
+                historyKey={`element:${element.id}:line:${index}`}
                 id={`terminal-${element.id}-line-${index}-content`}
                 name={`terminalLineContent_${element.id}_${index}`}
                 rows={2}
