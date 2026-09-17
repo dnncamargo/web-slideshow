@@ -61,6 +61,14 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector('[data-powershow-id="image-1"]')).not.toBeNull();
 
     const title = container.querySelector<HTMLInputElement>('input[aria-label="Editor"]')!;
+    const noOpChange = new Event("input", { bubbles: true });
+    await act(async () => title.dispatchEvent(noOpChange));
+    const redoAfterNoOp = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redoAfterNoOp));
+    expect(redoAfterNoOp.defaultPrevented).toBe(true);
+    expect(container.querySelector('[data-powershow-id="image-1"]')).toBeNull();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector('[data-powershow-id="image-1"]')).not.toBeNull();
     await act(async () => {
       title.value = "Changed";
       title.dispatchEvent(new Event("input", { bubbles: true }));
@@ -89,11 +97,20 @@ describe("EditorWorkspace history integration", () => {
     const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!;
     await act(async () => image.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => window.dispatchEvent(key("x", { ctrlKey: true })));
+    const secondSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[1]!;
+    await act(async () => secondSlide.click());
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]")).toHaveLength(0);
     await act(async () => window.dispatchEvent(key("v", { ctrlKey: true })));
+    expect(container.querySelector('[data-powershow-id="image-1"]')).toBeNull();
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-powershow-id]")).toHaveLength(1);
     expect(container.querySelector(".powershow-editor-pending-cut")).toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[0]!.click());
+    expect(container.querySelector('[data-powershow-id="image-1"]')).not.toBeNull();
     expect(container.querySelector(".powershow-editor-pending-cut")).toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"))[1]!.click());
+    expect(container.querySelector('[data-powershow-id="image-1"]')).toBeNull();
     expect(container.querySelector(".powershow-editor-pending-cut")).toBeNull();
   });
 
@@ -102,23 +119,35 @@ describe("EditorWorkspace history integration", () => {
     await act(async () => openNewSlide.click());
     const createNewSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ New")!;
     await act(async () => createNewSlide.click());
-    expect(container.querySelectorAll(".slideItem, [class*='slideItem']")).toHaveLength(3);
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(3);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
-    expect(container.querySelectorAll(".slideItem, [class*='slideItem']")).toHaveLength(2);
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(2);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(3);
 
     const duplicate = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Duplicate")!;
     await act(async () => duplicate.click());
-    expect(container.querySelectorAll(".slideItem, [class*='slideItem']")).toHaveLength(3);
+    const duplicateIds = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"), (button) => button.textContent);
+    expect(duplicateIds).toHaveLength(4);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(3);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(4);
     const deleteSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Delete")!;
     vi.spyOn(window, "confirm").mockReturnValue(true);
     await act(async () => deleteSlide.click());
-    expect(container.querySelectorAll(".slideItem, [class*='slideItem']")).toHaveLength(2);
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(3);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
-    expect(container.querySelectorAll(".slideItem, [class*='slideItem']")).toHaveLength(3);
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(4);
     const up = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "↑ Up")!;
+    const beforeMove = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"), (button) => button.textContent);
     await act(async () => up.click());
+    const afterMove = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"), (button) => button.textContent);
+    expect(afterMove).not.toEqual(beforeMove);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
-    expect(container.querySelectorAll(".slideItem, [class*='slideItem']")).toHaveLength(3);
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"), (button) => button.textContent)).toEqual(beforeMove);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"), (button) => button.textContent)).toEqual(afterMove);
   });
 
   it("keeps editable targets native and redoes with the modified shortcut", async () => {

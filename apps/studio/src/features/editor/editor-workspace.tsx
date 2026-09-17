@@ -553,11 +553,12 @@ export function EditorWorkspace({
       | { type: "reset"; next: Presentation }) => {
       switch (action.type) {
         case "commit": return commitHistory(state, action.update(state.present), action.meta);
-        case "untracked": return resetHistory(
-          typeof action.update === "function"
+        case "untracked": {
+          const next = typeof action.update === "function"
             ? action.update(state.present)
-            : action.update,
-        );
+            : action.update;
+          return next === state.present ? state : resetHistory(next);
+        }
         case "undo": return undoHistory(state);
         case "redo": return redoHistory(state);
         case "reset": return resetHistory(action.next);
