@@ -4092,6 +4092,24 @@ export function EditorWorkspace({
                   <button className={editorPanelView === "history" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "history"} onClick={() => setEditorPanelView("history")}>{t("editor.history")}</button>
                 </>
               )}
+              <button
+                className={styles.panelGroupSwitch}
+                type="button"
+                aria-label={
+                  editorPanelView === "inspector" || editorPanelView === "elements"
+                    ? t("editor.sessionViews")
+                    : t("editor.primaryViews")
+                }
+                onClick={() =>
+                  setEditorPanelView(
+                    editorPanelView === "inspector" || editorPanelView === "elements"
+                      ? "clipboard"
+                      : "inspector",
+                  )
+                }
+              >
+                ›
+              </button>
             </div>
 
             <div
@@ -4101,7 +4119,10 @@ export function EditorWorkspace({
                   : ""
               }`}
             >
-              {editorPanelView === "clipboard" ? (
+              {(() => {
+                switch (editorPanelView) {
+                  case "clipboard":
+                    return (
                 <ClipboardPanel
                   session={clipboardSession}
                   clearLabel={t("editor.clearClipboard")}
@@ -4111,10 +4132,12 @@ export function EditorWorkspace({
                     setClipboardSession(clearDisposableClipboardEntries)
                   }
                 />
-              ) : editorPanelView === "history" ? (
-                <HistoryPanel emptyLabel={t("editor.historyEmpty")} />
-              ) : editorPanelView === "elements" ? (
-                <ElementTreePanel
+                    );
+                  case "history":
+                    return <HistoryPanel emptyLabel={t("editor.historyEmpty")} />;
+                  case "elements":
+                    return (
+                      <ElementTreePanel
                   key={selectedSlide.id}
                   slide={selectedSlide}
                   selectedElementId={selectedElement?.id ?? null}
@@ -4161,17 +4184,20 @@ export function EditorWorkspace({
                   onGalleryStructureDrop={applyGalleryStructureDrop}
                   onMoveTableColumn={(tableId, columnId, offset) => setPresentation((current) => ({ ...current, slides: moveColumnInStructuredTable(current.slides, tableId, columnId, offset) }))}
                   onMoveTableRow={(tableId, rowId, offset) => setPresentation((current) => ({ ...current, slides: moveRowInStructuredTable(current.slides, tableId, rowId, offset) }))}
-                  selectedTableStructuralNode={selectedTableStructuralNode}
-                  onSelectTableStructuralNode={setSelectedTableStructuralNode}
-                  customLibraryRepository={customLibraryRepository}
-                  onBrowseElementStyles={() => setRightPanelMode("resources")}
-                  palette={presentation.palette}
-                  fontResources={presentation.resources?.fonts}
-                  textStyles={presentation.textStyles}
-                  linkedStyles={presentation.linkedStyles}
-                />
-              ) : (
-                <>
+                   selectedTableStructuralNode={selectedTableStructuralNode}
+                   onSelectTableStructuralNode={setSelectedTableStructuralNode}
+                   customLibraryRepository={customLibraryRepository}
+                   onBrowseElementStyles={() => setRightPanelMode("resources")}
+                   palette={presentation.palette}
+                   fontResources={presentation.resources?.fonts}
+                   textStyles={presentation.textStyles}
+                   linkedStyles={presentation.linkedStyles}
+                 />
+                    );
+                  case "inspector":
+                  default:
+                    return (
+                      <>
                   {/* =================================================
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
@@ -4321,8 +4347,10 @@ export function EditorWorkspace({
                     ============================================= */}
                     </>
                   )}
-                </>
-              )}
+                      </>
+                    );
+                }
+              })()}
             </div>
           </aside>
         )}

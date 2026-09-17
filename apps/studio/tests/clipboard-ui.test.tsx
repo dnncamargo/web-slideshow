@@ -38,11 +38,11 @@ describe("Editor Clipboard panel foundation", () => {
     expect(container.textContent).toContain("Elements");
     expect(container.textContent).not.toContain("Clipboard");
 
-    const sessionSwitch = container.querySelector<HTMLButtonElement>(
+    const primaryGroupSwitches = container.querySelectorAll<HTMLButtonElement>(
       'button[aria-label="Clipboard and history views"]',
     );
-    if (!sessionSwitch) throw new Error("expected the session view switch");
-    act(() => sessionSwitch.click());
+    expect(primaryGroupSwitches).toHaveLength(2);
+    act(() => primaryGroupSwitches[1]?.click());
 
     expect(container.textContent).toContain("Clipboard");
     expect(container.textContent).toContain("History");
@@ -55,11 +55,11 @@ describe("Editor Clipboard panel foundation", () => {
     act(() => history.click());
     expect(container.textContent).toContain("History is not populated yet.");
 
-    const primarySwitch = container.querySelector<HTMLButtonElement>(
+    const sessionGroupSwitches = container.querySelectorAll<HTMLButtonElement>(
       'button[aria-label="Primary editor views"]',
     );
-    if (!primarySwitch) throw new Error("expected the primary view switch");
-    act(() => primarySwitch.click());
+    expect(sessionGroupSwitches).toHaveLength(2);
+    act(() => sessionGroupSwitches[1]?.click());
     expect(container.textContent).toContain("Inspector");
     expect(container.textContent).not.toContain("Clipboard");
   });
