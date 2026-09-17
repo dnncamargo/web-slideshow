@@ -19,8 +19,6 @@ type TopicsListContext = {
   kind: NonNullable<TopicsElement["kind"]>;
 
   rootMarkerStyle: TopicMarkerStyle | undefined;
-
-  hasAuthoredTextColor: boolean;
 };
 
 const UNORDERED_MARKER_SEQUENCE = [
@@ -158,10 +156,6 @@ function renderTopicItem(
 ): string {
   const classes = ["powershow-topic-item"];
 
-  if (context.hasAuthoredTextColor) {
-    classes.push("powershow-topic-item-text-color-authority");
-  }
-
   const customClass = item.content.style?.className?.trim();
 
   if (customClass) {
@@ -264,7 +258,6 @@ export function renderTopics(
   const context: TopicsListContext = {
     kind: effectiveKind,
     rootMarkerStyle: renderedElement.rootMarkerStyle,
-    hasAuthoredTextColor: renderedElement.style?.color !== undefined,
   };
 
   const items = renderedElement.items

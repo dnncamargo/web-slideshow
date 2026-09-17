@@ -88,7 +88,7 @@ describe("ColorControl linked palette UX", () => {
     const accent = Array.from(container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
       .find((button) => button.getAttribute("aria-label")?.includes("Accent"));
     act(() => accent?.click());
-    expect(onChange).toHaveBeenCalledWith({ kind: "palette", colorId: "accent" });
+    expect(onChange).toHaveBeenCalledWith({ kind: "palette", colorId: "accent" }, "palette");
     expect(container.querySelector("#color-palette-chooser")).toBeNull();
   });
 
@@ -104,7 +104,7 @@ describe("ColorControl linked palette UX", () => {
     const detach = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent === "Detach");
     act(() => detach?.click());
-    expect(onChange).toHaveBeenCalledWith("#ffffff");
+    expect(onChange).toHaveBeenCalledWith("#ffffff", "detach");
   });
 
   it("uses strict color ids when duplicate visual values are present", () => {
@@ -153,7 +153,7 @@ describe("ColorControl linked palette UX", () => {
     const picked = container.querySelector<HTMLButtonElement>("button[aria-label='Apply palette color #facc15']");
     expect(picked).toBeDefined();
     act(() => picked?.click());
-    expect(secondChange).toHaveBeenCalledWith("#facc15");
+    expect(secondChange).toHaveBeenCalledWith("#facc15", "picked");
   });
 
   it("closes the chooser when literal text or picker edits are authored", () => {
@@ -161,7 +161,7 @@ describe("ColorControl linked palette UX", () => {
     act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
     const input = container.querySelector<HTMLInputElement>("#color-value");
     act(() => { if (input) { setInputValue(input, "#123456"); input.dispatchEvent(new Event("input", { bubbles: true })); } });
-    expect(onChange).toHaveBeenCalledWith("#123456");
+    expect(onChange).toHaveBeenCalledWith("#123456", "text");
     expect(container.querySelector("#color-palette-chooser")).toBeNull();
   });
 
@@ -180,7 +180,7 @@ describe("ColorControl linked palette UX", () => {
         picker.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    expect(onChange).toHaveBeenCalledWith("#0066ff");
+    expect(onChange).toHaveBeenCalledWith("#0066ff", "picker");
     expect(pickedSpy).not.toHaveBeenCalled();
     act(() => picker?.dispatchEvent(new Event("change", { bubbles: true })));
     expect(pickedSpy).toHaveBeenCalledOnce();
@@ -205,7 +205,7 @@ describe("ColorControl linked palette UX", () => {
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    expect(onChange).toHaveBeenCalledWith("#123456");
+    expect(onChange).toHaveBeenCalledWith("#123456", "text");
     expect(pickedSpy).not.toHaveBeenCalled();
   });
 
@@ -215,14 +215,14 @@ describe("ColorControl linked palette UX", () => {
     const accent = Array.from(container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
       .find((button) => button.getAttribute("aria-label")?.includes("Accent"));
     act(() => accent?.click());
-    expect(onChange).toHaveBeenCalledWith({ kind: "palette", colorId: "accent" });
+    expect(onChange).toHaveBeenCalledWith({ kind: "palette", colorId: "accent" }, "palette");
     expect(pickedSpy).not.toHaveBeenCalled();
 
     const linkedChange = vi.fn();
     renderControl({ kind: "palette", colorId: "border" }, linkedChange);
     act(() => Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent === "Detach")?.click());
-    expect(linkedChange).toHaveBeenCalledWith("#ffffff");
+    expect(linkedChange).toHaveBeenCalledWith("#ffffff", "detach");
     expect(pickedSpy).not.toHaveBeenCalled();
   });
 
@@ -238,6 +238,18 @@ describe("ColorControl linked palette UX", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(pickedSpy).not.toHaveBeenCalled();
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("rgba(248, 250, 252, 1)");
+  });
+
+  it("reports format-only literal changes separately from new color actions", () => {
+    const onChange = renderControl("#0000ff");
+    const format = container.querySelector<HTMLSelectElement>("#color-format");
+    act(() => {
+      if (format) {
+        format.value = "rgba";
+        format.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(onChange).toHaveBeenCalledWith("rgba(0, 0, 255, 1)", "format");
   });
 
   it("does not offer a chooser for an empty palette and disables authored actions", () => {

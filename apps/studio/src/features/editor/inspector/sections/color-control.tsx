@@ -8,7 +8,10 @@ import {
 import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
-import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
+import {
+  LiteralColorInput,
+  type LiteralColorChangeSource,
+} from "@/features/editor/color/literal-color-input";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -22,7 +25,7 @@ interface ColorControlProps {
   name: string;
   value: ColorValue | undefined;
   effectiveValue?: ColorValue;
-  onChange: (color: ColorValue) => void;
+  onChange: (color: ColorValue, source?: ColorChangeSource) => void;
   secondaryAction?: {
     label: string;
     onClick: () => void;
@@ -30,6 +33,8 @@ interface ColorControlProps {
   };
   disabled?: boolean;
 }
+
+type ColorChangeSource = LiteralColorChangeSource | "palette" | "picked" | "detach";
 
 export function ColorControl({
   id,
@@ -62,8 +67,8 @@ export function ColorControl({
   const detachedValue = value === undefined
     ? undefined
     : detachColorValue(value, { colors: [...paletteColors] });
-  const emitLiteralColor = (color: Color) => {
-    onChange(color);
+  const emitLiteralColor = (color: Color, source: ColorChangeSource = "text") => {
+    onChange(color, source);
   };
   const hasReusableChoices = paletteColors.length > 0 || (picked?.colors.length ?? 0) > 0;
 
@@ -83,7 +88,7 @@ export function ColorControl({
             return;
           }
 
-          emitLiteralColor(color);
+          emitLiteralColor(color, source);
         }}
       />
 
@@ -126,7 +131,7 @@ export function ColorControl({
             onClick={() => {
               if (detachedValue !== undefined) {
                 setIsPaletteChooserOpen(false);
-                emitLiteralColor(detachedValue);
+                emitLiteralColor(detachedValue, "detach");
               }
             }}
           >
@@ -153,7 +158,7 @@ export function ColorControl({
                     onClick={() => {
                       setLiteralValue(color.value);
                       setIsPaletteChooserOpen(false);
-                      onChange({ kind: "palette", colorId: color.id });
+                      onChange({ kind: "palette", colorId: color.id }, "palette");
                     }}
                   />
                 </div>
@@ -176,7 +181,7 @@ export function ColorControl({
                       onClick={() => {
                         setLiteralValue(color);
                         setIsPaletteChooserOpen(false);
-                        onChange(color);
+                        onChange(color, "picked");
                       }}
                     />
                     <button

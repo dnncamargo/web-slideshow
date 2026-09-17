@@ -4,6 +4,7 @@ import {
   type ContentSlot,
   type PowerShowElement,
   type Slide,
+  type TextElement,
   type TopicItem,
   type TopicsElement,
 } from "@powershow/document-schema";
@@ -20,6 +21,7 @@ import {
   moveTopicItemToSiblingIndex,
   outdentTopicItem,
   removeTopicItemFromTopicItems,
+  updateTopicsTextColor,
   updateTopicItemTextContent,
 } from "../src/features/editor/element-operations";
 import { POWERSHOW_TOPICS_TEXT_STYLE_ID } from "@powershow/document-schema";
@@ -39,7 +41,7 @@ function slide(elements: PowerShowElement[]): Slide {
   };
 }
 
-function text(id: string, content = id): PowerShowElement {
+function text(id: string, content = id): TextElement {
   return {
     type: "text",
     id,
@@ -159,6 +161,188 @@ describe("canonical TopicItem ContentSlot metadata", () => {
     const result = updateTopicItemTextContent([item], "item-1", "After")[0];
     expect(result?.content).toMatchObject(metadata);
     expect(result?.content.children[0]).toMatchObject({ type: "text", content: "After" });
+  });
+});
+
+describe("Topics block color bulk editing", () => {
+  it("updates direct Text blocks while preserving rich-text marks", () => {
+    const initial = {
+      ...topics("topics", [
+      topicItem("item", contentSlot("slot", [{
+        ...text("text", "Text"),
+        style: { color: "#ff0000" },
+        content: {
+          type: "rich-text",
+          runs: [
+            { text: "Text" },
+            { text: " marked", marks: { color: "#ffff00" } },
+          ],
+        },
+      }])),
+      ]),
+      style: { color: "#0000ff" },
+    };
+
+    const applied = updateTopicsTextColor(initial, "#800080");
+    const textChild = applied.items[0]?.content.children[0];
+
+    expect(applied.style?.color).toBe("#800080");
+    expect(textChild).toMatchObject({ style: { color: "#800080" } });
+    expect(textChild?.type === "text" && textChild.content).toEqual({
+      type: "rich-text",
+      runs: [
+        { text: "Text" },
+        { text: " marked", marks: { color: "#ffff00" } },
+      ],
+    });
+  });
+
+  it("removes only unchanged bulk colors on reset", () => {
+    const initial = {
+      ...topics("topics", [
+        topicItem("unchanged", contentSlot("slot-a", [text("text-a")])),
+        topicItem("changed", contentSlot("slot-b", [text("text-b")])),
+      ]),
+      style: { color: "#800080" },
+    };
+    const applied = updateTopicsTextColor(initial, "#800080");
+    const changedAfter = {
+      ...applied,
+      items: applied.items.map((item) => item.id === "changed"
+        ? {
+            ...item,
+            content: {
+              ...item.content,
+              children: item.content.children.map((child) => child.type === "text"
+                ? { ...child, style: { ...child.style, color: "#008000" } }
+                : child),
+            },
+          }
+        : item),
+    };
+    const reset = updateTopicsTextColor(changedAfter, undefined);
+
+    expect(reset.style).toBeUndefined();
+    expect(reset.items[0]?.content.children[0]).not.toHaveProperty("style");
+    expect(reset.items[1]?.content.children[0]).toMatchObject({ style: { color: "#008000" } });
+  });
+
+  it("preserves divergent overrides when only literal format changes", () => {
+    const initial = {
+      ...topics("topics", [
+        topicItem("same", contentSlot("slot-a", [{ ...text("text-a"), style: { color: "#0000ff" } }])),
+        topicItem("different", contentSlot("slot-b", [{ ...text("text-b"), style: { color: "#008000" } }])),
+      ]),
+      style: { color: "#0000ff" },
+    };
+
+    const formatted = updateTopicsTextColor(
+      initial,
+      "rgba(0, 0, 255, 1)",
+      "preserve-overrides",
+    );
+
+    expect(formatted.style?.color).toBe("rgba(0, 0, 255, 1)");
+    expect(formatted.items[0]?.content.children[0]).toMatchObject({
+      style: { color: "rgba(0, 0, 255, 1)" },
+    });
+    expect(formatted.items[1]?.content.children[0]).toMatchObject({
+      style: { color: "#008000" },
+    });
+
+    const reset = updateTopicsTextColor(formatted, undefined, "preserve-overrides");
+    expect(reset.items[0]?.content.children[0]).not.toHaveProperty("style");
+    expect(reset.items[1]?.content.children[0]).toMatchObject({
+      style: { color: "#008000" },
+    });
+  });
+
+  it("matches palette references by color id without equating them to literals", () => {
+    const initial = {
+      ...topics("topics", [
+        topicItem("same", contentSlot("slot-a", [{
+          ...text("text-a"),
+          style: { color: { kind: "palette", colorId: "accent" } },
+        }])),
+        topicItem("different", contentSlot("slot-b", [{
+          ...text("text-b"),
+          style: { color: "#ffffff" },
+        }])),
+      ]),
+      style: { color: { kind: "palette" as const, colorId: "accent" } },
+    };
+
+    const updated = updateTopicsTextColor(
+      initial,
+      { kind: "palette", colorId: "accent" },
+      "preserve-overrides",
+    );
+
+    expect(updated.items[0]?.content.children[0]).toMatchObject({
+      style: { color: { kind: "palette", colorId: "accent" } },
+    });
+    expect(updated.items[1]?.content.children[0]).toMatchObject({
+      style: { color: "#ffffff" },
+    });
+  });
+
+  it("keeps a Text Style definition intact while creating a local override", () => {
+    const textStyle = { id: "body-style", name: "Body", role: "body" as const, style: { color: "#ff0000" } };
+    const initial = {
+      ...topics("topics", [topicItem("item", contentSlot("slot", [{ ...text("text"), variant: "body-style" }]))]),
+      style: { color: "#0000ff" },
+    };
+    const document = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "presentation",
+      title: "Presentation",
+      slides: [slide([initial])],
+      textStyles: [textStyle],
+    });
+    const element = document.slides[0]?.elements[0];
+    if (element?.type !== "topics") throw new Error("Expected Topics element.");
+
+    const updated = updateTopicsTextColor(element, "#0000ff");
+
+    expect(document.textStyles).toEqual([textStyle]);
+    expect(updated.items[0]?.content.children[0]).toMatchObject({
+      variant: "body-style",
+      style: { color: "#0000ff" },
+    });
+  });
+
+  it("updates structural TopicItem children but not autonomous Topics", () => {
+    const autonomous = topics("inner", [
+      topicItem("inner-item", contentSlot("inner-slot", [text("inner-text", "Inner")])),
+    ]);
+    const initial = {
+      ...topics("outer", [
+        topicItem(
+          "outer-item",
+          contentSlot("outer-slot", [text("outer-text"), autonomous]),
+          [topicItem("child-item", contentSlot("child-slot", [text("child-text")]))],
+        ),
+      ]),
+      style: { color: "#0000ff" },
+    };
+    const result = updateTopicsTextColor(initial, "#0000ff");
+
+    expect(result.items[0]?.content.children[0]).toMatchObject({ style: { color: "#0000ff" } });
+    expect(result.items[0]?.children[0]?.content.children[0]).toMatchObject({ style: { color: "#0000ff" } });
+    expect(result.items[0]?.content.children[1]).toEqual(autonomous);
+  });
+
+  it("applies the active Topics block color to new items", () => {
+    const source = {
+      ...topics("topics", []),
+      style: { color: "#0000ff" },
+    };
+    const created = topicItem("new-item", contentSlot("new-slot", [text("new-text")]));
+    const result = appendTopicItemToTopics([source], "topics", created)[0];
+
+    expect(result?.type === "topics" && result.items[0]?.content.children[0]).toMatchObject({
+      style: { color: "#0000ff" },
+    });
   });
 });
 

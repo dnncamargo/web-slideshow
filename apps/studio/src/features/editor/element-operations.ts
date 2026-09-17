@@ -1,5 +1,6 @@
 import type {
   ContentSlot,
+  ColorValue,
   GalleryElement,
   PowerShowElement,
   Slide,
@@ -11,6 +12,8 @@ import type {
 } from "@powershow/document-schema";
 
 import {
+  isPaletteColorReference,
+  parseColor,
   POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
   POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
   POWERSHOW_TOPICS_TEXT_STYLE_ID,
@@ -135,6 +138,103 @@ export interface CreatedTopicItem {
   textId: string;
 }
 
+function areTopicColorsEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (left === right) return true;
+  if (left === undefined || right === undefined) return false;
+  if (isPaletteColorReference(left) || isPaletteColorReference(right)) {
+    return isPaletteColorReference(left) &&
+      isPaletteColorReference(right) &&
+      left.colorId === right.colorId;
+  }
+
+  const leftParsed = parseColor(left);
+  const rightParsed = parseColor(right);
+  return leftParsed !== undefined && rightParsed !== undefined &&
+    leftParsed.red === rightParsed.red &&
+    leftParsed.green === rightParsed.green &&
+    leftParsed.blue === rightParsed.blue &&
+    leftParsed.alpha === rightParsed.alpha;
+}
+
+export type TopicsTextColorUpdateMode = "apply" | "preserve-overrides";
+
+function updateTopicItemBlockColor(
+  item: TopicItem,
+  color: ColorValue | undefined,
+  previousColor: ColorValue | undefined,
+  mode: TopicsTextColorUpdateMode,
+): TopicItem {
+  let changed = false;
+  const children = item.content.children.map((child) => {
+    if (child.type !== "text") return child;
+
+    const currentColor = child.style?.color;
+    const shouldUpdate = color === undefined
+      ? areTopicColorsEqual(currentColor, previousColor)
+      : mode === "preserve-overrides"
+        ? areTopicColorsEqual(currentColor, previousColor)
+        : !areTopicColorsEqual(currentColor, color);
+    if (!shouldUpdate) {
+      return child;
+    }
+
+    changed = true;
+    if (color === undefined) {
+      const { color: _color, ...style } = child.style ?? {};
+      if (Object.keys(style).length === 0) {
+        const { style: _style, ...withoutStyle } = child;
+        return withoutStyle;
+      }
+      return {
+        ...child,
+        style,
+      };
+    }
+
+    return { ...child, style: { ...child.style, color } };
+  });
+
+  const nestedChildren = item.children.map((child) => {
+    const updated = updateTopicItemBlockColor(child, color, previousColor, mode);
+    if (updated !== child) changed = true;
+    return updated;
+  });
+
+  return changed
+    ? { ...item, content: { ...item.content, children }, children: nestedChildren }
+    : item;
+}
+
+export function updateTopicsTextColor(
+  topics: TopicsElement,
+  color: ColorValue | undefined,
+  mode: TopicsTextColorUpdateMode = "apply",
+): TopicsElement {
+  const previousColor = topics.style?.color;
+  const items = topics.items.map((item) =>
+    updateTopicItemBlockColor(item, color, previousColor, mode));
+  const style = color === undefined
+    ? (() => {
+        const { color: _color, ...remaining } = topics.style ?? {};
+        return Object.keys(remaining).length === 0 ? undefined : remaining;
+      })()
+    : { ...topics.style, color };
+
+  return { ...topics, items, ...(style === undefined ? { style: undefined } : { style }) };
+}
+
+function applyTopicsColorToNewItem(
+  item: TopicItem,
+  color: ColorValue | undefined,
+): TopicItem {
+  return color === undefined
+    ? item
+    : updateTopicItemBlockColor(item, color, undefined, "apply");
+}
+
 function buildDefaultTopicItem(usedIds: Set<string>): CreatedTopicItem {
   const textId = createUniqueId("topic-text", usedIds);
   usedIds.add(textId);
@@ -198,7 +298,7 @@ export function appendTopicItemToTopics(
 
     return {
       ...element,
-      items: [...element.items, item],
+      items: [...element.items, applyTopicsColorToNewItem(item, element.style?.color)],
     };
   });
 }
@@ -296,7 +396,11 @@ export function appendChildTopicItemToTopics(
     return elements as PowerShowElement[];
   }
 
-  const items = appendTopicItemToTopicItems(target.items, topicItemId, item);
+  const items = appendTopicItemToTopicItems(
+    target.items,
+    topicItemId,
+    applyTopicsColorToNewItem(item, target.style?.color),
+  );
 
   if (items === target.items) {
     return elements as PowerShowElement[];

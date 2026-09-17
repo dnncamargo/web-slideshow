@@ -493,10 +493,6 @@ ol.powershow-element.powershow-topics {
   text-decoration-color: var(--powershow-topic-text-decoration-color);
 }
 
-.powershow-topic-item-text-color-authority > .powershow-text {
-  color: var(--powershow-topic-color) !important;
-}
-
 .powershow-topics .powershow-topic-item + .powershow-topic-item {
   margin-top: var(--powershow-topic-item-gap);
 }

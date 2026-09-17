@@ -31,6 +31,7 @@ import styles from "../editor-workspace.module.css";
 import {
   MAX_TOPIC_STRUCTURAL_DEPTH,
   removeTopicItemFromTopicItems,
+  updateTopicsTextColor,
   updateTopicItemTextContent,
 } from "../element-operations";
 
@@ -648,13 +649,13 @@ function addChildTopic(topicItemId: string) {
                 id="topics-text-color"
                 name="topicsTextColor"
                 value={element.style?.color}
-                onChange={(color) => {
-                  updateCurrentTopics((current) => ({
-                    ...current,
-                    style: { ...current.style, color },
-                  }));
+                onChange={(color, source) => {
+                  const mode = source === "format" || source === "detach"
+                    ? "preserve-overrides"
+                    : "apply";
+                  updateCurrentTopics((current) => updateTopicsTextColor(current, color, mode));
                 }}
-                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, style: { ...current.style, color: undefined } })) }}
+                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => updateTopicsTextColor(current, undefined, "preserve-overrides")) }}
               />
             </label>
           </div>

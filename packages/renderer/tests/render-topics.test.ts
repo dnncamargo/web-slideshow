@@ -303,77 +303,8 @@ describe("renderElement topics support", () => {
     );
 
     expect(html).toContain("--powershow-topic-color:#ffffff");
-    expect(html).toContain("powershow-topic-item-text-color-authority");
     expect(html).toContain("color:#22d3ee");
     expect(html).toContain("color:#facc15");
-  });
-
-  it("does not add text color authority after Topics color reset", () => {
-    const html = renderElement(
-      topicsElement({
-        items: [
-          topicItem({
-            content: {
-              id: "slot-a",
-              children: [textElement({ style: { color: "#22d3ee" } })],
-            },
-          }),
-        ],
-      }),
-    );
-
-    expect(html).not.toContain("powershow-topic-item-text-color-authority");
-    expect(html).toContain("color:#22d3ee");
-  });
-
-  it("keeps text color authority within each autonomous Topics context", () => {
-    const inner = topicsElement({
-      id: "inner-topics",
-      items: [
-        topicItem({
-          id: "inner-item",
-          content: {
-            id: "inner-slot",
-            children: [textElement({ id: "inner-text", style: { color: "#facc15" } })],
-          },
-        }),
-      ],
-    });
-    const html = renderElement(
-      topicsElement({
-        style: { color: "#ffffff" },
-        items: [
-          topicItem({
-            id: "outer-item",
-            content: {
-              id: "outer-slot",
-              children: [textElement({ id: "outer-text" }), inner],
-            },
-            children: [
-              topicItem({
-                id: "structural-child",
-                content: { id: "structural-slot", children: [textElement({ id: "structural-text" })] },
-              }),
-            ],
-          }),
-        ],
-      }),
-    );
-
-    expect(countOccurrences(html, "powershow-topic-item-text-color-authority")).toBe(2);
-    expect(html).toContain('data-powershow-id="inner-topics"');
-    expect(html).toContain("color:#facc15");
-  });
-
-  it("gives an autonomous Topics its own authority when it authors a color", () => {
-    const html = renderElement(
-      topicsElement({
-        style: { color: "#ffffff" },
-        items: [topicItem({ content: { id: "inner-slot", children: [textElement()] } })],
-      }),
-    );
-
-    expect(html).toContain("powershow-topic-item-text-color-authority");
   });
 
   it("renders collective topic text defaults as scoped custom properties", () => {

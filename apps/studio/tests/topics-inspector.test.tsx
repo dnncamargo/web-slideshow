@@ -631,13 +631,11 @@ describe("TopicsInspector", () => {
     expect(updates[0]?.items[1]).toBe(elementState.items[1]);
   });
 
-  it("text color updates TopicsElement.style only", async () => {
+  it("text color bulk-updates Topics Text blocks", async () => {
     await act(async () => {
       mount(topicsElement());
     });
 
-    const firstItem = elementState.items[0];
-    const firstChildText = firstItem?.content.children[0];
     const input = container.querySelector<HTMLInputElement>(
       "#topics-text-color-value",
     );
@@ -652,8 +650,9 @@ describe("TopicsInspector", () => {
 
     expect(updates).toHaveLength(1);
     expect(updates[0]?.style?.color).toBe("#ffffff");
-    expect(updates[0]?.items[0]).toBe(firstItem);
-    expect(updates[0]?.items[0]?.content.children[0]).toBe(firstChildText);
+    expect(updates[0]?.items[0]?.content.children[0]).toMatchObject({ style: { color: "#ffffff" } });
+    expect(updates[0]?.items[0]?.children[0]?.content.children[0]).toMatchObject({ style: { color: "#ffffff" } });
+    expect(updates[0]?.items[1]?.content.children[0]).toMatchObject({ style: { color: "#ffffff" } });
   });
 
   it("font size updates TopicsElement.typography only", async () => {
