@@ -671,9 +671,15 @@
   cursor: pointer;
 }
 
+.editorPanelTabHeader {
+  grid-template-columns: 24px minmax(0, 1fr) 24px;
+  display: grid;
+  padding: 0 6px;
+}
+
 .panelTabViewport {
   min-width: 0;
-  flex: 1 1 auto;
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;

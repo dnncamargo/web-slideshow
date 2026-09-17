@@ -574,7 +574,12 @@ export function EditorWorkspace({
   const editorPanelTabsRef = useRef<HTMLDivElement>(null);
   const scrollEditorPanelTabs = (amount: number) => {
     const tabStrip = editorPanelTabsRef.current;
-    if (tabStrip) tabStrip.scrollLeft += amount;
+    if (!tabStrip) return;
+    if (typeof tabStrip.scrollBy === "function") {
+      tabStrip.scrollBy({ left: amount, behavior: "smooth" });
+    } else {
+      tabStrip.scrollLeft += amount;
+    }
   };
   const [clipboardSession, setClipboardSession] =
     useState<ClipboardSessionState>(EMPTY_CLIPBOARD_SESSION);
@@ -4067,12 +4072,12 @@ export function EditorWorkspace({
            />
         ) : (
           <aside className={styles.inspector}>
-            <div className={styles.panelHeader}>
+            <div className={styles.panelHeader + " " + styles.editorPanelTabHeader}>
               <button
                 className={styles.panelGroupSwitch}
                 type="button"
                 aria-label={t("editor.scrollTabsEarlier")}
-                onClick={() => scrollEditorPanelTabs(-120)}
+                onClick={() => scrollEditorPanelTabs(-70)}
               >
                 ‹
               </button>
@@ -4091,7 +4096,7 @@ export function EditorWorkspace({
                 className={styles.panelGroupSwitch}
                 type="button"
                 aria-label={t("editor.scrollTabsLater")}
-                onClick={() => scrollEditorPanelTabs(120)}
+                onClick={() => scrollEditorPanelTabs(70)}
               >
                 ›
               </button>
