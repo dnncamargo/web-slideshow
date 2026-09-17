@@ -22,7 +22,6 @@ const element = (id: string): PowerShowElement =>
 const entry = (id: string, pinned = false): ClipboardEntry => ({
   id,
   element: element(id),
-  sourceParentKind: "slide",
   pinned,
 });
 
@@ -39,9 +38,8 @@ describe("Clipboard session state", () => {
       children: [element("child")],
     } as unknown as Extract<PowerShowElement, { type: "container" }>;
 
-    const snapshot = createClipboardEntry(source, "container");
+    const snapshot = createClipboardEntry(source);
     expect(snapshot.id).not.toBe(source.id);
-    expect(snapshot.sourceParentKind).toBe("container");
     expect(snapshot.element).toEqual(source);
     expect(snapshot.element).not.toBe(source);
     if (snapshot.element.type !== "container") throw new Error("expected a Container snapshot");

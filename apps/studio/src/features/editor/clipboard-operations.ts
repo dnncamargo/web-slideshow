@@ -1,7 +1,10 @@
 import type { PowerShowElement } from "@powershow/document-schema";
 
-import { findContentSlotById, findElementById } from "./element-hierarchy";
-import type { ClipboardSourceParentKind } from "./clipboard-session";
+import {
+  findContentSlotById,
+  findElementById,
+  findElementLocation,
+} from "./element-hierarchy";
 
 export type ClipboardPasteDestination =
   | { kind: "slide" }
@@ -9,23 +12,38 @@ export type ClipboardPasteDestination =
   | { kind: "content-slot"; id: string };
 
 export function resolveClipboardPasteDestination(
-  sourceParentKind: ClipboardSourceParentKind,
   elements: readonly PowerShowElement[],
+  snapshotElementId: string,
   selectedElement: PowerShowElement | null,
   selectedContentSlotId: string | null,
 ): ClipboardPasteDestination | null {
-  switch (sourceParentKind) {
-    case "slide":
-      return { kind: "slide" };
-    case "container":
-      return selectedElement?.type === "container" &&
-        findElementById(elements, selectedElement.id)?.type === "container"
-        ? { kind: "container", id: selectedElement.id }
-        : null;
-    case "content-slot":
-      return selectedContentSlotId !== null &&
-        findContentSlotById(elements, selectedContentSlotId) !== null
-        ? { kind: "content-slot", id: selectedContentSlotId }
-        : null;
+  if (
+    selectedElement?.id === snapshotElementId &&
+    findElementById(elements, snapshotElementId) !== null
+  ) {
+    const location = findElementLocation(elements, snapshotElementId);
+    if (location) {
+      return location.parentRef.kind === "slide"
+        ? { kind: "slide" }
+        : location.parentRef.kind === "container"
+          ? { kind: "container", id: location.parentRef.id }
+          : { kind: "content-slot", id: location.parentRef.id };
+    }
   }
+
+  if (
+    selectedElement?.type === "container" &&
+    findElementById(elements, selectedElement.id)?.type === "container"
+  ) {
+    return { kind: "container", id: selectedElement.id };
+  }
+
+  if (
+    selectedContentSlotId !== null &&
+    findContentSlotById(elements, selectedContentSlotId) !== null
+  ) {
+    return { kind: "content-slot", id: selectedContentSlotId };
+  }
+
+  return { kind: "slide" };
 }

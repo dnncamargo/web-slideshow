@@ -1,17 +1,11 @@
 import type { PowerShowElement } from "@powershow/document-schema";
 
-export type ClipboardSourceParentKind =
-  | "slide"
-  | "container"
-  | "content-slot";
-
 export const MAX_DISPOSABLE_CLIPBOARD_ENTRIES = 15;
 export const MAX_PINNED_CLIPBOARD_ENTRIES = 5;
 
 export interface ClipboardEntry {
   id: string;
   element: PowerShowElement;
-  sourceParentKind: ClipboardSourceParentKind;
   pinned: boolean;
 }
 
@@ -29,13 +23,11 @@ let clipboardEntrySequence = 0;
 
 export function createClipboardEntry(
   element: PowerShowElement,
-  sourceParentKind: ClipboardSourceParentKind,
 ): ClipboardEntry {
   clipboardEntrySequence += 1;
   return {
     id: "clipboard-entry-" + Date.now() + "-" + clipboardEntrySequence,
     element: structuredClone(element),
-    sourceParentKind,
     pinned: false,
   };
 }

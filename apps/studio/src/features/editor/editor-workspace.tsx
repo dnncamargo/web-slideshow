@@ -833,7 +833,6 @@ export function EditorWorkspace({
 
     const entry = createClipboardEntry(
       selectedDocumentElement,
-      selectedElementPosition.parentRef.kind,
     );
     setClipboardSession((current) => ({
       ...addClipboardEntry(current, entry),
@@ -851,8 +850,8 @@ export function EditorWorkspace({
     }
 
     const destination = resolveClipboardPasteDestination(
-      entry.sourceParentKind,
       selectedSlide.elements,
+      entry.element.id,
       selectedDocumentElement,
       selectedElement?.contentSlotId ?? null,
     );
@@ -891,7 +890,6 @@ export function EditorWorkspace({
           : slide,
       ),
     });
-    setSelectedElement({ id: pastedElement.id, type: pastedElement.type });
     return true;
   }
 
