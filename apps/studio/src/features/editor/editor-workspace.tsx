@@ -62,7 +62,9 @@ import { ElementInspector } from "./element-inspector";
 import { ElementTreePanel } from "./element-tree-panel";
 import { ClipboardPanel, HistoryPanel } from "./clipboard-panel";
 import {
+  addClipboardEntry,
   clearDisposableClipboardEntries,
+  createClipboardEntry,
   EMPTY_CLIPBOARD_SESSION,
   type ClipboardSessionState,
 } from "./clipboard-session";
@@ -229,6 +231,7 @@ import {
   outdentTopicItem,
   resolveAddElementDestination,
 } from "./element-operations";
+import { resolveClipboardPasteDestination } from "./clipboard-operations";
 
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
@@ -815,6 +818,83 @@ export function EditorWorkspace({
     });
   }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined]);
 
+  function selectClipboardEntry(entryId: string): void {
+    setClipboardSession((current) =>
+      current.entries.some((entry) => entry.id === entryId)
+        ? { ...current, selectedEntryId: entryId }
+        : current,
+    );
+  }
+
+  function copySelectedElement(): boolean {
+    if (!selectedDocumentElement || !selectedElementPosition) {
+      return false;
+    }
+
+    const entry = createClipboardEntry(
+      selectedDocumentElement,
+      selectedElementPosition.parentRef.kind,
+    );
+    setClipboardSession((current) => ({
+      ...addClipboardEntry(current, entry),
+      selectedEntryId: entry.id,
+    }));
+    return true;
+  }
+
+  function pasteClipboardEntry(entryId: string): boolean {
+    const entry = clipboardSession.entries.find(
+      (candidate) => candidate.id === entryId,
+    );
+    if (!entry || !selectedSlide) {
+      return false;
+    }
+
+    const destination = resolveClipboardPasteDestination(
+      entry.sourceParentKind,
+      selectedSlide.elements,
+      selectedDocumentElement,
+      selectedElement?.contentSlotId ?? null,
+    );
+    if (!destination) {
+      return false;
+    }
+
+    const pastedElement = duplicateElement(
+      entry.element,
+      presentation.slides,
+    );
+    const nextElements =
+      destination.kind === "slide"
+        ? [...selectedSlide.elements, pastedElement]
+        : destination.kind === "container"
+          ? appendElementToContainer(
+              selectedSlide.elements,
+              destination.id,
+              pastedElement,
+            )
+          : appendElementToContentSlot(
+              selectedSlide.elements,
+              destination.id,
+              pastedElement,
+            );
+
+    if (nextElements === selectedSlide.elements) {
+      return false;
+    }
+
+    setPresentation({
+      ...presentation,
+      slides: presentation.slides.map((slide, index) =>
+        index === selectedSlideIndex
+          ? { ...slide, elements: nextElements }
+          : slide,
+      ),
+    });
+    setSelectedElement({ id: pastedElement.id, type: pastedElement.type });
+    return true;
+  }
+
   function requestElementDeletion() {
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
       return;
@@ -834,11 +914,36 @@ export function EditorWorkspace({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key !== "Delete" ||
         event.repeat ||
         event.defaultPrevented ||
+        isEditableKeyboardTarget(event.target)
+      ) {
+        return;
+      }
+
+      const modifierPressed = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (modifierPressed && !event.altKey && key === "c") {
+        if (copySelectedElement()) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (modifierPressed && !event.altKey && key === "v") {
+        if (
+          clipboardSession.selectedEntryId !== null &&
+          pasteClipboardEntry(clipboardSession.selectedEntryId)
+        ) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (
+        event.key !== "Delete" ||
         pendingElementDeletion !== null ||
-        isEditableKeyboardTarget(event.target) ||
         !selectedDocumentElement
       ) {
         return;
@@ -850,7 +955,16 @@ export function EditorWorkspace({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingElementDeletion, rightPanelMode, selectedDocumentElement, selectedSlideIndex]);
+  }, [
+    clipboardSession,
+    pendingElementDeletion,
+    presentation,
+    rightPanelMode,
+    selectedElement,
+    selectedDocumentElement,
+    selectedSlide,
+    selectedSlideIndex,
+  ]);
 
   // ==========================================================
   // BEGIN: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -4121,6 +4235,11 @@ export function EditorWorkspace({
                   onClear={() =>
                     setClipboardSession(clearDisposableClipboardEntries)
                   }
+                  onSelect={selectClipboardEntry}
+                  onPaste={(entryId) => {
+                    selectClipboardEntry(entryId);
+                    pasteClipboardEntry(entryId);
+                  }}
                 />
                     );
                   case "history":

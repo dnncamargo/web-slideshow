@@ -9,12 +9,16 @@ export function ClipboardPanel({
   emptyLabel,
   pinnedLabel,
   onClear,
+  onSelect,
+  onPaste,
 }: {
   session: ClipboardSessionState;
   clearLabel: string;
   emptyLabel: string;
   pinnedLabel: string;
   onClear: () => void;
+  onSelect: (entryId: string) => void;
+  onPaste: (entryId: string) => void;
 }) {
   const disposableEntries = session.entries.filter((entry) => !entry.pinned);
   const pinnedEntries = session.entries.filter((entry) => entry.pinned);
@@ -26,9 +30,20 @@ export function ClipboardPanel({
           <p className={styles.clipboardEmptyState}>{emptyLabel}</p>
         ) : (
           disposableEntries.map((entry) => (
-            <div key={entry.id} className={styles.clipboardEntry}>
+            <button
+              key={entry.id}
+              className={
+                entry.id === session.selectedEntryId
+                  ? styles.clipboardEntrySelected
+                  : styles.clipboardEntry
+              }
+              type="button"
+              aria-pressed={entry.id === session.selectedEntryId}
+              onClick={() => onSelect(entry.id)}
+              onDoubleClick={() => onPaste(entry.id)}
+            >
               {entry.element.type}
-            </div>
+            </button>
           ))
         )}
         <button
@@ -46,9 +61,20 @@ export function ClipboardPanel({
           <div className={styles.clipboardSectionLabel}>{pinnedLabel}</div>
           <div className={styles.clipboardPinnedEntries}>
             {pinnedEntries.map((entry) => (
-              <div key={entry.id} className={styles.clipboardEntry}>
+              <button
+                key={entry.id}
+                className={
+                  entry.id === session.selectedEntryId
+                    ? styles.clipboardEntrySelected
+                    : styles.clipboardEntry
+                }
+                type="button"
+                aria-pressed={entry.id === session.selectedEntryId}
+                onClick={() => onSelect(entry.id)}
+                onDoubleClick={() => onPaste(entry.id)}
+              >
                 {entry.element.type}
-              </div>
+              </button>
             ))}
           </div>
         </section>

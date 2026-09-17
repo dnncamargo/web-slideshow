@@ -6,6 +6,7 @@ import {
   addClipboardEntry,
   canPinClipboardEntry,
   clearDisposableClipboardEntries,
+  createClipboardEntry,
   MAX_DISPOSABLE_CLIPBOARD_ENTRIES,
   MAX_PINNED_CLIPBOARD_ENTRIES,
   pinClipboardEntry,
@@ -21,6 +22,7 @@ const element = (id: string): PowerShowElement =>
 const entry = (id: string, pinned = false): ClipboardEntry => ({
   id,
   element: element(id),
+  sourceParentKind: "slide",
   pinned,
 });
 
@@ -30,6 +32,22 @@ const stateWith = (...entries: ClipboardEntry[]): ClipboardSessionState => ({
 });
 
 describe("Clipboard session state", () => {
+  it("creates an independent complete snapshot with its source parent kind", () => {
+    const source = {
+      id: "container",
+      type: "container",
+      children: [element("child")],
+    } as unknown as Extract<PowerShowElement, { type: "container" }>;
+
+    const snapshot = createClipboardEntry(source, "container");
+    expect(snapshot.id).not.toBe(source.id);
+    expect(snapshot.sourceParentKind).toBe("container");
+    expect(snapshot.element).toEqual(source);
+    expect(snapshot.element).not.toBe(source);
+    if (snapshot.element.type !== "container") throw new Error("expected a Container snapshot");
+    expect(snapshot.element.children).not.toBe(source.children);
+  });
+
   it("keeps at most 15 newest disposable entries", () => {
     let state = stateWith();
     for (let index = 0; index < 16; index += 1) {

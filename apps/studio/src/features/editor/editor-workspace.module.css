@@ -747,12 +747,23 @@
   text-align: center;
 }
 
-.clipboardEntry {
+.clipboardEntry,
+.clipboardEntrySelected {
+  width: 100%;
   padding: 10px;
   border: 1px solid #252d3a;
   border-radius: 6px;
+  background: #0d121a;
   color: #cbd5e1;
   font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clipboardEntrySelected {
+  border-color: #0e7490;
+  background: #164e63;
+  color: #ecfeff;
 }
 
 .clipboardClearButton {
