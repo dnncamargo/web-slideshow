@@ -434,7 +434,16 @@ function addChildTopic(topicItemId: string) {
   }
 
   function removeTopic(topicItemId: string) {
-    updateCurrentTopics((current) => {
+    const renderedItems = removeTopicItemFromTopicItems(
+      element.items,
+      topicItemId,
+    );
+
+    if (renderedItems === element.items) {
+      return;
+    }
+
+    const update = () => updateCurrentTopics((current) => {
       const items = removeTopicItemFromTopicItems(current.items, topicItemId);
 
       return items === current.items
@@ -444,6 +453,15 @@ function addChildTopic(topicItemId: string) {
             items,
           };
     });
+
+    const removeMeta = {
+      kind: "topics.remove",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "topics.remove" },
+    } as const;
+
+    if (authoringHistory) authoringHistory.discrete(removeMeta, update);
+    else update();
   }
 
   const topicStyleDefaults = resolveEffectiveElementStyleDefaults({
