@@ -3805,64 +3805,128 @@ export function EditorWorkspace({
 
     const source = options.source;
     const target = options.target;
-    let outcome:
-      | ReturnType<typeof reorderGalleryItem>
-      | ReturnType<typeof detachGalleryItemToImage>
-      | ReturnType<typeof attachImageToGallery>
-      | null = null;
+    const resolveOperation = (elements: PowerShowElement[], slides: readonly Slide[]) => {
+      if (source.kind === "gallery-item") {
+        if (target.kind === "gallery-item") {
+          const gallery = findElementById(elements, source.galleryId);
+          const targetGallery = findElementById(elements, target.galleryId);
+          if (
+            source.galleryId !== target.galleryId ||
+            gallery?.type !== "gallery" ||
+            targetGallery?.type !== "gallery" ||
+            !gallery.items[source.itemIndex] ||
+            !targetGallery.items[target.itemIndex]
+          ) return null;
 
-    if (source.kind === "gallery-item") {
-      if (target.kind === "gallery-item") {
-        if (source.galleryId !== target.galleryId) return;
-        const finalIndex = options.intent === "before"
-          ? target.itemIndex - (source.itemIndex < target.itemIndex ? 1 : 0)
-          : target.itemIndex + (source.itemIndex < target.itemIndex ? 0 : 1);
-        outcome = reorderGalleryItem(selectedSlide.elements, source.galleryId, source.itemIndex, finalIndex);
-      } else if (
-        options.intent !== "inside" || target.element.type === "container"
-      ) {
-        outcome = detachGalleryItemToImage(
-          selectedSlide.elements,
-          presentation.slides,
-          source.galleryId,
-          source.itemIndex,
-          target.element.id,
-          options.intent,
-        );
+          const finalIndex = options.intent === "before"
+            ? target.itemIndex - (source.itemIndex < target.itemIndex ? 1 : 0)
+            : target.itemIndex + (source.itemIndex < target.itemIndex ? 0 : 1);
+          return {
+            kind: "move" as const,
+            galleryId: source.galleryId,
+            outcome: reorderGalleryItem(elements, source.galleryId, source.itemIndex, finalIndex),
+          };
+        }
+
+        const currentTarget = findElementById(elements, target.element.id);
+        if (
+          currentTarget === null ||
+          currentTarget.type !== target.element.type ||
+          (options.intent === "inside" && currentTarget.type !== "container")
+        ) return null;
+
+        return {
+          kind: "detach" as const,
+          galleryId: source.galleryId,
+          outcome: detachGalleryItemToImage(
+            elements,
+            slides,
+            source.galleryId,
+            source.itemIndex,
+            target.element.id,
+            options.intent,
+          ),
+        };
       }
-    } else if (target.kind === "gallery-item" && options.intent !== "inside") {
-      outcome = attachImageToGallery(
-        selectedSlide.elements,
-        source.elementId,
-        target.galleryId,
-        target.itemIndex + (options.intent === "after" ? 1 : 0),
-      );
-    } else if (target.kind === "element" && target.element.type === "gallery" && options.intent === "inside") {
-      outcome = attachImageToGallery(
-        selectedSlide.elements,
-        source.elementId,
-        target.element.id,
-        target.element.items.length,
-      );
-    }
 
-    if (!outcome?.changed) return;
+      if (target.kind === "gallery-item" && options.intent !== "inside") {
+        const gallery = findElementById(elements, target.galleryId);
+        if (
+          gallery?.type !== "gallery" ||
+          !gallery.items[target.itemIndex]
+        ) return null;
+
+        return {
+          kind: "attach" as const,
+          galleryId: target.galleryId,
+          outcome: attachImageToGallery(
+            elements,
+            source.elementId,
+            target.galleryId,
+            target.itemIndex + (options.intent === "after" ? 1 : 0),
+          ),
+        };
+      }
+
+      if (target.kind === "element" && target.element.type === "gallery" && options.intent === "inside") {
+        const gallery = findElementById(elements, target.element.id);
+        if (gallery?.type !== "gallery") return null;
+
+        return {
+          kind: "attach" as const,
+          galleryId: gallery.id,
+          outcome: attachImageToGallery(
+            elements,
+            source.elementId,
+            gallery.id,
+            gallery.items.length,
+          ),
+        };
+      }
+
+      return null;
+    };
+
+    const resolved = resolveOperation(selectedSlide.elements, presentation.slides);
+    if (!resolved?.outcome.changed) return;
+
+    const meta: HistoryActionMeta = {
+      kind: `gallery.${resolved.kind}`,
+      labelKey: "history.element.setting",
+      labelParams: { setting: `gallery.${resolved.kind}` },
+    };
+    const expectedImageId = resolved.kind === "detach" ? resolved.outcome.imageId : undefined;
 
     closeCanvasMediaEditing();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex ? { ...slide, elements: outcome!.elements } : slide,
-      ),
-    }));
+    commitPresentationAction(meta, (current) => {
+      const currentSlide = current.slides[selectedSlideIndex];
+      if (!currentSlide) return current;
 
-    if (outcome.imageId) {
-      setSelectedElement({ id: outcome.imageId, type: "image" });
+      const currentResolved = resolveOperation(currentSlide.elements, current.slides);
+      if (
+        !currentResolved?.outcome.changed ||
+        currentResolved.kind !== resolved.kind ||
+        (expectedImageId !== undefined && currentResolved.outcome.imageId !== expectedImageId)
+      ) return current;
+
+      return {
+        ...current,
+        slides: current.slides.map((slide, index) =>
+          index === selectedSlideIndex
+            ? { ...slide, elements: currentResolved.outcome.elements }
+            : slide,
+        ),
+      };
+    });
+
+    if (resolved.outcome.imageId) {
+      setSelectedElement({ id: resolved.outcome.imageId, type: "image" });
       setGalleryItemSelection(null);
-    } else if (outcome.galleryItemIndex !== undefined) {
-      const galleryId = source.kind === "gallery-item" ? source.galleryId : target.kind === "gallery-item" ? target.galleryId : target.element.id;
+    } else if (resolved.outcome.galleryItemIndex !== undefined) {
+      const galleryId = resolved.galleryId;
+      if (!galleryId) return;
       setSelectedElement({ id: galleryId, type: "gallery" });
-      setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
+      setGalleryItemSelection({ galleryId, itemIndex: resolved.outcome.galleryItemIndex });
     }
   }
 
@@ -3880,12 +3944,32 @@ export function EditorWorkspace({
     if (!outcome.changed || outcome.galleryItemIndex === undefined) return;
 
     closeCanvasMediaEditing();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex ? { ...slide, elements: outcome.elements } : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "gallery.move",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "gallery.move" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentOutcome = reorderGalleryItem(
+          currentSlide.elements,
+          galleryId,
+          itemIndex,
+          itemIndex + offset,
+        );
+        if (!currentOutcome.changed) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: currentOutcome.elements } : slide,
+          ),
+        };
+      },
+    );
     setSelectedElement({ id: galleryId, type: "gallery" });
     setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
   }
