@@ -33,6 +33,14 @@ function parseHighlightedLines(value: string): number[] {
   return Array.from(new Set(numbers)).sort((left, right) => left - right);
 }
 
+function areHighlightedLinesEqual(left: readonly number[], right: readonly number[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
 // ============================================================
 // BEGIN: CODE INSPECTOR
 // ============================================================
@@ -85,17 +93,28 @@ export function CodeInspector({
 
     setHighlightedLinesInput(formatHighlightedLines(highlightedLines));
 
-    onUpdate((current) => {
-      if (current.type !== "code") {
+    if (areHighlightedLinesEqual(element.highlightedLines, highlightedLines)) {
+      return;
+    }
+
+    const update = () => onUpdate((current) => {
+      if (current.type !== "code" || areHighlightedLinesEqual(current.highlightedLines, highlightedLines)) {
         return current;
       }
 
-      return {
-        ...current,
-
-        highlightedLines,
-      };
+      return { ...current, highlightedLines };
     });
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "code.highlightedLines" },
+    } as const;
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, update);
+    } else {
+      update();
+    }
   }
 
   const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
