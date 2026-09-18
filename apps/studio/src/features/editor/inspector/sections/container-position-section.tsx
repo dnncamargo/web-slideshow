@@ -5,6 +5,7 @@ import type {
 } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -55,6 +56,12 @@ export function ContainerPositionSection({
   layerControls,
 }: ContainerPositionSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
   const isAbsolute = element.layout?.position === "absolute";
   const showLayerControls =
     layerControls !== null &&
@@ -82,11 +89,15 @@ export function ContainerPositionSection({
           name="containerPositionMode"
           value={isAbsolute ? "absolute" : "flow"}
           onChange={(event) => {
-            onUpdate((container) =>
-              linkedPosition === "absolute" && event.target.value === "flow"
+            const mode = event.target.value as "flow" | "absolute";
+            const localLayout = localElement.layout;
+            const hasLocalPositioning = localLayout?.position !== undefined || EDGES.some((edge) => localLayout?.[edge] !== undefined);
+            if ((mode === "flow" && linkedPosition === "absolute") || (mode === "flow" && !hasLocalPositioning) || (mode === "absolute" && localLayout?.position === "absolute")) return;
+            runDiscrete("container.positionMode", () => onUpdate((container) =>
+              linkedPosition === "absolute" && mode === "flow"
                 ? container
-                : updateContainerPositionMode(container, event.target.value as "flow" | "absolute"),
-            );
+                : updateContainerPositionMode(container, mode),
+            ));
           }}
         >
           <option value="flow">{t("inspector.flow")}</option>
@@ -136,11 +147,13 @@ export function ContainerPositionSection({
             type="checkbox"
             checked={element.layout?.flexShrink === 0}
             onChange={(event) => {
-              onUpdate((container) =>
-                linkedFlexShrink === 0 && !event.target.checked
+              const preserve = event.target.checked;
+              if ((preserve && localElement.layout?.flexShrink === 0) || (!preserve && localElement.layout?.flexShrink === undefined) || (linkedFlexShrink === 0 && !preserve)) return;
+              runDiscrete("container.preserveSize", () => onUpdate((container) =>
+                linkedFlexShrink === 0 && !preserve
                   ? container
-                  : updateContainerPreserveSize(container, event.target.checked),
-              );
+                  : updateContainerPreserveSize(container, preserve),
+              ));
             }}
           />
           <span title={t("inspector.preserveSizeHelp")}>

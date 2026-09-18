@@ -108,6 +108,80 @@ describe("element setting history integration", () => {
     });
   }
 
+  it("tracks Container direction as one undoable layout setting", async () => {
+    await mount({
+      type: "container",
+      id: "container-layout-history",
+      hidden: false,
+      children: [],
+      layout: { children: { direction: "column" } },
+    });
+
+    const direction = container.querySelector<HTMLSelectElement>("#container-direction");
+    if (!direction) throw new Error("container direction control was not rendered");
+    await act(async () => changeSelect(direction, "row"));
+    expect(direction.value).toBe("row");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("column");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("row");
+  });
+
+  it("tracks a same-visible linked Container direction as a local override", async () => {
+    await mountWithLinkedStyles(
+      { type: "container", id: "container-linked-direction-history", hidden: false, linkedStyleId: "linked", children: [] },
+      [{ id: "linked", name: "Linked", layout: { children: { direction: "row" } } }],
+    );
+    const direction = container.querySelector<HTMLSelectElement>("#container-direction");
+    if (!direction) throw new Error("container direction control was not rendered");
+    await act(async () => changeSelect(direction, "row"));
+    expect(direction.value).toBe("row");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("row");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("row");
+  });
+
+  it("tracks Container absolute-to-flow as one atomic position action", async () => {
+    await mount({
+      type: "container",
+      id: "container-position-history",
+      hidden: false,
+      children: [],
+      layout: { position: "absolute", top: 12, right: 24, bottom: 36, left: 48 },
+    });
+    const mode = container.querySelector<HTMLSelectElement>("#container-position-mode");
+    if (!mode) throw new Error("container position control was not rendered");
+    await act(async () => changeSelect(mode, "flow"));
+    expect(container.querySelector("#container-position-top")).toBeNull();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.value).toBe("absolute");
+    expect(container.querySelector<HTMLInputElement>("#container-position-right")?.value).toBe("24");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.value).toBe("flow");
+  });
+
+  it("tracks Container size presets atomically", async () => {
+    await mount({
+      type: "container",
+      id: "container-size-history",
+      hidden: false,
+      children: [],
+      layout: { width: "41%", height: "43%" },
+    });
+    const preset = container.querySelector<HTMLSelectElement>("#container-size-preset");
+    if (!preset) throw new Error("container size preset control was not rendered");
+    await act(async () => changeSelect(preset, "medium"));
+    expect(container.querySelector<HTMLInputElement>("#container-width")?.value).toBe("70");
+    expect(container.querySelector<HTMLInputElement>("#container-height")?.value).toBe("60");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#container-width")?.value).toBe("41");
+    expect(container.querySelector<HTMLInputElement>("#container-height")?.value).toBe("43");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#container-width")?.value).toBe("70");
+    expect(container.querySelector<HTMLInputElement>("#container-height")?.value).toBe("60");
+  });
+
   it("tracks Image fit through undo and redo", async () => {
     await mount({
       type: "image",

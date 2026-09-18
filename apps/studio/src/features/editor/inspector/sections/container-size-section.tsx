@@ -8,6 +8,7 @@ import {
 import type { PanelSizePreset } from "@powershow/theme/panel-size";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -68,6 +69,12 @@ export function ContainerSizeSection({
   onUpdate,
 }: ContainerSizeSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  function runDiscrete(callback: () => void): void {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "container.sizePreset" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
   const source = (property: "layout.width" | "layout.height") => getContainerShareablePropertySource(presentation, localElement, property);
 
   return (
@@ -89,12 +96,12 @@ export function ContainerSizeSection({
             const preset = value as PanelSizePreset;
 
             const size = resolvePanelSize(preset);
-
-            onUpdate((container) => ({
+            if (localElement.layout?.width === size.width && localElement.layout?.height === size.height) return;
+            runDiscrete(() => onUpdate((container) => ({
               ...container,
 
               layout: { ...container.layout, width: size.width, height: size.height },
-            }));
+            })));
           }}
         >
           <option value="small">{t("inspector.small")}</option>

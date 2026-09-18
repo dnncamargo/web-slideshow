@@ -3,6 +3,7 @@ import type { Presentation } from "@powershow/document-schema";
 import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -50,7 +51,18 @@ export function ContainerLayoutSection({
   onContainerFitModeChange,
 }: ContainerLayoutSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const [fitError, setFitError] = useState(false);
+
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
 
   useEffect(() => {
     setFitError(false);
@@ -86,12 +98,14 @@ export function ContainerLayoutSection({
           value={element.layout?.children?.mode ?? "flow"}
           onChange={(event) => {
             const layoutMode = event.target.value as ContainerLayoutMode;
-
-            onUpdate((container) =>
+            const localMode = localElement.layout?.children?.mode;
+            const nextLocalMode = linkedMode !== undefined ? layoutMode : layoutMode === "flow" ? undefined : layoutMode;
+            if (localMode === nextLocalMode) return;
+            runDiscrete("container.layoutMode", () => onUpdate((container) =>
               linkedMode !== undefined
                 ? { ...container, layout: { ...container.layout, children: { ...container.layout?.children, mode: layoutMode } } }
                 : updateContainerLayoutMode(container, layoutMode),
-            );
+            ));
           }}
         >
           <option value="flow">{t("inspector.flow")}</option>
@@ -140,11 +154,11 @@ export function ContainerLayoutSection({
             const value = event.target.value;
             if (value === "" && linkedOverflow !== undefined) return;
             const overflow = value === "" ? undefined : (value as ContainerOverflow);
-
-            onUpdate((container) => ({
+            if (localElement.layout?.overflow === overflow) return;
+            runDiscrete("container.overflow", () => onUpdate((container) => ({
               ...container,
               layout: { ...container.layout, overflow },
-            }));
+            })));
           }}
         >
           <option value="">{t("inspector.overflow.default")}</option>
@@ -167,10 +181,10 @@ export function ContainerLayoutSection({
           value={element.layout?.children?.direction ?? "column"}
           onChange={(event) => {
             const direction = event.target.value as ContainerDirection;
-
-            onUpdate((container) => ({
+            if (localElement.layout?.children?.direction === direction) return;
+            runDiscrete("container.direction", () => onUpdate((container) => ({
               ...container, layout: { ...container.layout, children: { ...container.layout?.children, direction } },
-            }));
+            })));
           }}
         >
           <option value="column">{t("inspector.vertical")}</option>
@@ -198,10 +212,11 @@ export function ContainerLayoutSection({
           disabled={isStack}
           onChange={(event) => {
             const value = event.target.value as ContainerDistribution;
-
-            onUpdate((container) => ({
+            const distribution = value === "packed" && linkedDistribution === undefined ? undefined : value;
+            if (localElement.layout?.children?.distribution === distribution) return;
+            runDiscrete("container.distribution", () => onUpdate((container) => ({
               ...container, layout: { ...container.layout, children: { ...container.layout?.children, distribution: value === "packed" && linkedDistribution === undefined ? undefined : value } },
-            }));
+            })));
           }}
         >
           <option value="packed">{t("inspector.distribution.packed")}</option>
@@ -243,10 +258,10 @@ export function ContainerLayoutSection({
 
               if (value === "" && linkedHorizontalAlign !== undefined) return;
               const horizontalAlign = value === "" ? undefined : (value as ContainerHorizontalAlign);
-
-              onUpdate((container) => ({
+              if (localElement.layout?.children?.horizontalAlign === horizontalAlign) return;
+              runDiscrete("container.horizontalAlign", () => onUpdate((container) => ({
                 ...container, layout: { ...container.layout, children: { ...container.layout?.children, horizontalAlign } },
-              }));
+              })));
             }}
           >
             <option value="">{t("inspector.default")}</option>
@@ -283,10 +298,10 @@ export function ContainerLayoutSection({
 
               if (value === "" && linkedVerticalAlign !== undefined) return;
               const verticalAlign = value === "" ? undefined : (value as ContainerVerticalAlign);
-
-              onUpdate((container) => ({
+              if (localElement.layout?.children?.verticalAlign === verticalAlign) return;
+              runDiscrete("container.verticalAlign", () => onUpdate((container) => ({
                 ...container, layout: { ...container.layout, children: { ...container.layout?.children, verticalAlign } },
-              }));
+              })));
             }}
           >
             <option value="">{t("inspector.default")}</option>
