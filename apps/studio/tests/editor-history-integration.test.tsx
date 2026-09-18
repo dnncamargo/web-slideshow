@@ -297,6 +297,60 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("19");
   });
 
+  it("keeps EffectiveLengthInput reset separate from numeric editing", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const input = container.querySelector<HTMLInputElement>("#text-font-size")!;
+    const canvasText = () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "20");
+      input.blur();
+    });
+    expect(canvasText().getAttribute("style")).toContain("font-size:20px");
+
+    const reset = input.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+    expect(reset).not.toBeNull();
+    await act(async () => reset?.click());
+    expect(canvasText().getAttribute("style")).not.toContain("font-size:20px");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(canvasText().getAttribute("style")).toContain("font-size:20px");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(canvasText().getAttribute("style")).not.toContain("font-size:20px");
+  });
+
+  it("keeps EffectiveLengthInput unit conversion as one discrete action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const input = container.querySelector<HTMLInputElement>("#text-font-size")!;
+    const unit = container.querySelector<HTMLSelectElement>("#text-font-size-unit")!;
+    expect(input.value).toBe("16");
+    expect(unit.value).toBe("px");
+
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+      setter?.call(unit, "rem");
+      unit.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const convertedValue = input.value;
+    expect(unit.value).toBe("rem");
+    expect(convertedValue).not.toBe("16");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(input.value).toBe("16");
+    expect(unit.value).toBe("px");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(input.value).toBe(convertedValue);
+    expect(unit.value).toBe("rem");
+  });
+
   it("leaves native RichText Undo shortcuts untouched", async () => {
     await act(async () => root.unmount());
     root = createRoot(container);
