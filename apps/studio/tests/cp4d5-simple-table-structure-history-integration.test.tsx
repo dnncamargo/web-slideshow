@@ -347,6 +347,26 @@ describe("CP4D5 Simple Table structure history", () => {
         }} tableAuthoringControls={TABLE_CONTROLS} />
       </StudioI18nProvider>,
     ));
+    await act(async () => addColumnButton().click());
+    expect(mounted.getState().columns).toEqual([{ key: "column_1", label: "New column" }]);
+    expect(mounted.getState().rows).toEqual([
+      { unrelated: "keep", column_1: "" },
+      { other: 42, column_1: "" },
+    ]);
+
+    const zeroColumnsForRow = tableElement({
+      columns: [],
+      rows: [{ unrelated: "keep" }],
+    });
+    mounted.setState(zeroColumnsForRow);
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <TableInspector element={zeroColumnsForRow} onUpdate={(update) => {
+          const next = update(zeroColumnsForRow);
+          if (next.type === "table" && next.mode !== "structured") mounted.setState(next);
+        }} tableAuthoringControls={TABLE_CONTROLS} />
+      </StudioI18nProvider>,
+    ));
     await act(async () => addRowButton().click());
     expect(mounted.getState().rows.at(-1)).toEqual({});
 
@@ -366,6 +386,31 @@ describe("CP4D5 Simple Table structure history", () => {
     await act(async () => removeColumnButton(0).click());
     expect(mounted.getState().columns).toEqual([]);
     expect(mounted.getState().rows).toEqual([{ unrelated: "keep" }]);
+  });
+
+  it("removes a middle column atomically and replays its exact mixed values", async () => {
+    const initial = tableElement();
+    const saved: Presentation[] = [];
+    await mountWorkspace(presentation(initial), saved);
+
+    await act(async () => removeColumnButton(1).click());
+    await save();
+    expect(tableFrom(saved[0]!).columns).toEqual([
+      { key: "name", label: "Name" },
+      { key: "flag", label: "Flag" },
+    ]);
+    expect(tableFrom(saved[0]!).rows).toEqual([
+      { name: "Ada", flag: true, unrelated: "first" },
+      { name: "Linus", flag: false, unrelated: "second" },
+      { name: "Grace", flag: true, unrelated: "third" },
+      { name: "Missing", flag: false, unrelated: "fourth" },
+    ]);
+    await undo();
+    await save();
+    expect(tableFrom(saved[1]!)).toEqual({ ...initial, hidden: false });
+    await redo();
+    await save();
+    expect(tableFrom(saved[2]!)).toEqual(tableFrom(saved[0]!));
   });
 
   it("replays Add Column from the current table with the exact generated key", async () => {
@@ -527,5 +572,20 @@ describe("CP4D5 Simple Table structure history", () => {
       </StudioI18nProvider>,
     ));
     expect(() => removeColumnButton(0)).toThrow();
+  });
+
+  it("creates no committed history for stale column or invalid row removals", async () => {
+    const mounted = await renderStandalone(tableElement(), true);
+    const staleColumn = tableElement({ columns: [{ key: "current", label: "Current" }] });
+    mounted.setState(staleColumn);
+    await act(async () => removeColumnButton(0).click());
+    expect(mounted.getState()).toBe(staleColumn);
+    expect(mounted.committedMetas).toEqual([]);
+
+    const staleRow = tableElement({ rows: [{ name: "current" }] });
+    mounted.setState(staleRow);
+    await act(async () => removeRowButton(1).click());
+    expect(mounted.getState()).toBe(staleRow);
+    expect(mounted.committedMetas).toEqual([]);
   });
 });
