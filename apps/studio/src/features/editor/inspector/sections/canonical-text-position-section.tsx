@@ -16,6 +16,8 @@ function edgeValue(value: string | number | undefined): string | number {
   return value ?? "";
 }
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
 export function CanonicalElementPositionSection({ element, parent, onUpdateLayout, layerControls }: Props) {
   const { t } = useStudioI18n();
   const layout = element.layout;
@@ -75,13 +77,29 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
                 type="text"
                 inputMode="decimal"
                 value={edgeValue(layout?.[edge])}
+                onFocus={() => authoringHistory?.begin(`number:element-canonical-${edge}`, numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(`number:element-canonical-${edge}`)}
                 onChange={(event) => {
                   const value = event.target.value.trim();
-                  onUpdateLayout((current) => ({
+                  const nextValue = value === "" ? undefined : /^-?\d+(?:\.\d+)?%$/.test(value) ? value : Number(value);
+                  if (Object.is(layout?.[edge], nextValue)) {
+                    return;
+                  }
+
+                  const update = () => onUpdateLayout((current) => ({
                     ...current,
                     position: "absolute",
-                    [edge]: value === "" ? undefined : /^-?\d+(?:\.\d+)?%$/.test(value) ? value : Number(value),
+                    [edge]: nextValue,
                   }));
+
+                  if (!authoringHistory) {
+                    update();
+                    return;
+                  }
+
+                  const historyKey = `number:element-canonical-${edge}`;
+                  authoringHistory.begin(historyKey, numberHistoryMeta);
+                  authoringHistory.update(historyKey, update);
                 }}
               />
             </label>

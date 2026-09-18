@@ -292,6 +292,174 @@ describe("element setting history integration", () => {
     expect(container.querySelector("#container-position-top")).toBeNull();
   });
 
+  it("coalesces canonical position edges and preserves percentage representation", async () => {
+    await mount({
+      type: "image",
+      id: "canonical-position-history",
+      hidden: false,
+      src: "/image.png",
+      alt: "Image",
+      layout: { position: "absolute", top: "10%", left: 4 },
+    });
+
+    const top = container.querySelector<HTMLInputElement>("#element-canonical-top")!;
+    await act(async () => {
+      top.focus();
+      changeInput(top, "20%");
+      changeInput(top, "30%");
+      top.blur();
+    });
+    expect(top.value).toBe("30%");
+
+    const undoTop = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undoTop));
+    expect(undoTop.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("10%");
+
+    const redoTop = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redoTop));
+    expect(redoTop.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("30%");
+
+    const left = container.querySelector<HTMLInputElement>("#element-canonical-left")!;
+    await act(async () => {
+      left.focus();
+      changeInput(left, "9");
+      left.blur();
+    });
+    const undoLeft = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undoLeft));
+    expect(undoLeft.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("30%");
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-left")?.value).toBe("4");
+
+    const undoTopAgain = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undoTopAgain));
+    expect(undoTopAgain.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("10%");
+  });
+
+  it("does not create history for a locally-authored canonical position no-op", async () => {
+    await mount({
+      type: "image",
+      id: "canonical-position-no-op",
+      hidden: false,
+      src: "/image.png",
+      alt: "Image",
+      layout: { position: "absolute", top: 10 },
+    });
+
+    const top = container.querySelector<HTMLInputElement>("#element-canonical-top")!;
+    await act(async () => {
+      top.focus();
+      changeInput(top, "10");
+      top.blur();
+    });
+    const nativeUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(nativeUndo));
+    expect(nativeUndo.defaultPrevented).toBe(false);
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("10");
+  });
+
+  it("coalesces Container position edges and ignores a local same-value no-op", async () => {
+    await mount({
+      type: "container",
+      id: "container-position-edge-history",
+      hidden: false,
+      children: [],
+      layout: { position: "absolute", top: 10 },
+    });
+
+    const top = container.querySelector<HTMLInputElement>("#container-position-top")!;
+    await act(async () => {
+      top.focus();
+      changeInput(top, "20");
+      changeInput(top, "30");
+      top.blur();
+    });
+    expect(top.value).toBe("30");
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.value).toBe("10");
+
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.value).toBe("30");
+
+    const currentTop = container.querySelector<HTMLInputElement>("#container-position-top")!;
+    await act(async () => {
+      currentTop.focus();
+      changeInput(currentTop, "30");
+      currentTop.blur();
+    });
+    const undoAfterNoOp = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undoAfterNoOp));
+    expect(undoAfterNoOp.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.value).toBe("10");
+    const nativeUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(nativeUndo));
+    expect(nativeUndo.defaultPrevented).toBe(false);
+  });
+
+  it("tracks a same-visible linked Container position as a local override", async () => {
+    await mountWithLinkedStyles(
+      { type: "container", id: "container-linked-position-history", hidden: false, linkedStyleId: "linked-position", children: [] },
+      [{ id: "linked-position", name: "Linked Position", layout: { position: "absolute", top: 20 } }],
+    );
+
+    const top = container.querySelector<HTMLInputElement>("#container-position-top")!;
+    expect(top.value).toBe("20");
+    await act(async () => {
+      top.focus();
+      changeInput(top, "21");
+      changeInput(top, "20");
+      top.blur();
+    });
+    expect(top.value).toBe("20");
+    expect(top.closest("label")?.textContent).toContain("Local override");
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.value).toBe("20");
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.closest("label")?.textContent).toContain("Linked");
+
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.value).toBe("20");
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.closest("label")?.textContent).toContain("Local override");
+  });
+
+  it("tracks clearing an inherited Container edge that materializes local absolute positioning", async () => {
+    await mountWithLinkedStyles(
+      { type: "container", id: "container-linked-clear-position-history", hidden: false, linkedStyleId: "linked-clear-position", children: [] },
+      [{ id: "linked-clear-position", name: "Linked Clear Position", layout: { position: "absolute", top: 20 } }],
+    );
+
+    const top = container.querySelector<HTMLInputElement>("#container-position-top")!;
+    await act(async () => {
+      top.focus();
+      changeInput(top, "");
+      top.blur();
+    });
+    expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.value).toBe("absolute");
+    expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.closest("label")?.nextElementSibling?.textContent).toContain("Local override");
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.closest("label")?.nextElementSibling?.textContent).toContain("Linked");
+
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.closest("label")?.nextElementSibling?.textContent).toContain("Local override");
+  });
+
   it("tracks Preserve size for a selected flow child Container", async () => {
     await act(async () => {
       root.render(

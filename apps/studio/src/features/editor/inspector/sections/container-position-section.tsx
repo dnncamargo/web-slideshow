@@ -47,6 +47,8 @@ const EDGES: readonly ContainerPositionEdge[] = [
   "left",
 ];
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
 export function ContainerPositionSection({
   element,
   localElement = element,
@@ -119,8 +121,24 @@ export function ContainerPositionSection({
                   type="number"
                   inputMode="decimal"
                   value={readAbsoluteNumber(element.layout?.[edge])}
+                  onFocus={() => authoringHistory?.begin(`number:container-position-${edge}`, numberHistoryMeta)}
+                  onBlur={() => authoringHistory?.finish(`number:container-position-${edge}`)}
                   onChange={(event) => {
-                    onUpdate((container) => ({ ...container, layout: { ...container.layout, position: "absolute", [edge]: parseOptionalNumber(event.target.value) } }));
+                    const nextValue = parseOptionalNumber(event.target.value);
+                    const localLayout = localElement.layout;
+                    if (localLayout?.position === "absolute" && Object.is(localLayout[edge], nextValue)) {
+                      return;
+                    }
+
+                    const update = () => onUpdate((container) => ({ ...container, layout: { ...container.layout, position: "absolute", [edge]: nextValue } }));
+                    if (!authoringHistory) {
+                      update();
+                      return;
+                    }
+
+                    const historyKey = `number:container-position-${edge}`;
+                    authoringHistory.begin(historyKey, numberHistoryMeta);
+                    authoringHistory.update(historyKey, update);
                   }}
                 />
 
