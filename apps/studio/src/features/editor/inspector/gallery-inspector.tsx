@@ -59,13 +59,46 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
   };
   const addItem = () => {
     const nextIndex = element.items.length;
-    updateGallery((gallery) => ({ ...gallery, items: [...gallery.items, { ...GALLERY_ITEM_DEFAULT }] }));
+    const update = () => updateGallery((gallery) => ({
+      ...gallery,
+      items: [...gallery.items, { ...GALLERY_ITEM_DEFAULT }],
+    }));
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "gallery.add",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "gallery.add" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
     onSelectedItemIndexChange(nextIndex);
   };
   const removeItem = () => {
     if (selectedItemIndex === null || selectedItemIndex === undefined) return;
     const nextLength = element.items.length - 1;
-    updateGallery((gallery) => ({ ...gallery, items: gallery.items.filter((_item, index) => index !== selectedItemIndex) }));
+    const update = () => updateGallery((gallery) => {
+      if (selectedItemIndex < 0 || selectedItemIndex >= gallery.items.length) return gallery;
+      return {
+        ...gallery,
+        items: gallery.items.filter((_item, index) => index !== selectedItemIndex),
+      };
+    });
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "gallery.remove",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "gallery.remove" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
     onSelectedItemIndexChange(nextLength === 0 ? null : Math.min(selectedItemIndex, nextLength - 1));
   };
   return <>
