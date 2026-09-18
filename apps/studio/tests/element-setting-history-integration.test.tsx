@@ -54,6 +54,13 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+  if (!setter) throw new Error("expected HTMLTextAreaElement.value setter");
+  setter.call(textarea, value);
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 describe("element setting history integration", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -125,6 +132,122 @@ describe("element setting history integration", () => {
     expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("column");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("row");
+  });
+
+  it("tracks Container Pattern presets atomically and preserves background siblings", async () => {
+    await mount({
+      type: "container",
+      id: "container-pattern-history",
+      hidden: false,
+      children: [],
+      style: { background: { color: "#101820", gradient: { type: "linear", angle: 135, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] } } },
+    });
+    const pattern = container.querySelector<HTMLSelectElement>("#container-background-pattern")!;
+    await act(async () => changeSelect(pattern, "grid"));
+    expect(pattern.value).toBe("grid");
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#101820");
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>("#container-background-pattern")?.value).toBe("none");
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#101820");
+
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>("#container-background-pattern")?.value).toBe("grid");
+  });
+
+  it("tracks a same-visible linked Container Pattern as a local override", async () => {
+    const grid = { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" };
+    await mountWithLinkedStyles(
+      { type: "container", id: "container-linked-pattern-history", hidden: false, linkedStyleId: "linked-pattern", children: [] },
+      [{ id: "linked-pattern", name: "Linked Pattern", style: { background: { pattern: grid } } }],
+    );
+    const pattern = container.querySelector<HTMLSelectElement>("#container-background-pattern")!;
+    expect(pattern.value).toBe("grid");
+    await act(async () => changeSelect(pattern, "grid"));
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>("#container-background-pattern")?.value).toBe("grid");
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLSelectElement>("#container-background-pattern")?.value).toBe("grid");
+  });
+
+  it("keeps Custom Pattern drafts local, then tracks one Apply and restores it", async () => {
+    await mount({
+      type: "container",
+      id: "container-custom-pattern-history",
+      hidden: false,
+      children: [],
+      style: { background: { color: "#101820", gradient: { type: "linear", angle: 135, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] } } },
+      effect: { opacity: 0.6 },
+    });
+    const pattern = container.querySelector<HTMLSelectElement>("#container-background-pattern")!;
+    await act(async () => changeSelect(pattern, "custom"));
+    await act(async () => changeTextarea(container.querySelector<HTMLTextAreaElement>("#container-custom-pattern-css")!, "background-color: #223344; background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 20px 20px; background-repeat: repeat;"));
+    const draftUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(draftUndo));
+    expect(draftUndo.defaultPrevented).toBe(false);
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#101820");
+
+    await act(async () => container.querySelector<HTMLButtonElement>("#container-apply-background-pattern")!.click());
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#223344");
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#101820");
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#223344");
+  });
+
+  it("does not track a Custom Pattern Apply that preserves the existing local color", async () => {
+    await mount({
+      type: "container",
+      id: "container-equivalent-pattern-history",
+      hidden: false,
+      children: [],
+      style: { background: { color: "#223344", pattern: { image: "radial-gradient(circle, #fff 1px, transparent 1px)", size: "20px 20px", repeat: "repeat" } } },
+    });
+    await act(async () => changeSelect(container.querySelector<HTMLSelectElement>("#container-background-pattern")!, "custom"));
+    await act(async () => changeTextarea(container.querySelector<HTMLTextAreaElement>("#container-custom-pattern-css")!, "background-image: radial-gradient(circle, #fff 1px, transparent 1px); background-size: 20px 20px; background-repeat: repeat;"));
+    await act(async () => container.querySelector<HTMLButtonElement>("#container-apply-background-pattern")!.click());
+    const noOpUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(noOpUndo));
+    expect(noOpUndo.defaultPrevented).toBe(false);
+    expect(container.querySelector<HTMLInputElement>("#container-background")?.value).toBe("#223344");
+  });
+
+  it("tracks Structured Table Suggest Alternate as one appearance action", async () => {
+    await mount({
+      type: "table",
+      id: "table-appearance-history",
+      mode: "structured",
+      showHeader: true,
+      hidden: false,
+      columns: [{ id: "column-1", header: { id: "header-1", children: [{ type: "text", id: "header-text-1", hidden: false, variant: "body", content: "Header" }] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [{ type: "text", id: "cell-text-1", hidden: false, variant: "body", content: "Cell" }] }] }],
+      style: { background: { color: "#202020" }, headerBackground: "#303030" },
+    });
+    const suggest = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Suggest alternate")!;
+    await act(async () => suggest.click());
+    expect(container.querySelector<HTMLInputElement>("#table-body-row-alternate-background")?.value).toBe("#303030");
+    expect(container.querySelector<HTMLInputElement>("#table-header-background")?.value).toBe("#303030");
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(container.querySelector("#table-body-row-alternate-background")).toBeNull();
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(container.querySelector<HTMLInputElement>("#table-body-row-alternate-background")?.value).toBe("#303030");
   });
 
   it("tracks a same-visible linked Container direction as a local override", async () => {

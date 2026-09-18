@@ -191,7 +191,8 @@ export function ContainerBackgroundPatternControl({
               }
 
               setError(undefined);
-              if (samePattern(localPattern, parsed.backgroundPattern) && localColor === parsed.background) return;
+              const nextLocalColor = parsed.background === undefined ? localColor : parsed.background;
+              if (samePattern(localPattern, parsed.backgroundPattern) && localColor === nextLocalColor) return;
               runDiscrete(() => onChange(parsed.backgroundPattern, parsed.background));
             }}
           >
