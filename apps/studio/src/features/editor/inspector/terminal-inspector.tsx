@@ -89,8 +89,16 @@ export function TerminalInspector({
   // ==========================================================
 
   function removeLine(index: number) {
-    onUpdate((current) => {
+    if (index < 0 || index >= element.lines.length) {
+      return;
+    }
+
+    const update = () => onUpdate((current) => {
       if (current.type !== "terminal") {
+        return current;
+      }
+
+      if (index < 0 || index >= current.lines.length) {
         return current;
       }
 
@@ -100,6 +108,19 @@ export function TerminalInspector({
         lines: current.lines.filter((_line, lineIndex) => lineIndex !== index),
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "terminal.remove",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "terminal.remove" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -110,7 +131,7 @@ export function TerminalInspector({
   // ==========================================================
 
   function addLine() {
-    onUpdate((current) => {
+    const update = () => onUpdate((current) => {
       if (current.type !== "terminal") {
         return current;
       }
@@ -123,12 +144,24 @@ export function TerminalInspector({
 
           {
             type: "command",
-
             content: "New command",
           },
         ],
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "terminal.add",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "terminal.add" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
