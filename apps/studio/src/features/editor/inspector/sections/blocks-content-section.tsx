@@ -6,6 +6,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 import type { ElementInspectorUpdate } from "../inspector-types";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 interface BlocksContentSectionProps {
   element: BlocksElement;
@@ -19,6 +20,7 @@ export function BlocksContentSection({
   onUpdate,
 }: BlocksContentSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
   const parsed = parseBlocksSource(element.source);
@@ -38,7 +40,15 @@ export function BlocksContentSection({
     const source = `${element.source.slice(0, start)}${prefix}${selected}${suffix}${element.source.slice(end)}`;
     const caret = start + prefix.length + selected.length;
     pendingCaretRef.current = caret;
-    onUpdate((current) => current.type === "blocks" ? { ...current, source } : current);
+    const update = () => onUpdate((current) => current.type === "blocks" ? { ...current, source } : current);
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "blocks.sourceInsert" } },
+        update,
+      );
+    } else {
+      update();
+    }
     textarea?.focus();
     textarea?.setSelectionRange(caret, caret);
   };

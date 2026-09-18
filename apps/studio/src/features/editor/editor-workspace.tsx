@@ -3806,14 +3806,17 @@ export function EditorWorkspace({
     },
 
     onShowHeaderChange: (tableId, showHeader) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: setStructuredTableShowHeader(
-          current.slides,
-          tableId,
-          showHeader,
-        ),
-      }));
+      const currentTable = history.present.slides
+        .map((slide) => findElementById(slide.elements, tableId))
+        .find((element): element is Extract<PowerShowElement, { type: "table"; mode: "structured" }> => element?.type === "table" && element.mode === "structured");
+      if (!currentTable || currentTable.showHeader === showHeader) return;
+      commitPresentationAction(
+        { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
+        (current) => ({
+          ...current,
+          slides: setStructuredTableShowHeader(current.slides, tableId, showHeader),
+        }),
+      );
     },
   };
 

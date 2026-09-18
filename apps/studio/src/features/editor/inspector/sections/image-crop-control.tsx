@@ -3,6 +3,7 @@ import type { ImageElement } from "@powershow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import {
   getEffectiveImageCrop,
@@ -39,6 +40,7 @@ export function ImageCropControl({
   canvasEdit,
 }: ImageCropControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const crop = getEffectiveImageCrop(authoredCrop);
 
   return (
@@ -73,7 +75,23 @@ export function ImageCropControl({
 
       <small className={styles.fieldHint}><span>{t("image.cropHelp")}</span></small>
 
-      <button className={styles.secondaryButton} type="button" disabled={!isImageCropResetAvailable(authoredCrop)} onClick={onResetCrop}>
+      <button
+        className={styles.secondaryButton}
+        type="button"
+        disabled={!isImageCropResetAvailable(authoredCrop)}
+        onClick={() => {
+          if (!isImageCropResetAvailable(authoredCrop)) return;
+          const callback = () => onResetCrop();
+          if (authoringHistory) {
+            authoringHistory.discrete(
+              { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "media.crop" } },
+              callback,
+            );
+          } else {
+            callback();
+          }
+        }}
+      >
         {t("image.resetCrop")}
       </button>
 
@@ -111,6 +129,7 @@ export function ImageFocalPointControl({
   canvasEdit,
 }: ImageFocalPointControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const focalPoint = getEffectiveImageFocalPoint(authoredFocalPoint);
   const activeFocalPreset = getImageFocalPointPresetIndex(focalPoint);
 
@@ -119,7 +138,25 @@ export function ImageFocalPointControl({
       <span title={t("image.focalPointHelp")}>{t("image.focalPoint")}</span>
       <div className={styles.imageFocalPresetGrid}>
         {IMAGE_FOCAL_POINT_PRESETS.map((preset, index) => (
-          <button key={`${preset.x}-${preset.y}`} className={activeFocalPreset === index ? `${styles.imageFocalPreset} ${styles.imageFocalPresetActive}` : styles.imageFocalPreset} type="button" aria-label={t(FOCAL_PRESET_LABEL_KEYS[index]!)} aria-pressed={activeFocalPreset === index} onClick={() => onFocalPointChange(preset)} />
+          <button
+            key={`${preset.x}-${preset.y}`}
+            className={activeFocalPreset === index ? `${styles.imageFocalPreset} ${styles.imageFocalPresetActive}` : styles.imageFocalPreset}
+            type="button"
+            aria-label={t(FOCAL_PRESET_LABEL_KEYS[index]!)}
+            aria-pressed={activeFocalPreset === index}
+            onClick={() => {
+              if (authoredFocalPoint?.x === preset.x && authoredFocalPoint.y === preset.y) return;
+              const callback = () => onFocalPointChange(preset);
+              if (authoringHistory) {
+                authoringHistory.discrete(
+                  { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "media.focalPoint" } },
+                  callback,
+                );
+              } else {
+                callback();
+              }
+            }}
+          />
         ))}
       </div>
       <div className={styles.fieldGrid}>
@@ -133,7 +170,25 @@ export function ImageFocalPointControl({
           </label>
         ))}
       </div>
-      <button className={styles.secondaryButton} type="button" disabled={!isImageFocalPointResetAvailable(authoredFocalPoint)} onClick={onResetFocalPoint}>{t("image.resetFocalPoint")}</button>
+      <button
+        className={styles.secondaryButton}
+        type="button"
+        disabled={!isImageFocalPointResetAvailable(authoredFocalPoint)}
+        onClick={() => {
+          if (!isImageFocalPointResetAvailable(authoredFocalPoint)) return;
+          const callback = () => onResetFocalPoint();
+          if (authoringHistory) {
+            authoringHistory.discrete(
+              { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "media.focalPoint" } },
+              callback,
+            );
+          } else {
+            callback();
+          }
+        }}
+      >
+        {t("image.resetFocalPoint")}
+      </button>
       {canvasEdit && <button className={styles.secondaryButton} type="button" onClick={() => canvasEdit.onEditingChange(!canvasEdit.editing)}>{t(canvasEdit.editing ? "image.doneFocalPoint" : "image.editFocalPointOnCanvas")}</button>}
     </div>
   );

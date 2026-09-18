@@ -14,6 +14,7 @@ import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 import type {
   TableAuthoringControls,
@@ -259,6 +260,17 @@ function TableCellEditor({
 }: TableCellEditorProps) {
   const type = getCellType(value);
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (setting: "table.cellType" | "table.cellBoolean", callback: () => void): void => {
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting } },
+        callback,
+      );
+    } else {
+      callback();
+    }
+  };
 
   return (
     <div className={styles.tableCellEditor}>
@@ -268,13 +280,9 @@ function TableCellEditor({
         className={`${styles.inspectorControl} ${styles.tableCellType}`}
         value={type}
         onChange={(event) => {
-          onChange(
-            convertCellType(
-              value,
-
-              event.target.value as "string" | "number" | "boolean" | "null",
-            ),
-          );
+          const nextType = event.target.value as "string" | "number" | "boolean" | "null";
+          if (nextType === type) return;
+          runDiscrete("table.cellType", () => onChange(convertCellType(value, nextType)));
         }}
       >
         <option value="string">{t("table.text")}</option>
@@ -329,7 +337,9 @@ function TableCellEditor({
           className={styles.inspectorControl}
           value={value === true ? "true" : "false"}
           onChange={(event) => {
-            onChange(event.target.value === "true");
+            const nextValue = event.target.value === "true";
+            if (nextValue === value) return;
+            runDiscrete("table.cellBoolean", () => onChange(nextValue));
           }}
         >
           <option value="true">{t("table.true")}</option>
