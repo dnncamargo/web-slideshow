@@ -43,6 +43,10 @@ function richTextPresentation(): Presentation {
         hidden: false,
         variant: "body",
         content: "A",
+        typography: {
+          fontSize: "16px",
+          lineHeight: 1.2,
+        },
       }],
     }],
   });
@@ -247,6 +251,50 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("ABC");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("A");
+  });
+
+  it("groups EffectiveNumberInput changes into one line-height history action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const input = container.querySelector<HTMLInputElement>("#text-line-height")!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "1.3");
+      changeInput(input, "1.4");
+      changeInput(input, "1.5");
+      input.blur();
+    });
+    expect(input.value).toBe("1.5");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-line-height")?.value).toBe("1.2");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-line-height")?.value).toBe("1.5");
+  });
+
+  it("groups EffectiveLengthInput changes into one font-size history action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const input = container.querySelector<HTMLInputElement>("#text-font-size")!;
+    await act(async () => {
+      input.focus();
+      changeInput(input, "17");
+      changeInput(input, "18");
+      changeInput(input, "19");
+      input.blur();
+    });
+    expect(input.value).toBe("19");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("16");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("19");
   });
 
   it("leaves native RichText Undo shortcuts untouched", async () => {
