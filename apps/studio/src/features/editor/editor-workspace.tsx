@@ -3713,50 +3713,91 @@ export function EditorWorkspace({
     topicItemId: string,
     targetIndex: number,
   ) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: moveTopicItemToSiblingIndex(
-                slide.elements,
-                topicsId,
-                topicItemId,
-                targetIndex,
-              ),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "topics.move",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.move" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = moveTopicItemToSiblingIndex(
+          currentSlide.elements,
+          topicsId,
+          topicItemId,
+          targetIndex,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function indentTopicItemInTree(topicsId: string, topicItemId: string) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: indentTopicItem(slide.elements, topicsId, topicItemId),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "topics.indent",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.indent" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = indentTopicItem(
+          currentSlide.elements,
+          topicsId,
+          topicItemId,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function outdentTopicItemInTree(topicsId: string, topicItemId: string) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: outdentTopicItem(slide.elements, topicsId, topicItemId),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "topics.outdent",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.outdent" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = outdentTopicItem(
+          currentSlide.elements,
+          topicsId,
+          topicItemId,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
