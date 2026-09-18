@@ -3227,40 +3227,42 @@ export function EditorWorkspace({
       return null;
     }
 
-    setPresentation((current) => {
-      const prepared = ensureTopicsTextStyle(current);
-      let changed = false;
+    commitPresentationAction(
+      {
+        kind: "topics.add",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.add" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) {
+          return current;
+        }
 
-      const slides = prepared.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+        const prepared = ensureTopicsTextStyle(current);
+        const preparedSlide = prepared.slides[selectedSlideIndex];
+        if (!preparedSlide) {
+          return current;
         }
 
         const elements = appendTopicItemToTopics(
-          slide.elements,
+          preparedSlide.elements,
           topicsId,
           created.item,
         );
 
-        if (elements === slide.elements) {
-          return slide;
+        if (elements === preparedSlide.elements) {
+          return current;
         }
 
-        changed = true;
-
         return {
-          ...slide,
-          elements,
+          ...prepared,
+          slides: prepared.slides.map((slide, index) => index === selectedSlideIndex
+            ? { ...slide, elements }
+            : slide),
         };
-      });
-
-      return changed
-        ? {
-            ...prepared,
-            slides,
-          }
-        : prepared;
-    });
+      },
+    );
 
     return created.item.id;
   }
@@ -3286,41 +3288,43 @@ export function EditorWorkspace({
       return null;
     }
 
-    setPresentation((current) => {
-      const prepared = ensureTopicsTextStyle(current);
-      let changed = false;
+    commitPresentationAction(
+      {
+        kind: "topics.add",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.add" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) {
+          return current;
+        }
 
-      const slides = prepared.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+        const prepared = ensureTopicsTextStyle(current);
+        const preparedSlide = prepared.slides[selectedSlideIndex];
+        if (!preparedSlide) {
+          return current;
         }
 
         const elements = appendChildTopicItemToTopics(
-          slide.elements,
+          preparedSlide.elements,
           topicsId,
           topicItemId,
           created.item,
         );
 
-        if (elements === slide.elements) {
-          return slide;
+        if (elements === preparedSlide.elements) {
+          return current;
         }
 
-        changed = true;
-
         return {
-          ...slide,
-          elements,
+          ...prepared,
+          slides: prepared.slides.map((slide, index) => index === selectedSlideIndex
+            ? { ...slide, elements }
+            : slide),
         };
-      });
-
-      return changed
-        ? {
-            ...prepared,
-            slides,
-          }
-        : prepared;
-    });
+      },
+    );
 
     return created.item.id;
   }
