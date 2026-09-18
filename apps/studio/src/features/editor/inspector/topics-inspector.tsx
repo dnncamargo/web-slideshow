@@ -89,6 +89,10 @@ interface TopicRowProps {
 
   onTextChange: (topicItemId: string, content: string) => void;
 
+  onTextFocus: (topicItemId: string) => void;
+
+  onTextBlur: (topicItemId: string) => void;
+
   onAddChild: (topicItemId: string) => void;
 
   onRemove: (topicItemId: string) => void;
@@ -171,6 +175,8 @@ function TopicRow({
   maxDepthAddChildLabel,
   removeLabel,
   onTextChange,
+  onTextFocus,
+  onTextBlur,
   onAddChild,
   onRemove,
   registerInputRef,
@@ -180,6 +186,9 @@ function TopicRow({
   const hasDirectText = textChild !== null;
   const contentLabels = getTopicContentLabels(item, t);
   const contentSummary = summarizeTopicContent(contentLabels);
+  const plainText = textChild
+    ? getTextContentPlainText(textChild.content)
+    : "";
   const atMaxStructuralDepth =
     depth + 1 >= MAX_TOPIC_STRUCTURAL_DEPTH;
 
@@ -207,8 +216,18 @@ function TopicRow({
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
-            value={textChild ? getTextContentPlainText(textChild.content) : ""}
+            value={plainText}
+            onFocus={() => {
+              onTextFocus(item.id);
+            }}
+            onBlur={() => {
+              onTextBlur(item.id);
+            }}
             onChange={(event) => {
+              if (event.currentTarget.value === plainText) {
+                return;
+              }
+
               onTextChange(item.id, event.currentTarget.value);
             }}
           />
@@ -271,6 +290,8 @@ function TopicRow({
               maxDepthAddChildLabel={maxDepthAddChildLabel}
               removeLabel={removeLabel}
               onTextChange={onTextChange}
+              onTextFocus={onTextFocus}
+              onTextBlur={onTextBlur}
               onAddChild={onAddChild}
               onRemove={onRemove}
               registerInputRef={registerInputRef}
@@ -293,6 +314,12 @@ export function TopicsInspector({
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const textEditMeta = {
+    kind: "text.edit",
+    labelKey: "history.text.edit",
+  } as const;
+  const topicTextHistoryKey = (topicItemId: string) =>
+    `text:topics-${element.id}-item-${topicItemId}`;
   const runDiscrete = (setting: string, callback: () => void): void => {
     const meta = {
       kind: "element.setting",
@@ -353,7 +380,8 @@ export function TopicsInspector({
   }
 
   function updateTopicContent(topicItemId: string, content: string) {
-    updateCurrentTopics((current) => {
+    const historyKey = topicTextHistoryKey(topicItemId);
+    const update = () => updateCurrentTopics((current) => {
       const items = updateTopicItemTextContent(
         current.items,
         topicItemId,
@@ -367,6 +395,21 @@ export function TopicsInspector({
             items,
           };
     });
+
+    if (authoringHistory) {
+      authoringHistory.begin(historyKey, textEditMeta);
+      authoringHistory.update(historyKey, update);
+    } else {
+      update();
+    }
+  }
+
+  function beginTopicTextEdit(topicItemId: string) {
+    authoringHistory?.begin(topicTextHistoryKey(topicItemId), textEditMeta);
+  }
+
+  function finishTopicTextEdit(topicItemId: string) {
+    authoringHistory?.finish(topicTextHistoryKey(topicItemId));
   }
 
   function addTopLevelTopic() {
@@ -468,6 +511,8 @@ function addChildTopic(topicItemId: string) {
               maxDepthAddChildLabel={t("inspector.topics.maxDepth")}
               removeLabel={t("inspector.topics.remove")}
               onTextChange={updateTopicContent}
+              onTextFocus={beginTopicTextEdit}
+              onTextBlur={finishTopicTextEdit}
               onAddChild={addChildTopic}
               onRemove={removeTopic}
               registerInputRef={(topicItemId, node) => {
