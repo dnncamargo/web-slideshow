@@ -4,7 +4,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import {
+  PresentationSchema,
+  type ElementLink,
+  type Presentation,
+} from "@powershow/document-schema";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -29,7 +33,7 @@ function presentation(slides = 2): Presentation {
   });
 }
 
-function richTextPresentation(): Presentation {
+function richTextPresentation(link?: ElementLink): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "rich-text-history",
@@ -49,6 +53,7 @@ function richTextPresentation(): Presentation {
           lineHeight: 1.2,
           textAlign: "left",
         },
+        ...(link === undefined ? {} : { link }),
       }],
     }],
   });
@@ -364,6 +369,32 @@ describe("EditorWorkspace history integration", () => {
     await act(async () => window.dispatchEvent(undo));
     expect(undo.defaultPrevented).toBe(false);
     expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+  });
+
+  it("does not create History for unchanged canonical interaction commits", async () => {
+    const href = "https://example.com/guide";
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation({ kind: "url", href, target: "_blank" })} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const url = container.querySelector<HTMLInputElement>("#text-link-url")!;
+    await act(async () => {
+      url.focus();
+      url.blur();
+    });
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+
+    const unchangedTarget = container.querySelector<HTMLSelectElement>("#text-link-target")!;
+    await act(async () => changeSelect(unchangedTarget, "new"));
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(false);
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+    expect(buttonByText(container, "Remove link")).toBeDefined();
   });
 
   it("tracks URL commits, target updates, and link removal as separate interaction actions", async () => {

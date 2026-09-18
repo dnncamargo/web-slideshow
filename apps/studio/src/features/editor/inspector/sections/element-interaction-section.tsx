@@ -170,6 +170,11 @@ export function ElementInteractionSection({
     if (isAbsoluteHttpHref(href)) {
       setInvalidUrlMessage(null);
       setUrlDraft(href);
+      const link = createCanonicalLink(href, openIn);
+
+      if (element.link?.href === link.href && element.link?.target === link.target) {
+        return;
+      }
 
       runDiscrete("interaction.url", () => onUpdate((current) => {
         if (!isLinkableElement(current)) {
@@ -178,7 +183,7 @@ export function ElementInteractionSection({
 
         return {
           ...current,
-          link: createCanonicalLink(href, openIn),
+          link,
         };
       }));
 
@@ -219,6 +224,15 @@ export function ElementInteractionSection({
       return;
     }
 
+    const link = createCanonicalLink(element.link.href, selection);
+
+    if (
+      element.link.href === link.href &&
+      element.link.target === link.target
+    ) {
+      return;
+    }
+
     runDiscrete("interaction.target", () => onUpdate((current) => {
       if (!isLinkableElement(current)) {
         return current;
@@ -231,7 +245,7 @@ export function ElementInteractionSection({
       return {
         ...current,
 
-        link: createCanonicalLink(current.link.href, selection),
+        link,
       };
     }));
   }
