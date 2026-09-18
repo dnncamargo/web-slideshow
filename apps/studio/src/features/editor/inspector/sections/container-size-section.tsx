@@ -70,6 +70,32 @@ export function ContainerSizeSection({
 }: ContainerSizeSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
+  function updateCustomSize(field: "width" | "height", rawValue: string): void {
+    const number = parseOptionalNumber(rawValue);
+    const nextValue = number === undefined ? undefined : `${number}%`;
+
+    if (Object.is(localElement.layout?.[field], nextValue)) {
+      return;
+    }
+
+    const update = () => onUpdate((container) => ({
+      ...container,
+
+      layout: { ...container.layout, [field]: nextValue },
+    }));
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    const historyKey = `number:container-${field}`;
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
+  }
+
   function runDiscrete(callback: () => void): void {
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "container.sizePreset" } } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
@@ -130,15 +156,9 @@ export function ContainerSizeSection({
               min="1"
               max="100"
               value={readPercentage(element.layout?.width)}
-              onChange={(event) => {
-                const number = parseOptionalNumber(event.target.value);
-
-                onUpdate((container) => ({
-                  ...container,
-
-                  layout: { ...container.layout, width: number === undefined ? undefined : `${number}%` },
-                }));
-              }}
+              onFocus={() => authoringHistory?.begin("number:container-width", numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish("number:container-width")}
+              onChange={(event) => updateCustomSize("width", event.target.value)}
             />
 
             <span>%</span>
@@ -157,15 +177,9 @@ export function ContainerSizeSection({
               min="1"
               max="100"
               value={readPercentage(element.layout?.height)}
-              onChange={(event) => {
-                const number = parseOptionalNumber(event.target.value);
-
-                onUpdate((container) => ({
-                  ...container,
-
-                  layout: { ...container.layout, height: number === undefined ? undefined : `${number}%` },
-                }));
-              }}
+              onFocus={() => authoringHistory?.begin("number:container-height", numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish("number:container-height")}
+              onChange={(event) => updateCustomSize("height", event.target.value)}
             />
 
             <span>%</span>
