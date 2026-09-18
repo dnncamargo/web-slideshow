@@ -19,6 +19,8 @@ const DEFAULT_SHADOW_X = 0;
 const DEFAULT_SHADOW_Y = 4;
 const DEFAULT_SHADOW_BLUR = 12;
 const DEFAULT_SHADOW_COLOR = "#000000";
+const NUMBER_HISTORY_META = { kind: "number.change", labelKey: "history.number.change" } as const;
+type ShadowNumberKey = "x" | "y" | "blur" | "spread";
 
 function createDefaultShadow(mode: Exclude<ShadowMode, "none">): Shadow {
   return {
@@ -49,6 +51,20 @@ export function CanonicalImageEffectsSection({ effect, onUpdateEffect }: Props) 
   };
   const updateShadow = (update: (shadow: Shadow) => Shadow) =>
     onUpdateEffect((current) => ({ ...current, shadow: update(current?.shadow ?? createDefaultShadow("outer")) }));
+  const beginNumberEditing = (key: ShadowNumberKey) => authoringHistory?.begin(`number:image-shadow-${key}`, NUMBER_HISTORY_META);
+  const updateShadowNumber = (key: ShadowNumberKey, value: number | undefined) => {
+    const currentValue = effect?.shadow?.[key];
+    const unchanged = value === undefined ? currentValue === undefined : readAbsoluteNumber(currentValue) === value;
+    if (unchanged) return;
+    const historyKey = `number:image-shadow-${key}`;
+    const update = () => updateShadow((shadow) => ({ ...shadow, [key]: value }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(historyKey, NUMBER_HISTORY_META);
+    authoringHistory.update(historyKey, update);
+  };
 
   return (
     <InspectorSection title={t("inspector.effects")}>
@@ -90,10 +106,9 @@ export function CanonicalImageEffectsSection({ effect, onUpdateEffect }: Props) 
                     name={getControlName("image", `Shadow${axis.toUpperCase()}`)}
                     type="number"
                     value={readAbsoluteNumber(effect.shadow![axis])}
-                    onChange={(event) => {
-                      const value = parseOptionalNumber(event.target.value) ?? (axis === "x" ? DEFAULT_SHADOW_X : DEFAULT_SHADOW_Y);
-                      updateShadow((shadow) => ({ ...shadow, [axis]: value }));
-                    }}
+                    onFocus={() => beginNumberEditing(axis)}
+                    onBlur={() => authoringHistory?.finish(`number:image-shadow-${axis}`)}
+                    onChange={(event) => updateShadowNumber(axis, parseOptionalNumber(event.target.value) ?? (axis === "x" ? DEFAULT_SHADOW_X : DEFAULT_SHADOW_Y))}
                   />
                   <span>px</span>
                 </div>
@@ -111,7 +126,9 @@ export function CanonicalImageEffectsSection({ effect, onUpdateEffect }: Props) 
                   type="number"
                   min="0"
                   value={readAbsoluteNumber(effect.shadow.blur)}
-                  onChange={(event) => updateShadow((shadow) => ({ ...shadow, blur: parseOptionalNumber(event.target.value) ?? DEFAULT_SHADOW_BLUR }))}
+                  onFocus={() => beginNumberEditing("blur")}
+                  onBlur={() => authoringHistory?.finish("number:image-shadow-blur")}
+                  onChange={(event) => updateShadowNumber("blur", parseOptionalNumber(event.target.value) ?? DEFAULT_SHADOW_BLUR)}
                 />
                 <span>px</span>
               </div>
@@ -124,7 +141,9 @@ export function CanonicalImageEffectsSection({ effect, onUpdateEffect }: Props) 
                   name={getControlName("image", "ShadowSpread")}
                   type="number"
                   value={readAbsoluteNumber(effect.shadow.spread)}
-                  onChange={(event) => updateShadow((shadow) => ({ ...shadow, spread: parseOptionalNumber(event.target.value) }))}
+                  onFocus={() => beginNumberEditing("spread")}
+                  onBlur={() => authoringHistory?.finish("number:image-shadow-spread")}
+                  onChange={(event) => updateShadowNumber("spread", parseOptionalNumber(event.target.value))}
                 />
                 <span>px</span>
               </div>

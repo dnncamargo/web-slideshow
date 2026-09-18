@@ -11,6 +11,9 @@ import { getContainerShareablePropertySource } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 import { useAuthoringHistory } from "../../authoring-history-context";
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+type ShadowNumberKey = "x" | "y" | "blur" | "spread";
+
 interface ContainerEffectsSectionProps {
   element: ContainerElement;
   localElement?: ContainerElement;
@@ -39,6 +42,23 @@ export function ContainerEffectsSection({ element, localElement = element, prese
 
   function updateShadow(update: (shadow: Shadow) => Shadow) {
     onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? shadow ?? createDefaultShadow()) } }));
+  }
+
+  function beginNumberEditing(key: ShadowNumberKey): void {
+    authoringHistory?.begin(`number:container-shadow-${key}`, numberHistoryMeta);
+  }
+
+  function updateShadowNumber(key: ShadowNumberKey, value: number): void {
+    const currentValue = localElement.effect?.shadow?.[key];
+    if (readAbsoluteNumber(currentValue) === value) return;
+    const historyKey = `number:container-shadow-${key}`;
+    const update = () => updateShadow((current) => ({ ...current, [key]: value }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
   }
 
   const content = (
@@ -82,7 +102,7 @@ export function ContainerEffectsSection({ element, localElement = element, prese
               <label className={styles.field} key={axis}>
                 <span>{t(`inspector.shadow${axis.toUpperCase()}` as "inspector.shadowX" | "inspector.shadowY")}</span>
                 <div className={styles.unitInput}>
-                  <input id={`container-shadow-${axis}`} name={getControlName("container", `Shadow${axis.toUpperCase()}`)} type="number" value={readAbsoluteNumber(shadow[axis])} onChange={(event) => updateShadow((current) => ({ ...current, [axis]: parseOptionalNumber(event.target.value) ?? 0 }))} />
+                  <input id={`container-shadow-${axis}`} name={getControlName("container", `Shadow${axis.toUpperCase()}`)} type="number" value={readAbsoluteNumber(shadow[axis])} onFocus={() => beginNumberEditing(axis)} onBlur={() => authoringHistory?.finish(`number:container-shadow-${axis}`)} onChange={(event) => updateShadowNumber(axis, parseOptionalNumber(event.target.value) ?? 0)} />
                   <span>px</span>
                 </div>
               </label>
@@ -92,14 +112,14 @@ export function ContainerEffectsSection({ element, localElement = element, prese
             <label className={styles.field}>
               <span>{t("inspector.shadowBlur")}</span>
               <div className={styles.unitInput}>
-                <input id="container-shadow-blur" name={getControlName("container", "ShadowBlur")} type="number" min="0" value={readAbsoluteNumber(shadow.blur)} onChange={(event) => updateShadow((current) => ({ ...current, blur: parseOptionalNumber(event.target.value) ?? 0 }))} />
+                <input id="container-shadow-blur" name={getControlName("container", "ShadowBlur")} type="number" min="0" value={readAbsoluteNumber(shadow.blur)} onFocus={() => beginNumberEditing("blur")} onBlur={() => authoringHistory?.finish("number:container-shadow-blur")} onChange={(event) => updateShadowNumber("blur", parseOptionalNumber(event.target.value) ?? 0)} />
                 <span>px</span>
               </div>
             </label>
             <label className={styles.field}>
               <span>{t("inspector.shadowSpread")}</span>
               <div className={styles.unitInput}>
-                <input id="container-shadow-spread" name={getControlName("container", "ShadowSpread")} type="number" value={readAbsoluteNumber(shadow.spread)} onChange={(event) => updateShadow((current) => ({ ...current, spread: parseOptionalNumber(event.target.value) ?? 0 }))} />
+                <input id="container-shadow-spread" name={getControlName("container", "ShadowSpread")} type="number" value={readAbsoluteNumber(shadow.spread)} onFocus={() => beginNumberEditing("spread")} onBlur={() => authoringHistory?.finish("number:container-shadow-spread")} onChange={(event) => updateShadowNumber("spread", parseOptionalNumber(event.target.value) ?? 0)} />
                 <span>px</span>
               </div>
             </label>

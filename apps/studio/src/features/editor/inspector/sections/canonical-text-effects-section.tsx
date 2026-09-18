@@ -31,6 +31,7 @@ const defaultTextStroke = (color: string | undefined): TextStroke => ({
   width: 1,
   color: color ?? "#f8fafc",
 });
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
 
 export function CanonicalTextEffectsSection({
   effect,
@@ -81,6 +82,22 @@ export function CanonicalTextEffectsSection({
     }));
   }
 
+  function updateNumber(key: string, currentValue: string | number | undefined, value: number | undefined, update: () => void): void {
+    const unchanged = value === undefined ? currentValue === undefined : readAbsoluteNumber(currentValue) === value;
+    if (unchanged) return;
+    const historyKey = `number:${controlPrefix}-${key}`;
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
+  }
+
+  function beginNumberEditing(key: string): void {
+    authoringHistory?.begin(`number:${controlPrefix}-${key}`, numberHistoryMeta);
+  }
+
   return (
     <InspectorSection title={t("inspector.effects")}>
       <label className={styles.field}>
@@ -114,15 +131,17 @@ export function CanonicalTextEffectsSection({
                   type="number"
                   min="0"
                   value={readAbsoluteNumber(typography.textStroke.width)}
+                  onFocus={() => beginNumberEditing("text-stroke-width")}
+                  onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`)}
                   onChange={(event) => {
-                    const width = parseOptionalNumber(event.target.value) ?? 1;
-                    onUpdateTypography((current) => ({
+                    const width = Math.max(0, parseOptionalNumber(event.target.value) ?? 1);
+                    updateNumber("text-stroke-width", typography.textStroke?.width, width, () => onUpdateTypography((current) => ({
                       ...current,
                       textStroke: {
                         ...(current?.textStroke ?? defaultTextStroke(textColor)),
-                        width: Math.max(0, width),
+                        width,
                       },
-                    }));
+                    })));
                   }}
                 />
                 <span>px</span>
@@ -181,12 +200,12 @@ export function CanonicalTextEffectsSection({
                 <span>{axis === "x" ? t("inspector.shadowX") : t("inspector.shadowY")}</span>
                 <div className={styles.unitInput}>
                   <input
+                    id={`${controlPrefix}-shadow-${axis}`}
                     type="number"
                     value={readAbsoluteNumber(shadow[axis])}
-                    onChange={(event) => {
-                      const value = parseOptionalNumber(event.target.value) ?? 0;
-                      updateShadow((shadow) => ({ ...shadow, [axis]: value }));
-                    }}
+                    onFocus={() => beginNumberEditing(`shadow-${axis}`)}
+                    onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-shadow-${axis}`)}
+                    onChange={(event) => updateNumber(`shadow-${axis}`, shadow[axis], parseOptionalNumber(event.target.value) ?? 0, () => updateShadow((current) => ({ ...current, [axis]: parseOptionalNumber(event.target.value) ?? 0 })))}
                   />
                   <span>px</span>
                 </div>
@@ -200,7 +219,9 @@ export function CanonicalTextEffectsSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(shadow.blur)}
-                onChange={(event) => updateShadow((shadow) => ({ ...shadow, blur: parseOptionalNumber(event.target.value) ?? 0 }))}
+                onFocus={() => beginNumberEditing("shadow-blur")}
+                onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-shadow-blur`)}
+                onChange={(event) => updateNumber("shadow-blur", shadow.blur, parseOptionalNumber(event.target.value) ?? 0, () => updateShadow((current) => ({ ...current, blur: parseOptionalNumber(event.target.value) ?? 0 })))}
               />
             </label>
             <label className={styles.field}>
@@ -208,7 +229,9 @@ export function CanonicalTextEffectsSection({
               <input
                 type="number"
                 value={readAbsoluteNumber(shadow.spread)}
-                onChange={(event) => updateShadow((shadow) => ({ ...shadow, spread: parseOptionalNumber(event.target.value) }))}
+                onFocus={() => beginNumberEditing("shadow-spread")}
+                onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-shadow-spread`)}
+                onChange={(event) => updateNumber("shadow-spread", shadow.spread, parseOptionalNumber(event.target.value), () => updateShadow((current) => ({ ...current, spread: parseOptionalNumber(event.target.value) })))}
               />
             </label>
           </div>
