@@ -20,6 +20,7 @@ import { ColorControl } from "./sections/color-control";
 import { parseOptionalNumber } from "./inspector-helpers";
 
 import { EffectiveLengthInput } from "./sections/effective-length-input";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type DividerOrientation = DividerElement["orientation"];
 
@@ -72,6 +73,12 @@ export function DividerInspector({
   onUpdate,
 }: TypedInspectorProps<DividerElement>) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "divider.orientation" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
 
   const updateLayout = (update: (layout: DividerElement["layout"] | undefined) => DividerElement["layout"] | undefined) => {
     onUpdate((current) => {
@@ -111,8 +118,8 @@ export function DividerInspector({
             onChange={(event) => {
               const orientation =
                 event.target.value as DividerOrientation;
-
-              onUpdate((current) => {
+              if (orientation === element.orientation) return;
+              runDiscrete(() => onUpdate((current) => {
                 if (current.type !== "divider") {
                   return current;
                 }
@@ -138,7 +145,7 @@ export function DividerInspector({
                     height: width,
                   },
                 };
-              });
+              }));
             }}
           >
             <option value="horizontal">

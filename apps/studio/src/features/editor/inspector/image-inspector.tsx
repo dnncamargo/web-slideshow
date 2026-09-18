@@ -19,6 +19,7 @@ import { CanonicalImageAppearanceSection } from "./sections/canonical-image-appe
 import { CanonicalImageEffectsSection } from "./sections/canonical-image-effects-section";
 import { ImageCropControl, ImageFocalPointControl } from "./sections/image-crop-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type ImageElement = Extract<PowerShowElement, { type: "image" }>;
 
@@ -46,6 +47,12 @@ export function ImageInspector({
   onCreateQrFromLink?: CreateQrCodeFromLink;
 }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "image.fit" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
 
   const updateStyle = (
     update: (style: ImageVisualStyle | undefined) => ImageVisualStyle,
@@ -139,18 +146,8 @@ export function ImageInspector({
             value={element.fit}
             onChange={(event) => {
               const fit = event.target.value as ImageElement["fit"];
-
-              onUpdate((current) => {
-                if (current.type !== "image") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  fit,
-                };
-              });
+              if (fit === element.fit) return;
+              runDiscrete(() => onUpdate((current) => current.type === "image" ? { ...current, fit } : current));
             }}
           >
             <option value="contain">{t("image.contain")}</option>

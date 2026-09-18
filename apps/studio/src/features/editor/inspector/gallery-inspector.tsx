@@ -9,6 +9,7 @@ import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
 import { ImageCropControl, ImageFocalPointControl } from "./sections/image-crop-control";
 import { getGalleryItemDisplayName } from "../gallery-item-display-name";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type GalleryFit = GalleryElement["fit"];
 type GalleryItem = GalleryElement["items"][number];
@@ -25,6 +26,12 @@ interface GalleryInspectorProps extends TypedInspectorProps<GalleryElement> {
 
 export function GalleryInspector({ element, onUpdate, selectedItemIndex = element.items.length > 0 ? 0 : null, onSelectedItemIndexChange = () => undefined, focalEditing = false, onFocalEditingChange = () => undefined, cropEditing = false, onCropEditingChange = () => undefined }: GalleryInspectorProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (setting: string, callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
   const selectedItem = selectedItemIndex === null || selectedItemIndex === undefined ? undefined : element.items[selectedItemIndex];
   const updateGallery = (update: (gallery: GalleryElement) => GalleryElement) => onUpdate((current) => current.type === "gallery" ? update(current) : current);
   const updateStyle: UpdateSurfaceStyle = (update) => updateGallery((gallery) => ({ ...gallery, style: update(gallery.style) }));
@@ -46,7 +53,7 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
   return <>
     <div className={styles.inspectorDivider} />
     <InspectorSection title={t("inspector.content")} count={element.items.length} defaultOpen>
-      <label className={styles.field}><span>{t("gallery.fit")}</span><select id="gallery-fit" name="galleryFit" value={element.fit} onChange={(event) => updateGallery((gallery) => ({ ...gallery, fit: event.target.value as GalleryFit }))}><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
+      <label className={styles.field}><span>{t("gallery.fit")}</span><select id="gallery-fit" name="galleryFit" value={element.fit} onChange={(event) => { const fit = event.target.value as GalleryFit; if (fit === element.fit) return; runDiscrete("gallery.fit", () => updateGallery((gallery) => ({ ...gallery, fit }))); }}><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
       <div className={styles.collectionSelector} role="group" aria-label={t("gallery.items", { count: element.items.length })}>
         {element.items.map((item, index) => {
           const name = getGalleryItemDisplayName(item, t("gallery.newImage"));
@@ -65,7 +72,7 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
       {selectedItem && selectedItemIndex !== null && selectedItemIndex !== undefined ? <>
         <label className={styles.field}><span>{t("inspector.source")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-src`} name={`galleryItemSrc_${element.id}`} className={styles.textArea} rows={2} spellCheck={false} value={selectedItem.src} data-powershow-gallery-src="true" onChange={(event) => updateSelectedItem((item) => ({ ...item, src: event.target.value }))} /></label>
         <label className={styles.field}><span>{t("gallery.name")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-alt`} name={`galleryItemAlt_${element.id}`} className={styles.textArea} rows={2} value={selectedItem.alt} data-powershow-gallery-alt="true" onChange={(event) => updateSelectedItem((item) => ({ ...item, alt: event.target.value }))} /></label>
-        <label className={styles.field}><span>{t("image.fit")}</span><select id={`gallery-${element.id}-item-${selectedItemIndex}-fit`} value={selectedItem.fit ?? ""} onChange={(event) => updateSelectedItem((item) => { const fit = event.target.value as GalleryFit | ""; if (fit === "") { const { fit: _fit, ...inherited } = item; return inherited; } return { ...item, fit }; })}><option value="">{t("gallery.inheritFit")}</option><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
+        <label className={styles.field}><span>{t("image.fit")}</span><select id={`gallery-${element.id}-item-${selectedItemIndex}-fit`} value={selectedItem.fit ?? ""} onChange={(event) => { const fit = event.target.value as GalleryFit | ""; if (fit === (selectedItem.fit ?? "")) return; runDiscrete("gallery.itemFit", () => updateSelectedItem((item) => { if (fit === "") { const { fit: _fit, ...inherited } = item; return inherited; } return { ...item, fit }; })); }}><option value="">{t("gallery.inheritFit")}</option><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
         <ImageCropControl crop={selectedItem.crop} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onCropChange={(crop) => updateSelectedItem((item) => ({ ...item, crop }))} onResetCrop={() => updateSelectedItem((item) => ({ ...item, crop: undefined }))} canvasEdit={{ editing: cropEditing, onEditingChange: onCropEditingChange }} />
         <ImageFocalPointControl focalPoint={selectedItem.focalPoint} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onFocalPointChange={(focalPoint) => updateSelectedItem((item) => ({ ...item, focalPoint }))} onResetFocalPoint={() => updateSelectedItem((item) => ({ ...item, focalPoint: undefined }))} canvasEdit={{ editing: focalEditing, onEditingChange: onFocalEditingChange }} />
       </> : <div className={styles.emptyInspectorList}><span>{t("gallery.items", { count: 0 })}</span></div>}

@@ -24,6 +24,7 @@ import {
   getTextContentPlainText,
 } from "../rich-text-authoring";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -39,6 +40,12 @@ export function TerminalInspector({
   fontResources = [],
 }: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "terminal.lineType" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
 
   const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     onUpdate((current) => {
@@ -206,16 +213,8 @@ export function TerminalInspector({
                   value={line.type}
                   onChange={(event) => {
                     const type = event.target.value as TerminalLine["type"];
-
-                    updateLine(
-                      index,
-
-                      (currentLine) => ({
-                        ...currentLine,
-
-                        type,
-                      }),
-                    );
+                    if (type === line.type) return;
+                    runDiscrete(() => updateLine(index, (currentLine) => ({ ...currentLine, type })));
                   }}
                 >
                   <option value="command">{t("inspector.command")}</option>

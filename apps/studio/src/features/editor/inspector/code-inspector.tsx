@@ -16,6 +16,7 @@ import { CanonicalElementEffectsSection } from "./sections/canonical-element-eff
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -42,6 +43,12 @@ export function CodeInspector({
   fontResources = [],
 }: TypedInspectorProps<CodeElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "code.showLineNumbers" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
 
   const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     onUpdate((current) => {
@@ -187,18 +194,8 @@ export function CodeInspector({
             checked={element.showLineNumbers}
             onChange={(event) => {
               const showLineNumbers = event.target.checked;
-
-              onUpdate((current) => {
-                if (current.type !== "code") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  showLineNumbers,
-                };
-              });
+              if (showLineNumbers === element.showLineNumbers) return;
+              runDiscrete(() => onUpdate((current) => current.type === "code" ? { ...current, showLineNumbers } : current));
             }}
           />
 
