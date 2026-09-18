@@ -3012,68 +3012,74 @@ export function EditorWorkspace({
   function addElement(type: ElementCreateType) {
     const newElement = createElement(type, presentation.slides);
 
-    setPresentation((current) => {
-      const prepared = type === "table"
-        ? ensureStructuredTableTextStyles(current).presentation
-        : type === "topics"
-          ? ensureTopicsTextStyle(current)
-          : current;
+    commitPresentationAction(
+      {
+        kind: "element.add",
+        labelKey: "history.element.add",
+        labelParams: { elementType: type },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
 
-      return {
-      ...prepared,
-
-      slides: prepared.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
+        const prepared = type === "table"
+          ? ensureStructuredTableTextStyles(current).presentation
+          : type === "topics"
+            ? ensureTopicsTextStyle(current)
+            : current;
+        const preparedSlide = prepared.slides[selectedSlideIndex];
+        if (!preparedSlide) return current;
 
         const destination = resolveAddElementDestination(
-          slide.elements,
+          preparedSlide.elements,
           selectedElement?.id ?? null,
           newElement,
           selectedElement?.contentSlotId ?? null,
         );
 
+        let nextElements: PowerShowElement[];
         switch (destination.kind) {
           case "slide-root":
-            return {
-              ...slide,
-              elements: [...slide.elements, newElement],
-            };
+            nextElements = [...preparedSlide.elements, newElement];
+            break;
 
           case "append-container":
-            return {
-              ...slide,
-              elements: appendElementToContainer(
-                slide.elements,
-                destination.containerId,
-                newElement,
-              ),
-            };
+            nextElements = appendElementToContainer(
+              preparedSlide.elements,
+              destination.containerId,
+              newElement,
+            );
+            break;
 
           case "append-content-slot":
-            return {
-              ...slide,
-              elements: appendElementToContentSlot(
-                slide.elements,
-                destination.contentSlotId,
-                newElement,
-              ),
-            };
+            nextElements = appendElementToContentSlot(
+              preparedSlide.elements,
+              destination.contentSlotId,
+              newElement,
+            );
+            break;
 
           case "insert-after":
-            return {
-              ...slide,
-              elements: insertElementAfterId(
-                slide.elements,
-                destination.targetId,
-                newElement,
-              ),
-            };
+            nextElements = insertElementAfterId(
+              preparedSlide.elements,
+              destination.targetId,
+              newElement,
+            );
+            break;
         }
-      }),
-      };
-    });
+
+        if (nextElements === preparedSlide.elements) return current;
+
+        return {
+          ...prepared,
+          slides: prepared.slides.map((slide, index) =>
+            index === selectedSlideIndex
+              ? { ...slide, elements: nextElements }
+              : slide,
+          ),
+        };
+      },
+    );
 
     setSelectedElement({
       id: newElement.id,
@@ -3313,30 +3319,41 @@ export function EditorWorkspace({
       return;
     }
 
+    const sourceElementId = selectedDocumentElement.id;
     const duplicatedElement = duplicateElement(
       selectedDocumentElement,
       presentation.slides,
     );
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+    commitPresentationAction(
+      {
+        kind: "element.duplicate",
+        labelKey: "history.element.duplicate",
+        labelParams: { elementType: selectedDocumentElement.type },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide || !findElementById(currentSlide.elements, sourceElementId)) {
+          return current;
         }
 
-        return {
-          ...slide,
+        const nextElements = insertElementAfterId(
+          currentSlide.elements,
+          sourceElementId,
+          duplicatedElement,
+        );
+        if (nextElements === currentSlide.elements) return current;
 
-          elements: insertElementAfterId(
-            slide.elements,
-            selectedDocumentElement.id,
-            duplicatedElement,
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex
+              ? { ...slide, elements: nextElements }
+              : slide,
           ),
         };
-      }),
-    }));
+      },
+    );
 
     setSelectedElement({
       id: duplicatedElement.id,
