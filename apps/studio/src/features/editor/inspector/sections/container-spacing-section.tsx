@@ -4,6 +4,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
 import type { UpdateContainer } from "../container-inspector-helpers";
 
 import {
@@ -15,15 +16,20 @@ import { InspectorSection } from "../inspector-section";
 import { getContainerShareablePropertySource } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
-type IndividualSpacingField =
+type SpacingField =
+  | "padding"
   | "paddingTop"
   | "paddingRight"
   | "paddingBottom"
   | "paddingLeft"
+  | "gap"
+  | "margin"
   | "marginTop"
   | "marginRight"
   | "marginBottom"
   | "marginLeft";
+
+type IndividualSpacingField = Exclude<SpacingField, "padding" | "gap" | "margin">;
 
 interface ContainerSpacingSectionProps {
   element: ContainerElement;
@@ -44,18 +50,48 @@ export function ContainerSpacingSection({
   onUpdate,
 }: ContainerSpacingSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
   const local = localElement ?? element;
   const source = (property: Parameters<typeof getContainerShareablePropertySource>[2]) => getContainerShareablePropertySource(presentation, local, property);
 
+  function historyKeyFor(field: SpacingField): string {
+    return `number:container-${field === "gap" ? "gap" : field.replace(/([A-Z])/g, "-$1").toLowerCase()}`;
+  }
+
   function updateStyleField(
-    field: IndividualSpacingField,
+    field: SpacingField,
     value: number | undefined,
   ) {
-    onUpdate((container) => ({
-      ...container,
+    const localValue = field === "gap"
+      ? local.layout?.children?.gap
+      : local.layout?.[field];
 
-      layout: { ...container.layout, [field]: value },
-    }));
+    if (Object.is(localValue, value)) {
+      return;
+    }
+
+    const update = () => onUpdate((container) => field === "gap"
+      ? {
+          ...container,
+          layout: {
+            ...container.layout,
+            children: { ...container.layout?.children, gap: value },
+          },
+        }
+      : {
+          ...container,
+          layout: { ...container.layout, [field]: value },
+        });
+    const historyKey = historyKeyFor(field);
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
   }
 
   function spacingMeta(field: IndividualSpacingField) {
@@ -78,15 +114,11 @@ export function ContainerSpacingSection({
               name="containerPadding"
               type="number"
               min="0"
-                  value={readAbsoluteNumber(element.layout?.padding)}
+              value={readAbsoluteNumber(element.layout?.padding)}
+              onFocus={() => authoringHistory?.begin(historyKeyFor("padding"), numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish(historyKeyFor("padding"))}
               onChange={(event) => {
-                const number = parseOptionalNumber(event.target.value);
-
-                onUpdate((container) => ({
-                  ...container,
-
-                  layout: { ...container.layout, padding: number },
-                }));
+                updateStyleField("padding", parseOptionalNumber(event.target.value));
               }}
             />
 
@@ -105,12 +137,10 @@ export function ContainerSpacingSection({
               type="number"
               min="0"
               value={readAbsoluteNumber(element.layout?.children?.gap)}
+              onFocus={() => authoringHistory?.begin(historyKeyFor("gap"), numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish(historyKeyFor("gap"))}
               onChange={(event) => {
-                const number = parseOptionalNumber(event.target.value);
-
-                onUpdate((container) => ({
-                  ...container, layout: { ...container.layout, children: { ...container.layout?.children, gap: number } },
-                }));
+                updateStyleField("gap", parseOptionalNumber(event.target.value));
               }}
             />
 
@@ -135,7 +165,9 @@ export function ContainerSpacingSection({
                 name="containerPaddingTop"
                 type="number"
                 min="0"
-                  value={readAbsoluteNumber(element.layout?.paddingTop)}
+                value={readAbsoluteNumber(element.layout?.paddingTop)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("paddingTop"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("paddingTop"))}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingTop",
@@ -160,6 +192,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.paddingRight)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("paddingRight"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("paddingRight"))}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingRight",
@@ -184,6 +218,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.paddingBottom)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("paddingBottom"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("paddingBottom"))}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingBottom",
@@ -208,6 +244,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.paddingLeft)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("paddingLeft"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("paddingLeft"))}
                 onChange={(event) => {
                   updateStyleField(
                     "paddingLeft",
@@ -236,14 +274,10 @@ export function ContainerSpacingSection({
             type="number"
             min="0"
             value={readAbsoluteNumber(element.layout?.margin)}
+            onFocus={() => authoringHistory?.begin(historyKeyFor("margin"), numberHistoryMeta)}
+            onBlur={() => authoringHistory?.finish(historyKeyFor("margin"))}
             onChange={(event) => {
-              const number = parseOptionalNumber(event.target.value);
-
-              onUpdate((container) => ({
-                ...container,
-
-                layout: { ...container.layout, margin: number },
-              }));
+              updateStyleField("margin", parseOptionalNumber(event.target.value));
             }}
           />
 
@@ -268,6 +302,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.marginTop)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("marginTop"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("marginTop"))}
                 onChange={(event) => {
                   updateStyleField(
                     "marginTop",
@@ -292,6 +328,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.marginRight)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("marginRight"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("marginRight"))}
                 onChange={(event) => {
                   updateStyleField(
                     "marginRight",
@@ -316,6 +354,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.marginBottom)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("marginBottom"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("marginBottom"))}
                 onChange={(event) => {
                   updateStyleField(
                     "marginBottom",
@@ -340,6 +380,8 @@ export function ContainerSpacingSection({
                 type="number"
                 min="0"
                 value={readAbsoluteNumber(element.layout?.marginLeft)}
+                onFocus={() => authoringHistory?.begin(historyKeyFor("marginLeft"), numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(historyKeyFor("marginLeft"))}
                 onChange={(event) => {
                   updateStyleField(
                     "marginLeft",
