@@ -38,6 +38,7 @@ import {
 import { getTextContentPlainText } from "../rich-text-authoring";
 
 import { InspectorSection } from "./inspector-section";
+import { useAuthoringHistory } from "../authoring-history-context";
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyControl } from "./sections/element-typography-control";
 import { EffectiveNumberInput } from "./sections/effective-number-input";
@@ -291,6 +292,16 @@ export function TopicsInspector({
   onDetachLinkedTopicsStyle = () => {},
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (setting: string, callback: () => void): void => {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
   const [pendingFocusTopicItemId, setPendingFocusTopicItemId] = useState<
     string | null
   >(null);
@@ -489,25 +500,11 @@ function addChildTopic(topicItemId: string) {
               onChange={(event) => {
                 const kind = event.target.value as NonNullable<TopicsElement["kind"]>;
 
-                updateCurrentTopics((current) => {
-                  const rootMarkerStyle = normalizeTopicMarkerStyle(
-                    kind,
-                    current.rootMarkerStyle,
-                  );
-
-                  if (
-                    current.kind === kind &&
-                    rootMarkerStyle === current.rootMarkerStyle
-                  ) {
-                    return current;
-                  }
-
-                  return {
-                    ...current,
-                    kind,
-                    rootMarkerStyle,
-                  };
-                });
+                runDiscrete("topics.kind", () => updateCurrentTopics((current) => {
+                  const rootMarkerStyle = normalizeTopicMarkerStyle(kind, current.rootMarkerStyle);
+                  if (current.kind === kind && rootMarkerStyle === current.rootMarkerStyle) return current;
+                  return { ...current, kind, rootMarkerStyle };
+                }));
               }}
             >
               <option value="unordered">
@@ -589,7 +586,7 @@ function addChildTopic(topicItemId: string) {
                     ? undefined
                     : (event.target.value as TopicMarkerStyle);
 
-                updateCurrentTopics((current) => {
+                runDiscrete("topics.rootMarkerStyle", () => updateCurrentTopics((current) => {
                   const normalized = normalizeTopicMarkerStyle(
                     effectiveKind,
                     nextRootMarkerStyle,
@@ -603,7 +600,7 @@ function addChildTopic(topicItemId: string) {
                     ...current,
                     rootMarkerStyle: normalized,
                   };
-                });
+                }));
               }}
             >
               <option value="">{t("inspector.default")}</option>
