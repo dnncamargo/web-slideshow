@@ -3101,28 +3101,54 @@ export function EditorWorkspace({
       return;
     }
 
+    const sourceElementId = selectedElement?.id;
     const newElement = createQrImageElement(href, presentation.slides);
-    if (!newElement || !selectedElement) {
+    if (!newElement || !sourceElementId) {
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+    commitPresentationAction(
+      {
+        kind: "element.add",
+        labelKey: "history.element.add",
+        labelParams: { elementType: "image" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentSource = findElementById(
+          currentSlide.elements,
+          sourceElementId,
+        );
+        if (
+          !currentSource ||
+          (currentSource.type !== "text" &&
+            currentSource.type !== "image" &&
+            currentSource.type !== "container") ||
+          !currentSource.link ||
+          currentSource.link.href !== href
+        ) {
+          return current;
         }
 
+        const nextElements = insertElementAfterId(
+          currentSlide.elements,
+          sourceElementId,
+          newElement,
+        );
+        if (nextElements === currentSlide.elements) return current;
+
         return {
-          ...slide,
-          elements: insertElementAfterId(
-            slide.elements,
-            selectedElement.id,
-            newElement,
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex
+              ? { ...slide, elements: nextElements }
+              : slide,
           ),
         };
-      }),
-    }));
+      },
+    );
 
     setSelectedElement({ id: newElement.id, type: "image" });
   }
