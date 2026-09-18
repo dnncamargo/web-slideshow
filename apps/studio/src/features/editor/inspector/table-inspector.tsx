@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type {
   FontResource,
@@ -178,8 +178,15 @@ function ColumnKeyInput({
   onCommit,
 }: ColumnKeyInputProps) {
   const [draft, setDraft] = useState(currentKey);
+  const skipNextCommitRef = useRef(false);
 
   function commit() {
+    if (skipNextCommitRef.current) {
+      skipNextCommitRef.current = false;
+
+      return;
+    }
+
     const value = draft.trim();
 
     const duplicate = existingKeys.some(
@@ -213,6 +220,7 @@ function ColumnKeyInput({
         }
 
         if (event.key === "Escape") {
+          skipNextCommitRef.current = true;
           setDraft(currentKey);
 
           event.currentTarget.blur();
@@ -495,11 +503,18 @@ function SimpleTableInspector({
   // migrados para a nova key.
   // ==========================================================
 
-  function renameColumn(index: number, newKey: string) {
-    updateTable((table) => {
+  function renameColumn(index: number, expectedOldKey: string, newKey: string) {
+    const update = () => updateTable((table) => {
       const column = table.columns[index];
 
-      if (!column) {
+      if (
+        !column
+        || column.key !== expectedOldKey
+        || !newKey
+        || table.columns.some((currentColumn, columnIndex) =>
+          columnIndex !== index && currentColumn.key === newKey,
+        )
+      ) {
         return table;
       }
 
@@ -540,6 +555,19 @@ function SimpleTableInspector({
         rows,
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.columnKey" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -787,7 +815,7 @@ function SimpleTableInspector({
                 currentKey={column.key}
                 existingKeys={element.columns.map((item) => item.key)}
                 onCommit={(newKey) => {
-                  renameColumn(index, newKey);
+                  renameColumn(index, column.key, newKey);
                 }}
               />
               {/* ==========================================================
