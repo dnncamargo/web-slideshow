@@ -9,6 +9,7 @@ import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
 import { getContainerShareablePropertySource } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 interface ContainerEffectsSectionProps {
   element: ContainerElement;
@@ -26,8 +27,15 @@ export function createDefaultShadow(): Shadow {
 
 export function ContainerEffectsSection({ element, localElement = element, presentation, onUpdate, embedded = false, showSourceMeta = true, allowNone = true }: ContainerEffectsSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const shadow = element.effect?.shadow;
   const shadowSource = getContainerShareablePropertySource(presentation, localElement, "effect.shadow");
+
+  function runDiscrete(callback: () => void): void {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "shadow.mode" } };
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
 
   function updateShadow(update: (shadow: Shadow) => Shadow) {
     onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: update(current.effect?.shadow ?? shadow ?? createDefaultShadow()) } }));
@@ -44,11 +52,21 @@ export function ContainerEffectsSection({ element, localElement = element, prese
           onChange={(event) => {
             if (event.target.value === "none") {
               if (shadowSource.linkedValue !== undefined) return;
-              onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: undefined } }));
+              if (shadow === undefined) return;
+              runDiscrete(() => onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: undefined } })));
               return;
             }
             if (event.target.value !== "outer" && event.target.value !== "inset") return;
-            updateShadow((current) => ({ ...current, inset: event.target.value === "inset" ? true : undefined }));
+            const mode = event.target.value;
+            const currentMode = shadow === undefined ? "none" : shadow.inset ? "inset" : "outer";
+            if (mode === currentMode) return;
+            runDiscrete(() => {
+              if (shadow === undefined) {
+                onUpdate((current) => ({ ...current, effect: { ...current.effect, shadow: { ...createDefaultShadow(), ...(mode === "inset" ? { inset: true } : {}) } } }));
+              } else {
+                updateShadow((current) => ({ ...current, inset: mode === "inset" ? true : undefined }));
+              }
+            });
           }}
         >
           {allowNone && <option value="none" disabled={shadowSource.linkedValue !== undefined}>{t("inspector.shadow.none")}</option>}

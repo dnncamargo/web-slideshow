@@ -85,6 +85,37 @@ function sharedAppearancePresentation(): Presentation {
   });
 }
 
+function effectsHistoryPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "effects-history",
+    title: "Effects history",
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      elements: [
+        {
+          type: "text",
+          id: "text-effects-1",
+          hidden: false,
+          variant: "body",
+          content: "Effects",
+          typography: { fontFamily: "Arial", fontSize: "16px", lineHeight: 1.2, textAlign: "left" },
+          effect: { shadow: { x: 17, y: -9, blur: 23, spread: 4, color: "#123456" } },
+        },
+        {
+          type: "image",
+          id: "image-effects-1",
+          hidden: false,
+          src: "/image.png",
+          alt: "Example",
+          effect: { shadow: { x: 5, y: 6, blur: 7, spread: 2, color: "#654321" } },
+        },
+      ],
+    }],
+  });
+}
+
 function key(key: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options });
 }
@@ -382,6 +413,60 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLSelectElement>("#image-border-gradient-type")?.value).toBe("linear");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLSelectElement>("#image-border-gradient-type")?.value).toBe("radial");
+  });
+
+  it("preserves text shadow parameters across outer and inset history", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={effectsHistoryPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-effects-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const mode = container.querySelector<HTMLSelectElement>("#text-shadow-mode")!;
+    await act(async () => changeSelect(mode, "inset"));
+    expect(mode.value).toBe("inset");
+    const shadowInputs = () => Array.from(container.querySelectorAll<HTMLInputElement>('input[type="number"]')).slice(-4);
+    expect(shadowInputs().map((input) => input.value)).toEqual(["17", "-9", "23", "4"]);
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(mode.value).toBe("outer");
+    expect(shadowInputs().map((input) => input.value)).toEqual(["17", "-9", "23", "4"]);
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")?.value).toBe("#123456");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(mode.value).toBe("inset");
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")?.value).toBe("#123456");
+
+    await act(async () => changeSelect(mode, "outer"));
+    expect(mode.value).toBe("outer");
+  });
+
+  it("tracks image shadow enable/remove and text stroke mode as discrete actions", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={effectsHistoryPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="image-effects-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const imageMode = container.querySelector<HTMLSelectElement>("#image-shadow-mode")!;
+    await act(async () => changeSelect(imageMode, "outer"));
+    const imageNoOpUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(imageNoOpUndo));
+    expect(imageNoOpUndo.defaultPrevented).toBe(false);
+
+    await act(async () => changeSelect(imageMode, "none"));
+    expect(imageMode.value).toBe("none");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(imageMode.value).toBe("outer");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(imageMode.value).toBe("none");
+
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-effects-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const strokeMode = container.querySelector<HTMLSelectElement>("#text-text-stroke-mode")!;
+    await act(async () => changeSelect(strokeMode, "stroke"));
+    expect(strokeMode.value).toBe("stroke");
+    expect(container.querySelector<HTMLInputElement>("#text-text-stroke-width")?.value).toBe("1");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(strokeMode.value).toBe("none");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(strokeMode.value).toBe("stroke");
   });
 
   it("replays canonical position normalization as one discrete action", async () => {

@@ -1,6 +1,7 @@
 import type { ElementEffect, ElementTypography, TextStroke } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber, readAbsoluteNumber } from "../inspector-helpers";
 import type { UpdateElementEffect, UpdateElementTypography } from "../inspector-types";
@@ -40,9 +41,38 @@ export function CanonicalTextEffectsSection({
   controlPrefix,
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : effect.shadow.inset ? "inset" : "outer";
   const strokeMode = typography?.textStroke === undefined ? "none" : "stroke";
   const shadow = effect?.shadow;
+
+  function runDiscrete(callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "shadow.mode" },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
+
+  function runTextStrokeDiscrete(callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "textStroke.mode" },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
 
   function updateShadow(update: (shadow: NonNullable<ElementEffect["shadow"]>) => NonNullable<ElementEffect["shadow"]>) {
     onUpdateEffect((current) => ({
@@ -60,13 +90,12 @@ export function CanonicalTextEffectsSection({
           name={getControlName(controlPrefix, "TextStrokeMode")}
           value={strokeMode}
           onChange={(event) => {
-            onUpdateTypography((current) => ({
+            const mode = event.target.value === "stroke" ? "stroke" : "none";
+            if (mode === strokeMode) return;
+            runTextStrokeDiscrete(() => onUpdateTypography((current) => ({
               ...current,
-              textStroke:
-                event.target.value === "stroke"
-                  ? current?.textStroke ?? defaultTextStroke(textColor)
-                  : undefined,
-            }));
+              textStroke: mode === "stroke" ? current?.textStroke ?? defaultTextStroke(textColor) : undefined,
+            })));
           }}
         >
           <option value="none">{t("inspector.textStroke.none")}</option>
@@ -126,14 +155,17 @@ export function CanonicalTextEffectsSection({
           name={getControlName(controlPrefix, "ShadowMode")}
           value={shadowMode}
           onChange={(event) => {
-            if (event.target.value === "none") {
-              onUpdateEffect((current) => ({ ...current, shadow: undefined }));
-            } else if (event.target.value === "outer" || event.target.value === "inset") {
-              onUpdateEffect((current) => ({
-                ...current,
-                shadow: current?.shadow ?? defaultShadow(event.target.value as "outer" | "inset"),
-              }));
-            }
+            const mode = event.target.value;
+            if (mode !== "none" && mode !== "outer" && mode !== "inset") return;
+            if (mode === shadowMode) return;
+            runDiscrete(() => onUpdateEffect((current) => ({
+              ...current,
+              shadow: mode === "none"
+                ? undefined
+                : current?.shadow === undefined
+                  ? defaultShadow(mode)
+                  : { ...current.shadow, inset: mode === "inset" ? true : undefined },
+            })));
           }}
         >
           <option value="none">{t("inspector.shadow.none")}</option>

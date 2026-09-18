@@ -1,6 +1,7 @@
 import type { ElementEffect, Shadow } from "@powershow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber, readAbsoluteNumber } from "../inspector-helpers";
@@ -39,6 +40,13 @@ function isEnabledShadowMode(value: string): value is Exclude<ShadowMode, "none"
 
 export function CanonicalImageEffectsSection({ effect, onUpdateEffect }: Props) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const shadowMode = getShadowMode(effect?.shadow);
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "shadow.mode" } };
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
   const updateShadow = (update: (shadow: Shadow) => Shadow) =>
     onUpdateEffect((current) => ({ ...current, shadow: update(current?.shadow ?? createDefaultShadow("outer")) }));
 
@@ -51,15 +59,17 @@ export function CanonicalImageEffectsSection({ effect, onUpdateEffect }: Props) 
           name={getControlName("image", "ShadowMode")}
           value={getShadowMode(effect?.shadow)}
           onChange={(event) => {
-            if (event.target.value === "none") {
-              onUpdateEffect((current) => ({ ...current, shadow: undefined }));
-            } else if (isEnabledShadowMode(event.target.value)) {
-              const mode = event.target.value;
-              onUpdateEffect((current) => ({
-                ...current,
-                shadow: current?.shadow ?? createDefaultShadow(mode),
-              }));
-            }
+            const mode = event.target.value;
+            if (mode !== "none" && !isEnabledShadowMode(mode)) return;
+            if (mode === shadowMode) return;
+            runDiscrete(() => onUpdateEffect((current) => ({
+              ...current,
+              shadow: mode === "none"
+                ? undefined
+                : current?.shadow === undefined
+                  ? createDefaultShadow(mode)
+                  : { ...current.shadow, inset: mode === "inset" ? true : undefined },
+            })));
           }}
         >
           <option value="none">{t("inspector.shadow.none")}</option>
