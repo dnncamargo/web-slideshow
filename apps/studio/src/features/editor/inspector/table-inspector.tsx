@@ -579,7 +579,7 @@ function SimpleTableInspector({
   // ==========================================================
 
   function addColumn() {
-    updateTable((table) => {
+    const update = () => updateTable((table) => {
       const key = createUniqueColumnKey(table.columns);
 
       return {
@@ -602,6 +602,19 @@ function SimpleTableInspector({
         })),
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.addColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addColumn" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -612,11 +625,11 @@ function SimpleTableInspector({
   // BEGIN: REMOVER COLUNA
   // ==========================================================
 
-  function removeColumn(index: number) {
-    updateTable((table) => {
+  function removeColumn(index: number, expectedKey: string) {
+    const update = () => updateTable((table) => {
       const column = table.columns[index];
 
-      if (!column) {
+      if (!column || column.key !== expectedKey) {
         return table;
       }
 
@@ -640,6 +653,19 @@ function SimpleTableInspector({
         }),
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.removeColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeColumn" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -651,7 +677,7 @@ function SimpleTableInspector({
   // ==========================================================
 
   function addRow() {
-    updateTable((table) => {
+    const update = () => updateTable((table) => {
       const row: TableRow = {};
 
       for (const column of table.columns) {
@@ -664,6 +690,19 @@ function SimpleTableInspector({
         rows: [...table.rows, row],
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.addRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addRow" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -675,11 +714,30 @@ function SimpleTableInspector({
   // ==========================================================
 
   function removeRow(index: number) {
-    updateTable((table) => ({
-      ...table,
+    const update = () => updateTable((table) => {
+      if (index < 0 || index >= table.rows.length) {
+        return table;
+      }
 
-      rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
-    }));
+      return {
+        ...table,
+
+        rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
+      };
+    });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.removeRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeRow" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -771,7 +829,7 @@ function SimpleTableInspector({
                 className={styles.iconButtonDanger}
                 aria-label={t("table.removeColumn", { number: index + 1 })}
                 onClick={() => {
-                  removeColumn(index);
+                  removeColumn(index, column.key);
                 }}
               >
                 <span aria-hidden="true">×</span>
