@@ -12,6 +12,8 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
+import { useAuthoringHistory } from "../authoring-history-context";
+
 import type {
   TypedInspectorProps,
   UpdateSurfaceStyle,
@@ -43,6 +45,32 @@ function portDrafts(ports: ScriptedPort[]): ScriptedPortDraft[] {
 
 function portsDraftIdentity(ports: ScriptedPort[]): string {
   return JSON.stringify(ports);
+}
+
+type ScriptedAggregate = Pick<
+  ScriptedElement,
+  "title" | "html" | "css" | "script" | "ports"
+>;
+
+function scriptedAggregate(element: ScriptedElement): ScriptedAggregate {
+  return {
+    title: element.title,
+    html: element.html,
+    css: element.css,
+    script: element.script,
+    ports: element.ports,
+  };
+}
+
+function scriptedAggregatesEqual(
+  left: ScriptedAggregate,
+  right: ScriptedAggregate,
+): boolean {
+  return left.title === right.title
+    && left.html === right.html
+    && left.css === right.css
+    && left.script === right.script
+    && portsDraftIdentity(left.ports) === portsDraftIdentity(right.ports);
 }
 
 function portDraftToCanonical(port: ScriptedPortDraft): unknown {
@@ -93,6 +121,7 @@ export function ScriptedInspector({
   onUpdate,
 }: TypedInspectorProps<ScriptedElement>) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
 
   const [titleDraft, setTitleDraft] = useState<string>(element.title);
 
@@ -214,7 +243,15 @@ export function ScriptedInspector({
       return;
     }
 
-    if (!dirty) {
+    const candidate: ScriptedAggregate = {
+      title: titleDraft,
+      html: htmlDraft,
+      css: cssDraft,
+      script: scriptDraft,
+      ports: parsed.data.ports,
+    };
+
+    if (!dirty || scriptedAggregatesEqual(candidate, scriptedAggregate(element))) {
       return;
     }
 
@@ -224,25 +261,46 @@ export function ScriptedInspector({
     // The "Run" part of the label means: commit canonical state so
     // the shared renderer can recreate the sandboxed iframe. The
     // Inspector never executes authored JavaScript itself.
-    onUpdate((current) => {
+    const apply = () => onUpdate((current) => {
       if (current.type !== "scripted") {
+        return current;
+      }
+
+      const currentParsed = ScriptedElementSchema.safeParse({
+        ...current,
+        ...candidate,
+      });
+      if (!currentParsed.success) {
+        return current;
+      }
+
+      const currentAggregate = scriptedAggregate(current);
+      if (scriptedAggregatesEqual(candidate, currentAggregate)) {
         return current;
       }
 
       return {
         ...current,
-
-        title: titleDraft,
-
-        html: htmlDraft,
-
-        css: cssDraft,
-
-        script: scriptDraft,
-
-        ports: parsed.data.ports,
+        title: candidate.title,
+        html: candidate.html,
+        css: candidate.css,
+        script: candidate.script,
+        ports: currentParsed.data.ports,
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "scripted.applyRun" },
+        },
+        apply,
+      );
+    } else {
+      apply();
+    }
   }
 
   function resetDrafts(): void {
