@@ -26,6 +26,7 @@ import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 import { usePresentationColorPalette } from "./presentation-color-palette";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle | SimpleTableVisualStyle | StructuredTableVisualStyle;
 type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
@@ -133,6 +134,7 @@ interface Props {
 
 export function CanonicalDataAppearanceSection({ element, style, effect, showColor = false, onUpdateStyle, onUpdateEffect, controlPrefix }: Props) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const palette = usePresentationColorPalette();
   const radius = resolveEffectiveElementStyleDefaults(element).borderRadius;
   const blocksStyle = element.type === "blocks" ? element.style : undefined;
@@ -154,7 +156,10 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     const resolved = source === undefined ? undefined : resolveColorValue(source, palette ? { colors: palette.colors } : undefined);
     const color = suggestAlternatingSurfaceColor(resolved);
     if (color === undefined) return;
-    updateStructuredBackground("bodyRowAlternateBackground", color);
+    if (structuredStyle?.bodyRowAlternateBackground === color) return;
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.bodyRowAlternateBackground" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, () => updateStructuredBackground("bodyRowAlternateBackground", color));
+    else updateStructuredBackground("bodyRowAlternateBackground", color);
   };
   const resolvedStructuredBackground = structuredStyle?.background?.color === undefined
     ? undefined

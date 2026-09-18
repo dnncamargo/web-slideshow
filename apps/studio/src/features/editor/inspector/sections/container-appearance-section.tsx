@@ -87,6 +87,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
 
         <ContainerBackgroundPatternControl
           element={element}
+          localElement={localElement}
           controlPrefix="container"
           allowNone={source("style.background.pattern").linkedValue === undefined}
           onChange={(pattern, parsedColor) => updateStyle((current) => ({
