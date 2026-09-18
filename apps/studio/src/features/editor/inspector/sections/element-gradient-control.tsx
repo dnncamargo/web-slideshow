@@ -13,6 +13,7 @@ import {
 } from "../inspector-helpers";
 
 import { ColorControl } from "./color-control";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 interface ElementGradientControlProps {
   gradient: Gradient | undefined;
@@ -176,6 +177,21 @@ export function ElementGradientControl({
   allowNone = true,
 }: ElementGradientControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
 
   function updateStop(
     index: number,
@@ -210,7 +226,8 @@ export function ElementGradientControl({
             const gradientMode = event.target.value;
 
             if (gradientMode === "none") {
-              onChange(undefined);
+              if (gradient === undefined) return;
+              runDiscrete("gradient.type", () => onChange(undefined));
 
               return;
             }
@@ -220,7 +237,7 @@ export function ElementGradientControl({
             }
 
             if (gradient === undefined) {
-              onChange(createDefaultGradient(gradientMode));
+              runDiscrete("gradient.type", () => onChange(createDefaultGradient(gradientMode)));
 
               return;
             }
@@ -229,23 +246,11 @@ export function ElementGradientControl({
               return;
             }
 
-            onChange(
+            runDiscrete("gradient.type", () => onChange(
               gradientMode === "linear"
-                ? {
-                    type: "linear",
-
-                    angle: DEFAULT_LINEAR_ANGLE,
-
-                    stops: gradient.stops,
-                  }
-                : {
-                    type: "radial",
-
-                    shape: DEFAULT_RADIAL_SHAPE,
-
-                    stops: gradient.stops,
-                  },
-            );
+                ? { type: "linear", angle: DEFAULT_LINEAR_ANGLE, stops: gradient.stops }
+                : { type: "radial", shape: DEFAULT_RADIAL_SHAPE, stops: gradient.stops },
+            ));
           }}
         >
           {allowNone && (
@@ -320,11 +325,9 @@ export function ElementGradientControl({
                 return;
               }
 
-              onChange({
-                ...gradient,
-
-                shape,
-              });
+              const currentShape = gradient.shape ?? "ellipse";
+              if (currentShape === shape) return;
+              runDiscrete("gradient.shape", () => onChange({ ...gradient, shape }));
             }}
           >
             <option value="circle">
@@ -383,15 +386,11 @@ export function ElementGradientControl({
                         return;
                       }
 
-                      onChange(
-                        replaceStops(
-                          gradient,
-                          gradient.stops.filter(
-                            (_currentStop, currentIndex) =>
-                              currentIndex !== index,
-                          ),
-                        ),
-                      );
+                      runDiscrete("gradient.removeStop", () => onChange(
+                        replaceStops(gradient, gradient.stops.filter(
+                          (_currentStop, currentIndex) => currentIndex !== index,
+                        )),
+                      ));
                     }}
                   >
                     <span>{t("inspector.gradientRemoveStop")}</span>
@@ -469,8 +468,10 @@ export function ElementGradientControl({
             className={styles.secondaryButton}
             type="button"
             disabled={gradient.stops.length >= MAX_GRADIENT_STOPS}
-            onClick={() => {
-              onChange(addStop(gradient));
+          onClick={() => {
+              const nextGradient = addStop(gradient);
+              if (nextGradient === gradient) return;
+              runDiscrete("gradient.addStop", () => onChange(nextGradient));
             }}
           >
             <span>{t("inspector.gradientAddStop")}</span>

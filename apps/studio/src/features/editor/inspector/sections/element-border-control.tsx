@@ -11,6 +11,7 @@ import {
 } from "../inspector-helpers";
 
 import { ColorControl } from "./color-control";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import {
   ElementGradientControl,
@@ -84,6 +85,21 @@ export function ElementBorderControl({
   label,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
 
   const paintSelection = allowGradient
     ? getPaintSelection(border)
@@ -109,7 +125,8 @@ export function ElementBorderControl({
 
             if (borderSelection === "none") {
               if (!allowNone) return;
-              onChange(undefined);
+              if (border === undefined) return;
+              runDiscrete("border.style", () => onChange(undefined));
 
               return;
             }
@@ -120,15 +137,17 @@ export function ElementBorderControl({
 
             if (gradientPaint) {
               if (border === undefined) return;
-              onChange({ ...border, style: "solid" });
+              if (border.style === "solid") return;
+              runDiscrete("border.style", () => onChange({ ...border, style: "solid" }));
               return;
             }
 
-            onChange(
+            const nextBorder =
               border === undefined
                 ? { ...createDefaultBorder(), style: borderSelection }
-                : { ...border, style: borderSelection },
-            );
+                : { ...border, style: borderSelection };
+            if (getBorderSelection(border) === borderSelection) return;
+            runDiscrete("border.style", () => onChange(nextBorder));
           }}
         >
           {allowNone && <option value="none">{t("inspector.border.none")}</option>}
@@ -167,7 +186,8 @@ export function ElementBorderControl({
 
                     if (border === undefined) return;
 
-                    onChange(
+                    if (paintSelection === paint) return;
+                    runDiscrete("border.paint", () => onChange(
                       paint === "gradient"
                         ? {
                             ...border,
@@ -180,7 +200,7 @@ export function ElementBorderControl({
                             color: DEFAULT_BORDER_COLOR,
                             gradient: undefined,
                           },
-                    );
+                    ));
                   }}
                 >
                   <option value="color">{t("inspector.borderPaint.color")}</option>

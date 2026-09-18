@@ -64,6 +64,27 @@ function richTextContextPresentation(): Presentation {
   return { ...value, slides: [value.slides[0]!, { id: "slide-2", title: "Slide 2", summary: "", speakerNotes: "", elements: [] }] };
 }
 
+function sharedAppearancePresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "shared-appearance-history",
+    title: "Shared appearance history",
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      elements: [{
+        type: "image",
+        id: "image-1",
+        hidden: false,
+        src: "/image.png",
+        alt: "Example",
+        layout: { position: "absolute", top: 11, right: 22, bottom: 33, left: 44 },
+        style: { border: { width: 2, style: "solid", color: "#111111" } },
+      }],
+    }],
+  });
+}
+
 function key(key: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options });
 }
@@ -332,6 +353,54 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLSelectElement>("#text-text-align")?.value).toBe("left");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLSelectElement>("#text-text-align")?.value).toBe("center");
+  });
+
+  it("replays shared border paint and gradient type as discrete actions", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={sharedAppearancePresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const repeatedStyle = container.querySelector<HTMLSelectElement>("#image-border-style")!;
+    await act(async () => changeSelect(repeatedStyle, "solid"));
+    const noOpUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(noOpUndo));
+    expect(noOpUndo.defaultPrevented).toBe(false);
+
+    const paint = container.querySelector<HTMLSelectElement>("#image-border-paint")!;
+    await act(async () => changeSelect(paint, "gradient"));
+    expect(container.querySelector<HTMLSelectElement>("#image-border-gradient-type")?.value).toBe("linear");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#image-border-paint")?.value).toBe("color");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#image-border-paint")?.value).toBe("gradient");
+
+    const gradientType = container.querySelector<HTMLSelectElement>("#image-border-gradient-type")!;
+    await act(async () => changeSelect(gradientType, "radial"));
+    expect(gradientType.value).toBe("radial");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#image-border-gradient-type")?.value).toBe("linear");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#image-border-gradient-type")?.value).toBe("radial");
+  });
+
+  it("replays canonical position normalization as one discrete action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={sharedAppearancePresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")!;
+    await act(async () => changeSelect(mode, "flow"));
+    expect(container.querySelector("#element-canonical-top")).toBeNull();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")?.value).toBe("absolute");
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("11");
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-right")?.value).toBe("22");
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-bottom")?.value).toBe("33");
+    expect(container.querySelector<HTMLInputElement>("#element-canonical-left")?.value).toBe("44");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")?.value).toBe("flow");
   });
 
   it("tracks one final font-family commit as a discrete history action", async () => {
