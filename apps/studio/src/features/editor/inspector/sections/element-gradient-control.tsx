@@ -18,6 +18,9 @@ import { useAuthoringHistory } from "../../authoring-history-context";
 interface ElementGradientControlProps {
   gradient: Gradient | undefined;
 
+  /** When supplied, this is the locally authored value behind the effective gradient. */
+  authoredGradient?: { value: Gradient | undefined };
+
   onChange: (nextGradient: Gradient | undefined) => void;
 
   controlPrefix: string;
@@ -172,12 +175,33 @@ function addStop(gradient: Gradient): Gradient {
 
 export function ElementGradientControl({
   gradient,
+  authoredGradient,
   onChange,
   controlPrefix,
   allowNone = true,
 }: ElementGradientControlProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
+  function updateNumber(
+    historyKey: string,
+    nextGradient: Gradient,
+    unchanged: boolean,
+  ): void {
+    if (unchanged) {
+      return;
+    }
+
+    const update = () => onChange(nextGradient);
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
+  }
 
   function runDiscrete(setting: string, callback: () => void): void {
     const meta = {
@@ -196,7 +220,7 @@ export function ElementGradientControl({
   function updateStop(
     index: number,
     update: (currentStop: GradientStop) => GradientStop,
-  ) {
+  ): void {
     if (gradient === undefined) {
       return;
     }
@@ -287,22 +311,33 @@ export function ElementGradientControl({
                         MAX_GRADIENT_ANGLE,
                       );
 
-                onChange(
-                  angle === undefined
-                    ? {
-                        type: "linear",
+                const nextGradient: Gradient = angle === undefined
+                  ? {
+                      type: "linear",
 
-                        stops: gradient.stops,
-                      }
-                    : {
-                        type: "linear",
+                      stops: gradient.stops,
+                    }
+                  : {
+                      type: "linear",
 
-                        angle,
+                      angle,
 
-                        stops: gradient.stops,
-                      },
+                      stops: gradient.stops,
+                    };
+                const authoredValue = authoredGradient === undefined
+                  ? gradient
+                  : authoredGradient.value;
+                const unchanged = authoredValue?.type === "linear"
+                  && authoredValue.angle === angle;
+
+                updateNumber(
+                  `number:${controlPrefix}-gradient-angle`,
+                  nextGradient,
+                  unchanged,
                 );
               }}
+              onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-gradient-angle`, numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-gradient-angle`)}
             />
 
             <span>°</span>
@@ -448,12 +483,31 @@ export function ElementGradientControl({
                           maximumPosition,
                         );
 
-                        updateStop(index, (currentStop) => ({
-                          ...currentStop,
+                        const authoredValue = authoredGradient === undefined
+                          ? gradient
+                          : authoredGradient.value;
+                        const unchanged = authoredValue?.stops[index]?.position === position;
 
-                          position,
-                        }));
+                        if (unchanged) {
+                          return;
+                        }
+
+                        const nextGradient = replaceStops(
+                          gradient,
+                          gradient.stops.map((currentStop, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentStop, position }
+                              : currentStop,
+                          ),
+                        );
+                        updateNumber(
+                          `number:${controlPrefix}-gradient-stop-${index}-position`,
+                          nextGradient,
+                          unchanged,
+                        );
                       }}
+                      onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-gradient-stop-${index}-position`, numberHistoryMeta)}
+                      onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-gradient-stop-${index}-position`)}
                     />
 
                     <span>%</span>

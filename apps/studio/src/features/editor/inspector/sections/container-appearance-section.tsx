@@ -91,6 +91,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
 
         <ElementGradientControl
           gradient={background?.gradient}
+          authoredGradient={{ value: localElement.style?.background?.gradient }}
           controlPrefix="container"
           onChange={(gradient: Gradient | undefined) => updateStyle((current) => ({
             ...current,
@@ -161,6 +162,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
 
       <ElementBorderControl
         border={style?.border}
+        authoredBorder={{ value: localElement.style?.border }}
         controlPrefix="container"
         onChange={(border) => updateStyle((current) => ({ ...current, border }))}
         allowNone={source("style.border").linkedValue === undefined}
