@@ -47,6 +47,11 @@ const numberHistoryMeta = {
   labelKey: "history.number.change",
 } as const;
 
+const textEditHistoryMeta = {
+  kind: "text.edit",
+  labelKey: "history.text.edit",
+} as const;
+
 const EMBED_VIEWPORT_HISTORY_KEYS: Record<keyof EmbedViewport, string> = {
   zoom: "number:embed-viewport-zoom",
   top: "number:embed-viewport-top",
@@ -103,6 +108,14 @@ export function EmbedInspector({
 }: TypedInspectorProps<EmbedElement>) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+
+  const runTextEdit = (callback: () => void): void => {
+    if (authoringHistory) {
+      authoringHistory.discrete(textEditHistoryMeta, callback);
+    } else {
+      callback();
+    }
+  };
 
   const [srcDraft, setSrcDraft] = useState<string>(element.src);
 
@@ -235,17 +248,17 @@ export function EmbedInspector({
       setInvalidSrcMessage(null);
       setSrcDraft(src);
 
-      onUpdate((current) => {
-        if (current.type !== "embed") {
+      if (element.src === src) {
+        return;
+      }
+
+      runTextEdit(() => onUpdate((current) => {
+        if (current.type !== "embed" || current.src === src) {
           return current;
         }
 
-        return {
-          ...current,
-
-          src,
-        };
-      });
+        return { ...current, src };
+      }));
 
       return;
     }
@@ -276,17 +289,17 @@ export function EmbedInspector({
       setTitleRequiredMessage(null);
       setTitleDraft(title);
 
-      onUpdate((current) => {
-        if (current.type !== "embed") {
+      if (element.title === title) {
+        return;
+      }
+
+      runTextEdit(() => onUpdate((current) => {
+        if (current.type !== "embed" || current.title === title) {
           return current;
         }
 
-        return {
-          ...current,
-
-          title,
-        };
-      });
+        return { ...current, title };
+      }));
 
       return;
     }
