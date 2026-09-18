@@ -98,8 +98,11 @@ describe("CP4C1F continuous Container size history", () => {
     document.body.innerHTML = "";
   });
 
-  async function mount(initial = presentation()): Promise<Presentation> {
-    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={initial} /></StudioI18nProvider>));
+  async function mount(
+    initial = presentation(),
+    onSave?: (snapshot: Presentation) => Promise<void>,
+  ): Promise<Presentation> {
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={initial} onSave={onSave} /></StudioI18nProvider>));
     return initial;
   }
 
@@ -126,6 +129,39 @@ describe("CP4C1F continuous Container size history", () => {
       for (const value of values) changeInput(control, value);
       control.blur();
     });
+  }
+
+  async function authorDisplayedNumber(id: string, value: string): Promise<void> {
+    const control = input(id);
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("expected HTMLInputElement.value setter");
+    await act(async () => {
+      control.focus();
+      const tracker = (control as HTMLInputElement & {
+        _valueTracker?: { setValue: (value: string) => void };
+      })._valueTracker;
+      tracker?.setValue("");
+      setter.call(control, value);
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+      control.blur();
+    });
+  }
+
+  async function save(): Promise<void> {
+    const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent === "Save");
+    if (!button) throw new Error("save button was not rendered");
+    await act(async () => {
+      button.click();
+      await Promise.resolve();
+    });
+  }
+
+  function savedContainerWidth(snapshot: Presentation, id: string): string | number | undefined {
+    const element = snapshot.slides[0]?.elements.find((candidate) => candidate.id === id);
+    if (element?.type !== "container") throw new Error(`container ${id} was not saved`);
+    return element.layout?.width;
   }
 
   it("coalesces Width changes and keeps Height in a separate transaction", async () => {
@@ -174,19 +210,41 @@ describe("CP4C1F continuous Container size history", () => {
     expect(labelText("container-height")).toContain("Linked");
   });
 
-  it("records canonical Width normalization even when the displayed value is unchanged", async () => {
+  it("leaves native Undo alone for an ordinary local Width no-op", async () => {
     await mount();
+    await selectElement("size-local");
+
+    await authorDisplayedNumber("container-width", "70");
+    expect(input("container-width").value).toBe("70");
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(false);
+    expect(input("container-width").value).toBe("70");
+  });
+
+  it("records canonical Width normalization even when the displayed value is unchanged", async () => {
+    const saved: Presentation[] = [];
+    await mount(presentation(), async (snapshot) => {
+      saved.push(structuredClone(snapshot));
+    });
     await selectElement("size-normalization");
 
-    await editNumber("container-width", ["7", "70"]);
+    await authorDisplayedNumber("container-width", "70");
+    await save();
+    expect(savedContainerWidth(saved.at(-1)!, "size-normalization")).toBe("70%");
+
     const undo = key("z", { ctrlKey: true });
     await act(async () => window.dispatchEvent(undo));
     expect(undo.defaultPrevented).toBe(true);
+    await save();
+    expect(savedContainerWidth(saved.at(-1)!, "size-normalization")).toBe("70.0%");
 
     const redo = key("z", { ctrlKey: true, shiftKey: true });
     await act(async () => window.dispatchEvent(redo));
     expect(redo.defaultPrevented).toBe(true);
-    expect(input("container-width").value).toBe("70");
+    await save();
+    expect(savedContainerWidth(saved.at(-1)!, "size-normalization")).toBe("70%");
   });
 
   it("does not create a local override when clearing inherited size", async () => {
