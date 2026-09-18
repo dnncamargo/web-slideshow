@@ -21,6 +21,8 @@ export function BlocksContentSection({
 }: BlocksContentSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const sourceHistoryKey = `text:blocks-${element.id}-source`;
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
   const parsed = parseBlocksSource(element.source);
@@ -86,11 +88,27 @@ export function BlocksContentSection({
             ref={textareaRef}
             className={styles.textArea}
             value={element.source}
-            onChange={(event) => onUpdate((current) => (
-              current.type === "blocks" && current.source !== event.target.value
-                ? { ...current, source: event.target.value }
-                : current
-            ))}
+            onFocus={() => authoringHistory?.begin(sourceHistoryKey, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(sourceHistoryKey)}
+            onChange={(event) => {
+              const source = event.target.value;
+              if (source === element.source) {
+                return;
+              }
+
+              authoringHistory?.begin(sourceHistoryKey, textEditMeta);
+              const update = () => onUpdate((current) => (
+                current.type === "blocks" && current.source !== source
+                  ? { ...current, source }
+                  : current
+              ));
+
+              if (authoringHistory) {
+                authoringHistory.update(sourceHistoryKey, update);
+              } else {
+                update();
+              }
+            }}
             rows={8}
             data-powershow-blocks-source="true"
           />

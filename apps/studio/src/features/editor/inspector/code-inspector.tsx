@@ -44,6 +44,8 @@ export function CodeInspector({
 }: TypedInspectorProps<CodeElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const languageHistoryKey = `text:code-${element.id}-language`;
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
   const runDiscrete = (callback: () => void): void => {
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "code.showLineNumbers" } } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
@@ -151,11 +153,17 @@ export function CodeInspector({
             type="text"
             list="powershow-code-languages"
             value={element.language}
+            onFocus={() => authoringHistory?.begin(languageHistoryKey, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(languageHistoryKey)}
             onChange={(event) => {
               const language = event.target.value;
+              if (language === element.language) {
+                return;
+              }
 
-              onUpdate((current) => {
-                if (current.type !== "code") {
+              authoringHistory?.begin(languageHistoryKey, textEditMeta);
+              const update = () => onUpdate((current) => {
+                if (current.type !== "code" || current.language === language) {
                   return current;
                 }
 
@@ -165,6 +173,12 @@ export function CodeInspector({
                   language,
                 };
               });
+
+              if (authoringHistory) {
+                authoringHistory.update(languageHistoryKey, update);
+              } else {
+                update();
+              }
             }}
           />
 

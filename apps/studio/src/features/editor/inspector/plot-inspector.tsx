@@ -83,6 +83,8 @@ export function PlotInspector({
 }: TypedInspectorProps<PlotElement> & { previewControls?: PlotPreviewControls }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const sourceHistoryKey = `text:plot-${element.id}-source`;
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
   const runDiscrete = (setting: string, callback: () => void): void => {
     const meta = {
       kind: "element.setting",
@@ -243,11 +245,17 @@ export function PlotInspector({
             spellCheck={false}
             value={element.source}
             maxLength={4096}
+            onFocus={() => authoringHistory?.begin(sourceHistoryKey, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(sourceHistoryKey)}
             onChange={(event) => {
               const source = event.target.value;
+              if (source === element.source) {
+                return;
+              }
 
-              onUpdate((current) => {
-                if (current.type !== "plot") {
+              authoringHistory?.begin(sourceHistoryKey, textEditMeta);
+              const update = () => onUpdate((current) => {
+                if (current.type !== "plot" || current.source === source) {
                   return current;
                 }
 
@@ -256,6 +264,12 @@ export function PlotInspector({
                   source,
                 };
               });
+
+              if (authoringHistory) {
+                authoringHistory.update(sourceHistoryKey, update);
+              } else {
+                update();
+              }
             }}
           />
         </label>
