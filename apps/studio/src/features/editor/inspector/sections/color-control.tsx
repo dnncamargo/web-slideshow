@@ -79,7 +79,7 @@ export function ColorControl({
       return;
     }
     if (source === "picker" || source === "text") {
-      authoringHistory.begin(historyKey, { kind: "color.change", labelKey: "history.color.change" });
+      authoringHistory.begin(historyKey, historyMeta);
       authoringHistory.update(historyKey, () => onChange(color, source));
     } else {
       authoringHistory.finish(historyKey);

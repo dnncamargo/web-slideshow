@@ -48,6 +48,11 @@ function richTextPresentation(): Presentation {
   });
 }
 
+function richTextContextPresentation(): Presentation {
+  const value = richTextPresentation();
+  return { ...value, slides: [value.slides[0]!, { id: "slide-2", title: "Slide 2", summary: "", speakerNotes: "", elements: [] }] };
+}
+
 function key(key: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options });
 }
@@ -284,6 +289,43 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML).toBe(baselineMarkup);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML).toBe(finalMarkup);
+  });
+
+  it("groups inline color text edits and ignores invalid drafts", async () => {
+    await act(async () => root.unmount()); root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = container.querySelector<HTMLTextAreaElement>("#text-content")!;
+    await act(async () => { textarea.focus(); textarea.setSelectionRange(0, 1); textarea.dispatchEvent(new Event("select", { bubbles: true })); });
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-inline-color="true"]')!.click());
+    const field = container.querySelector<HTMLInputElement>("#text-inline-color-value")!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => {
+      setter.call(field, "#112233"); field.dispatchEvent(new Event("input", { bubbles: true }));
+      setter.call(field, "not-a-color"); field.dispatchEvent(new Event("input", { bubbles: true }));
+      setter.call(field, "#334455"); field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.blur();
+    });
+    const finalMarkup = container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML;
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    const baselineMarkup = container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML;
+    expect(baselineMarkup).not.toBe(finalMarkup);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.innerHTML).toBe(finalMarkup);
+  });
+
+  it("finalizes RichText when switching slide context", async () => {
+    await act(async () => root.unmount()); root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextContextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = container.querySelector<HTMLTextAreaElement>("#text-content")!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    await act(async () => { textarea.focus(); setter.call(textarea, "AB"); textarea.dispatchEvent(new Event("input", { bubbles: true })); setter.call(textarea, "ABC"); textarea.dispatchEvent(new Event("input", { bubbles: true })); });
+    await act(async () => container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']")[1]!.click());
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    await act(async () => container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']")[0]!.click());
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(container.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("A");
   });
 
   it("groups slide title typing and finalizes when changing slide context", async () => {
