@@ -158,6 +158,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+import { findElementLocation, type ElementParentRef } from "./element-hierarchy";
 import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
@@ -3608,36 +3609,73 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: moveElementToSiblingIndexById(
-                slide.elements,
-                selectedElement.id,
-                targetIndex,
-              ),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      { kind: "element.move", labelKey: "history.element.move" },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = moveElementToSiblingIndexById(
+          currentSlide.elements,
+          selectedElement.id,
+          targetIndex,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function moveElementInTree(options: Parameters<typeof moveElement>[1]) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+    commitPresentationAction(
+      { kind: "element.move", labelKey: "history.element.move" },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const source = findElementLocation(currentSlide.elements, options.elementId);
+        if (!source) return current;
+
+        const areElementParentRefsEqual = (
+          left: ElementParentRef,
+          right: ElementParentRef,
+        ): boolean => {
+          switch (left.kind) {
+            case "slide":
+              return right.kind === "slide";
+            case "container":
+              return right.kind === "container" && left.id === right.id;
+            case "content-slot":
+              return right.kind === "content-slot" && left.id === right.id;
+          }
+        };
+
+        if (
+          areElementParentRefsEqual(source.parentRef, options.targetParentRef) &&
+          ((options.targetIndex !== undefined && options.targetIndex === source.index) ||
+            (options.targetIndex === undefined && source.index === source.count - 1))
+        ) {
+          return current;
         }
 
-        const result = moveElement(slide.elements, options);
+        const result = moveElement(currentSlide.elements, options);
+        if (!result.moved) return current;
 
-        return result.moved ? { ...slide, elements: result.elements } : slide;
-      }),
-    }));
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: result.elements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function moveTopicItemInTree(
