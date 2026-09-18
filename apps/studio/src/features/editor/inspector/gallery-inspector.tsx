@@ -27,6 +27,7 @@ interface GalleryInspectorProps extends TypedInspectorProps<GalleryElement> {
 export function GalleryInspector({ element, onUpdate, selectedItemIndex = element.items.length > 0 ? 0 : null, onSelectedItemIndexChange = () => undefined, focalEditing = false, onFocalEditingChange = () => undefined, cropEditing = false, onCropEditingChange = () => undefined }: GalleryInspectorProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
   const runDiscrete = (setting: string, callback: () => void): void => {
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting } } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
@@ -38,6 +39,23 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
   const updateSelectedItem = (update: (item: GalleryItem) => GalleryItem) => {
     if (selectedItemIndex === null || selectedItemIndex === undefined || !selectedItem) return;
     updateGallery((gallery) => ({ ...gallery, items: gallery.items.map((item, index) => index === selectedItemIndex ? update(item) : item) }));
+  };
+  const updateSelectedItemText = (field: "src" | "alt", value: string): void => {
+    if (selectedItemIndex === null || selectedItemIndex === undefined || !selectedItem) return;
+    if (value === selectedItem[field]) return;
+
+    const historyKey = `text:gallery-${element.id}-item-${selectedItemIndex}-${field}`;
+    const update = () => updateSelectedItem((item) => field === "src"
+      ? { ...item, src: value }
+      : { ...item, alt: value });
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(historyKey, textEditMeta);
+    authoringHistory.update(historyKey, update);
   };
   const addItem = () => {
     const nextIndex = element.items.length;
@@ -70,8 +88,8 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
         </>}
       </div>
       {selectedItem && selectedItemIndex !== null && selectedItemIndex !== undefined ? <>
-        <label className={styles.field}><span>{t("inspector.source")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-src`} name={`galleryItemSrc_${element.id}`} className={styles.textArea} rows={2} spellCheck={false} value={selectedItem.src} data-powershow-gallery-src="true" onChange={(event) => updateSelectedItem((item) => ({ ...item, src: event.target.value }))} /></label>
-        <label className={styles.field}><span>{t("gallery.name")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-alt`} name={`galleryItemAlt_${element.id}`} className={styles.textArea} rows={2} value={selectedItem.alt} data-powershow-gallery-alt="true" onChange={(event) => updateSelectedItem((item) => ({ ...item, alt: event.target.value }))} /></label>
+        <label className={styles.field}><span>{t("inspector.source")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-src`} name={`galleryItemSrc_${element.id}`} className={styles.textArea} rows={2} spellCheck={false} value={selectedItem.src} data-powershow-gallery-src="true" onFocus={() => authoringHistory?.begin(`text:gallery-${element.id}-item-${selectedItemIndex}-src`, textEditMeta)} onBlur={() => authoringHistory?.finish(`text:gallery-${element.id}-item-${selectedItemIndex}-src`)} onChange={(event) => updateSelectedItemText("src", event.target.value)} /></label>
+        <label className={styles.field}><span>{t("gallery.name")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-alt`} name={`galleryItemAlt_${element.id}`} className={styles.textArea} rows={2} value={selectedItem.alt} data-powershow-gallery-alt="true" onFocus={() => authoringHistory?.begin(`text:gallery-${element.id}-item-${selectedItemIndex}-alt`, textEditMeta)} onBlur={() => authoringHistory?.finish(`text:gallery-${element.id}-item-${selectedItemIndex}-alt`)} onChange={(event) => updateSelectedItemText("alt", event.target.value)} /></label>
         <label className={styles.field}><span>{t("image.fit")}</span><select id={`gallery-${element.id}-item-${selectedItemIndex}-fit`} value={selectedItem.fit ?? ""} onChange={(event) => { const fit = event.target.value as GalleryFit | ""; if (fit === (selectedItem.fit ?? "")) return; runDiscrete("gallery.itemFit", () => updateSelectedItem((item) => { if (fit === "") { const { fit: _fit, ...inherited } = item; return inherited; } return { ...item, fit }; })); }}><option value="">{t("gallery.inheritFit")}</option><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
         <ImageCropControl crop={selectedItem.crop} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onCropChange={(crop) => updateSelectedItem((item) => ({ ...item, crop }))} onResetCrop={() => updateSelectedItem((item) => ({ ...item, crop: undefined }))} canvasEdit={{ editing: cropEditing, onEditingChange: onCropEditingChange }} />
         <ImageFocalPointControl focalPoint={selectedItem.focalPoint} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onFocalPointChange={(focalPoint) => updateSelectedItem((item) => ({ ...item, focalPoint }))} onResetFocalPoint={() => updateSelectedItem((item) => ({ ...item, focalPoint: undefined }))} canvasEdit={{ editing: focalEditing, onEditingChange: onFocalEditingChange }} />

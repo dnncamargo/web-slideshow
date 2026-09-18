@@ -48,6 +48,26 @@ export function ImageInspector({
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
+  const updateImageText = (field: "src" | "alt", value: string): void => {
+    if (value === element[field]) return;
+
+    const historyKey = `text:image-${element.id}-${field}`;
+    const update = () => onUpdate((current) => {
+      if (current.type !== "image") return current;
+      return field === "src"
+        ? { ...current, src: value }
+        : { ...current, alt: value };
+    });
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(historyKey, textEditMeta);
+    authoringHistory.update(historyKey, update);
+  };
   const runDiscrete = (callback: () => void): void => {
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "image.fit" } } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
@@ -88,20 +108,10 @@ export function ImageInspector({
             rows={3}
             spellCheck={false}
             value={element.src}
+            onFocus={() => authoringHistory?.begin(`text:image-${element.id}-src`, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(`text:image-${element.id}-src`)}
             onChange={(event) => {
-              const src = event.target.value;
-
-              onUpdate((current) => {
-                if (current.type !== "image") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  src,
-                };
-              });
+              updateImageText("src", event.target.value);
             }}
           />
 
@@ -119,20 +129,10 @@ export function ImageInspector({
             className={styles.textArea}
             rows={3}
             value={element.alt}
+            onFocus={() => authoringHistory?.begin(`text:image-${element.id}-alt`, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(`text:image-${element.id}-alt`)}
             onChange={(event) => {
-              const alt = event.target.value;
-
-              onUpdate((current) => {
-                if (current.type !== "image") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  alt,
-                };
-              });
+              updateImageText("alt", event.target.value);
             }}
           />
         </label>
