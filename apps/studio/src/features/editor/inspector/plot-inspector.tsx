@@ -32,6 +32,11 @@ const DEFAULT_PLOT_ANIMATION = {
   autoplay: true,
 } as const;
 
+const numberChangeHistoryMeta = {
+  kind: "number.change",
+  labelKey: "history.number.change",
+} as const;
+
 type PlotAnimationDraft = {
   enabled: boolean;
   parameter: string;
@@ -58,6 +63,10 @@ function plotAnimationDraft(animation: PlotAnimation | undefined): PlotAnimation
 
 function animationIdentity(animation: PlotAnimation | undefined): string {
   return JSON.stringify(animation ?? null);
+}
+
+function plotStyleIdentity(style: PlotVisualStyle | undefined): string {
+  return JSON.stringify(style ?? null);
 }
 
 function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle | undefined {
@@ -191,9 +200,25 @@ export function PlotInspector({
       : current);
   };
 
+  const commitAxisStyle = (update: (style: PlotVisualStyle | undefined) => PlotVisualStyle | undefined): void => {
+    const nextStyle = normalizePlotStyle(update(element.style));
+    if (plotStyleIdentity(nextStyle) === plotStyleIdentity(element.style)) return;
+
+    const apply = () => onUpdate((current) => {
+      if (current.type !== "plot") return current;
+      const currentStyle = current.style;
+      const recomputedStyle = normalizePlotStyle(update(currentStyle));
+      if (plotStyleIdentity(recomputedStyle) === plotStyleIdentity(currentStyle)) return current;
+      return { ...current, style: recomputedStyle };
+    });
+
+    if (authoringHistory) authoringHistory.discrete(numberChangeHistoryMeta, apply);
+    else apply();
+  };
+
   function commitAxisStrokeWidth(value = axisStrokeWidthDraft): void {
     if (value.trim() === "") {
-      updateStyle((current) => {
+      commitAxisStyle((current) => {
         if (current?.axes === undefined) return current;
         const next = { ...current, axes: { ...current.axes } };
         delete next.axes.strokeWidth;
@@ -204,7 +229,7 @@ export function PlotInspector({
 
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return;
-    updateStyle((current) => ({
+    commitAxisStyle((current) => ({
       ...(current ?? {}),
       axes: { ...(current?.axes ?? {}), strokeWidth: parsed },
     }));
@@ -212,7 +237,7 @@ export function PlotInspector({
 
   function commitAxisOpacity(value = axisOpacityDraft): void {
     if (value.trim() === "") {
-      updateStyle((current) => {
+      commitAxisStyle((current) => {
         if (current?.axes === undefined) return current;
         const next = { ...current, axes: { ...current.axes } };
         delete next.axes.opacity;
@@ -223,7 +248,7 @@ export function PlotInspector({
 
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) return;
-    updateStyle((current) => ({
+    commitAxisStyle((current) => ({
       ...(current ?? {}),
       axes: { ...(current?.axes ?? {}), opacity: parsed / 100 },
     }));
