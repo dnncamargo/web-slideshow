@@ -136,9 +136,13 @@ describe("element setting history integration", () => {
     if (!direction) throw new Error("container direction control was not rendered");
     await act(async () => changeSelect(direction, "row"));
     expect(direction.value).toBe("row");
-    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
     expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("row");
-    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
     expect(container.querySelector<HTMLSelectElement>("#container-direction")?.value).toBe("row");
   });
 
@@ -156,9 +160,49 @@ describe("element setting history integration", () => {
     expect(container.querySelector("#container-position-top")).toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.value).toBe("absolute");
+    expect(container.querySelector<HTMLInputElement>("#container-position-top")?.value).toBe("12");
     expect(container.querySelector<HTMLInputElement>("#container-position-right")?.value).toBe("24");
+    expect(container.querySelector<HTMLInputElement>("#container-position-bottom")?.value).toBe("36");
+    expect(container.querySelector<HTMLInputElement>("#container-position-left")?.value).toBe("48");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLSelectElement>("#container-position-mode")?.value).toBe("flow");
+    expect(container.querySelector("#container-position-top")).toBeNull();
+  });
+
+  it("tracks Preserve size for a selected flow child Container", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={presentation({
+            type: "container",
+            id: "container-preserve-parent-history",
+            hidden: false,
+            layout: { children: { mode: "flow" } },
+            children: [{
+              type: "container",
+              id: "container-preserve-child-history",
+              hidden: false,
+              children: [],
+            }],
+          })} />
+        </StudioI18nProvider>,
+      );
+    });
+    const child = container.querySelector<HTMLElement>(
+      '[data-powershow-id="container-preserve-child-history"]',
+    );
+    if (!child) throw new Error("nested Container was not rendered");
+    await act(async () => child.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const preserve = container.querySelector<HTMLInputElement>("#container-preserve-size");
+    if (!preserve) throw new Error("container preserve-size control was not rendered");
+    expect(preserve.checked).toBe(false);
+    await act(async () => preserve.click());
+    expect(container.querySelector<HTMLInputElement>("#container-preserve-size")?.checked).toBe(true);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#container-preserve-size")?.checked).toBe(false);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#container-preserve-size")?.checked).toBe(true);
   });
 
   it("tracks Container size presets atomically", async () => {
