@@ -27,6 +27,13 @@ function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...options });
 }
 
+function changeInput(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setter) throw new Error("expected HTMLInputElement.value setter");
+  setter.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function presentation(): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
@@ -268,6 +275,44 @@ describe("CP4D1A element Add and Duplicate history", () => {
     expect(container.querySelector('[data-powershow-id="container-element"]')).not.toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector('[data-powershow-id="container-element-copy"]')).not.toBeNull();
+  });
+
+  it("closes an open title transaction before committing Add", async () => {
+    await mount();
+    await chooseAddType("image");
+
+    const title = container.querySelector<HTMLInputElement>('input[aria-label="Editor"]');
+    if (!title) throw new Error("presentation title input was not rendered");
+
+    await act(async () => {
+      title.focus();
+      changeInput(title, "Edited before add");
+    });
+    expect(title.value).toBe("Edited before add");
+    expect(document.activeElement).toBe(title);
+    expect(historyState.commitHistory).not.toHaveBeenCalled();
+
+    await act(async () => addButton().click());
+    expect(title.value).toBe("Edited before add");
+    expect(container.querySelector('[data-powershow-id="image-element"]')).not.toBeNull();
+    expect(historyState.commitHistory).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(historyState.commitHistory).mock.calls[0]?.[2]).toEqual(
+      { kind: "element.add", labelKey: "history.element.add", labelParams: { elementType: "image" } },
+    );
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector('[data-powershow-id="image-element"]')).toBeNull();
+    expect(title.value).toBe("Edited before add");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(title.value).toBe("CP4D1A element history");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(title.value).toBe("Edited before add");
+    expect(container.querySelector('[data-powershow-id="image-element"]')).toBeNull();
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector('[data-powershow-id="image-element"]')).not.toBeNull();
   });
 
   it("makes Table and Topics resource preparation atomic with Add", async () => {
