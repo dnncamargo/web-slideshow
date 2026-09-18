@@ -18,6 +18,8 @@ import {
 
 import type { UpdateElementTypography } from "../inspector-types";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
+
 import { EffectiveNumberInput } from "./effective-number-input";
 import { EffectiveLengthInput } from "./effective-length-input";
 
@@ -245,6 +247,7 @@ export function ElementTypographyFields({
   visibleProperties,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
 
   const currentTypography = typography;
   const isVisible = (property: CoreTypographyProperty): boolean =>
@@ -254,6 +257,24 @@ export function ElementTypographyFields({
     update: (current: ElementTypography | undefined) => ElementTypography,
   ): void {
     onUpdateTypography?.(update);
+  }
+
+  function onUpdateDiscreteStyle(
+    setting: string,
+    update: (current: ElementTypography | undefined) => ElementTypography,
+  ): void {
+    const callback = () => onUpdateTypography?.(update);
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
   }
 
   const fontWeightSelection = readFontWeightSelection(
@@ -287,7 +308,7 @@ export function ElementTypographyFields({
             effectiveValue={effectiveDefaults.fontFamily}
             fontResources={fontResources}
             onCommit={(fontFamily) => {
-              onUpdateStyle((currentTypography) => ({
+              onUpdateDiscreteStyle("typography.fontFamily", (currentTypography) => ({
                 ...currentTypography,
 
                 fontFamily,
@@ -341,7 +362,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const fontWeight = parseFontWeightSelection(event.target.value);
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.fontWeight", (currentStyle) => ({
                 ...currentStyle,
 
                 fontWeight,
@@ -378,7 +399,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const fontStyle = parseFontStyleSelection(event.target.value);
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.fontStyle", (currentStyle) => ({
                 ...currentStyle,
 
                 fontStyle,
@@ -403,7 +424,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const textAlign = parseTextAlignSelection(event.target.value);
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.textAlign", (currentStyle) => ({
                 ...currentStyle,
 
                 textAlign,
@@ -503,7 +524,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.textTransform", (currentStyle) => ({
                 ...currentStyle,
 
                 textTransform,
@@ -536,7 +557,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const whiteSpace = parseWhiteSpaceSelection(event.target.value);
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.whiteSpace", (currentStyle) => ({
                 ...currentStyle,
 
                 whiteSpace,
@@ -569,7 +590,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.textWrapStyle", (currentStyle) => ({
                 ...currentStyle,
 
                 textWrapStyle,
@@ -596,7 +617,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.overflowWrap", (currentStyle) => ({
                 ...currentStyle,
 
                 overflowWrap,
@@ -629,7 +650,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateDiscreteStyle("typography.textDecorationLine", (currentStyle) => ({
                 ...currentStyle,
 
                 textDecorationLine,

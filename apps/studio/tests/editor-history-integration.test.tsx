@@ -44,8 +44,10 @@ function richTextPresentation(): Presentation {
         variant: "body",
         content: "A",
         typography: {
+          fontFamily: "Arial",
           fontSize: "16px",
           lineHeight: 1.2,
+          textAlign: "left",
         },
       }],
     }],
@@ -66,6 +68,19 @@ function changeInput(input: HTMLInputElement, value: string): void {
   if (!setter) throw new Error("expected HTMLInputElement.value setter");
   setter.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function changeSelect(select: HTMLSelectElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+  if (!setter) throw new Error("expected HTMLSelectElement.value setter");
+  setter.call(select, value);
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function buttonByText(container: HTMLElement, text: string): HTMLButtonElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+    (button) => button.textContent?.includes(text),
+  );
 }
 
 describe("EditorWorkspace history integration", () => {
@@ -295,6 +310,109 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("16");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("19");
+  });
+
+  it("tracks a typography select as one discrete history action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const alignment = container.querySelector<HTMLSelectElement>("#text-text-align")!;
+    expect(alignment.value).toBe("left");
+    await act(async () => changeSelect(alignment, "center"));
+    expect(container.querySelector<HTMLSelectElement>("#text-text-align")?.value).toBe("center");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#text-text-align")?.value).toBe("left");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#text-text-align")?.value).toBe("center");
+  });
+
+  it("tracks one final font-family commit as a discrete history action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const family = container.querySelector<HTMLInputElement>("#text-font-family")!;
+    expect(family.value).toBe("Arial");
+    await act(async () => {
+      family.focus();
+      changeInput(family, "MS Sans Serif");
+      family.blur();
+    });
+    expect(container.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("MS Sans Serif");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Arial");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("MS Sans Serif");
+  });
+
+  it("keeps no-link target selection local to the Interaction form", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const target = container.querySelector<HTMLSelectElement>("#text-link-target")!;
+    await act(async () => changeSelect(target, "new"));
+    expect(target.value).toBe("new");
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(false);
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+  });
+
+  it("tracks URL commits, target updates, and link removal as separate interaction actions", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={richTextPresentation()} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="text-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const url = container.querySelector<HTMLInputElement>("#text-link-url")!;
+    const href = "https://example.com/guide";
+    await act(async () => changeInput(url, href));
+    expect(buttonByText(container, "Remove link")).toBeUndefined();
+
+    await act(async () => {
+      url.focus();
+      url.blur();
+    });
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
+    expect(buttonByText(container, "Remove link")).toBeDefined();
+
+    await act(async () => {
+      const invalid = container.querySelector<HTMLInputElement>("#text-link-url")!;
+      invalid.focus();
+      changeInput(invalid, "javascript:alert(1)");
+      invalid.blur();
+    });
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe("");
+    expect(buttonByText(container, "Remove link")).toBeUndefined();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
+
+    await act(async () => changeSelect(container.querySelector<HTMLSelectElement>("#text-link-target")!, "new"));
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("same");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+
+    await act(async () => buttonByText(container, "Remove link")?.click());
+    expect(buttonByText(container, "Remove link")).toBeUndefined();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
+    expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe("");
+    expect(buttonByText(container, "Remove link")).toBeUndefined();
   });
 
   it("keeps EffectiveLengthInput reset separate from numeric editing", async () => {

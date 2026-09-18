@@ -12,6 +12,8 @@ import styles from "../../editor-workspace.module.css";
 
 import { InspectorSection } from "../inspector-section";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
+
 import type { ElementInspectorUpdate } from "../inspector-types";
 import type { CreateQrCodeFromLink } from "../inspector-types";
 
@@ -81,6 +83,7 @@ export function ElementInteractionSection({
   onCreateQrFromLink,
 }: ElementInteractionSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
 
   const [urlDraft, setUrlDraft] = useState<string>(element.link?.href ?? "");
 
@@ -126,6 +129,20 @@ export function ElementInteractionSection({
     setInvalidUrlMessage(null);
   }
 
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
+
   function commitUrlDraft(): void {
     const href = urlDraft;
 
@@ -139,13 +156,13 @@ export function ElementInteractionSection({
         return;
       }
 
-      onUpdate((current) => {
+      runDiscrete("interaction.url", () => onUpdate((current) => {
         if (!isLinkableElement(current)) {
           return current;
         }
 
         return elementWithoutLink(current);
-      });
+      }));
 
       return;
     }
@@ -154,7 +171,7 @@ export function ElementInteractionSection({
       setInvalidUrlMessage(null);
       setUrlDraft(href);
 
-      onUpdate((current) => {
+      runDiscrete("interaction.url", () => onUpdate((current) => {
         if (!isLinkableElement(current)) {
           return current;
         }
@@ -163,7 +180,7 @@ export function ElementInteractionSection({
           ...current,
           link: createCanonicalLink(href, openIn),
         };
-      });
+      }));
 
       return;
     }
@@ -202,7 +219,7 @@ export function ElementInteractionSection({
       return;
     }
 
-    onUpdate((current) => {
+    runDiscrete("interaction.target", () => onUpdate((current) => {
       if (!isLinkableElement(current)) {
         return current;
       }
@@ -216,17 +233,17 @@ export function ElementInteractionSection({
 
         link: createCanonicalLink(current.link.href, selection),
       };
-    });
+    }));
   }
 
   function handleRemoveLink(): void {
-    onUpdate((current) => {
+    runDiscrete("interaction.removeLink", () => onUpdate((current) => {
       if (!isLinkableElement(current)) {
         return current;
       }
 
       return elementWithoutLink(current);
-    });
+    }));
   }
 
   return (
