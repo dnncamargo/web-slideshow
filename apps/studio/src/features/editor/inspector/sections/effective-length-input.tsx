@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
 
 interface EffectiveLengthInputProps {
@@ -55,6 +56,9 @@ export function EffectiveLengthInput({
   onReset,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const historyKey = `length:${id}`;
+  const historyMeta = { kind: "length.change", labelKey: "history.length.change" };
   const supportedUnitsKey = units.join(",");
   const [unit, setUnit] = useState<AuthoringLengthUnit>(() =>
     getInitialUnit(preserveInheritedUnit ? value ?? inheritedValue : value, units, preferredUnit),
@@ -82,6 +86,20 @@ export function EffectiveLengthInput({
   const inherited = value === undefined;
   const inputStep = stepByUnit?.[unit] ?? step;
 
+  function beginEditing() {
+    authoringHistory?.begin(historyKey, historyMeta);
+  }
+
+  function updateValue(nextValue: Length | undefined) {
+    if (!authoringHistory) {
+      onChange(nextValue);
+      return;
+    }
+
+    authoringHistory.begin(historyKey, historyMeta);
+    authoringHistory.update(historyKey, () => onChange(nextValue));
+  }
+
   return (
     <div className={styles.effectiveNumberControl}>
       <div className={styles.unitInput}>
@@ -93,11 +111,13 @@ export function EffectiveLengthInput({
           {...(min === undefined ? {} : { min })}
           {...(inputStep === undefined ? {} : { step: inputStep })}
           value={numericValue}
+          onFocus={beginEditing}
+          onBlur={() => authoringHistory?.finish(historyKey)}
           onChange={(event) => {
             const nextValue = event.target.value.trim();
 
             if (nextValue === "") {
-              onChange(undefined);
+              updateValue(undefined);
               return;
             }
 
@@ -107,7 +127,7 @@ export function EffectiveLengthInput({
               return;
             }
 
-            onChange(serializeAuthoringLength(number, unit));
+            updateValue(serializeAuthoringLength(number, unit));
           }}
         />
 
@@ -138,7 +158,15 @@ export function EffectiveLengthInput({
             }
 
             setUnit(nextUnit);
-            onChange(serializeAuthoringLength(converted, nextUnit));
+            if (!authoringHistory) {
+              onChange(serializeAuthoringLength(converted, nextUnit));
+              return;
+            }
+
+            authoringHistory.finish(historyKey);
+            authoringHistory.discrete(historyMeta, () => {
+              onChange(serializeAuthoringLength(converted, nextUnit));
+            });
           }}
         >
           {units.map((supportedUnit) => (
@@ -160,7 +188,16 @@ export function EffectiveLengthInput({
           title={inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.useThemeDefault")}
           onClick={() => {
             setUnit(preferredUnit);
-            onReset();
+            if (!authoringHistory) {
+              onReset();
+              return;
+            }
+
+            authoringHistory.finish(historyKey);
+            authoringHistory.discrete(
+              { kind: "length.reset", labelKey: "history.length.reset" },
+              onReset,
+            );
           }}
         >
           {inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.default")}
