@@ -54,12 +54,15 @@ service cloud.firestore {
         && resource.publishedAt == request.time;
     }
 
-    // The public publication pointer must contain EXACTLY: currentVersionId,
-    // publishedRevision, publishedAt. Reject extra fields.
+    // The public publication pointer must contain EXACTLY: ownerUid,
+    // currentVersionId, publishedRevision, publishedAt. Reject extra fields.
     function publishedPointerHasValidShape() {
       let resource = request.resource.data;
       return resource.keys().hasAll(['currentVersionId', 'publishedRevision', 'publishedAt'])
-        && resource.keys().hasOnly(['currentVersionId', 'publishedRevision', 'publishedAt'])
+        && resource.keys().hasAll(['ownerUid'])
+        && resource.keys().hasOnly(['ownerUid', 'currentVersionId', 'publishedRevision', 'publishedAt'])
+        && resource.ownerUid is string
+        && resource.ownerUid.size() > 0
         && resource.currentVersionId is string
         && resource.currentVersionId.size() > 0
         && resource.publishedRevision is int
@@ -98,10 +101,18 @@ service cloud.firestore {
         && version.data.presentationJson == draft.data.presentationJson;
     }
 
-    // The public pointer create/update is authorized when it is valid and
-    // authoritative against the private draft.
-    function publishedPointerIsAuthoritative(publicationId, userId) {
+    function publishedPointerCreateIsAuthoritative(publicationId, userId) {
       return isSignedIn()
+        && publishedPointerHasValidShape()
+        && request.resource.data.ownerUid == request.auth.uid
+        && publishedPointerMatchesAuthoritativeDraft(publicationId, userId);
+    }
+
+    function publishedPointerUpdateIsAuthoritative(publicationId, userId) {
+      return isSignedIn()
+        && resource.data.ownerUid is string
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
         && publishedPointerHasValidShape()
         && publishedPointerMatchesAuthoritativeDraft(publicationId, userId);
     }
@@ -133,6 +144,7 @@ service cloud.firestore {
         /databases/$(database)/documents/publishedPresentations/$(publicationId)
       );
       return pointer != null
+        && pointer.data.ownerUid == request.auth.uid
         && pointer.data.currentVersionId == versionId
         && pointer.data.publishedRevision == resource.publishedRevision
         && pointer.data.publishedAt == resource.publishedAt;
@@ -140,6 +152,7 @@ service cloud.firestore {
 
     function archivedOwnerDraftForPublication(publicationId, version) {
       return isSignedIn()
+        && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid
         && version.data.presentationId is string
         && exists(/databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(version.data.presentationId))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(version.data.presentationId)).data.archivedAt is timestamp
@@ -167,7 +180,8 @@ service cloud.firestore {
       let pointer = get(pointerPath);
       let version = get(versionPath);
       let draftPath = /databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(version.data.presentationId);
-      return pointer.data.currentVersionId == versionId
+      return pointer.data.ownerUid == request.auth.uid
+        && pointer.data.currentVersionId == versionId
         && archivedOwnerForPublication(publicationId)
         && !existsAfter(pointerPath)
         && !existsAfter(versionPath)
@@ -180,7 +194,8 @@ service cloud.firestore {
       let versionPath = /databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(pointer.data.currentVersionId);
       let version = get(versionPath);
       let draftPath = /databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(version.data.presentationId);
-      return archivedOwnerForPublication(publicationId)
+      return pointer.data.ownerUid == request.auth.uid
+        && archivedOwnerForPublication(publicationId)
         && !existsAfter(pointerPath)
         && !existsAfter(versionPath)
         && !existsAfter(draftPath);
@@ -273,12 +288,12 @@ service cloud.firestore {
 
       allow list: if false;
 
-      allow create: if publishedPointerIsAuthoritative(
+      allow create: if publishedPointerCreateIsAuthoritative(
         publicationId,
         request.auth.uid
       );
 
-      allow update: if publishedPointerIsAuthoritative(
+      allow update: if publishedPointerUpdateIsAuthoritative(
         publicationId,
         request.auth.uid
       );
@@ -313,6 +328,7 @@ service cloud.firestore {
 
       allow delete: if isSignedIn()
         && exists(/databases/$(database)/documents/publishedPresentations/$(publicationId))
+        && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid
         && resource.data.presentationId is string
         && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.currentVersionId != versionId
         && archivedOwnerForPublication(publicationId)
@@ -321,6 +337,7 @@ service cloud.firestore {
 
       allow delete: if isSignedIn()
         && exists(/databases/$(database)/documents/publishedPresentations/$(publicationId))
+        && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid
         && resource.data.presentationId is string
         && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.currentVersionId == versionId
         && finalCurrentVersionDeleteIsAtomic(publicationId, versionId);

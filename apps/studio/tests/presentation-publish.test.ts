@@ -56,10 +56,21 @@ function draftData(overrides: Record<string, unknown> = {}) {
 
 function setupTransaction(data: Record<string, unknown>, exists = true) {
   const transaction = {
-    get: vi.fn(async () => ({
-      exists: () => exists,
-      data: () => data,
-    })),
+    get: vi.fn(async () => {
+      if (transaction.get.mock.calls.length === 1) {
+        return { exists: () => exists, data: () => data };
+      }
+      const publication = data.publication as Record<string, unknown> | undefined;
+      return {
+        exists: () => true,
+        data: () => ({
+          ownerUid: "user-1",
+          currentVersionId: publication?.currentVersionId ?? "version-current",
+          publishedRevision: publication?.publishedRevision ?? 3,
+          publishedAt: publication?.publishedAt ?? "ts",
+        }),
+      };
+    }),
     set: vi.fn(),
     update: vi.fn(),
   };
@@ -181,6 +192,7 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).toHaveBeenCalledWith(
       { id: "pointer-auto" },
       {
+        ownerUid: "user-1",
         currentVersionId: "version-auto",
         publishedRevision: 3,
         publishedAt: "server-ts",
@@ -213,6 +225,7 @@ describe("transactional presentation publishing", () => {
     );
     mocks.doc
       .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "pointer-existing" })
       .mockReturnValueOnce({ id: "version-new" })
       .mockReturnValueOnce({ id: "pointer-existing" });
 
@@ -234,6 +247,7 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).toHaveBeenCalledWith(
       { id: "pointer-existing" },
       {
+        ownerUid: "user-1",
         currentVersionId: "version-new",
         publishedRevision: 4,
         publishedAt: "server-ts",
@@ -274,8 +288,41 @@ describe("transactional presentation publishing", () => {
     });
     expect(transaction.set).not.toHaveBeenCalled();
     expect(transaction.update).not.toHaveBeenCalled();
-    // No pointer read — only the draft read.
-    expect(transaction.get).toHaveBeenCalledTimes(1);
+    // Existing publication ownership is validated before idempotency.
+    expect(transaction.get).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["ownerless", {}],
+    ["owned by another user", { ownerUid: "other-user" }],
+  ])("fails closed when an existing publication is %s", async (_label, pointerOverrides) => {
+    const draft = draftData({
+      draftRevision: 4,
+      publication: {
+        publicationId: "publication-existing",
+        currentVersionId: "version-old",
+        publishedRevision: 3,
+        publishedAt: "old-ts",
+      },
+    });
+    const transaction = setupTransaction(draft);
+    transaction.get.mockReset()
+      .mockResolvedValueOnce({ exists: () => true, data: () => draft } as never)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          currentVersionId: "version-old",
+          publishedRevision: 3,
+          publishedAt: "old-ts",
+          ...pointerOverrides,
+        }),
+      } as never);
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "pointer-existing" });
+
+    await expect(repository.publishPresentation("pres-1")).rejects.toThrow(/legacy|another user/i);
+    expect(transaction.set).not.toHaveBeenCalled();
   });
 
   it("preserves canonical Scripted source exactly in the immutable version payload", async () => {
@@ -535,6 +582,7 @@ describe("transactional presentation publishing", () => {
     expect(transaction.set).toHaveBeenCalledWith(
       { id: "pointer-auto" },
       {
+        ownerUid: "user-1",
         currentVersionId: "version-auto",
         publishedRevision: 3,
         publishedAt: "server-ts",

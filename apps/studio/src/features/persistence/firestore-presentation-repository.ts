@@ -140,6 +140,13 @@ type PublicationDeletionMetadata = {
   publishedAt: unknown;
 };
 
+type PublishedPointer = {
+  ownerUid: string;
+  currentVersionId: string;
+  publishedRevision: number;
+  publishedAt: unknown;
+};
+
 function readPublicationDeletionMetadata(
   value: unknown,
 ): PublicationDeletionMetadata | null {
@@ -170,6 +177,40 @@ function readPublicationDeletionMetadata(
 
   return {
     publicationId: candidate.publicationId,
+    currentVersionId: candidate.currentVersionId,
+    publishedRevision: candidate.publishedRevision,
+    publishedAt: candidate.publishedAt,
+  };
+}
+
+function readPublishedPointer(value: unknown): PublishedPointer | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+  if (
+    keys.join("|") !==
+    ["currentVersionId", "ownerUid", "publishedAt", "publishedRevision"]
+      .sort()
+      .join("|")
+  ) {
+    return null;
+  }
+  if (
+    typeof candidate.ownerUid !== "string" ||
+    candidate.ownerUid.length === 0 ||
+    typeof candidate.currentVersionId !== "string" ||
+    candidate.currentVersionId.length === 0 ||
+    !isNonNegativeInteger(candidate.publishedRevision) ||
+    !hasPersistedTimestamp(candidate.publishedAt)
+  ) {
+    return null;
+  }
+
+  return {
+    ownerUid: candidate.ownerUid,
     currentVersionId: candidate.currentVersionId,
     publishedRevision: candidate.publishedRevision,
     publishedAt: candidate.publishedAt,
@@ -511,21 +552,16 @@ export class FirestorePresentationRepository implements PresentationRepository {
       }
 
       const pointer = pointerSnapshot.data();
+      const parsedPointer = readPublishedPointer(pointer);
       if (
-        Object.keys(pointer).sort().join("|") !==
-          ["currentVersionId", "publishedAt", "publishedRevision"]
-            .sort()
-            .join("|") ||
-        typeof pointer.currentVersionId !== "string" ||
-        pointer.currentVersionId.length === 0 ||
-        !isNonNegativeInteger(pointer.publishedRevision) ||
-        !hasPersistedTimestamp(pointer.publishedAt) ||
-        pointer.currentVersionId !== publication.currentVersionId ||
-        pointer.publishedRevision !== publication.publishedRevision ||
-        !persistedValuesEqual(pointer.publishedAt, publication.publishedAt)
+        parsedPointer === null ||
+        parsedPointer.ownerUid !== user.uid ||
+        parsedPointer.currentVersionId !== publication.currentVersionId ||
+        parsedPointer.publishedRevision !== publication.publishedRevision ||
+        !persistedValuesEqual(parsedPointer.publishedAt, publication.publishedAt)
       ) {
         throw new FirestoreOperationError(
-          `Cannot delete published presentation "${id}" because its publication pointer is inconsistent.`,
+          `Cannot delete published presentation "${id}" because its publication pointer is missing, legacy, unauthorized, or inconsistent.`,
         );
       }
 
@@ -680,6 +716,28 @@ export class FirestorePresentationRepository implements PresentationRepository {
           draftData.publication,
         );
 
+        const publicationId = metadata.publication?.publicationId;
+        const existingPointerRef = publicationId === undefined
+          ? null
+          : doc(firestore, "publishedPresentations", publicationId);
+        const pointerSnapshot = existingPointerRef === null
+          ? null
+          : await transaction.get(existingPointerRef);
+
+        if (pointerSnapshot !== null) {
+          if (!pointerSnapshot.exists()) {
+            throw new FirestoreOperationError(
+              `Cannot publish presentation "${id}" because its publication pointer is missing.`,
+            );
+          }
+          const pointer = readPublishedPointer(pointerSnapshot.data());
+          if (pointer === null || pointer.ownerUid !== user.uid) {
+            throw new FirestoreOperationError(
+              `Cannot publish presentation "${id}" because its publication is legacy or owned by another user.`,
+            );
+          }
+        }
+
         // No new revision to publish — leave everything unchanged.
         if (
           metadata.publication &&
@@ -694,14 +752,14 @@ export class FirestorePresentationRepository implements PresentationRepository {
         }
         const presentationJson = draftData.presentationJson;
 
-        const publicationId =
-          metadata.publication?.publicationId ??
+        const resolvedPublicationId =
+          publicationId ??
           doc(collection(firestore, "publishedPresentations")).id;
         const versionRef = doc(
           collection(
             firestore,
             "publishedPresentations",
-            publicationId,
+            resolvedPublicationId,
             "versions",
           ),
         );
@@ -709,7 +767,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
         const pointerRef = doc(
           firestore,
           "publishedPresentations",
-          publicationId,
+          resolvedPublicationId,
         );
         // Reuse ONE timestamp for version, pointer, and private draft.
         const publishedAt = serverTimestamp();
@@ -722,13 +780,14 @@ export class FirestorePresentationRepository implements PresentationRepository {
           publishedAt,
         });
         transaction.set(pointerRef, {
+          ownerUid: user.uid,
           currentVersionId: versionId,
           publishedRevision: metadata.draftRevision,
           publishedAt,
         });
         transaction.update(draftRef, {
           publication: {
-            publicationId,
+            publicationId: resolvedPublicationId,
             currentVersionId: versionId,
             publishedRevision: metadata.draftRevision,
             publishedAt,
@@ -736,7 +795,7 @@ export class FirestorePresentationRepository implements PresentationRepository {
         });
 
         return {
-          publicationId,
+          publicationId: resolvedPublicationId,
           versionId,
           publishedRevision: metadata.draftRevision,
           createdVersion: true,

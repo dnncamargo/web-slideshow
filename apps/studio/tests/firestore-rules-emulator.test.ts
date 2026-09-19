@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, doc, getDocs, setDoc, writeBatch, Timestamp } from "firebase/firestore";
+import { collection, deleteField, doc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch, Timestamp } from "firebase/firestore";
 
 const projectId = "demo-web-slideshow-firestore-rules";
 const rules = readFileSync(new URL("../../../firestore.rules", import.meta.url), "utf8");
@@ -37,6 +37,7 @@ async function seedPublished(uid: string, presentationId: string, archived = tru
     const firestore = context.firestore();
     await setDoc(doc(firestore, "users", uid, "presentations", presentationId), draft(uid, presentationId, archived, publication));
     await setDoc(doc(firestore, "publishedPresentations", publicationId), {
+      ownerUid: uid,
       currentVersionId,
       publishedRevision: 2,
       publishedAt,
@@ -60,6 +61,100 @@ afterAll(async () => {
 });
 
 describe("Firestore deletion authorization", () => {
+  it("binds pointer create and update to an immutable ownerUid", async () => {
+    const owner = testEnv.authenticatedContext("pointer-owner").firestore();
+    const other = testEnv.authenticatedContext("pointer-other").firestore();
+    const publicationId = "publication-pointer-create";
+    const currentVersionId = "version-pointer-create";
+    const publishedAt = serverTimestamp();
+    const presentationJson = JSON.stringify({ pointer: true });
+    await assertSucceeds(
+      writeBatch(owner)
+        .set(doc(owner, "users", "pointer-owner", "presentations", "presentation-pointer"), {
+          presentationJson,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          draftRevision: 2,
+          publication: { publicationId, currentVersionId, publishedRevision: 2, publishedAt },
+        })
+        .set(doc(owner, "publishedPresentations", publicationId, "versions", currentVersionId), {
+          presentationId: "presentation-pointer",
+          presentationJson,
+          publishedRevision: 2,
+          publishedAt,
+        })
+        .set(doc(owner, "publishedPresentations", publicationId), {
+          ownerUid: "pointer-owner",
+          currentVersionId,
+          publishedRevision: 2,
+          publishedAt,
+        })
+        .commit(),
+    );
+    const ids = { publicationId, currentVersionId, publishedAt: Timestamp.fromMillis(3) };
+    await assertSucceeds(
+      updateDoc(doc(owner, "publishedPresentations", ids.publicationId), { ownerUid: "pointer-owner" }),
+    );
+    await assertFails(
+      updateDoc(doc(other, "publishedPresentations", ids.publicationId), { publishedRevision: 4 }),
+    );
+    await assertFails(
+      updateDoc(doc(owner, "publishedPresentations", ids.publicationId), { ownerUid: "pointer-other" }),
+    );
+    await assertFails(
+      updateDoc(doc(other, "publishedPresentations", ids.publicationId), { publishedRevision: 4 }),
+    );
+  });
+
+  it("does not let a client claim an ownerless legacy pointer", async () => {
+    const ids = await seedPublished("legacy-owner", "presentation-ownerless");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "publishedPresentations", ids.publicationId), {
+        ownerUid: deleteField(),
+      });
+    });
+    const owner = testEnv.authenticatedContext("legacy-owner").firestore();
+    await assertFails(
+      updateDoc(doc(owner, "publishedPresentations", ids.publicationId), { ownerUid: "legacy-owner" }),
+    );
+  });
+
+  it("rejects same-presentationId spoofing for every published deletion operation", async () => {
+    const ids = await seedPublished("victim", "presentation-spoof");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const firestore = context.firestore();
+      await setDoc(doc(firestore, "publishedPresentations", ids.publicationId, "versions", "version-history"), {
+        presentationId: "presentation-spoof",
+        presentationJson: JSON.stringify({ historical: true }),
+        publishedRevision: 1,
+        publishedAt: Timestamp.fromMillis(2),
+      });
+      await setDoc(
+        doc(firestore, "users", "attacker", "presentations", "presentation-spoof"),
+        draft("attacker", "presentation-spoof", true, {
+          publicationId: ids.publicationId,
+          currentVersionId: ids.currentVersionId,
+          publishedRevision: 2,
+          publishedAt: ids.publishedAt,
+        }),
+      );
+    });
+
+    const attacker = testEnv.authenticatedContext("attacker").firestore();
+    await assertFails(getDocs(collection(attacker, "publishedPresentations", ids.publicationId, "versions")));
+    await assertFails(writeBatch(attacker).delete(doc(attacker, "publishedPresentations", ids.publicationId, "versions", "version-history")).commit());
+    await assertFails(writeBatch(attacker).delete(doc(attacker, "publishedPresentations", ids.publicationId, "versions", ids.currentVersionId)).commit());
+    await assertFails(writeBatch(attacker).delete(doc(attacker, "publishedPresentations", ids.publicationId)).commit());
+    await assertFails(
+      writeBatch(attacker)
+        .delete(doc(attacker, "publishedPresentations", ids.publicationId, "versions", ids.currentVersionId))
+        .delete(doc(attacker, "publishedPresentations", ids.publicationId))
+        .delete(doc(attacker, "users", "attacker", "presentations", "presentation-spoof", "private", "notes"))
+        .delete(doc(attacker, "users", "attacker", "presentations", "presentation-spoof"))
+        .commit(),
+    );
+  });
+
   it("allows the archived owner to list and delete historical versions, but not the current version", async () => {
     const ids = await seedPublished("owner", "presentation-list");
     await testEnv.withSecurityRulesDisabled(async (context) => {

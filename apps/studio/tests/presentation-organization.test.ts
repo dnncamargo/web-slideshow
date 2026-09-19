@@ -524,6 +524,13 @@ describe("create presentation in folder", () => {
 describe("permanently deleting archived presentations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetDoc.mockReset();
+    mockedGetDocs.mockReset();
+    mockedWriteBatch.mockReset();
+    mockedWriteBatch.mockImplementation(() => ({
+      delete: vi.fn(),
+      commit: vi.fn().mockResolvedValue(undefined),
+    }) as never);
     mockedGetFirestore.mockReturnValue({} as never);
     mockedGetCurrentUser.mockReturnValue({
       uid: "user-1",
@@ -531,6 +538,77 @@ describe("permanently deleting archived presentations", () => {
     } as never);
     mockedDoc.mockReturnValue({ id: "pres-1" } as never);
   });
+
+  function publishedDraft(overrides: Record<string, unknown> = {}) {
+    return presentationDoc("pres-1", {
+      archivedAt: "archived",
+      publication: {
+        publicationId: "pub-1",
+        currentVersionId: "current-1",
+        publishedRevision: 3,
+        publishedAt: "published",
+      },
+      ...overrides,
+    });
+  }
+
+  function publishedVersion(
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> {
+    return {
+      presentationId: "pres-1",
+      presentationJson: JSON.stringify({ published: true }),
+      publishedRevision: 3,
+      publishedAt: "published",
+      ...overrides,
+    };
+  }
+
+  function setupPublishedDelete(options: {
+    pointer?: Record<string, unknown>;
+    current?: Record<string, unknown> | null;
+    historical?: Array<{ id: string; data: Record<string, unknown> }>;
+    historicalPages?: Array<Array<{ id: string; data: Record<string, unknown> }>>;
+    historicalCommitFailure?: boolean;
+  } = {}) {
+    mockedDoc.mockImplementation((...path: unknown[]) => ({ path }) as never);
+    const batches: Array<{ delete: ReturnType<typeof vi.fn>; commit: ReturnType<typeof vi.fn> }> = [];
+    mockedWriteBatch.mockImplementation(() => {
+      const batch = {
+        delete: vi.fn(),
+        commit: options.historicalCommitFailure
+          ? vi.fn().mockRejectedValue(new Error("historical failure"))
+          : vi.fn().mockResolvedValue(undefined),
+      };
+      batches.push(batch);
+      return batch as never;
+    });
+    mockedGetDoc
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedDraft() } as never)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => options.pointer ?? {
+          ownerUid: "user-1",
+          currentVersionId: "current-1",
+          publishedRevision: 3,
+          publishedAt: "published",
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        exists: () => options.current !== null,
+        data: () => options.current ?? publishedVersion(),
+      } as never);
+    const pages = options.historicalPages ?? [options.historical ?? []];
+    for (const page of pages) {
+      mockedGetDocs.mockResolvedValueOnce({
+        docs: page.map((entry) => ({ id: entry.id, ref: { id: entry.id }, data: () => entry.data })),
+      } as never);
+    }
+    if (pages.length > 0) {
+      mockedGetDocs.mockResolvedValueOnce({ docs: [] } as never);
+    }
+    return batches;
+  }
 
   it("rejects a missing draft without deleting", async () => {
     mockedGetDoc.mockResolvedValue({ exists: () => false } as never);
@@ -647,5 +725,99 @@ describe("permanently deleting archived presentations", () => {
     ).rejects.toThrow(/published/i);
 
     expect(mockedWriteBatch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ownerless pointer", { currentVersionId: "current-1", publishedRevision: 3, publishedAt: "published" }],
+    ["wrong owner", { ownerUid: "other", currentVersionId: "current-1", publishedRevision: 3, publishedAt: "published" }],
+    ["mismatched current version", { ownerUid: "user-1", currentVersionId: "other", publishedRevision: 3, publishedAt: "published" }],
+    ["mismatched revision", { ownerUid: "user-1", currentVersionId: "current-1", publishedRevision: 4, publishedAt: "published" }],
+    ["mismatched timestamp", { ownerUid: "user-1", currentVersionId: "current-1", publishedRevision: 3, publishedAt: "other" }],
+  ])("fails closed for %s", async (_label, pointer) => {
+    setupPublishedDelete({ pointer });
+
+    await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/pointer/i);
+    expect(mockedWriteBatch).not.toHaveBeenCalled();
+  });
+
+  it("deletes an owner-bound publication with exactly the four final documents", async () => {
+    const batches = setupPublishedDelete();
+
+    await repository.deleteArchivedPresentation("pres-1");
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0]?.delete).toHaveBeenCalledTimes(4);
+    expect(batches[0]?.delete.mock.calls.map(([ref]) => ref.path.slice(1).join("/"))).toEqual([
+      "publishedPresentations/pub-1/versions/current-1",
+      "publishedPresentations/pub-1",
+      "users/user-1/presentations/pres-1/private/notes",
+      "users/user-1/presentations/pres-1",
+    ]);
+  });
+
+  it.each([
+    ["missing current version", null],
+    ["wrong presentation id", publishedVersion({ presentationId: "other" })],
+    ["malformed current version", { unexpected: true }],
+    ["mismatched current revision", publishedVersion({ publishedRevision: 4 })],
+    ["mismatched current timestamp", publishedVersion({ publishedAt: "other" })],
+  ])("rejects %s before destructive cleanup", async (_label, current) => {
+    setupPublishedDelete({ current });
+
+    await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/published version|current published version/i);
+    expect(mockedWriteBatch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["zero historical versions", []],
+    ["one historical version", [{ id: "history-1", data: publishedVersion({ publishedRevision: 2, publishedAt: "older" }) }]],
+    ["several historical versions", [
+      { id: "history-1", data: publishedVersion({ publishedRevision: 1, publishedAt: "old-1" }) },
+      { id: "history-2", data: publishedVersion({ publishedRevision: 2, publishedAt: "old-2" }) },
+    ]],
+  ])("handles %s without removing the current version", async (_label, historical) => {
+    const batches = setupPublishedDelete({ historical });
+
+    await repository.deleteArchivedPresentation("pres-1");
+
+    expect(batches.at(-1)?.delete.mock.calls.map(([ref]) => ref.path.slice(1).join("/"))).toContain(
+      "publishedPresentations/pub-1/versions/current-1",
+    );
+    expect(batches.at(-1)?.delete.mock.calls.map(([ref]) => ref.path.slice(1).join("/"))).not.toContain(
+      "publishedPresentations/pub-1/versions/history-1",
+    );
+  });
+
+  it("processes historical versions in repeated bounded pages and stops before the final batch", async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      id: `history-${index}`,
+      data: publishedVersion({ publishedRevision: index, publishedAt: `old-${index}` }),
+    }));
+    const secondPage = [{ id: "history-100", data: publishedVersion({ publishedRevision: 100, publishedAt: "old-100" }) }];
+    const batches = setupPublishedDelete({ historicalPages: [firstPage, secondPage] });
+
+    await repository.deleteArchivedPresentation("pres-1");
+
+    expect(batches).toHaveLength(3);
+    expect(batches[0]?.delete).toHaveBeenCalledTimes(100);
+    expect(batches[1]?.delete).toHaveBeenCalledTimes(1);
+    expect(batches[2]?.delete).toHaveBeenCalledTimes(4);
+  });
+
+  it("rejects malformed or cross-presentation historical versions before its batch", async () => {
+    setupPublishedDelete({ historical: [{ id: "history-1", data: publishedVersion({ presentationId: "other" }) }] });
+
+    await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/published version/i);
+    expect(mockedWriteBatch).not.toHaveBeenCalled();
+  });
+
+  it("stops before the final batch when a historical batch fails", async () => {
+    const batches = setupPublishedDelete({
+      historical: [{ id: "history-1", data: publishedVersion({ publishedRevision: 2, publishedAt: "older" }) }],
+      historicalCommitFailure: true,
+    });
+
+    await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/failed to delete/i);
+    expect(batches).toHaveLength(1);
   });
 });

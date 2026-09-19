@@ -78,6 +78,7 @@ describe("published presentation reader", () => {
     ) => void;
     handler(
       snapshot(true, {
+        ownerUid: "ignored-by-domain-boundary",
         currentVersionId: " version-9 ",
         publishedRevision: 7,
         publishedAt: "ignored-by-domain-boundary",
