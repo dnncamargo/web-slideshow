@@ -6,6 +6,8 @@
   "scripts": {
     "instantiate": "node tools/instantiate.mjs",
     "test:instantiate": "node --test tools/instance-config.test.mjs",
+    "backfill:publication-owner": "node tools/backfill-publication-owner.mjs",
+    "test:publication-owner-backfill": "firebase emulators:exec --only firestore --project demo-web-slideshow-publication-owner \"node --test tools/backfill-publication-owner.test.mjs\"",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
@@ -15,6 +17,7 @@
     "node": ">=24 <25"
   },
   "devDependencies": {
+    "firebase-admin": "^14.4.0",
     "firebase-tools": "^15.30.2"
   }
 }
