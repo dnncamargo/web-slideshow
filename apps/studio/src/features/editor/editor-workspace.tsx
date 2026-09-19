@@ -5892,7 +5892,7 @@ export function EditorWorkspace({
         if (preserveAvailable) {
           return <ContainerDeletionDialog
             title={t("elementCrud.deleteDialogTitle")}
-            message={t("elementCrud.deleteContainerConfirm", { id: pendingElementDeletion.elementId })}
+            message={t("elementCrud.deleteContainerChoiceMessage", { id: pendingElementDeletion.elementId })}
             cancelLabel={t("elementCrud.cancel")}
             deleteAllLabel={t("elementCrud.deleteContainerAndChildren")}
             preserveChildrenLabel={t("elementCrud.deleteContainerPreserveChildren")}

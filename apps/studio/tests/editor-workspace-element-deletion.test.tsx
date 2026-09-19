@@ -159,4 +159,29 @@ describe("EditorWorkspace element deletion", () => {
     expect(container.querySelector('[data-presentation-id="container-1"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="child-1"]')).not.toBeNull();
   });
+
+  it("cancels the compatible container choices with Escape", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={nonEmptyContainerPresentation()} />
+        </StudioI18nProvider>,
+      );
+    });
+    await act(async () => container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+
+    const dialog = container.querySelector<HTMLDivElement>('[role="dialog"]')!;
+    expect(dialog.textContent).toContain('Choose whether to delete or keep its children.');
+    expect(Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"), (button) => button.textContent?.trim())).toEqual([
+      "Cancel",
+      "Delete container and children",
+      "Delete container, keep children",
+    ]);
+
+    await act(async () => dialog.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="container-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="child-1"]')).not.toBeNull();
+  });
 });
