@@ -1,6 +1,13 @@
 {
   "headers": [
     {
+      "source": "/__player/clear-cache",
+      "headers": [
+        { "key": "Clear-Site-Data", "value": "\"cache\"" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/__powershow/clear-cache",
       "headers": [
         { "key": "Clear-Site-Data", "value": "\"cache\"" },
@@ -129,8 +136,12 @@
   ],
   "rewrites": [
     {
+      "source": "/__player/clear-cache",
+      "destination": "/__player/clear-cache.html"
+    },
+    {
       "source": "/__powershow/clear-cache",
-      "destination": "/__powershow/clear-cache.html"
+      "destination": "/__player/clear-cache.html"
     },
     {
       "source": "/watch",

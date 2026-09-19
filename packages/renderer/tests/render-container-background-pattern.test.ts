@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { BackgroundPattern } from "@powershow/document-schema";
+import type { BackgroundPattern } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -115,10 +115,10 @@ describe("Container background patterns", () => {
     );
 
     expect(rootTag(html)).toContain("display:grid");
-    expect(html).toContain('data-powershow-id="content"');
+    expect(html).toContain('data-presentation-id="content"');
     expect(html).toContain('style="position:absolute;inset:0;z-index:-1');
     expect(html).not.toContain(
-      'powershow-container-background-pattern" style="grid-area:',
+      'presentation-container-background-pattern" style="grid-area:',
     );
   });
 
@@ -150,12 +150,12 @@ describe("Container background patterns", () => {
     expect(tag).toContain("border-radius:16px");
     expect(tag).toContain("border-width:2px");
     expect(tag).toContain("z-index:0");
-    expect(html).toContain('data-powershow-id="inner"');
-    expect(html).toContain('data-powershow-id="content"');
-    expect(html).toContain('data-powershow-container-link-surface="true"');
+    expect(html).toContain('data-presentation-id="inner"');
+    expect(html).toContain('data-presentation-id="content"');
+    expect(html).toContain('data-presentation-container-link-surface="true"');
     expect(html).toContain("z-index:100");
     expect(html.indexOf("z-index:100")).toBeGreaterThan(
-      html.indexOf("powershow-container-background-pattern"),
+      html.indexOf("presentation-container-background-pattern"),
     );
   });
 
@@ -168,7 +168,7 @@ describe("Container background patterns", () => {
     );
 
     expect(html).toBe(
-      '<div class="powershow-element powershow-container" data-powershow-id="container-fixture" data-powershow-type="container" style="display:flex;flex-direction:row"><p class="powershow-element powershow-text powershow-text-body" data-powershow-id="text-fixture" data-powershow-type="text">Content</p></div>',
+      '<div class="presentation-element presentation-container" data-presentation-id="container-fixture" data-presentation-type="container" style="display:flex;flex-direction:row"><p class="presentation-element presentation-text presentation-text-body" data-presentation-id="text-fixture" data-presentation-type="text">Content</p></div>',
     );
   });
 });

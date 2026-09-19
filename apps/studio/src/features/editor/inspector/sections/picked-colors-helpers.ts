@@ -1,4 +1,4 @@
-import { formatColorAsHex, parseColor, type Color } from "@powershow/document-schema";
+import { formatColorAsHex, parseColor, type Color } from "@web-slideshow/document-schema";
 
 const MAX_PICKED_COLORS = 16;
 

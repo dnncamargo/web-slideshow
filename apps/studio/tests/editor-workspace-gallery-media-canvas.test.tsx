@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -54,7 +54,7 @@ describe("EditorWorkspace Gallery media canvas editing", () => {
     root = createRoot(container);
     Object.assign(HTMLElement.prototype, { setPointerCapture: () => {}, releasePointerCapture: () => {}, hasPointerCapture: () => false });
     HTMLElement.prototype.getBoundingClientRect = function () {
-      if (this.dataset.powershowId === "gallery-1" || this.dataset.powershowGalleryIndex !== undefined) {
+      if (this.dataset.presentationId === "gallery-1" || this.dataset.presentationGalleryIndex !== undefined) {
         return { left: 100, top: 80, right: 500, bottom: 380, width: 400, height: 300, x: 100, y: 80, toJSON: () => ({}) };
       }
       return originalGetBoundingClientRect.call(this);
@@ -69,10 +69,10 @@ describe("EditorWorkspace Gallery media canvas editing", () => {
 
   async function mount(): Promise<void> {
     await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={presentation()} /></StudioI18nProvider>));
-    const gallery = container.querySelector<HTMLElement>('[data-powershow-id="gallery-1"]');
+    const gallery = container.querySelector<HTMLElement>('[data-presentation-id="gallery-1"]');
     if (!gallery) throw new Error("Gallery was not rendered");
     await act(async () => gallery.dispatchEvent(pointer("pointerdown", 150, 120)));
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="1"]')?.click());
   }
 
   function canvasButton(): HTMLButtonElement {
@@ -128,10 +128,10 @@ describe("EditorWorkspace Gallery media canvas editing", () => {
     await mount();
     await act(async () => canvasButton().click());
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).not.toBeNull();
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="0"]')?.click());
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).toBeNull();
     expect(container.querySelector("[class*='canvasCropSelection']")).toBeNull();
-    await act(async () => container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.dispatchEvent(pointer("pointerdown", 20, 20)));
+    await act(async () => container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.dispatchEvent(pointer("pointerdown", 20, 20)));
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).toBeNull();
   });
 
@@ -139,7 +139,7 @@ describe("EditorWorkspace Gallery media canvas editing", () => {
     await mount();
     await act(async () => canvasButton().click());
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).not.toBeNull();
-    const remove = container.querySelector<HTMLButtonElement>("[data-powershow-gallery-remove]");
+    const remove = container.querySelector<HTMLButtonElement>("[data-presentation-gallery-remove]");
     if (!remove) throw new Error("Gallery remove button was not rendered");
     await act(async () => remove.click());
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).toBeNull();
@@ -149,10 +149,10 @@ describe("EditorWorkspace Gallery media canvas editing", () => {
 
   it("closes Crop when removing the selected item lets the next item inherit its index", async () => {
     await mount();
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="0"]')?.click());
     await act(async () => canvasButton().click());
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).not.toBeNull();
-    const remove = container.querySelector<HTMLButtonElement>("[data-powershow-gallery-remove]");
+    const remove = container.querySelector<HTMLButtonElement>("[data-presentation-gallery-remove]");
     if (!remove) throw new Error("Gallery remove button was not rendered");
     await act(async () => remove.click());
     expect(container.querySelector("[class*='canvasCropSourceLoader']")).toBeNull();

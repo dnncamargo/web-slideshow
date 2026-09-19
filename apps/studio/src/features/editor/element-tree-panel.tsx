@@ -1,7 +1,7 @@
 "use client";
 
 import type {
-  PowerShowElement,
+  PresentationElement,
   Slide,
   TopicItem,
   FontResource,
@@ -9,7 +9,7 @@ import type {
   LinkedStyle,
   TextStyle,
   StructuredTableElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { useState } from "react";
 import type { DragEvent } from "react";
 
@@ -85,7 +85,7 @@ type ElementTreeDragSource =
 
 interface GalleryStructureDrop {
   source: ElementTreeDragSource;
-  target: { kind: "element"; element: PowerShowElement } | {
+  target: { kind: "element"; element: PresentationElement } | {
     kind: "gallery-item";
     galleryId: string;
     itemIndex: number;
@@ -94,7 +94,7 @@ interface GalleryStructureDrop {
 }
 
 interface ElementTreeNodeProps {
-  element: PowerShowElement;
+  element: PresentationElement;
   index: number;
   siblingCount: number;
   expandedIds: ReadonlySet<string>;
@@ -104,14 +104,14 @@ interface ElementTreeNodeProps {
   selectedGalleryItemIndex: number | null;
   dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
   onDragStart: (
-    element: PowerShowElement,
+    element: PresentationElement,
     event: DragEvent<HTMLDivElement>,
   ) => void;
   onDragOver: (
-    element: PowerShowElement,
+    element: PresentationElement,
     event: DragEvent<HTMLDivElement>,
   ) => void;
-  onDrop: (element: PowerShowElement) => void;
+  onDrop: (element: PresentationElement) => void;
   onDragEnd: () => void;
   onGalleryItemDragStart: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
   onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
@@ -134,7 +134,7 @@ interface ElementTreeNodeProps {
 interface GalleryItemTreeNodeProps {
   galleryId: string;
   itemIndex: number;
-  item: Extract<PowerShowElement, { type: "gallery" }>["items"][number];
+  item: Extract<PresentationElement, { type: "gallery" }>["items"][number];
   selected: boolean;
   onSelectElement: (selection: ElementTreeSelection) => void;
   dropTarget: { id: string; intent: TreeDropIntent; itemIndex?: number } | null;
@@ -158,14 +158,14 @@ interface TopicItemTreeNodeProps {
   onToggle: (id: string) => void;
   onSelectElement: (selection: ElementTreeSelection) => void;
   onDragStart: (
-    element: PowerShowElement,
+    element: PresentationElement,
     event: DragEvent<HTMLDivElement>,
   ) => void;
   onDragOver: (
-    element: PowerShowElement,
+    element: PresentationElement,
     event: DragEvent<HTMLDivElement>,
   ) => void;
-  onDrop: (element: PowerShowElement) => void;
+  onDrop: (element: PresentationElement) => void;
   onDragEnd: () => void;
   onGalleryItemDragStart: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
   onGalleryItemDragOver: (galleryId: string, itemIndex: number, event: DragEvent<HTMLDivElement>) => void;
@@ -211,7 +211,7 @@ function isStructuralTopicSelection(
 }
 
 function getTextPreview(
-  content: string | Extract<PowerShowElement, { type: "text" }>["content"],
+  content: string | Extract<PresentationElement, { type: "text" }>["content"],
 ): string | null {
   const normalized = getTextContentPlainText(content);
 
@@ -258,7 +258,7 @@ function collectInitiallyExpandedTopicItemIds(
 }
 
 function collectInitiallyExpandedIds(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   ids: Set<string>,
 ): void {
   for (const element of elements) {
@@ -619,7 +619,7 @@ function StructuredTableTreeNodes({
           return <li key={id} className={styles.elementTreeNode} role="treeitem" aria-selected={isSelected} aria-expanded={children.length > 1 ? expanded : undefined}>
             <div className={isSelected ? `${styles.elementTreeRow} ${styles.elementTreeSelected}` : styles.elementTreeRow}>
               {children.length > 1 ? <button className={styles.elementTreeExpand} type="button" aria-label={t(expanded ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(id)}>{expanded ? "▾" : "▸"}</button> : <span className={styles.elementTreeExpand} aria-hidden="true" />}
-              <button className={styles.elementTreeSelect} type="button" data-powershow-table-tree-column-id={column.id} onClick={() => onSelect({ kind: "column", tableId: element.id, id: column.id })}>{getStructuredColumnLabel(element, index, t)}</button>
+              <button className={styles.elementTreeSelect} type="button" data-presentation-table-tree-column-id={column.id} onClick={() => onSelect({ kind: "column", tableId: element.id, id: column.id })}>{getStructuredColumnLabel(element, index, t)}</button>
             </div>
             {expanded && children.length > 1 && (
               <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
@@ -653,7 +653,7 @@ function StructuredTableTreeNodes({
           return <li key={id} className={styles.elementTreeNode} role="treeitem" aria-selected={isSelected} aria-expanded={children.length > 1 ? expanded : undefined}>
             <div className={isSelected ? `${styles.elementTreeRow} ${styles.elementTreeSelected}` : styles.elementTreeRow}>
               {children.length > 1 ? <button className={styles.elementTreeExpand} type="button" aria-label={t(expanded ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(id)}>{expanded ? "▾" : "▸"}</button> : <span className={styles.elementTreeExpand} aria-hidden="true" />}
-              <button className={styles.elementTreeSelect} type="button" data-powershow-table-tree-row-id={row.id} onClick={() => onSelect({ kind: "row", tableId: element.id, id: row.id })}>{getStructuredRowLabel(element, index, t)}</button>
+              <button className={styles.elementTreeSelect} type="button" data-presentation-table-tree-row-id={row.id} onClick={() => onSelect({ kind: "row", tableId: element.id, id: row.id })}>{getStructuredRowLabel(element, index, t)}</button>
             </div>
             {expanded && children.length > 1 ? (
               <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
@@ -980,7 +980,7 @@ export function ElementTreePanel({
     isStructuredTableContentSlotId(slide.elements, selectedPositionForMovement.parentRef.id);
 
   function getDropIntent(
-    target: PowerShowElement,
+    target: PresentationElement,
     event: DragEvent<HTMLDivElement>,
   ): TreeDropIntent {
     const bounds = event.currentTarget.getBoundingClientRect();

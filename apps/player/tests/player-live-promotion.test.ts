@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import { startPlayer } from "../src/player-entry";
 

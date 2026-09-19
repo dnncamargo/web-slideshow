@@ -1,8 +1,8 @@
 import type {
   ElementEffect,
   ImageVisualStyle,
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -21,7 +21,7 @@ import { ImageCropControl, ImageFocalPointControl } from "./sections/image-crop-
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { useAuthoringHistory } from "../authoring-history-context";
 
-type ImageElement = Extract<PowerShowElement, { type: "image" }>;
+type ImageElement = Extract<PresentationElement, { type: "image" }>;
 
 // ============================================================
 // BEGIN: IMAGE INSPECTOR

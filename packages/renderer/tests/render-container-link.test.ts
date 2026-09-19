@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ContainerElement } from "@powershow/document-schema";
+import type { ContainerElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -52,13 +52,13 @@ describe("renderElement linked Container support", () => {
     );
 
     expect(html).toMatch(/^<div /);
-    expect(containerTag(html)).toContain('data-powershow-id="container-link"');
-    expect(containerTag(html)).toContain('data-powershow-type="container"');
+    expect(containerTag(html)).toContain('data-presentation-id="container-link"');
+    expect(containerTag(html)).toContain('data-presentation-type="container"');
 
     expect(surfaceTag(html)).toContain(
-      'data-powershow-container-link-surface="true"',
+      'data-presentation-container-link-surface="true"',
     );
-    expect(surfaceTag(html)).toContain('data-powershow-link="true"');
+    expect(surfaceTag(html)).toContain('data-presentation-link="true"');
   });
 
   it("renders the surface as the last child of the Container root", () => {
@@ -70,7 +70,7 @@ describe("renderElement linked Container support", () => {
     );
 
     expect(html.indexOf("child-text")).toBeLessThan(
-      html.indexOf('data-powershow-container-link-surface="true"'),
+      html.indexOf('data-presentation-container-link-surface="true"'),
     );
 
     expect(html.endsWith('</a></div>')).toBe(true);
@@ -264,7 +264,7 @@ describe("linked Container containing block strategy", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="floating-text"');
+    expect(html).toContain('data-presentation-id="floating-text"');
     expect(html).toContain("position:absolute");
   });
 
@@ -304,12 +304,12 @@ describe("linked Container containing block strategy", () => {
       }),
     );
 
-    const linkedStart = html.indexOf('data-powershow-id="linked-stack-child"');
+    const linkedStart = html.indexOf('data-presentation-id="linked-stack-child"');
     const linkedTag = html.slice(html.lastIndexOf("<div ", linkedStart), html.indexOf(">", linkedStart));
     expect(linkedTag).toContain("grid-area:1 / 1;z-index:1");
     expect(linkedTag).not.toContain("z-index:0");
     expect(html).toContain('style="position:absolute;inset:0;z-index:100"');
-    expect(html).toContain('data-powershow-id="front-text"');
+    expect(html).toContain('data-presentation-id="front-text"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:2"');
   });
 
@@ -340,8 +340,8 @@ describe("unlinked Container byte compatibility", () => {
     );
 
     expect(html).not.toContain("<a ");
-    expect(html).not.toContain("data-powershow-link");
-    expect(html).not.toContain("data-powershow-container-link-surface");
+    expect(html).not.toContain("data-presentation-link");
+    expect(html).not.toContain("data-presentation-container-link-surface");
     expect(html).not.toContain("z-index:");
     expect(html).not.toContain("position:relative");
   });
@@ -358,14 +358,14 @@ describe("unlinked Container byte compatibility", () => {
 
     expect(html).toMatch(/^<main /);
     expect(html).toContain(
-      'class="powershow-element powershow-container powershow-container-main"',
+      'class="presentation-element presentation-container presentation-container-main"',
     );
-    expect(html).toContain('data-powershow-id="plain-container"');
-    expect(html).toContain('data-powershow-type="container"');
-    expect(html).toContain('data-powershow-role="main"');
+    expect(html).toContain('data-presentation-id="plain-container"');
+    expect(html).toContain('data-presentation-type="container"');
+    expect(html).toContain('data-presentation-role="main"');
     expect(html).toContain("display:flex");
     expect(html).toContain("flex-direction:row");
-    expect(html).toContain('data-powershow-id="plain-child"');
+    expect(html).toContain('data-presentation-id="plain-child"');
     expect(html).toContain("Hi");
   });
 });
@@ -385,12 +385,12 @@ describe("nested linked Containers", () => {
       }),
     );
 
-    expect(countOccurrences(html, "data-powershow-container-link-surface")).toBe(
+    expect(countOccurrences(html, "data-presentation-container-link-surface")).toBe(
       1,
     );
-    expect(countOccurrences(html, "data-powershow-link")).toBe(1);
-    expect(html).toContain('data-powershow-id="inner-unlinked"');
-    expect(html).toContain('data-powershow-id="deep-text"');
+    expect(countOccurrences(html, "data-presentation-link")).toBe(1);
+    expect(html).toContain('data-presentation-id="inner-unlinked"');
+    expect(html).toContain('data-presentation-id="deep-text"');
   });
 
   it("renders both surfaces for nested linked Containers without removing either", () => {
@@ -414,7 +414,7 @@ describe("nested linked Containers", () => {
       }),
     );
 
-    expect(countOccurrences(html, "data-powershow-container-link-surface")).toBe(
+    expect(countOccurrences(html, "data-presentation-container-link-surface")).toBe(
       2,
     );
     expect(countOccurrences(html, 'href="https://example.com/outer"')).toBe(1);
@@ -428,11 +428,11 @@ describe("nested linked Containers", () => {
     // in its stacking context, and its own surface carries the
     // renderer-owned overlay z-index above everything nested inside.
     const outerSurfaceStart = html.indexOf(
-      'data-powershow-container-link-surface="true"',
+      'data-presentation-container-link-surface="true"',
     );
 
     expect(outerSurfaceStart).toBeGreaterThan(
-      html.indexOf('data-powershow-id="inner-linked"'),
+      html.indexOf('data-presentation-id="inner-linked"'),
     );
   });
 
@@ -465,21 +465,21 @@ describe("nested linked Containers", () => {
     expect(countOccurrences(html, 'href="https://example.com/image"')).toBe(1);
     expect(countOccurrences(html, 'href="https://example.com/text"')).toBe(1);
 
-    expect(html).toContain('class="powershow-element powershow-image"');
-    expect(html).toContain('data-powershow-link="true"');
+    expect(html).toContain('class="presentation-element presentation-image"');
+    expect(html).toContain('data-presentation-link="true"');
 
     // The outer surface is rendered after the descendants, so it stays
     // the top pointer surface for the whole outer box.
     const outerSurfaceStart = html.indexOf(
-      'data-powershow-container-link-surface="true"',
+      'data-presentation-container-link-surface="true"',
     );
 
     expect(outerSurfaceStart).toBeGreaterThan(
-      html.indexOf('data-powershow-id="child-image"'),
+      html.indexOf('data-presentation-id="child-image"'),
     );
 
     expect(outerSurfaceStart).toBeGreaterThan(
-      html.indexOf('data-powershow-id="child-text"'),
+      html.indexOf('data-presentation-id="child-text"'),
     );
   });
 });

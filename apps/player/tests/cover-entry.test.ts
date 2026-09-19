@@ -39,7 +39,7 @@ describe("Player cover runtime", () => {
       transition: "none",
       animatePlots: false,
     });
-    expect(root.querySelector(".powershow-player-controls")).toBeNull();
+    expect(root.querySelector(".player-controls")).toBeNull();
   });
 
   it("keeps unavailable and error states safe without projection or writes", async () => {

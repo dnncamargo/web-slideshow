@@ -7,7 +7,7 @@ import {
 import { ColorValueSchema } from "./palette";
 
 import {
-  PowerShowElementSchema,
+  PresentationElementSchema,
 } from "./elements";
 
 import {
@@ -103,7 +103,7 @@ export const SlideSchema = z.object({
     .optional(),
 
   elements: z
-    .array(PowerShowElementSchema)
+    .array(PresentationElementSchema)
     .default([]),
 
   background:

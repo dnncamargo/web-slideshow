@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema, TextElementSchema } from "../src";
+import { PresentationElementSchema, TextElementSchema } from "../src";
 
 describe("TextElementSchema rich text", () => {
   it("parses legacy plain text content as a string", () => {
@@ -260,7 +260,7 @@ describe("TextElementSchema rich text", () => {
 
 describe("Textbox rejection", () => {
   it("rejects a legacy Textbox element", () => {
-    const result = PowerShowElementSchema.safeParse({
+    const result = PresentationElementSchema.safeParse({
       type: "textbox",
       id: "textbox-1",
       hidden: false,

@@ -1,7 +1,7 @@
 import type {
   Color,
   PresentationPalette,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export interface CustomLibraryPaletteColor {
   name: string;

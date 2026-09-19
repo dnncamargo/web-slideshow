@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Separator } from "@powershow/ui";
+import { Button, Separator } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { PresentationSummary } from "../persistence/presentation-persistence";

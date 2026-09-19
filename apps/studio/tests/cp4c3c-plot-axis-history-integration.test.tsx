@@ -9,7 +9,7 @@ import {
   type PlotElement,
   type PlotVisualStyle,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   AuthoringHistoryContext,
@@ -188,7 +188,7 @@ describe("CP4C3C Plot axis stroke width and opacity history", () => {
   }
 
   async function selectPlot(): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${PLOT_ID}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${PLOT_ID}"]`);
     if (!element) throw new Error("Plot element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

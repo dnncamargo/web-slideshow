@@ -7,10 +7,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TextElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -42,11 +42,11 @@ function text(id: string, overrides: Partial<TextElement> = {}): TextElement {
   };
 }
 
-function container(id: string, children: PowerShowElement[]): ContainerElement {
+function container(id: string, children: PresentationElement[]): ContainerElement {
   return { id, type: "container", hidden: false, children };
 }
 
-function presentation(elements: PowerShowElement[], includeBodyOverride = true): Presentation {
+function presentation(elements: PresentationElement[], includeBodyOverride = true): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4f3-text-style-relationship-history",
@@ -74,7 +74,7 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function findText(elements: readonly PowerShowElement[], id: string): TextElement | undefined {
+function findText(elements: readonly PresentationElement[], id: string): TextElement | undefined {
   for (const element of elements) {
     if (element.type === "text" && element.id === id) return element;
     if (element.type === "container") {
@@ -141,7 +141,7 @@ describe("CP4F3 Text Style relationship history", () => {
   }
 
   async function selectText(id: string): Promise<void> {
-    const target = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const target = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!target) throw new Error(`Rendered Text was not found: ${id}`);
     await act(async () => target.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

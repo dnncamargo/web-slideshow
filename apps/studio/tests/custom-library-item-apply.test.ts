@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema, resolveTextStyle, type FontFaceResource, type LinkedStyle, type Presentation, type TextStyle } from "@powershow/document-schema";
+import { PresentationSchema, resolveTextStyle, type FontFaceResource, type LinkedStyle, type Presentation, type TextStyle } from "@web-slideshow/document-schema";
 
 import { applyCustomLibraryItemToPresentation } from "../src/features/custom-library/custom-library-item-apply";
 import type { CustomLibraryItemDraft } from "../src/features/custom-library/custom-library-item";

@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import type {
   ContentSlot,
   ImageElement,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   StructuredTableElement,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-} from "@powershow/document-schema";
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+} from "@web-slideshow/document-schema";
 
 import {
   addColumnToStructuredTable,
@@ -41,7 +41,7 @@ import {
   updateElementById,
 } from "../src/features/editor/element-hierarchy";
 
-function text(id: string, content = id): PowerShowElement {
+function text(id: string, content = id): PresentationElement {
   return {
     type: "text",
     id,
@@ -62,7 +62,7 @@ function image(id: string): ImageElement {
   };
 }
 
-function container(id: string, children: PowerShowElement[] = []): PowerShowElement {
+function container(id: string, children: PresentationElement[] = []): PresentationElement {
   return {
     type: "container",
     id,
@@ -71,7 +71,7 @@ function container(id: string, children: PowerShowElement[] = []): PowerShowElem
   };
 }
 
-function contentSlot(id: string, children: PowerShowElement[] = []): ContentSlot {
+function contentSlot(id: string, children: PresentationElement[] = []): ContentSlot {
   return {
     id,
     children,
@@ -111,7 +111,7 @@ function structuredTable(
   };
 }
 
-function slide(elements: PowerShowElement[]): Slide {
+function slide(elements: PresentationElement[]): Slide {
   return {
     id: "slide",
     title: "",
@@ -121,14 +121,14 @@ function slide(elements: PowerShowElement[]): Slide {
   };
 }
 
-function collectIds(element: PowerShowElement): string[] {
+function collectIds(element: PresentationElement): string[] {
   const ids = new Set<string>();
   collectAuthoringIds(element, ids);
   return [...ids];
 }
 
 function countElementOccurrences(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
 ): number {
   let count = 0;
@@ -157,7 +157,7 @@ function countElementOccurrences(
   return count;
 }
 
-function isStructured(element: PowerShowElement): element is StructuredTableElement {
+function isStructured(element: PresentationElement): element is StructuredTableElement {
   return element.type === "table" && element.mode === "structured";
 }
 
@@ -620,17 +620,17 @@ describe("structured table creation and structure", () => {
     const created = createElement("table", [slide([])]);
     if (created.type !== "table" || created.mode !== "structured") throw new Error("Expected a Structured Table");
 
-    expect(created.columns[0]?.header.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
-    expect(created.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID });
+    expect(created.columns[0]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(created.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
 
     const withColumn = addColumnToStructuredTable([slide([created])], created.id)[0]?.elements[0];
     if (withColumn?.type !== "table" || withColumn.mode !== "structured") throw new Error("Expected a Structured Table");
-    expect(withColumn.columns[1]?.header.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
-    expect(withColumn.rows[0]?.cells[1]?.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID });
+    expect(withColumn.columns[1]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(withColumn.rows[0]?.cells[1]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
 
     const withRow = addRowToStructuredTable([slide([withColumn])], withColumn.id)[0]?.elements[0];
     if (withRow?.type !== "table" || withRow.mode !== "structured") throw new Error("Expected a Structured Table");
-    expect(withRow.rows[1]?.cells.every((cell) => cell.children[0]?.type === "text" && cell.children[0].variant === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
+    expect(withRow.rows[1]?.cells.every((cell) => cell.children[0]?.type === "text" && cell.children[0].variant === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
   });
 
   it("adds a column preserving every row length", () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
-import { encodePresentationForFirestore } from "@powershow/firebase";
+import { encodePresentationForFirestore } from "@web-slideshow/firebase";
 import {
   extractPresentationSummary,
   normalizeFolderId,

@@ -1,7 +1,7 @@
-# DS.RULES.md — PowerShow DeepSeek Execution Policy
+# DS.RULES.md — web-slideshow DeepSeek Execution Policy
 
 This file defines execution rules specifically for DeepSeek agents working on
-PowerShow through OpenCode.
+the web-slideshow repository through OpenCode.
 
 It is NOT the architectural source of truth for the repository.
 
@@ -24,7 +24,7 @@ Use this precedence:
 
 `AGENTS.md` is authoritative for:
 
-- current PowerShow architecture;
+- current application architecture;
 - repository structure;
 - domain contracts;
 - current feature boundaries;
@@ -35,7 +35,7 @@ Use this precedence:
 `DS.RULES.md` is authoritative only for how DeepSeek should execute work.
 
 If this file and `AGENTS.md` differ because this file reflects an older
-PowerShow architecture, follow `AGENTS.md`.
+application architecture, follow `AGENTS.md`.
 
 If they differ only in agent autonomy, scope discipline, implementation
 strategy, or reasoning authority, follow the stricter rule in this file.
@@ -62,7 +62,7 @@ Preferred work:
 - adapting code to an explicitly changed contract;
 - validation and diff inspection.
 
-Do not independently redesign PowerShow.
+Do not independently redesign the application.
 
 When implementation reveals an architectural decision that was not specified,
 stop before making that decision and report it.
@@ -326,7 +326,7 @@ git branch --show-current
 
 ## 11. Shell environment
 
-PowerShow development normally runs in Windows PowerShell.
+Repository development normally runs in Windows PowerShell.
 
 Prefer PowerShell-native commands.
 

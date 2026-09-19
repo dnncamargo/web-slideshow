@@ -1,4 +1,4 @@
-import type { PowerShowElement, PresentationPalette } from "@powershow/document-schema";
+import type { PresentationElement, PresentationPalette } from "@web-slideshow/document-schema";
 
 import {
   getDefaultSelectedPropertyPaths,
@@ -12,13 +12,13 @@ export type ElementPropertySelectionMap =
   ReadonlyMap<string, ReadonlySet<string>>;
 
 export interface CustomLibraryElementRecipe {
-  type: PowerShowElement["type"];
+  type: PresentationElement["type"];
   properties: ElementRecipeProperty[];
   children?: CustomLibraryElementRecipe[];
 }
 
 function composeRecipeNode(
-  element: PowerShowElement,
+  element: PresentationElement,
   selections: ElementPropertySelectionMap,
   palette?: PresentationPalette,
 ): CustomLibraryElementRecipe {
@@ -41,7 +41,7 @@ function composeRecipeNode(
 }
 
 export function composeCustomLibraryElementRecipe(
-  root: PowerShowElement,
+  root: PresentationElement,
   selections: ElementPropertySelectionMap,
   palette?: PresentationPalette,
 ): CustomLibraryElementRecipe {

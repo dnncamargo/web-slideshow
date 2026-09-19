@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import {
   addClipboardEntry,
@@ -17,8 +17,8 @@ import {
   type ClipboardSessionState,
 } from "../src/features/editor/clipboard-session";
 
-const element = (id: string): PowerShowElement =>
-  ({ id, type: "divider" } as PowerShowElement);
+const element = (id: string): PresentationElement =>
+  ({ id, type: "divider" } as PresentationElement);
 
 const entry = (id: string, pinned = false): ClipboardEntry => ({
   id,
@@ -46,7 +46,7 @@ describe("Clipboard session state", () => {
       id: "container",
       type: "container",
       children: [element("child")],
-    } as unknown as Extract<PowerShowElement, { type: "container" }>;
+    } as unknown as Extract<PresentationElement, { type: "container" }>;
 
     const snapshot = createClipboardEntry(source);
     expect(snapshot.id).not.toBe(source.id);

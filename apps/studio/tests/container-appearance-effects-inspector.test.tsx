@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema, PresentationSchema, type ContainerElement, type PowerShowElement, type Presentation } from "@powershow/document-schema";
+import { PresentationElementSchema, PresentationSchema, type ContainerElement, type PresentationElement, type Presentation } from "@web-slideshow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -36,8 +36,8 @@ function changeInput(input: HTMLInputElement, value: string): void {
 describe("Container canonical appearance and effects inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let state: PowerShowElement;
-  let updates: PowerShowElement[];
+  let state: PresentationElement;
+  let updates: PresentationElement[];
   let linkedPresentation: Presentation | undefined;
 
   function renderInspector(): void {
@@ -121,7 +121,7 @@ describe("Container canonical appearance and effects inspector", () => {
     expect(state.style?.borderRadius).toBe(12);
     expect(state.style).not.toHaveProperty("opacity");
     expect(state.style).not.toHaveProperty("shadow");
-    expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(state).success).toBe(true);
   });
 
   it("clears opacity and shadow independently", async () => {

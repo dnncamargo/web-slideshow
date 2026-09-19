@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
-import type { BlocksElement } from "@powershow/document-schema";
+import type { BlocksElement } from "@web-slideshow/document-schema";
 import { BlocksInspector } from "../src/features/editor/inspector/blocks-inspector";
 import { BlocksContentSection } from "../src/features/editor/inspector/sections/blocks-content-section";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
@@ -29,7 +29,7 @@ describe("Blocks source Inspector", () => {
     });
     expect(current.source).toBe("\\scope(Repeat");
     await act(async () => root.render(<StudioI18nProvider><BlocksContentSection element={current} onUpdate={onUpdate} /></StudioI18nProvider>));
-    expect(host.querySelector('[data-powershow-blocks-syntax="invalid"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-blocks-syntax="invalid"]')).not.toBeNull();
     await act(async () => root.unmount());
     host.remove();
   });
@@ -39,9 +39,9 @@ describe("Blocks source Inspector", () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => root.render(<StudioI18nProvider><BlocksContentSection element={element()} onUpdate={() => {}} /></StudioI18nProvider>));
-    expect(host.querySelectorAll("[data-powershow-blocks-toolbar] button")).toHaveLength(7);
+    expect(host.querySelectorAll("[data-presentation-blocks-toolbar] button")).toHaveLength(7);
     expect(host.textContent).toContain("Blocks source");
-    expect(host.querySelector('[data-powershow-blocks-syntax="valid"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-blocks-syntax="valid"]')).not.toBeNull();
     await act(async () => root.unmount());
     host.remove();
   });
@@ -63,11 +63,11 @@ describe("Blocks source Inspector", () => {
     });
     await edit("\\statement(one)\n\\scope(Two");
     await render();
-    expect(host.querySelector('[data-powershow-blocks-syntax="invalid"]')?.textContent).toContain("Line 2, column 11");
+    expect(host.querySelector('[data-presentation-blocks-syntax="invalid"]')?.textContent).toContain("Line 2, column 11");
     expect(host.textContent).toContain('Expected ")" to close "\\scope".');
     await edit("\\statement(one)\n\\statement(two)");
     await render();
-    expect(host.querySelector('[data-powershow-blocks-syntax="valid"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-blocks-syntax="valid"]')).not.toBeNull();
     expect(current.source).toBe("\\statement(one)\n\\statement(two)");
     await act(async () => root.unmount());
     host.remove();
@@ -144,7 +144,7 @@ describe("Blocks source Inspector", () => {
     let current = element("");
     const render = async () => act(async () => root.render(<StudioI18nProvider><BlocksContentSection element={current} onUpdate={(update) => { current = update(current) as BlocksElement; void render(); }} /></StudioI18nProvider>));
     await render();
-    const toolbar = host.querySelector('[data-powershow-blocks-toolbar="true"]');
+    const toolbar = host.querySelector('[data-presentation-blocks-toolbar="true"]');
     expect(Array.from(toolbar?.querySelectorAll("button") ?? [], (button) => button.textContent)).toEqual(["EV", "STM", "SCO", "END", "VAL", "VAR", "01"]);
     const textarea = host.querySelector("textarea");
     if (!textarea || !toolbar) throw new Error("Blocks source controls missing");
@@ -152,7 +152,7 @@ describe("Blocks source Inspector", () => {
 
     await act(async () => (toolbar?.querySelector("button:nth-child(2)") as HTMLButtonElement).click());
     expect(current.source).toBe("\\statement()");
-    await act(async () => (host.querySelector('[data-powershow-blocks-toolbar] button:nth-child(5)') as HTMLButtonElement).click());
+    await act(async () => (host.querySelector('[data-presentation-blocks-toolbar] button:nth-child(5)') as HTMLButtonElement).click());
     expect(current.source).toBe("\\statement(\\value())");
     const sourceTextarea = host.querySelector<HTMLTextAreaElement>("textarea");
     if (!sourceTextarea) throw new Error("source textarea missing");
@@ -163,7 +163,7 @@ describe("Blocks source Inspector", () => {
     const selectedTextarea = host.querySelector<HTMLTextAreaElement>("textarea");
     if (!selectedTextarea) throw new Error("source textarea missing");
     selectedTextarea.focus(); selectedTextarea.setSelectionRange(0, selectedTextarea.value.length);
-    await act(async () => (host.querySelector('[data-powershow-blocks-toolbar] button:nth-child(2)') as HTMLButtonElement).click());
+    await act(async () => (host.querySelector('[data-presentation-blocks-toolbar] button:nth-child(2)') as HTMLButtonElement).click());
     expect(current.source).toBe("\\statement(Mover 10 passos)");
     await act(async () => root.unmount());
     host.remove();

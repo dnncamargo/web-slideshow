@@ -10,7 +10,7 @@ import {
   stripLocalTextStyleProperties,
   type Presentation,
   type TextElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
 import { ElementInspector } from "../src/features/editor/element-inspector";

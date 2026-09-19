@@ -19,7 +19,7 @@ export interface ObservableAuthState {
 /**
  * Normalize Firebase auth state into the Studio's three-state model.
  *
- * Anonymous Firebase users are NOT valid PowerShow authoring users: they
+ * Anonymous Firebase users are NOT valid authoring users: they
  * resolve to "unauthenticated" so an anonymous session never grants Studio
  * access.
  */

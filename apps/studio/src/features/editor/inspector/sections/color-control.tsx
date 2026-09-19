@@ -4,7 +4,7 @@ import {
   type ColorValue,
   isPaletteColorReference,
   resolveColorValue,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -201,7 +201,7 @@ export function ColorControl({
           {picked && picked.colors.length > 0 ? (
             <>
               <span className={styles.colorPaletteLabel}>{t("inspector.picked")}</span>
-              <div className={`${styles.colorPaletteActions} ${styles.colorPalettePickedActions}`} data-powershow-picked-colors="true">
+              <div className={`${styles.colorPaletteActions} ${styles.colorPalettePickedActions}`} data-presentation-picked-colors="true">
                 {picked.colors.map((color, index) => (
                   <div className={styles.colorPaletteEntry} key={`${color}-${index}`}>
                     <button

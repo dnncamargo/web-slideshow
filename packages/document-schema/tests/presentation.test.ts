@@ -26,7 +26,7 @@ import {
 
 describe("PresentationSchema", () => {
   describe("valid presentations", () => {
-    it("accepts the comprehensive PowerShow presentation", () => {
+    it("accepts the comprehensive presentation", () => {
       const result =
         PresentationSchema.safeParse(
           validPresentation,

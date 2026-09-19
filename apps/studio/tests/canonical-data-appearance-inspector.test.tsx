@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CodeElement, Gradient, TerminalElement } from "@powershow/document-schema";
+import type { CodeElement, Gradient, TerminalElement } from "@web-slideshow/document-schema";
 import { CodeInspector } from "../src/features/editor/inspector/code-inspector";
 import { TerminalInspector } from "../src/features/editor/inspector/terminal-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -69,7 +69,7 @@ function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
 
 function selectEditorRange(host: HTMLElement, editorId: string, start: number, end: number): HTMLElement {
   const editor = host.querySelector<HTMLElement>(`#${editorId}`)?.closest<HTMLElement>(
-    '[data-powershow-text-editor="true"]',
+    '[data-presentation-text-editor="true"]',
   );
   const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`#${editorId}`);
   if (!editor || !input) throw new Error(`editor not found: ${editorId}`);
@@ -140,15 +140,15 @@ describe("canonical data Appearance controls", () => {
     const source = host.querySelector<HTMLTextAreaElement>("#code-source");
     expect(source?.value).toBe("  const value = 1;\nnext");
     expect(source?.value).not.toContain("[object Object]");
-    const editor = source?.closest<HTMLElement>('[data-powershow-text-editor="true"]');
+    const editor = source?.closest<HTMLElement>('[data-presentation-text-editor="true"]');
     expect(editor).not.toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-format="bold"]')).not.toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-format="italic"]')).not.toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-format="underline"]')).not.toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-format="code"]')).toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-line-break="true"]')).toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-color="true"]')).not.toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-format-clear-formatting="true"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format="bold"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format="italic"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format="underline"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format="code"]')).toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-line-break="true"]')).toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-color="true"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format-clear-formatting="true"]')).not.toBeNull();
     expect(source?.rows).toBe(10);
     expect(source?.className).toContain("codeTextArea");
     expect(source?.getAttribute("spellcheck")).toBe("false");
@@ -163,15 +163,15 @@ describe("canonical data Appearance controls", () => {
 
     let editor: HTMLElement | null = null;
     await act(async () => { editor = selectEditorRange(host, "code-source", 0, 5); });
-    await act(async () => editorButton(editor!, '[data-powershow-inline-format="bold"]').click());
-    editor = host.querySelector<HTMLElement>('[data-powershow-text-editor="true"]');
+    await act(async () => editorButton(editor!, '[data-presentation-inline-format="bold"]').click());
+    editor = host.querySelector<HTMLElement>('[data-presentation-text-editor="true"]');
 
     expect(state.code).toEqual({
       type: "rich-text",
       runs: [{ text: "const", marks: { bold: true } }, { text: " value = 1;" }],
     });
-    expect(editor?.querySelector('[data-powershow-inline-format="italic"]')).not.toBeNull();
-    expect(editor?.querySelector('[data-powershow-inline-format="underline"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format="italic"]')).not.toBeNull();
+    expect(editor?.querySelector('[data-presentation-inline-format="underline"]')).not.toBeNull();
     expect(state.language).toBe("typescript");
     expect(state.showLineNumbers).toBe(false);
     expect(state.highlightedLines).toEqual([1]);
@@ -337,14 +337,14 @@ describe("Terminal authoring controls", () => {
     const line = host.querySelector<HTMLTextAreaElement>('textarea[id*="line-0-content"]');
     expect(title?.value).toBe("Terminal");
     expect(title?.getAttribute("aria-label")).toBe("Title");
-    const titleEditor = title?.closest<HTMLElement>('[data-powershow-text-editor="true"]');
+    const titleEditor = title?.closest<HTMLElement>('[data-presentation-text-editor="true"]');
     expect(titleEditor).not.toBeNull();
     expect(titleEditor?.closest("label")).toBeNull();
-    expect(titleEditor?.querySelector('[data-powershow-inline-format="bold"]')).not.toBeNull();
-    expect(titleEditor?.querySelector('[data-powershow-inline-format="italic"]')).not.toBeNull();
-    expect(titleEditor?.querySelector('[data-powershow-inline-format="underline"]')).not.toBeNull();
-    expect(titleEditor?.querySelector('[data-powershow-inline-color="true"]')).not.toBeNull();
-    expect(titleEditor?.querySelector('[data-powershow-inline-format-clear-formatting="true"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-presentation-inline-format="bold"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-presentation-inline-format="italic"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-presentation-inline-format="underline"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-presentation-inline-color="true"]')).not.toBeNull();
+    expect(titleEditor?.querySelector('[data-presentation-inline-format-clear-formatting="true"]')).not.toBeNull();
     expect(line?.value).toBe("failure");
 
     await act(async () => changeInput(title!, "Renamed"));
@@ -370,24 +370,24 @@ describe("Terminal authoring controls", () => {
 
     let titleEditor: HTMLElement | null = null;
     await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
-    expect(editorButton(titleEditor!, '[data-powershow-inline-format="bold"]')).not.toBeNull();
-    expect(editorButton(titleEditor!, '[data-powershow-inline-format="italic"]')).not.toBeNull();
-    expect(editorButton(titleEditor!, '[data-powershow-inline-format="underline"]')).not.toBeNull();
-    expect(titleEditor!.querySelector('[data-powershow-inline-format="code"]')).toBeNull();
-    expect(titleEditor!.querySelector('[data-powershow-inline-line-break="true"]')).toBeNull();
+    expect(editorButton(titleEditor!, '[data-presentation-inline-format="bold"]')).not.toBeNull();
+    expect(editorButton(titleEditor!, '[data-presentation-inline-format="italic"]')).not.toBeNull();
+    expect(editorButton(titleEditor!, '[data-presentation-inline-format="underline"]')).not.toBeNull();
+    expect(titleEditor!.querySelector('[data-presentation-inline-format="code"]')).toBeNull();
+    expect(titleEditor!.querySelector('[data-presentation-inline-line-break="true"]')).toBeNull();
 
-    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format="bold"]').click());
+    await act(async () => editorButton(titleEditor!, '[data-presentation-inline-format="bold"]').click());
     await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
-    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format="italic"]').click());
+    await act(async () => editorButton(titleEditor!, '[data-presentation-inline-format="italic"]').click());
     await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
-    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format="underline"]').click());
+    await act(async () => editorButton(titleEditor!, '[data-presentation-inline-format="underline"]').click());
 
     await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
-    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-color="true"]').click());
+    await act(async () => editorButton(titleEditor!, '[data-presentation-inline-color="true"]').click());
     await act(async () => changeInput(host.querySelector<HTMLInputElement>("#terminal-title-inline-color-value")!, "#ff0000"));
 
     await act(async () => { titleEditor = selectEditorRange(host, "terminal-title", 0, 8); });
-    await act(async () => editorButton(titleEditor!, '[data-powershow-inline-format-clear-formatting="true"]').click());
+    await act(async () => editorButton(titleEditor!, '[data-presentation-inline-format-clear-formatting="true"]').click());
 
     expect(state.title).toEqual("Terminal title");
     expect(state.titleStyle).toEqual(titleStyle);
@@ -404,16 +404,16 @@ describe("Terminal authoring controls", () => {
     });
     await act(async () => renderInspector());
 
-    const editors = Array.from(host.querySelectorAll('[data-powershow-text-editor="true"]'));
+    const editors = Array.from(host.querySelectorAll('[data-presentation-text-editor="true"]'));
     expect(editors).toHaveLength(3);
     expect(new Set(Array.from(host.querySelectorAll("[id]")).map((node) => node.id)).size)
       .toBe(host.querySelectorAll("[id]").length);
 
     let lineEditor: HTMLElement | null = null;
     await act(async () => { lineEditor = selectEditorRange(host, "terminal-canonical-terminal-line-0-content", 0, 5); });
-    expect(lineEditor!.querySelector('[data-powershow-inline-format="code"]')).toBeNull();
-    expect(lineEditor!.querySelector('[data-powershow-inline-line-break="true"]')).toBeNull();
-    await act(async () => editorButton(lineEditor!, '[data-powershow-inline-format="underline"]').click());
+    expect(lineEditor!.querySelector('[data-presentation-inline-format="code"]')).toBeNull();
+    expect(lineEditor!.querySelector('[data-presentation-inline-line-break="true"]')).toBeNull();
+    await act(async () => editorButton(lineEditor!, '[data-presentation-inline-format="underline"]').click());
 
     expect(state.lines[0]?.type).toBe("command");
     expect(state.lines[1]?.content).toEqual({ type: "rich-text", runs: [{ text: "second", marks: { italic: true } }] });

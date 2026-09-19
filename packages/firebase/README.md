@@ -1,5 +1,5 @@
-# @powershow/firebase
+# @web-slideshow/firebase
 
-IntegraÃ§Ã£o Firebase do PowerShow.
+IntegraÃ§Ã£o Firebase da aplicaÃ§Ã£o.
 
 Ainda nÃ£o implementada.

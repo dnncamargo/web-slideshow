@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type CodeElement, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type CodeElement, type Presentation } from "@web-slideshow/document-schema";
 
 import { AuthoringHistoryContext } from "../src/features/editor/authoring-history-context";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
@@ -76,7 +76,7 @@ describe("CP4C3A Code highlighted lines history", () => {
   }
 
   async function selectCode(): Promise<void> {
-    const canvasElement = host.querySelector<HTMLElement>(`[data-powershow-id="${CODE_ID}"]`);
+    const canvasElement = host.querySelector<HTMLElement>(`[data-presentation-id="${CODE_ID}"]`);
     if (!canvasElement) throw new Error("code element was not rendered");
     await act(async () => canvasElement.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -88,7 +88,7 @@ describe("CP4C3A Code highlighted lines history", () => {
   }
 
   function highlightedLineNumbers(): number[] {
-    return Array.from(host.querySelectorAll<HTMLElement>(".powershow-code-line-highlighted"))
+    return Array.from(host.querySelectorAll<HTMLElement>(".presentation-code-line-highlighted"))
       .map((line) => Number(line.dataset.line));
   }
 

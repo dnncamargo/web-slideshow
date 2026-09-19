@@ -4,7 +4,7 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { ImageElementSchema, type ImageElement } from "@powershow/document-schema";
+import { ImageElementSchema, type ImageElement } from "@web-slideshow/document-schema";
 
 import { ImageInspector } from "../src/features/editor/inspector/image-inspector";
 import {

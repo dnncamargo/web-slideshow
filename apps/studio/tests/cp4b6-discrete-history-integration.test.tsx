@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -111,7 +111,7 @@ describe("CP4B6 discrete authoring history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -187,17 +187,17 @@ describe("CP4B6 discrete authoring history", () => {
     await act(async () => preset("Bottom right").click());
     expect(input("gallery-cp4b6-gallery-item-0-focal-x").value).toBe("100");
     expect(input("gallery-cp4b6-gallery-item-0-focal-y").value).toBe("100");
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select="true"][data-powershow-gallery-index="1"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select="true"][data-presentation-gallery-index="1"]')?.click());
     expect(input("gallery-cp4b6-gallery-item-1-focal-x").value).toBe("70");
     expect(input("gallery-cp4b6-gallery-item-1-focal-y").value).toBe("80");
-    expect(container.querySelector<HTMLTextAreaElement>('[data-powershow-gallery-src="true"]')?.value).toBe("/two.png");
+    expect(container.querySelector<HTMLTextAreaElement>('[data-presentation-gallery-src="true"]')?.value).toBe("/two.png");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select="true"][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select="true"][data-presentation-gallery-index="0"]')?.click());
     expect(input("gallery-cp4b6-gallery-item-0-focal-x").value).toBe("10");
     expect(input("gallery-cp4b6-gallery-item-0-focal-y").value).toBe("20");
     expect(input("gallery-cp4b6-gallery-item-0-crop-width").value).toBe("80");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select="true"][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select="true"][data-presentation-gallery-index="0"]')?.click());
     expect(input("gallery-cp4b6-gallery-item-0-focal-x").value).toBe("100");
     expect(input("gallery-cp4b6-gallery-item-0-focal-y").value).toBe("100");
   });

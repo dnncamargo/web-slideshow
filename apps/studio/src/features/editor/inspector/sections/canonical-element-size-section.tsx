@@ -1,8 +1,8 @@
-import type { ResizablePositionedLayout } from "@powershow/document-schema";
+import type { ResizablePositionedLayout } from "@web-slideshow/document-schema";
 import {
   parseAuthoringLength,
   type AuthoringLengthUnit,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

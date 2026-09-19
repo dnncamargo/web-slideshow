@@ -1,6 +1,6 @@
 import type {
   Length,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export function renderLength(
   value: Length,

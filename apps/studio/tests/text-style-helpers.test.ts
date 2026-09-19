@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema, POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, POWERSHOW_TOPICS_TEXT_STYLE_ID } from "@powershow/document-schema";
+import { PresentationSchema, SYSTEM_TABLE_CELL_TEXT_STYLE_ID, SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, SYSTEM_TOPICS_TEXT_STYLE_ID } from "@web-slideshow/document-schema";
 import { addCustomTextStyle, createTextStyleId, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 
 const base = () => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "", elements: [] }] });
@@ -42,10 +42,10 @@ describe("presentation typography style authoring", () => {
 
   it("uses reserved Structured Table IDs without adding styles to a new presentation", () => {
     expect(base()).not.toHaveProperty("textStyles");
-    expect(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID).toBe("powershow:table-column-header");
-    expect(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID).toBe("powershow:table-cell");
-    expect(createTextStyleId("powershow:table-column-header", [])).not.toBe(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
-    expect(createTextStyleId("powershow:table-cell", [])).not.toBe(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID);
+    expect(SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID).toBe("system:table-column-header");
+    expect(SYSTEM_TABLE_CELL_TEXT_STYLE_ID).toBe("system:table-cell");
+    expect(createTextStyleId("powershow:table-column-header", [])).not.toBe(SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
+    expect(createTextStyleId("powershow:table-cell", [])).not.toBe(SYSTEM_TABLE_CELL_TEXT_STYLE_ID);
   });
 
   it("ensures canonical Table styles by ID and preserves same-name and renamed styles", () => {
@@ -53,14 +53,14 @@ describe("presentation typography style authoring", () => {
     const prepared = ensureStructuredTableTextStyles(sameName);
     expect(prepared.presentation.textStyles).toEqual([
       { id: "column-header", name: "Column header", role: "body" },
-      { id: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Column header", role: "body" },
-      { id: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, name: "Table cell", role: "body" },
+      { id: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Column header", role: "body" },
+      { id: SYSTEM_TABLE_CELL_TEXT_STYLE_ID, name: "Table cell", role: "body" },
     ]);
 
-    const renamed = updateCustomTextStyle(prepared.presentation, POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, { name: "My headers" });
+    const renamed = updateCustomTextStyle(prepared.presentation, SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, { name: "My headers" });
     const reused = ensureStructuredTableTextStyles(renamed);
     expect(reused.presentation).toEqual(renamed);
-    expect(reused.ids.columnHeader).toBe(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
+    expect(reused.ids.columnHeader).toBe(SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
   });
 
   it("lazily ensures one canonical Topics style by ID", () => {
@@ -69,10 +69,10 @@ describe("presentation typography style authoring", () => {
 
     expect(prepared.textStyles).toEqual([
       { id: "topics", name: "Topics", role: "body" },
-      { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
+      { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
     ]);
     expect(ensureTopicsTextStyle(prepared)).toBe(prepared);
-    expect(POWERSHOW_TOPICS_TEXT_STYLE_ID).toBe("powershow:topics");
+    expect(SYSTEM_TOPICS_TEXT_STYLE_ID).toBe("system:topics");
   });
 
   it("preserves IDs when editing and validates custom style creation", () => {

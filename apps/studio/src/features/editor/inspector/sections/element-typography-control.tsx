@@ -1,10 +1,10 @@
-import type { ElementTypography, FontResource } from "@powershow/document-schema";
-import { TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES } from "@powershow/document-schema";
+import type { ElementTypography, FontResource } from "@web-slideshow/document-schema";
+import { TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES } from "@web-slideshow/document-schema";
 import {
   convertAuthoringLength,
   resolveEffectiveNumericStyleValue,
   type ThemeTypographyDefaults,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";

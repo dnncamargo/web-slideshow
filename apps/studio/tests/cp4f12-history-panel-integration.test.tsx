@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 import { HistoryPanel } from "../src/features/editor/clipboard-panel";
 import type { HistoryActionMeta } from "../src/features/editor/editor-history-state";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";

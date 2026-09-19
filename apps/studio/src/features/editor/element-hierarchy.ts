@@ -1,12 +1,12 @@
 import type {
   ContainerElement,
   ContentSlot,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   StructuredTableElement,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export type ElementParentRef =
   | { kind: "slide" }
@@ -20,22 +20,22 @@ export interface ElementSiblingPosition {
 }
 
 export interface ElementLocation {
-  element: PowerShowElement;
+  element: PresentationElement;
   parentRef: ElementParentRef;
   index: number;
   count: number;
 }
 
-function isContainer(element: PowerShowElement): element is ContainerElement {
+function isContainer(element: PresentationElement): element is ContainerElement {
   return element.type === "container";
 }
 
-function isTopics(element: PowerShowElement): element is TopicsElement {
+function isTopics(element: PresentationElement): element is TopicsElement {
   return element.type === "topics";
 }
 
 export function isStructuredTable(
-  element: PowerShowElement,
+  element: PresentationElement,
 ): element is StructuredTableElement {
   return element.type === "table" && element.mode === "structured";
 }
@@ -74,7 +74,7 @@ function findElementInStructuredTableSlots(
 function findElementInStructuredTableById(
   table: StructuredTableElement,
   id: string,
-): PowerShowElement | null {
+): PresentationElement | null {
   for (const column of table.columns) {
     const found = findElementById(column.header.children, id);
 
@@ -98,7 +98,7 @@ function findElementInStructuredTableById(
 
 function someStructuredTableSlots(
   table: StructuredTableElement,
-  predicate: (element: PowerShowElement) => boolean,
+  predicate: (element: PresentationElement) => boolean,
 ): boolean {
   for (const column of table.columns) {
     if (someElements(column.header.children, predicate)) {
@@ -151,7 +151,7 @@ function findContentSlotInStructuredTable(
 }
 
 export function isStructuredTableContentSlotId(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   slotId: string,
 ): boolean {
   for (const element of elements) {
@@ -179,8 +179,8 @@ export function isStructuredTableContentSlotId(
 export function updateStructuredTableSlots(
   table: StructuredTableElement,
   transform: (
-    children: PowerShowElement[],
-  ) => PowerShowElement[],
+    children: PresentationElement[],
+  ) => PresentationElement[],
 ): StructuredTableElement | null {
   let columnsChanged = false;
 
@@ -272,7 +272,7 @@ function structuredTableContainsTopicItemContentSlot(
   return false;
 }
 
-function getTopicItemContentChildren(topicItem: TopicItem): PowerShowElement[] {
+function getTopicItemContentChildren(topicItem: TopicItem): PresentationElement[] {
   return topicItem.content.children;
 }
 
@@ -302,7 +302,7 @@ function findElementInTopicItems(
 }
 
 export function findElementLocation(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
   parentRef: ElementParentRef = { kind: "slide" },
 ): ElementLocation | null {
@@ -355,9 +355,9 @@ export function findElementLocation(
 }
 
 export function findElementById(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
-): PowerShowElement | null {
+): PresentationElement | null {
   for (const element of elements) {
     if (element.id === id) {
       return element;
@@ -402,7 +402,7 @@ export function findElementById(
 function findTopicItemElementById(
   items: readonly TopicItem[],
   id: string,
-): PowerShowElement | null {
+): PresentationElement | null {
   for (const item of items) {
     const found = findElementById(item.content.children, id);
 
@@ -423,12 +423,12 @@ function findTopicItemElementById(
 function updateTopicItems(
   items: readonly TopicItem[],
   id: string,
-  update: (element: PowerShowElement) => PowerShowElement,
+  update: (element: PresentationElement) => PresentationElement,
 ): TopicItem[] {
   let changed = false;
 
   const nextItems: TopicItem[] = items.map((item) => {
-    const updatedContentChildren = updatePowerShowElements(
+    const updatedContentChildren = updatePresentationElements(
       item.content.children,
       id,
       update,
@@ -460,21 +460,21 @@ function updateTopicItems(
   return changed ? nextItems : (items as TopicItem[]);
 }
 
-function updatePowerShowElements(
-  elements: readonly PowerShowElement[],
+function updatePresentationElements(
+  elements: readonly PresentationElement[],
   id: string,
-  update: (element: PowerShowElement) => PowerShowElement,
-): PowerShowElement[] {
+  update: (element: PresentationElement) => PresentationElement,
+): PresentationElement[] {
   let changed = false;
 
-  const nextElements: PowerShowElement[] = elements.map((element) => {
+  const nextElements: PresentationElement[] = elements.map((element) => {
     if (element.id === id) {
       changed = true;
       return update(element);
     }
 
     if (isContainer(element)) {
-      const children = updatePowerShowElements(element.children, id, update);
+      const children = updatePresentationElements(element.children, id, update);
 
       if (children === element.children) {
         return element;
@@ -487,7 +487,7 @@ function updatePowerShowElements(
 
     if (isStructuredTable(element)) {
       const updated = updateStructuredTableSlots(element, (children) =>
-        updatePowerShowElements(children, id, update),
+        updatePresentationElements(children, id, update),
       );
 
       if (updated === null) {
@@ -514,20 +514,20 @@ function updatePowerShowElements(
     return element;
   });
 
-  return changed ? nextElements : (elements as PowerShowElement[]);
+  return changed ? nextElements : (elements as PresentationElement[]);
 }
 
 export function updateElementById(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
-  update: (element: PowerShowElement) => PowerShowElement,
-): PowerShowElement[] {
-  return updatePowerShowElements(elements, id, update);
+  update: (element: PresentationElement) => PresentationElement,
+): PresentationElement[] {
+  return updatePresentationElements(elements, id, update);
 }
 
 function someTopicItems(
   items: readonly TopicItem[],
-  predicate: (element: PowerShowElement) => boolean,
+  predicate: (element: PresentationElement) => boolean,
 ): boolean {
   for (const item of items) {
     if (someElements(item.content.children, predicate)) {
@@ -543,8 +543,8 @@ function someTopicItems(
 }
 
 function someElements(
-  elements: readonly PowerShowElement[],
-  predicate: (element: PowerShowElement) => boolean,
+  elements: readonly PresentationElement[],
+  predicate: (element: PresentationElement) => boolean,
 ): boolean {
   for (const element of elements) {
     if (predicate(element)) {
@@ -568,8 +568,8 @@ function someElements(
 }
 
 export function someElement(
-  elements: readonly PowerShowElement[],
-  predicate: (element: PowerShowElement) => boolean,
+  elements: readonly PresentationElement[],
+  predicate: (element: PresentationElement) => boolean,
 ): boolean {
   return someElements(elements, predicate);
 }
@@ -591,7 +591,7 @@ function collectTopicItemIds(
 }
 
 export function collectAuthoringIds(
-  element: PowerShowElement,
+  element: PresentationElement,
   ids: Set<string>,
 ): void {
   ids.add(element.id);
@@ -632,7 +632,7 @@ export function collectAuthoringIds(
 }
 
 export function collectAuthoringIdsFromElements(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
 ): Set<string> {
   const ids = new Set<string>();
 
@@ -644,9 +644,9 @@ export function collectAuthoringIdsFromElements(
 }
 
 export function getElementsForParentRef(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   parentRef: ElementParentRef,
-): readonly PowerShowElement[] | null {
+): readonly PresentationElement[] | null {
   if (parentRef.kind === "slide") {
     return elements;
   }
@@ -661,7 +661,7 @@ export function getElementsForParentRef(
 }
 
 export function findContentSlotById(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
 ): ContentSlot | null {
   for (const element of elements) {
@@ -740,7 +740,7 @@ function findContentSlotInTopicItems(
  * so a TopicsElement remains valid inside them.
  */
 export function isTopicItemContentSlotId(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   slotId: string,
 ): boolean {
   for (const element of elements) {
@@ -817,7 +817,7 @@ function findTopicItemInTopicItems(
 }
 
 export function findTopicItemById(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
 ): TopicItem | null {
   for (const element of elements) {
@@ -876,7 +876,7 @@ function findTopicItemSiblingPositionInItems(
 }
 
 export function findTopicItemSiblingPosition(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   owningTopicsId: string,
   contentSlotId: string,
 ): TopicItemSiblingPosition | null {
@@ -888,7 +888,7 @@ export function findTopicItemSiblingPosition(
 }
 
 export function collectContainerIds(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   ids: Set<string>,
 ): void {
   for (const element of elements) {
@@ -912,7 +912,7 @@ export function collectContainerIds(
 
 /** Visits Containers in canonical authoring order, including slot content. */
 export function visitContainers(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   visit: (container: ContainerElement) => void,
 ): void {
   for (const element of elements) {
@@ -943,8 +943,8 @@ export function visitContainers(
 
 /** Visits every authored element in canonical order, including slot content. */
 export function visitElements(
-  elements: readonly PowerShowElement[],
-  visit: (element: PowerShowElement) => void,
+  elements: readonly PresentationElement[],
+  visit: (element: PresentationElement) => void,
 ): void {
   for (const element of elements) {
     visit(element);
@@ -971,7 +971,7 @@ export function visitElements(
 
 function visitTopicItemElements(
   items: readonly TopicItem[],
-  visit: (element: PowerShowElement) => void,
+  visit: (element: PresentationElement) => void,
 ): void {
   for (const item of items) {
     visitElements(item.content.children, visit);
@@ -991,7 +991,7 @@ function visitContainersInTopicItems(
 
 /** Counts linked Container references using the canonical hierarchy traversal. */
 export function collectLinkedStyleReferenceCounts(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   counts: Map<string, number> = new Map(),
 ): Map<string, number> {
   for (const element of elements) {

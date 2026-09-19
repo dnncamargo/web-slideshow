@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MathGeometryResult, MathViewport2D } from "@powershow/math-source";
+import type { MathGeometryResult, MathViewport2D } from "@web-slideshow/math-source";
 import { renderMathGeometrySvg } from "../src/render-plot-svg";
 
 const squareViewport: MathViewport2D = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
@@ -71,12 +71,12 @@ describe("renderMathGeometrySvg", () => {
     ]), squareViewport, { x: "x", y: "f(x)" });
 
     expect(svg.match(/<line /g)).toHaveLength(2);
-    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-x"');
-    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-y"');
+    expect(svg).toContain('class="presentation-plot-axis presentation-plot-axis-x"');
+    expect(svg).toContain('class="presentation-plot-axis presentation-plot-axis-y"');
     expect(svg).toContain('stroke-width="1"');
     expect(svg.indexOf("<line")).toBeLessThan(svg.indexOf("<path"));
-    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-x"');
-    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-y"');
+    expect(svg).toContain('class="presentation-plot-axis-label presentation-plot-axis-label-x"');
+    expect(svg).toContain('class="presentation-plot-axis-label presentation-plot-axis-label-y"');
     expect(svg).toContain(">x</text>");
     expect(svg).toContain(">f(x)</text>");
     expect(svg.match(/<path /g)).toHaveLength(1);
@@ -105,8 +105,8 @@ describe("renderMathGeometrySvg", () => {
       axisStyle: { opacity: 0.5 },
     });
 
-    expect(svg.match(/<line[^>]*class="powershow-plot-axis[^>]*opacity="0\.5"/g)).toHaveLength(2);
-    expect(svg.match(/<text[^>]*class="powershow-plot-axis-label[^>]*opacity="0\.5"/g)).toHaveLength(2);
+    expect(svg.match(/<line[^>]*class="presentation-plot-axis[^>]*opacity="0\.5"/g)).toHaveLength(2);
+    expect(svg.match(/<text[^>]*class="presentation-plot-axis-label[^>]*opacity="0\.5"/g)).toHaveLength(2);
     expect(svg).toContain('stroke="currentColor" stroke-width="2"');
     expect(svg.match(/<path[^>]*opacity="/g)).toBeNull();
   });
@@ -116,8 +116,8 @@ describe("renderMathGeometrySvg", () => {
       [{ x: -1, y: -1 }, { x: 1, y: 1 }],
     ]), squareViewport, { x: "x", y: "y" });
 
-    expect(svg.match(/<line[^>]*class="powershow-plot-axis[^>]*opacity="/g)).toBeNull();
-    expect(svg.match(/<text[^>]*class="powershow-plot-axis-label[^>]*opacity="/g)).toBeNull();
+    expect(svg.match(/<line[^>]*class="presentation-plot-axis[^>]*opacity="/g)).toBeNull();
+    expect(svg.match(/<text[^>]*class="presentation-plot-axis-label[^>]*opacity="/g)).toBeNull();
   });
 
   it("uses x/y labels for non-explicit-y plots", () => {
@@ -135,7 +135,7 @@ describe("renderMathGeometrySvg", () => {
       [{ x: 1, y: 1 }, { x: 2, y: 2 }],
     ]), { xMin: 1, xMax: 2, yMin: 1, yMax: 2 }, { x: "x", y: "y" });
 
-    expect(svg).not.toContain("powershow-plot-axis");
+    expect(svg).not.toContain("presentation-plot-axis");
     expect(svg).not.toContain("<text");
   });
 
@@ -146,7 +146,7 @@ describe("renderMathGeometrySvg", () => {
     const shown = renderMathGeometrySvg(geometryValue, squareViewport, { x: "x", y: "y" });
     const hidden = renderMathGeometrySvg(geometryValue, squareViewport, { x: "x", y: "y", showAxes: false });
 
-    expect(hidden).not.toContain("powershow-plot-axis");
+    expect(hidden).not.toContain("presentation-plot-axis");
     expect(hidden).not.toContain("<text");
     expect(hidden.match(/ d="([^"]+)"/)?.[1]).toBe(shown.match(/ d="([^"]+)"/)?.[1]);
   });

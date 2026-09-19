@@ -1,10 +1,10 @@
-import type { Length } from "@powershow/document-schema";
+import type { Length } from "@web-slideshow/document-schema";
 import {
   convertAuthoringLength,
   parseAuthoringLength,
   serializeAuthoringLength,
   type AuthoringLengthUnit,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";

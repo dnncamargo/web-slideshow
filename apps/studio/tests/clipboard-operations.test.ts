@@ -2,20 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   moveClipboardElement,
   resolveClipboardPasteDestination,
 } from "../src/features/editor/clipboard-operations";
 
-const divider = (id: string): PowerShowElement =>
-  ({ id, type: "divider" } as PowerShowElement);
+const divider = (id: string): PresentationElement =>
+  ({ id, type: "divider" } as PresentationElement);
 
 const presentation = (
-  slides: Array<{ id: string; title: string; elements: readonly PowerShowElement[] }>,
+  slides: Array<{ id: string; title: string; elements: readonly PresentationElement[] }>,
 ): Presentation =>
   PresentationSchema.parse({
     schemaVersion: 1,
@@ -35,19 +35,19 @@ describe("Clipboard paste destination", () => {
       resolveClipboardPasteDestination([source], "source", source, null),
     ).toEqual({ kind: "slide" });
 
-    const container = { id: "container", type: "container", children: [source] } as unknown as PowerShowElement;
+    const container = { id: "container", type: "container", children: [source] } as unknown as PresentationElement;
     expect(
       resolveClipboardPasteDestination([container], "source", source, null),
     ).toEqual({ kind: "container", id: "container" });
 
-    const rootContainer = { id: "root-container", type: "container", children: [] } as unknown as PowerShowElement;
+    const rootContainer = { id: "root-container", type: "container", children: [] } as unknown as PresentationElement;
     expect(
       resolveClipboardPasteDestination([rootContainer], "root-container", rootContainer, null),
     ).toEqual({ kind: "slide" });
   });
 
   it("uses a different selected Container as the explicit receiver", () => {
-    const container = { id: "container", type: "container", children: [] } as unknown as PowerShowElement;
+    const container = { id: "container", type: "container", children: [] } as unknown as PresentationElement;
     expect(
       resolveClipboardPasteDestination([container], "source", container, null),
     ).toEqual({ kind: "container", id: "container" });
@@ -56,8 +56,8 @@ describe("Clipboard paste destination", () => {
   it.each(["terminal", "plot", "code", "container"] as const)(
     "%s snapshots can use a different Container as receiver",
     (type) => {
-      const container = { id: "receiver", type: "container", children: [] } as unknown as PowerShowElement;
-      const source = { id: "source", type } as unknown as PowerShowElement;
+      const container = { id: "receiver", type: "container", children: [] } as unknown as PresentationElement;
+      const source = { id: "source", type } as unknown as PresentationElement;
       expect(
         resolveClipboardPasteDestination(
           [container],
@@ -74,7 +74,7 @@ describe("Clipboard paste destination", () => {
       id: "receiver",
       type: "container",
       children: [],
-    } as unknown as Extract<PowerShowElement, { type: "container" }>;
+    } as unknown as Extract<PresentationElement, { type: "container" }>;
     const snapshot = divider("snapshot");
     const first = {
       ...receiver,
@@ -101,7 +101,7 @@ describe("Clipboard paste destination", () => {
         content: { id: "slot", children: [] },
         children: [],
       }],
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
 
     expect(
       resolveClipboardPasteDestination([topics], "child", divider("child"), "slot"),
@@ -136,13 +136,13 @@ describe("Pending Cut move", () => {
       type: "container",
       hidden: false,
       children: [divider("source-child")],
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
     const receiver = {
       id: "receiver-container",
       type: "container",
       hidden: false,
       children: [],
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
     const current = presentation([{
       id: "slide-1",
       title: "One",
@@ -174,7 +174,7 @@ describe("Pending Cut move", () => {
       hidden: false,
       kind: "unordered",
       items: [{ id: "item", content: { id: "slot", children: [] }, children: [] }],
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
     const current = presentation([{
       id: "slide-1",
       title: "One",
@@ -195,13 +195,13 @@ describe("Pending Cut move", () => {
       type: "container",
       hidden: false,
       children: [],
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
     const source = {
       id: "source-container",
       type: "container",
       hidden: false,
       children: [descendant],
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
     const current = presentation([{ id: "slide-1", title: "One", elements: [source] }]);
 
     const next = moveClipboardElement(current, "slide-1", "source-container", 0, descendant, null);

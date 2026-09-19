@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import {
   encodePresentationForFirestore,
   MAX_PRESENTATION_SAFE_BYTES,
   PresentationTooLargeError,
-} from "@powershow/firebase";
+} from "@web-slideshow/firebase";
 
 import {
   estimatePresentationBytes,
@@ -226,7 +226,7 @@ describe("presentation persistence helpers", () => {
       expect(error).toBeInstanceOf(InvalidPersistedPresentationError);
       expect((error as InvalidPersistedPresentationError).cause).toBeDefined();
       expect((error as InvalidPersistedPresentationError).message).toMatch(
-        /not a valid PowerShow document/,
+        /not a valid presentation/,
       );
     }
   });

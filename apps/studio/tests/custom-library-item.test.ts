@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FontResource, PowerShowElement } from "@powershow/document-schema";
+import type { FontResource, PresentationElement } from "@web-slideshow/document-schema";
 
 import {
   createCustomLibraryItemDraft,
@@ -8,7 +8,7 @@ import {
 } from "../src/features/custom-library/custom-library-item";
 import { snapshotCustomLibraryStyleDependencies } from "../src/features/custom-library/custom-library-style-dependencies";
 
-const text = (id = "text-1"): PowerShowElement => ({
+const text = (id = "text-1"): PresentationElement => ({
   type: "text",
   id,
   hidden: false,
@@ -18,7 +18,7 @@ const text = (id = "text-1"): PowerShowElement => ({
 });
 
 const inputFor = (
-  root: PowerShowElement = text(),
+  root: PresentationElement = text(),
   overrides: Partial<CreateCustomLibraryItemDraftInput> = {},
 ): CreateCustomLibraryItemDraftInput => ({
   name: "Widget",
@@ -42,7 +42,7 @@ describe("createCustomLibraryItemDraft", () => {
   ];
 
   it("snapshots selected direct font dependencies with complete faces", () => {
-    const direct = text() as Extract<PowerShowElement, { type: "text" }>;
+    const direct = text() as Extract<PresentationElement, { type: "text" }>;
     direct.typography = { fontFamily: "Fira Code" };
     const draft = createCustomLibraryItemDraft(inputFor(direct, {
       selections: new Map([["text-1", new Set(["typography.fontFamily"])] ]),
@@ -59,7 +59,7 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("captures selected custom Text Style definitions and their transitive fonts", () => {
-    const custom = text() as Extract<PowerShowElement, { type: "text" }>;
+    const custom = text() as Extract<PresentationElement, { type: "text" }>;
     custom.variant = "example";
     const draft = createCustomLibraryItemDraft(inputFor(custom, {
       selections: new Map([["text-1", new Set(["variant"])] ]),
@@ -83,7 +83,7 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("rejects an unresolved custom variant during capture", () => {
-    const custom = text() as Extract<PowerShowElement, { type: "text" }>;
+    const custom = text() as Extract<PresentationElement, { type: "text" }>;
     custom.variant = "missing";
 
     expect(() => createCustomLibraryItemDraft(inputFor(custom, {
@@ -95,7 +95,7 @@ describe("createCustomLibraryItemDraft", () => {
     { type: "container" as const, linkedStyle: { id: "card", name: "Card", layout: { padding: 8 }, typography: { fontFamily: "Fira Code" } } },
     { type: "topics" as const, linkedStyle: { target: "topics" as const, id: "topics-style", name: "Topics", kind: "ordered" as const, itemGap: 8 } },
   ])("captures a $type Linked Style", ({ type, linkedStyle }) => {
-    const root: PowerShowElement = type === "container"
+    const root: PresentationElement = type === "container"
       ? { type, id: "root", hidden: false, linkedStyleId: linkedStyle.id, children: [] }
       : { type, id: "root", hidden: false, linkedStyleId: linkedStyle.id, items: [] };
     const draft = createCustomLibraryItemDraft(inputFor(root, {
@@ -109,9 +109,9 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("captures a custom variant inside a Topics bounded payload", () => {
-    const topicText = text("topic-text") as Extract<PowerShowElement, { type: "text" }>;
+    const topicText = text("topic-text") as Extract<PresentationElement, { type: "text" }>;
     topicText.variant = "example";
-    const topics: PowerShowElement = {
+    const topics: PresentationElement = {
       type: "topics", id: "topics", hidden: false, kind: "unordered",
       items: [{ id: "topic", content: { id: "slot", children: [topicText] }, children: [] }],
     };
@@ -126,9 +126,9 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("captures a custom variant inside a Structured Table bounded payload once", () => {
-    const headerText = text("header-text") as Extract<PowerShowElement, { type: "text" }>;
+    const headerText = text("header-text") as Extract<PresentationElement, { type: "text" }>;
     headerText.variant = "example";
-    const table: PowerShowElement = {
+    const table: PresentationElement = {
       type: "table", id: "table", hidden: false, mode: "structured", showHeader: true,
       columns: [{ id: "column", header: { id: "header", children: [headerText] } }],
       rows: [],
@@ -144,7 +144,7 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("literalizes palette colors inside a captured Linked Style", () => {
-    const root: PowerShowElement = { type: "container", id: "root", hidden: false, linkedStyleId: "card", children: [] };
+    const root: PresentationElement = { type: "container", id: "root", hidden: false, linkedStyleId: "card", children: [] };
     const draft = createCustomLibraryItemDraft(inputFor(root, {
       selections: new Map([["root", new Set(["linkedStyleId"])]]),
       linkedStyles: [{ id: "card", name: "Card", style: { color: { kind: "palette", colorId: "accent" } } }],
@@ -156,11 +156,11 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("captures references in recipe children once", () => {
-    const first = text("first") as Extract<PowerShowElement, { type: "text" }>;
-    const second = text("second") as Extract<PowerShowElement, { type: "text" }>;
+    const first = text("first") as Extract<PresentationElement, { type: "text" }>;
+    const second = text("second") as Extract<PresentationElement, { type: "text" }>;
     first.variant = "example";
     second.variant = "example";
-    const root: PowerShowElement = { type: "container", id: "root", hidden: false, children: [first, second] };
+    const root: PresentationElement = { type: "container", id: "root", hidden: false, children: [first, second] };
 
     const draft = createCustomLibraryItemDraft(inputFor(root, {
       selections: new Map([
@@ -175,7 +175,7 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("rejects an unresolved Linked Style during capture", () => {
-    const root: PowerShowElement = { type: "container", id: "root", hidden: false, linkedStyleId: "missing", children: [] };
+    const root: PresentationElement = { type: "container", id: "root", hidden: false, linkedStyleId: "missing", children: [] };
 
     expect(() => createCustomLibraryItemDraft(inputFor(root, {
       selections: new Map([["root", new Set(["linkedStyleId"])] ]),
@@ -184,7 +184,7 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("converts palette references in captured definitions to literal values", () => {
-    const custom = text() as Extract<PowerShowElement, { type: "text" }>;
+    const custom = text() as Extract<PresentationElement, { type: "text" }>;
     custom.variant = "example";
     const draft = createCustomLibraryItemDraft(inputFor(custom, {
       selections: new Map([["text-1", new Set(["variant"])] ]),
@@ -202,7 +202,7 @@ describe("createCustomLibraryItemDraft", () => {
       fontResources,
     }))).not.toHaveProperty("dependencies");
 
-    const unregistered = text() as Extract<PowerShowElement, { type: "text" }>;
+    const unregistered = text() as Extract<PresentationElement, { type: "text" }>;
     unregistered.typography = { fontFamily: "Arial" };
     expect(createCustomLibraryItemDraft(inputFor(unregistered, {
       selections: new Map([["text-1", new Set(["typography.fontFamily"])] ]),
@@ -211,13 +211,13 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("recurses through nested recipes, deduplicates normalized families, and converts legacy fonts", () => {
-    const first = text("first") as Extract<PowerShowElement, { type: "text" }>;
+    const first = text("first") as Extract<PresentationElement, { type: "text" }>;
     first.typography = { fontFamily: " fira code " };
-    const second = text("second") as Extract<PowerShowElement, { type: "text" }>;
+    const second = text("second") as Extract<PresentationElement, { type: "text" }>;
     second.typography = { fontFamily: "Inter" };
-    const third = text("third") as Extract<PowerShowElement, { type: "text" }>;
+    const third = text("third") as Extract<PresentationElement, { type: "text" }>;
     third.typography = { fontFamily: "FIRA CODE" };
-    const root: PowerShowElement = { type: "container", id: "root", hidden: false, children: [first, second, third] };
+    const root: PresentationElement = { type: "container", id: "root", hidden: false, children: [first, second, third] };
 
     const draft = createCustomLibraryItemDraft(inputFor(root, {
       selections: new Map([
@@ -256,13 +256,13 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("does not scan arbitrary payloads for fontFamily", () => {
-    const interactive: PowerShowElement = {
+    const interactive: PresentationElement = {
       type: "interactive",
       id: "interactive",
       hidden: false,
       widget: "function-plot",
       config: { typography: { fontFamily: "Fira Code" } },
-    } as PowerShowElement;
+    } as PresentationElement;
 
     expect(createCustomLibraryItemDraft(inputFor(interactive, {
       selections: new Map([["interactive", new Set(["config"])] ]),
@@ -273,7 +273,7 @@ describe("createCustomLibraryItemDraft", () => {
   it("keeps source FontResources immutable and snapshots nested face values", () => {
     const sourceFonts: FontResource[] = structuredClone(fontResources);
     const beforeFonts = structuredClone(sourceFonts);
-    const direct = text() as Extract<PowerShowElement, { type: "text" }>;
+    const direct = text() as Extract<PresentationElement, { type: "text" }>;
     direct.typography = { fontFamily: "Fira Code" };
     const draft = createCustomLibraryItemDraft(inputFor(direct, {
       selections: new Map([["text-1", new Set(["typography.fontFamily"])]]),
@@ -287,9 +287,9 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("captures Fonts from canonical Topics and structured Table builders", () => {
-    const topicText = text("topic-text") as Extract<PowerShowElement, { type: "text" }>;
+    const topicText = text("topic-text") as Extract<PresentationElement, { type: "text" }>;
     topicText.typography = { fontFamily: "Fira Code" };
-    const topics: PowerShowElement = {
+    const topics: PresentationElement = {
       type: "topics", id: "topics", hidden: false, kind: "unordered",
       items: [{ id: "topic-item", content: { id: "slot", children: [topicText] }, children: [] }],
     };
@@ -297,9 +297,9 @@ describe("createCustomLibraryItemDraft", () => {
       selections: new Map([["topics", new Set(["items"])]]), fontResources,
     }));
 
-    const tableText = text("table-text") as Extract<PowerShowElement, { type: "text" }>;
+    const tableText = text("table-text") as Extract<PresentationElement, { type: "text" }>;
     tableText.typography = { fontFamily: "Fira Code" };
-    const table: PowerShowElement = {
+    const table: PresentationElement = {
       type: "table", id: "table", hidden: false, mode: "structured", showHeader: true,
       columns: [{ id: "column", header: { id: "header", children: [] } }],
       rows: [{ id: "row", cells: [{ id: "cell", children: [tableText] }] }],
@@ -343,7 +343,7 @@ describe("createCustomLibraryItemDraft", () => {
 
   it("preserves a container-to-text composition and per-element selections", () => {
     const child = text("text-b");
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container",
       id: "container-a",
       hidden: false,
@@ -368,7 +368,7 @@ describe("createCustomLibraryItemDraft", () => {
 
   it("uses composition defaults for missing selections and preserves explicit empty selections", () => {
     const child = text("text-b");
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container",
       id: "container-a",
       hidden: false,
@@ -414,13 +414,13 @@ describe("createCustomLibraryItemDraft", () => {
   });
 
   it("isolates nested recipe property values from the source", () => {
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "table",
       id: "table-id",
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
     const item = createCustomLibraryItemDraft(inputFor(root, {
       selections: new Map([[root.id, new Set(["rows"])]]),
@@ -429,7 +429,7 @@ describe("createCustomLibraryItemDraft", () => {
 
     rows[0]!.name = "Recipe";
 
-    expect(root.rows[0]).toEqual({ name: "PowerShow" });
+    expect(root.rows[0]).toEqual({ name: "Example" });
   });
 
   it("omits children for a leaf recipe", () => {

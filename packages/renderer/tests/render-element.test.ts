@@ -1,42 +1,42 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
 describe("renderElement", () => {
   it("renders body text", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "text-1",
       hidden: false,
       variant: "body",
-      content: "Hello PowerShow",
+      content: "Hello presentation",
     };
 
     const html = renderElement(element);
 
     expect(html).toContain("<p ");
-    expect(html).toContain("Hello PowerShow");
+    expect(html).toContain("Hello presentation");
 
-    expect(html).toContain('data-powershow-id="text-1"');
+    expect(html).toContain('data-presentation-id="text-1"');
 
-    expect(html).toContain('data-powershow-type="text"');
+    expect(html).toContain('data-presentation-type="text"');
   });
 
   it("renders title text as h1", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "title-1",
       hidden: false,
       variant: "title",
-      content: "PowerShow",
+      content: "Example",
     };
 
     const html = renderElement(element);
 
     expect(html).toContain("<h1 ");
-    expect(html).toContain(">PowerShow</h1>");
+    expect(html).toContain(">Example</h1>");
   });
 
   it.each([
@@ -46,12 +46,12 @@ describe("renderElement", () => {
   ] as const)(
     "does not rewrite element content for %s text-transform",
     (_name, textTransform) => {
-      const element: PowerShowElement = {
+      const element: PresentationElement = {
         type: "text",
         id: "case-text",
         hidden: false,
         variant: "body",
-        content: "PowerShow Example",
+        content: "Presentation Example",
         typography: { textTransform },
       };
 
@@ -59,18 +59,18 @@ describe("renderElement", () => {
 
       // The stored content is preserved exactly; only CSS text-transform is
       // emitted, and the browser applies the casing visually.
-      expect(html).toContain(">PowerShow Example</p>");
+      expect(html).toContain(">Presentation Example</p>");
       expect(html).toContain(`text-transform:${textTransform}`);
     },
   );
 
   it("escapes text content", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "dangerous-text",
       hidden: false,
       variant: "body",
-      content: '<script>alert("PowerShow")</script>',
+      content: '<script>alert("presentation")</script>',
     };
 
     const html = renderElement(element);
@@ -81,7 +81,7 @@ describe("renderElement", () => {
   });
 
   it("renders nothing when an element is hidden", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "hidden-text",
       hidden: true,
@@ -93,7 +93,7 @@ describe("renderElement", () => {
   });
 
   it("renders an image", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,
@@ -152,7 +152,7 @@ describe("renderElement", () => {
   });
 
   it("escapes image attributes", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,
@@ -169,7 +169,7 @@ describe("renderElement", () => {
   });
 
   it("renders a row container", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "row-1",
       hidden: false,
@@ -205,7 +205,7 @@ describe("renderElement", () => {
   });
 
   it("renders a column container", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "column-1",
       hidden: false,
@@ -219,7 +219,7 @@ describe("renderElement", () => {
   });
 
   it("maps row alignment to flex axes", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "row-aligned",
       hidden: false,
@@ -235,7 +235,7 @@ describe("renderElement", () => {
   });
 
   it("maps column alignment to flex axes", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "column-aligned",
       hidden: false,
@@ -251,7 +251,7 @@ describe("renderElement", () => {
   });
 
   it("renders nested containers recursively", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "root",
       hidden: false,
@@ -279,11 +279,11 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain('data-powershow-id="root"');
+    expect(html).toContain('data-presentation-id="root"');
 
-    expect(html).toContain('data-powershow-id="nested"');
+    expect(html).toContain('data-presentation-id="nested"');
 
-    expect(html).toContain('data-powershow-id="nested-text"');
+    expect(html).toContain('data-presentation-id="nested-text"');
 
     expect(html).toContain("Recursive rendering works");
   });
@@ -293,7 +293,7 @@ describe("renderElement", () => {
     ["header", "<header"],
     ["footer", "<footer"],
   ] as const)("renders %s containers using semantic HTML", (role, tag) => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: `${role}-1`,
       hidden: false,
@@ -306,11 +306,11 @@ describe("renderElement", () => {
 
     expect(html).toContain(tag);
 
-    expect(html).toContain(`data-powershow-role="${role}"`);
+    expect(html).toContain(`data-presentation-role="${role}"`);
   });
 
   it("supports mixed content inside containers", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "mixed-content",
       hidden: false,
@@ -345,15 +345,15 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain('data-powershow-type="image"');
+    expect(html).toContain('data-presentation-type="image"');
 
-    expect(html).toContain('data-powershow-type="divider"');
+    expect(html).toContain('data-presentation-type="divider"');
 
-    expect(html).toContain('data-powershow-type="text"');
+    expect(html).toContain('data-presentation-type="text"');
   });
 
   it("renders implemented-later elements as placeholders", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "plot",
       id: "plot-1",
       hidden: false,
@@ -362,13 +362,13 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain("powershow-placeholder-plot");
+    expect(html).toContain("presentation-placeholder-plot");
 
     expect(html).toContain("[plot]");
   });
 
   it("renders code with line numbers", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "code",
       id: "code-1",
       hidden: false,
@@ -380,17 +380,17 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain('data-powershow-type="code"');
+    expect(html).toContain('data-presentation-type="code"');
 
     expect(html).toContain('data-language="typescript"');
 
-    expect(html).toContain("powershow-code-line-number");
+    expect(html).toContain("presentation-code-line-number");
 
-    expect(html).toContain("powershow-code-line-highlighted");
+    expect(html).toContain("presentation-code-line-highlighted");
   });
 
   it("escapes code content", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "code",
       id: "code-danger",
       hidden: false,
@@ -407,11 +407,11 @@ describe("renderElement", () => {
     expect(html).toContain("&lt;script&gt;");
   });
   it("renders terminal lines", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "terminal",
       id: "terminal-1",
       hidden: false,
-      title: "PowerShow Terminal",
+      title: "Presentation Terminal",
 
       lines: [
         {
@@ -431,16 +431,16 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain("PowerShow Terminal");
+    expect(html).toContain("Presentation Terminal");
 
-    expect(html).toContain("powershow-terminal-line-command");
+    expect(html).toContain("presentation-terminal-line-command");
 
     expect(html).toContain("pnpm test");
 
     expect(html).toContain("79 tests passed");
   });
   it("renders tables using declared column order", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "table",
       id: "table-1",
       hidden: false,
@@ -479,7 +479,7 @@ describe("renderElement", () => {
     expect(html).toContain("<td>Bob</td><td>20</td>");
   });
   it("escapes table cell values", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "table",
       id: "unsafe-table",
       hidden: false,

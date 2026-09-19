@@ -4,7 +4,7 @@ import {
   FontFaceResourceSchema,
   type FontFaceResource,
   type FontFormat,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";

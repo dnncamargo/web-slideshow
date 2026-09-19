@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";

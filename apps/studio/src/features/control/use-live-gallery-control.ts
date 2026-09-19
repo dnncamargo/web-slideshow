@@ -6,7 +6,7 @@ import { onValue, ref } from "firebase/database";
 import {
   type Presentation,
   visitSlideElements,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { writeGalleryControlState } from "./control-command-writer";
 import { type LiveCurrent } from "./live-current";

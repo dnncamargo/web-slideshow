@@ -1,11 +1,11 @@
-import type { Presentation, Slide } from "@powershow/document-schema";
-import { PresentationSchema } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@web-slideshow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 import {
   decodePresentationFromFirestore,
   encodePresentationForFirestore,
-} from "@powershow/firebase";
+} from "@web-slideshow/firebase";
 
-export { MAX_PRESENTATION_SAFE_BYTES } from "@powershow/firebase";
+export { MAX_PRESENTATION_SAFE_BYTES } from "@web-slideshow/firebase";
 
 import {
   InvalidPersistedPresentationError,
@@ -178,7 +178,7 @@ export function assertValidPresentationForPersistence(
 
   if (!result.success) {
     throw new InvalidPresentationForPersistenceError(
-      "Presentation is not a valid PowerShow document and cannot be persisted.",
+      "Presentation is not a valid presentation and cannot be persisted.",
       result.error,
     );
   }
@@ -233,7 +233,7 @@ export function parsePersistedPresentation(
     return decodePresentationFromFirestore(persisted);
   } catch (error) {
     throw new InvalidPersistedPresentationError(
-      "Persisted presentation is not a valid PowerShow document.",
+      "Persisted presentation is not a valid presentation.",
       error,
     );
   }

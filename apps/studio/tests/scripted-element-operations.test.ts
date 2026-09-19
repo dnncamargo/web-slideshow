@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ScriptedElement, Slide } from "@powershow/document-schema";
+import type { ScriptedElement, Slide } from "@web-slideshow/document-schema";
 
 import type { ElementCreateType } from "../src/features/editor/element-operations";
 import {

@@ -1,4 +1,4 @@
-import type { FontFaceResource } from "@powershow/document-schema";
+import type { FontFaceResource } from "@web-slideshow/document-schema";
 
 export type FontManagerSource =
   | "fontsource"

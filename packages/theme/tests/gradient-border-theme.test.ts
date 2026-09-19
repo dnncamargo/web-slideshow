@@ -15,12 +15,12 @@ function cssBlock(selector: string): string {
 describe("gradient border theme ownership", () => {
   it("keeps painting in the shared primitive and sizing in the Table class", () => {
     const sharedRing = cssBlock(".presentation-gradient-border::before");
-    const tableFrame = cssBlock(".powershow-table-frame-gradient-border");
+    const tableFrame = cssBlock(".presentation-table-frame-gradient-border");
 
     expect(sharedRing).toContain("background: var(--presentation-gradient-border-paint)");
     expect(sharedRing).toContain("padding: var(--presentation-gradient-border-width, 1px)");
     expect(baseCss).not.toMatch(/\.presentation-gradient-border\s*\{/);
-    expect(tableFrame).toContain("padding: var(--powershow-table-border-width)");
+    expect(tableFrame).toContain("padding: var(--presentation-table-border-width)");
   });
 
   it("has one masked-ring implementation for the shared primitive", () => {
@@ -41,15 +41,15 @@ describe("gradient border theme ownership", () => {
     expect(imageFrame).toContain("max-width: 100%");
     expect(imageFrame).toContain("max-height: 100%");
     expect(baseCss.indexOf(".presentation-image-gradient-frame")).toBeGreaterThan(
-      baseCss.indexOf(".powershow-image"),
+      baseCss.indexOf(".presentation-image"),
     );
   });
 
   it("keeps gradient Code scrolling on the inner surface", () => {
     const frame = cssBlock(".presentation-code-gradient-frame");
     const surface = cssBlock(".presentation-code-gradient-frame > .presentation-code-gradient-surface");
-    const codeBase = cssBlock(".powershow-code");
-    const highlighted = cssBlock(".powershow-code-line-highlighted");
+    const codeBase = cssBlock(".presentation-code");
+    const highlighted = cssBlock(".presentation-code-line-highlighted");
 
     expect(codeBase).toContain("--presentation-code-content-padding: 20px");
     expect(codeBase).toContain("padding: var(--presentation-code-content-padding)");
@@ -62,7 +62,7 @@ describe("gradient border theme ownership", () => {
     expect(surface).toContain("height: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding))");
     expect(surface).toContain("margin: calc(0px - var(--presentation-code-content-padding))");
     expect(surface).toContain("padding: var(--presentation-code-content-padding)");
-    expect(surface).toContain("var(--presentation-code-outer-radius, var(--powershow-radius-md))");
+    expect(surface).toContain("var(--presentation-code-outer-radius, var(--presentation-radius-md))");
   });
 
   it("keeps Gallery gradient sizing on a neutral inner surface", () => {

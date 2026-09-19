@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";
 import { useStudioI18n } from "../i18n/studio-i18n-context";

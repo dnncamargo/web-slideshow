@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { getElementPropertyEntries } from "../src/features/editor/element-properties";
 
-function entriesFor(element: PowerShowElement): Record<string, string> {
+function entriesFor(element: PresentationElement): Record<string, string> {
   return Object.fromEntries(
     getElementPropertyEntries(element).map((entry) => [
       entry.path,
@@ -15,7 +15,7 @@ function entriesFor(element: PowerShowElement): Record<string, string> {
 
 describe("getElementPropertyEntries", () => {
   it("flattens authored canonical values without identity metadata", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "hero-title",
       hidden: false,
@@ -34,12 +34,12 @@ describe("getElementPropertyEntries", () => {
   });
 
   it("renders image sources and scalar values deterministically", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "company-logo",
       hidden: false,
       src: "https://example.com/logo.svg",
-      alt: "PowerShow",
+      alt: "Presentation",
       fit: "contain",
       effect: { opacity: 0.9 },
     };
@@ -47,7 +47,7 @@ describe("getElementPropertyEntries", () => {
     expect(entriesFor(element)).toMatchObject({
       hidden: "false",
       src: "https://example.com/logo.svg",
-      alt: "PowerShow",
+      alt: "Presentation",
       fit: "contain",
       "effect.opacity": "0.9",
     });
@@ -61,7 +61,7 @@ describe("getElementPropertyEntries", () => {
       role: undefined,
       children: [{ type: "text" }, { type: "image" }],
       style: { background: null },
-    } as unknown as PowerShowElement;
+    } as unknown as PresentationElement;
 
     expect(entriesFor(element)).toMatchObject({
       hidden: "false",
@@ -73,7 +73,7 @@ describe("getElementPropertyEntries", () => {
   });
 
   it("does not mutate the source and does not invent absent defaults", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "plain-text",
       hidden: false,

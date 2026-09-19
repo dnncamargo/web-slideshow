@@ -1,6 +1,6 @@
 import type {
   EmbedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
@@ -15,7 +15,7 @@ import { renderGradientBorder } from "./render-visual";
 // The sandbox is a fixed renderer-owned policy. It is NOT authored
 // state and is never made author-configurable. It permits scripts and
 // forms, while allowing the embedded provider to retain its own origin.
-// Cross-origin providers remain cross-origin relative to PowerShow.
+// Cross-origin providers remain cross-origin relative to the application.
 // Top navigation, popups, and downloads remain denied by sandbox.
 // Sandbox policy remains renderer-owned.
 // ============================================================
@@ -120,8 +120,8 @@ export function renderEmbed(
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-embed",
+    "presentation-element",
+    "presentation-embed",
   ];
 
   const customClass =
@@ -170,7 +170,7 @@ export function renderEmbed(
 
   // The browser iframe default is a visible border or not. When no
   // canonical border is authored, the renderer collapses it so the
-  // Embed box matches other PowerShow elements. An authored border
+  // Embed box matches other presentation elements. An authored border
   // remains authoritative and is never overridden.
   if (element.style?.border === undefined) {
     styles.push("border:0");
@@ -197,8 +197,8 @@ export function renderEmbed(
       : hasGradientBorder
         ? ""
         : ` class="${escapeHtml(classes.join(" "))}"` +
-          ` data-powershow-id="${escapeHtml(element.id)}"` +
-          ` data-powershow-type="embed"`) +
+          ` data-presentation-id="${escapeHtml(element.id)}"` +
+          ` data-presentation-type="embed"`) +
     ` src="${escapeHtml(resolveEmbedSrc(element.src))}"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${EMBED_SANDBOX}"` +
@@ -216,8 +216,8 @@ export function renderEmbed(
   if (!element.viewport) {
     return (
       `<div class="${escapeHtml([...classes, "presentation-gradient-border"].join(" "))}"` +
-      ` data-powershow-id="${escapeHtml(element.id)}"` +
-      ` data-powershow-type="embed"` +
+      ` data-presentation-id="${escapeHtml(element.id)}"` +
+      ` data-presentation-type="embed"` +
       ` style="${escapeHtml(styles.join(";"))}">` +
       iframe +
       `</div>`
@@ -241,8 +241,8 @@ export function renderEmbed(
 
     return (
       `<div class="${escapeHtml([...classes, "presentation-gradient-border"].join(" "))}"` +
-      ` data-powershow-id="${escapeHtml(element.id)}"` +
-      ` data-powershow-type="embed"` +
+      ` data-presentation-id="${escapeHtml(element.id)}"` +
+      ` data-presentation-type="embed"` +
       ` style="${escapeHtml(styles.join(";"))}">` +
       `<div class="presentation-embed-gradient-surface" style="${escapeHtml(surfaceStyles.join(";"))}">` +
       iframe +
@@ -253,8 +253,8 @@ export function renderEmbed(
 
   return (
     `<div class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="embed"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="embed"` +
     ` style="${escapeHtml([
       ...styles,
       ...(element.layout?.position === undefined ? ["position:relative"] : []),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ContentSlot, PowerShowElement, StructuredTableElement } from "@powershow/document-schema";
+import type { ContentSlot, PresentationElement, StructuredTableElement } from "@web-slideshow/document-schema";
 
 import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
 import {
@@ -11,15 +11,15 @@ import {
 const t = (key: Parameters<typeof translateStudioMessage>[1], values?: Parameters<typeof translateStudioMessage>[2]) =>
   translateStudioMessage("en", key, values);
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { type: "text", id, hidden: false, variant: "body", content };
 }
 
-function image(id: string): PowerShowElement {
+function image(id: string): PresentationElement {
   return { type: "image", id, hidden: false, src: `/assets/${id}.png`, alt: id, fit: "contain" };
 }
 
-function slot(id: string, children: PowerShowElement[]): ContentSlot {
+function slot(id: string, children: PresentationElement[]): ContentSlot {
   return { id, children };
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "@powershow/studio",
+  "name": "@web-slideshow/studio",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,12 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@powershow/document-schema": "workspace:*",
-    "@powershow/firebase": "workspace:*",
+    "@web-slideshow/document-schema": "workspace:*",
+    "@web-slideshow/firebase": "workspace:*",
     "@web-slideshow/instance-branding": "workspace:*",
-    "@powershow/renderer": "workspace:*",
-    "@powershow/theme": "workspace:*",
-    "@powershow/ui": "workspace:*",
+    "@web-slideshow/renderer": "workspace:*",
+    "@web-slideshow/theme": "workspace:*",
+    "@web-slideshow/ui": "workspace:*",
     "firebase": "^12.17.1",
     "next": "16.2.11",
     "qrcode.react": "^4.2.0",

@@ -1,16 +1,16 @@
-import type { Presentation, PowerShowElement } from "@powershow/document-schema";
+import type { Presentation, PresentationElement } from "@web-slideshow/document-schema";
 import {
-  PowerShowElementSchema,
+  PresentationElementSchema,
   PresentationSchema,
   resolveTextStyle,
   SlideSchema,
   TextStyleSchema,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 // ============================================================
 // PRESENTATION RECOVERY ANALYSIS
 //
-// Safe recovery for persisted PowerShow presentations that fail
+// Safe recovery for persisted presentations that fail
 // canonical PresentationSchema validation.
 //
 // FROZEN PRINCIPLE: preserve canonical content, remove incompatible
@@ -83,7 +83,7 @@ function isRecordArray(value: unknown): value is Record<string, unknown>[] {
 // Neutralization shells
 //
 // A shell preserves every structural field of a unit while replacing
-// ONLY the "content" PowerShowElement arrays with []. The shell is
+// ONLY the "content" PresentationElement arrays with []. The shell is
 // validated to decide whether the surrounding structure itself is
 // canonical; if it is not, the whole unit is removed.
 // ------------------------------------------------------------
@@ -130,7 +130,7 @@ function withStructuredTableShell(
 // ------------------------------------------------------------
 
 /**
- * Recursively recovers a PowerShowElement array, removing incompatible
+ * Recursively recovers a PresentationElement array, removing incompatible
  * units and preserving structurally valid parents.
  *
  * The supplied value MUST be an array; callers validate the structural
@@ -141,8 +141,8 @@ function recoverElements(
   pathBase: (string | number)[],
   issues: RecoveryIssue[],
   typographyContext: Presentation,
-): PowerShowElement[] {
-  const recovered: PowerShowElement[] = [];
+): PresentationElement[] {
+  const recovered: PresentationElement[] = [];
 
   if (!Array.isArray(rawElements)) {
     return recovered;
@@ -186,9 +186,9 @@ function recoverElement(
   path: (string | number)[],
   issues: RecoveryIssue[],
   typographyContext: Presentation,
-): PowerShowElement | null {
+): PresentationElement | null {
   // 1. Keep anything that is already canonical.
-  const parsed = PowerShowElementSchema.safeParse(raw);
+  const parsed = PresentationElementSchema.safeParse(raw);
 
   if (parsed.success) {
     if (parsed.data.type === "text") {
@@ -243,7 +243,7 @@ function recoverContainer(
   path: (string | number)[],
   issues: RecoveryIssue[],
   typographyContext: Presentation,
-): PowerShowElement | null {
+): PresentationElement | null {
   if (!Array.isArray(raw.children)) {
     return removeElementIssue(
       raw,
@@ -254,7 +254,7 @@ function recoverContainer(
   }
 
   const shell = withContainerShell(raw);
-  const shellParsed = PowerShowElementSchema.safeParse(shell);
+  const shellParsed = PresentationElementSchema.safeParse(shell);
 
   if (!shellParsed.success) {
     return removeElementIssue(
@@ -273,7 +273,7 @@ function recoverContainer(
   );
   const rebuilt = { ...raw, children };
 
-  const rebuiltParsed = PowerShowElementSchema.safeParse(rebuilt);
+  const rebuiltParsed = PresentationElementSchema.safeParse(rebuilt);
 
   if (!rebuiltParsed.success) {
     return removeElementIssue(
@@ -290,7 +290,7 @@ function recoverContainer(
 /**
  * Structural preconditions for Topics recovery.
  *
- * Recovery may neutralize ONLY nested PowerShowElement arrays. Every
+ * Recovery may neutralize ONLY nested PresentationElement arrays. Every
  * structural Topic container must already exist with the correct shape
  * recursively:
  *
@@ -336,7 +336,7 @@ function topicItemsStructureIsValid(rawItems: unknown): boolean {
  * - every cell an object with a children array
  *
  * Missing or wrong-typed containers remove the WHOLE structured table.
- * Only existing header.children / cell.children PowerShowElement arrays
+ * Only existing header.children / cell.children PresentationElement arrays
  * may be neutralized to [] for shell validation and recursion.
  */
 function structuredTableStructureIsValid(raw: Record<string, unknown>): boolean {
@@ -378,7 +378,7 @@ function recoverTopics(
   path: (string | number)[],
   issues: RecoveryIssue[],
   typographyContext: Presentation,
-): PowerShowElement | null {
+): PresentationElement | null {
   if (!topicItemsStructureIsValid(raw.items)) {
     return removeElementIssue(
       raw,
@@ -393,7 +393,7 @@ function recoverTopics(
   const rawItems = raw.items as Record<string, unknown>[];
 
   const shell = { ...raw, items: withTopicsShell(rawItems) };
-  const shellParsed = PowerShowElementSchema.safeParse(shell);
+  const shellParsed = PresentationElementSchema.safeParse(shell);
 
   if (!shellParsed.success) {
     return removeElementIssue(
@@ -407,7 +407,7 @@ function recoverTopics(
   const items = recoverTopicItems(rawItems, [...path, "items"], issues, typographyContext);
   const rebuilt = { ...raw, items };
 
-  const rebuiltParsed = PowerShowElementSchema.safeParse(rebuilt);
+  const rebuiltParsed = PresentationElementSchema.safeParse(rebuilt);
 
   if (!rebuiltParsed.success) {
     return removeElementIssue(
@@ -422,7 +422,7 @@ function recoverTopics(
 }
 
 /**
- * Recurses through TopicItem.content.children (PowerShowElements) and
+ * Recurses through TopicItem.content.children (PresentationElements) and
  * TopicItem.children (nested TopicItems), preserving structurally valid
  * ContentSlots and TopicItems when only nested content fails.
  *
@@ -471,10 +471,10 @@ function recoverTable(
   path: (string | number)[],
   issues: RecoveryIssue[],
   typographyContext: Presentation,
-): PowerShowElement | null {
+): PresentationElement | null {
   // Structured tables preserve structurally valid headers/cells while
   // pruning incompatible nested content. Simple tables have no nested
-  // PowerShow content to recover: any invalid simple table is removed.
+  // Presentation content to recover: any invalid simple table is removed.
   if (raw.mode !== "structured") {
     return removeElementIssue(
       raw,
@@ -494,7 +494,7 @@ function recoverTable(
   }
 
   const shell = withStructuredTableShell(raw);
-  const shellParsed = PowerShowElementSchema.safeParse(shell);
+  const shellParsed = PresentationElementSchema.safeParse(shell);
 
   if (!shellParsed.success) {
     return removeElementIssue(
@@ -542,7 +542,7 @@ function recoverTable(
   });
 
   const rebuilt = { ...raw, columns, rows };
-  const rebuiltParsed = PowerShowElementSchema.safeParse(rebuilt);
+  const rebuiltParsed = PresentationElementSchema.safeParse(rebuilt);
 
   if (!rebuiltParsed.success) {
     return removeElementIssue(

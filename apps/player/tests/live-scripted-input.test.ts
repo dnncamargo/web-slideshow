@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 const firebase = vi.hoisted(() => ({ onValue: vi.fn(), ref: vi.fn(), callback: undefined as ((snapshot: { val(): unknown }) => void) | undefined }));
 vi.mock("firebase/database", () => ({ onValue: firebase.onValue, ref: firebase.ref }));
 import { createLiveScriptedInputTracker, subscribeLiveScriptedInput } from "../src/live-scripted-input";

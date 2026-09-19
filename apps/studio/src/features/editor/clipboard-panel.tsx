@@ -1,6 +1,6 @@
 "use client";
 
-import type { PowerShowElement, Presentation } from "@powershow/document-schema";
+import type { PresentationElement, Presentation } from "@web-slideshow/document-schema";
 
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,
@@ -116,7 +116,7 @@ function SnapshotCard({
   onPaste: (entryId: string) => void;
   onPin: (entryId: string) => void;
   onRemove: (entryId: string) => void;
-  typeLabel: (element: PowerShowElement) => string;
+  typeLabel: (element: PresentationElement) => string;
   pinLabel: string;
   unpinLabel: string;
   removeLabel: string;
@@ -202,7 +202,7 @@ export function ClipboardPanel({
   onCancelPendingCut: () => void;
   onPin: (entryId: string) => void;
   onRemove: (entryId: string) => void;
-  typeLabel: (element: PowerShowElement) => string;
+  typeLabel: (element: PresentationElement) => string;
   pinLabel: string;
   unpinLabel: string;
   removeLabel: string;
@@ -216,7 +216,7 @@ export function ClipboardPanel({
         <section className={styles.clipboardPendingCutSection} aria-label={pendingCutLabel}>
           <div className={styles.clipboardSectionLabel}>{pendingCutLabel}</div>
           <div className={styles.clipboardPendingCut}>
-            <span>{typeLabel({ id: pendingCut.sourceElementId, type: pendingCut.elementType } as PowerShowElement)}</span>
+            <span>{typeLabel({ id: pendingCut.sourceElementId, type: pendingCut.elementType } as PresentationElement)}</span>
             <button
               className={styles.clipboardPendingCutCancel}
               type="button"

@@ -1,5 +1,5 @@
-import type { BlocksElement, PlotElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@powershow/document-schema";
-import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@powershow/theme/element-style-defaults";
+import type { BlocksElement, PlotElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@web-slideshow/document-schema";
+import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@web-slideshow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
 export interface CanonicalTextCanvasGeometry {

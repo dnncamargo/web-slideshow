@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { ContainerElement, PowerShowElement } from "@powershow/document-schema";
+import type { ContainerElement, PresentationElement } from "@web-slideshow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -44,7 +44,7 @@ function changeSelect(select: HTMLSelectElement, value: string): void {
 describe("Container overflow inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let state: PowerShowElement;
+  let state: PresentationElement;
 
   function renderInspector(): void {
     root.render(

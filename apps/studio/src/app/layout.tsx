@@ -9,20 +9,20 @@ import type {
 
 
 // ============================================================
-// BEGIN: THEME COMPARTILHADO DO POWERSHOW
+// BEGIN: THEME COMPARTILHADO DA APLICAÇÃO
 //
 // O theme deve ser carregado antes do CSS específico
 // do Studio, permitindo que globals.css faça overrides
 // quando necessário.
 // ============================================================
 
-import "@powershow/theme/index.css";
-import "@powershow/ui/styles.css";
+import "@web-slideshow/theme/index.css";
+import "@web-slideshow/ui/styles.css";
 
 import "./globals.css";
 
 // ============================================================
-// END: THEME COMPARTILHADO DO POWERSHOW
+// END: THEME COMPARTILHADO DA APLICAÇÃO
 // ============================================================
 
 // ============================================================

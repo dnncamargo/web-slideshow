@@ -1,4 +1,4 @@
-import type { ImageElement } from "@powershow/document-schema";
+import type { ImageElement } from "@web-slideshow/document-schema";
 
 import { renderLength } from "./render-length";
 import { renderBackground, renderBorder, renderGradientBorder, renderGradientBorderBox, renderShadow } from "./render-visual";
@@ -92,12 +92,12 @@ export function renderImageCropMetadata({
   heightConstrained: boolean;
 }): string {
   return [
-    `data-powershow-image-crop="${escapeHtml(JSON.stringify(crop))}"`,
-    `data-powershow-image-fit="${fit}"`,
-    `data-powershow-image-focal-x="${focalPoint?.x ?? 50}"`,
-    `data-powershow-image-focal-y="${focalPoint?.y ?? 50}"`,
-    `data-powershow-image-width-authored="${widthConstrained}"`,
-    `data-powershow-image-height-authored="${heightConstrained}"`,
+    `data-presentation-image-crop="${escapeHtml(JSON.stringify(crop))}"`,
+    `data-presentation-image-fit="${fit}"`,
+    `data-presentation-image-focal-x="${focalPoint?.x ?? 50}"`,
+    `data-presentation-image-focal-y="${focalPoint?.y ?? 50}"`,
+    `data-presentation-image-width-authored="${widthConstrained}"`,
+    `data-presentation-image-height-authored="${heightConstrained}"`,
   ].join(" ");
 }
 

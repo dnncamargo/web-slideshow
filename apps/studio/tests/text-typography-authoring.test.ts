@@ -4,7 +4,7 @@ import {
   PresentationSchema,
   TextElementSchema,
   resolveTextStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   createTextStyleFromText,

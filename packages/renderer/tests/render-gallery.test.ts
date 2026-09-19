@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { GalleryElement } from "@powershow/document-schema";
+import type { GalleryElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderGallery } from "../src/render-gallery";
@@ -28,18 +28,18 @@ const gradient = {
 describe("renderGallery", () => {
   it("renders the canonical root and authored surface class", () => {
     const html = renderGallery(gallery({ style: { className: "hero-gallery" } }));
-    expect(html).toContain("powershow-element");
-    expect(html).toContain("powershow-gallery");
-    expect(html).toContain('data-powershow-id="gallery-1"');
-    expect(html).toContain('data-powershow-type="gallery"');
+    expect(html).toContain("presentation-element");
+    expect(html).toContain("presentation-gallery");
+    expect(html).toContain('data-presentation-id="gallery-1"');
+    expect(html).toContain('data-presentation-type="gallery"');
     expect(html).toContain("hero-gallery");
   });
 
   it("keeps canonical item order and emits deterministic index hooks", () => {
     const html = renderGallery(gallery());
     expect(html.indexOf('/first.png"')).toBeLessThan(html.indexOf('/second.png"'));
-    expect(html).toContain('data-powershow-gallery-index="0"');
-    expect(html).toContain('data-powershow-gallery-index="1"');
+    expect(html).toContain('data-presentation-gallery-index="0"');
+    expect(html).toContain('data-presentation-gallery-index="1"');
   });
 
   it("stacks item frames and activates only the first item", () => {
@@ -47,7 +47,7 @@ describe("renderGallery", () => {
     expect(html).toContain("position:absolute");
     expect(html).toContain("inset:0");
     expect(html).toContain("overflow:hidden");
-    expect(html).toContain("powershow-gallery-item-active");
+    expect(html).toContain("presentation-gallery-item-active");
     expect(html).toContain("visibility:hidden");
     expect(html).toContain("pointer-events:none");
     for (const forbidden of ["overflow-x:auto", "scroll-snap-type", "scroll-snap-align", "overscroll-behavior-inline", "flex:0 0 100%", "min-width:100%"])
@@ -56,8 +56,8 @@ describe("renderGallery", () => {
 
   it("keeps an unsized Gallery measurable through its active item", () => {
     const html = renderGallery(gallery());
-    const firstStart = html.indexOf('data-powershow-gallery-index="0"');
-    const secondStart = html.indexOf('data-powershow-gallery-index="1"');
+    const firstStart = html.indexOf('data-presentation-gallery-index="0"');
+    const secondStart = html.indexOf('data-presentation-gallery-index="1"');
     const first = html.slice(firstStart, secondStart);
     const second = html.slice(secondStart);
     expect(first).toContain("position:relative");
@@ -69,8 +69,8 @@ describe("renderGallery", () => {
 
   it("fills an authored Gallery height with every stacked item", () => {
     const html = renderGallery(gallery({ layout: { height: 400 } }));
-    const firstStart = html.indexOf('data-powershow-gallery-index="0"');
-    const secondStart = html.indexOf('data-powershow-gallery-index="1"');
+    const firstStart = html.indexOf('data-presentation-gallery-index="0"');
+    const secondStart = html.indexOf('data-presentation-gallery-index="1"');
     expect(html).toContain("height:400px");
     expect(html.slice(firstStart, secondStart)).toContain("position:absolute");
     expect(html.slice(secondStart)).toContain("position:absolute");
@@ -96,25 +96,25 @@ describe("renderGallery", () => {
       layout: { width: 600, height: 400 },
       items: [{ src: "/photo.png", alt: "Photo", fit: "cover", focalPoint: { x: 25, y: 75 }, crop: { x: 10, y: 20, width: 60, height: 50 } }],
     }));
-    expect(html).toContain('data-powershow-image-crop="{&quot;x&quot;:10,&quot;y&quot;:20,&quot;width&quot;:60,&quot;height&quot;:50}"');
-    expect(html).toContain('data-powershow-image-fit="cover"');
-    expect(html).toContain('data-powershow-image-focal-x="25"');
-    expect(html).toContain('data-powershow-image-focal-y="75"');
-    expect(html).toContain('data-powershow-image-width-authored="true"');
-    expect(html).toContain('data-powershow-image-height-authored="true"');
-    expect(html).toContain("powershow-image-crop-viewport");
-    expect(html).toContain('class="powershow-image-crop-viewport" style="position:absolute"');
-    expect(html).toContain("powershow-image-media");
+    expect(html).toContain('data-presentation-image-crop="{&quot;x&quot;:10,&quot;y&quot;:20,&quot;width&quot;:60,&quot;height&quot;:50}"');
+    expect(html).toContain('data-presentation-image-fit="cover"');
+    expect(html).toContain('data-presentation-image-focal-x="25"');
+    expect(html).toContain('data-presentation-image-focal-y="75"');
+    expect(html).toContain('data-presentation-image-width-authored="true"');
+    expect(html).toContain('data-presentation-image-height-authored="true"');
+    expect(html).toContain("presentation-image-crop-viewport");
+    expect(html).toContain('class="presentation-image-crop-viewport" style="position:absolute"');
+    expect(html).toContain("presentation-image-media");
   });
 
   it("marks an unsized active crop as width-constrained and height-sizing", () => {
     const html = renderGallery(gallery({
       items: [{ src: "/photo.png", alt: "Photo", crop: { x: 10, y: 20, width: 60, height: 50 } }],
     }));
-    const start = html.indexOf('data-powershow-gallery-index="0"');
+    const start = html.indexOf('data-presentation-gallery-index="0"');
     const item = html.slice(start, html.indexOf(">", start));
-    expect(item).toContain('data-powershow-image-width-authored="true"');
-    expect(item).toContain('data-powershow-image-height-authored="false"');
+    expect(item).toContain('data-presentation-image-width-authored="true"');
+    expect(item).toContain('data-presentation-image-height-authored="false"');
     expect(item).toContain("position:relative");
   });
 
@@ -125,10 +125,10 @@ describe("renderGallery", () => {
         { src: "/second.png", alt: "Second", crop: { x: 10, y: 20, width: 60, height: 50 } },
       ],
     }));
-    const start = html.indexOf('data-powershow-gallery-index="1"');
+    const start = html.indexOf('data-presentation-gallery-index="1"');
     const item = html.slice(start, html.indexOf(">", start));
-    expect(item).toContain('data-powershow-image-width-authored="true"');
-    expect(item).toContain('data-powershow-image-height-authored="true"');
+    expect(item).toContain('data-presentation-image-width-authored="true"');
+    expect(item).toContain('data-presentation-image-height-authored="true"');
     expect(item).toContain("position:absolute");
   });
 
@@ -140,7 +140,7 @@ describe("renderGallery", () => {
 
   it("renders an empty Gallery frame without images or carousel CSS", () => {
     const html = renderGallery(gallery({ items: [] }));
-    expect(html).toContain("powershow-gallery");
+    expect(html).toContain("presentation-gallery");
     expect(html).not.toContain("<img");
     expect(html).not.toContain("scroll-snap");
   });
@@ -161,9 +161,9 @@ describe("renderGallery", () => {
     const root = html.slice(0, surfaceStart);
     const surface = html.slice(surfaceStart);
 
-    expect(root).toContain("powershow-gallery presentation-gallery-gradient-frame presentation-gradient-border gallery-class");
-    expect(root).toContain('data-powershow-id="gallery-1"');
-    expect(root).toContain('data-powershow-type="gallery"');
+    expect(root).toContain("presentation-gallery presentation-gallery-gradient-frame presentation-gradient-border gallery-class");
+    expect(root).toContain('data-presentation-id="gallery-1"');
+    expect(root).toContain('data-presentation-type="gallery"');
     expect(root).toContain("width:600px");
     expect(root).toContain("height:400px");
     expect(root).toContain("position:absolute");
@@ -177,7 +177,7 @@ describe("renderGallery", () => {
     expect(root).toContain("--presentation-gradient-border-paint:linear-gradient(180deg,#000 0%,#fff 100%)");
     expect(root).not.toContain("border-image:");
     expect(surface).toContain("presentation-gallery-gradient-surface-constrained");
-    expect(surface).toContain('data-powershow-gallery-index="0"');
+    expect(surface).toContain('data-presentation-gallery-index="0"');
   });
 
   it("keeps intrinsic gradient Galleries unconstrained and preserves crop metadata", () => {
@@ -194,16 +194,16 @@ describe("renderGallery", () => {
 
     const surfaceStart = html.indexOf('class="presentation-gallery-gradient-surface');
     const surface = html.slice(surfaceStart);
-    const first = surface.slice(surface.indexOf('data-powershow-gallery-index="0"'), surface.indexOf('data-powershow-gallery-index="1"'));
+    const first = surface.slice(surface.indexOf('data-presentation-gallery-index="0"'), surface.indexOf('data-presentation-gallery-index="1"'));
 
     expect(surface).not.toContain("presentation-gallery-gradient-surface-constrained");
     expect(first).toContain("position:relative");
     expect(first).toContain("width:100%");
     expect(first).toContain("height:auto");
-    expect(first).toContain('data-powershow-image-height-authored="false"');
-    expect(first).toContain('data-powershow-image-focal-x="25"');
-    expect(first).toContain('data-powershow-image-focal-y="75"');
-    expect(first).toContain("powershow-image-crop-viewport");
+    expect(first).toContain('data-presentation-image-height-authored="false"');
+    expect(first).toContain('data-presentation-image-focal-x="25"');
+    expect(first).toContain('data-presentation-image-focal-y="75"');
+    expect(first).toContain("presentation-image-crop-viewport");
   });
 
   it("preserves constrained crop metadata inside a fixed gradient Gallery surface", () => {
@@ -220,11 +220,11 @@ describe("renderGallery", () => {
     }));
 
     expect(html).toContain("presentation-gallery-gradient-surface-constrained");
-    expect(html).toContain('data-powershow-image-width-authored="true"');
-    expect(html).toContain('data-powershow-image-height-authored="true"');
-    expect(html).toContain('data-powershow-image-fit="cover"');
-    expect(html).toContain('data-powershow-image-focal-x="10"');
-    expect(html).toContain('data-powershow-image-focal-y="90"');
+    expect(html).toContain('data-presentation-image-width-authored="true"');
+    expect(html).toContain('data-presentation-image-height-authored="true"');
+    expect(html).toContain('data-presentation-image-fit="cover"');
+    expect(html).toContain('data-presentation-image-focal-x="10"');
+    expect(html).toContain('data-presentation-image-focal-y="90"');
   });
 
   it("keeps solid Gallery borders and direct item children unchanged", () => {
@@ -238,7 +238,7 @@ describe("renderGallery", () => {
     expect(html).toContain("border-width:2px");
     expect(html).toContain("border-style:dashed");
     expect(html).toContain("border-color:#fff");
-    expect(html.indexOf('data-powershow-gallery-index="0"')).toBeGreaterThan(html.indexOf(">"));
+    expect(html.indexOf('data-presentation-gallery-index="0"')).toBeGreaterThan(html.indexOf(">"));
   });
 
   it("keeps canonical surface border inclusion defaulted and opt-out narrow", () => {
@@ -266,7 +266,7 @@ describe("renderGallery", () => {
     expect(html).not.toContain("<script");
     expect(html).not.toContain("onclick");
     expect(html).not.toContain("addEventListener");
-    expect(html).toContain('data-powershow-type="gallery"');
+    expect(html).toContain('data-presentation-type="gallery"');
   });
 
   it("renders nothing when hidden", () => {

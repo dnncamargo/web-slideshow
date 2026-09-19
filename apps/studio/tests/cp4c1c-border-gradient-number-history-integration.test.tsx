@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -111,7 +111,7 @@ describe("CP4C1C border and gradient numeric history", () => {
   });
 
   async function selectElement(id: string): Promise<void> {
-    await act(async () => host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`)?.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`)?.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
 
   async function edit(inputId: string, values: string[]): Promise<void> {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
 import {

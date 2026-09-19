@@ -30,7 +30,7 @@ button {
   font: inherit;
 }
 
-.powershow-player {
+.player {
   position: fixed;
   inset: 0;
 
@@ -43,7 +43,7 @@ button {
   background: #000;
 }
 
-.powershow-player-stage {
+.player-stage {
   position: relative;
 
   flex: none;
@@ -53,14 +53,14 @@ button {
   background: #000;
 }
 
-.powershow-player-slide-host {
+.player-slide-host {
   position: absolute;
   inset: 0;
 
   z-index: 1;
 }
 
-.powershow-player-slide-surface {
+.player-slide-surface {
   position: absolute;
   top: 0;
   left: 0;
@@ -68,12 +68,12 @@ button {
   transform-origin: 0 0;
 }
 
-.powershow-player-slide-surface > .powershow-slide {
+.player-slide-surface > .presentation-slide {
   width: 100%;
   height: 100%;
 }
 
-.powershow-player-gallery-expanded {
+.player-gallery-expanded {
   position: absolute;
   inset: 0;
   z-index: 50;
@@ -83,14 +83,14 @@ button {
   background: #000;
 }
 
-.powershow-player-gallery-expanded-media {
+.player-gallery-expanded-media {
   position: absolute;
   inset: 0;
 
   overflow: hidden;
 }
 
-.powershow-player-controls {
+.player-controls {
   position: absolute;
 
   z-index: 100;
@@ -122,7 +122,7 @@ button {
    floating, minimal e compact.
    ========================================================== */
 
-.powershow-player-controls {
+.player-controls {
   z-index: 100;
 
   position: absolute;
@@ -143,7 +143,7 @@ button {
    Apenas opacidade.
    ---------------------------------------------------------- */
 
-.powershow-player-controls-fade {
+.player-controls-fade {
   transition: opacity 0.18s ease;
 }
 
@@ -156,8 +156,8 @@ button {
    destruir o translateX(-50%) usado pelas posições centrais.
    ---------------------------------------------------------- */
 
-.powershow-player-controls-slide {
-  --powershow-controls-offset-y: 0px;
+.player-controls-slide {
+  --presentation-controls-offset-y: 0px;
 
   transition:
     opacity 0.18s ease,
@@ -170,7 +170,7 @@ button {
    Nenhuma transição.
    ---------------------------------------------------------- */
 
-.powershow-player-controls-none {
+.player-controls-none {
   transition: none;
 }
 
@@ -178,7 +178,7 @@ button {
    END: ANIMAÇÕES DOS CONTROLES
    ========================================================== */
 
-.powershow-player-controls button {
+.player-controls button {
   display: grid;
   place-items: center;
 
@@ -189,7 +189,7 @@ button {
   cursor: pointer;
 }
 
-.powershow-player-controls button:disabled {
+.player-controls button:disabled {
   opacity: 0.35;
 
   cursor: default;
@@ -207,7 +207,7 @@ button {
    Barra flutuante com fundo translúcido e blur.
    ========================================================== */
 
-.powershow-player-controls-floating {
+.player-controls-floating {
   gap: 10px;
 
   padding: 8px 10px;
@@ -219,7 +219,7 @@ button {
   backdrop-filter: blur(8px);
 }
 
-.powershow-player-controls-floating button {
+.player-controls-floating button {
   min-width: 44px;
   min-height: 44px;
 
@@ -232,7 +232,7 @@ button {
   color: #ffffff;
 }
 
-.powershow-player-controls-floating button:hover:not(:disabled) {
+.player-controls-floating button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.2);
 }
 
@@ -249,7 +249,7 @@ button {
    durante interação.
    ========================================================== */
 
-.powershow-player-controls-minimal {
+.player-controls-minimal {
   gap: 6px;
 
   padding: 4px;
@@ -257,7 +257,7 @@ button {
   background: transparent;
 }
 
-.powershow-player-controls-minimal button {
+.player-controls-minimal button {
   min-width: 42px;
   min-height: 42px;
 
@@ -272,14 +272,14 @@ button {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
-.powershow-player-controls-minimal button:hover:not(:disabled) {
+.player-controls-minimal button:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.45);
 }
 
 /* O contador também precisa continuar legível
    sobre slides claros. */
 
-.powershow-player-controls-minimal .powershow-player-counter {
+.player-controls-minimal .player-counter {
   color: #ffffff;
 
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
@@ -295,7 +295,7 @@ button {
    Mantém uma barra visível, mas ocupa menos espaço.
    ========================================================== */
 
-.powershow-player-controls-compact {
+.player-controls-compact {
   gap: 4px;
 
   padding: 5px 7px;
@@ -307,7 +307,7 @@ button {
   backdrop-filter: blur(6px);
 }
 
-.powershow-player-controls-compact button {
+.player-controls-compact button {
   min-width: 34px;
   min-height: 34px;
 
@@ -320,11 +320,11 @@ button {
   color: #ffffff;
 }
 
-.powershow-player-controls-compact button:hover:not(:disabled) {
+.player-controls-compact button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.powershow-player-controls-compact .powershow-player-counter {
+.player-controls-compact .player-counter {
   min-width: 56px;
 
   font-size: 12px;
@@ -334,7 +334,7 @@ button {
    END: CONTROLES - COMPACT
    ========================================================== */
 
-.powershow-player-counter {
+.player-counter {
   min-width: 72px;
 
   color: #fff;
@@ -345,7 +345,7 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.powershow-player-empty {
+.player-empty {
   display: grid;
   place-items: center;
 
@@ -363,7 +363,7 @@ button {
    A variante de animação decide COMO chegar a esse estado.
    ========================================================== */
 
-.powershow-player-controls-hidden {
+.player-controls-hidden {
   opacity: 0;
 
   pointer-events: none;
@@ -373,7 +373,7 @@ button {
 /* Quando a variante escolhida é "slide",
    o estado oculto também recebe deslocamento. */
 
-.powershow-player-controls-slide.powershow-player-controls-hidden {
+.player-controls-slide.player-controls-hidden {
   translate: 0 8px;
 }
 
@@ -396,36 +396,36 @@ button {
    - top-right
    ========================================================== */
 
-.powershow-player-controls-bottom-center {
+.player-controls-bottom-center {
   bottom: 18px;
   left: 50%;
 
   transform: translateX(-50%);
 }
 
-.powershow-player-controls-bottom-left {
+.player-controls-bottom-left {
   bottom: 18px;
   left: 18px;
 }
 
-.powershow-player-controls-bottom-right {
+.player-controls-bottom-right {
   right: 18px;
   bottom: 18px;
 }
 
-.powershow-player-controls-top-center {
+.player-controls-top-center {
   top: 18px;
   left: 50%;
 
   transform: translateX(-50%);
 }
 
-.powershow-player-controls-top-left {
+.player-controls-top-left {
   top: 18px;
   left: 18px;
 }
 
-.powershow-player-controls-top-right {
+.player-controls-top-right {
   top: 18px;
   right: 18px;
 }
@@ -434,7 +434,7 @@ button {
    END: POSIÇÕES DOS CONTROLES
    ========================================================== */
 
-.powershow-terminal {
+.presentation-terminal {
   width: 100%;
 
   overflow: hidden;
@@ -453,7 +453,7 @@ button {
   line-height: 1.6;
 }
 
-.powershow-terminal-title {
+.presentation-terminal-title {
   padding: 12px 18px;
 
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -464,11 +464,11 @@ button {
   font-weight: 600;
 }
 
-.powershow-terminal-body {
+.presentation-terminal-body {
   padding: 18px 20px;
 }
 
-.powershow-terminal-line {
+.presentation-terminal-line {
   min-height: 1.6em;
 
   white-space: pre-wrap;
@@ -476,29 +476,29 @@ button {
   overflow-wrap: anywhere;
 }
 
-.powershow-terminal-line-command {
+.presentation-terminal-line-command {
   color: #d1fae5;
 }
 
-.powershow-terminal-line-command::before {
+.presentation-terminal-line-command::before {
   content: "$ ";
 
   color: #34d399;
 }
 
-.powershow-terminal-line-output {
+.presentation-terminal-line-output {
   color: #cbd5e1;
 }
 
-.powershow-terminal-line-error {
+.presentation-terminal-line-error {
   color: #fca5a5;
 }
 
-.powershow-terminal-line-comment {
+.presentation-terminal-line-comment {
   color: #64748b;
 }
 
-.powershow-player-load-state {
+.player-load-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -511,7 +511,7 @@ button {
   font-size: 14px;
 }
 
-.powershow-player-load-indicator {
+.player-load-indicator {
   display: none;
   width: 72px;
   height: 2px;
@@ -519,21 +519,21 @@ button {
   background: rgb(148 163 184 / 28%);
 }
 
-.powershow-player-load-state[data-loading="true"] .powershow-player-load-indicator {
+.player-load-state[data-loading="true"] .player-load-indicator {
   display: block;
 }
 
-.powershow-player-load-indicator::before {
+.player-load-indicator::before {
   display: block;
   width: 42%;
   height: 100%;
   content: "";
   background: #60a5fa;
-  animation: powershow-load-indicator 1.1s ease-in-out infinite;
+  animation: presentation-load-indicator 1.1s ease-in-out infinite;
 }
 
-.powershow-player-recovery-toggle,
-.powershow-player-recovery-options button {
+.player-recovery-toggle,
+.player-recovery-options button {
   min-height: 44px;
   padding: 8px 12px;
   border: 0;
@@ -543,19 +543,19 @@ button {
   cursor: pointer;
 }
 
-.powershow-player-recovery-toggle {
+.player-recovery-toggle {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.powershow-player-recovery-toggle:hover,
-.powershow-player-recovery-toggle:focus-visible,
-.powershow-player-recovery-options button:hover,
-.powershow-player-recovery-options button:focus-visible {
+.player-recovery-toggle:hover,
+.player-recovery-toggle:focus-visible,
+.player-recovery-options button:hover,
+.player-recovery-options button:focus-visible {
   color: #e2e8f0;
 }
 
-.powershow-player-recovery-options {
+.player-recovery-options {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -566,11 +566,11 @@ button {
   font-size: 12px;
 }
 
-.powershow-player-recovery-options button {
+.player-recovery-options button {
   color: #cbd5e1;
 }
 
-@keyframes powershow-load-indicator {
+@keyframes presentation-load-indicator {
   0% {
     transform: translateX(-110%);
   }
@@ -581,13 +581,13 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .powershow-player-load-indicator::before {
+  .player-load-indicator::before {
     animation: none;
     transform: translateX(70%);
   }
 }
 
-.powershow-player-fullscreen-request {
+.player-fullscreen-request {
   position: fixed;
   top: 18px;
   left: 50%;
@@ -605,6 +605,6 @@ button {
   cursor: pointer;
 }
 
-.powershow-player-fullscreen-request:hover {
+.player-fullscreen-request:hover {
   background: rgba(30, 41, 59, 0.95);
 }

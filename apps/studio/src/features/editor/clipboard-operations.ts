@@ -1,4 +1,4 @@
-import type { PowerShowElement, Presentation } from "@powershow/document-schema";
+import type { PresentationElement, Presentation } from "@web-slideshow/document-schema";
 
 import {
   findContentSlotById,
@@ -18,9 +18,9 @@ export type ClipboardPasteDestination =
   | { kind: "content-slot"; id: string };
 
 export function resolveClipboardPasteDestination(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   snapshotElementId: string,
-  selectedElement: PowerShowElement | null,
+  selectedElement: PresentationElement | null,
   selectedContentSlotId: string | null,
 ): ClipboardPasteDestination | null {
   if (
@@ -59,7 +59,7 @@ export function moveClipboardElement(
   sourceSlideId: string,
   sourceElementId: string,
   receiverSlideIndex: number,
-  selectedElement: PowerShowElement | null,
+  selectedElement: PresentationElement | null,
   selectedContentSlotId: string | null,
 ): Presentation | null {
   const sourceSlide = presentation.slides.find((slide) => slide.id === sourceSlideId);

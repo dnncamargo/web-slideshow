@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   paletteColorCssVariableName,
@@ -68,7 +68,7 @@ describe("canonical palette color rendering", () => {
             type: "table",
             mode: "simple",
             columns: [{ key: "name", label: "Name" }],
-            rows: [{ name: "PowerShow" }],
+            rows: [{ name: "Example" }],
             style: {
               background: { gradient: { type: "linear", stops: [
                 { color: reference, position: 0 },

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
   BackgroundPattern,
   ContainerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

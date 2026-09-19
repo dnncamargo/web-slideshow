@@ -59,7 +59,7 @@ export interface ThemeStyleDefaultElement {
 
 // These values are the deterministic authoring representation of the
 // canonical declarations in base.css. rem/em lengths are resolved against the
-// PowerShow authoring root so the Studio can convert rem values without
+// Authoring root so the Studio can convert rem values without
 // consulting the DOM. The Theme font stack remains supplied by CSS rather
 // than becoming an authored font family in this baseline.
 export const TEXT_VARIANT_TYPOGRAPHY_BASELINES: Readonly<

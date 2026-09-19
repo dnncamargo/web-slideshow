@@ -1,7 +1,7 @@
 import type {
   SlideBackground,
   SlideBackgroundPattern,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   renderGradient,
@@ -75,7 +75,7 @@ export function renderSlideBackground(
   if (background?.image) {
     children.push(
       `<img` +
-        ` class="powershow-slide-background-image"` +
+        ` class="presentation-slide-background-image"` +
         ` src="${escapeHtml(background.image)}"` +
         ` alt=""` +
         ` aria-hidden="true"` +
@@ -103,7 +103,7 @@ export function renderSlideBackground(
 
     children.push(
       `<div` +
-        ` class="powershow-slide-background-pattern"` +
+        ` class="presentation-slide-background-pattern"` +
         ` aria-hidden="true"` +
         ` style="${escapeHtml(patternStyles.join(";"))}"` +
         `></div>`,
@@ -112,7 +112,7 @@ export function renderSlideBackground(
 
   return (
     `<div` +
-    ` class="powershow-slide-background"` +
+    ` class="presentation-slide-background"` +
     ` aria-hidden="true"` +
     ` style="${escapeHtml(styles.join(";"))}"` +
     `>` +

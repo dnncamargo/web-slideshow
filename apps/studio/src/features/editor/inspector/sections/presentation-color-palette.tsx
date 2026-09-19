@@ -1,4 +1,4 @@
-import type { PresentationPaletteColor } from "@powershow/document-schema";
+import type { PresentationPaletteColor } from "@web-slideshow/document-schema";
 import {
   createContext,
   useContext,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Slide, TextElement } from "@powershow/document-schema";
+import type { Slide, TextElement } from "@web-slideshow/document-schema";
 
 import { insertElementAfterId } from "../src/features/editor/element-operations";
 import { createQrImageElement } from "../src/features/editor/qr-image-authoring";

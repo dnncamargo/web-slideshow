@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 const firebase = vi.hoisted(() => ({ ref: vi.fn(), set: vi.fn(), runTransaction: vi.fn() }));
 vi.mock("firebase/database", () => firebase);
@@ -52,7 +52,7 @@ describe("live Scripted state publisher", () => {
   it("preserves finite output numbers without step quantization and starts reports at revision one", async () => {
     const state = publisher();
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 0.12 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 0.12 });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledOnce());
     expect(firebase.runTransaction).toHaveBeenCalledWith({ path: `${SCRIPTED_REPORT_ROOT_PATH}/1/0` }, expect.any(Function));
     const update = firebase.runTransaction.mock.calls[0]?.[1] as (value: unknown) => unknown;
@@ -62,8 +62,8 @@ describe("live Scripted state publisher", () => {
   it("publishes boolean output and input-output reports", async () => {
     const state = publisher();
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "ready", value: true });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "both", value: false });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "ready", value: true });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "both", value: false });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     expect(firebase.runTransaction.mock.calls.map(([target]) => target.path)).toEqual([
       `${SCRIPTED_REPORT_ROOT_PATH}/1/1`, `${SCRIPTED_REPORT_ROOT_PATH}/1/2`,
@@ -76,7 +76,7 @@ describe("live Scripted state publisher", () => {
     firebase.set.mockReturnValue(new Promise<void>((resolve) => { resolveRuntime = resolve; }));
     state.onScriptedMount({ pageId: "page", elementId: "output" });
     state.markAppliedInput({ scriptedSlot: 1, portIndex: 2, pageId: "page", elementId: "output", portId: "both", mountRevision: 1, revision: 1 });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "both", value: true });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "both", value: true });
     state.markAppliedInput({ scriptedSlot: 1, portIndex: 2, pageId: "page", elementId: "output", portId: "both", mountRevision: 1, revision: 2 });
     state.markAppliedInput({ scriptedSlot: 1, portIndex: 2, pageId: "page", elementId: "output", portId: "both", mountRevision: 1, revision: 1 });
     resolveRuntime();
@@ -84,7 +84,7 @@ describe("live Scripted state publisher", () => {
     const firstUpdate = firebase.runTransaction.mock.calls[0]?.[1] as (value: unknown) => unknown;
     expect(firstUpdate(null)).toMatchObject({ appliedInputRevision: 1 });
 
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "both", value: false });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "both", value: false });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     const secondUpdate = firebase.runTransaction.mock.calls[1]?.[1] as (value: unknown) => unknown;
     expect(secondUpdate(null)).toMatchObject({ appliedInputRevision: 2 });
@@ -95,8 +95,8 @@ describe("live Scripted state publisher", () => {
     state.onScriptedMount({ pageId: "page", elementId: "output" });
     state.markAppliedInput({ scriptedSlot: 1, portIndex: 2, pageId: "page", elementId: "output", portId: "both", mountRevision: 1, revision: 3 });
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "both", value: true });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "ready", value: true });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "both", value: true });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "ready", value: true });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     for (const [, update] of firebase.runTransaction.mock.calls) {
       expect((update as (value: unknown) => unknown)(null)).toMatchObject({ mountRevision: 2, appliedInputRevision: 0 });
@@ -106,8 +106,8 @@ describe("live Scripted state publisher", () => {
   it("increments reports in one runtime", async () => {
     const state = publisher();
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 2 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 1 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 2 });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     const update = firebase.runTransaction.mock.calls[1]?.[1] as (value: unknown) => unknown;
     expect(update({ activationRevision: 7, currentVersionId: "v", revision: 1, pageId: "page", elementId: "output", portId: "n", sourceBootId: "boot", mountRevision: 1, appliedInputRevision: 0, value: 1 })).toMatchObject({ revision: 2, value: 2 });
@@ -116,7 +116,7 @@ describe("live Scripted state publisher", () => {
   it("does not publish input-only reports", async () => {
     const state = publisher();
     state.onScriptedMount({ pageId: "page", elementId: "input" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "input", portId: "in", value: true });
+    state.onScriptedReport({ type: "scripted:report", elementId: "input", portId: "in", value: true });
     await Promise.resolve();
     expect(firebase.runTransaction).not.toHaveBeenCalled();
   });
@@ -127,7 +127,7 @@ describe("live Scripted state publisher", () => {
     const state = publisher(() => page);
     firebase.set.mockReturnValue(new Promise<void>((resolve) => { resolveRuntime = resolve; }));
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 1 });
     page = "page-b";
     resolveRuntime();
     await Promise.resolve();
@@ -144,7 +144,7 @@ describe("live Scripted state publisher", () => {
       return Promise.resolve();
     });
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 1 });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledOnce());
     page = "page-b";
     expect(updater?.(null)).toBeUndefined();
@@ -153,10 +153,10 @@ describe("live Scripted state publisher", () => {
   it("resets occurrence revision when a replacement mount reports", async () => {
     const state = publisher();
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 1 });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledOnce());
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 2 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 2 });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     const update = firebase.runTransaction.mock.calls[1]?.[1] as (value: unknown) => unknown;
     expect(update({ activationRevision: 7, currentVersionId: "v", revision: 8, pageId: "page", elementId: "output", portId: "n", sourceBootId: "boot", mountRevision: 1, appliedInputRevision: 0, value: 1 })).toMatchObject({ revision: 1, mountRevision: 2 });
@@ -176,7 +176,7 @@ describe("live Scripted state publisher", () => {
     firebase.set.mockRejectedValue(new Error("denied"));
     const state = createLiveScriptedStatePublisher({ database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => 1, isCurrent: () => true, getCurrentPageId: () => "page", onRuntimeWriteError, onReportWriteError });
     state.onScriptedMount({ pageId: "page", elementId: "output" });
-    state.onScriptedReport({ type: "powershow:scripted:report", elementId: "output", portId: "n", value: 1 });
+    state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 1 });
     await vi.waitFor(() => expect(onRuntimeWriteError).toHaveBeenCalledOnce());
     expect(firebase.runTransaction).not.toHaveBeenCalled();
     expect(onReportWriteError).not.toHaveBeenCalled();

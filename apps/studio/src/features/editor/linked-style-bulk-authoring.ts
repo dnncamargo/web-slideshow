@@ -3,7 +3,7 @@ import {
   type ContainerElement,
   type LinkedContainerStyle,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { updateElementById } from "./element-tree";
 import { visitContainers, visitElements } from "./element-hierarchy";

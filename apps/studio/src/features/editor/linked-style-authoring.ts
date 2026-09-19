@@ -11,8 +11,8 @@ import {
   type LinkedTopicsStyle,
   type Presentation,
   type TopicsElement,
-} from "@powershow/document-schema";
-import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/document-schema";
+import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow/theme/element-style-defaults";
 
 import { findElementById, updateElementById } from "./element-tree";
 import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";

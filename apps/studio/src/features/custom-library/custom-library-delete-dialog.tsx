@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { CustomLibraryItemRecord } from "./custom-library-repository";
@@ -27,8 +27,8 @@ export function CustomLibraryDeleteDialog({
 
   return (
     <div className={styles.deleteDialogBackdrop}>
-      <div className={styles.deleteDialog} role="dialog" aria-modal="true" aria-labelledby="powershow-custom-library-delete-title">
-        <h2 id="powershow-custom-library-delete-title" className={styles.deleteDialogTitle}>
+      <div className={styles.deleteDialog} role="dialog" aria-modal="true" aria-labelledby="studio-custom-library-delete-title">
+        <h2 id="studio-custom-library-delete-title" className={styles.deleteDialogTitle}>
           {t("customLibrary.deleteTitle")}
         </h2>
         <p className={styles.deleteDialogText}>

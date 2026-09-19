@@ -7,11 +7,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TopicItem,
   type TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -20,11 +20,11 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const repositories = { listPalettes: async () => [], listFonts: async () => [] } as never;
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { id, type: "text", hidden: false, variant: "body", content };
 }
 
-function topicItem(id: string, children: PowerShowElement[], nested: TopicItem[] = []): TopicItem {
+function topicItem(id: string, children: PresentationElement[], nested: TopicItem[] = []): TopicItem {
   return { id, content: { id: `slot-${id}`, children }, children: nested };
 }
 
@@ -43,7 +43,7 @@ function topics(id: string, overrides: Partial<TopicsElement> = {}): TopicsEleme
   };
 }
 
-function presentation(elements: PowerShowElement[], linkedStyles: readonly object[] = []): Presentation {
+function presentation(elements: PresentationElement[], linkedStyles: readonly object[] = []): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4f7-create-linked-style-from-selected-history",
@@ -65,7 +65,7 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function findElement(elements: readonly PowerShowElement[], id: string): PowerShowElement | undefined {
+function findElement(elements: readonly PresentationElement[], id: string): PresentationElement | undefined {
   for (const element of elements) {
     if (element.id === id) return element;
     if (element.type === "container") {
@@ -76,7 +76,7 @@ function findElement(elements: readonly PowerShowElement[], id: string): PowerSh
   return undefined;
 }
 
-function getElement(document: Presentation, id: string): PowerShowElement {
+function getElement(document: Presentation, id: string): PresentationElement {
   const element = findElement(document.slides[0]?.elements ?? [], id);
   if (!element) throw new Error(`Element was not found: ${id}`);
   return element;
@@ -111,7 +111,7 @@ describe("CP4F7 create Linked Style from selected element history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`Element was not rendered: ${id}`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -202,12 +202,12 @@ describe("CP4F7 create Linked Style from selected element history", () => {
       linkedStyleId: "shared-2",
     });
     expect(getElement(changed, "sibling")).not.toHaveProperty("linkedStyleId");
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="nested-source"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="nested-source"]')?.classList.contains("studio-editor-selected")).toBe(true);
 
     const undoEvent = await undo();
     expect(undoEvent.defaultPrevented).toBe(true);
     expect(await save(saved)).toEqual(initial);
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="nested-source"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="nested-source"]')?.classList.contains("studio-editor-selected")).toBe(true);
 
     const redoEvent = await redo();
     expect(redoEvent.defaultPrevented).toBe(true);

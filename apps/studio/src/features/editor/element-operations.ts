@@ -2,22 +2,23 @@ import type {
   ContentSlot,
   ColorValue,
   GalleryElement,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   StructuredTableColumn,
   StructuredTableElement,
   StructuredTableRow,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   isPaletteColorReference,
   parseColor,
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
-} from "@powershow/document-schema";
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
+} from "@web-slideshow/document-schema";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import {
   getTextContentPlainText,
@@ -68,7 +69,7 @@ export type ElementCreateType =
 // ============================================================
 
 function collectElementIds(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   ids: Set<string>,
 ) {
   for (const element of elements) {
@@ -118,7 +119,7 @@ function createUniqueId(baseId: string, usedIds: Set<string>): string {
 // BEGIN: TÓPICOS (TopicItem)
 //
 // Um TopicItem é um nó estrutural do documento. Ele NÃO é um
-// PowerShowElement. Cada item carrega um ContentSlot com um
+// PresentationElement. Cada item carrega um ContentSlot com um
 // único Text por padrão.
 // ============================================================
 
@@ -259,7 +260,7 @@ function buildDefaultTopicItem(usedIds: Set<string>): CreatedTopicItem {
 
           hidden: false,
 
-          variant: POWERSHOW_TOPICS_TEXT_STYLE_ID,
+          variant: SYSTEM_TOPICS_TEXT_STYLE_ID,
 
           content: "New topic",
         },
@@ -281,10 +282,10 @@ export function createDefaultTopicItem(
 }
 
 export function appendTopicItemToTopics(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   topicsId: string,
   item: TopicItem,
-): PowerShowElement[] {
+): PresentationElement[] {
   const target = findElementById(elements, topicsId);
 
   if (target?.type !== "topics") {
@@ -376,15 +377,15 @@ export function findTopicItemStructuralDepthInItems(
 }
 
 export function appendChildTopicItemToTopics(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   topicsId: string,
   topicItemId: string,
   item: TopicItem,
-): PowerShowElement[] {
+): PresentationElement[] {
   const target = findElementById(elements, topicsId);
 
   if (target?.type !== "topics") {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   const itemDepth = findTopicItemStructuralDepthInItems(
@@ -393,7 +394,7 @@ export function appendChildTopicItemToTopics(
   );
 
   if (itemDepth === null || itemDepth >= MAX_TOPIC_STRUCTURAL_DEPTH) {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   const items = appendTopicItemToTopicItems(
@@ -403,7 +404,7 @@ export function appendChildTopicItemToTopics(
   );
 
   if (items === target.items) {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   return updateElementById(elements, topicsId, (element) => {
@@ -471,15 +472,15 @@ function moveTopicItemToSiblingIndexInItems(
 }
 
 export function moveTopicItemToSiblingIndex(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   topicsId: string,
   topicItemId: string,
   targetIndex: number,
-): PowerShowElement[] {
+): PresentationElement[] {
   const target = findElementById(elements, topicsId);
 
   if (target?.type !== "topics") {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   const items = moveTopicItemToSiblingIndexInItems(
@@ -489,7 +490,7 @@ export function moveTopicItemToSiblingIndex(
   );
 
   if (items === target.items) {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   return updateElementById(elements, topicsId, (element) => {
@@ -561,7 +562,7 @@ function findTopicItemHierarchyLocation(
 }
 
 export function getTopicItemHierarchyActionState(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   topicsId: string,
   topicItemId: string,
 ): TopicItemHierarchyActionState {
@@ -643,20 +644,20 @@ function indentTopicItemInItems(
 }
 
 export function indentTopicItem(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   topicsId: string,
   topicItemId: string,
-): PowerShowElement[] {
+): PresentationElement[] {
   const target = findElementById(elements, topicsId);
 
   if (target?.type !== "topics") {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   const items = indentTopicItemInItems(target.items, topicItemId, 1);
 
   if (items === target.items) {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   return updateElementById(elements, topicsId, (element) => {
@@ -712,20 +713,20 @@ function outdentTopicItemInItems(
 }
 
 export function outdentTopicItem(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   topicsId: string,
   topicItemId: string,
-): PowerShowElement[] {
+): PresentationElement[] {
   const target = findElementById(elements, topicsId);
 
   if (target?.type !== "topics") {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   const items = outdentTopicItemInItems(target.items, topicItemId);
 
   if (items === target.items) {
-    return elements as PowerShowElement[];
+    return elements as PresentationElement[];
   }
 
   return updateElementById(elements, topicsId, (element) => {
@@ -916,9 +917,9 @@ function structuredTableContainsContentSlot(
  * ignored.
  */
 export function resolveAddElementDestination(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   selectedElementId: string | null,
-  newElement: PowerShowElement,
+  newElement: PresentationElement,
   contentSlotId: string | null = null,
 ): AddElementDestination {
   if (selectedElementId === null) {
@@ -971,7 +972,7 @@ export function resolveAddElementDestination(
 export function createElement(
   type: ElementCreateType,
   slides: readonly Slide[],
-): PowerShowElement {
+): PresentationElement {
   const usedIds = collectPresentationElementIds(slides);
 
   switch (type) {
@@ -1012,7 +1013,7 @@ export function createElement(
 
         hidden: false,
 
-        src: "/powershow-demo.svg",
+        src: "/instance-demo.svg",
 
         alt: "New image",
 
@@ -1037,7 +1038,7 @@ export function createElement(
 
         items: [
           {
-            src: "/powershow-demo.svg",
+            src: "/instance-demo.svg",
 
             alt: "",
           },
@@ -1124,7 +1125,7 @@ export function createElement(
 
         hidden: false,
 
-        code: 'const message = "Hello PowerShow";',
+        code: 'const message = "Hello, presentation";',
 
         language: "typescript",
 
@@ -1176,19 +1177,19 @@ export function createElement(
       const cellTextId = createUniqueId("table-cell-text", usedIds);
       usedIds.add(cellTextId);
 
-      const headerText: PowerShowElement = {
+      const headerText: PresentationElement = {
         id: headerTextId,
         type: "text",
         hidden: false,
-        variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+        variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
         content: "Column 1",
       };
 
-      const cellText: PowerShowElement = {
+      const cellText: PresentationElement = {
         id: cellTextId,
         type: "text",
         hidden: false,
-        variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+        variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
         content: "Value",
       };
 
@@ -1279,7 +1280,7 @@ function cloneContentSlotWithUniqueIds(
     ...slot,
     id,
     children: slot.children.map((child) =>
-      clonePowerShowElementWithUniqueIds(child, usedIds),
+      clonePresentationElementWithUniqueIds(child, usedIds),
     ),
   };
 }
@@ -1301,10 +1302,10 @@ function cloneTopicItemWithUniqueIds(
   };
 }
 
-function clonePowerShowElementWithUniqueIds(
-  source: PowerShowElement,
+function clonePresentationElementWithUniqueIds(
+  source: PresentationElement,
   usedIds: Set<string>,
-): PowerShowElement {
+): PresentationElement {
   const clone = structuredClone(source);
   const id = createUniqueId(`${source.id}-copy`, usedIds);
   usedIds.add(id);
@@ -1314,7 +1315,7 @@ function clonePowerShowElementWithUniqueIds(
       ...clone,
       id,
       children: clone.children.map((child) =>
-        clonePowerShowElementWithUniqueIds(child, usedIds),
+        clonePresentationElementWithUniqueIds(child, usedIds),
       ),
     };
   }
@@ -1365,12 +1366,12 @@ function clonePowerShowElementWithUniqueIds(
 }
 
 export function duplicateElement(
-  source: PowerShowElement,
+  source: PresentationElement,
   slides: readonly Slide[],
-): PowerShowElement {
+): PresentationElement {
   const usedIds = collectPresentationElementIds(slides);
 
-  return clonePowerShowElementWithUniqueIds(source, usedIds);
+  return clonePresentationElementWithUniqueIds(source, usedIds);
 }
 
 // ============================================================
@@ -1384,7 +1385,7 @@ export function duplicateElement(
 function insertElementAfterIdInTopicItems(
   items: readonly TopicItem[],
   targetId: string,
-  newElement: PowerShowElement,
+  newElement: PresentationElement,
 ): TopicItem[] {
   let changed = false;
 
@@ -1426,10 +1427,10 @@ function insertElementAfterIdInTopicItems(
 }
 
 export function insertElementIntoChildrenAt(
-  children: readonly PowerShowElement[],
+  children: readonly PresentationElement[],
   index: number,
-  elementToInsert: PowerShowElement,
-): PowerShowElement[] {
+  elementToInsert: PresentationElement,
+): PresentationElement[] {
   return [
     ...children.slice(0, index),
     elementToInsert,
@@ -1440,7 +1441,7 @@ export function insertElementIntoChildrenAt(
 function appendElementToStructuredTableSlots(
   table: StructuredTableElement,
   contentSlotId: string,
-  newElement: PowerShowElement,
+  newElement: PresentationElement,
 ): StructuredTableElement | null {
   let columnsChanged = false;
 
@@ -1529,7 +1530,7 @@ function insertIntoStructuredTableParentRef(
   table: StructuredTableElement,
   parentRef: ElementParentRef,
   index: number,
-  elementToInsert: PowerShowElement,
+  elementToInsert: PresentationElement,
 ): StructuredTableElement | null {
   if (parentRef.kind !== "content-slot") {
     return updateStructuredTableSlots(table, (children) =>
@@ -1638,10 +1639,10 @@ function insertIntoStructuredTableParentRef(
 }
 
 export function insertElementAfterId(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   targetId: string,
-  newElement: PowerShowElement,
-): PowerShowElement[] {
+  newElement: PresentationElement,
+): PresentationElement[] {
   const targetLocation = findElementLocation(elements, targetId);
 
   if (
@@ -1652,7 +1653,7 @@ export function insertElementAfterId(
   }
 
   let changed = false;
-  const result: PowerShowElement[] = [];
+  const result: PresentationElement[] = [];
 
   for (const element of elements) {
     result.push(element);
@@ -1722,9 +1723,9 @@ export function insertElementAfterId(
  * in Slide/Container contexts and in any future non-Topic content slot.
  */
 function isForbiddenTopicPlacement(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   contentSlotId: string,
-  newElement: PowerShowElement,
+  newElement: PresentationElement,
 ): boolean {
   return (
     newElement.type === "topics" &&
@@ -1735,7 +1736,7 @@ function isForbiddenTopicPlacement(
 function appendElementToContainerInTopicItems(
   items: readonly TopicItem[],
   containerId: string,
-  newElement: PowerShowElement,
+  newElement: PresentationElement,
 ): TopicItem[] {
   let changed = false;
 
@@ -1777,13 +1778,13 @@ function appendElementToContainerInTopicItems(
 }
 
 export function appendElementToContainer(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   containerId: string,
-  newElement: PowerShowElement,
-): PowerShowElement[] {
+  newElement: PresentationElement,
+): PresentationElement[] {
   let changed = false;
 
-  const nextElements: PowerShowElement[] = elements.map((element) => {
+  const nextElements: PresentationElement[] = elements.map((element) => {
     if (element.type === "container" && element.id === containerId) {
       changed = true;
       return { ...element, children: [...element.children, newElement] };
@@ -1831,13 +1832,13 @@ export function appendElementToContainer(
     return element;
   });
 
-  return changed ? nextElements : (elements as PowerShowElement[]);
+  return changed ? nextElements : (elements as PresentationElement[]);
 }
 
 function appendElementToContentSlotInTopicItems(
   items: readonly TopicItem[],
   contentSlotId: string,
-  newElement: PowerShowElement,
+  newElement: PresentationElement,
 ): TopicItem[] {
   let changed = false;
 
@@ -1891,17 +1892,17 @@ function appendElementToContentSlotInTopicItems(
 }
 
 export function appendElementToContentSlot(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   contentSlotId: string,
-  newElement: PowerShowElement,
-): PowerShowElement[] {
+  newElement: PresentationElement,
+): PresentationElement[] {
   if (isForbiddenTopicPlacement(elements, contentSlotId, newElement)) {
     return elements;
   }
 
   let changed = false;
 
-  const nextElements: PowerShowElement[] = elements.map((element) => {
+  const nextElements: PresentationElement[] = elements.map((element) => {
     if (element.type === "container") {
       const children = appendElementToContentSlot(
         element.children,
@@ -1946,7 +1947,7 @@ export function appendElementToContentSlot(
     return element;
   });
 
-  return changed ? nextElements : (elements as PowerShowElement[]);
+  return changed ? nextElements : (elements as PresentationElement[]);
 }
 
 // ============================================================
@@ -1993,13 +1994,13 @@ function removeElementByIdInTopicItems(
 }
 
 export function removeElementById(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   id: string,
-): PowerShowElement[] {
+): PresentationElement[] {
   let changed = false;
 
-  const nextElements: PowerShowElement[] = elements.flatMap(
-    (element): PowerShowElement[] => {
+  const nextElements: PresentationElement[] = elements.flatMap(
+    (element): PresentationElement[] => {
       if (element.id === id) {
         changed = true;
         return [];
@@ -2042,7 +2043,7 @@ export function removeElementById(
     },
   );
 
-  return changed ? nextElements : (elements as PowerShowElement[]);
+  return changed ? nextElements : (elements as PresentationElement[]);
 }
 
 // ============================================================
@@ -2060,7 +2061,7 @@ export interface ElementSiblingPosition {
 }
 
 export function findElementSiblingPosition(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
 ): ElementSiblingPosition | null {
   const location = findElementLocation(elements, id);
@@ -2083,10 +2084,10 @@ export function findElementSiblingPosition(
 // ============================================================
 
 export function moveElementById(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   id: string,
   offset: -1 | 1,
-): PowerShowElement[] {
+): PresentationElement[] {
   const location = findElementLocation(elements, id);
 
   if (!location) {
@@ -2097,10 +2098,10 @@ export function moveElementById(
 }
 
 export function moveElementToSiblingIndexById(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   id: string,
   targetIndex: number,
-): PowerShowElement[] {
+): PresentationElement[] {
   const location = findElementLocation(elements, id);
 
   if (!location) {
@@ -2152,31 +2153,31 @@ export type MoveElementError =
   | "invalid-target-index";
 
 export interface MoveElementResult {
-  elements: PowerShowElement[];
+  elements: PresentationElement[];
   moved: boolean;
   error?: MoveElementError;
 }
 
 function collectDescendantIds(
-  element: PowerShowElement,
+  element: PresentationElement,
   ids: Set<string>,
 ): void {
   collectAuthoringIds(element, ids);
 }
 
 function removeElementFromHierarchy(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   id: string,
-): PowerShowElement[] {
+): PresentationElement[] {
   return removeElementById(elements, id);
 }
 
 function insertElementIntoParentRef(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   parentRef: ElementParentRef,
   index: number,
-  elementToInsert: PowerShowElement,
-): PowerShowElement[] {
+  elementToInsert: PresentationElement,
+): PresentationElement[] {
   if (parentRef.kind === "slide") {
     return [
       ...elements.slice(0, index),
@@ -2187,7 +2188,7 @@ function insertElementIntoParentRef(
 
   let changed = false;
 
-  const nextElements: PowerShowElement[] = elements.map((element) => {
+  const nextElements: PresentationElement[] = elements.map((element) => {
     if (
       parentRef.kind === "container" &&
       element.type === "container" &&
@@ -2261,7 +2262,7 @@ function insertIntoTopicItems(
   items: readonly TopicItem[],
   parentRef: ElementParentRef,
   index: number,
-  elementToInsert: PowerShowElement,
+  elementToInsert: PresentationElement,
 ): TopicItem[] {
   let changed = false;
 
@@ -2320,16 +2321,16 @@ function insertIntoTopicItems(
 }
 
 function getTargetElementsForParentRef(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   parentRef: ElementParentRef,
-): PowerShowElement[] | null {
+): PresentationElement[] | null {
   return getElementsForParentRef(elements, parentRef) as
-    | PowerShowElement[]
+    | PresentationElement[]
     | null;
 }
 
 export function moveElement(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   options: MoveElementOptions,
 ): MoveElementResult {
   const source = findElementLocation(elements, options.elementId);
@@ -2416,7 +2417,7 @@ export function moveElement(
 }
 
 export function moveElementOut(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   elementId: string,
 ): MoveElementResult {
   const source = findElementLocation(elements, elementId);
@@ -2455,14 +2456,14 @@ interface GalleryDetachDestination {
 }
 
 export interface GalleryStructuralResult {
-  elements: PowerShowElement[];
+  elements: PresentationElement[];
   changed: boolean;
   galleryItemIndex?: number;
   imageId?: string;
 }
 
 function findGallery(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   galleryId: string,
 ): GalleryElement | null {
   const element = findElementById(elements, galleryId);
@@ -2470,10 +2471,10 @@ function findGallery(
 }
 
 function updateGalleryItems(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   galleryId: string,
   update: (items: readonly GalleryItemValue[]) => GalleryItemValue[],
-): PowerShowElement[] {
+): PresentationElement[] {
   return updateElementById(elements, galleryId, (element) =>
     element.type === "gallery" ? { ...element, items: update(element.items) } : element,
   );
@@ -2481,7 +2482,7 @@ function updateGalleryItems(
 
 /** Moves an item to its final index after removal. */
 export function reorderGalleryItem(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   galleryId: string,
   itemIndex: number,
   finalIndex: number,
@@ -2520,7 +2521,7 @@ export function reorderGalleryItem(
 }
 
 function resolveGalleryDetachDestination(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   targetId: string,
   intent: GalleryTreeDropIntent,
 ): GalleryDetachDestination | null {
@@ -2542,7 +2543,7 @@ function resolveGalleryDetachDestination(
 }
 
 export function detachGalleryItemToImage(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   slides: readonly Slide[],
   galleryId: string,
   itemIndex: number,
@@ -2560,7 +2561,7 @@ export function detachGalleryItemToImage(
   const image = createElement("image", slides);
   if (image.type !== "image") return { elements, changed: false };
 
-  const detachedImage: PowerShowElement = {
+  const detachedImage: PresentationElement = {
     ...image,
     src: item.src,
     alt: item.alt,
@@ -2593,7 +2594,7 @@ export function detachGalleryItemToImage(
 }
 
 export function attachImageToGallery(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   imageId: string,
   galleryId: string,
   itemIndex: number,
@@ -2647,7 +2648,7 @@ export function attachImageToGallery(
 // across the whole presentation.
 // ============================================================
 
-function buildStructuredText(usedIds: Set<string>, content: string): PowerShowElement {
+function buildStructuredText(usedIds: Set<string>, content: string): PresentationElement {
   const textId = createUniqueId("table-text", usedIds);
   usedIds.add(textId);
 
@@ -2655,7 +2656,7 @@ function buildStructuredText(usedIds: Set<string>, content: string): PowerShowEl
     id: textId,
     type: "text",
     hidden: false,
-    variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+    variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
     content,
   };
 }
@@ -2689,7 +2690,7 @@ function buildStructuredColumn(usedIds: Set<string>): StructuredTableColumn {
           id: headerTextId,
           type: "text",
           hidden: false,
-          variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+          variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
           content: "Column",
         },
       ],

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 const mocks = vi.hoisted(() => ({
   onValue: vi.fn(),

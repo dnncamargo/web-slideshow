@@ -1,6 +1,6 @@
 import { onValue, ref, set, type Database } from "firebase/database";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PlayerController } from "./player";
 
@@ -143,7 +143,7 @@ export function subscribeLiveProjectionState(
 
     if (current === null) {
       console.error(
-        "[PowerShow][live-state] could not resolve a pageId for the current page",
+        "[player][live-state] could not resolve a pageId for the current page",
       );
 
       return;
@@ -162,7 +162,7 @@ export function subscribeLiveProjectionState(
         recordPlayerDiagnostic("PLAYER_STATE_WRITE_OK");
       })
       .catch((error: unknown) => {
-        console.error("[PowerShow][live-state] player state write failed", error);
+        console.error("[player][live-state] player state write failed", error);
 
         recordPlayerDiagnostic("PLAYER_STATE_WRITE_ERROR", { error });
       });
@@ -189,7 +189,7 @@ export function subscribeLiveProjectionState(
   }
 
   if (logsEnabled) {
-    console.log("[PowerShow][live-state] subscribing", {
+    console.log("[player][live-state] subscribing", {
       controlPath: CONTROL_STATE_PATH,
       playerPath: PLAYER_STATE_PATH,
       activationRevision,
@@ -226,7 +226,7 @@ export function subscribeLiveProjectionState(
 
       if (pageIndex < 0) {
         console.warn(
-          "[PowerShow][live-state] ignoring control state for unknown pageId",
+          "[player][live-state] ignoring control state for unknown pageId",
           controlState.pageId,
         );
         return;
@@ -246,7 +246,7 @@ export function subscribeLiveProjectionState(
       schedulePublish();
     },
     (error: Error) => {
-      console.error("[PowerShow][live-state] subscription error", error);
+      console.error("[player][live-state] subscription error", error);
 
       recordPlayerDiagnostic("CONTROL_STATE_SUBSCRIBE_ERROR", { error });
     },

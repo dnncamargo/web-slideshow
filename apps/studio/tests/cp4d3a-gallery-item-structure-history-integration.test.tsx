@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type GalleryElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import {
@@ -21,7 +21,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const DEFAULT_ITEM = { src: "/powershow-demo.svg", alt: "" };
+const DEFAULT_ITEM = { src: "/instance-demo.svg", alt: "" };
 
 function galleryElement(items: GalleryElement["items"]): GalleryElement {
   return {
@@ -107,20 +107,20 @@ describe("CP4D3A Gallery item structure history", () => {
 
   function selector(index: number): HTMLButtonElement {
     const result = host.querySelector<HTMLButtonElement>(
-      `[data-powershow-gallery-select][data-powershow-gallery-index="${index}"]`,
+      `[data-presentation-gallery-select][data-presentation-gallery-index="${index}"]`,
     );
     if (!result) throw new Error(`Gallery selector ${index} was not rendered`);
     return result;
   }
 
   function addButton(): HTMLButtonElement {
-    const result = host.querySelector<HTMLButtonElement>("[data-powershow-gallery-add]");
+    const result = host.querySelector<HTMLButtonElement>("[data-presentation-gallery-add]");
     if (!result) throw new Error("Gallery add button was not rendered");
     return result;
   }
 
   function removeButton(): HTMLButtonElement {
-    const result = host.querySelector<HTMLButtonElement>("[data-powershow-gallery-remove]");
+    const result = host.querySelector<HTMLButtonElement>("[data-presentation-gallery-remove]");
     if (!result) throw new Error("Gallery remove button was not rendered");
     return result;
   }
@@ -149,7 +149,7 @@ describe("CP4D3A Gallery item structure history", () => {
         <EditorWorkspace initialPresentation={presentation(items)} />
       </StudioI18nProvider>,
     ));
-    const gallery = host.querySelector<HTMLElement>('[data-powershow-id="gallery-1"]');
+    const gallery = host.querySelector<HTMLElement>('[data-presentation-id="gallery-1"]');
     if (!gallery) throw new Error("Gallery was not rendered");
     await act(async () => gallery.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -341,7 +341,7 @@ describe("CP4D3A Gallery item structure history", () => {
 
     const undoEvent = await undo();
     expect(undoEvent.defaultPrevented).toBe(true);
-    expect(host.querySelector('[data-powershow-gallery-index="2"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-index="2"]')).toBeNull();
     expect(selector(0)).not.toBeNull();
     const secondUndo = await undo();
     expect(secondUndo.defaultPrevented).toBe(false);
@@ -359,7 +359,7 @@ describe("CP4D3A Gallery item structure history", () => {
     await selectGalleryItem(1);
     await act(async () => removeButton().click());
 
-    expect(host.querySelector('[data-powershow-gallery-index="2"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-index="2"]')).toBeNull();
     expect(galleryTextArea(1, "src").value).toBe("/c.png");
     expect(galleryTextArea(1, "alt").value).toBe("C");
     expect(gallerySelect(1, "fit").value).toBe("cover");
@@ -388,7 +388,7 @@ describe("CP4D3A Gallery item structure history", () => {
     expect(selector(0).getAttribute("aria-pressed")).toBe("true");
     expect(galleryTextArea(0, "src").value).toBe(DEFAULT_ITEM.src);
     expect((await undo()).defaultPrevented).toBe(true);
-    expect(host.querySelector("[data-powershow-gallery-select]")).toBeNull();
+    expect(host.querySelector("[data-presentation-gallery-select]")).toBeNull();
     expect((await redo()).defaultPrevented).toBe(true);
     expect(selector(0)).not.toBeNull();
 
@@ -400,7 +400,7 @@ describe("CP4D3A Gallery item structure history", () => {
       focalPoint: { x: 40, y: 60 },
     }]);
     await act(async () => removeButton().click());
-    expect(host.querySelector("[data-powershow-gallery-select]")).toBeNull();
+    expect(host.querySelector("[data-presentation-gallery-select]")).toBeNull();
     expect((await undo()).defaultPrevented).toBe(true);
     await selectGalleryItem(0);
     expect(galleryTextArea(0, "src").value).toBe("/authored.png");
@@ -408,7 +408,7 @@ describe("CP4D3A Gallery item structure history", () => {
     expect(host.querySelector<HTMLInputElement>("#gallery-gallery-1-item-0-crop-x")?.value).toBe("2");
     expect(host.querySelector<HTMLInputElement>("#gallery-gallery-1-item-0-focal-x")?.value).toBe("40");
     expect((await redo()).defaultPrevented).toBe(true);
-    expect(host.querySelector("[data-powershow-gallery-select]")).toBeNull();
+    expect(host.querySelector("[data-presentation-gallery-select]")).toBeNull();
   });
 
   it("separates text then Add and text then Remove into distinct actions", async () => {
@@ -441,20 +441,20 @@ describe("CP4D3A Gallery item structure history", () => {
     expect((await undo()).defaultPrevented).toBe(true);
     expect(selector(1)).not.toBeNull();
     expect((await undo()).defaultPrevented).toBe(true);
-    expect(host.querySelector('[data-powershow-gallery-index="1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-index="1"]')).toBeNull();
     expect((await redo()).defaultPrevented).toBe(true);
     expect(selector(1)).not.toBeNull();
     expect((await redo()).defaultPrevented).toBe(true);
-    expect(host.querySelector('[data-powershow-gallery-index="1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-index="1"]')).toBeNull();
 
     await mountWorkspace([{ src: "/a.png", alt: "A" }]);
     await act(async () => addButton().click());
     await act(async () => addButton().click());
     expect((await undo()).defaultPrevented).toBe(true);
-    expect(host.querySelector('[data-powershow-gallery-index="2"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-index="2"]')).toBeNull();
     expect(selector(1)).not.toBeNull();
     expect((await undo()).defaultPrevented).toBe(true);
-    expect(host.querySelector('[data-powershow-gallery-index="1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-index="1"]')).toBeNull();
 
     await mountWorkspace(THREE_ITEMS);
     await selectGalleryItem(2);

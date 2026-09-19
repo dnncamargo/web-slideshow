@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 const mocks = vi.hoisted(() => ({ database: vi.fn(), write: vi.fn(), onValue: vi.fn(), ref: vi.fn(), callbacks: [] as Array<(snapshot: { val(): unknown }) => void>, unsubscribes: [] as ReturnType<typeof vi.fn>[] }));
 vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref }));
 vi.mock("../src/features/control/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.database }));

@@ -605,7 +605,7 @@
 
 
 .slideCanvas
-  > :global(.powershow-slide) {
+  > :global(.presentation-slide) {
   width: 100%;
   height: 100%;
 }
@@ -904,7 +904,7 @@
 }
 
 .slideCanvas
-  :global([data-powershow-id].powershow-editor-pending-cut) {
+  :global([data-presentation-id].studio-editor-pending-cut) {
   opacity: 0.58;
   outline: 1px dashed rgba(103, 232, 249, 0.72);
   outline-offset: 3px;
@@ -1500,7 +1500,7 @@
  */
 
 .slideCanvas
-  :global([data-powershow-id]) {
+  :global([data-presentation-id]) {
   cursor: default;
 }
 
@@ -1512,7 +1512,7 @@
  */
 
 .slideCanvas
-  :global([data-powershow-id]:hover) {
+  :global([data-presentation-id]:hover) {
   outline:
     1px solid
     rgba(129, 140, 248, 0.55);
@@ -1535,7 +1535,7 @@
 
 /*
  * A linked Container renders an internal transparent anchor surface
- * (data-powershow-container-link-surface) that captures the whole
+ * (data-presentation-container-link-surface) that captures the whole
  * box in Player and Watch. Inside the authoring canvas that overlay
  * must not intercept the pointer, otherwise it would block selecting,
  * dragging and editing descendant elements. The neutralization is
@@ -1544,7 +1544,7 @@
  */
 
 .slideCanvas
-  :global([data-powershow-container-link-surface="true"]) {
+  :global([data-presentation-container-link-surface="true"]) {
   pointer-events: none;
 }
 
@@ -1564,9 +1564,9 @@
    ========================================================== */
 
 .slideCanvas
-  :global(.powershow-embed),
+  :global(.presentation-embed),
 .slideCanvas
-  :global(.powershow-scripted) {
+  :global(.presentation-scripted) {
   pointer-events: none;
 }
 
@@ -1583,7 +1583,7 @@
    ========================================================== */
 
 .slideCanvas
-  :global(.powershow-editor-selected) {
+  :global(.studio-editor-selected) {
   outline:
     2px solid
     #818cf8;
@@ -1593,7 +1593,7 @@
 }
 
 .slideCanvas
-  :global(.powershow-editor-draggable) {
+  :global(.studio-editor-draggable) {
   cursor: move;
   touch-action: none;
 }
@@ -2404,7 +2404,7 @@
 }
 
 .textEditorToolbarButton[aria-pressed="mixed"],
-.textEditorToolbarButton[data-powershow-inline-color-state="mixed"] {
+.textEditorToolbarButton[data-presentation-inline-color-state="mixed"] {
   border-style: dashed;
   border-color: #a78bfa;
   background: repeating-linear-gradient(
@@ -2416,22 +2416,22 @@
   );
 }
 
-.textEditorToolbarButton[data-powershow-inline-format="bold"] {
+.textEditorToolbarButton[data-presentation-inline-format="bold"] {
   font-weight: 700;
 }
 
-.textEditorToolbarButton[data-powershow-inline-format="italic"] {
+.textEditorToolbarButton[data-presentation-inline-format="italic"] {
   font-style: italic;
 }
 
-.textEditorToolbarButton[data-powershow-inline-format="underline"] {
+.textEditorToolbarButton[data-presentation-inline-format="underline"] {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.textEditorToolbarButton[data-powershow-inline-format="code"],
-.textEditorToolbarButton[data-powershow-inline-color="true"],
-.textEditorToolbarButton[data-powershow-inline-format-clear-formatting="true"] {
+.textEditorToolbarButton[data-presentation-inline-format="code"],
+.textEditorToolbarButton[data-presentation-inline-color="true"],
+.textEditorToolbarButton[data-presentation-inline-format-clear-formatting="true"] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 

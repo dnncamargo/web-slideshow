@@ -1,9 +1,9 @@
-# AGENTS.md — PowerShow
+# AGENTS.md — web-slideshow
 
 This file defines the rules for AI coding agents working in this repository.
 
 Repository: `web-slideshow`
-Product: **PowerShow**
+Product: **the presentation application**
 
 Read this file before editing code.
 
@@ -11,16 +11,16 @@ Read this file before editing code.
 
 # 1. Project
 
-PowerShow is a cloud-based system for creating, publishing, displaying, and remotely controlling interactive web presentations.
+The application is a cloud-based system for creating, publishing, displaying, and remotely controlling interactive web presentations.
 
 The system has distinct product/runtime surfaces:
 
-* **PowerShow Library** — presentation management.
-* **PowerShow Editor** — slide authoring.
-* **PowerShow Control** — presenter remote control and Maintenance.
-* **PowerShow Player** — main presentation display.
+* **Library** — presentation management.
+* **Editor** — slide authoring.
+* **Control** — presenter remote control and Maintenance.
+* **Player** — main presentation display.
 * **Player Legacy** — compatibility runtime.
-* **PowerShow Watch** — read-only presentation follower.
+* **Watch** — read-only presentation follower.
 * **Maintenance** — authenticated operational and diagnostics surface.
 
 The architectural priority is:
@@ -31,7 +31,7 @@ The architectural priority is:
 
 # 2. Repository Structure
 
-PowerShow is a pnpm monorepo.
+The repository is a pnpm monorepo.
 
 ```text
 web-slideshow/
@@ -59,7 +59,7 @@ Responsibilities:
 
 ### `packages/document-schema`
 
-Canonical definition of PowerShow presentation documents.
+Canonical definition of presentation documents.
 
 This package defines what a presentation **is**.
 
@@ -74,7 +74,7 @@ math-space geometry for Plot.
 
 ### `packages/renderer`
 
-Transforms a validated PowerShow document into presentation output.
+Transforms a validated presentation document into presentation output.
 
 This package defines how a presentation is **rendered**.
 
@@ -82,7 +82,7 @@ This package defines how a presentation is **rendered**.
 
 Firebase persistence, authentication, storage, and live-session integration.
 
-Firebase-specific types must not become the PowerShow domain model.
+Firebase-specific types must not become the application domain model.
 
 ### `packages/ui`
 
@@ -92,7 +92,7 @@ Do not move Player runtime dependencies here merely for reuse.
 
 ### `apps/studio`
 
-PowerShow Library, PowerShow Editor, PowerShow Control, and administrative interfaces.
+Library, Editor, Control, and administrative interfaces.
 
 ### `apps/player`
 
@@ -108,10 +108,10 @@ Compatibility-oriented presentation runtime for constrained or older browsers.
 
 # 3. Core Architecture
 
-PowerShow separates authoring from playback.
+The application separates authoring from playback.
 
 ```text
-PowerShow Document
+Presentation Document
        │
        ▼
    Validation
@@ -335,7 +335,7 @@ as long as the presentation remains understandable and usable.
 
 # 10. Interactive Elements
 
-PowerShow is intended to support interactive educational and technical content.
+The application is intended to support interactive educational and technical content.
 
 Examples:
 
@@ -445,7 +445,7 @@ Prefer `unknown` followed by validation or narrowing.
 
 # 15. Zod
 
-Persisted or external PowerShow documents must be validated.
+Persisted or external presentation documents must be validated.
 
 Be aware that Zod defaults affect parsed output types.
 
@@ -547,8 +547,8 @@ Run tests appropriate to the affected package.
 For the document schema:
 
 ```bash
-pnpm --filter @powershow/document-schema typecheck
-pnpm --filter @powershow/document-schema test
+pnpm --filter @web-slideshow/document-schema typecheck
+pnpm --filter @web-slideshow/document-schema test
 ```
 
 When appropriate, run repository-wide:
@@ -591,7 +591,7 @@ Agents MAY autonomously:
 Agents MUST NOT autonomously:
 
 * change `schemaVersion`;
-* redesign the PowerShow document model;
+* redesign the presentation document model;
 * add or remove core element types;
 * redesign container semantics;
 * change publishing/version rules;
@@ -716,7 +716,7 @@ them, report the conflict rather than silently changing the architecture.
 
 ---
 
-# 25. PowerShow Agent Protocol (PSAP/1)
+# 25. Agent Protocol (PSAP/1)
 
 PSAP/1 is a compact task description format.
 
@@ -966,7 +966,7 @@ visible experience.
 
 ### `no-schema`
 
-Do not modify the canonical PowerShow document schema, schema version, element
+Do not modify the canonical presentation document schema, schema version, element
 types, persisted document shape, or serialization contract.
 
 ---
@@ -1232,18 +1232,18 @@ unrelated.
 For narrow Studio work, useful commands may include:
 
 ```bash
-pnpm --filter @powershow/studio test -- <focused-test>
-pnpm --filter @powershow/studio typecheck
+pnpm --filter @web-slideshow/studio test -- <focused-test>
+pnpm --filter @web-slideshow/studio typecheck
 git diff --check
 ```
 
 For broader Studio work:
 
 ```bash
-pnpm --filter @powershow/studio test
-pnpm --filter @powershow/studio typecheck
-pnpm --filter @powershow/studio lint
-pnpm --filter @powershow/studio build
+pnpm --filter @web-slideshow/studio test
+pnpm --filter @web-slideshow/studio typecheck
+pnpm --filter @web-slideshow/studio lint
+pnpm --filter @web-slideshow/studio build
 git diff --check
 ```
 

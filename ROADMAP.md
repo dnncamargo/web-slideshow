@@ -1,6 +1,6 @@
-# PowerShow Roadmap
+# Roadmap
 
-This document records the **PowerShow execution path from the canonical-document foundation to the current work area**.
+This document records the **execution path from the canonical-document foundation to the current work area**.
 
 Merged code in `main` remains authoritative. Every new work area begins by revalidating the real repository state.
 
@@ -14,7 +14,7 @@ Merged code in `main` remains authoritative. Every new work area begins by reval
 
 ## Execution policy
 
-PowerShow uses audit-first, checkpoint-driven development:
+The repository uses audit-first, checkpoint-driven development:
 
 ```text
 AUDIT current code
@@ -80,7 +80,7 @@ Do not begin a new work area or create a new feature branch from a stale local `
 
 Reference: PR #2.
 
-Established strict `@powershow/document-schema`, recursive semantic elements, runtime validation and `schemaVersion: 1`.
+Established strict `@web-slideshow/document-schema`, recursive semantic elements, runtime validation and `schemaVersion: 1`.
 
 ## P1 — Renderer and Player foundation ✅
 
@@ -230,7 +230,7 @@ Direct Canvas manipulation inside transformed fitted Containers remains deferred
 # Runtime and product surfaces ✅
 
 ```text
-PowerShow
+Application
 │
 ├── Public Portal        /
 ├── Studio
@@ -243,7 +243,7 @@ PowerShow
     └── Watch
 ```
 
-Canonical product names are PowerShow Library, PowerShow Editor, PowerShow Control, PowerShow Player and PowerShow Watch.
+The current product surfaces are Library, Editor, Control, Player and Watch.
 
 Public Portal / Live Cover is complete; Cover remains static/read-only while Watch follows real Player state.
 
@@ -269,7 +269,7 @@ Delivered:
 - same-boot presentation retry;
 - real browser-cache clear path;
 - Player-local recovery options;
-- Maintenance under PowerShow Control;
+- Maintenance under Control;
 - remote activation-scoped Player logs mode for already-open Players.
 
 Diagnostics remains bounded. Do not turn it into a generic fleet/admin console or broad automatic repair system.
@@ -455,7 +455,7 @@ TopicsElement
    │   ├── layout?
    │   ├── style?
    │   ├── typography?
-   │   └── children: PowerShowElement[]
+   │   └── children: PresentationElement[]
    └── children: TopicItem[]
 ```
 
@@ -525,15 +525,15 @@ referrerpolicy="strict-origin-when-cross-origin"
 loading="lazy"
 ```
 
-The audit initially tested removing `allow-same-origin`, but manual evidence with Blockly Games showed that external applications may require their own normal origin capability for storage/origin-dependent behavior. Restoring `allow-same-origin` preserved provider origin without making a cross-origin provider same-origin with PowerShow.
+The audit initially tested removing `allow-same-origin`, but manual evidence with Blockly Games showed that external applications may require their own normal origin capability for storage/origin-dependent behavior. Restoring `allow-same-origin` preserved provider origin without making a cross-origin provider same-origin with the application.
 
 Permanent decisions:
 
 - sandbox/Permissions Policy remain renderer-owned, not authored;
 - global removal of `allow-same-origin` is not justified by current evidence;
-- provider refusal via `X-Frame-Options` / CSP `frame-ancestors` is not a PowerShow bug and must not be bypassed;
+- provider refusal via `X-Frame-Options` / CSP `frame-ancestors` is not an application bug and must not be bypassed;
 - bounded YouTube normalization remains; no speculative provider matrix was added;
-- same-origin PowerShow iframe behavior remains security-sensitive and belongs to focused security review rather than a provider-breaking global sandbox change.
+- same-origin application iframe behavior remains security-sensitive and belongs to focused security review rather than a provider-breaking global sandbox change.
 
 ## Studio authoring
 

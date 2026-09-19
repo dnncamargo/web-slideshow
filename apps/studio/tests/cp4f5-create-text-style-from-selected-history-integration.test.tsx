@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type PowerShowElement, type Presentation, type TextElement } from "@powershow/document-schema";
+import { PresentationSchema, type PresentationElement, type Presentation, type TextElement } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -27,7 +27,7 @@ function text(id: string, overrides: Partial<TextElement> = {}): TextElement {
   };
 }
 
-function presentation(elements: PowerShowElement[], overrides: Partial<Presentation> = {}): Presentation {
+function presentation(elements: PresentationElement[], overrides: Partial<Presentation> = {}): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4f5-create-text-style-from-selected-history",
@@ -49,7 +49,7 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function findElement(elements: readonly PowerShowElement[], id: string): PowerShowElement | undefined {
+function findElement(elements: readonly PresentationElement[], id: string): PresentationElement | undefined {
   for (const element of elements) {
     if (element.id === id) return element;
     if (element.type === "container") {
@@ -121,7 +121,7 @@ describe("CP4F5 create Text Style from selected Text history", () => {
   }
 
   async function selectText(id: string): Promise<void> {
-    const target = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const target = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!target) throw new Error(`Rendered Text was not found: ${id}`);
     await act(async () => target.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

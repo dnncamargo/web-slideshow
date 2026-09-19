@@ -10,7 +10,7 @@ export const validPresentation: Presentation = {
   title: "Introdução ao PWM",
 
   description:
-    "Apresentação demonstrativa para validar o schema inicial do PowerShow.",
+    "Apresentação demonstrativa para validar o schema inicial.",
 
   aspectRatio: "16:9",
 
@@ -170,7 +170,7 @@ export const validPresentation: Presentation = {
               variant: "caption",
 
               content:
-                "PowerShow · Eletrônica · Slide 1",
+                "Presentation · Eletrônica · Slide 1",
 
               hidden: false,
             },

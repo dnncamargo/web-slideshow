@@ -4,7 +4,7 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PresenterPresentationState } from "../src/features/control/presenter/use-presenter-presentation";
 import type { PublishedPresentationPointer } from "../src/features/persistence/published-presentation-reader";

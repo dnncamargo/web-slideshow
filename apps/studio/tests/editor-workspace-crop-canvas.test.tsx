@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -71,7 +71,7 @@ describe("EditorWorkspace crop canvas integration", () => {
       hasPointerCapture: () => false,
     });
     HTMLElement.prototype.getBoundingClientRect = function () {
-      if (this.dataset.powershowId === "image-1" || this.dataset.powershowType === "image") {
+      if (this.dataset.presentationId === "image-1" || this.dataset.presentationType === "image") {
         return { left: 100, top: 80, right: 500, bottom: 380, width: 400, height: 300, x: 100, y: 80, toJSON: () => ({}) };
       }
       return originalGetBoundingClientRect.call(this);
@@ -92,7 +92,7 @@ describe("EditorWorkspace crop canvas integration", () => {
         </StudioI18nProvider>,
       );
     });
-    const imageRoot = Array.from(container.querySelectorAll<HTMLElement>("[data-powershow-id]")).find((candidate) => candidate.dataset.powershowId === (value.slides[0]?.elements[0]?.type === "image" ? value.slides[0].elements[0].id : "image-1"));
+    const imageRoot = Array.from(container.querySelectorAll<HTMLElement>("[data-presentation-id]")).find((candidate) => candidate.dataset.presentationId === (value.slides[0]?.elements[0]?.type === "image" ? value.slides[0].elements[0].id : "image-1"));
     if (!imageRoot) throw new Error("image root not rendered");
     await act(async () => imageRoot.dispatchEvent(pointer("pointerdown", 150, 120)));
     return imageRoot;
@@ -177,14 +177,14 @@ describe("EditorWorkspace crop canvas integration", () => {
     for (const absolute of [false, true]) {
       await mount(presentation({ absolute, link: true }));
       const locationBefore = window.location.href;
-      const before = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.getAttribute("style");
+      const before = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.getAttribute("style");
       await enterCrop();
       await loadSource();
       const surface = container.querySelector<HTMLElement>("[class*='canvasCropMoveSurface']");
       if (!surface) throw new Error("crop move surface not rendered");
       await act(async () => surface.dispatchEvent(pointer("pointerdown", 240, 180)));
       await act(async () => surface.dispatchEvent(pointer("pointerup", 280, 220)));
-      expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.getAttribute("style")).toBe(before);
+      expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.getAttribute("style")).toBe(before);
       expect(window.location.href).toBe(locationBefore);
       if (!absolute) {
         await act(async () => root.unmount());
@@ -227,7 +227,7 @@ describe("EditorWorkspace crop canvas integration", () => {
 
   it("keeps the authored fixed appearance frame visible during Crop mode", async () => {
     await mount(presentation({ crop: true, visual: true }));
-    const imageRoot = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    const imageRoot = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]');
     if (!imageRoot) throw new Error("image root not rendered");
     expect(imageRoot.getAttribute("style")).toContain("border");
     await enterCrop();
@@ -238,7 +238,7 @@ describe("EditorWorkspace crop canvas integration", () => {
     if (!handle) throw new Error("east handle not rendered");
     await act(async () => handle.dispatchEvent(pointer("pointerdown", 300, 180)));
     await act(async () => handle.dispatchEvent(pointer("pointerup", 340, 180)));
-    const rerenderedRoot = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    const rerenderedRoot = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]');
     expect(rerenderedRoot?.getAttribute("style")).toContain("border");
     expect(rerenderedRoot?.getAttribute("style")).toContain("border-radius");
     expect(rerenderedRoot?.getAttribute("style")).toContain("box-shadow");
@@ -246,7 +246,7 @@ describe("EditorWorkspace crop canvas integration", () => {
 
   it("keeps an already-cropped Image rendered when selected", async () => {
     await mount(presentation({ crop: true, visual: true }));
-    const imageRoot = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    const imageRoot = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]');
     const viewport = imageRoot?.querySelector<HTMLElement>("[class*='crop-viewport']");
     const media = imageRoot?.querySelector<HTMLImageElement>("img");
     expect(imageRoot).not.toBeNull();

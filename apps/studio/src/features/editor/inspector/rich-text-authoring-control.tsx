@@ -2,7 +2,7 @@ import {
   resolveColorValue,
   type ColorValue,
   type TextContent,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -75,7 +75,7 @@ function InlineFormatButton({
       aria-label={accessibleLabel}
       aria-pressed={state === "mixed" ? "mixed" : state === "on"}
       disabled={disabled}
-      data-powershow-inline-format={format}
+      data-presentation-inline-format={format}
       title={accessibleLabel}
       onMouseDown={(event) => {
         event.preventDefault();
@@ -251,10 +251,10 @@ export function RichTextAuthoringControl({
   }
 
   return (
-    <div className={styles.textEditor} data-powershow-text-editor="true">
+    <div className={styles.textEditor} data-presentation-text-editor="true">
       <div
         className={styles.textEditorToolbar}
-        data-powershow-text-editor-toolbar="true"
+        data-presentation-text-editor-toolbar="true"
       >
         {(["bold", "italic", "underline", "code"] as const).filter((format) => visibleMarks[format] !== false).map((format) => (
           <InlineFormatButton
@@ -278,7 +278,7 @@ export function RichTextAuthoringControl({
           className={styles.textEditorToolbarButton}
           type="button"
           aria-label={t("inspector.inlineFormat.lineBreak")}
-          data-powershow-inline-line-break="true"
+          data-presentation-inline-line-break="true"
           title={t("inspector.inlineFormat.lineBreak")}
           onMouseDown={(event) => event.preventDefault()}
           onClick={insertLineBreak}
@@ -294,8 +294,8 @@ export function RichTextAuthoringControl({
           aria-expanded={isColorPanelOpen}
           aria-controls={`${id.replace(/-content$/, "")}-inline-color-panel`}
           disabled={!hasSelection}
-          data-powershow-inline-color="true"
-          data-powershow-inline-color-state={selectionColorState?.kind ?? "none"}
+          data-presentation-inline-color="true"
+          data-presentation-inline-color-state={selectionColorState?.kind ?? "none"}
           title={t("inspector.inlineFormat.color")}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsInlineColorOpen((open) => !open)}
@@ -303,7 +303,7 @@ export function RichTextAuthoringControl({
           <svg
             aria-hidden="true"
             className={styles.textEditorColorIcon}
-            data-powershow-inline-color-icon="paint-bucket"
+            data-presentation-inline-color-icon="paint-bucket"
             viewBox="0 0 24 24"
             focusable="false"
           >
@@ -340,7 +340,7 @@ export function RichTextAuthoringControl({
           <span
             aria-hidden="true"
             className={styles.textEditorColorSwatch}
-            data-powershow-inline-color-swatch="true"
+            data-presentation-inline-color-swatch="true"
             style={{ backgroundColor: resolvedSelectionColor ?? "currentColor" }}
           />
         </button>
@@ -350,7 +350,7 @@ export function RichTextAuthoringControl({
           type="button"
           aria-label={t("inspector.inlineFormat.clearFormatting")}
           disabled={!hasSelection}
-          data-powershow-inline-format-clear-formatting="true"
+          data-presentation-inline-format-clear-formatting="true"
           title={t("inspector.inlineFormat.clearFormatting")}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
@@ -367,7 +367,7 @@ export function RichTextAuthoringControl({
         <div
           className={styles.textEditorColorPanel}
           id={`${id.replace(/-content$/, "")}-inline-color-panel`}
-          data-powershow-inline-color-panel="true"
+          data-presentation-inline-color-panel="true"
         >
           {selectionColorState?.kind === "mixed" ? (
             <p className={styles.textEditorColorMixedStatus} role="status">

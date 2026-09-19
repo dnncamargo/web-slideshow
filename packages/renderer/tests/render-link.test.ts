@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   ElementLink,
   TextElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -20,7 +20,7 @@ function textElement(
     id: "link-text",
     hidden: false,
     variant: "body",
-    content: "PowerShow Link",
+    content: "Presentation Link",
     ...overrides,
   };
 }
@@ -143,22 +143,22 @@ describe("renderElement link support", () => {
       const html = renderElement(element);
 
       expect(html).not.toContain("<a ");
-      expect(html).not.toContain("data-powershow-link");
-      expect(html).toContain(">PowerShow Link</");
+      expect(html).not.toContain("data-presentation-link");
+      expect(html).toContain(">Presentation Link</");
     },
   );
 
   it("keeps content escaped when wrapped in an anchor", () => {
     const html = renderElement(
       textElement({
-        content: '<script>alert("PowerShow")</script>',
+        content: '<script>alert("presentation")</script>',
         link: HTTPS_LINK,
       }),
     );
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain('&lt;script&gt;alert(&quot;PowerShow&quot;)&lt;/script&gt;');
+      expect(html).toContain('&lt;script&gt;alert(&quot;presentation&quot;)&lt;/script&gt;');
   });
 
   it("keeps rich text escaped and does not create nested anchors", () => {
@@ -190,13 +190,13 @@ describe("renderElement link support", () => {
     expect(html).toContain('style="color:inherit;text-decoration:inherit"');
   });
 
-  it("marks authored links with data-powershow-link=true", () => {
+  it("marks authored links with data-presentation-link=true", () => {
     const html = renderElement(
       textElement({
         link: HTTPS_LINK,
       }),
     );
 
-    expect(html).toContain('data-powershow-link="true"');
+    expect(html).toContain('data-presentation-link="true"');
   });
 });

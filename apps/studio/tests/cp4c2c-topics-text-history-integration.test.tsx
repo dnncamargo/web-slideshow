@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TopicItem,
   type TopicsElement,
   type TextRun,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { TopicsInspector } from "../src/features/editor/inspector/topics-inspector";
@@ -22,7 +22,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const TOPICS_ID = "cp4c2c-topics";
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return {
     type: "text",
     id,
@@ -32,7 +32,7 @@ function text(id: string, content: string): PowerShowElement {
   };
 }
 
-function richText(id: string, runs: TextRun[]): PowerShowElement {
+function richText(id: string, runs: TextRun[]): PresentationElement {
   return {
     type: "text",
     id,
@@ -42,7 +42,7 @@ function richText(id: string, runs: TextRun[]): PowerShowElement {
   };
 }
 
-function image(id: string): PowerShowElement {
+function image(id: string): PresentationElement {
   return {
     type: "image",
     id,
@@ -53,7 +53,7 @@ function image(id: string): PowerShowElement {
   };
 }
 
-function table(id: string): PowerShowElement {
+function table(id: string): PresentationElement {
   return {
     type: "table",
     id,
@@ -65,7 +65,7 @@ function table(id: string): PowerShowElement {
 
 function topicItem(
   id: string,
-  children: PowerShowElement[],
+  children: PresentationElement[],
   nested: TopicItem[] = [],
 ): TopicItem {
   return {
@@ -167,7 +167,7 @@ describe("CP4C2C Topics text history", () => {
 
   async function selectTopics(): Promise<void> {
     const element = host.querySelector<HTMLElement>(
-      `[data-powershow-id="${TOPICS_ID}"]`,
+      `[data-presentation-id="${TOPICS_ID}"]`,
     );
     if (!element) throw new Error("Topics element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -175,10 +175,10 @@ describe("CP4C2C Topics text history", () => {
 
   function topicInput(id: string): HTMLInputElement {
     const row = host.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${id}"]`,
+      `[data-presentation-topic-item-id="${id}"]`,
     );
     const input = row?.querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error(`Topic input was not rendered: ${id}`);
     return input;
@@ -373,9 +373,9 @@ describe("CP4C2C Topics text history", () => {
     await selectTopics();
 
     const row = host.querySelector<HTMLElement>(
-      '[data-powershow-topic-item-id="topic-image"]',
+      '[data-presentation-topic-item-id="topic-image"]',
     );
-    expect(row?.querySelector('input[data-powershow-topic-input="true"]')).toBeNull();
+    expect(row?.querySelector('input[data-presentation-topic-input="true"]')).toBeNull();
     expect(row?.textContent).toContain("Image");
   });
 
@@ -403,7 +403,7 @@ describe("CP4C2C Topics text history", () => {
     ));
 
     const input = host.querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error("standalone TopicItem input was not rendered");
     await act(async () => setTextValue(input, "After"));

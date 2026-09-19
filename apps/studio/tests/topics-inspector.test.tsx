@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  PowerShowElement,
+  PresentationElement,
   TopicItem,
   TopicsElement,
   TextRun,
   Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { TopicsInspector } from "../src/features/editor/inspector/topics-inspector";
@@ -161,7 +161,7 @@ describe("TopicsInspector", () => {
   function topicTextInputs(): HTMLInputElement[] {
     return Array.from(
       container.querySelectorAll<HTMLInputElement>(
-        'input[data-powershow-topic-input="true"]',
+        'input[data-presentation-topic-input="true"]',
       ),
     );
   }
@@ -176,7 +176,7 @@ describe("TopicsInspector", () => {
 
   function topicRow(topicItemId: string): HTMLLIElement {
     const row = container.querySelector<HTMLLIElement>(
-      `li[data-powershow-topic-item-id="${topicItemId}"]`,
+      `li[data-presentation-topic-item-id="${topicItemId}"]`,
     );
 
     if (!row) {
@@ -188,14 +188,14 @@ describe("TopicsInspector", () => {
 
   function topicInput(topicItemId: string): HTMLInputElement | null {
     return topicRow(topicItemId).querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
   }
 
   function topicContentState(topicItemId: string): HTMLElement {
     const row = topicRow(topicItemId);
     const state = row.querySelector<HTMLElement>(
-      "[data-powershow-topic-content-state]",
+      "[data-presentation-topic-content-state]",
     );
 
     if (!state) {
@@ -207,7 +207,7 @@ describe("TopicsInspector", () => {
 
   function topicContentSummary(topicItemId: string): HTMLElement | null {
     return topicRow(topicItemId).querySelector<HTMLElement>(
-      '[data-powershow-topic-content-summary="true"]',
+      '[data-presentation-topic-content-summary="true"]',
     );
   }
 
@@ -257,7 +257,7 @@ describe("TopicsInspector", () => {
     );
   }
 
-  function text(id: string, content = id): PowerShowElement {
+  function text(id: string, content = id): PresentationElement {
     return {
       type: "text",
       id,
@@ -270,7 +270,7 @@ describe("TopicsInspector", () => {
   function richText(
     id: string,
     runs: TextRun[],
-  ): PowerShowElement {
+  ): PresentationElement {
     return {
       type: "text",
       id,
@@ -283,7 +283,7 @@ describe("TopicsInspector", () => {
     };
   }
 
-  function image(id: string): PowerShowElement {
+  function image(id: string): PresentationElement {
     return {
       type: "image",
       id,
@@ -294,7 +294,7 @@ describe("TopicsInspector", () => {
     };
   }
 
-  function table(id: string): PowerShowElement {
+  function table(id: string): PresentationElement {
     return {
       type: "table",
       id,
@@ -306,8 +306,8 @@ describe("TopicsInspector", () => {
 
   function containerElement(
     id: string,
-    children: PowerShowElement[] = [],
-  ): PowerShowElement {
+    children: PresentationElement[] = [],
+  ): PresentationElement {
     return {
       type: "container",
       id,
@@ -318,7 +318,7 @@ describe("TopicsInspector", () => {
 
   function topicItem(
     id: string,
-    contentChildren: PowerShowElement[],
+    contentChildren: PresentationElement[],
     children: TopicItem[] = [],
   ): TopicItem {
     return {
@@ -454,10 +454,10 @@ describe("TopicsInspector", () => {
     });
 
     const addButton = topicRow("topic-image").querySelector<HTMLButtonElement>(
-      'button[data-powershow-topic-add-child="true"]',
+      'button[data-presentation-topic-add-child="true"]',
     );
     const removeButton = topicRow("topic-image").querySelector<HTMLButtonElement>(
-      'button[data-powershow-topic-remove="true"]',
+      'button[data-presentation-topic-remove="true"]',
     );
 
     expect(addButton).not.toBeNull();
@@ -931,7 +931,7 @@ describe("TopicsInspector", () => {
 
     const buttons = Array.from(
       container.querySelectorAll<HTMLButtonElement>(
-        'button[data-powershow-topic-add-child="true"]',
+        'button[data-presentation-topic-add-child="true"]',
       ),
     );
 
@@ -952,7 +952,7 @@ describe("TopicsInspector", () => {
 
     const buttons = Array.from(
       container.querySelectorAll<HTMLButtonElement>(
-        'button[data-powershow-topic-remove="true"]',
+        'button[data-presentation-topic-remove="true"]',
       ),
     );
 
@@ -1134,7 +1134,7 @@ it("places topic content rows before list type and typography controls", async (
   }
 
   const firstTopicInput = container.querySelector<HTMLInputElement>(
-    'input[data-powershow-topic-input="true"]',
+    'input[data-presentation-topic-input="true"]',
   );
   const addTopicButton = Array.from(container.querySelectorAll("button")).find(
     (button) => button.textContent?.includes("Add topic"),
@@ -1207,7 +1207,7 @@ function structuralTopicChain(
 function addChildButtons(): HTMLButtonElement[] {
   return Array.from(
     container.querySelectorAll<HTMLButtonElement>(
-      'button[data-powershow-topic-add-child="true"]',
+      'button[data-presentation-topic-add-child="true"]',
     ),
   );
 }
@@ -1259,7 +1259,7 @@ it("keeps editing and removing a depth-5 topic intact", async () => {
 
   const removeButtons = Array.from(
     container.querySelectorAll<HTMLButtonElement>(
-      'button[data-powershow-topic-remove="true"]',
+      'button[data-presentation-topic-remove="true"]',
     ),
   );
 
@@ -1321,7 +1321,7 @@ describe("Topics inspector section hierarchy", () => {
   const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
 
   async function renderTopics(initial: TopicsElement) {
-    let element: PowerShowElement = initial;
+    let element: PresentationElement = initial;
     const renderInspector = () => root.render(
       <StudioI18nProvider>
         <ElementInspector

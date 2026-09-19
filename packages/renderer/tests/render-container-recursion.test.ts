@@ -55,10 +55,10 @@ describe("recursive container rendering", () => {
     expect(
       countOccurrences(
         html,
-        'data-powershow-type="container"',
+        'data-presentation-type="container"',
       ),
     ).toBe(4);
-    expect(html).toContain('data-powershow-id="deep-text"');
+    expect(html).toContain('data-presentation-id="deep-text"');
     expect(html).toContain("Deep content");
   });
 
@@ -97,7 +97,7 @@ describe("recursive container rendering", () => {
       "table",
     ]) {
       expect(html).toContain(
-        `data-powershow-type="${type}"`,
+        `data-presentation-type="${type}"`,
       );
     }
   });
@@ -133,9 +133,9 @@ describe("recursive container rendering", () => {
     expect(html).toContain("Visible content");
     expect(html).not.toContain("Hidden content");
     expect(html).not.toContain("Hidden descendant");
-    expect(html).not.toContain('data-powershow-id="hidden-text"');
+    expect(html).not.toContain('data-presentation-id="hidden-text"');
     expect(html).not.toContain(
-      'data-powershow-id="hidden-container"',
+      'data-presentation-id="hidden-container"',
     );
   });
 

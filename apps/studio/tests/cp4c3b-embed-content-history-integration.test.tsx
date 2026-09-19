@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type EmbedElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { AuthoringHistoryContext } from "../src/features/editor/authoring-history-context";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
@@ -89,7 +89,7 @@ describe("CP4C3B Embed src/title history", () => {
 
   async function selectEmbed(id = EMBED_ID): Promise<void> {
     const element = host.querySelector<HTMLElement>(
-      `[data-powershow-id="${id}"]`,
+      `[data-presentation-id="${id}"]`,
     );
     if (!element) throw new Error(`Embed ${id} was not rendered`);
     await act(async () => {

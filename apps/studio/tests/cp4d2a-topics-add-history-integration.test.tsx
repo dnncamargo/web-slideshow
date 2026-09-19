@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
   PresentationSchema,
   type Presentation,
   type TopicItem,
   type TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 vi.mock("../src/features/editor/editor-history-state", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/features/editor/editor-history-state")>();
@@ -156,7 +156,7 @@ describe("CP4D2A Topics Add history", () => {
 
   async function selectTopics(): Promise<void> {
     const element = container.querySelector<HTMLElement>(
-      `[data-powershow-id="${TOPICS_ID}"]`,
+      `[data-presentation-id="${TOPICS_ID}"]`,
     );
     if (!element) throw new Error("Topics element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -171,10 +171,10 @@ describe("CP4D2A Topics Add history", () => {
 
   async function addChildTopic(topicItemId: string): Promise<void> {
     const row = container.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${topicItemId}"]`,
+      `[data-presentation-topic-item-id="${topicItemId}"]`,
     );
     const button = row?.querySelector<HTMLButtonElement>(
-      'button[data-powershow-topic-add-child="true"]',
+      'button[data-presentation-topic-add-child="true"]',
     );
     if (!button) throw new Error(`Add child button was not rendered: ${topicItemId}`);
     await act(async () => button.click());
@@ -237,11 +237,11 @@ describe("CP4D2A Topics Add history", () => {
     expect(createdText).toMatchObject({
       type: "text",
       content: "New topic",
-      variant: POWERSHOW_TOPICS_TEXT_STYLE_ID,
+      variant: SYSTEM_TOPICS_TEXT_STYLE_ID,
     });
     expect(createdText).not.toHaveProperty("style");
     expect(new Set([created.id, created.content.id, createdText.id]).size).toBe(3);
-    expect(after.textStyles?.filter((style) => style.id === POWERSHOW_TOPICS_TEXT_STYLE_ID)).toHaveLength(1);
+    expect(after.textStyles?.filter((style) => style.id === SYSTEM_TOPICS_TEXT_STYLE_ID)).toHaveLength(1);
 
     await save();
     expect(saved.at(-1)).toEqual(after);
@@ -286,7 +286,7 @@ describe("CP4D2A Topics Add history", () => {
     expect(created.content.children[0]).toMatchObject({
       type: "text",
       content: "New topic",
-      variant: POWERSHOW_TOPICS_TEXT_STYLE_ID,
+      variant: SYSTEM_TOPICS_TEXT_STYLE_ID,
     });
     const ids = [created.id, created.content.id, created.content.children[0]?.id];
 
@@ -335,13 +335,13 @@ describe("CP4D2A Topics Add history", () => {
     expect(historyState.commitHistory).not.toHaveBeenCalled();
     const undoEvent = await undo();
     expect(undoEvent.defaultPrevented).toBe(false);
-    expect(container.querySelectorAll('[data-powershow-topic-item-id="depth-5"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-presentation-topic-item-id="depth-5"]')).toHaveLength(1);
   });
 
   it("preserves pre-existing Topics style order and data without duplication", async () => {
     const textStyles = [
       { id: "custom-style", name: "Custom", role: "body" as const },
-      { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Existing Topics", role: "body" as const },
+      { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Existing Topics", role: "body" as const },
     ];
     const initial = presentation([topicItem("topic-a", "A")], textStyles);
 
@@ -351,7 +351,7 @@ describe("CP4D2A Topics Add history", () => {
 
     const after = vi.mocked(historyState.commitHistory).mock.lastCall?.[1];
     expect(after?.textStyles).toEqual(textStyles);
-    expect(after?.textStyles?.filter((style) => style.id === POWERSHOW_TOPICS_TEXT_STYLE_ID)).toHaveLength(1);
+    expect(after?.textStyles?.filter((style) => style.id === SYSTEM_TOPICS_TEXT_STYLE_ID)).toHaveLength(1);
   });
 
   it("keeps Topic text editing separate from structural Add history", async () => {
@@ -361,7 +361,7 @@ describe("CP4D2A Topics Add history", () => {
     await selectTopics();
 
     const input = container.querySelector<HTMLInputElement>(
-      '[data-powershow-topic-item-id="topic-a"] input[data-powershow-topic-input="true"]',
+      '[data-presentation-topic-item-id="topic-a"] input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error("Topic input was not rendered");
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -382,14 +382,14 @@ describe("CP4D2A Topics Add history", () => {
     });
 
     await undo();
-    expect(container.querySelectorAll('[data-powershow-topic-item-id]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-presentation-topic-item-id]')).toHaveLength(1);
     expect(container.querySelector<HTMLInputElement>(
-      '[data-powershow-topic-item-id="topic-a"] input[data-powershow-topic-input="true"]',
+      '[data-presentation-topic-item-id="topic-a"] input[data-presentation-topic-input="true"]',
     )?.value).toBe("Edited");
 
     await undo();
     expect(container.querySelector<HTMLInputElement>(
-      '[data-powershow-topic-item-id="topic-a"] input[data-powershow-topic-input="true"]',
+      '[data-presentation-topic-item-id="topic-a"] input[data-presentation-topic-input="true"]',
     )?.value).toBe("Before");
   });
 });

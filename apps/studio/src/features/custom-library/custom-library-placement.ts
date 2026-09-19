@@ -1,4 +1,4 @@
-import type { PowerShowElement, Slide } from "@powershow/document-schema";
+import type { PresentationElement, Slide } from "@web-slideshow/document-schema";
 
 import {
   findElementById,

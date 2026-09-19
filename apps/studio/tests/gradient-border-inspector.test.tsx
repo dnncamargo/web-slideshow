@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type {
   ContainerElement,
   Gradient,
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

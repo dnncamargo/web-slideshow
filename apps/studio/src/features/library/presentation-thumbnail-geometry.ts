@@ -1,5 +1,5 @@
 import type { PresentationThumbnailPreview } from "../persistence/presentation-persistence";
-import { resolveLogicalSlideSize } from "@powershow/renderer";
+import { resolveLogicalSlideSize } from "@web-slideshow/renderer";
 
 export function thumbnailLogicalHeight(
   aspectRatio: PresentationThumbnailPreview["aspectRatio"],

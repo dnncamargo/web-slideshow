@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema } from "../src/elements";
+import { PresentationElementSchema } from "../src/elements";
 
 const minimalContainer = {
   id: "container",
@@ -24,7 +24,7 @@ function containerWithFit(
 
 describe("Container children fit schema", () => {
   it.each(["contain", "cover", "fill"] as const)("accepts %s", (mode) => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerWithFit({ mode, sourceWidth: 800, sourceHeight: 400 }),
     );
 
@@ -32,7 +32,7 @@ describe("Container children fit schema", () => {
   });
 
   it("accepts nested Containers with independent fit objects", () => {
-    const result = PowerShowElementSchema.safeParse({
+    const result = PresentationElementSchema.safeParse({
       ...containerWithFit({ mode: "cover", sourceWidth: 1200, sourceHeight: 600 }),
       children: [
         containerWithFit({ mode: "fill", sourceWidth: 300, sourceHeight: 200 }),
@@ -43,8 +43,8 @@ describe("Container children fit schema", () => {
   });
 
   it("accepts Containers with omitted fit", () => {
-    expect(PowerShowElementSchema.safeParse(minimalContainer).success).toBe(true);
-    expect(PowerShowElementSchema.parse(minimalContainer)).toEqual(minimalContainer);
+    expect(PresentationElementSchema.safeParse(minimalContainer).success).toBe(true);
+    expect(PresentationElementSchema.parse(minimalContainer)).toEqual(minimalContainer);
   });
 
   it.each([
@@ -61,6 +61,6 @@ describe("Container children fit schema", () => {
     { mode: "contain", sourceWidth: 800, sourceHeight: Number.POSITIVE_INFINITY },
     { mode: "contain", sourceWidth: 800, sourceHeight: 400, extra: true },
   ])("rejects malformed fit %#", (fit) => {
-    expect(PowerShowElementSchema.safeParse(containerWithFit(fit)).success).toBe(false);
+    expect(PresentationElementSchema.safeParse(containerWithFit(fit)).success).toBe(false);
   });
 });

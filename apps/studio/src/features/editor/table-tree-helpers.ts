@@ -1,7 +1,7 @@
 import type {
   ContentSlot,
   StructuredTableElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   ELEMENT_TYPE_MESSAGE_KEYS,

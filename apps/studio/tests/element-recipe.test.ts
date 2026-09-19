@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { extractElementRecipeDraft } from "../src/features/editor/element-recipe";
 
 describe("extractElementRecipeDraft", () => {
   it("extracts selected text properties using canonical values", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "title-1",
       hidden: false,
@@ -29,7 +29,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("extracts Text Stroke as a complete cloned atomic object", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "smoke-test-title",
       hidden: false,
@@ -68,7 +68,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("omits unselected content and includes it when selected", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "text-1",
       hidden: false,
@@ -83,7 +83,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("includes the element type but never emits identity properties", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "not-in-recipe",
       hidden: false,
@@ -102,7 +102,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("extracts image source and atomic values from their canonical paths", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,
@@ -126,7 +126,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("extracts authored container layout properties but excludes children", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "container-1",
       hidden: false,
@@ -145,24 +145,24 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("extracts intrinsic arrays as canonical arrays", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "table",
       id: "table-1",
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
 
     const draft = extractElementRecipeDraft(element, new Set(["rows"]));
 
     expect(draft.properties).toEqual([
-      { path: "rows", value: [{ name: "PowerShow" }] },
+      { path: "rows", value: [{ name: "Example" }] },
     ]);
   });
 
   it("ignores unknown, absent, atomic descendant, and stale paths", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,
@@ -179,7 +179,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("returns an empty draft for an empty selection", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "text-1",
       hidden: false,
@@ -194,13 +194,13 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("deep-clones selected values without mutating source or selection", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "table",
       id: "table-1",
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
     const selectedPaths = new Set(["rows"]);
     const sourceBefore = JSON.stringify(element);
@@ -209,7 +209,7 @@ describe("extractElementRecipeDraft", () => {
     const recipeRows = draft.properties[0]?.value as Array<Record<string, string>>;
     recipeRows[0]!.name = "Recipe";
 
-    expect(element.rows[0]).toEqual({ name: "PowerShow" });
+    expect(element.rows[0]).toEqual({ name: "Example" });
     element.rows[0]!.name = "Source";
     expect(recipeRows[0]).toEqual({ name: "Recipe" });
     expect(JSON.stringify(element)).not.toBe(sourceBefore);
@@ -217,7 +217,7 @@ describe("extractElementRecipeDraft", () => {
   });
 
   it("deep-clones nested atomic objects", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   DividerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderDivider } from "../src/render-divider";
 
@@ -32,13 +32,13 @@ describe("renderDivider", () => {
 
     expect(html).toContain('aria-orientation="horizontal"');
 
-    expect(html).toContain("powershow-divider");
+    expect(html).toContain("presentation-divider");
 
-    expect(html).toContain("powershow-divider-horizontal");
+    expect(html).toContain("presentation-divider-horizontal");
 
-    expect(html).toContain('data-powershow-id="divider-1"');
+    expect(html).toContain('data-presentation-id="divider-1"');
 
-    expect(html).toContain('data-powershow-type="divider"');
+    expect(html).toContain('data-presentation-type="divider"');
   });
 
   it("renders vertical aria-orientation", () => {
@@ -46,7 +46,7 @@ describe("renderDivider", () => {
 
     expect(html).toContain('aria-orientation="vertical"');
 
-    expect(html).toContain("powershow-divider-vertical");
+    expect(html).toContain("presentation-divider-vertical");
   });
 
   it("defaults horizontal geometry to 100% x 2px", () => {

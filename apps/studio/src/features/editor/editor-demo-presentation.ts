@@ -1,4 +1,5 @@
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
+import { displayName } from "@web-slideshow/instance-branding";
 
 // ============================================================
 // BEGIN: APRESENTAÇÃO LOCAL DO EDITOR
@@ -19,7 +20,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
   title: "Editor Demo",
 
-  description: "Local presentation used while developing PowerShow Editor.",
+  description: `Local presentation used while developing ${displayName} Editor.`,
 
   aspectRatio: "16:9",
 
@@ -105,7 +106,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               variant: "title",
 
-              content: "PowerShow Editor",
+              content: "Presentation Editor",
             },
 
             {
@@ -118,7 +119,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
               variant: "body",
 
               content:
-                "The canvas is rendered by the same PowerShow renderer used by the Player.",
+                "The canvas is rendered by the same renderer used by the Player.",
             },
           ],
         },
@@ -239,7 +240,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               hidden: false,
 
-              title: "PowerShow",
+              title: "Studio",
 
               layout: {
                 width: "70%",
@@ -249,13 +250,13 @@ export const editorDemoPresentation = PresentationSchema.parse({
                 {
                   type: "command",
 
-                  content: "pnpm --filter @powershow/studio dev",
+                  content: "pnpm --filter @web-slideshow/studio dev",
                 },
 
                 {
                   type: "output",
 
-                  content: "PowerShow Editor running",
+                  content: "Presentation Editor running",
                 },
 
                 {
@@ -340,9 +341,9 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               hidden: false,
 
-              src: "/powershow-demo.svg",
+              src: "/instance-demo.svg",
 
-              alt: "PowerShow Image Element demonstration",
+              alt: `${displayName} Image Element demonstration`,
 
               fit: "contain",
 

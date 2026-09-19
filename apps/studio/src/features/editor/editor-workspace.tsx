@@ -18,7 +18,7 @@ import {
   resolveLogicalSlideSize,
   type PlotAnimationController,
   type FittedSlideGeometry,
-} from "@powershow/renderer";
+} from "@web-slideshow/renderer";
 import {
   Button,
   HoverScrollText,
@@ -28,7 +28,7 @@ import {
   TopbarActions,
   TopbarLocale,
   TopbarTitle,
-} from "@powershow/ui";
+} from "@web-slideshow/ui";
 
 import {
   addPresentationPaletteColor as addPaletteEntry,
@@ -46,7 +46,7 @@ import {
   type LinkedTopicsStyle,
   type TextStroke,
   type TextStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
@@ -106,7 +106,7 @@ import {
   resolveCanvasPointerHit,
   resolveCanvasPointerSelection,
 } from "./canvas-pointer-selection-helpers";
-import { isAuthoredPowerShowLink } from "./canvas-link-interception";
+import { isAuthoredPresentationLink } from "./canvas-link-interception";
 import {
   isInsideContainerFitSurface,
   measureContainerFitSourceSize,
@@ -173,7 +173,7 @@ import { createTextStyleFromText, detachTextStyle } from "./text-typography-auth
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
-import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
+import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -291,10 +291,10 @@ import styles from "./editor-workspace.module.css";
 
 import type {
   GalleryElement,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
   Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 // ============================================================
 // END: TIPOS DO DOCUMENTO
@@ -322,7 +322,7 @@ interface SelectedElementInfo {
   /**
    * Transient insertion context: the canonical ContentSlot id of the
    * TopicItem whose content area was clicked on the canvas. Not a selection
-   * of TopicItem/ContentSlot as PowerShowElements.
+   * of TopicItem/ContentSlot as PresentationElements.
    */
   contentSlotId?: string | null;
 }
@@ -339,7 +339,7 @@ type ImageMediaAuthoringTarget =
   | { kind: "gallery-item"; galleryId: string; itemIndex: number };
 
 type GalleryItem = GalleryElement["items"][number];
-type ImageMediaValue = Extract<PowerShowElement, { type: "image" }> | GalleryItem;
+type ImageMediaValue = Extract<PresentationElement, { type: "image" }> | GalleryItem;
 
 function areImageMediaTargetsEqual(
   left: ImageMediaAuthoringTarget | null,
@@ -595,8 +595,8 @@ function areLinkedTopicsStyleDefinitionsEqual(
 }
 
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
-  return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
-    .find((candidate) => candidate.dataset.powershowId === id) ?? null;
+  return Array.from(canvas.querySelectorAll<HTMLElement>("[data-presentation-id]"))
+    .find((candidate) => candidate.dataset.presentationId === id) ?? null;
 }
 
 function findCanvasGalleryItem(
@@ -605,16 +605,16 @@ function findCanvasGalleryItem(
   itemIndex: number,
 ): HTMLElement | null {
   const gallery = Array.from(
-    canvas.querySelectorAll<HTMLElement>("[data-powershow-id][data-powershow-type]"),
+    canvas.querySelectorAll<HTMLElement>("[data-presentation-id][data-presentation-type]"),
   ).find(
     (candidate) =>
-      candidate.dataset.powershowType === "gallery" &&
-      candidate.dataset.powershowId === galleryId,
+      candidate.dataset.presentationType === "gallery" &&
+      candidate.dataset.presentationId === galleryId,
   );
   if (!gallery) return null;
   return Array.from(
-    gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]"),
-  ).find((candidate) => Number(candidate.dataset.powershowGalleryIndex) === itemIndex) ?? null;
+    gallery.querySelectorAll<HTMLElement>("[data-presentation-gallery-index]"),
+  ).find((candidate) => Number(candidate.dataset.presentationGalleryIndex) === itemIndex) ?? null;
 }
 
 type AuthoredContainerFit = {
@@ -635,7 +635,7 @@ function areAuthoredContainerFitsEqual(
 
 interface PendingElementDeletion {
   elementId: string;
-  elementType: PowerShowElement["type"];
+  elementType: PresentationElement["type"];
   slideIndex: number;
 }
 
@@ -720,8 +720,8 @@ type CanvasResizeLayoutField =
 type CanvasResizeLayout = Partial<Record<CanvasResizeLayoutField, unknown>>;
 
 function hasCanvasResizeLayoutChange(
-  before: PowerShowElement,
-  after: PowerShowElement,
+  before: PresentationElement,
+  after: PresentationElement,
 ): boolean {
   const beforeLayout = before.layout as CanvasResizeLayout | undefined;
   const afterLayout = after.layout as CanvasResizeLayout | undefined;
@@ -771,7 +771,7 @@ interface CanvasCropDragState {
   operation: CropCanvasOperation;
   startClientX: number;
   startClientY: number;
-  initialCrop: NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]>;
+  initialCrop: NonNullable<Extract<PresentationElement, { type: "image" }>["crop"]>;
   previewBounds: CropCanvasBounds;
 }
 
@@ -798,7 +798,7 @@ const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
 // - manter a Presentation em estado local;
 // - controlar slide selecionado;
 // - controlar elemento selecionado;
-// - renderizar o slide com @powershow/renderer;
+// - renderizar o slide com @web-slideshow/renderer;
 // - localizar/atualizar elementos na árvore;
 // - montar a estrutura visual do Editor.
 //
@@ -1107,7 +1107,7 @@ export function EditorWorkspace({
   const [canvasCropOverlay, setCanvasCropOverlay] =
     useState<CanvasCropOverlay | null>(null);
   const [canvasCropPreview, setCanvasCropPreview] = useState<
-    NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]> | null
+    NonNullable<Extract<PresentationElement, { type: "image" }>["crop"]> | null
   >(null);
   const [cropSourceMetrics, setCropSourceMetrics] = useState<{
     key: string;
@@ -1181,7 +1181,7 @@ export function EditorWorkspace({
   // Aqui encontramos o objeto real dentro do documento.
   // ==========================================================
 
-  const selectedDocumentElement = useMemo<PowerShowElement | null>(() => {
+  const selectedDocumentElement = useMemo<PresentationElement | null>(() => {
     if (!selectedSlide || !selectedElement) {
       return null;
     }
@@ -1689,42 +1689,42 @@ export function EditorWorkspace({
     }
 
     const previousSelections = canvas.querySelectorAll(
-      ".powershow-editor-selected",
+      ".studio-editor-selected",
     );
 
     previousSelections.forEach((element) => {
-      element.classList.remove("powershow-editor-selected");
+      element.classList.remove("studio-editor-selected");
     });
 
     const previousDraggables = canvas.querySelectorAll(
-      ".powershow-editor-draggable",
+      ".studio-editor-draggable",
     );
 
     previousDraggables.forEach((element) => {
-      element.classList.remove("powershow-editor-draggable");
+      element.classList.remove("studio-editor-draggable");
     });
 
     const previousPendingCuts = canvas.querySelectorAll(
-      ".powershow-editor-pending-cut",
+      ".studio-editor-pending-cut",
     );
 
     previousPendingCuts.forEach((element) => {
-      element.classList.remove("powershow-editor-pending-cut");
+      element.classList.remove("studio-editor-pending-cut");
     });
 
     const candidates = canvas.querySelectorAll<HTMLElement>(
-      "[data-powershow-id]",
+      "[data-presentation-id]",
     );
 
     candidates.forEach((candidate) => {
-      const id = candidate.dataset.powershowId;
+      const id = candidate.dataset.presentationId;
       const documentElement = id
         ? findElementById(selectedSlide?.elements ?? [], id)
         : null;
 
       if (documentElement) {
         if (id === pendingCut?.sourceElementId) {
-          candidate.classList.add("powershow-editor-pending-cut");
+          candidate.classList.add("studio-editor-pending-cut");
         }
 
         const draggable =
@@ -1739,7 +1739,7 @@ export function EditorWorkspace({
                   : false;
 
         if (draggable && !isInsideContainerFitSurface(candidate)) {
-          candidate.classList.add("powershow-editor-draggable");
+          candidate.classList.add("studio-editor-draggable");
         }
       }
     });
@@ -1750,10 +1750,10 @@ export function EditorWorkspace({
     }
 
     const target = Array.from(candidates).find(
-      (element) => element.dataset.powershowId === selectedElement.id,
+      (element) => element.dataset.presentationId === selectedElement.id,
     );
 
-    target?.classList.add("powershow-editor-selected");
+    target?.classList.add("studio-editor-selected");
 
     if (
       !target ||
@@ -1787,12 +1787,12 @@ export function EditorWorkspace({
   useEffect(() => {
     const canvas = slideCanvasRef.current;
     if (!canvas) return;
-    canvas.querySelectorAll<HTMLElement>("[data-powershow-type=gallery][data-powershow-id]").forEach((gallery) => {
-      const isSelected = gallery.dataset.powershowId === galleryItemSelection?.galleryId;
+    canvas.querySelectorAll<HTMLElement>("[data-presentation-type=gallery][data-presentation-id]").forEach((gallery) => {
+      const isSelected = gallery.dataset.presentationId === galleryItemSelection?.galleryId;
       const selectedIndex = isSelected ? galleryItemSelection?.itemIndex ?? 0 : 0;
-      gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]").forEach((item) => {
-        const active = Number(item.dataset.powershowGalleryIndex) === selectedIndex;
-        item.classList.toggle("powershow-gallery-item-active", active);
+      gallery.querySelectorAll<HTMLElement>("[data-presentation-gallery-index]").forEach((item) => {
+        const active = Number(item.dataset.presentationGalleryIndex) === selectedIndex;
+        item.classList.toggle("presentation-gallery-item-active", active);
         item.style.setProperty("visibility", active ? "visible" : "hidden");
         item.style.setProperty("pointer-events", active ? "auto" : "none");
         item.setAttribute("aria-hidden", active ? "false" : "true");
@@ -1865,8 +1865,8 @@ export function EditorWorkspace({
 
     if (target) {
       const appearanceTarget = cropEditingTarget.kind === "gallery-item"
-        ? Array.from(canvas?.querySelectorAll<HTMLElement>("[data-powershow-id][data-powershow-type]") ?? [])
-            .find((candidate) => candidate.dataset.powershowType === "gallery" && candidate.dataset.powershowId === cropEditingTarget.galleryId) ?? null
+        ? Array.from(canvas?.querySelectorAll<HTMLElement>("[data-presentation-id][data-presentation-type]") ?? [])
+            .find((candidate) => candidate.dataset.presentationType === "gallery" && candidate.dataset.presentationId === cropEditingTarget.galleryId) ?? null
         : target;
       if (!appearanceTarget) {
         setCanvasCropAppearance(null);
@@ -1963,7 +1963,7 @@ export function EditorWorkspace({
   // BEGIN: SELEÇÃO PELO CANVAS
   //
   // Event delegation:
-  // procuramos o ancestral mais próximo com data-powershow-id.
+  // procuramos o ancestral mais próximo com data-presentation-id.
   // ==========================================================
 
   function clearCanvasDragPreview() {
@@ -2007,10 +2007,10 @@ export function EditorWorkspace({
       );
 
       if (documentElement?.type === "container") {
-        return canvas.querySelector<HTMLElement>(".powershow-slide-content");
+        return canvas.querySelector<HTMLElement>(".presentation-slide-content");
       }
 
-      return canvas.querySelector<HTMLElement>(".powershow-slide");
+      return canvas.querySelector<HTMLElement>(".presentation-slide");
     }
 
     if (position.parentRef.kind === "content-slot") {
@@ -2025,8 +2025,8 @@ export function EditorWorkspace({
       const { id } = position.parentRef;
       return (
         Array.from(
-          canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
-        ).find((candidate) => candidate.dataset.powershowId === id) ?? null
+          canvas.querySelectorAll<HTMLElement>("[data-presentation-id]"),
+        ).find((candidate) => candidate.dataset.presentationId === id) ?? null
       );
     }
   }
@@ -2050,12 +2050,12 @@ export function EditorWorkspace({
     const siblings = Array.from(parent.children).flatMap((child) => {
       if (
         !(child instanceof HTMLElement) ||
-        child.dataset.powershowId === selectedId
+        child.dataset.presentationId === selectedId
       ) {
         return [];
       }
 
-      return child.matches("[data-powershow-id]")
+      return child.matches("[data-presentation-id]")
         ? [getCanvasBounds(child)]
         : [];
     });
@@ -2162,8 +2162,8 @@ export function EditorWorkspace({
 
     const iframeElements = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>(
-        '[data-powershow-type="embed"][data-powershow-id],' +
-          ' [data-powershow-type="scripted"][data-powershow-id]',
+        '[data-presentation-type="embed"][data-presentation-id],' +
+          ' [data-presentation-type="scripted"][data-presentation-id]',
       ),
     );
     const embedTarget = resolveCanvasEmbedPointerTarget(
@@ -2172,9 +2172,9 @@ export function EditorWorkspace({
         const bounds = iframeElement.getBoundingClientRect();
 
         return {
-          id: iframeElement.dataset.powershowId ?? "",
+          id: iframeElement.dataset.presentationId ?? "",
           type:
-            iframeElement.dataset.powershowType === "scripted"
+            iframeElement.dataset.presentationType === "scripted"
               ? ("scripted" as const)
               : ("embed" as const),
           left: bounds.left,
@@ -2184,14 +2184,14 @@ export function EditorWorkspace({
         };
       }),
     );
-    const ordinaryTarget = target.closest<HTMLElement>("[data-powershow-id]");
+    const ordinaryTarget = target.closest<HTMLElement>("[data-presentation-id]");
     const { elementTarget, target: hitTarget } = resolveCanvasPointerHit({
       embeds: iframeElements,
       embedTarget,
       ordinaryTarget,
     });
     const contentSlotTarget = target.closest<HTMLElement>(
-      "[data-powershow-content-slot-id]",
+      "[data-presentation-content-slot-id]",
     );
     const selection = resolveCanvasPointerSelection(
       hitTarget,
@@ -2205,7 +2205,7 @@ export function EditorWorkspace({
       return;
     }
 
-    const contentSlotId = contentSlotTarget?.dataset.powershowContentSlotId;
+    const contentSlotId = contentSlotTarget?.dataset.presentationContentSlotId;
 
     if (
       selectedElement?.id !== selection.id ||
@@ -2551,7 +2551,7 @@ export function EditorWorkspace({
   // ==========================================================
   // BEGIN: LINK ACTIVATION SUPPRESSION
   //
-  // Authored PowerShow links render as native anchors through the
+  // Authored presentation links render as native anchors through the
   // shared renderer. Inside the Editor they must not navigate, but
   // the href stays in the document so Player and Watch continue to
   // use native anchor behavior. Selection, drag and resize use
@@ -2559,7 +2559,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function handleCanvasLinkClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (isAuthoredPowerShowLink(event.target)) {
+    if (isAuthoredPresentationLink(event.target)) {
       event.preventDefault();
     }
   }
@@ -2607,10 +2607,10 @@ export function EditorWorkspace({
     }
 
     const target = Array.from(
-      canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"),
+      canvas.querySelectorAll<HTMLElement>("[data-presentation-id]"),
     ).find(
       (candidate) =>
-        candidate.dataset.powershowId === selectedDocumentElement.id,
+        candidate.dataset.presentationId === selectedDocumentElement.id,
     );
     const layoutParent = getCanvasLayoutParent(
       canvas,
@@ -2824,7 +2824,7 @@ export function EditorWorkspace({
           slide.elements,
           resize.elementId,
           (element) => {
-            let nextElement: PowerShowElement = element;
+            let nextElement: PresentationElement = element;
 
             if (element.type === "container") {
               if (!resize.containerResizeGeometry) {
@@ -3020,7 +3020,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function updateSelectedElement(
-    update: (element: PowerShowElement) => PowerShowElement,
+    update: (element: PresentationElement) => PresentationElement,
   ) {
     if (!selectedElement) {
       return;
@@ -3805,7 +3805,7 @@ export function EditorWorkspace({
           selectedElement?.contentSlotId ?? null,
         );
 
-        let nextElements: PowerShowElement[];
+        let nextElements: PresentationElement[];
         switch (destination.kind) {
           case "slide-root":
             nextElements = [...preparedSlide.elements, newElement];
@@ -4595,7 +4595,7 @@ export function EditorWorkspace({
 
     const source = options.source;
     const target = options.target;
-    const resolveOperation = (elements: PowerShowElement[], slides: readonly Slide[]) => {
+    const resolveOperation = (elements: PresentationElement[], slides: readonly Slide[]) => {
       if (source.kind === "gallery-item") {
         if (target.kind === "gallery-item") {
           const gallery = findElementById(elements, source.galleryId);
@@ -4779,7 +4779,7 @@ export function EditorWorkspace({
   function findStructuredTableInPresentation(
     current: Presentation,
     tableId: string,
-  ): Extract<PowerShowElement, { type: "table"; mode: "structured" }> | null {
+  ): Extract<PresentationElement, { type: "table"; mode: "structured" }> | null {
     for (const slide of current.slides) {
       const element = findElementById(slide.elements, tableId);
       if (element?.type === "table" && element.mode === "structured") {
@@ -5240,7 +5240,7 @@ export function EditorWorkspace({
 
           <div ref={canvasViewportRef} className={styles.canvasViewport}>
             {renderedFontResources && (
-              <style data-powershow-font-resources>
+              <style data-presentation-font-resources>
                 {renderedFontResources}
               </style>
             )}

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation } from "@powershow/document-schema";
-import { encodePresentationForFirestore } from "@powershow/firebase";
+import type { Presentation } from "@web-slideshow/document-schema";
+import { encodePresentationForFirestore } from "@web-slideshow/firebase";
 
 const mocks = vi.hoisted(() => ({
   collection: vi.fn(),

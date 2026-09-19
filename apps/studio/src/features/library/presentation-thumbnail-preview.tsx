@@ -6,7 +6,7 @@ import {
   hydrateRendererRuntime,
   renderSlide,
   resolveLogicalSlideSize,
-} from "@powershow/renderer";
+} from "@web-slideshow/renderer";
 
 import type { PresentationThumbnailPreview } from "../persistence/presentation-persistence";
 

@@ -4,7 +4,7 @@ import { FirebaseAuthenticationError } from "./persistence-errors";
 
 /**
  * Returns the current Firebase user only when it is a valid, non-anonymous
- * PowerShow authoring user.
+ * Authenticated authoring user.
  *
  * This is synchronous and NEVER:
  * - creates an anonymous account;

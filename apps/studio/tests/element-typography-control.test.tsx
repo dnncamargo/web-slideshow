@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ElementTypography, FontResource } from "@powershow/document-schema";
+import type { ElementTypography, FontResource } from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
@@ -371,7 +371,7 @@ describe("shared text capability controls", () => {
             id: "text-1",
             hidden: false,
             variant: "body",
-            content: "PowerShow Example",
+            content: "Presentation Example",
           }}
           onUpdate={() => {}}
           fontResources={FONT_RESOURCES}

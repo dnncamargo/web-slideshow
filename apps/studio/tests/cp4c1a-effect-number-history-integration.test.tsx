@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -101,7 +101,7 @@ describe("CP4C1A continuous effect number history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

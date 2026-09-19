@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   linkColorToPalette,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { addCustomLibraryPaletteToPresentation } from "../src/features/custom-library/custom-library-palette-apply";
 import type { CustomLibraryPaletteDraft } from "../src/features/custom-library/custom-library-palette";

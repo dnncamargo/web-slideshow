@@ -1,4 +1,4 @@
-import type { Border } from "@powershow/document-schema";
+import type { Border } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

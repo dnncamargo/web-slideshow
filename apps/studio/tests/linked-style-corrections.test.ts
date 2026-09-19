@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 import { collectLinkedStyleReferenceCounts } from "../src/features/editor/element-hierarchy";
 import { canUpdateLinkedStyle, createLinkedStyleFromContainer, removeUnusedLinkedStyle, renameLinkedStyle, updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
 import { getContainerShareablePropertySource } from "../src/features/editor/inspector/linked-style-inspector";

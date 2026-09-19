@@ -1,4 +1,4 @@
-import type { ImageElement } from "@powershow/document-schema";
+import type { ImageElement } from "@web-slideshow/document-schema";
 
 import {
   resolveCroppedImageBoxSize,
@@ -6,7 +6,7 @@ import {
 } from "./image-crop";
 
 type CroppedImageRoot = HTMLElement & {
-  __powershowCropLoadListener?: EventListener;
+  __cropLoadListener?: EventListener;
 };
 
 function applyGeometry(root: CroppedImageRoot, image: HTMLImageElement): void {
@@ -14,11 +14,11 @@ function applyGeometry(root: CroppedImageRoot, image: HTMLImageElement): void {
   const sourceHeight = image.naturalHeight;
   if (!sourceWidth || !sourceHeight) return;
 
-  const crop = JSON.parse(root.dataset.powershowImageCrop ?? "null") as ImageElement["crop"];
+  const crop = JSON.parse(root.dataset.presentationImageCrop ?? "null") as ImageElement["crop"];
   if (!crop) return;
 
-  const widthAuthored = root.dataset.powershowImageWidthAuthored === "true";
-  const heightAuthored = root.dataset.powershowImageHeightAuthored === "true";
+  const widthAuthored = root.dataset.presentationImageWidthAuthored === "true";
+  const heightAuthored = root.dataset.presentationImageHeightAuthored === "true";
   const box = root.getBoundingClientRect();
   const renderedWidth = root.clientWidth || box.width;
   const renderedHeight = root.clientHeight || box.height;
@@ -53,15 +53,15 @@ function applyGeometry(root: CroppedImageRoot, image: HTMLImageElement): void {
     boxWidth: size.width,
     boxHeight: size.height,
     crop,
-    fit: (root.dataset.powershowImageFit ?? "contain") as ImageElement["fit"],
+    fit: (root.dataset.presentationImageFit ?? "contain") as ImageElement["fit"],
     focalPoint: {
-      x: Number(root.dataset.powershowImageFocalX ?? 50),
-      y: Number(root.dataset.powershowImageFocalY ?? 50),
+      x: Number(root.dataset.presentationImageFocalX ?? 50),
+      y: Number(root.dataset.presentationImageFocalY ?? 50),
     },
   });
-  const viewport = root.querySelector<HTMLElement>(".powershow-image-crop-viewport");
+  const viewport = root.querySelector<HTMLElement>(".presentation-image-crop-viewport");
   if (!viewport) return;
-  const media = viewport.querySelector<HTMLImageElement>(".powershow-image-media");
+  const media = viewport.querySelector<HTMLImageElement>(".presentation-image-media");
   if (!media) return;
 
   viewport.style.width = `${geometry.viewportWidth}px`;
@@ -75,15 +75,15 @@ function applyGeometry(root: CroppedImageRoot, image: HTMLImageElement): void {
 }
 
 export function hydrateImageCrops(root: ParentNode): void {
-  root.querySelectorAll<HTMLElement>("[data-powershow-image-crop]").forEach((candidate) => {
+  root.querySelectorAll<HTMLElement>("[data-presentation-image-crop]").forEach((candidate) => {
     const imageRoot = candidate as CroppedImageRoot;
-    const image = imageRoot.querySelector<HTMLImageElement>(".powershow-image-media");
+    const image = imageRoot.querySelector<HTMLImageElement>(".presentation-image-media");
     if (!image) return;
 
     const hydrate = () => applyGeometry(imageRoot, image);
     if (image.naturalWidth && image.naturalHeight) hydrate();
-    if (!imageRoot.__powershowCropLoadListener) {
-      imageRoot.__powershowCropLoadListener = hydrate;
+    if (!imageRoot.__cropLoadListener) {
+      imageRoot.__cropLoadListener = hydrate;
       image.addEventListener("load", hydrate);
     }
   });

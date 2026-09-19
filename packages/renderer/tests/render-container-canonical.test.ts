@@ -25,7 +25,7 @@ function rootTag(html: string): string {
 }
 
 function tagForId(html: string, id: string): string {
-  const marker = `data-powershow-id="${id}"`;
+  const marker = `data-presentation-id="${id}"`;
   const end = html.indexOf(">", html.indexOf(marker));
   const start = html.lastIndexOf("<", html.indexOf(marker));
 
@@ -93,7 +93,7 @@ describe("production canonical Container renderer", () => {
     }));
 
     expect(rootTag(fittedHtml)).toContain("flex-shrink:0");
-    expect(fittedHtml).toContain('class="powershow-container-fit-viewport"');
+    expect(fittedHtml).toContain('class="presentation-container-fit-viewport"');
     expect(tagForId(fittedHtml, "fit-child")).not.toContain("flex-shrink:");
   });
 
@@ -265,7 +265,7 @@ describe("production canonical Container renderer", () => {
     }));
 
     expect(rootTag(html)).toContain("position:relative");
-    expect(tagForId(html, "gradient-child")).toContain('data-powershow-id="gradient-child"');
+    expect(tagForId(html, "gradient-child")).toContain('data-presentation-id="gradient-child"');
   });
 
   it("preserves authored absolute positioning, spacing, and overflow", () => {
@@ -329,10 +329,10 @@ describe("production canonical Container renderer", () => {
     }));
 
     expect(rootTag(html)).toContain("<main");
-    expect(rootTag(html)).toContain('data-powershow-role="main"');
-    expect(html).toContain('data-powershow-id="nested"');
-    expect(html).toContain('data-powershow-id="text"');
-    expect(html).toContain('data-powershow-id="canonical-child"');
+    expect(rootTag(html)).toContain('data-presentation-role="main"');
+    expect(html).toContain('data-presentation-id="nested"');
+    expect(html).toContain('data-presentation-id="text"');
+    expect(html).toContain('data-presentation-id="canonical-child"');
     expect(rootTag(html)).toContain("position:relative");
     expect(renderElement(createContainerElement({ hidden: true }))).toBe("");
   });
@@ -343,7 +343,7 @@ describe("production canonical Container renderer", () => {
     }));
 
     expect(rootTag(html)).toContain("position:relative");
-    expect(html).toContain('data-powershow-container-link-surface="true"');
+    expect(html).toContain('data-presentation-container-link-surface="true"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
   });
@@ -389,7 +389,7 @@ describe("production canonical Container renderer", () => {
     expect(rootTag(patternParent)).toContain("position:absolute");
     expect(rootTag(patternParent)).not.toContain("position:relative");
     expect(rootTag(patternParent)).toContain("isolation:isolate");
-    expect(patternParent).toContain("powershow-container-background-pattern");
+    expect(patternParent).toContain("presentation-container-background-pattern");
 
     const legacyPlacementParent = renderElement(createContainerElement({
       children: [createTextElement({ layout: { position: "absolute", top: 0, left: 0 } })],

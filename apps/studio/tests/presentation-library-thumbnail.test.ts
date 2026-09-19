@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveLogicalSlideSize } from "@powershow/renderer";
+import { resolveLogicalSlideSize } from "@web-slideshow/renderer";
 
 import { deriveThumbnailPreview } from "../src/features/persistence/presentation-persistence";
 import {

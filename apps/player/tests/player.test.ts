@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
-import { paletteColorCssVariableName } from "@powershow/renderer";
+import { PresentationSchema } from "@web-slideshow/document-schema";
+import { paletteColorCssVariableName } from "@web-slideshow/renderer";
 
 import {
   mountPlayer,
@@ -12,7 +12,7 @@ import {
 
 import { playerTestPresentation } from "./fixtures/player-presentation";
 
-describe("PowerShow Player", () => {
+describe("Player", () => {
   let root: HTMLElement;
   let player: PlayerController;
   let originalInnerWidth: number;
@@ -81,9 +81,9 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, presentation, { transition: "none" });
 
     player.setGalleryExpanded("gallery-player", true);
-    expect(root.querySelector(".powershow-player-gallery-expanded img")?.getAttribute("src")).toBe("/gallery.png");
+    expect(root.querySelector(".player-gallery-expanded img")?.getAttribute("src")).toBe("/gallery.png");
     player.setGalleryExpanded("gallery-player", false);
-    expect(root.querySelector(".powershow-player-gallery-expanded")).toBeNull();
+    expect(root.querySelector(".player-gallery-expanded")).toBeNull();
   });
 
   it("exposes narrow Plot animation control through the Player façade", () => {
@@ -102,9 +102,9 @@ describe("PowerShow Player", () => {
     setViewport(1920, 1080);
     player = mountPlayer(root, playerTestPresentation, { transition: "none" });
 
-    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const stage = root.querySelector<HTMLElement>(".player-stage");
     const surface = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-surface",
+      ".player-slide-surface",
     );
 
     expect(stage?.style.width).toBe("1920px");
@@ -118,9 +118,9 @@ describe("PowerShow Player", () => {
     setViewport(800, 1200);
     player = mountPlayer(root, playerTestPresentation, { transition: "none" });
 
-    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const stage = root.querySelector<HTMLElement>(".player-stage");
     const surface = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-surface",
+      ".player-slide-surface",
     );
 
     expect(stage?.style.width).toBe("800px");
@@ -139,9 +139,9 @@ describe("PowerShow Player", () => {
     });
     player = mountPlayer(root, presentation, { transition: "none" });
 
-    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const stage = root.querySelector<HTMLElement>(".player-stage");
     const surface = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-surface",
+      ".player-slide-surface",
     );
 
     expect(stage?.style.width).toBe("1200px");
@@ -158,9 +158,9 @@ describe("PowerShow Player", () => {
     setViewport(1280, 720);
     window.dispatchEvent(new Event("resize"));
 
-    const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+    const stage = root.querySelector<HTMLElement>(".player-stage");
     const surface = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-surface",
+      ".player-slide-surface",
     );
 
     expect(stage?.style.width).toBe("1280px");
@@ -199,7 +199,7 @@ describe("PowerShow Player", () => {
 
     player = mountPlayer(root, presentation, { transition: "none" });
 
-    const styledText = root.querySelector<HTMLElement>("[data-powershow-id='styled-text']");
+    const styledText = root.querySelector<HTMLElement>("[data-presentation-id='styled-text']");
     expect(styledText?.getAttribute("style")).toContain('font-family:"Fira Code"');
     expect(styledText?.getAttribute("style")).toContain("font-size:32px");
     expect(styledText?.getAttribute("style")).toContain("color:var(--ps-palette-007000720069006d006100720079)");
@@ -216,7 +216,7 @@ describe("PowerShow Player", () => {
     });
     player = mountPlayer(root, locallyOverridden, { transition: "none" });
 
-    expect(root.querySelector<HTMLElement>("[data-powershow-id='styled-text']")?.getAttribute("style")).toContain('font-family:"Arial"');
+    expect(root.querySelector<HTMLElement>("[data-presentation-id='styled-text']")?.getAttribute("style")).toContain('font-family:"Arial"');
 
     player.destroy();
     const detached = PresentationSchema.parse({
@@ -229,7 +229,7 @@ describe("PowerShow Player", () => {
     });
     player = mountPlayer(root, detached, { transition: "none" });
 
-    expect(root.querySelector<HTMLElement>("[data-powershow-id='styled-text']")?.getAttribute("style") ?? "").not.toContain("Fira Code");
+    expect(root.querySelector<HTMLElement>("[data-presentation-id='styled-text']")?.getAttribute("style") ?? "").not.toContain("Fira Code");
   });
 
   it("propagates canonical palette variables only to the authored slide surface", () => {
@@ -259,13 +259,13 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, presentation, { transition: "none" });
 
     const surface = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-surface",
+      ".player-slide-surface",
     );
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
     const renderedText = root.querySelector<HTMLElement>(
-      "[data-powershow-id='palette-text']",
+      "[data-presentation-id='palette-text']",
     );
 
     expect(surface?.style.getPropertyValue(paletteColorCssVariableName("background"))).toBe("#102030");
@@ -301,9 +301,9 @@ describe("PowerShow Player", () => {
     player.destroy();
     player = mountPlayer(root, croppedPresentation, { transition: "none" });
 
-    const imageRoot = root.querySelector<HTMLElement>("[data-powershow-image-crop]");
-    const image = root.querySelector<HTMLImageElement>(".powershow-image-media");
-    const viewport = root.querySelector<HTMLElement>(".powershow-image-crop-viewport");
+    const imageRoot = root.querySelector<HTMLElement>("[data-presentation-image-crop]");
+    const image = root.querySelector<HTMLImageElement>(".presentation-image-media");
+    const viewport = root.querySelector<HTMLElement>(".presentation-image-crop-viewport");
 
     expect(imageRoot).not.toBeNull();
     expect(viewport).not.toBeNull();
@@ -412,7 +412,7 @@ describe("PowerShow Player", () => {
 
   it("updates the slide counter", () => {
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     expect(counter?.value).toBe("1 / 3");
@@ -507,11 +507,11 @@ describe("PowerShow Player", () => {
     expect(player.getCurrentIndex()).toBe(2);
   });
   it("keeps Player controls outside the rendered slide", () => {
-    const slide = root.querySelector(".powershow-slide");
+    const slide = root.querySelector(".presentation-slide");
 
-    const controls = root.querySelector(".powershow-player-controls");
-    const surface = root.querySelector(".powershow-player-slide-surface");
-    const slideHost = root.querySelector(".powershow-player-slide-host");
+    const controls = root.querySelector(".player-controls");
+    const surface = root.querySelector(".player-slide-surface");
+    const slideHost = root.querySelector(".player-slide-host");
 
     expect(slide).not.toBeNull();
     expect(controls).not.toBeNull();
@@ -557,7 +557,7 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, presentation);
 
     const resourceStyles = root.querySelectorAll(
-      "style[data-powershow-font-resources]",
+      "style[data-presentation-font-resources]",
     );
 
     expect(resourceStyles).toHaveLength(1);
@@ -568,7 +568,7 @@ describe("PowerShow Player", () => {
     player.next();
 
     expect(
-      root.querySelectorAll("style[data-powershow-font-resources]"),
+      root.querySelectorAll("style[data-presentation-font-resources]"),
     ).toHaveLength(1);
   });
   it("uses the renderer CSS for multiple font faces", () => {
@@ -617,7 +617,7 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, presentation);
 
     const resourceStyle = root.querySelector<HTMLStyleElement>(
-      "style[data-powershow-font-resources]",
+      "style[data-presentation-font-resources]",
     );
 
     expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
@@ -631,7 +631,7 @@ describe("PowerShow Player", () => {
     player.next();
 
     expect(
-      root.querySelectorAll("style[data-powershow-font-resources]"),
+      root.querySelectorAll("style[data-presentation-font-resources]"),
     ).toHaveLength(1);
     expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
   });
@@ -691,11 +691,11 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, presentation);
 
     const container = root.querySelector<HTMLElement>(
-      '[data-powershow-id="container-rendered"]',
+      '[data-presentation-id="container-rendered"]',
     );
 
     const child = root.querySelector<HTMLElement>(
-      '[data-powershow-id="canonical-text"]',
+      '[data-presentation-id="canonical-text"]',
     );
 
     expect(container).not.toBeNull();
@@ -759,7 +759,7 @@ describe("PowerShow Player", () => {
     player = mountPlayer(root, presentation);
 
     const resourceStyle = root.querySelector<HTMLStyleElement>(
-      "style[data-powershow-font-resources]",
+      "style[data-presentation-font-resources]",
     );
 
     expect(resourceStyle?.textContent?.split("@font-face")).toHaveLength(3);
@@ -772,7 +772,7 @@ describe("PowerShow Player", () => {
     player.next();
 
     expect(
-      root.querySelectorAll("style[data-powershow-font-resources]"),
+      root.querySelectorAll("style[data-presentation-font-resources]"),
     ).toHaveLength(1);
   });
   it("removes the Player DOM when destroyed", () => {
@@ -790,25 +790,25 @@ describe("PowerShow Player", () => {
       });
 
       const controls = root.querySelector<HTMLElement>(
-        ".powershow-player-controls",
+        ".player-controls",
       );
 
       expect(controls).not.toBeNull();
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(false);
 
       vi.advanceTimersByTime(999);
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(false);
 
       vi.advanceTimersByTime(1);
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -824,7 +824,7 @@ describe("PowerShow Player", () => {
       });
 
       const controls = root.querySelector<HTMLElement>(
-        ".powershow-player-controls",
+        ".player-controls",
       );
 
       expect(controls).not.toBeNull();
@@ -832,7 +832,7 @@ describe("PowerShow Player", () => {
       vi.advanceTimersByTime(60_000);
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(false);
     } finally {
       vi.useRealTimers();
@@ -847,10 +847,10 @@ describe("PowerShow Player", () => {
         controlsAutoHideMs: 1000,
       });
 
-      const stage = root.querySelector<HTMLElement>(".powershow-player-stage");
+      const stage = root.querySelector<HTMLElement>(".player-stage");
 
       const controls = root.querySelector<HTMLElement>(
-        ".powershow-player-controls",
+        ".player-controls",
       );
 
       expect(stage).not.toBeNull();
@@ -859,19 +859,19 @@ describe("PowerShow Player", () => {
       vi.advanceTimersByTime(1000);
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(true);
 
       stage?.dispatchEvent(new Event("pointermove"));
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(false);
 
       vi.advanceTimersByTime(1000);
 
       expect(
-        controls?.classList.contains("powershow-player-controls-hidden"),
+        controls?.classList.contains("player-controls-hidden"),
       ).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -884,7 +884,7 @@ describe("PowerShow Player", () => {
     });
 
     const slideHost = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-host",
+      ".player-slide-host",
     );
 
     expect(slideHost).not.toBeNull();
@@ -924,7 +924,7 @@ describe("PowerShow Player", () => {
     });
 
     const slideHost = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-host",
+      ".player-slide-host",
     );
 
     expect(slideHost).not.toBeNull();
@@ -949,12 +949,12 @@ describe("PowerShow Player", () => {
   it("uses bottom-center controls by default", () => {
     const controller = mountPlayer(root, playerTestPresentation);
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-bottom-center"),
+      controls?.classList.contains("player-controls-bottom-center"),
     ).toBe(true);
 
     controller.destroy();
@@ -967,12 +967,12 @@ describe("PowerShow Player", () => {
       },
     });
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-top-right"),
+      controls?.classList.contains("player-controls-top-right"),
     ).toBe(true);
 
     controller.destroy();
@@ -985,12 +985,12 @@ describe("PowerShow Player", () => {
       },
     });
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-bottom-left"),
+      controls?.classList.contains("player-controls-bottom-left"),
     ).toBe(true);
 
     controller.destroy();
@@ -1007,7 +1007,7 @@ describe("PowerShow Player", () => {
     const player = mountPlayer(root, playerTestPresentation);
 
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     expect(counter).not.toBeNull();
@@ -1029,7 +1029,7 @@ describe("PowerShow Player", () => {
     });
 
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     expect(counter).not.toBeNull();
@@ -1052,12 +1052,12 @@ describe("PowerShow Player", () => {
   it("uses floating controls by default", () => {
     const player = mountPlayer(root, playerTestPresentation);
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-floating"),
+      controls?.classList.contains("player-controls-floating"),
     ).toBe(true);
 
     player.destroy();
@@ -1070,12 +1070,12 @@ describe("PowerShow Player", () => {
       },
     });
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-minimal"),
+      controls?.classList.contains("player-controls-minimal"),
     ).toBe(true);
 
     player.destroy();
@@ -1088,12 +1088,12 @@ describe("PowerShow Player", () => {
       },
     });
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-compact"),
+      controls?.classList.contains("player-controls-compact"),
     ).toBe(true);
 
     player.destroy();
@@ -1110,11 +1110,11 @@ describe("PowerShow Player", () => {
   it("uses fade controls animation by default", () => {
     const player = mountPlayer(root, playerTestPresentation);
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
-    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+    expect(controls?.classList.contains("player-controls-fade")).toBe(
       true,
     );
 
@@ -1128,12 +1128,12 @@ describe("PowerShow Player", () => {
       },
     });
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
     expect(
-      controls?.classList.contains("powershow-player-controls-slide"),
+      controls?.classList.contains("player-controls-slide"),
     ).toBe(true);
 
     player.destroy();
@@ -1146,11 +1146,11 @@ describe("PowerShow Player", () => {
       },
     });
 
-    const controls = root.querySelector(".powershow-player-controls");
+    const controls = root.querySelector(".player-controls");
 
     expect(controls).not.toBeNull();
 
-    expect(controls?.classList.contains("powershow-player-controls-none")).toBe(
+    expect(controls?.classList.contains("player-controls-none")).toBe(
       true,
     );
 
@@ -1177,19 +1177,19 @@ describe("PowerShow Player", () => {
     });
 
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     expect(
-      controls?.classList.contains("powershow-player-controls-top-right"),
+      controls?.classList.contains("player-controls-top-right"),
     ).toBe(true);
     expect(
-      controls?.classList.contains("powershow-player-controls-compact"),
+      controls?.classList.contains("player-controls-compact"),
     ).toBe(true);
-    expect(controls?.classList.contains("powershow-player-controls-none")).toBe(
+    expect(controls?.classList.contains("player-controls-none")).toBe(
       true,
     );
     expect(counter?.hidden).toBe(true);
@@ -1197,67 +1197,67 @@ describe("PowerShow Player", () => {
 
   it("replaces the position class on setControlsOptions", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
 
     player.setControlsOptions({ position: "top-left" });
 
     expect(
-      controls?.classList.contains("powershow-player-controls-bottom-center"),
+      controls?.classList.contains("player-controls-bottom-center"),
     ).toBe(false);
     expect(
-      controls?.classList.contains("powershow-player-controls-top-left"),
+      controls?.classList.contains("player-controls-top-left"),
     ).toBe(true);
   });
 
   it("replaces the style class on setControlsOptions", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
 
     player.setControlsOptions({ style: "minimal" });
 
     expect(
-      controls?.classList.contains("powershow-player-controls-floating"),
+      controls?.classList.contains("player-controls-floating"),
     ).toBe(false);
     expect(
-      controls?.classList.contains("powershow-player-controls-minimal"),
+      controls?.classList.contains("player-controls-minimal"),
     ).toBe(true);
   });
 
   it("replaces the animation class with slide on setControlsOptions", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
 
     player.setControlsOptions({ animation: "slide" });
 
-    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+    expect(controls?.classList.contains("player-controls-fade")).toBe(
       false,
     );
     expect(
-      controls?.classList.contains("powershow-player-controls-slide"),
+      controls?.classList.contains("player-controls-slide"),
     ).toBe(true);
   });
 
   it("replaces the animation class with none on setControlsOptions", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
 
     player.setControlsOptions({ animation: "none" });
 
-    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+    expect(controls?.classList.contains("player-controls-fade")).toBe(
       false,
     );
-    expect(controls?.classList.contains("powershow-player-controls-none")).toBe(
+    expect(controls?.classList.contains("player-controls-none")).toBe(
       true,
     );
   });
 
   it("hides the existing counter on setControlsOptions", () => {
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     expect(counter?.hidden).toBe(false);
@@ -1269,7 +1269,7 @@ describe("PowerShow Player", () => {
 
   it("shows the counter again on setControlsOptions", () => {
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     player.setControlsOptions({ showCounter: false });
@@ -1280,21 +1280,21 @@ describe("PowerShow Player", () => {
 
   it("preserves untouched controls options on partial updates", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
     const counter = root.querySelector<HTMLOutputElement>(
-      ".powershow-player-counter",
+      ".player-counter",
     );
 
     player.setControlsOptions({ position: "top-right" });
 
     expect(
-      controls?.classList.contains("powershow-player-controls-top-right"),
+      controls?.classList.contains("player-controls-top-right"),
     ).toBe(true);
     expect(
-      controls?.classList.contains("powershow-player-controls-floating"),
+      controls?.classList.contains("player-controls-floating"),
     ).toBe(true);
-    expect(controls?.classList.contains("powershow-player-controls-fade")).toBe(
+    expect(controls?.classList.contains("player-controls-fade")).toBe(
       true,
     );
     expect(counter?.hidden).toBe(false);
@@ -1302,7 +1302,7 @@ describe("PowerShow Player", () => {
 
   it("does not accumulate stale variant classes across repeated updates", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
 
     player.setControlsOptions({ position: "top-left" });
@@ -1311,25 +1311,25 @@ describe("PowerShow Player", () => {
     player.setControlsOptions({ style: "minimal" });
 
     expect(
-      controls?.classList.contains("powershow-player-controls-bottom-center"),
+      controls?.classList.contains("player-controls-bottom-center"),
     ).toBe(false);
     expect(
-      controls?.classList.contains("powershow-player-controls-top-left"),
+      controls?.classList.contains("player-controls-top-left"),
     ).toBe(false);
     expect(
-      controls?.classList.contains("powershow-player-controls-bottom-right"),
+      controls?.classList.contains("player-controls-bottom-right"),
     ).toBe(true);
     expect(
-      controls?.classList.contains("powershow-player-controls-floating"),
+      controls?.classList.contains("player-controls-floating"),
     ).toBe(false);
     expect(
-      controls?.classList.contains("powershow-player-controls-minimal"),
+      controls?.classList.contains("player-controls-minimal"),
     ).toBe(true);
   });
 
   it("keeps the controls element identity across runtime updates", () => {
     const controls = root.querySelector<HTMLElement>(
-      ".powershow-player-controls",
+      ".player-controls",
     );
 
     player.setControlsOptions({
@@ -1339,7 +1339,7 @@ describe("PowerShow Player", () => {
       showCounter: false,
     });
 
-    expect(root.querySelector(".powershow-player-controls")).toBe(controls);
+    expect(root.querySelector(".player-controls")).toBe(controls);
   });
 
   it("keeps the current slide index after controls updates", () => {

@@ -1,4 +1,4 @@
-import type { ContainerChildrenFit } from "@powershow/document-schema";
+import type { ContainerChildrenFit } from "@web-slideshow/document-schema";
 
 export interface ContainerFitGeometryInput {
   mode: ContainerChildrenFit["mode"];

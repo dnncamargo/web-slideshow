@@ -2,7 +2,7 @@ import type {
   EmbedElement,
   GalleryElement,
   ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderBorder, renderShadow } from "./render-visual";
 import { renderLength } from "./render-length";

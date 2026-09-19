@@ -1,8 +1,8 @@
 import type {
-  PowerShowElement,
+  PresentationElement,
   Slide,
   TopicItem,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   findElementSiblingPosition,
@@ -62,7 +62,7 @@ function getContentPreview(
 }
 
 export function getElementLabel(
-  element: PowerShowElement,
+  element: PresentationElement,
   typeLabel: string,
 ): string {
   if (element.type === "text") {
@@ -77,12 +77,12 @@ export function getElementLabel(
 /**
  * Children exposed by a Selector tree node.
  *
- * Only generic PowerShowElement containers expose direct children here.
+ * Only generic PresentationElement containers expose direct children here.
  * Topics are rendered through their own structural tree nodes in the panel.
  */
 export function getElementTreeChildren(
-  element: PowerShowElement,
-): PowerShowElement[] {
+  element: PresentationElement,
+): PresentationElement[] {
   if (element.type === "container") {
     return element.children;
   }
@@ -91,14 +91,14 @@ export function getElementTreeChildren(
 }
 
 export function collectContainerIds(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   ids: Set<string>,
 ): void {
   collectContainerIdsInHierarchy(elements, ids);
 }
 
 function collectParentTargets(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   excludedIds: ReadonlySet<string>,
   targets: ParentTarget[],
   t: (key: "tree.container" | "tree.slide") => string,
@@ -138,7 +138,7 @@ function collectParentTargets(
 
 export function getParentTargets(
   slide: Slide,
-  selectedElement: PowerShowElement,
+  selectedElement: PresentationElement,
   t: (key: "tree.container" | "tree.slide") => string,
 ): ParentTarget[] {
   const excludedIds = new Set<string>();
@@ -165,7 +165,7 @@ export function getTreeActionState(
 export type TreeDropIntent = "before" | "after" | "inside";
 
 export function resolveTreeDrop(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   elementId: string,
   targetId: string,
   intent: TreeDropIntent,

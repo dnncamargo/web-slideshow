@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 // ============================================================
 // BEGIN: STUDIO LOCALES
@@ -8,7 +8,8 @@ export type StudioLocale = "en" | "pt-BR";
 
 export const DEFAULT_STUDIO_LOCALE: StudioLocale = "en";
 
-export const STUDIO_LOCALE_STORAGE_KEY = "powershow-studio-locale";
+export const STUDIO_LOCALE_STORAGE_KEY = "web-slideshow:studio-locale";
+export const LEGACY_STUDIO_LOCALE_STORAGE_KEY = "powershow-studio-locale";
 
 export const STUDIO_LOCALES: readonly StudioLocale[] = ["en", "pt-BR"];
 
@@ -289,7 +290,7 @@ const englishMessages = {
   "scripted.sandboxHelp": "Scripted content runs in an isolated sandbox.",
   "scripted.reset": "Reset",
   "scripted.ports": "Ports",
-  "scripted.portsHelp": "Use the port ID from JavaScript through PowerShow.ports.",
+  "scripted.portsHelp": "Use the port ID from JavaScript through ScriptedRuntime.ports.",
   "scripted.port": "Port",
   "scripted.addPort": "Add port",
   "scripted.removePort": "Remove port",
@@ -894,7 +895,7 @@ const englishMessages = {
   "library.export": "Export",
   "library.importMalformed": "The selected file is not valid JSON.",
   "library.importInvalidPresentation":
-    "The selected file is not a valid PowerShow presentation.",
+    "The selected file is not a valid presentation.",
   "library.couldNotImport": "Could not import presentation.",
   "library.couldNotExport": "Could not export presentation.",
   "library.newFolder": "New folder",
@@ -1048,7 +1049,7 @@ const englishMessages = {
 
   "recovery.title": "Presentation contains incompatible content",
   "recovery.explanation":
-    "PowerShow can remove the incompatible content while preserving the rest of the presentation.",
+    "The application can remove the incompatible content while preserving the rest of the presentation.",
   "recovery.issueCount": "{count} issues found",
   "recovery.viewDetails": "View details",
   "recovery.hideDetails": "Hide details",
@@ -1430,7 +1431,7 @@ const portugueseMessages = {
   "scripted.sandboxHelp": "O conteúdo Scripted é executado em um sandbox isolado.",
   "scripted.reset": "Reverter",
   "scripted.ports": "Portas",
-  "scripted.portsHelp": "Use o ID da porta no JavaScript através de PowerShow.ports.",
+  "scripted.portsHelp": "Use o ID da porta no JavaScript através de ScriptedRuntime.ports.",
   "scripted.port": "Porta",
   "scripted.addPort": "Adicionar porta",
   "scripted.removePort": "Remover porta",
@@ -2041,7 +2042,7 @@ const portugueseMessages = {
   "library.export": "Exportar",
   "library.importMalformed": "O arquivo selecionado não é um JSON válido.",
   "library.importInvalidPresentation":
-    "O arquivo selecionado não é uma apresentação PowerShow válida.",
+    "O arquivo selecionado não é uma apresentação válida.",
   "library.couldNotImport": "Não foi possível importar a apresentação.",
   "library.couldNotExport": "Não foi possível exportar a apresentação.",
   "library.newFolder": "Nova pasta",
@@ -2195,7 +2196,7 @@ const portugueseMessages = {
 
   "recovery.title": "A apresentação contém conteúdo incompatível",
   "recovery.explanation":
-    "O PowerShow pode remover o conteúdo incompatível preservando o restante da apresentação.",
+    "A aplicação pode remover o conteúdo incompatível preservando o restante da apresentação.",
   "recovery.issueCount": "{count} problemas encontrados",
   "recovery.viewDetails": "Ver detalhes",
   "recovery.hideDetails": "Ocultar detalhes",
@@ -2353,7 +2354,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   embed: "element.embed",
   blocks: "element.blocks",
   scripted: "element.scripted",
-} satisfies Record<PowerShowElement["type"], StudioMessageKey>;
+} satisfies Record<PresentationElement["type"], StudioMessageKey>;
 
 // ============================================================
 // END: ELEMENT TYPE LABELS

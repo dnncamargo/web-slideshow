@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import type { CodeTypography, ElementEffect, FontResource, PowerShowElement } from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+import type { CodeTypography, ElementEffect, FontResource, PresentationElement } from "@web-slideshow/document-schema";
+import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -18,7 +18,7 @@ import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { useAuthoringHistory } from "../authoring-history-context";
 
-type CodeElement = Extract<PowerShowElement, { type: "code" }>;
+type CodeElement = Extract<PresentationElement, { type: "code" }>;
 
 function formatHighlightedLines(lines: number[]): string {
   return lines.join(", ");
@@ -170,7 +170,7 @@ export function CodeInspector({
             id="code-language"
             name="codeLanguage"
             type="text"
-            list="powershow-code-languages"
+            list="presentation-code-languages"
             value={element.language}
             onFocus={() => authoringHistory?.begin(languageHistoryKey, textEditMeta)}
             onBlur={() => authoringHistory?.finish(languageHistoryKey)}
@@ -201,7 +201,7 @@ export function CodeInspector({
             }}
           />
 
-          <datalist id="powershow-code-languages">
+          <datalist id="presentation-code-languages">
             <option value="text" />
             <option value="typescript" />
             <option value="javascript" />

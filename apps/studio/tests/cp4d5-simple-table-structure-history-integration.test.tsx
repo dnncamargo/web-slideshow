@@ -9,7 +9,7 @@ import {
   type Presentation,
   type SimpleTableElement,
   type TextContent,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   AuthoringHistoryContext,
@@ -207,7 +207,7 @@ describe("CP4D5 Simple Table structure history", () => {
         />
       </StudioI18nProvider>,
     ));
-    const table = host.querySelector<HTMLElement>(`[data-powershow-id="${TABLE_ID}"]`);
+    const table = host.querySelector<HTMLElement>(`[data-presentation-id="${TABLE_ID}"]`);
     if (!table) throw new Error("Simple Table was not rendered");
     await act(async () => table.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

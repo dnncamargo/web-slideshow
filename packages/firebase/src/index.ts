@@ -1,7 +1,7 @@
 import {
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export interface FirestorePresentationRecord {
   presentationJson: string;

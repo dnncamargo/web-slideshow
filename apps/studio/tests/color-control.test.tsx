@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ColorValue } from "@powershow/document-schema";
+import type { ColorValue } from "@web-slideshow/document-schema";
 
 import { ColorControl } from "../src/features/editor/inspector/sections/color-control";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
@@ -190,7 +190,7 @@ describe("ColorControl linked palette UX", () => {
   it("keeps Picked history in a dedicated eight-column grid", () => {
     renderControl("#000000", vi.fn(), Array.from({ length: 16 }, (_, index) => `#${String(index + 1).padStart(6, "0")}`));
     act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
-    const pickedGrid = container.querySelector('[data-powershow-picked-colors="true"]');
+    const pickedGrid = container.querySelector('[data-presentation-picked-colors="true"]');
     expect(pickedGrid).toBeTruthy();
     expect(pickedGrid?.className).toContain("colorPalettePickedActions");
     expect(pickedGrid?.children).toHaveLength(16);

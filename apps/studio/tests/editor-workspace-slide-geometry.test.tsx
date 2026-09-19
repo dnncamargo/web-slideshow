@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -152,7 +152,7 @@ describe("EditorWorkspace slide geometry", () => {
 
     const stage = container.querySelector<HTMLElement>("[class*='canvasStage']");
     const canvas = container.querySelector<HTMLElement>("[class*='slideCanvas']");
-    const slide = container.querySelector<HTMLElement>(".powershow-slide");
+    const slide = container.querySelector<HTMLElement>(".presentation-slide");
 
     expect(stage?.style.width).toBe("480px");
     expect(stage?.style.height).toBe("270px");
@@ -217,9 +217,9 @@ describe("EditorWorkspace slide geometry", () => {
     setViewportSize(viewport, 960, 540);
 
     const canvas = container.querySelector<HTMLElement>("[class*='slideCanvas']");
-    const child = container.querySelector<HTMLElement>('[data-powershow-id="fit-child"]');
-    const outer = container.querySelector<HTMLElement>('[data-powershow-id="fit-container"]');
-    const surface = container.querySelector<HTMLElement>(".powershow-container-fit-surface");
+    const child = container.querySelector<HTMLElement>('[data-presentation-id="fit-child"]');
+    const outer = container.querySelector<HTMLElement>('[data-presentation-id="fit-container"]');
+    const surface = container.querySelector<HTMLElement>(".presentation-container-fit-surface");
     if (!canvas || !child || !outer || !surface) throw new Error("fit canvas elements not rendered");
     expect(surface.contains(child)).toBe(true);
 
@@ -228,20 +228,20 @@ describe("EditorWorkspace slide geometry", () => {
       child.dispatchEvent(pointer("pointerdown", 180, 150));
       await Promise.resolve();
     });
-    const selectedChild = container.querySelector<HTMLElement>('[data-powershow-id="fit-child"]');
-    const selectedOuter = container.querySelector<HTMLElement>('[data-powershow-id="fit-container"]');
+    const selectedChild = container.querySelector<HTMLElement>('[data-presentation-id="fit-child"]');
+    const selectedOuter = container.querySelector<HTMLElement>('[data-presentation-id="fit-container"]');
     if (!selectedChild || !selectedOuter) throw new Error("fit elements were replaced during selection");
     expect(container.textContent).toContain("Image · fit-child");
-    expect(selectedChild.classList.contains("powershow-editor-draggable")).toBe(false);
+    expect(selectedChild.classList.contains("studio-editor-draggable")).toBe(false);
     expect(container.querySelector("[class*='ResizeOverlay']")).toBeNull();
 
     await act(async () => canvas.dispatchEvent(pointer("pointermove", 260, 220)));
     await act(async () => canvas.dispatchEvent(pointer("pointerup", 260, 220)));
     expect(selectedChild.getAttribute("style")).toBe(childStyle);
 
-    const currentOuter = container.querySelector<HTMLElement>('[data-powershow-id="fit-container"]');
+    const currentOuter = container.querySelector<HTMLElement>('[data-presentation-id="fit-container"]');
     if (!currentOuter) throw new Error("fit Container was replaced during pointer handling");
-    const viewportSurface = currentOuter.querySelector<HTMLElement>(".powershow-container-fit-viewport");
+    const viewportSurface = currentOuter.querySelector<HTMLElement>(".presentation-container-fit-viewport");
     if (!viewportSurface) throw new Error("fit viewport not rendered");
     await act(async () => {
       viewportSurface.dispatchEvent(pointer("pointerdown", 120, 100, 2));

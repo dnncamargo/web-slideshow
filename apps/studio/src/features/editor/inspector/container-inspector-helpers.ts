@@ -1,7 +1,7 @@
 import type {
   ContainerElement,
   Length,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export type UpdateContainer = (
   update: (container: ContainerElement) => ContainerElement,

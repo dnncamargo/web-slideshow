@@ -1,7 +1,7 @@
 import { get, onValue, ref, type Database } from "firebase/database";
 
 import type { PublishedLoadResult } from "./published-presentation-loader";
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import { recordPlayerDiagnostic } from "./player-diagnostics";
 

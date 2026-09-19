@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TextElement } from "@powershow/document-schema";
+import type { TextElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -12,7 +12,7 @@ function textElement(
     id: "text-1",
     hidden: false,
     variant: "body",
-    content: "Hello PowerShow",
+    content: "Hello presentation",
     ...overrides,
   };
 }
@@ -46,7 +46,7 @@ describe("renderElement rich text", () => {
   it("renders plain text unchanged", () => {
     const html = renderElement(textElement());
 
-    expect(html).toContain(">Hello PowerShow</p>");
+    expect(html).toContain(">Hello presentation</p>");
   });
 
   it("concatenates unmarked rich-text runs in order", () => {

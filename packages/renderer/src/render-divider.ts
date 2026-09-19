@@ -1,6 +1,6 @@
 import type {
   DividerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
@@ -80,9 +80,9 @@ export function renderDivider(
     element.style?.className?.trim();
 
   const classes = [
-    "powershow-element",
-    "powershow-divider",
-    `powershow-divider-${element.orientation}`,
+    "presentation-element",
+    "presentation-divider",
+    `presentation-divider-${element.orientation}`,
   ];
 
   if (customClass) {
@@ -98,10 +98,10 @@ export function renderDivider(
     ` aria-orientation="${escapeHtml(
       element.orientation,
     )}"` +
-    ` data-powershow-id="${escapeHtml(
+    ` data-presentation-id="${escapeHtml(
       element.id,
     )}"` +
-    ` data-powershow-type="divider"` +
+    ` data-presentation-type="divider"` +
     ` style="${escapeHtml(
       styles.join(";"),
     )}"` +

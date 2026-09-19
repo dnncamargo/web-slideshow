@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { runInNewContext } from "node:vm";
+import { createContext, runInContext, runInNewContext } from "node:vm";
 
 import type {
   ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderScripted } from "../src/render-scripted";
@@ -107,7 +107,7 @@ function cspDirectives(csp: string): Map<string, string> {
 
 function extractBootstrap(srcdoc: string): string {
   const match = srcdoc.match(
-    /<script data-powershow-scripted-bootstrap="true">([\s\S]*)<\/script>/,
+    /<script data-scripted-runtime-bootstrap="true">([\s\S]*)<\/script>/,
   );
 
   expect(match).not.toBeNull();
@@ -126,9 +126,9 @@ describe("renderScripted", () => {
     }));
 
     expect(html).toContain('<div class="presentation-gradient-border"');
-    expect(html).toContain('<iframe class="powershow-element powershow-scripted custom-scripted-stage"');
-    expect(html).toContain('data-powershow-id="scripted-1"');
-    expect(html).toContain('data-powershow-type="scripted"');
+    expect(html).toContain('<iframe class="presentation-element presentation-scripted custom-scripted-stage"');
+    expect(html).toContain('data-presentation-id="scripted-1"');
+    expect(html).toContain('data-presentation-type="scripted"');
     expect(html).toContain("--presentation-gradient-border-width:2px");
     expect(html).toContain("--presentation-gradient-border-paint:linear-gradient");
     expect(html).toContain("border:0");
@@ -136,7 +136,7 @@ describe("renderScripted", () => {
     expect(html).toContain("border-radius:12px");
     expect(html).toContain("border-radius:max(0px,calc(12px - 2px))");
     expect(html).not.toContain("border-image:");
-    expect(html).not.toContain('class="presentation-gradient-border powershow-element');
+    expect(html).not.toContain('class="presentation-gradient-border presentation-element');
   });
 
   it("maps authored dimensions to the frame and iframe viewport", () => {
@@ -283,23 +283,23 @@ describe("renderScripted", () => {
     expect(html).toContain("></iframe>");
   });
 
-  it("emits the powershow-element and powershow-scripted classes", () => {
+  it("emits the presentation-element and presentation-scripted classes", () => {
     const html = renderScripted(scripted());
 
-    expect(html).toContain("powershow-element");
+    expect(html).toContain("presentation-element");
 
-    expect(html).toContain("powershow-scripted");
+    expect(html).toContain("presentation-scripted");
   });
 
-  it("emits data-powershow-id", () => {
+  it("emits data-presentation-id", () => {
     expect(renderScripted(scripted())).toContain(
-      'data-powershow-id="scripted-1"',
+      'data-presentation-id="scripted-1"',
     );
   });
 
-  it("emits data-powershow-type=\"scripted\"", () => {
+  it("emits data-presentation-type=\"scripted\"", () => {
     expect(renderScripted(scripted())).toContain(
-      'data-powershow-type="scripted"',
+      'data-presentation-type="scripted"',
     );
   });
 
@@ -426,7 +426,7 @@ describe("renderScripted", () => {
 
     expect(html).toContain("<iframe");
 
-    expect(html).toContain('data-powershow-type="scripted"');
+    expect(html).toContain('data-presentation-type="scripted"');
   });
 });
 
@@ -554,10 +554,10 @@ describe("renderScripted payload structural safety", () => {
     // immediately followed by the bootstrap script open), so the
     // authored sequences must never appear as unescaped structural
     // tags before authored content.
-    expect(srcdoc).toContain('data-powershow-scripted-bootstrap="true"');
+    expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
 
     expect(srcdoc).toContain(
-      "document.getElementById('powershow-scripted-root')",
+      "document.getElementById('scripted-runtime-root')",
     );
 
     // Hostile authored sequences never become renderer-owned structure:
@@ -633,7 +633,7 @@ describe("renderScripted payload structural safety", () => {
   });
 });
 
-describe("renderScripted PowerShow.ports bootstrap", () => {
+describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
   const ports: ScriptedElement["ports"] = [
     { id: "scroll-up", label: "Scroll up", kind: "action" },
     {
@@ -684,7 +684,7 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
   it("installs the exact public API before appending authored script", () => {
     const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
 
-    const apiIndex = srcdoc.indexOf("Object.defineProperty(window, 'PowerShow'");
+    const apiIndex = srcdoc.indexOf("Object.defineProperty(window, 'ScriptedRuntime'");
     const authoredScriptIndex = srcdoc.indexOf("scriptNode.textContent = script");
 
     expect(apiIndex).toBeGreaterThan(-1);
@@ -692,14 +692,64 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     expect(srcdoc).toContain("onAction: onAction");
     expect(srcdoc).toContain("onInput: onInput");
     expect(srcdoc).toContain("report: report");
+    expect(srcdoc).not.toContain("PowerShow");
+  });
+
+  it.each([
+    ["historical source", "PowerShow.ports.report('current', 17.25);", false],
+    ["manually migrated source", "ScriptedRuntime.ports.report('current', 17.25);", true],
+  ])("preserves and executes %s without source migration", (_label, script, works) => {
+    const element = scripted({ ports, script: `// café\r\n  ${script}\r\n` });
+    const original = JSON.stringify(element);
+    const srcdoc = extractSrcdoc(renderScripted(element));
+    const reports: unknown[] = [];
+    const errors: unknown[] = [];
+    const root = { innerHTML: "" };
+    const payload = {
+      getAttribute: (name: string) => JSON.stringify(recoverPayload(srcdoc, name.slice(5))),
+      remove() {},
+    };
+    const sandbox: Record<string, unknown> = {
+      parent: { postMessage: (message: unknown) => reports.push(message) },
+      addEventListener() {},
+    };
+    sandbox.window = sandbox;
+    const context = createContext(sandbox);
+    sandbox.document = {
+      getElementById: (id: string) => id === "scripted-runtime-payload" ? payload : root,
+      createElement: () => ({ textContent: "" }),
+      head: { appendChild() {} },
+      body: {
+        appendChild(node: { textContent: string }) {
+          expect(node.textContent).toBe(element.script);
+          try { runInContext(node.textContent, context); } catch (error) { errors.push(error); }
+        },
+      },
+    };
+
+    runInContext(extractBootstrap(srcdoc), context);
+
+    expect(recoverPayload(srcdoc, "script")).toBe(element.script);
+    expect(JSON.stringify(element)).toBe(original);
+    expect(runInContext("typeof window.PowerShow", context)).toBe("undefined");
+    expect(runInContext("typeof ScriptedRuntime.ports.report", context)).toBe("function");
+    expect(errors).toHaveLength(works ? 0 : 1);
+    if (!works) expect(errors[0]).toMatchObject({ name: "ReferenceError" });
+    expect(reports).toEqual(works ? [{
+      type: "scripted:report", elementId: element.id, portId: "current", value: 17.25,
+    }] : []);
   });
 
   it("uses the exact three Scripted message types", () => {
     const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
 
-    expect(srcdoc).toContain("powershow:scripted:action");
-    expect(srcdoc).toContain("powershow:scripted:input");
-    expect(srcdoc).toContain("powershow:scripted:report");
+    expect(srcdoc).toContain("scripted:action");
+    expect(srcdoc).toContain("scripted:input");
+    expect(srcdoc).toContain("scripted:report");
+    expect(srcdoc).not.toMatch(/powershow/i);
+    expect(srcdoc).toContain('id="scripted-runtime-root"');
+    expect(srcdoc).toContain('id="scripted-runtime-payload"');
+    expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
   });
 
   it("enforces source, exact envelopes, and canonical element and port checks", () => {
@@ -727,7 +777,7 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
   it("posts reports only to parent with the opaque-origin wildcard target", () => {
     const srcdoc = extractSrcdoc(renderScripted(scripted({ ports })));
 
-    expect(srcdoc).toContain("window.parent.postMessage({ type: 'powershow:scripted:report'");
+    expect(srcdoc).toContain("window.parent.postMessage({ type: 'scripted:report'");
     expect(srcdoc).toContain("value: value }, '*')");
   });
 
@@ -770,11 +820,11 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     const root = { innerHTML: "" };
     const document = {
       getElementById(id: string) {
-        if (id === "powershow-scripted-payload") {
+        if (id === "scripted-runtime-payload") {
           return payload;
         }
 
-        return id === "powershow-scripted-root" ? root : null;
+        return id === "scripted-runtime-root" ? root : null;
       },
       createElement() {
         return { textContent: "" };
@@ -798,8 +848,8 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
 
     expect(listener).toBeDefined();
 
-    const powerShow = sandboxWindow as typeof sandboxWindow & {
-      PowerShow: {
+    const runtimeWindow = sandboxWindow as typeof sandboxWindow & {
+      ScriptedRuntime: {
         ports: {
           onAction(id: string, handler: () => void): void;
           onInput(id: string, handler: (value: boolean | number) => void): void;
@@ -810,17 +860,22 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     let actionCount = 0;
     const inputs: Array<boolean | number> = [];
 
-    powerShow.PowerShow.ports.onAction("scroll-up", () => {
+    expect(runInNewContext("typeof window.PowerShow", { window: sandboxWindow })).toBe("undefined");
+    expect(Object.getOwnPropertyDescriptor(sandboxWindow, "PowerShow")).toBeUndefined();
+    expect(Object.isFrozen(runtimeWindow.ScriptedRuntime)).toBe(true);
+    expect(Object.isFrozen(runtimeWindow.ScriptedRuntime.ports)).toBe(true);
+
+    runtimeWindow.ScriptedRuntime.ports.onAction("scroll-up", () => {
       actionCount += 1;
     });
-    powerShow.PowerShow.ports.onInput("closed", (value) => {
+    runtimeWindow.ScriptedRuntime.ports.onInput("closed", (value) => {
       inputs.push(value);
     });
 
     listener!({
       source: parent,
       data: {
-        type: "powershow:scripted:action",
+        type: "scripted:action",
         elementId: "scripted-1",
         portId: "scroll-up",
       },
@@ -828,7 +883,7 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     listener!({
       source: parent,
       data: {
-        type: "powershow:scripted:action",
+        type: "scripted:action",
         elementId: "scripted-1",
         portId: "scroll-up",
         value: true,
@@ -837,7 +892,7 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     listener!({
       source: parent,
       data: {
-        type: "powershow:scripted:input",
+        type: "scripted:input",
         elementId: "scripted-1",
         portId: "closed",
         value: true,
@@ -846,7 +901,7 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     listener!({
       source: parent,
       data: {
-        type: "powershow:scripted:input",
+        type: "scripted:input",
         elementId: "scripted-1",
         portId: "closed",
         value: 1,
@@ -856,12 +911,28 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
     expect(actionCount).toBe(1);
     expect(inputs).toEqual([true]);
 
-    powerShow.PowerShow.ports.report("current", 17.25);
+    // Historical envelopes are fixtures for rejection, never a supported API.
+    listener!({ source: parent, data: {
+      type: "powershow:scripted:action", elementId: "scripted-1", portId: "scroll-up",
+    } });
+    listener!({ source: parent, data: {
+      type: "powershow:scripted:input", elementId: "scripted-1", portId: "closed", value: false,
+    } });
+    listener!({ source: {}, data: {
+      type: "scripted:action", elementId: "scripted-1", portId: "scroll-up",
+    } });
+    listener!({ source: parent, data: {
+      type: "scripted:action", elementId: "other-element", portId: "scroll-up",
+    } });
+    expect(actionCount).toBe(1);
+    expect(inputs).toEqual([true]);
+
+    runtimeWindow.ScriptedRuntime.ports.report("current", 17.25);
 
     expect(messages).toEqual([
       {
         message: {
-          type: "powershow:scripted:report",
+          type: "scripted:report",
           elementId: "scripted-1",
           portId: "current",
           value: 17.25,
@@ -869,7 +940,7 @@ describe("renderScripted PowerShow.ports bootstrap", () => {
         target: "*",
       },
     ]);
-    expect(() => powerShow.PowerShow.ports.report("current", Infinity)).toThrow();
-    expect(() => powerShow.PowerShow.ports.report("closed", false)).toThrow();
+    expect(() => runtimeWindow.ScriptedRuntime.ports.report("current", Infinity)).toThrow();
+    expect(() => runtimeWindow.ScriptedRuntime.ports.report("closed", false)).toThrow();
   });
 });

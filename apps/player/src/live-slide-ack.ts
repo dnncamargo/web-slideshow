@@ -6,7 +6,7 @@ import {
   type Database,
 } from "firebase/database";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
 
 const SLIDE_COMMAND_PATH = "live/slideCommand";
@@ -123,7 +123,7 @@ export function subscribeLiveSlideAck(
 
     if (pageId === null) {
       console.error(
-        "[PowerShow][live-slide-ack] could not resolve a pageId for the current page",
+        "[player][live-slide-ack] could not resolve a pageId for the current page",
       );
       return;
     }
@@ -139,7 +139,7 @@ export function subscribeLiveSlideAck(
         if (!tornDown) onAckConfirmed(pageIndex);
       })
       .catch((error: unknown) => {
-        console.error("[PowerShow][live-slide-ack] ack write failed", error);
+        console.error("[player][live-slide-ack] ack write failed", error);
       });
   }
 
@@ -160,7 +160,7 @@ export function subscribeLiveSlideAck(
   }
 
   if (logsEnabled) {
-    console.log("[PowerShow][live-slide-ack] subscribing", {
+    console.log("[player][live-slide-ack] subscribing", {
       path: SLIDE_COMMAND_PATH,
       activationRevision,
       currentVersionId,
@@ -202,7 +202,7 @@ export function subscribeLiveSlideAck(
 
       if (pageIndex < 0) {
         console.warn(
-          "[PowerShow][live-slide-ack] ignoring command for unknown pageId",
+          "[player][live-slide-ack] ignoring command for unknown pageId",
           command.pageId,
         );
 
@@ -216,7 +216,7 @@ export function subscribeLiveSlideAck(
       scheduleAck();
     },
     (error: Error) => {
-      console.error("[PowerShow][live-slide-ack] subscription error", error);
+      console.error("[player][live-slide-ack] subscription error", error);
     },
   );
 

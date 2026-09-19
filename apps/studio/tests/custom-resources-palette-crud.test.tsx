@@ -9,7 +9,7 @@ import {
   PresentationSchema,
   type Color,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type { CustomLibraryPaletteDraft } from "../src/features/custom-library/custom-library-palette";
 import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";

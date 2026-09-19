@@ -3,7 +3,7 @@ import type {
   TextContent,
   TextRun,
   TextRunMarks,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderColorValue } from "./render-palette";

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 const mocks = vi.hoisted(() => ({
   initializeApp: vi.fn(),

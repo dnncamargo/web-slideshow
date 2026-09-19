@@ -13,14 +13,14 @@ import type {
   ElementLink,
   ContainerElement,
   ImageElement,
-  PowerShowElement,
+  PresentationElement,
   TextElement,
   PlotElement,
   InteractiveElement,
-} from "@powershow/document-schema";
-import type { Presentation } from "@powershow/document-schema";
-import { resolveTextStyle } from "@powershow/document-schema";
-import { FundamentalTextStyleIdSchema } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
+import { resolveTextStyle } from "@web-slideshow/document-schema";
+import { FundamentalTextStyleIdSchema } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
@@ -51,7 +51,7 @@ function renderImageCropBoxStyle(element: ImageElement): string {
 }
 
 function renderCroppedImageMedia(element: ImageElement): string {
-  return `<img class="powershow-image-media"` +
+  return `<img class="presentation-image-media"` +
     ` src="${escapeHtml(element.src)}"` +
     ` alt="${escapeHtml(element.alt)}"` +
     ` style="display:block;position:absolute;max-width:none">`;
@@ -67,7 +67,7 @@ function renderLinkContent(
 
   const attributes: string[] = [
     `href="${escapeHtml(link.href)}"`,
-    'data-powershow-link="true"',
+    'data-presentation-link="true"',
     `style="${AUTHORED_LINK_APPEARANCE}"`,
   ];
 
@@ -81,13 +81,13 @@ function renderLinkContent(
 }
 
 function buildAttributes(
-  element: PowerShowElement,
+  element: PresentationElement,
   classes: string[],
   context?: RenderContext,
   extraStyle?: string,
   options: { includeTextBorder?: boolean } = {},
 ): string {
-  const outputClasses = ["powershow-element", ...classes];
+  const outputClasses = ["presentation-element", ...classes];
 
   const customClass =
     element.type === "container" || element.type === "text" || element.type === "image"
@@ -129,8 +129,8 @@ function buildAttributes(
 
   return (
     `class="${escapeHtml(outputClasses.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="${escapeHtml(element.type)}"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="${escapeHtml(element.type)}"` +
     styleAttribute
   );
 }
@@ -161,8 +161,8 @@ function renderText(element: TextElement, context?: RenderContext): string {
     ].join(";")
     : undefined;
   const textClasses = [
-    "powershow-text",
-    `powershow-text-${role}`,
+    "presentation-text",
+    `presentation-text-${role}`,
     ...(migratesGradientBorder ? ["presentation-gradient-border"] : []),
   ];
 
@@ -186,7 +186,7 @@ function renderText(element: TextElement, context?: RenderContext): string {
 }
 
 function renderLinkedImage(element: ImageElement, link: ElementLink): string {
-  const classes = ["powershow-element", "powershow-image"];
+  const classes = ["presentation-element", "presentation-image"];
 
   if (hasGradientBorder(element)) {
     classes.push("presentation-gradient-border");
@@ -198,7 +198,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     classes.push(customClass);
   }
 
-  // The anchor owns the PowerShow element box. The authored-link
+  // The anchor owns the presentation element box. The authored-link
   // appearance is emitted first so an explicit element style (color,
   // text-decoration-line) keeps precedence while the browser link look
   // stays suppressed otherwise.
@@ -220,10 +220,10 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
 
   const attributes: string[] = [
     `href="${escapeHtml(link.href)}"`,
-    'data-powershow-link="true"',
+    'data-presentation-link="true"',
     `class="${escapeHtml(classes.join(" "))}"`,
-    `data-powershow-id="${escapeHtml(element.id)}"`,
-    `data-powershow-type="image"`,
+    `data-presentation-id="${escapeHtml(element.id)}"`,
+    `data-presentation-type="image"`,
     ` style="${escapeHtml(styleParts.join(";"))}"`,
   ];
 
@@ -238,7 +238,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
 
   const media = element.crop
     ? renderCroppedImageMedia(element)
-    : `<img class="powershow-image-media"` +
+    : `<img class="presentation-image-media"` +
       ` src="${escapeHtml(element.src)}"` +
       ` alt="${escapeHtml(element.alt)}"` +
       ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">`;
@@ -247,7 +247,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     return `<a ${attributes.join(" ")}>${media}</a>`;
   }
 
-  return `<a ${attributes.join(" ")}><div class="powershow-image-crop-viewport">${media}</div></a>`;
+  return `<a ${attributes.join(" ")}><div class="presentation-image-crop-viewport">${media}</div></a>`;
 }
 
 function renderImage(element: ImageElement): string {
@@ -265,13 +265,13 @@ function renderImage(element: ImageElement): string {
       : undefined;
     const attributes = buildAttributes(
       element,
-      ["powershow-image", ...(gradientClass ? [gradientClass] : [])],
+      ["presentation-image", ...(gradientClass ? [gradientClass] : [])],
       undefined,
       renderImageCropBoxStyle(element),
     );
     return (
       `<div ${attributes} ${renderCanonicalImageCropMetadata(element)}>` +
-      `<div class="powershow-image-crop-viewport">` +
+      `<div class="presentation-image-crop-viewport">` +
       renderCroppedImageMedia(element) +
       `</div></div>`
     );
@@ -280,14 +280,14 @@ function renderImage(element: ImageElement): string {
   if (hasGradientBorder(element)) {
     const attributes = buildAttributes(
       element,
-      ["powershow-image", "presentation-image-gradient-frame", "presentation-gradient-border"],
+      ["presentation-image", "presentation-image-gradient-frame", "presentation-gradient-border"],
       undefined,
       element.layout?.position === undefined ? "position:relative" : undefined,
     );
 
     return (
       `<div ${attributes}>` +
-      `<img class="powershow-image-media"` +
+      `<img class="presentation-image-media"` +
       ` src="${escapeHtml(element.src)}"` +
       ` alt="${escapeHtml(element.alt)}"` +
       ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">` +
@@ -297,7 +297,7 @@ function renderImage(element: ImageElement): string {
 
   const attributes = buildAttributes(
     element,
-    ["powershow-image"],
+    ["presentation-image"],
     undefined,
     `object-fit:${element.fit};object-position:${element.focalPoint?.x ?? 50}% ${element.focalPoint?.y ?? 50}%`,
   );
@@ -315,9 +315,9 @@ function renderPlaceholder(element: InteractiveElement): string {
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-placeholder",
-    `powershow-placeholder-${element.type}`,
+    "presentation-element",
+    "presentation-placeholder",
+    `presentation-placeholder-${element.type}`,
   ];
   const layout = element.layout;
   const styles: string[] = [];
@@ -326,19 +326,19 @@ function renderPlaceholder(element: InteractiveElement): string {
     if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
   }
   const attributes = `class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="${escapeHtml(element.type)}"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="${escapeHtml(element.type)}"` +
     (styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "");
 
   return `<div ${attributes}>` + `[${escapeHtml(element.type)}]` + "</div>";
 }
 
 function assertNever(value: never): never {
-  throw new Error(`Unsupported PowerShow element: ${String(value)}`);
+  throw new Error(`Unsupported presentation element: ${String(value)}`);
 }
 
 export function renderElement(
-  element: PowerShowElement,
+  element: PresentationElement,
   context?: RenderContext,
 ): string {
   switch (element.type) {

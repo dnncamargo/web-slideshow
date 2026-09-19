@@ -10,21 +10,21 @@ importers:
 
   apps/player:
     dependencies:
-      '@powershow/document-schema':
+      '@web-slideshow/document-schema':
         specifier: workspace:*
         version: link:../../packages/document-schema
-      '@powershow/firebase':
+      '@web-slideshow/firebase':
         specifier: workspace:*
         version: link:../../packages/firebase
-      '@powershow/renderer':
-        specifier: workspace:*
-        version: link:../../packages/renderer
-      '@powershow/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
       '@web-slideshow/instance-branding':
         specifier: workspace:*
         version: link:../../packages/web-slideshow-instance-branding
+      '@web-slideshow/renderer':
+        specifier: workspace:*
+        version: link:../../packages/renderer
+      '@web-slideshow/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       firebase:
         specifier: 12.17.1
         version: 12.17.1
@@ -44,24 +44,24 @@ importers:
 
   apps/studio:
     dependencies:
-      '@powershow/document-schema':
+      '@web-slideshow/document-schema':
         specifier: workspace:*
         version: link:../../packages/document-schema
-      '@powershow/firebase':
+      '@web-slideshow/firebase':
         specifier: workspace:*
         version: link:../../packages/firebase
-      '@powershow/renderer':
-        specifier: workspace:*
-        version: link:../../packages/renderer
-      '@powershow/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
-      '@powershow/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@web-slideshow/instance-branding':
         specifier: workspace:*
         version: link:../../packages/web-slideshow-instance-branding
+      '@web-slideshow/renderer':
+        specifier: workspace:*
+        version: link:../../packages/renderer
+      '@web-slideshow/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      '@web-slideshow/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       firebase:
         specifier: ^12.17.1
         version: 12.17.1
@@ -118,7 +118,7 @@ importers:
 
   packages/firebase:
     dependencies:
-      '@powershow/document-schema':
+      '@web-slideshow/document-schema':
         specifier: workspace:*
         version: link:../document-schema
     devDependencies:
@@ -140,10 +140,10 @@ importers:
 
   packages/renderer:
     dependencies:
-      '@powershow/document-schema':
+      '@web-slideshow/document-schema':
         specifier: workspace:*
         version: link:../document-schema
-      '@powershow/math-source':
+      '@web-slideshow/math-source':
         specifier: workspace:*
         version: link:../math-source
     devDependencies:

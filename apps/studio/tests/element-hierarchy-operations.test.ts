@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import type {
   ContentSlot,
   ImageElement,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   StructuredTableElement,
   TextElement,
   TextRun,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   appendElementToContainer,
@@ -32,7 +32,7 @@ import {
   updateElementById,
 } from "../src/features/editor/element-hierarchy";
 
-function text(id: string, content = id): PowerShowElement {
+function text(id: string, content = id): PresentationElement {
   return {
     type: "text",
     id,
@@ -53,7 +53,7 @@ function image(id: string): ImageElement {
   };
 }
 
-function container(id: string, children: PowerShowElement[] = []): PowerShowElement {
+function container(id: string, children: PresentationElement[] = []): PresentationElement {
   return {
     type: "container",
     id,
@@ -62,7 +62,7 @@ function container(id: string, children: PowerShowElement[] = []): PowerShowElem
   };
 }
 
-function contentSlot(id: string, children: PowerShowElement[] = []): ContentSlot {
+function contentSlot(id: string, children: PresentationElement[] = []): ContentSlot {
   return {
     id,
     children,
@@ -100,8 +100,8 @@ function richText(runs: TextRun[]): TextElement["content"] {
 
 function structuredTable(
   id: string,
-  headerText: PowerShowElement,
-  cellText: PowerShowElement,
+  headerText: PresentationElement,
+  cellText: PresentationElement,
 ): StructuredTableElement {
   return {
     type: "table",
@@ -132,14 +132,14 @@ function structuredTable(
   };
 }
 
-function collectIds(element: PowerShowElement): string[] {
+function collectIds(element: PresentationElement): string[] {
   const ids = new Set<string>();
   collectAuthoringIds(element, ids);
   return [...ids];
 }
 
 function countElementOccurrences(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   id: string,
 ): number {
   let count = 0;
@@ -487,7 +487,7 @@ describe("canonical element hierarchy operations", () => {
   it("moves sources into containers nested through topics without losing the source", () => {
     const cases: Array<{
       name: string;
-      elements: PowerShowElement[];
+      elements: PresentationElement[];
       targetId: string;
       expectedIds: string[];
     }> = [
@@ -559,7 +559,7 @@ describe("canonical element hierarchy operations", () => {
   it("moves sources into content slots nested through topics without losing the source", () => {
     const cases: Array<{
       name: string;
-      elements: PowerShowElement[];
+      elements: PresentationElement[];
       targetId: string;
       expectedIds: string[];
     }> = [
@@ -707,7 +707,7 @@ describe("canonical element hierarchy operations", () => {
   });
 
   it("updates nested structured table text content through hierarchy helpers", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       structuredTable(
         "table-1",
         {
@@ -758,7 +758,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   }
 
   it("rejects appending a TopicsElement into a TopicItem ContentSlot", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
       ]),
@@ -774,7 +774,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   });
 
   it("still allows non-Topics elements inside the same TopicItem ContentSlot", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
       ]),
@@ -796,7 +796,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   });
 
   it("rejects inserting a TopicsElement directly after a TopicItem slot child", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
       ]),
@@ -812,7 +812,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   });
 
   it("still allows inserting an ordinary element after a TopicItem slot child", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
       ]),
@@ -828,7 +828,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   });
 
   it("rejects moving an autonomous TopicsElement into a TopicItem ContentSlot", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       freshTopics("topics-b"),
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
@@ -848,7 +848,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   });
 
   it("keeps the original tree unchanged after a rejected Topics move", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       freshTopics("topics-b"),
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
@@ -866,7 +866,7 @@ describe("autonomous Topics placement authoring restriction", () => {
   });
 
   it("still allows moving ordinary elements into a TopicItem ContentSlot", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       text("source-text"),
       topics("topics-a", [
         topicItem("topic-a", contentSlot("slot-a", [text("slot-text")])),
@@ -1152,7 +1152,7 @@ describe("topic content slot authoring", () => {
   });
 
   it("adds an Image into the clicked middle TopicItem ContentSlot without touching siblings", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", [
         topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
         topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
@@ -1200,7 +1200,7 @@ describe("topic content slot authoring", () => {
   });
 
   it("adds a Container to the clicked middle topic ContentSlot", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", [
         topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
         topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
@@ -1232,7 +1232,7 @@ describe("topic content slot authoring", () => {
   });
 
   it("routes Topic A and Topic C clicks to their own slots", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", [
         topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
         topicItem("topic-b", contentSlot("slot-b", [text("topic-b-text")])),
@@ -1260,7 +1260,7 @@ describe("topic content slot authoring", () => {
   });
 
   it("refuses TopicsElement placement into any clicked TopicItem ContentSlot", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", [
         topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
       ]),

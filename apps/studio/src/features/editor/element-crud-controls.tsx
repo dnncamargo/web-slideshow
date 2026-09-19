@@ -5,8 +5,8 @@ import {
 } from "react";
 
 import type {
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import type {
   ElementCreateType,
@@ -23,7 +23,7 @@ import styles from
 
 interface ElementCrudControlsProps {
   selectedElement:
-    PowerShowElement | null;
+    PresentationElement | null;
 
   selectedContentSlotId?: string | null;
 

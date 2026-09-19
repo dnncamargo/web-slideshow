@@ -1,9 +1,9 @@
 import type {
   ContentSlot,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
   TopicItem,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export {
   areFontFacesEquivalent,
@@ -64,7 +64,7 @@ function topicItemsUseFontFamily(
 }
 
 function structuredTableSlotsUseFontFamily(
-  element: Extract<PowerShowElement, { type: "table"; mode: "structured" }>,
+  element: Extract<PresentationElement, { type: "table"; mode: "structured" }>,
   normalizedFamily: string,
 ): boolean {
   return element.columns.some((column) => contentSlotUsesFontFamily(column.header, normalizedFamily)) ||
@@ -72,7 +72,7 @@ function structuredTableSlotsUseFontFamily(
 }
 
 function elementUsesFontFamily(
-  element: PowerShowElement,
+  element: PresentationElement,
   normalizedFamily: string,
 ): boolean {
   if (

@@ -6,7 +6,7 @@ import {
   isAbsoluteHttpHref,
   type EmbedViewport,
   type EmbedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

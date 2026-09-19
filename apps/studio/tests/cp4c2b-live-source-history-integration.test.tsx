@@ -10,7 +10,7 @@ import {
   type CodeElement,
   type PlotElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { CodeInspector } from "../src/features/editor/inspector/code-inspector";
@@ -106,7 +106,7 @@ describe("CP4C2B live source history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -149,7 +149,7 @@ describe("CP4C2B live source history", () => {
 
   function blocksToolbarButton(label: string): HTMLButtonElement {
     const button = Array.from(host.querySelectorAll<HTMLButtonElement>(
-      '[data-powershow-blocks-toolbar="true"] button',
+      '[data-presentation-blocks-toolbar="true"] button',
     )).find((candidate) => candidate.textContent?.trim() === label);
     if (!button) throw new Error(`Blocks toolbar button ${label} was not rendered`);
     return button;
@@ -170,7 +170,7 @@ describe("CP4C2B live source history", () => {
     const redoEvent = await redo();
     expect(redoEvent.defaultPrevented).toBe(true);
     expect(input("code-language").value).toBe("python");
-    expect(input("code-language").getAttribute("list")).toBe("powershow-code-languages");
+    expect(input("code-language").getAttribute("list")).toBe("presentation-code-languages");
   });
 
   it("does not create Code language history for a same-value input", async () => {
@@ -226,26 +226,26 @@ describe("CP4C2B live source history", () => {
   it("coalesces Blocks source and follows canonical parser status through undo", async () => {
     await mount();
     await selectElement(BLOCKS_ID);
-    const source = host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]");
+    const source = host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]");
     if (!source) throw new Error("Blocks source textarea was not rendered");
 
     await edit(source, ["\\scope(Repeat", "\\statement(one)\n\\statement(two)"]);
     expect(source.value).toBe("\\statement(one)\n\\statement(two)");
-    expect(host.querySelector('[data-powershow-blocks-syntax="valid"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-blocks-syntax="valid"]')).not.toBeNull();
 
     await undo();
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe(INITIAL_BLOCKS_SOURCE);
-    expect(host.querySelector('[data-powershow-blocks-syntax="valid"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-blocks-syntax="valid"]')).not.toBeNull();
     await redo();
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe("\\statement(one)\n\\statement(two)");
   });
 
   it("does not create Blocks source history for a same-value input", async () => {
     await mount();
     await selectElement(BLOCKS_ID);
-    const source = host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]");
+    const source = host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]");
     if (!source) throw new Error("Blocks source textarea was not rendered");
 
     await edit(source, [INITIAL_BLOCKS_SOURCE]);
@@ -256,7 +256,7 @@ describe("CP4C2B live source history", () => {
   it("separates Blocks typing before and after a discrete toolbar insertion", async () => {
     await mount();
     await selectElement(BLOCKS_ID);
-    const source = host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]");
+    const source = host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]");
     if (!source) throw new Error("Blocks source textarea was not rendered");
     await act(async () => {
       source.focus();
@@ -267,7 +267,7 @@ describe("CP4C2B live source history", () => {
     const beforeToolbar = `${INITIAL_BLOCKS_SOURCE} pre`;
     await act(async () => blocksToolbarButton("EV").click());
     const afterToolbar = `${beforeToolbar}\\start()`;
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe(afterToolbar);
 
     const postToolbar = `${afterToolbar} post`;
@@ -275,13 +275,13 @@ describe("CP4C2B live source history", () => {
     await act(async () => source.blur());
 
     await undo();
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe(afterToolbar);
     await undo();
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe(beforeToolbar);
     await undo();
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe(INITIAL_BLOCKS_SOURCE);
   });
 
@@ -293,12 +293,12 @@ describe("CP4C2B live source history", () => {
     await selectElement(PLOT_ID);
     await edit(textarea("plot-source"), ["y = sin(x)"]);
     await selectElement(BLOCKS_ID);
-    const blocksSource = host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]");
+    const blocksSource = host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]");
     if (!blocksSource) throw new Error("Blocks source textarea was not rendered");
     await edit(blocksSource, ["\\statement(changed)"]);
 
     await undo();
-    expect(host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]")?.value)
+    expect(host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]")?.value)
       .toBe(INITIAL_BLOCKS_SOURCE);
     await selectElement(PLOT_ID);
     expect(textarea("plot-source").value).toBe("y = sin(x)");
@@ -336,7 +336,7 @@ describe("CP4C2B live source history", () => {
 
     await act(async () => setTextValue(input("code-language"), "python"));
     await act(async () => setTextValue(textarea("plot-source"), "y = x"));
-    const blocksSource = host.querySelector<HTMLTextAreaElement>("[data-powershow-blocks-source]");
+    const blocksSource = host.querySelector<HTMLTextAreaElement>("[data-presentation-blocks-source]");
     if (!blocksSource) throw new Error("Blocks source textarea was not rendered");
     await act(async () => setTextValue(blocksSource, "\\statement(fallback)"));
 

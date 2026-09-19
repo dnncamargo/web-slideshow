@@ -1,4 +1,4 @@
-import type { ContainerElement, FontResource, PowerShowElement, Presentation } from "@powershow/document-schema";
+import type { ContainerElement, FontResource, PresentationElement, Presentation } from "@web-slideshow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 
@@ -35,7 +35,7 @@ import { shouldShowElementPositioning } from "./inspector/sections/element-posit
 import type { TableStructuralSelection } from "./table-tree-helpers";
 
 interface ElementInspectorProps {
-  element: PowerShowElement;
+  element: PresentationElement;
 
   onUpdate: ElementInspectorUpdate;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import { mapPromotedSlideIndex } from "../src/live-version-mapping";
 import { playerTestPresentation } from "./fixtures/player-presentation";

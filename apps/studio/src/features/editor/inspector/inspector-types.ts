@@ -6,11 +6,11 @@ import type {
   SurfaceVisualStyle,
   FontResource,
   Presentation,
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 export type ElementInspectorUpdate = (
-  update: (element: PowerShowElement) => PowerShowElement,
+  update: (element: PresentationElement) => PresentationElement,
 ) => void;
 
 export type CreateQrCodeFromLink = (href: string) => void;
@@ -46,7 +46,7 @@ export type UpdateElementLayout = (
 ) => void;
 
 export interface TypedInspectorProps<
-  TElement extends PowerShowElement,
+  TElement extends PresentationElement,
 > {
   element: TElement;
 
@@ -54,7 +54,7 @@ export interface TypedInspectorProps<
 }
 
 export interface TypographyInspectorProps<
-  TElement extends PowerShowElement,
+  TElement extends PresentationElement,
 > extends TypedInspectorProps<TElement> {
   fontResources: readonly FontResource[];
 

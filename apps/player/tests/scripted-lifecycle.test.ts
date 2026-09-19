@@ -36,11 +36,11 @@ describe("Scripted Player runtime lifecycle", () => {
 
   const scriptedFrames = () =>
     root.querySelectorAll<HTMLIFrameElement>(
-      'iframe[data-powershow-type="scripted"]',
+      'iframe[data-presentation-type="scripted"]',
     );
 
   const slideHost = () =>
-    root.querySelector<HTMLElement>(".powershow-player-slide-host");
+    root.querySelector<HTMLElement>(".player-slide-host");
 
   function mount(): void {
     player = mountPlayer(root, scriptedLifecyclePresentation);
@@ -88,7 +88,7 @@ describe("Scripted Player runtime lifecycle", () => {
 
       expect(frame).toBeDefined();
 
-      expect(frame?.getAttribute("data-powershow-type")).toBe("scripted");
+      expect(frame?.getAttribute("data-presentation-type")).toBe("scripted");
       expect(frame?.getAttribute("sandbox")).toBe("allow-scripts");
       // allow-same-origin is explicitly denied by the renderer.
       expect(frame?.getAttribute("sandbox")).not.toContain("allow-same-origin");
@@ -107,7 +107,7 @@ describe("Scripted Player runtime lifecycle", () => {
       // The authored source is present only as escaped data in the iframe
       // srcdoc transport owned by the renderer.
       expect(frame?.getAttribute("srcdoc")).toContain(
-        "__powershowScriptedBootCount",
+        "__scriptedRuntimeBootCount",
       );
 
       // No authored <script> element leaks into the Player application DOM.
@@ -178,7 +178,7 @@ describe("Scripted Player runtime lifecycle", () => {
 
       // The canonical Scripted payload is present again in the transport.
       expect(revived?.getAttribute("srcdoc")).toContain(
-        "__powershowScriptedBootCount",
+        "__scriptedRuntimeBootCount",
       );
     });
   });
@@ -253,7 +253,7 @@ describe("Scripted Player runtime lifecycle", () => {
       expect(first?.isConnected).toBe(false);
 
       // No Scripted iframe remains attached anywhere.
-      expect(root.querySelectorAll('iframe[data-powershow-type="scripted"]'))
+      expect(root.querySelectorAll('iframe[data-presentation-type="scripted"]'))
         .toHaveLength(0);
 
       // destroy remains idempotent.

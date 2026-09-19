@@ -1,4 +1,4 @@
-import type { BlocksElement, PlotElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@powershow/document-schema";
+import type { BlocksElement, PlotElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@web-slideshow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";

@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  PowerShowElementSchema,
+  PresentationElementSchema,
   PresentationSchema,
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -47,7 +47,7 @@ function changeInput(input: HTMLInputElement, value: string): void {
 describe("Container canonical position inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let state: PowerShowElement;
+  let state: PresentationElement;
   let moves: number[];
   let linkedPresentation: Presentation | undefined;
 
@@ -212,7 +212,7 @@ describe("Container canonical position inspector", () => {
       padding: 16,
     });
     expect(state.layout?.children).toEqual({ direction: "row" });
-    expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(state).success).toBe(true);
   });
 
   it("writes all direct edges independently and allows opposite edges", async () => {
@@ -237,7 +237,7 @@ describe("Container canonical position inspector", () => {
       bottom: 30,
       left: 40,
     });
-    expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(state).success).toBe(true);
   });
 
   it("clears one edge and all positioning fields when returning to Flow", async () => {
@@ -269,7 +269,7 @@ describe("Container canonical position inspector", () => {
       changeSelect(host.querySelector("#container-position-mode")!, "flow"),
     );
     expect(state.layout).toEqual({ width: 100, children: { mode: "stack" } });
-    expect(PowerShowElementSchema.safeParse(state).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(state).success).toBe(true);
   });
 
   it("shows layer controls for absolute Containers and stack-parent flow Containers", async () => {

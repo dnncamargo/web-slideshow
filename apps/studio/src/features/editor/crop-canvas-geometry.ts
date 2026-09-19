@@ -1,4 +1,4 @@
-import type { ImageCrop } from "@powershow/document-schema";
+import type { ImageCrop } from "@web-slideshow/document-schema";
 
 import { normalizeImageCrop } from "./inspector/sections/image-crop-helpers";
 

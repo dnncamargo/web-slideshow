@@ -1,6 +1,8 @@
 import type { LiveControlStatus } from "./live-control";
 
 export const CONTROL_LATENCY_SNAPSHOT_KEY =
+  "web-slideshow:studio-control-latency:v1";
+const LEGACY_CONTROL_LATENCY_SNAPSHOT_KEY =
   "powershow:studio-control-latency:v1";
 
 export interface ControlLatencySnapshot {
@@ -90,7 +92,9 @@ export function readControlLatencySnapshot(
   }
 
   try {
-    const raw = storage.getItem(CONTROL_LATENCY_SNAPSHOT_KEY);
+    const raw =
+      storage.getItem(CONTROL_LATENCY_SNAPSHOT_KEY) ??
+      storage.getItem(LEGACY_CONTROL_LATENCY_SNAPSHOT_KEY);
     if (raw === null) {
       return null;
     }

@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { PlotElement } from "@powershow/document-schema";
+import type { PlotElement } from "@web-slideshow/document-schema";
 
 import { PlotInspector } from "../src/features/editor/inspector/plot-inspector";
 import type { PlotPreviewControls } from "../src/features/editor/inspector/inspector-types";

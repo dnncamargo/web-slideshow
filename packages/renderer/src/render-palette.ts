@@ -1,11 +1,11 @@
 import type {
   ColorValue,
   PresentationPalette,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   isPaletteColorReference,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   escapeCssDeclarationValue,

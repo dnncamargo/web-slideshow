@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema, resolveLinkedContainerStyle } from "@powershow/document-schema";
+import { PresentationSchema, resolveLinkedContainerStyle } from "@web-slideshow/document-schema";
 import { getContainerShareablePropertySource } from "../src/features/editor/inspector/linked-style-inspector";
 
 describe("Linked/local override contracts", () => {

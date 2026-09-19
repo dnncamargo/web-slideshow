@@ -1,12 +1,12 @@
 import type {
   ElementEffect,
   FontResource,
-  PowerShowElement,
+  PresentationElement,
   TerminalTitleTypography,
   TerminalTypography,
-} from "@powershow/document-schema";
-import { AUTHORING_ROOT_FONT_SIZE_PX } from "@powershow/theme/element-style-defaults";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/document-schema";
+import { AUTHORING_ROOT_FONT_SIZE_PX } from "@web-slideshow/theme/element-style-defaults";
+import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -26,7 +26,7 @@ import {
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { useAuthoringHistory } from "../authoring-history-context";
 
-type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
+type TerminalElement = Extract<PresentationElement, { type: "terminal" }>;
 
 type TerminalLine = TerminalElement["lines"][number];
 

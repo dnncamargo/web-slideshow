@@ -3,14 +3,14 @@ import type {
   Presentation,
   TextElement,
   TextStyleRole,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import {
   PresentationSchema,
   resolveTextStyle,
   stripLocalTextStyleProperties,
   TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
-} from "@powershow/document-schema";
-import { resolveThemeTextTypographyBaseline } from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/document-schema";
+import { resolveThemeTextTypographyBaseline } from "@web-slideshow/theme/element-style-defaults";
 
 import { createTextStyleId } from "./text-style-helpers";
 

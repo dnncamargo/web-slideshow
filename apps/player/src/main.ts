@@ -1,4 +1,4 @@
-import "@powershow/theme/index.css";
+import "@web-slideshow/theme/index.css";
 import { displayName } from "@web-slideshow/instance-branding";
 import "./player.css";
 
@@ -12,7 +12,7 @@ const root = document.querySelector<HTMLElement>("#app");
 document.title = `${displayName} Player`;
 
 if (!root) {
-  throw new Error("PowerShow Player root element was not found.");
+  throw new Error("Player root element was not found.");
 }
 
 if (window.location.pathname === "/demo") {

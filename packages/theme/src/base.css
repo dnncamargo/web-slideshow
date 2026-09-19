@@ -1,5 +1,5 @@
 /* ==========================================================
-   BEGIN: TOKENS ESTRUTURAIS DO POWERSHOW
+   BEGIN: TOKENS ESTRUTURAIS DA APLICAÇÃO
 
    Estes valores são defaults internos do tema.
 
@@ -11,47 +11,47 @@
    ========================================================== */
 
 :root {
-  --powershow-font-sans:
+  --presentation-font-sans:
     Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  --powershow-font-mono:
+  --presentation-font-mono:
     "Cascadia Code", "Cascadia Mono", "SFMono-Regular", Consolas,
     "Liberation Mono", monospace;
 
-  --powershow-text-primary: #f8fafc;
-  --powershow-text-secondary: #cbd5e1;
-  --powershow-text-muted: #94a3b8;
+  --presentation-text-primary: #f8fafc;
+  --presentation-text-secondary: #cbd5e1;
+  --presentation-text-muted: #94a3b8;
 
-  --powershow-surface: rgba(15, 23, 42, 0.88);
-  --powershow-surface-strong: #020617;
+  --presentation-surface: rgba(15, 23, 42, 0.88);
+  --presentation-surface-strong: #020617;
 
-  --powershow-border: rgba(148, 163, 184, 0.22);
+  --presentation-border: rgba(148, 163, 184, 0.22);
 
-  --powershow-accent: #22d3ee;
-  --powershow-danger: #f87171;
+  --presentation-accent: #22d3ee;
+  --presentation-danger: #f87171;
 
-  --powershow-radius-sm: 8px;
-  --powershow-radius-md: 14px;
-  --powershow-radius-lg: 24px;
+  --presentation-radius-sm: 8px;
+  --presentation-radius-md: 14px;
+  --presentation-radius-lg: 24px;
 }
 
 /* ==========================================================
-   END: TOKENS ESTRUTURAIS DO POWERSHOW
+   END: TOKENS ESTRUTURAIS DA APLICAÇÃO
    ========================================================== */
 
 /* ==========================================================
    BEGIN: TEXT
    ========================================================== */
 
-.powershow-text {
+.presentation-text {
   margin: 0;
 
-  color: var(--powershow-text-primary);
+  color: var(--presentation-text-primary);
 
-  font-family: var(--powershow-font-sans);
+  font-family: var(--presentation-font-sans);
 }
 
-.powershow-text-title {
+.presentation-text-title {
   font-size: 3rem;
   line-height: 1.08;
 
@@ -60,57 +60,57 @@
   letter-spacing: -0.025em;
 }
 
-.powershow-text-subtitle {
+.presentation-text-subtitle {
   font-size: 1.75rem;
   line-height: 1.25;
 
   font-weight: 500;
 
-  color: var(--powershow-text-secondary);
+  color: var(--presentation-text-secondary);
 }
 
-.powershow-text-body {
+.presentation-text-body {
   font-size: 1.125rem;
   line-height: 1.6;
 }
 
-.powershow-text-caption {
+.presentation-text-caption {
   font-size: 0.875rem;
   line-height: 1.45;
 
-  color: var(--powershow-text-muted);
+  color: var(--presentation-text-muted);
 }
 
 /* ==========================================================
    END: TEXT
    ========================================================== */
 
-.powershow-plot {
-  color: var(--powershow-accent);
+.presentation-plot {
+  color: var(--presentation-accent);
 }
 
-.powershow-plot-axis:not([opacity]) {
+.presentation-plot-axis:not([opacity]) {
   opacity: 0.7;
 }
 
-.powershow-plot-axis:not([stroke]) {
-  stroke: var(--powershow-text-muted);
+.presentation-plot-axis:not([stroke]) {
+  stroke: var(--presentation-text-muted);
 }
 
-.powershow-plot-axis-label {
-  font-family: var(--powershow-font-sans);
+.presentation-plot-axis-label {
+  font-family: var(--presentation-font-sans);
   font-weight: 700;
 }
 
-.powershow-plot-axis-label:not([fill]) {
-  fill: var(--powershow-text-primary);
+.presentation-plot-axis-label:not([fill]) {
+  fill: var(--presentation-text-primary);
 }
 
 /* ==========================================================
    BEGIN: CODE
    ========================================================== */
 
-.powershow-code {
+.presentation-code {
   margin: 0;
 
   --presentation-code-content-padding: 20px;
@@ -119,15 +119,15 @@
 
   overflow: auto;
 
-  border: 1px solid var(--powershow-border);
+  border: 1px solid var(--presentation-border);
 
-  border-radius: var(--powershow-radius-md);
+  border-radius: var(--presentation-radius-md);
 
-  background: var(--powershow-surface-strong);
+  background: var(--presentation-surface-strong);
 
   color: #e2e8f0;
 
-  font-family: var(--powershow-font-mono);
+  font-family: var(--presentation-font-mono);
 
   font-size: 0.95rem;
 
@@ -138,7 +138,7 @@
 
 /* Mantemos cada linha alinhada com o mesmo ritmo vertical. */
 
-.powershow-code-line {
+.presentation-code-line {
   display: block;
 
   /* Antes: 1.65em */
@@ -151,7 +151,7 @@
    END: AJUSTE DE DENSIDADE DO CODE
    ========================================================== */
 
-.powershow-code-line-highlighted {
+.presentation-code-line-highlighted {
   margin-inline: calc(0px - var(--presentation-code-content-padding));
 
   padding-inline: var(--presentation-code-content-padding);
@@ -159,14 +159,14 @@
   background: rgba(34, 211, 238, 0.08);
 }
 
-.powershow-code-line-number {
+.presentation-code-line-number {
   display: inline-block;
 
   min-width: 2.5em;
 
   margin-right: 1em;
 
-  color: var(--powershow-text-muted);
+  color: var(--presentation-text-muted);
 
   text-align: right;
 
@@ -199,13 +199,13 @@
   border-radius: max(
     0px,
     calc(
-      var(--presentation-code-outer-radius, var(--powershow-radius-md)) -
+      var(--presentation-code-outer-radius, var(--presentation-radius-md)) -
       var(--presentation-gradient-border-width)
     )
   );
 }
 
-.powershow-terminal {
+.presentation-terminal {
   width: 100%;
 
   overflow: hidden;
@@ -225,7 +225,7 @@
   line-height: 1.6;
 }
 
-.powershow-terminal-titlebar {
+.presentation-terminal-titlebar {
   position: relative;
 
   display: flex;
@@ -240,14 +240,14 @@
   background: rgba(255, 255, 255, 0.035);
 }
 
-.powershow-terminal-controls {
+.presentation-terminal-controls {
   display: flex;
   align-items: center;
 
   gap: 8px;
 }
 
-.powershow-terminal-control {
+.presentation-terminal-control {
   display: block;
 
   width: 12px;
@@ -256,19 +256,19 @@
   border-radius: 50%;
 }
 
-.powershow-terminal-control-close {
+.presentation-terminal-control-close {
   background: #ff5f57;
 }
 
-.powershow-terminal-control-minimize {
+.presentation-terminal-control-minimize {
   background: #febc2e;
 }
 
-.powershow-terminal-control-expand {
+.presentation-terminal-control-expand {
   background: #28c840;
 }
 
-.powershow-terminal-title {
+.presentation-terminal-title {
   position: absolute;
 
   left: 50%;
@@ -284,71 +284,71 @@
   white-space: nowrap;
 }
 
-.powershow-terminal-body {
+.presentation-terminal-body {
   padding: 20px 22px;
 }
 
-.powershow-terminal-line {
-  min-height: var(--powershow-terminal-line-height, 1.6em);
+.presentation-terminal-line {
+  min-height: var(--presentation-terminal-line-height, 1.6em);
 
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.powershow-terminal-line-command {
-  color: var(--powershow-terminal-command-color, #d1fae5);
+.presentation-terminal-line-command {
+  color: var(--presentation-terminal-command-color, #d1fae5);
 }
 
-.powershow-terminal-line-command::before {
+.presentation-terminal-line-command::before {
   content: "$ ";
 
-  color: var(--powershow-terminal-prompt-color, #34d399);
+  color: var(--presentation-terminal-prompt-color, #34d399);
 }
 
-.powershow-terminal-line-output {
-  color: var(--powershow-terminal-output-color, #cbd5e1);
+.presentation-terminal-line-output {
+  color: var(--presentation-terminal-output-color, #cbd5e1);
 }
 
-.powershow-terminal-line-comment {
-  color: var(--powershow-terminal-comment-color, #64748b);
+.presentation-terminal-line-comment {
+  color: var(--presentation-terminal-comment-color, #64748b);
 }
 
-.powershow-terminal-line-error {
-  color: var(--powershow-terminal-error-color, #fca5a5);
+.presentation-terminal-line-error {
+  color: var(--presentation-terminal-error-color, #fca5a5);
 }
 
 /* ==========================================================
    BEGIN: TABLE
    ========================================================== */
 
-.powershow-table-frame {
+.presentation-table-frame {
   position: relative;
   box-sizing: border-box;
   width: auto;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--powershow-border);
-  border-radius: var(--powershow-radius-md);
-  --powershow-table-border-width: 1px;
-  --powershow-table-border-color: var(--powershow-border);
-  --powershow-table-frame-radius: var(--powershow-radius-md);
+  border: 1px solid var(--presentation-border);
+  border-radius: var(--presentation-radius-md);
+  --presentation-table-border-width: 1px;
+  --presentation-table-border-color: var(--presentation-border);
+  --presentation-table-frame-radius: var(--presentation-radius-md);
   padding: 0;
-  color: var(--powershow-text-secondary);
-  font-family: var(--powershow-font-sans);
+  color: var(--presentation-text-secondary);
+  font-family: var(--presentation-font-sans);
 }
 
-.powershow-table-frame > .powershow-table {
+.presentation-table-frame > .presentation-table {
   position: relative;
   z-index: 1;
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   background: transparent;
-  border-radius: max(0px, calc(var(--powershow-table-frame-radius) - var(--powershow-table-border-width)));
+  border-radius: max(0px, calc(var(--presentation-table-frame-radius) - var(--presentation-table-border-width)));
   overflow: hidden;
 }
 
-.powershow-table-frame > .powershow-table.powershow-table-fills-frame {
+.presentation-table-frame > .presentation-table.presentation-table-fills-frame {
   height: 100%;
 }
 
@@ -390,42 +390,42 @@
   height: 100%;
 }
 
-.powershow-table-frame-gradient-border {
+.presentation-table-frame-gradient-border {
   border: 0;
-  --powershow-table-border-color: transparent;
-  padding: var(--powershow-table-border-width);
+  --presentation-table-border-color: transparent;
+  padding: var(--presentation-table-border-width);
 }
 
-.powershow-table th,
-.powershow-table td {
+.presentation-table th,
+.presentation-table td {
   padding: 12px 16px;
 
   border-bottom: 1px solid color-mix(
     in srgb,
-    var(--powershow-border) calc(var(--powershow-table-divider-opacity, 1) * 100%),
+    var(--presentation-border) calc(var(--presentation-table-divider-opacity, 1) * 100%),
     transparent
   );
 
   text-align: left;
 }
 
-.powershow-table th {
+.presentation-table th {
   background: rgba(148, 163, 184, 0.08);
 
-  color: var(--powershow-text-primary);
+  color: var(--presentation-text-primary);
 
   font-weight: 600;
 }
 
-.powershow-table-structured th {
+.presentation-table-structured th {
   background: transparent;
 }
 
-.powershow-table-frame .powershow-table.powershow-table-has-surface th {
+.presentation-table-frame .presentation-table.presentation-table-has-surface th {
   background: transparent;
 }
 
-.powershow-table tr:last-child td {
+.presentation-table tr:last-child td {
   border-bottom: 0;
 }
 
@@ -437,16 +437,16 @@
    BEGIN: TOPICS
    ========================================================== */
 
-.powershow-topics {
+.presentation-topics {
   margin: 0;
 
   padding-inline-start: 1.5em;
 
-  list-style-type: var(--powershow-topic-marker-style);
+  list-style-type: var(--presentation-topic-marker-style);
 
-  color: var(--powershow-text-secondary);
+  color: var(--presentation-text-secondary);
 
-  font-family: var(--powershow-font-sans);
+  font-family: var(--presentation-font-sans);
 }
 
 /*
@@ -454,101 +454,101 @@
  * visual de tópicos.
  *
  * As listas recursivas de TopicItem.children também usam
- * .powershow-topics, mas devem herdar estas propriedades.
+ * .presentation-topics, mas devem herdar estas propriedades.
  */
-.powershow-element.powershow-topics {
-  --powershow-topic-item-gap: 6px;
+.presentation-element.presentation-topics {
+  --presentation-topic-item-gap: 6px;
 
-  --powershow-topic-marker-color: currentColor;
+  --presentation-topic-marker-color: currentColor;
 
-  --powershow-topic-color: var(--powershow-text-primary);
+  --presentation-topic-color: var(--presentation-text-primary);
 
-  --powershow-topic-font-family: var(--powershow-font-sans);
+  --presentation-topic-font-family: var(--presentation-font-sans);
 
-  --powershow-topic-font-size: 1.125rem;
+  --presentation-topic-font-size: 1.125rem;
 
-  --powershow-topic-font-weight: 400;
+  --presentation-topic-font-weight: 400;
 
-  --powershow-topic-font-style: normal;
+  --presentation-topic-font-style: normal;
 
-  --powershow-topic-text-align: start;
+  --presentation-topic-text-align: start;
 
-  --powershow-topic-line-height: 1.6;
+  --presentation-topic-line-height: 1.6;
 
-  --powershow-topic-letter-spacing: 0;
+  --presentation-topic-letter-spacing: 0;
 
-  --powershow-topic-text-transform: none;
+  --presentation-topic-text-transform: none;
 
-  --powershow-topic-white-space: normal;
+  --presentation-topic-white-space: normal;
 
-  --powershow-topic-text-wrap-style: auto;
+  --presentation-topic-text-wrap-style: auto;
 
-  --powershow-topic-overflow-wrap: normal;
+  --presentation-topic-overflow-wrap: normal;
 
-  --powershow-topic-text-decoration-line: none;
+  --presentation-topic-text-decoration-line: none;
 
-  --powershow-topic-text-decoration-color: currentColor;
+  --presentation-topic-text-decoration-color: currentColor;
 }
 
-ul.powershow-element.powershow-topics {
-  --powershow-topic-marker-style: disc;
+ul.presentation-element.presentation-topics {
+  --presentation-topic-marker-style: disc;
 }
 
-ol.powershow-element.powershow-topics {
-  --powershow-topic-marker-style: decimal;
+ol.presentation-element.presentation-topics {
+  --presentation-topic-marker-style: decimal;
 }
 
-.powershow-topics .powershow-topic-item {
+.presentation-topics .presentation-topic-item {
   margin: 0;
 }
 
-.powershow-topics .powershow-topic-item::marker {
-  color: var(--powershow-topic-marker-color);
+.presentation-topics .presentation-topic-item::marker {
+  color: var(--presentation-topic-marker-color);
 
-  font-family: var(--powershow-topic-font-family);
+  font-family: var(--presentation-topic-font-family);
 
-  font-size: var(--powershow-topic-font-size);
+  font-size: var(--presentation-topic-font-size);
 
-  font-weight: var(--powershow-topic-font-weight);
+  font-weight: var(--presentation-topic-font-weight);
 
-  font-style: var(--powershow-topic-font-style);
+  font-style: var(--presentation-topic-font-style);
 }
 
-.powershow-topics > .powershow-topic-item > .powershow-text {
-  color: var(--powershow-topic-color);
+.presentation-topics > .presentation-topic-item > .presentation-text {
+  color: var(--presentation-topic-color);
 
-  font-family: var(--powershow-topic-font-family);
+  font-family: var(--presentation-topic-font-family);
 
-  font-size: var(--powershow-topic-font-size);
+  font-size: var(--presentation-topic-font-size);
 
-  font-weight: var(--powershow-topic-font-weight);
+  font-weight: var(--presentation-topic-font-weight);
 
-  font-style: var(--powershow-topic-font-style);
+  font-style: var(--presentation-topic-font-style);
 
-  text-align: var(--powershow-topic-text-align);
+  text-align: var(--presentation-topic-text-align);
 
-  line-height: var(--powershow-topic-line-height);
+  line-height: var(--presentation-topic-line-height);
 
-  letter-spacing: var(--powershow-topic-letter-spacing);
+  letter-spacing: var(--presentation-topic-letter-spacing);
 
-  text-transform: var(--powershow-topic-text-transform);
+  text-transform: var(--presentation-topic-text-transform);
 
-  white-space: var(--powershow-topic-white-space);
+  white-space: var(--presentation-topic-white-space);
 
-  text-wrap-style: var(--powershow-topic-text-wrap-style);
+  text-wrap-style: var(--presentation-topic-text-wrap-style);
 
-  overflow-wrap: var(--powershow-topic-overflow-wrap);
+  overflow-wrap: var(--presentation-topic-overflow-wrap);
 
-  text-decoration-line: var(--powershow-topic-text-decoration-line);
+  text-decoration-line: var(--presentation-topic-text-decoration-line);
 
-  text-decoration-color: var(--powershow-topic-text-decoration-color);
+  text-decoration-color: var(--presentation-topic-text-decoration-color);
 }
 
-.powershow-topics .powershow-topic-item + .powershow-topic-item {
-  margin-top: var(--powershow-topic-item-gap);
+.presentation-topics .presentation-topic-item + .presentation-topic-item {
+  margin-top: var(--presentation-topic-item-gap);
 }
 
-.powershow-topics .powershow-topics {
+.presentation-topics .presentation-topics {
   margin-top: 0.35em;
 }
 
@@ -560,7 +560,7 @@ ol.powershow-element.powershow-topics {
    BEGIN: IMAGE
    ========================================================== */
 
-.powershow-image {
+.presentation-image {
   display: block;
 
   max-width: 100%;
@@ -576,12 +576,12 @@ ol.powershow-element.powershow-topics {
   max-height: 100%;
 }
 
-.powershow-image-crop-viewport {
+.presentation-image-crop-viewport {
   position: absolute;
   overflow: hidden;
 }
 
-.powershow-image-crop-viewport .powershow-image-media {
+.presentation-image-crop-viewport .presentation-image-media {
   position: absolute;
   max-width: none;
 }

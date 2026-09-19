@@ -7,7 +7,7 @@ import {
   PresentationSchema,
   type FontFaceResource,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type {
   CustomLibraryItemRecord,

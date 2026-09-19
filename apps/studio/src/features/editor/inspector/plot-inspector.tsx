@@ -5,7 +5,7 @@ import {
   type PlotAnimation,
   type PlotElement,
   type PlotVisualStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

@@ -1,6 +1,6 @@
 import type {
   ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
@@ -20,7 +20,7 @@ import {
 // renderer-owned policy, never authored state, and is NOT
 // configurable. It deliberately denies same-origin, forms, popups,
 // downloads, top navigation, and storage access: the authored
-// document is fully isolated from the PowerShow application origin.
+// document is fully isolated from the application origin.
 //
 // The srcdoc is a complete renderer-generated document. The CSP meta
 // below is a fixed defense-in-depth policy layered on top of the
@@ -50,7 +50,7 @@ import {
 const SCRIPTED_SANDBOX = "allow-scripts";
 
 // Referrer isolation: the Scripted document must never receive or
-// transmit an HTTP Referer derived from the PowerShow origin.
+// transmit an HTTP Referer derived from the application origin.
 const SCRIPTED_REFERRERPOLICY = "no-referrer";
 
 // Renderer-owned fixed CSP. Never authored, never configurable, and
@@ -81,21 +81,21 @@ const SCRIPTED_CSP =
 // 4. apply HTML to the Scripted root;
 // 5. create a <style> element and assign CSS through textContent;
 // 6. append the style to document.head;
-// 7. install the fixed PowerShow.ports API and message listener;
+// 7. install the fixed ScriptedRuntime.ports API;
 // 8. create a <script> element and assign canonical script through
 //    textContent;
-// 9. append it only after HTML, CSS, and PowerShow.ports exist;
+// 9. append it only after HTML, CSS, and ScriptedRuntime.ports exist;
 // 10. remove the temporary payload node.
 //
 // No eval(), no Function(), no setTimeout(string), no document.write.
 const SCRIPTED_BOOTSTRAP_SOURCE =
   "(() => {" +
   "\n" +
-  "var payload = document.getElementById('powershow-scripted-payload');" +
+  "var payload = document.getElementById('scripted-runtime-payload');" +
   "\n" +
   "if (!payload) { return; }" +
   "\n" +
-  "var root = document.getElementById('powershow-scripted-root');" +
+  "var root = document.getElementById('scripted-runtime-root');" +
   "\n" +
   "if (!root) { return; }" +
   "\n" +
@@ -209,7 +209,8 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var portsApi = Object.freeze({ onAction: onAction, onInput: onInput, report: report });" +
   "\n" +
-  "Object.defineProperty(window, 'PowerShow', { value: Object.freeze({ ports: portsApi }), writable: false, configurable: false });" +
+  "var runtimeApi = Object.freeze({ ports: portsApi });" +
+  "Object.defineProperty(window, 'ScriptedRuntime', { value: runtimeApi, writable: false, configurable: false });" +
   "\n" +
   "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
   "\n" +
@@ -288,8 +289,8 @@ function buildScriptedDocument(
     escapeHtml(element.title) +
     "</title>" +
     "</head><body>" +
-    "<div id=\"powershow-scripted-root\"></div>" +
-    "<template id=\"powershow-scripted-payload\"" +
+    "<div id=\"scripted-runtime-root\"></div>" +
+    "<template id=\"scripted-runtime-payload\"" +
     " data-html=\"" +
     serializedPayloadValue(element.html) +
     "\"" +
@@ -305,7 +306,7 @@ function buildScriptedDocument(
     " data-ports=\"" +
     serializedPayloadValue(element.ports) +
     "\"></template>" +
-    "<script data-powershow-scripted-bootstrap=\"true\">" +
+    "<script data-scripted-runtime-bootstrap=\"true\">" +
     SCRIPTED_BOOTSTRAP_SOURCE +
     "</script>" +
     "</body></html>"
@@ -320,8 +321,8 @@ export function renderScripted(
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-scripted",
+    "presentation-element",
+    "presentation-scripted",
   ];
 
   const customClass =
@@ -364,7 +365,7 @@ export function renderScripted(
   } else if (element.style?.border === undefined) {
     // The browser iframe default is a visible border. When no canonical
     // border is authored, the renderer collapses it so the Scripted box
-    // matches other PowerShow elements. An authored border remains
+    // matches other presentation elements. An authored border remains
     // authoritative and is never overridden.
     outerStyles.push("border:0");
   }
@@ -396,8 +397,8 @@ export function renderScripted(
   const iframe = (
     `<iframe` +
     ` class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="scripted"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="scripted"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${SCRIPTED_SANDBOX}"` +
     ` referrerpolicy="${SCRIPTED_REFERRERPOLICY}"` +

@@ -1,5 +1,5 @@
 /**
- * PowerShow private presentation notes domain helpers.
+ * Private presentation notes domain helpers.
  *
  * Notes live in a dedicated private per-presentation Firestore document:
  *   users/{uid}/presentations/{presentationId}/private/notes

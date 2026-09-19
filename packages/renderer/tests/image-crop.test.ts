@@ -140,13 +140,13 @@ describe("cropped Image DOM", () => {
   it("keeps the canonical box on the outer unlinked node", () => {
     const html = renderElement(image({ layout: { width: 600, height: 400 }, effect: { opacity: 0.8 } }));
     expect(html).toMatch(/^<div /);
-    expect(html).toContain('data-powershow-id="image-crop"');
-    expect(html).toContain('data-powershow-type="image"');
-    expect(html).toContain('data-powershow-image-crop="{&quot;x&quot;:10,&quot;y&quot;:20,&quot;width&quot;:60,&quot;height&quot;:50}"');
+    expect(html).toContain('data-presentation-id="image-crop"');
+    expect(html).toContain('data-presentation-type="image"');
+    expect(html).toContain('data-presentation-image-crop="{&quot;x&quot;:10,&quot;y&quot;:20,&quot;width&quot;:60,&quot;height&quot;:50}"');
     expect(html).toContain("width:600px");
     expect(html).toContain("height:400px");
     expect(html).toContain("opacity:0.8");
-    expect(html).toContain('class="powershow-image-crop-viewport"');
+    expect(html).toContain('class="presentation-image-crop-viewport"');
     expect(html).toContain('src="/image.png"');
     expect(html).toContain('alt="Image"');
     expect(html).not.toContain("layout.overflow");
@@ -162,11 +162,11 @@ describe("cropped Image DOM", () => {
     expect(html).toMatch(/^<a /);
     expect(html).toContain('href="https://example.com"');
     expect(html).toContain('target="_blank" rel="noopener noreferrer"');
-    expect(html.indexOf('data-powershow-image-crop')).toBeLessThan(html.indexOf('class="powershow-image-crop-viewport"'));
+    expect(html.indexOf('data-presentation-image-crop')).toBeLessThan(html.indexOf('class="presentation-image-crop-viewport"'));
     expect(html).toContain("hero");
     expect(html).toContain("border-radius:12px");
-    expect(html).toContain("data-powershow-image-fit=\"cover\"");
-    expect(html).toContain("data-powershow-image-focal-x=\"25\"");
+    expect(html).toContain("data-presentation-image-fit=\"cover\"");
+    expect(html).toContain("data-presentation-image-focal-x=\"25\"");
   });
 
   it("keeps cropped linked appearance on the outer box and media neutral", () => {
@@ -239,8 +239,8 @@ describe("cropped Image DOM", () => {
   it("leaves an uncropped Image on its existing single-img path", () => {
     const html = renderElement(image({ crop: undefined }));
     expect(html).toMatch(/^<img /);
-    expect(html).not.toContain("powershow-image-crop-viewport");
-    expect(html).not.toContain("data-powershow-image-crop");
+    expect(html).not.toContain("presentation-image-crop-viewport");
+    expect(html).not.toContain("data-presentation-image-crop");
   });
 });
 
@@ -265,7 +265,7 @@ describe("Image background", () => {
     const root = html.slice(0, html.indexOf(">") + 1);
     expect(root).toContain("background:var(--ps-palette-0073007500720066006100630065)");
     expect(root).toContain("background-image:radial-gradient(ellipse,#000000 0%,#ffffff 100%)");
-    expect(html.match(/powershow-image-crop-viewport/g)?.length ?? 0).toBe(element.crop ? 1 : 0);
+    expect(html.match(/presentation-image-crop-viewport/g)?.length ?? 0).toBe(element.crop ? 1 : 0);
   });
 
   it("does not emit background styles when Background is absent", () => {
@@ -301,8 +301,8 @@ describe("Image gradient borders", () => {
     }));
 
     expect(html).toMatch(/^<div /);
-    expect(html).toContain('data-powershow-id="image-crop"');
-    expect(html).toContain('data-powershow-type="image"');
+    expect(html).toContain('data-presentation-id="image-crop"');
+    expect(html).toContain('data-presentation-type="image"');
     expect(html).toContain("presentation-gradient-border");
     expect(html).toContain("presentation-image-gradient-frame");
     expect(html).toContain("border-width:3px");
@@ -318,7 +318,7 @@ describe("Image gradient borders", () => {
     expect(html).toContain("opacity:0.8");
     expect(html).toContain("box-shadow:0px 4px 12px #000");
     expect(html).not.toContain("border-image:");
-    expect(html).toContain('class="powershow-image-media"');
+    expect(html).toContain('class="presentation-image-media"');
   });
 
   it.each([
@@ -358,7 +358,7 @@ describe("Image gradient borders", () => {
     expect(root).toContain("border-color:transparent");
     expect(root).toContain("--presentation-gradient-border-width:2px");
     expect(root).toContain("border-radius:12px");
-    expect(html).toContain("powershow-image-crop-viewport");
+    expect(html).toContain("presentation-image-crop-viewport");
     expect(html).not.toContain("border-image:");
   });
 
@@ -376,7 +376,7 @@ describe("Image gradient borders", () => {
     expect(root).toContain("border-style:solid");
     expect(root).toContain("border-color:transparent");
     expect(root).toContain('href="https://example.com/crop"');
-    expect(html).toContain("powershow-image-crop-viewport");
+    expect(html).toContain("presentation-image-crop-viewport");
     expect(html).not.toContain("border-image:");
   });
 

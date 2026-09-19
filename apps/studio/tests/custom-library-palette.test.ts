@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PresentationPalette } from "@powershow/document-schema";
+import type { PresentationPalette } from "@web-slideshow/document-schema";
 
 import {
   createCustomLibraryPaletteDraft,

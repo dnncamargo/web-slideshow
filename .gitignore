@@ -26,6 +26,11 @@ coverage/
 .env.*
 !.env.example
 
+# Local application instance
+.instance/
+apps/studio/public/instance-demo.svg
+apps/player/public/instance-demo.svg
+
 # Firebase
 
 .firebase/

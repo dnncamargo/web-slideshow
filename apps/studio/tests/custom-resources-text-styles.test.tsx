@@ -2,9 +2,9 @@
 import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { PresentationSchema, TextElementSchema, type FontResource, type Presentation, type PresentationPaletteColor, type PowerShowElement } from "@powershow/document-schema";
-import { paletteColorCssVariableName } from "@powershow/renderer";
-import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@powershow/theme/element-style-defaults";
+import { PresentationSchema, TextElementSchema, type FontResource, type Presentation, type PresentationPaletteColor, type PresentationElement } from "@web-slideshow/document-schema";
+import { paletteColorCssVariableName } from "@web-slideshow/renderer";
+import { TEXT_VARIANT_TYPOGRAPHY_DEFAULTS } from "@web-slideshow/theme/element-style-defaults";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { findElementById, updateElementById } from "../src/features/editor/element-tree";
 import { createTextStyleFromText, detachTextStyle } from "../src/features/editor/text-typography-authoring";
@@ -44,13 +44,15 @@ function Harness({
   presentationFonts = [presentationFont],
   onSelectTextStyleElement = () => undefined,
   selectedElement = null,
+  includePresentation = false,
 }: {
   initial?: Presentation;
   presentationRef?: { current: Presentation | undefined };
   paletteColors?: readonly PresentationPaletteColor[];
   presentationFonts?: readonly FontResource[];
   onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void;
-  selectedElement?: PowerShowElement | null;
+  selectedElement?: PresentationElement | null;
+  includePresentation?: boolean;
 }) {
   const [presentation, setPresentation] = useState(initial);
   presentationRef && (presentationRef.current = presentation);
@@ -59,7 +61,7 @@ function Harness({
     customLibraryPaletteRepository={repository}
     customLibraryFontRepository={repository}
     presentationColors={paletteColors ?? presentation.palette?.colors ?? []}
-    presentation={paletteColors ? presentation : undefined}
+    presentation={includePresentation || paletteColors ? presentation : undefined}
     presentationFonts={presentationFonts}
     onAddLibraryPalette={() => ({ ok: true, addedColors: [] })}
     onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
@@ -106,11 +108,11 @@ describe("Custom Resources Text Styles", () => {
     root = undefined;
   });
 
-async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont], selectedElement: PowerShowElement | null = null): Promise<void> {
+async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont], selectedElement: PresentationElement | null = null, includePresentation = false): Promise<void> {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} presentationFonts={presentationFonts} onSelectTextStyleElement={onSelectTextStyleElement} selectedElement={selectedElement} /></StudioI18nProvider>));
+    await act(async () => root?.render(<StudioI18nProvider><LocaleSetter locale={locale} /><Harness initial={initial} presentationRef={presentationRef} paletteColors={paletteColors} presentationFonts={presentationFonts} onSelectTextStyleElement={onSelectTextStyleElement} selectedElement={selectedElement} includePresentation={includePresentation} /></StudioI18nProvider>));
   }
 
   function requiredElement<T extends Element>(selector: string): T {
@@ -277,7 +279,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => disclosure("body").click());
 
     const bodyPreview = requiredElement<HTMLElement>("[data-text-style-preview='body']");
-    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='body'] .powershow-text");
+    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='body'] .presentation-text");
     expect(bodyPreview.getAttribute("aria-hidden")).toBe("true");
     expect(bodyPreview.textContent).toBe("Aa");
     expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
@@ -313,7 +315,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => button("+ Add Style").click());
     await act(async () => disclosure("quote").click());
 
-    const quotePreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='quote'] .powershow-text");
+    const quotePreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='quote'] .presentation-text");
     const bodyFontSize = quotePreviewText().getAttribute("style");
     expect(bodyFontSize).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
 
@@ -459,11 +461,11 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     });
     const presentationRef: { current: Presentation | undefined } = { current: undefined };
     const navigation = { count: 0 };
-    await render(value, presentationRef, [], () => { navigation.count += 1; });
+    await render(value, presentationRef, [], () => { navigation.count += 1; }, "en", [presentationFont], null, true);
     await act(async () => disclosure("quote").click());
 
     expect(row("quote").textContent).toContain("Used by 2 elements");
-    const detachButtons = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate.textContent?.trim() === "x");
+    const detachButtons = Array.from(row("quote").querySelectorAll<HTMLButtonElement>('button[data-resource-action="detach"]'));
     expect(detachButtons).toHaveLength(2);
 
     await act(async () => detachButtons[0]?.click());
@@ -714,8 +716,8 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => disclosure("quote").click());
 
     const preview = requiredElement<HTMLElement>("[data-text-style-preview='quote']");
-    const previewText = requiredElement<HTMLElement>("[data-text-style-preview='quote'] .powershow-text");
-    expect(previewText.className).toContain("powershow-text-body");
+    const previewText = requiredElement<HTMLElement>("[data-text-style-preview='quote'] .presentation-text");
+    expect(previewText.className).toContain("presentation-text-body");
     expect(previewText.getAttribute("style")).toContain("color:var(--ps-palette-");
     expect(previewText.getAttribute("style")).toContain("text-decoration-color:var(--ps-palette-");
     expect(previewText.getAttribute("style")).toContain("-webkit-text-stroke:2px var(--ps-palette-");

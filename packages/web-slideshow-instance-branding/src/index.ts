@@ -1,7 +1,7 @@
-/**
- * The one instance-level display name consumed by application chrome.
- *
- * A later instantiation step should update this source, rather than replacing
- * branding literals across individual applications.
- */
-export const displayName = "Presentation";
+const configuredDisplayName =
+  typeof process !== "undefined"
+    ? process.env.WEB_SLIDESHOW_DISPLAY_NAME?.trim()
+    : undefined;
+
+/** The effective instance display name, with a neutral template fallback. */
+export const displayName = configuredDisplayName || "Presentation";

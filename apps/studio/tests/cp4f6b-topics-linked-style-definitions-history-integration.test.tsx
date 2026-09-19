@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -274,7 +274,7 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     const resources = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
     if (!resources) throw new Error("Custom Resources button was not rendered");
     await act(async () => resources.click());
-    const canvasElement = host.querySelector<HTMLElement>("[data-powershow-id='topics-1']");
+    const canvasElement = host.querySelector<HTMLElement>("[data-presentation-id='topics-1']");
     if (!canvasElement) throw new Error("Topics element was not rendered");
     await act(async () => canvasElement.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     const inspector = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Inspector");

@@ -1,5 +1,5 @@
-import type { ContainerElement } from "@powershow/document-schema";
-import type { Presentation } from "@powershow/document-schema";
+import type { ContainerElement } from "@web-slideshow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";

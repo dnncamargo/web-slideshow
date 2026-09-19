@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation, Slide } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@web-slideshow/document-schema";
 
 import { PresentationThumbnail } from "../src/features/library/presentation-thumbnail";
 import { PresentationThumbnailPreview } from "../src/features/library/presentation-thumbnail-preview";
@@ -153,11 +153,11 @@ describe("presentation thumbnail preview", () => {
       />,
     );
 
-    const slide = container.querySelector(".powershow-slide");
+    const slide = container.querySelector(".presentation-slide");
     expect(slide).not.toBeNull();
-    expect(slide?.getAttribute("data-powershow-slide-id")).toBe("slide-1");
+    expect(slide?.getAttribute("data-presentation-slide-id")).toBe("slide-1");
     expect(container.textContent).toContain("Hello world");
-    expect(container.querySelector('[data-powershow-type="text"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-type="text"]')).not.toBeNull();
   });
 
   it("renders only the preview first slide (never additional slides)", () => {
@@ -167,7 +167,7 @@ describe("presentation thumbnail preview", () => {
       />,
     );
 
-    expect(container.querySelectorAll(".powershow-slide")).toHaveLength(1);
+    expect(container.querySelectorAll(".presentation-slide")).toHaveLength(1);
     expect(container.textContent).toContain("First slide");
     expect(container.textContent).not.toContain("Second slide");
   });
@@ -192,14 +192,14 @@ describe("presentation thumbnail preview", () => {
 
     renderNode(<PresentationThumbnailPreview preview={preview} />);
 
-    expect(container.querySelector('[data-powershow-id="card"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="card"]')).not.toBeNull();
     expect(container.innerHTML).toContain("background:#123456");
   });
 
   it("uses the decorative fallback when thumbnailPreview is absent", () => {
     renderNode(<PresentationThumbnail summary={summary("one")} />);
 
-    expect(container.querySelector(".powershow-slide")).toBeNull();
+    expect(container.querySelector(".presentation-slide")).toBeNull();
   });
 
   it("uses the decorative fallback when the first slide has no authored elements", () => {
@@ -209,7 +209,7 @@ describe("presentation thumbnail preview", () => {
       />,
     );
 
-    expect(container.querySelector(".powershow-slide")).toBeNull();
+    expect(container.querySelector(".presentation-slide")).toBeNull();
   });
 
   it("isolates the rendered preview from interaction and accessibility", () => {
@@ -219,7 +219,7 @@ describe("presentation thumbnail preview", () => {
       />,
     );
 
-    const slide = container.querySelector(".powershow-slide");
+    const slide = container.querySelector(".presentation-slide");
     const host = slide?.closest<HTMLElement>("[aria-hidden]");
 
     expect(host).not.toBeNull();
@@ -239,7 +239,7 @@ describe("presentation thumbnail preview", () => {
     );
 
     const link = container.querySelector<HTMLElement>(
-      '[data-powershow-link="true"]',
+      '[data-presentation-link="true"]',
     );
     expect(link).not.toBeNull();
     expect(
@@ -265,7 +265,7 @@ describe("presentation thumbnail preview", () => {
     );
 
     const row = container.querySelector<HTMLButtonElement>("button");
-    const slide = row?.querySelector(".powershow-slide");
+    const slide = row?.querySelector(".presentation-slide");
 
     act(() => {
       slide?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -331,7 +331,7 @@ describe("presentation library thumbnail reads", () => {
       await new Promise<void>((resolve) => queueMicrotask(resolve));
     });
 
-    expect(container.querySelector(".powershow-slide")).not.toBeNull();
+    expect(container.querySelector(".presentation-slide")).not.toBeNull();
     expect(listPresentations).toHaveBeenCalledTimes(1);
     expect(getPresentation).not.toHaveBeenCalled();
   });

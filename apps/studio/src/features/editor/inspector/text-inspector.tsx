@@ -1,18 +1,18 @@
 import {
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type TextElement,
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
   stripLocalTextStyleProperties,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import {
   convertAuthoringLength,
   resolveEffectiveElementStyleDefaults,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 
 import styles from "../editor-workspace.module.css";
 
@@ -47,7 +47,7 @@ import {
 import { listPresentationTextStyles } from "../text-style-helpers";
 import { useAuthoringHistory } from "../authoring-history-context";
 
-type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
+type TextInspectorElement = Extract<PresentationElement, { type: "text" }>;
 
 // ============================================================
 // BEGIN: TEXT INSPECTOR

@@ -3,10 +3,10 @@ import { useRef, useState } from "react";
 import type {
   FontResource,
   ElementEffect,
-  PowerShowElement,
+  PresentationElement,
   SimpleTableElement,
   StructuredTableElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
@@ -39,7 +39,7 @@ import {
 // ============================================================
 
 type TableElement = Extract<
-  PowerShowElement,
+  PresentationElement,
   {
     type: "table";
   }
@@ -54,7 +54,7 @@ type TableCellValue = TableRow[string];
 interface TableInspectorProps {
   element: TableElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   tableAuthoringControls: TableAuthoringControls;
 
@@ -452,7 +452,7 @@ function SimpleTableInspector({
 }: {
   element: SimpleTableElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   fontResources: readonly FontResource[];
 }) {
@@ -1007,14 +1007,14 @@ function SimpleTableInspector({
 // BEGIN: STRUCTURED TABLE INSPECTOR
 //
 // Minimal authoring surface for Structured Tables. Cell/header
-// CONTENT is authored through nested PowerShow elements; this
+// CONTENT is authored through nested presentation elements; this
 // Inspector only mutates the rectangular structure.
 // ============================================================
 
 interface StructuredTableInspectorProps {
   element: StructuredTableElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   tableAuthoringControls: TableAuthoringControls;
 
@@ -1065,7 +1065,7 @@ function StructuredTableInspector({
         count={element.columns.length}
         defaultOpen
       >
-        <ul className={styles.collectionSelector} data-powershow-table-column-summary>
+        <ul className={styles.collectionSelector} data-presentation-table-column-summary>
           {element.columns.map((column, index) => {
             const selected = selectedTableStructuralNode?.kind === "column" && selectedTableStructuralNode.tableId === element.id && selectedTableStructuralNode.id === column.id;
             const label = getStructuredColumnLabel(element, index, t);
@@ -1078,13 +1078,13 @@ function StructuredTableInspector({
           })}
         </ul>
         <div className={styles.tableEditorActions}>
-          <button type="button" className="ps-ui-action" data-powershow-table-add-column="true" onClick={() => tableAuthoringControls.onAddColumn(element.id)}>
+          <button type="button" className="ps-ui-action" data-presentation-table-add-column="true" onClick={() => tableAuthoringControls.onAddColumn(element.id)}>
             <span>{t("table.addColumn")}</span>
           </button>
           <button
             type="button"
             className="ps-ui-action"
-            data-powershow-table-remove-column="true"
+            data-presentation-table-remove-column="true"
             disabled={!isSelectedColumn(element, selectedTableStructuralNode)}
             onClick={() => setPendingRemoval(selectedTableStructuralNode ?? null)}
           >
@@ -1098,7 +1098,7 @@ function StructuredTableInspector({
         count={element.rows.length}
         defaultOpen
       >
-        <ul className={styles.collectionSelector} data-powershow-table-row-summary>
+        <ul className={styles.collectionSelector} data-presentation-table-row-summary>
           {element.rows.map((row, index) => {
             const selected = selectedTableStructuralNode?.kind === "row" && selectedTableStructuralNode.tableId === element.id && selectedTableStructuralNode.id === row.id;
             const label = getStructuredRowLabel(element, index, t);
@@ -1111,13 +1111,13 @@ function StructuredTableInspector({
           })}
         </ul>
         <div className={styles.tableEditorActions}>
-          <button type="button" className="ps-ui-action" data-powershow-table-add-row="true" onClick={() => tableAuthoringControls.onAddRow(element.id)}>
+          <button type="button" className="ps-ui-action" data-presentation-table-add-row="true" onClick={() => tableAuthoringControls.onAddRow(element.id)}>
             <span>{t("table.addRow")}</span>
           </button>
           <button
             type="button"
             className="ps-ui-action"
-            data-powershow-table-remove-row="true"
+            data-presentation-table-remove-row="true"
             disabled={!isSelectedRow(element, selectedTableStructuralNode)}
             onClick={() => setPendingRemoval(selectedTableStructuralNode ?? null)}
           >

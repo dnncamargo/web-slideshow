@@ -1,5 +1,5 @@
 {
-  "name": "@powershow/renderer",
+  "name": "@web-slideshow/renderer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@powershow/document-schema": "workspace:*",
-    "@powershow/math-source": "workspace:*"
+    "@web-slideshow/document-schema": "workspace:*",
+    "@web-slideshow/math-source": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

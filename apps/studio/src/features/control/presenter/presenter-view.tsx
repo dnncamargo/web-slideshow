@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { renderFontResources } from "@powershow/renderer";
+import { renderFontResources } from "@web-slideshow/renderer";
 import {
   Button,
   Separator,
@@ -13,7 +13,7 @@ import {
   TopbarActions,
   TopbarLocale,
   TopbarTitle,
-} from "@powershow/ui";
+} from "@web-slideshow/ui";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";
@@ -268,7 +268,7 @@ export interface PresenterViewProps {
  * desired slide until the operator chooses to follow.
  *
  * The shell follows the Studio Editor visual structure: a 52px top bar with
- * PowerShow Control branding, centered presentation title, Locale selector,
+ * Control branding, centered presentation title, Locale selector,
  * local clock, Live sync/latency status and Stop action. The body contains the
  * slide summary, current preview and next preview + notes. Previous/Next,
  * Fullscreen and the desired slide counter belong to the control row below the
@@ -549,7 +549,7 @@ export function PresenterView({
 
         <section className={presenterStyles.currentColumn}>
           {fontResourcesCss && (
-            <style data-powershow-font-resources>{fontResourcesCss}</style>
+            <style data-presentation-font-resources>{fontResourcesCss}</style>
           )}
           {currentSlide && aspectRatio && presentation ? (
             <PresenterSlidePreview

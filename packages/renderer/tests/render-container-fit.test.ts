@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -11,14 +11,14 @@ const text = {
   variant: "body" as const,
 };
 
-function container(overrides: Record<string, unknown> = {}): PowerShowElement {
+function container(overrides: Record<string, unknown> = {}): PresentationElement {
   return {
     id: "container",
     type: "container" as const,
     hidden: false,
     children: [text],
     ...overrides,
-  } as PowerShowElement;
+  } as PresentationElement;
 }
 
 describe("renderContainer children fit", () => {
@@ -27,9 +27,9 @@ describe("renderContainer children fit", () => {
       layout: { children: { mode: "stack", direction: "row", gap: 12 } },
     }));
 
-    expect(html).toContain("powershow-container-stack");
+    expect(html).toContain("presentation-container-stack");
     expect(html).toContain("display:grid");
-    expect(html).not.toContain("powershow-container-fit-viewport");
+    expect(html).not.toContain("presentation-container-fit-viewport");
     expect(html).toContain("grid-area:1 / 1");
   });
 
@@ -55,18 +55,18 @@ describe("renderContainer children fit", () => {
       },
     }));
 
-    expect(html).toContain("powershow-container-fit-viewport");
-    expect(html).toContain("powershow-container-fit-surface");
-    expect(html).toContain('data-powershow-container-fit-mode="cover"');
-    expect(html).toContain('data-powershow-container-fit-source-width="800"');
-    expect(html).toContain('data-powershow-container-fit-source-height="400"');
+    expect(html).toContain("presentation-container-fit-viewport");
+    expect(html).toContain("presentation-container-fit-surface");
+    expect(html).toContain('data-presentation-container-fit-mode="cover"');
+    expect(html).toContain('data-presentation-container-fit-source-width="800"');
+    expect(html).toContain('data-presentation-container-fit-source-height="400"');
     expect(html).toContain("width:60%");
     expect(html).toContain("padding:20px");
     expect(html).toContain("overflow:visible");
     expect(html).toContain("background:#ffffff");
     expect(html).toContain("border-radius:8px");
 
-    const surfaceStart = html.indexOf("powershow-container-fit-surface");
+    const surfaceStart = html.indexOf("presentation-container-fit-surface");
     const surface = html.slice(surfaceStart);
     expect(surface).toContain("display:flex");
     expect(surface).toContain("flex-direction:row");
@@ -85,7 +85,7 @@ describe("renderContainer children fit", () => {
       children: [{ ...text, layout: { position: "absolute", left: "25%", top: "10%" } }],
     }));
 
-    const surfaceStart = html.indexOf("powershow-container-fit-surface");
+    const surfaceStart = html.indexOf("presentation-container-fit-surface");
     expect(surfaceStart).toBeGreaterThan(-1);
     expect(html.slice(surfaceStart)).toContain("position:relative");
     expect(html.slice(surfaceStart)).toContain('left:25%');
@@ -99,9 +99,9 @@ describe("renderContainer children fit", () => {
       layout: { children: { fit: { mode: "fill", sourceWidth: 800, sourceHeight: 400 } } },
     }));
 
-    const surfaceStart = html.indexOf("powershow-container-fit-surface");
-    const linkStart = html.indexOf("data-powershow-container-link-surface");
-    expect(html.indexOf("powershow-container-background-pattern")).toBeLessThan(surfaceStart);
+    const surfaceStart = html.indexOf("presentation-container-fit-surface");
+    const linkStart = html.indexOf("data-presentation-container-link-surface");
+    expect(html.indexOf("presentation-container-background-pattern")).toBeLessThan(surfaceStart);
     expect(linkStart).toBeGreaterThan(surfaceStart);
     expect(html.slice(linkStart)).toContain("z-index:100");
   });

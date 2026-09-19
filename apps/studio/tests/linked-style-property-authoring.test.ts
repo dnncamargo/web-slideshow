@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LinkedContainerStyleSchema, PresentationSchema } from "@powershow/document-schema";
+import { LinkedContainerStyleSchema, PresentationSchema } from "@web-slideshow/document-schema";
 import {
   addLinkedStyleProperty,
   createLinkedStyleWithProperty,

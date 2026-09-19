@@ -6,7 +6,7 @@ import {
 
 import type {
   Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   renderPresentation,
@@ -22,7 +22,7 @@ function createPresentation(): Presentation {
   return {
     schemaVersion: 1,
     id: "presentation-1",
-    title: "PowerShow Demo",
+    title: "Presentation Demo",
     description: "",
     aspectRatio: "16:9",
 
@@ -81,11 +81,11 @@ describe("renderPresentation", () => {
     });
 
     const html = renderPresentation(presentation);
-    expect(html).toContain('<p class="powershow-element powershow-text powershow-text-body"');
+    expect(html).toContain('<p class="presentation-element presentation-text presentation-text-body"');
     expect(html).toContain('font-style:italic');
-    expect(html).toContain('<h1 class="powershow-element powershow-text powershow-text-title"');
+    expect(html).toContain('<h1 class="presentation-element presentation-text presentation-text-title"');
     expect(html).toContain('font-size:48px');
-    expect(html).not.toContain('powershow-text-quote');
+    expect(html).not.toContain('presentation-text-quote');
     expect(html).not.toContain('font-family:&quot;Inter&quot;');
   });
 
@@ -141,11 +141,11 @@ describe("renderPresentation", () => {
     );
 
     expect(html).toContain(
-      'class="powershow-presentation"',
+      'class="presentation"',
     );
 
     expect(html).toContain(
-      'data-powershow-presentation-id="presentation-1"',
+      'data-presentation-id="presentation-1"',
     );
   });
 
@@ -155,7 +155,7 @@ describe("renderPresentation", () => {
     );
 
     expect(html).toContain(
-      'data-powershow-schema-version="1"',
+      'data-presentation-schema-version="1"',
     );
   });
 
@@ -165,7 +165,7 @@ describe("renderPresentation", () => {
     );
 
     expect(html).toContain(
-      'data-powershow-aspect-ratio="16:9"',
+      'data-presentation-aspect-ratio="16:9"',
     );
   });
 
@@ -192,7 +192,7 @@ describe("renderPresentation", () => {
 
   it("does not add palette output when palette is absent or empty", () => {
     expect(renderPresentation(createPresentation()).startsWith(
-      '<div class="powershow-presentation"',
+      '<div class="presentation"',
     )).toBe(true);
     expect(renderPresentation(createPresentation()).slice(0, 100)).not.toContain(
       "--ps-palette-",
@@ -211,11 +211,11 @@ describe("renderPresentation", () => {
     );
 
     expect(html).toContain(
-      'data-powershow-slide-id="slide-1"',
+      'data-presentation-slide-id="slide-1"',
     );
 
     expect(html).toContain(
-      'data-powershow-slide-id="slide-2"',
+      'data-presentation-slide-id="slide-2"',
     );
   });
 
@@ -226,12 +226,12 @@ describe("renderPresentation", () => {
 
     const first =
       html.indexOf(
-        'data-powershow-slide-id="slide-1"',
+        'data-presentation-slide-id="slide-1"',
       );
 
     const second =
       html.indexOf(
-        'data-powershow-slide-id="slide-2"',
+        'data-presentation-slide-id="slide-2"',
       );
 
     expect(first).toBeGreaterThan(-1);
@@ -287,7 +287,7 @@ describe("renderPresentation", () => {
     const html = renderPresentation(presentation);
 
     expect(html.split("@font-face").length - 1).toBe(1);
-    expect(html.split("data-powershow-font-resources").length - 1).toBe(1);
+    expect(html.split("data-presentation-font-resources").length - 1).toBe(1);
     expect(html.split('font-family:"Inter"').length - 1).toBe(1);
     expect(html.split("font-family:&quot;Inter&quot;").length - 1).toBe(2);
   });
@@ -304,11 +304,11 @@ describe("renderPresentation", () => {
       );
 
     expect(html).toContain(
-      'class="powershow-presentation"',
+      'class="presentation"',
     );
 
     expect(html).not.toContain(
-      'class="powershow-slide"',
+      'class="presentation-slide"',
     );
   });
 
@@ -322,10 +322,10 @@ describe("renderPresentation", () => {
     );
 
     expect(
-      html.split("data-powershow-slide-id=").length - 1,
+      html.split("data-presentation-slide-id=").length - 1,
     ).toBe(1);
     expect(html).toContain(
-      'data-powershow-slide-id="only-slide"',
+      'data-presentation-slide-id="only-slide"',
     );
   });
 
@@ -344,10 +344,10 @@ describe("renderPresentation", () => {
     expect(html).not.toContain("<script>");
     expect(html).not.toContain("<img src=x>");
     expect(html).toContain(
-      'data-powershow-presentation-id="presentation&quot;&gt;&lt;script&gt;"',
+      'data-presentation-id="presentation&quot;&gt;&lt;script&gt;"',
     );
     expect(html).toContain(
-      'data-powershow-slide-id="slide&quot;&gt;&lt;img src=x&gt;"',
+      'data-presentation-slide-id="slide&quot;&gt;&lt;img src=x&gt;"',
     );
   });
 
@@ -361,8 +361,8 @@ describe("renderPresentation", () => {
       }),
     );
 
-    expect(html).not.toContain("powershow-slide-active");
-    expect(html).not.toContain("data-powershow-active");
+    expect(html).not.toContain("presentation-slide-active");
+    expect(html).not.toContain("data-presentation-active");
     expect(html).not.toContain("aria-current");
   });
 
@@ -382,7 +382,7 @@ describe("renderPresentation", () => {
     );
 
     expect(html).not.toMatch(/<(?:button|nav)\b/);
-    expect(html).not.toContain("powershow-navigation");
-    expect(html).not.toContain("powershow-controls");
+    expect(html).not.toContain("presentation-navigation");
+    expect(html).not.toContain("presentation-controls");
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PowerShowElementSchema,
+  PresentationElementSchema,
 } from "../src/elements";
 import { PresentationSchema } from "../src/presentation";
 
@@ -13,14 +13,14 @@ const minimalContainer = {
 
 describe("production canonical Container schema", () => {
   it("parses a minimal Container without materializing optional namespaces", () => {
-    expect(PowerShowElementSchema.parse(minimalContainer)).toEqual({
+    expect(PresentationElementSchema.parse(minimalContainer)).toEqual({
       ...minimalContainer,
       hidden: false,
     });
   });
 
   it("parses recursive and fully composed canonical Containers", () => {
-    const result = PowerShowElementSchema.safeParse({
+    const result = PresentationElementSchema.safeParse({
       ...minimalContainer,
       role: "main",
       layout: {
@@ -100,7 +100,7 @@ describe("production canonical Container schema", () => {
   it("requires absolute positioning for every authored edge", () => {
     for (const edge of ["top", "right", "bottom", "left"] as const) {
       expect(
-        PowerShowElementSchema.safeParse({
+        PresentationElementSchema.safeParse({
           ...minimalContainer,
           layout: { [edge]: 0 },
         }).success,
@@ -108,20 +108,20 @@ describe("production canonical Container schema", () => {
     }
 
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...minimalContainer,
         layout: { position: "relative" },
       }).success,
     ).toBe(false);
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...minimalContainer,
         layout: { position: "static" },
       }).success,
     ).toBe(false);
 
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...minimalContainer,
         layout: { position: "absolute", left: 0, right: 0 },
       }).success,
@@ -130,7 +130,7 @@ describe("production canonical Container schema", () => {
 
   it("accepts canonical non-Container children", () => {
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...minimalContainer,
         children: [{
           id: "child-text",
@@ -152,7 +152,7 @@ describe("production canonical Container schema", () => {
       "width",
     ]) {
       expect(
-        PowerShowElementSchema.safeParse({
+        PresentationElementSchema.safeParse({
           ...minimalContainer,
           [field]: field === "width" ? 100 : "row",
         }).success,
@@ -176,7 +176,7 @@ describe("production canonical Container schema", () => {
       "left",
     ]) {
       expect(
-        PowerShowElementSchema.safeParse({
+        PresentationElementSchema.safeParse({
           ...minimalContainer,
           style: {
             [field]: field === "opacity"
@@ -192,14 +192,14 @@ describe("production canonical Container schema", () => {
     }
 
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...minimalContainer,
         style: { background: "#111111" },
       }).success,
     ).toBe(false);
 
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...minimalContainer,
         style: { fontSize: 24, fontFamily: "Inter" },
       }).success,

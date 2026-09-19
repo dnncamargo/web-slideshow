@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -86,7 +86,7 @@ describe("EditorWorkspace Plot preview", () => {
   }
 
   async function selectPlot(): Promise<void> {
-    const plot = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plot = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     if (!plot) throw new Error("Plot was not rendered");
     await act(async () => plot.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -106,7 +106,7 @@ describe("EditorWorkspace Plot preview", () => {
   it("registers the Canvas statically and previews through Inspector commands", async () => {
     await mount();
 
-    const plot = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plot = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     if (!plot) throw new Error("Plot was not rendered");
     expect(requestFrame).not.toHaveBeenCalled();
     expect(plot.innerHTML).not.toContain("y = x + t");
@@ -141,7 +141,7 @@ describe("EditorWorkspace Plot preview", () => {
     await act(async () => previewButton("plot-animation-preview-play").click());
     expect(requestFrame).toHaveBeenCalledTimes(1);
 
-    const plot = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plot = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     if (!plot) throw new Error("Plot was not rendered");
     await act(async () => root.unmount());
 
@@ -154,7 +154,7 @@ describe("EditorWorkspace Plot preview", () => {
   it("rehydrates a changed duration even when static Plot HTML is unchanged", async () => {
     await mount();
     await selectPlot();
-    const plotBeforeApply = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plotBeforeApply = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     if (!plotBeforeApply) throw new Error("Plot was not rendered");
 
     const duration = animationInput("plot-animation-duration");
@@ -162,7 +162,7 @@ describe("EditorWorkspace Plot preview", () => {
     await act(async () => duration.dispatchEvent(new Event("change", { bubbles: true })));
     await act(async () => container.querySelector<HTMLButtonElement>("#plot-animation-apply")?.click());
 
-    const plotAfterApply = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plotAfterApply = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     expect(plotAfterApply).not.toBeNull();
     expect(plotAfterApply?.innerHTML).toBe(plotBeforeApply.innerHTML);
     expect(requestFrame).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe("EditorWorkspace Plot preview", () => {
     await act(async () => previewButton("plot-animation-preview-play").click());
     expect(requestFrame).toHaveBeenCalledTimes(1);
 
-    const plotBeforeResize = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plotBeforeResize = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     const viewport = container.querySelector<HTMLElement>("[class*='canvasViewport']");
     if (!plotBeforeResize || !viewport) throw new Error("Plot viewport was not rendered");
     const fromFrame = plotBeforeResize.innerHTML;
@@ -199,7 +199,7 @@ describe("EditorWorkspace Plot preview", () => {
     Object.defineProperty(viewport, "clientHeight", { configurable: true, value: 600 });
     await act(async () => window.dispatchEvent(new Event("resize")));
 
-    const plotAfterResize = container.querySelector<HTMLElement>('[data-powershow-id="plot-1"]');
+    const plotAfterResize = container.querySelector<HTMLElement>('[data-presentation-id="plot-1"]');
     expect(plotAfterResize).toBe(plotBeforeResize);
     expect(plotAfterResize?.innerHTML).toBe(beforeResize);
     expect(requestFrame).toHaveBeenCalledTimes(requestCountBeforeResize);

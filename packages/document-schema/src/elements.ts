@@ -507,7 +507,7 @@ export type ContentSlot = {
 
   typography?: z.infer<typeof ElementTypographySchema> | undefined;
 
-  children: PowerShowElement[];
+  children: PresentationElement[];
 };
 
 export const ContentSlotLayoutSchema = z.object({
@@ -542,7 +542,7 @@ export const ContentSlotSchema:
     typography: ElementTypographySchema.optional(),
 
     children: z.array(
-      z.lazy(() => PowerShowElementSchema),
+      z.lazy(() => PresentationElementSchema),
     ),
   }).strict();
 
@@ -764,10 +764,10 @@ export type ContainerElement = {
     | z.infer<typeof ElementLinkSchema>
     | undefined;
 
-  children: PowerShowElement[];
+  children: PresentationElement[];
 };
 
-export type PowerShowElement =
+export type PresentationElement =
   | TextElement
   | ImageElement
   | GalleryElement
@@ -783,8 +783,8 @@ export type PowerShowElement =
   | TopicsElement
   | ContainerElement;
 
-export const PowerShowElementSchema:
-  z.ZodType<PowerShowElement> =
+export const PresentationElementSchema:
+  z.ZodType<PresentationElement> =
   z.lazy(() =>
     z.union([
       TextElementSchema,
@@ -831,7 +831,7 @@ export const PowerShowElementSchema:
         link: ElementLinkSchema.optional(),
 
         children: z.array(
-          PowerShowElementSchema,
+          PresentationElementSchema,
         ),
       }).strict(),
     ]),

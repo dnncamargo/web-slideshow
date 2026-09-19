@@ -1,4 +1,4 @@
-import type { MathGeometryResult, MathViewport2D } from "@powershow/math-source";
+import type { MathGeometryResult, MathViewport2D } from "@web-slideshow/math-source";
 
 import { escapeHtml } from "./escape-html";
 
@@ -64,21 +64,21 @@ export function renderMathGeometrySvg(
   const axisOpacity = axisStyle?.opacity === undefined ? "" : ` opacity="${axisStyle.opacity}"`;
   const axisLabelFill = axisStyle?.color === undefined ? "" : ` fill="${escapeHtml(axisStyle.color)}"`;
   if (axisLabels?.showAxes !== false && viewport.yMin <= 0 && viewport.yMax >= 0) {
-    axes.push(`<line class="powershow-plot-axis powershow-plot-axis-x" x1="0" y1="${xAxisY}" x2="${width}" y2="${xAxisY}"${axisStroke} stroke-width="${axisStrokeWidth}"${axisOpacity} vector-effect="non-scaling-stroke"></line>`);
+    axes.push(`<line class="presentation-plot-axis presentation-plot-axis-x" x1="0" y1="${xAxisY}" x2="${width}" y2="${xAxisY}"${axisStroke} stroke-width="${axisStrokeWidth}"${axisOpacity} vector-effect="non-scaling-stroke"></line>`);
   }
   if (axisLabels?.showAxes !== false && viewport.xMin <= 0 && viewport.xMax >= 0) {
-    axes.push(`<line class="powershow-plot-axis powershow-plot-axis-y" x1="${yAxisX}" y1="0" x2="${yAxisX}" y2="${height}"${axisStroke} stroke-width="${axisStrokeWidth}"${axisOpacity} vector-effect="non-scaling-stroke"></line>`);
+    axes.push(`<line class="presentation-plot-axis presentation-plot-axis-y" x1="${yAxisX}" y1="0" x2="${yAxisX}" y2="${height}"${axisStroke} stroke-width="${axisStrokeWidth}"${axisOpacity} vector-effect="non-scaling-stroke"></line>`);
   }
 
   const labels: string[] = [];
   if (axisLabels !== undefined && axisLabels.showAxes !== false) {
     if (viewport.yMin <= 0 && viewport.yMax >= 0) {
-      labels.push(`<text class="powershow-plot-axis-label powershow-plot-axis-label-x" x="${width - 0.5}" y="${Math.min(height - 0.5, Math.max(1.25, xAxisY - 0.5))}" text-anchor="end" font-size="1.2"${axisLabelFill}${axisOpacity}>${axisLabels.x}</text>`);
+      labels.push(`<text class="presentation-plot-axis-label presentation-plot-axis-label-x" x="${width - 0.5}" y="${Math.min(height - 0.5, Math.max(1.25, xAxisY - 0.5))}" text-anchor="end" font-size="1.2"${axisLabelFill}${axisOpacity}>${axisLabels.x}</text>`);
     }
     if (viewport.xMin <= 0 && viewport.xMax >= 0) {
-      labels.push(`<text class="powershow-plot-axis-label powershow-plot-axis-label-y" x="${Math.min(width - 0.5, Math.max(0.5, yAxisX + 0.5))}" y="1.5" text-anchor="start" font-size="1.2"${axisLabelFill}${axisOpacity}>${axisLabels.y}</text>`);
+      labels.push(`<text class="presentation-plot-axis-label presentation-plot-axis-label-y" x="${Math.min(width - 0.5, Math.max(0.5, yAxisX + 0.5))}" y="1.5" text-anchor="start" font-size="1.2"${axisLabelFill}${axisOpacity}>${axisLabels.y}</text>`);
     }
   }
 
-  return `<svg class="powershow-plot-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axes.join("")}${labels.join("")}<path fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
+  return `<svg class="presentation-plot-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axes.join("")}${labels.join("")}<path fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
 }

@@ -2,21 +2,21 @@ import {
   formatColorAsHex,
   parseColor,
   resolveColorValue,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import type {
   BlocksVisualStyle,
   CodeVisualStyle,
   ElementEffect,
   GradientSurfaceBackground,
   GradientSurfaceVisualStyle,
-  PowerShowElement,
+  PresentationElement,
   TerminalVisualStyle,
   SimpleTableVisualStyle,
   StructuredTableVisualStyle,
   ColorValue,
-} from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults, TERMINAL_SEMANTIC_COLORS } from "@powershow/theme/element-style-defaults";
-import { parseBlocksSource, type BlocksAstNode, type BlocksCategory, type BlocksInlineNode } from "@powershow/renderer";
+} from "@web-slideshow/document-schema";
+import { resolveEffectiveElementStyleDefaults, TERMINAL_SEMANTIC_COLORS } from "@web-slideshow/theme/element-style-defaults";
+import { parseBlocksSource, type BlocksAstNode, type BlocksCategory, type BlocksInlineNode } from "@web-slideshow/renderer";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber } from "../inspector-helpers";
@@ -30,7 +30,7 @@ import { useAuthoringHistory } from "../../authoring-history-context";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle | SimpleTableVisualStyle | StructuredTableVisualStyle;
 type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
-type DataElement = Extract<PowerShowElement, { type: "code" | "terminal" | "table" | "blocks" }>;
+type DataElement = Extract<PresentationElement, { type: "code" | "terminal" | "table" | "blocks" }>;
 
 type BackgroundKey = "color" | "gradient";
 
@@ -189,7 +189,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     ? undefined
     : resolveColorValue(structuredStyle.background.color, palette ? { colors: palette.colors } : undefined);
   return <InspectorSection title={t("inspector.appearance")}>
-    {element.type === "blocks" && <div className={styles.colorControl} data-powershow-blocks-colors="true">
+    {element.type === "blocks" && <div className={styles.colorControl} data-presentation-blocks-colors="true">
       {categoryControls.length > 0 && <><div className={styles.field}><span>{t("inspector.blocks.categoryColors")}</span></div>{categoryControls.map((category) => <label className={styles.field} key={category}><span>{t(BLOCK_CATEGORY_LABEL_KEYS[category])}</span><ColorControl id={`blocks-category-${category}-color`} name={getControlName(controlPrefix, `Category-${category}`)} value={blocksStyle?.categoryColors?.[category]} effectiveValue={BLOCK_CATEGORY_DEFAULTS[category]} onChange={(color) => onUpdateStyle((current) => { const next = current as BlocksVisualStyle | undefined; return { ...(next ?? {}), categoryColors: { ...(next?.categoryColors ?? {}), [category]: color } }; })} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current as BlocksVisualStyle) } as Record<string, unknown>; const categoryColors = { ...((next.categoryColors ?? {}) as Record<string, unknown>) }; delete categoryColors[category]; if (Object.keys(categoryColors).length === 0) delete next.categoryColors; else next.categoryColors = categoryColors; return next as CanonicalDataStyle; }) }} /></label>)}</>}
       {fallbackControls.length > 0 && <><div className={styles.field}><span>{t("inspector.blocks.uncategorized")}</span></div>{fallbackControls.map((kind) => <label className={styles.field} key={kind}><span>{t(BLOCK_FALLBACK_LABELS[kind])}</span><ColorControl id={`blocks-${kind}-color`} name={getControlName(controlPrefix, `${kind}Color`)} value={blocksStyle?.[`${kind}Color`]} effectiveValue={BLOCK_DEFAULT_COLORS[kind]} onChange={(color) => onUpdateStyle((current) => ({ ...(current as BlocksVisualStyle), [`${kind}Color`]: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current as BlocksVisualStyle) } as Record<string, unknown>; delete next[`${kind}Color`]; return next as CanonicalDataStyle; }) }} /></label>)}</>}
       <label className={styles.field}><span>{t("inspector.blocks.textColor")}</span><ColorControl id="blocks-text-color" name={getControlName(controlPrefix, "TextColor")} value={blocksStyle?.textColor} effectiveValue="#FFFFFF" onChange={(color) => onUpdateStyle((current) => ({ ...current, textColor: color } as CanonicalDataStyle))} secondaryAction={{ label: t("inspector.blocks.useDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...current } as Record<string, unknown>; delete next.textColor; return next as CanonicalDataStyle; }) }} /></label>
@@ -243,7 +243,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       <ElementBorderControl border={style?.border} onChange={(border) => onUpdateStyle((current) => ({ ...current, border }))} controlPrefix={controlPrefix} />
     </div>
     {structuredStyle !== undefined && <>
-      <div className={styles.appearanceSubgroup} data-powershow-table-appearance="true">
+      <div className={styles.appearanceSubgroup} data-presentation-table-appearance="true">
         <span className={styles.appearanceSubheading}>{t("table.appearance.header")}</span>
         <label className={styles.field}><span>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-header-background`} name={getControlName(controlPrefix, "HeaderBackground")} value={structuredStyle.headerBackground} onChange={(color) => updateStructuredBackground("headerBackground", color)} secondaryAction={{ label: t("inspector.remove"), onClick: () => updateStructuredBackground("headerBackground", undefined) }} /></label>
       </div>

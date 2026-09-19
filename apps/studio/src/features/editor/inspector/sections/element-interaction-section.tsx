@@ -2,9 +2,9 @@ import { useState } from "react";
 
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { isAbsoluteHttpHref } from "@powershow/document-schema";
+import { isAbsoluteHttpHref } from "@web-slideshow/document-schema";
 
-import type { ElementLink, PowerShowElement } from "@powershow/document-schema";
+import type { ElementLink, PresentationElement } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -18,7 +18,7 @@ import type { ElementInspectorUpdate } from "../inspector-types";
 import type { CreateQrCodeFromLink } from "../inspector-types";
 
 type LinkableElement = Extract<
-  PowerShowElement,
+  PresentationElement,
   { type: "text" | "image" | "container" }
 >;
 
@@ -35,7 +35,7 @@ interface ElementInteractionSectionProps {
 }
 
 function isLinkableElement(
-  element: PowerShowElement,
+  element: PresentationElement,
 ): element is LinkableElement {
   return (
     element.type === "text" ||

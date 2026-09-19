@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { getSelectableElementProperties } from "../src/features/editor/element-property-selection";
 
-const properties = (element: PowerShowElement) =>
+const properties = (element: PresentationElement) =>
   Object.fromEntries(
     getSelectableElementProperties(element).map((property) => [property.path, property]),
   );
@@ -96,7 +96,7 @@ describe("getSelectableElementProperties", () => {
   });
 
   it("selects authored visual and layout leaves, but not identity or absent values", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "hero-title",
       hidden: false,
@@ -164,7 +164,7 @@ describe("getSelectableElementProperties", () => {
   });
 
   it("collapses atomic objects without exposing their descendants", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image",
       hidden: false,
@@ -225,7 +225,7 @@ describe("getSelectableElementProperties", () => {
   });
 
   it("excludes descendant elements but keeps container layout children fields", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "container",
       hidden: false,
@@ -269,7 +269,7 @@ describe("getSelectableElementProperties", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     });
 
     expect(result.columns.kind).toBe("payload");
@@ -285,7 +285,7 @@ describe("getSelectableElementProperties", () => {
       hidden: false,
       kind: "unordered",
       items: [],
-    } satisfies PowerShowElement;
+    } satisfies PresentationElement;
     const before = JSON.stringify(element);
 
     getSelectableElementProperties(element);

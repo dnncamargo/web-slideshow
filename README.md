@@ -1,23 +1,23 @@
-# PowerShow
+# web-slideshow
 
-PowerShow is a cloud-first slide authoring and presentation system built around a strict canonical document model, shared rendering, immutable publication snapshots, and live presentation control.
+web-slideshow is a cloud-first slide authoring and presentation system built around a strict canonical document model, shared rendering, immutable publication snapshots, and live presentation control.
 
 The same canonical Presentation moves through the complete lifecycle:
 
 ```text
-PowerShow Library / PowerShow Editor
+Library / Editor
 → save / reload
 → publish
 → immutable version
-→ PowerShow Control
-→ PowerShow Player
-→ PowerShow Watch
+→ Control
+→ Player
+→ Watch
 ```
 
 ## Product surfaces
 
 ```text
-PowerShow
+web-slideshow
 │
 ├── Public Portal        /
 │
@@ -34,19 +34,19 @@ PowerShow
     └── Cover            /cover  (technical route)
 ```
 
-- **Public Portal** — public PowerShow root. Without Live it exposes the self-contained demo; during Live it shows the active presentation cover and Watch entry.
-- **PowerShow Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
-- **PowerShow Editor** — visual authoring of the canonical Presentation, with session-scoped History and Undo/Redo.
-- **PowerShow Control** — authenticated live-session control, navigation, Player options, contextual element controls and Player-state feedback.
+- **Public Portal** — public application root. Without Live it exposes the self-contained demo; during Live it shows the active presentation cover and Watch entry.
+- **Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
+- **Editor** — visual authoring of the canonical Presentation, with session-scoped History and Undo/Redo.
+- **Control** — authenticated live-session control, navigation, Player options, contextual element controls and Player-state feedback.
 - **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence, bounded recovery and remote diagnostics mode.
-- **PowerShow Player** — public projection runtime.
-- **PowerShow Watch** — public read-only audience surface following actual Player-applied state.
+- **Player** — public projection runtime.
+- **Watch** — public read-only audience surface following actual Player-applied state.
 
 The public root is deliberately not another Player. During Live, Cover remains static/read-only while Watch follows the real Player state.
 
 ## Repository structure
 
-PowerShow is a pnpm monorepo.
+web-slideshow is a pnpm monorepo.
 
 ```text
 apps/
@@ -59,7 +59,7 @@ packages/
   math-source/      restricted mathematical intent for Plot
   renderer/         shared semantic rendering pipeline
   theme/            shared presentation defaults
-  ui/               PowerShow Suite UI tokens and primitives
+  ui/               shared UI tokens and primitives
   firebase/         shared Firebase support
 ```
 
@@ -67,7 +67,7 @@ The canonical document contract lives in `packages/document-schema`. Studio prev
 
 ## Canonical document principles
 
-PowerShow stores a semantic Presentation instead of serialized Editor DOM/application state.
+The application stores a semantic Presentation instead of serialized Editor DOM/application state.
 
 Current invariants:
 
@@ -103,7 +103,7 @@ container
 
 ## Authoring and Presentation-local reuse
 
-PowerShow distinguishes private reusable masters from Presentation-local live relationships.
+The application distinguishes private reusable masters from Presentation-local live relationships.
 
 ```text
 Custom Library resource
@@ -137,7 +137,7 @@ Linked Styles are Presentation-scoped, self-contained and Container-only in the 
 
 ## Import / Export
 
-PowerShow exports the canonical Presentation directly as readable JSON:
+The application exports the canonical Presentation directly as readable JSON:
 
 ```text
 *.powershow.json
@@ -221,6 +221,8 @@ Blocks is intentionally not an executable programming environment.
 
 Scripted controlled interaction is complete through PR #133, with HTTPS image loading refined in PR #149.
 
+The authored API is `ScriptedRuntime.ports`, independent of the instance display name and repository name. Historical scripts require [manual API migration](SCRIPTED-MIGRATION.md); source is never rewritten automatically. That guide also records the corrected CP8 Scripted legacy inventory and manual smoke procedure.
+
 Canonical authored state remains self-contained in the Presentation and includes declared `ports` in addition to `title`, `html`, `css` and `script`. Ports are explicit capabilities, not introspection of arbitrary authored JavaScript.
 
 Supported runtime semantics include:
@@ -229,7 +231,7 @@ Supported runtime semantics include:
 - boolean state ports with `input`, `output` or `input-output` direction;
 - number state ports with `input`, `output` or `input-output` direction and optional finite `min`/`max`/`step` guidance.
 
-The Editor keeps source fields in local drafts and commits them through explicit **Apply / Run**. PowerShow Control renders controls from declarations; Player owns runtime identity and validates activation/version/page/slot/element/port before bridging messages to the mounted sandbox.
+The Editor keeps source fields in local drafts and commits them through explicit **Apply / Run**. Control renders controls from declarations; Player owns runtime identity and validates activation/version/page/slot/element/port before bridging messages to the mounted sandbox.
 
 The shared renderer keeps the permanent isolation boundary:
 
@@ -247,7 +249,7 @@ No same-origin permission, Firebase/session exposure, parent DOM access, storage
 
 Plot V1 started in PR #142 and its continuation is complete through PRs #146–#148.
 
-The canonical `plot` element stores restricted mathematical intent rather than generated geometry. `@powershow/math-source` owns parsing, semantic validation, bounded evaluation, sampling and math-space geometry; the shared renderer owns projection and visual output.
+The canonical `plot` element stores restricted mathematical intent rather than generated geometry. `@web-slideshow/math-source` owns parsing, semantic validation, bounded evaluation, sampling and math-space geometry; the shared renderer owns projection and visual output.
 
 Current Plot capabilities include:
 
@@ -258,7 +260,7 @@ Current Plot capabilities include:
 - z-based 3D gradient;
 - one optional canonical animation parameter with transient runtime bindings;
 - local animation playback in runtime surfaces;
-- Player-targeted remote **Play / Pause / Reset** from PowerShow Control.
+- Player-targeted remote **Play / Pause / Reset** from Control.
 
 Plot animation remains a bounded Plot capability rather than a generic scripting system. Separate Plot elements own independent runtimes; multiple equations in one Plot share the same animation parameter.
 
@@ -270,7 +272,7 @@ Physical performance acceptance on the target Android interactive display with F
 
 Font authoring was refined in PR #150 without changing the canonical schema or renderer contract.
 
-`typography.fontFamily` is one authored family-name string. The Studio provides an editable field with Presentation FontResource families as suggestions, so a family such as `MS Sans Serif` may be authored even when no FontResource exists. In that case the browser uses the named family only if it is available in the runtime environment; PowerShow does not search the internet or enumerate installed fonts.
+`typography.fontFamily` is one authored family-name string. The Studio provides an editable field with Presentation FontResource families as suggestions, so a family such as `MS Sans Serif` may be authored even when no FontResource exists. In that case the browser uses the named family only if it is available in the runtime environment; the application does not search the internet or enumerate installed fonts.
 
 Portable fonts use the existing canonical path:
 
@@ -288,7 +290,7 @@ Direct manual FontResource creation under **This Presentation** remains deferred
 
 PR #134 added activation-scoped Player presentation options and remote logs control.
 
-PowerShow Control can configure:
+Control can configure:
 
 - slide transition: Fade / Slide / None;
 - Player control position;
@@ -322,7 +324,7 @@ Canonical Topics remains recursively structural rather than introducing a second
 TopicsElement
 → TopicItem[]
    ├── content: ContentSlot
-   │   └── children: PowerShowElement[]
+   │   └── children: PresentationElement[]
    └── children: TopicItem[]
 ```
 
@@ -349,7 +351,7 @@ viewport?
 
 Defaults are pruned: `zoom: 1`, zero edges and an empty `viewport` are not persisted. The Studio presents Zoom as a percentage and groups Top/Right/Bottom/Left as **Framing / Enquadramento**.
 
-The shared renderer implements provider-neutral framing with a clipped PowerShow-owned viewport and transform-based scaling, without accessing provider DOM. This keeps compatibility with Firefox 116 and cross-origin content while allowing a larger or smaller internal iframe viewport to be framed inside the authored Embed box.
+The shared renderer implements provider-neutral framing with a clipped application-owned viewport and transform-based scaling, without accessing provider DOM. This keeps compatibility with Firefox 116 and cross-origin content while allowing a larger or smaller internal iframe viewport to be framed inside the authored Embed box.
 
 The fixed renderer-owned iframe policy remains:
 
@@ -360,9 +362,9 @@ referrerpolicy="strict-origin-when-cross-origin"
 loading="lazy"
 ```
 
-`allow-same-origin` is intentionally not author-configurable. Manual testing demonstrated that globally removing it breaks ordinary external web applications that rely on their own origin capabilities; cross-origin providers still remain cross-origin relative to PowerShow. Same-origin PowerShow URLs remain a focused security-review concern rather than a reason to weaken external-provider compatibility globally.
+`allow-same-origin` is intentionally not author-configurable. Manual testing demonstrated that globally removing it breaks ordinary external web applications that rely on their own origin capabilities; cross-origin providers still remain cross-origin relative to the application. Same-origin application URLs remain a focused security-review concern rather than a reason to weaken external-provider compatibility globally.
 
-Provider refusal via `X-Frame-Options` or CSP `frame-ancestors` is a provider/browser restriction, not something PowerShow should bypass.
+Provider refusal via `X-Frame-Options` or CSP `frame-ancestors` is a provider/browser restriction, not something the application should bypass.
 
 PR #154 also fixed the Control presenter preview so stateful iframe DOM is preserved across unrelated one-second shell rerenders. Renderer hydration is separated from Gallery projection, and a real iframe node-identity regression protects the invariant. Manual acceptance with Blockly Games confirmed provider compatibility, viewport framing and stable Control behavior.
 
@@ -376,7 +378,7 @@ Recent merged work includes:
 - grammar-based Blocks visual authoring;
 - Typography/Text Style usage and target-aware association behavior;
 - Image Inspector and Delete→Enter ergonomics;
-- PowerShow Suite chrome for Maintenance;
+- shared application chrome for Maintenance;
 - Editor Resource Controls polish;
 - Scripted declared action/boolean/number ports with Player bridge and Control stateful controls (PR #133);
 - Player slide transitions, Player control options and remote Maintenance logs (PR #134);
@@ -417,7 +419,7 @@ Firebase Web configuration is documented in `.env.example`. RTDB rule changes li
 
 ## Project workflow
 
-PowerShow development is audit-first and checkpoint-driven:
+Development is audit-first and checkpoint-driven:
 
 ```text
 AUDIT

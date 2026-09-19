@@ -8,8 +8,8 @@ import {
   PresentationSchema,
   type ColorValue,
   type Presentation,
-  type PowerShowElement,
-} from "@powershow/document-schema";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
@@ -113,7 +113,7 @@ function key(options: KeyboardEventInit): KeyboardEvent {
   return new KeyboardEvent("keydown", { key: "z", bubbles: true, cancelable: true, ...options });
 }
 
-function findElement(elements: readonly PowerShowElement[], id: string): PowerShowElement | undefined {
+function findElement(elements: readonly PresentationElement[], id: string): PresentationElement | undefined {
   for (const element of elements) {
     if (element.id === id) return element;
     if (element.type === "container") {

@@ -1,4 +1,4 @@
-import type { FontResource, LinkedStyle, PowerShowElement, PresentationPalette, TextStyle } from "@powershow/document-schema";
+import type { FontResource, LinkedStyle, PresentationElement, PresentationPalette, TextStyle } from "@web-slideshow/document-schema";
 
 import {
   composeCustomLibraryElementRecipe,
@@ -20,7 +20,7 @@ export interface CustomLibraryItemDraft {
 export interface CreateCustomLibraryItemDraftInput {
   name: string;
   description?: string;
-  root: PowerShowElement;
+  root: PresentationElement;
   selections: ElementPropertySelectionMap;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];

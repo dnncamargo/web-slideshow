@@ -5,21 +5,21 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
   PresentationSchema,
   type Presentation,
-  type PowerShowElement,
-} from "@powershow/document-schema";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-type StructuredTable = Extract<PowerShowElement, { type: "table"; mode: "structured" }>;
+type StructuredTable = Extract<PresentationElement, { type: "table"; mode: "structured" }>;
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { type: "text", id, hidden: false, variant: "body", content };
 }
 
@@ -124,7 +124,7 @@ describe("CP4D6 Structured Table structure history", () => {
   }
 
   async function selectTable(): Promise<void> {
-    const element = container.querySelector<HTMLElement>('[data-powershow-id="cp4d6-table"]');
+    const element = container.querySelector<HTMLElement>('[data-presentation-id="cp4d6-table"]');
     if (!element) throw new Error("table was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -168,7 +168,7 @@ describe("CP4D6 Structured Table structure history", () => {
 
   async function removeSelected(kind: "column" | "row", id: string): Promise<void> {
     await act(async () => structuralSelection(id).click());
-    await act(async () => button(`[data-powershow-table-remove-${kind}]`).click());
+    await act(async () => button(`[data-presentation-table-remove-${kind}]`).click());
     const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.startsWith(`Remove ${kind}`));
     if (!confirm) throw new Error("confirmation button was not rendered");
@@ -193,7 +193,7 @@ describe("CP4D6 Structured Table structure history", () => {
     await mount();
     const before = structuredClone(latest);
 
-    await act(async () => button("[data-powershow-table-add-column]").click());
+    await act(async () => button("[data-presentation-table-add-column]").click());
     await save();
     const added = getTable(latest);
     const addedColumn = added.columns[3];
@@ -202,8 +202,8 @@ describe("CP4D6 Structured Table structure history", () => {
     const addedCells = added.rows.map((row) => row.cells[3]);
     expect(added.columns).toHaveLength(4);
     expect(added.rows.every((row) => row.cells.length === added.columns.length)).toBe(true);
-    expect(addedHeader).toMatchObject({ type: "text", content: "Column", variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
-    expect(addedCells.every((cell) => cell?.children[0]?.type === "text" && cell.children[0].content === "Value" && cell.children[0].variant === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
+    expect(addedHeader).toMatchObject({ type: "text", content: "Column", variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(addedCells.every((cell) => cell?.children[0]?.type === "text" && cell.children[0].content === "Value" && cell.children[0].variant === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
     const generatedIds = [
       addedColumn.id,
       addedColumn.header.id,
@@ -220,14 +220,14 @@ describe("CP4D6 Structured Table structure history", () => {
     await save();
     expect(getTable(latest)).toEqual(added);
     expect(latest.textStyles?.map((style) => style.id)).toEqual([
-      POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-      POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+      SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+      SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
     ]);
   });
 
   it("adds rows with current column count, including zero columns, and replays exact IDs", async () => {
     await mount();
-    await act(async () => button("[data-powershow-table-add-row]").click());
+    await act(async () => button("[data-presentation-table-add-row]").click());
     await save();
     const added = getTable(latest);
     const addedRow = added.rows[2];
@@ -243,7 +243,7 @@ describe("CP4D6 Structured Table structure history", () => {
       slides: [{ id: "slide-zero", title: "Zero", summary: "", speakerNotes: "", elements: [{ ...table(), columns: [], rows: [{ id: "zero-row", cells: [] }] }] }],
     });
     await mount(zeroColumn);
-    await act(async () => button("[data-powershow-table-add-row]").click());
+    await act(async () => button("[data-presentation-table-add-row]").click());
     await save();
     expect(getTable(latest).rows.at(-1)?.cells).toEqual([]);
   });
@@ -251,15 +251,15 @@ describe("CP4D6 Structured Table structure history", () => {
   it("preserves authored canonical styles and does not duplicate them", async () => {
     const authored = presentation({
       textStyles: [
-        { id: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Authored header", role: "body", typography: { fontSize: "2rem" } },
-        { id: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, name: "Authored cell", role: "body", style: { color: "#123456" } },
+        { id: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Authored header", role: "body", typography: { fontSize: "2rem" } },
+        { id: SYSTEM_TABLE_CELL_TEXT_STYLE_ID, name: "Authored cell", role: "body", style: { color: "#123456" } },
       ],
     });
     await mount(authored);
-    await act(async () => button("[data-powershow-table-add-column]").click());
+    await act(async () => button("[data-presentation-table-add-column]").click());
     await save();
     expect(latest.textStyles).toEqual(authored.textStyles);
-    expect(latest.textStyles?.filter((style) => style.id === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
+    expect(latest.textStyles?.filter((style) => style.id === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
   });
 
   it("removes columns and rows atomically, including last-item cases and exact subtree replay", async () => {
@@ -342,7 +342,7 @@ describe("CP4D6 Structured Table structure history", () => {
     await act(async () => button('button[aria-label="Move right"]').click());
     await openInspectorPanel();
     await act(async () => structuralSelection("column-b").click());
-    await act(async () => button("[data-powershow-table-remove-column]").click());
+    await act(async () => button("[data-presentation-table-remove-column]").click());
     const staleConfirm = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.startsWith("Remove column"));
     if (!staleConfirm) throw new Error("confirmation button missing");

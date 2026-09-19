@@ -4,7 +4,7 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { CustomLibrarySaveForm } from "../src/features/custom-library/custom-library-save-form";
 import type { CustomLibraryRepository } from "../src/features/custom-library/custom-library-repository";
@@ -12,7 +12,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const rootElement: PowerShowElement = {
+const rootElement: PresentationElement = {
   type: "text",
   id: "text-1",
   hidden: false,

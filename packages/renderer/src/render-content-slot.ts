@@ -1,7 +1,7 @@
 import type {
   ContentSlot,
   Length,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
 import { renderLength } from "./render-length";

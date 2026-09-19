@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -89,7 +89,7 @@ function keyRedo(): KeyboardEvent {
   });
 }
 
-function makePresentation(element: PowerShowElement): Presentation {
+function makePresentation(element: PresentationElement): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4e1-canvas-drag",
@@ -102,7 +102,7 @@ function makePresentation(element: PowerShowElement): Presentation {
   });
 }
 
-function containerElement(): PowerShowElement {
+function containerElement(): PresentationElement {
   return {
     type: "container",
     id: "container-1",
@@ -128,7 +128,7 @@ function containerElement(): PowerShowElement {
   };
 }
 
-function imageElement(): PowerShowElement {
+function imageElement(): PresentationElement {
   return {
     type: "image",
     id: "image-1",
@@ -151,7 +151,7 @@ function imageElement(): PowerShowElement {
   };
 }
 
-function dividerElement(): PowerShowElement {
+function dividerElement(): PresentationElement {
   return {
     type: "divider",
     id: "divider-1",
@@ -181,16 +181,16 @@ describe("CP4E1 canvas drag History integration", () => {
     HTMLElement.prototype.releasePointerCapture = () => {};
     HTMLElement.prototype.hasPointerCapture = () => false;
     HTMLElement.prototype.getBoundingClientRect = function () {
-      if (this.classList.contains("powershow-slide") || this.classList.contains("powershow-slide-content")) {
+      if (this.classList.contains("presentation-slide") || this.classList.contains("presentation-slide-content")) {
         return rect(0, 0, 1000, 600) as unknown as DOMRect;
       }
-      if (this.dataset.powershowType === "container") {
+      if (this.dataset.presentationType === "container") {
         return canvasRect(this, 200, 140) as unknown as DOMRect;
       }
-      if (this.dataset.powershowType === "image") {
+      if (this.dataset.presentationType === "image") {
         return canvasRect(this, 200, 140) as unknown as DOMRect;
       }
-      if (this.dataset.powershowType === "divider") {
+      if (this.dataset.presentationType === "divider") {
         return canvasRect(this, 100, 20) as unknown as DOMRect;
       }
       return originalGetBoundingClientRect.call(this);
@@ -217,7 +217,7 @@ describe("CP4E1 canvas drag History integration", () => {
           </StudioI18nProvider>,
         );
     });
-    const element = container.querySelector<HTMLElement>("[data-powershow-id]");
+    const element = container.querySelector<HTMLElement>("[data-presentation-id]");
     if (!element) throw new Error("expected a rendered canvas element");
     return element;
   }
@@ -227,12 +227,12 @@ describe("CP4E1 canvas drag History integration", () => {
     start: { x: number; y: number },
     end: { x: number; y: number },
   ): Promise<HTMLElement> {
-    const element = container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`missing canvas element ${id}`);
     await act(async () => element.dispatchEvent(pointer("pointerdown", start.x, start.y)));
     await act(async () => element.dispatchEvent(pointer("pointermove", end.x, end.y)));
     await act(async () => element.dispatchEvent(pointer("pointerup", end.x, end.y)));
-    return container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`) ?? element;
+    return container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`) ?? element;
   }
 
   async function undo(): Promise<void> {
@@ -246,14 +246,14 @@ describe("CP4E1 canvas drag History integration", () => {
   it("keeps preview transient, cancels without History, and ignores zero movement", async () => {
     const initial = makePresentation(imageElement());
     await mount(initial);
-    const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!;
+    const image = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')!;
 
     await act(async () => image.dispatchEvent(pointer("pointerdown", 150, 120)));
     await act(async () => image.dispatchEvent(pointer("pointermove", 190, 150)));
     expect(image.style.translate).toBe("40px 30px");
     expect(image.style.left).toBe("100px");
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("100px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("100px");
 
     await act(async () => image.dispatchEvent(pointer("pointercancel", 190, 150)));
     expect(image.style.translate).toBe("");
@@ -262,7 +262,7 @@ describe("CP4E1 canvas drag History integration", () => {
     await act(async () => image.dispatchEvent(pointer("pointerdown", 150, 120, 2)));
     await act(async () => image.dispatchEvent(pointer("pointerup", 150, 120, 2)));
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("100px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("100px");
   });
 
   it("commits one absolute Container drag and preserves unrelated properties through undo/redo", async () => {
@@ -271,7 +271,7 @@ describe("CP4E1 canvas drag History integration", () => {
 
     await drag("container-1", { x: 150, y: 120 }, { x: 190, y: 150 });
 
-    const moved = container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')!;
+    const moved = container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')!;
     expect(moved.style.left).toBe("140px");
     expect(moved.style.top).toBe("110px");
     expect(moved.style.width).toBe("200px");
@@ -280,12 +280,12 @@ describe("CP4E1 canvas drag History integration", () => {
     expect(moved.style.opacity).toBe("0.8");
 
     await undo();
-    const restored = container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')!;
+    const restored = container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')!;
     expect(restored.style.left).toBe("100px");
     expect(restored.style.right).toBe("700px");
     expect(restored.style.top).toBe("80px");
     await redo();
-    const redone = container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')!;
+    const redone = container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')!;
     expect(redone.style.left).toBe("140px");
     expect(redone.style.right).toBe("660px");
   });
@@ -295,7 +295,7 @@ describe("CP4E1 canvas drag History integration", () => {
     await mount(initial);
     await drag("image-1", { x: 150, y: 120 }, { x: 190, y: 150 });
 
-    const moved = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!;
+    const moved = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')!;
     expect(moved.style.left).toBe("140px");
     expect(moved.style.top).toBe("110px");
     expect(moved.style.width).toBe("200px");
@@ -303,41 +303,41 @@ describe("CP4E1 canvas drag History integration", () => {
     expect(moved.style.borderRadius).toBe("8px");
 
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("100px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("100px");
     await redo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("140px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("140px");
   });
 
   it("routes a generic Divider drag through canonical History", async () => {
     await mount(makePresentation(dividerElement()));
     await drag("divider-1", { x: 150, y: 120 }, { x: 190, y: 150 });
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="divider-1"]')?.style.left).toBe("140px");
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="divider-1"]')?.style.top).toBe("110px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="divider-1"]')?.style.left).toBe("140px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="divider-1"]')?.style.top).toBe("110px");
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="divider-1"]')?.style.left).toBe("100px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="divider-1"]')?.style.left).toBe("100px");
     await redo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="divider-1"]')?.style.left).toBe("140px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="divider-1"]')?.style.left).toBe("140px");
   });
 
   it("keeps consecutive gestures as independent actions", async () => {
     await mount(makePresentation(imageElement()));
     await drag("image-1", { x: 150, y: 120 }, { x: 190, y: 150 });
     await drag("image-1", { x: 200, y: 170 }, { x: 230, y: 195 });
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("170px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("170px");
 
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("140px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("140px");
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("100px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("100px");
     await redo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("140px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("140px");
     await redo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')?.style.left).toBe("170px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("170px");
   });
 
   it("keeps a continuous inspector position edit separate from the following canvas drag", async () => {
     await mount(makePresentation(containerElement()));
-    const containerElementNode = container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')!;
+    const containerElementNode = container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')!;
     await act(async () => containerElementNode.dispatchEvent(pointer("pointerdown", 150, 120)));
     await act(async () => containerElementNode.dispatchEvent(pointer("pointercancel", 150, 120)));
 
@@ -354,11 +354,11 @@ describe("CP4E1 canvas drag History integration", () => {
     await act(async () => leftInput.blur());
 
     await drag("container-1", { x: 170, y: 120 }, { x: 210, y: 150 });
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')?.style.left).toBe("160px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')?.style.left).toBe("160px");
 
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')?.style.left).toBe("120px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')?.style.left).toBe("120px");
     await undo();
-    expect(container.querySelector<HTMLElement>('[data-powershow-id="container-1"]')?.style.left).toBe("100px");
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="container-1"]')?.style.left).toBe("100px");
   });
 });

@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { TextElement } from "@powershow/document-schema";
+import type { TextElement } from "@web-slideshow/document-schema";
 
 import {
   resolveCanvasEmbedPointerTarget,
@@ -119,8 +119,8 @@ describe("Canvas pointer hit resolution", () => {
   ): HTMLElement {
     const element = document.createElement("div");
 
-    element.dataset.powershowId = id;
-    element.dataset.powershowType = type;
+    element.dataset.presentationId = id;
+    element.dataset.presentationType = type;
 
     if (parent) {
       parent.appendChild(element);
@@ -221,8 +221,8 @@ describe("neutralized Scripted canvas hit-testing", () => {
   ): HTMLElement {
     const element = document.createElement("div");
 
-    element.dataset.powershowId = id;
-    element.dataset.powershowType = type;
+    element.dataset.presentationId = id;
+    element.dataset.presentationType = type;
 
     if (parent) {
       parent.appendChild(element);

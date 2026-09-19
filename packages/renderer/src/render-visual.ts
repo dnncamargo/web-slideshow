@@ -3,7 +3,7 @@ import type {
   GradientSurfaceBackground,
   Gradient,
   Shadow,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   renderLength,

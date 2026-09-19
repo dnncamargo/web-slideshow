@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   EmbedElement,
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import type {
@@ -33,7 +33,7 @@ const ELEMENT_BASES = {
   embed: { id: "embed-1", type: "embed", hidden: false, src: "https://example.com/", title: "Embedded content" },
   scripted: { id: "scripted-1", type: "scripted", hidden: false, title: "Scripted content", html: "", css: "", script: "", ports: [] },
   plot: { id: "plot-1", type: "plot", hidden: false, source: "" },
-} satisfies Record<string, PowerShowElement>;
+} satisfies Record<string, PresentationElement>;
 
 const SPACING_CASES = [
   ["text", ELEMENT_BASES.text],
@@ -60,8 +60,8 @@ describe("shared element spacing section", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  async function renderElement(initial: PowerShowElement) {
-    let element: PowerShowElement = initial;
+  async function renderElement(initial: PresentationElement) {
+    let element: PresentationElement = initial;
     const renderInspector = () => root.render(
       <StudioI18nProvider>
         <ElementInspector

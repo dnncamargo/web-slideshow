@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   EmbedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderEmbed } from "../src/render-embed";
@@ -36,7 +36,7 @@ describe("renderEmbed", () => {
       style: { border: { width: 2, style: "solid", gradient }, borderRadius: 8 },
     }));
 
-    expect(html.startsWith('<div class="powershow-element powershow-embed presentation-gradient-border"')).toBe(true);
+    expect(html.startsWith('<div class="presentation-element presentation-embed presentation-gradient-border"')).toBe(true);
     expect(html).toContain("presentation-gradient-border");
     expect(html).toContain("border:0");
     expect(html).toContain("padding:2px");
@@ -46,9 +46,9 @@ describe("renderEmbed", () => {
     expect(html).toContain("--presentation-embed-inner-radius:max(0px,calc(8px - 2px))");
     expect(html).toContain("border-radius:var(--presentation-embed-inner-radius)");
     expect(html).not.toContain("border-image:");
-    expect(html.match(/powershow-element/g)).toHaveLength(1);
-    expect(html.match(/data-powershow-id=/g)).toHaveLength(1);
-    expect(html).not.toContain('class="powershow-element powershow-embed"');
+    expect(html.match(/presentation-element/g)).toHaveLength(1);
+    expect(html.match(/data-presentation-id=/g)).toHaveLength(1);
+    expect(html).not.toContain('class="presentation-element presentation-embed"');
   });
 
   it("keeps iframe attributes on the direct gradient surface", () => {
@@ -58,14 +58,14 @@ describe("renderEmbed", () => {
       style: { className: "hero-embed", border: { width: 3, gradient } },
     }));
 
-    expect(html).toContain('class="powershow-element powershow-embed hero-embed presentation-gradient-border"');
+    expect(html).toContain('class="presentation-element presentation-embed hero-embed presentation-gradient-border"');
     expect(html).toContain('<iframe src="https://www.youtube.com/embed/video-id"');
     expect(html).toContain('title="Video"');
     expect(html).toContain('sandbox="allow-scripts allow-forms allow-same-origin"');
     expect(html).toContain('allow="fullscreen"');
     expect(html).toContain('referrerpolicy="strict-origin-when-cross-origin"');
     expect(html).toContain('loading="lazy"');
-    expect(html).not.toContain('class="powershow-element powershow-embed hero-embed"');
+    expect(html).not.toContain('class="presentation-element presentation-embed hero-embed"');
     expect(html).not.toContain("border-image:");
   });
 
@@ -136,7 +136,7 @@ describe("renderEmbed", () => {
       style: { border: { width: 2, gradient }, borderRadius: 12 },
     }));
 
-    expect(html.startsWith('<div class="powershow-element powershow-embed presentation-gradient-border"')).toBe(true);
+    expect(html.startsWith('<div class="presentation-element presentation-embed presentation-gradient-border"')).toBe(true);
     expect(html).toContain('class="presentation-embed-gradient-surface"');
     expect(html).toContain("position:relative;width:100%;height:100%;overflow:hidden");
     expect(html).toContain("border-radius:var(--presentation-embed-inner-radius)");
@@ -148,7 +148,7 @@ describe("renderEmbed", () => {
     expect(html).toContain("top:-9px");
     expect(html).toContain("transform:scale(0.75)");
     expect(html).not.toContain("border-image:");
-    expect(html.match(/powershow-element/g)).toHaveLength(1);
+    expect(html.match(/presentation-element/g)).toHaveLength(1);
   });
 
   it.each(["solid", "dashed", "dotted"] as const)("keeps %s color borders native", (style) => {
@@ -171,17 +171,17 @@ describe("renderEmbed", () => {
 
     expect(html.startsWith("<iframe")).toBe(true);
     expect(html).not.toContain("overflow:hidden");
-    expect(html).toContain('data-powershow-id="embed-1"');
+    expect(html).toContain('data-presentation-id="embed-1"');
   });
 
-  it("renders a PowerShow-owned clipped viewport when authored", () => {
+  it("renders an application-owned clipped viewport when authored", () => {
     const html = renderEmbed(embed({ viewport: { zoom: 0.75 } }));
 
-    expect(html.startsWith('<div class="powershow-element powershow-embed"')).toBe(true);
+    expect(html.startsWith('<div class="presentation-element presentation-embed"')).toBe(true);
     expect(html).toContain("overflow:hidden");
-    expect(html).toContain('data-powershow-id="embed-1"');
+    expect(html).toContain('data-presentation-id="embed-1"');
     expect(html).toContain('<iframe src="https://example.com/"');
-    expect(html).not.toContain('data-powershow-id="embed-1" src=');
+    expect(html).not.toContain('data-presentation-id="embed-1" src=');
   });
 
   it("uses reciprocal internal dimensions for zoom below one", () => {
@@ -237,20 +237,20 @@ describe("renderEmbed", () => {
     expect(html).toContain("transform:scale(1.5)");
   });
 
-  it("renders the powershow-element class", () => {
-    expect(renderEmbed(embed())).toContain("powershow-element");
+  it("renders the presentation-element class", () => {
+    expect(renderEmbed(embed())).toContain("presentation-element");
   });
 
-  it("renders the powershow-embed class", () => {
-    expect(renderEmbed(embed())).toContain("powershow-embed");
+  it("renders the presentation-embed class", () => {
+    expect(renderEmbed(embed())).toContain("presentation-embed");
   });
 
-  it("emits data-powershow-id", () => {
-    expect(renderEmbed(embed())).toContain('data-powershow-id="embed-1"');
+  it("emits data-presentation-id", () => {
+    expect(renderEmbed(embed())).toContain('data-presentation-id="embed-1"');
   });
 
-  it("emits data-powershow-type=embed", () => {
-    expect(renderEmbed(embed())).toContain('data-powershow-type="embed"');
+  it("emits data-presentation-type=embed", () => {
+    expect(renderEmbed(embed())).toContain('data-presentation-type="embed"');
   });
 
   it("emits escaped src", () => {
@@ -541,8 +541,8 @@ describe("renderEmbed", () => {
   it("dispatches Embed through renderElement", () => {
     const html = renderElement(embed());
 
-    expect(html).toContain("powershow-embed");
+    expect(html).toContain("presentation-embed");
 
-    expect(html).toContain('data-powershow-type="embed"');
+    expect(html).toContain('data-presentation-type="embed"');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 const firebase = vi.hoisted(() => ({
   callback: undefined as ((snapshot: { val(): unknown }) => void) | undefined,

@@ -1,4 +1,4 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 export const EDITOR_AUTOSAVE_DELAY_MS = 1500;
 

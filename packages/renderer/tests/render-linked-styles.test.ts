@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement, renderPresentation } from "../src";
 
 function tagForId(html: string, id: string): string {
-  const marker = `data-powershow-id="${id}"`;
+  const marker = `data-presentation-id="${id}"`;
   const markerIndex = html.indexOf(marker);
   const start = html.lastIndexOf("<", markerIndex);
   const end = html.indexOf(">", markerIndex);
@@ -110,8 +110,8 @@ describe("Linked Container Style rendering", () => {
       }],
     }]));
 
-    const surfaceStart = html.indexOf("powershow-container-fit-surface");
-    const childStart = html.indexOf('data-powershow-id="child"');
+    const surfaceStart = html.indexOf("presentation-container-fit-surface");
+    const childStart = html.indexOf('data-presentation-id="child"');
 
     expect(surfaceStart).toBeGreaterThan(-1);
     expect(html.slice(surfaceStart)).toContain("position:relative");
@@ -151,7 +151,7 @@ describe("Linked Container Style rendering", () => {
       "Cannot render linked container style without presentation context: card",
     );
     expect(renderElement({ id: "plain", type: "container", hidden: false, children: [] })).toContain(
-      'data-powershow-id="plain"',
+      'data-presentation-id="plain"',
     );
   });
 });

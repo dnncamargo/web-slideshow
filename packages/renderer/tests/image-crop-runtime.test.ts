@@ -21,12 +21,12 @@ class FakeImage {
 
 class FakeNode {
   dataset: Record<string, string> = {
-    powershowImageCrop: JSON.stringify({ x: 10, y: 20, width: 60, height: 50 }),
-    powershowImageFit: "contain",
-    powershowImageFocalX: "50",
-    powershowImageFocalY: "50",
-    powershowImageWidthAuthored: "true",
-    powershowImageHeightAuthored: "true",
+    presentationImageCrop: JSON.stringify({ x: 10, y: 20, width: 60, height: 50 }),
+    presentationImageFit: "contain",
+    presentationImageFocalX: "50",
+    presentationImageFocalY: "50",
+    presentationImageWidthAuthored: "true",
+    presentationImageHeightAuthored: "true",
   };
   style: Record<string, string> = {};
   clientWidth = 600;
@@ -45,8 +45,8 @@ class FakeNode {
   private height = 400;
 
   querySelector<T>(selector: string): T | null {
-    if (selector === ".powershow-image-crop-viewport") return this.viewport as T;
-    if (selector === ".powershow-image-media") return this.image as T;
+    if (selector === ".presentation-image-crop-viewport") return this.viewport as T;
+    if (selector === ".presentation-image-media") return this.image as T;
     return null;
   }
 
@@ -89,8 +89,8 @@ describe("hydrateImageCrops", () => {
     ["false", "true", 720, 400],
   ] as const)("derives the missing authored dimension (%s/%s)", (widthAuthored, heightAuthored, expectedWidth, expectedHeight) => {
     const node = new FakeNode();
-    node.dataset.powershowImageWidthAuthored = widthAuthored;
-    node.dataset.powershowImageHeightAuthored = heightAuthored;
+    node.dataset.presentationImageWidthAuthored = widthAuthored;
+    node.dataset.presentationImageHeightAuthored = heightAuthored;
     if (widthAuthored === "false") node.clientWidth = 0;
     if (heightAuthored === "false") node.clientHeight = 0;
     const root = { querySelectorAll: () => [node] };
@@ -104,8 +104,8 @@ describe("hydrateImageCrops", () => {
 
   it("uses the natural crop size for neither-authored dimensions and ignores block auto width", () => {
     const node = new FakeNode();
-    node.dataset.powershowImageWidthAuthored = "false";
-    node.dataset.powershowImageHeightAuthored = "false";
+    node.dataset.presentationImageWidthAuthored = "false";
+    node.dataset.presentationImageHeightAuthored = "false";
     node.clientWidth = 900;
     node.clientHeight = 0;
     node.parentElement = {
@@ -124,8 +124,8 @@ describe("hydrateImageCrops", () => {
 
   it("scales neither-authored dimensions proportionally to parent constraints", () => {
     const node = new FakeNode();
-    node.dataset.powershowImageWidthAuthored = "false";
-    node.dataset.powershowImageHeightAuthored = "false";
+    node.dataset.presentationImageWidthAuthored = "false";
+    node.dataset.presentationImageHeightAuthored = "false";
     node.parentElement = {
       clientWidth: 300,
       clientHeight: 100,
@@ -157,8 +157,8 @@ describe("hydrateImageCrops", () => {
 
   it("does not resize a constrained Gallery overlay crop root", () => {
     const node = new FakeNode();
-    node.dataset.powershowImageWidthAuthored = "true";
-    node.dataset.powershowImageHeightAuthored = "true";
+    node.dataset.presentationImageWidthAuthored = "true";
+    node.dataset.presentationImageHeightAuthored = "true";
     const root = { querySelectorAll: () => [node] };
     node.image.load(1200, 800);
     hydrateImageCrops(root as unknown as ParentNode);
@@ -170,8 +170,8 @@ describe("hydrateImageCrops", () => {
 
   it("derives only height for an intrinsic-sizing Gallery crop", () => {
     const node = new FakeNode();
-    node.dataset.powershowImageWidthAuthored = "true";
-    node.dataset.powershowImageHeightAuthored = "false";
+    node.dataset.presentationImageWidthAuthored = "true";
+    node.dataset.presentationImageHeightAuthored = "false";
     node.clientHeight = 0;
     const root = { querySelectorAll: () => [node] };
     node.image.load(1200, 800);

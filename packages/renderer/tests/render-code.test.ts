@@ -62,7 +62,7 @@ describe("renderCode", () => {
 
     expect(countOccurrences(html, 'data-line="')).toBe(2);
     expect(html).toContain('data-line="2"');
-    expect(html).toContain('data-line="2"><span class="powershow-code-line-number"');
+    expect(html).toContain('data-line="2"><span class="presentation-code-line-number"');
   });
   it("renders empty code as one empty visual line", () => {
     const html = renderCode(
@@ -73,7 +73,7 @@ describe("renderCode", () => {
     expect(html).toContain('data-line="1"');
     expect(html).not.toContain('data-line="2"');
     expect(html).toContain(
-      'class="powershow-code-line-content"',
+      'class="presentation-code-line-content"',
     );
   });
 
@@ -104,7 +104,7 @@ describe("renderCode", () => {
     expect(
       countOccurrences(
         html,
-        'class="powershow-code-line-number"',
+        'class="presentation-code-line-number"',
       ),
     ).toBe(2);
     expect(html).toContain(">1</span>");
@@ -120,7 +120,7 @@ describe("renderCode", () => {
     );
 
     expect(html).not.toContain(
-      "powershow-code-line-number",
+      "presentation-code-line-number",
     );
     expect(countOccurrences(html, 'data-line="')).toBe(2);
   });
@@ -136,17 +136,17 @@ describe("renderCode", () => {
     expect(
       getLineOpeningTag(html, 2),
     ).toContain(
-      "powershow-code-line-highlighted",
+      "presentation-code-line-highlighted",
     );
     expect(
       getLineOpeningTag(html, 1),
     ).not.toContain(
-      "powershow-code-line-highlighted",
+      "presentation-code-line-highlighted",
     );
     expect(
       countOccurrences(
         html,
-        "powershow-code-line-highlighted",
+        "presentation-code-line-highlighted",
       ),
     ).toBe(1);
   });
@@ -160,7 +160,7 @@ describe("renderCode", () => {
     );
 
     expect(html).not.toContain(
-      "powershow-code-line-highlighted",
+      "presentation-code-line-highlighted",
     );
     expect(html).not.toContain('data-line="99"');
     expect(countOccurrences(html, 'data-line="')).toBe(2);
@@ -226,8 +226,8 @@ describe("renderCode", () => {
     expect(html).toContain("line-height:1.4");
     expect(html).toContain("letter-spacing:0.02em");
     expect(html).toContain("color:var(--ps-palette-0061006300630065006e0074)");
-    expect(html).toContain('class="powershow-code-line-number"');
-    expect(html).toContain("powershow-code-line-highlighted");
+    expect(html).toContain('class="presentation-code-line-number"');
+    expect(html).toContain("presentation-code-line-highlighted");
   });
 
   it("coexists with canonical layout, surface, and effect styles", () => {

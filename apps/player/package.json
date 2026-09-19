@@ -1,5 +1,5 @@
 {
-  "name": "@powershow/player",
+  "name": "@web-slideshow/player",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,11 +11,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@powershow/document-schema": "workspace:*",
-    "@powershow/firebase": "workspace:*",
+    "@web-slideshow/document-schema": "workspace:*",
+    "@web-slideshow/firebase": "workspace:*",
     "@web-slideshow/instance-branding": "workspace:*",
-    "@powershow/renderer": "workspace:*",
-    "@powershow/theme": "workspace:*",
+    "@web-slideshow/renderer": "workspace:*",
+    "@web-slideshow/theme": "workspace:*",
     "firebase": "12.17.1"
   },
   "devDependencies": {

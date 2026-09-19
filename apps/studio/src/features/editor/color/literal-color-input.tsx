@@ -7,7 +7,7 @@ import {
   replaceColorRgb,
   type Color,
   type ColorFormat,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { useEffect, useRef, useState } from "react";
 
 import styles from "./literal-color-input.module.css";

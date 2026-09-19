@@ -5,13 +5,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TopicItem,
   type TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 vi.mock("../src/features/editor/editor-history-state", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/features/editor/editor-history-state")>();
@@ -38,7 +38,7 @@ function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   });
 }
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return {
     type: "text",
     id,
@@ -48,7 +48,7 @@ function text(id: string, content: string): PowerShowElement {
   };
 }
 
-function image(id: string): PowerShowElement {
+function image(id: string): PresentationElement {
   return {
     type: "image",
     id,
@@ -61,7 +61,7 @@ function image(id: string): PowerShowElement {
 
 function topicItem(
   id: string,
-  children: PowerShowElement[],
+  children: PresentationElement[],
   nested: TopicItem[] = [],
 ): TopicItem {
   return {
@@ -93,7 +93,7 @@ function presentation(
   items: TopicItem[],
   overrides: Partial<Omit<TopicsElement, "type" | "id" | "items">> = {},
   textStyles: Presentation["textStyles"] = [
-    { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
+    { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
   ],
   linkedStyles: Presentation["linkedStyles"] = undefined,
 ): Presentation {
@@ -167,7 +167,7 @@ describe("CP4D2B Topics Remove history", () => {
 
   async function selectTopics(): Promise<void> {
     const element = container.querySelector<HTMLElement>(
-      `[data-powershow-id="${TOPICS_ID}"]`,
+      `[data-presentation-id="${TOPICS_ID}"]`,
     );
     if (!element) throw new Error("Topics element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -175,10 +175,10 @@ describe("CP4D2B Topics Remove history", () => {
 
   async function removeTopic(id: string): Promise<void> {
     const row = container.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${id}"]`,
+      `[data-presentation-topic-item-id="${id}"]`,
     );
     const button = row?.querySelector<HTMLButtonElement>(
-      'button[data-powershow-topic-remove="true"]',
+      'button[data-presentation-topic-remove="true"]',
     );
     if (!button) throw new Error(`Topic Remove button was not rendered: ${id}`);
     await act(async () => button.click());
@@ -212,10 +212,10 @@ describe("CP4D2B Topics Remove history", () => {
 
   function topicInput(id: string): HTMLInputElement {
     const row = container.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${id}"]`,
+      `[data-presentation-topic-item-id="${id}"]`,
     );
     const input = row?.querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error(`Topic input was not rendered: ${id}`);
     return input;
@@ -338,7 +338,7 @@ describe("CP4D2B Topics Remove history", () => {
     ]);
     const textStyles = [
       { id: "custom-style", name: "Custom", role: "body" as const },
-      { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" as const },
+      { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" as const },
     ];
     const initial = presentation([mixed], {
       rootMarkerStyle: "circle",
@@ -544,7 +544,7 @@ describe("CP4D2B Topics Remove history", () => {
     });
 
     const button = container.querySelector<HTMLElement>(
-      '[data-powershow-topic-item-id="topic-a"] button[data-powershow-topic-remove="true"]',
+      '[data-presentation-topic-item-id="topic-a"] button[data-presentation-topic-remove="true"]',
     );
     if (!button) throw new Error("standalone Remove button was not rendered");
     await act(async () => (button as HTMLButtonElement).click());

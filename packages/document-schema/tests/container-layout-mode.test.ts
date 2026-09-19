@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema } from "../src/elements";
+import { PresentationElementSchema } from "../src/elements";
 
 function createContainer(layoutMode?: "flow" | "stack") {
   return {
@@ -14,18 +14,18 @@ function createContainer(layoutMode?: "flow" | "stack") {
 
 describe("container layout mode", () => {
   it("accepts containers without a layout mode", () => {
-    expect(PowerShowElementSchema.safeParse(createContainer()).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(createContainer()).success).toBe(true);
   });
 
   it.each(["flow", "stack"] as const)("accepts %s layout mode", (layoutMode) => {
-    expect(PowerShowElementSchema.safeParse(createContainer(layoutMode)).success).toBe(
+    expect(PresentationElementSchema.safeParse(createContainer(layoutMode)).success).toBe(
       true,
     );
   });
 
   it("rejects an invalid layout mode", () => {
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...createContainer(),
         layout: { children: { mode: "layered" } },
       }).success,
@@ -34,7 +34,7 @@ describe("container layout mode", () => {
 
   it("accepts nested stack containers", () => {
     expect(
-      PowerShowElementSchema.safeParse({
+      PresentationElementSchema.safeParse({
         ...createContainer("stack"),
         children: [
           {

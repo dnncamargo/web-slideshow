@@ -1,5 +1,5 @@
-import type { Presentation } from "@powershow/document-schema";
-import type { ScriptedReportMessage } from "@powershow/renderer";
+import type { Presentation } from "@web-slideshow/document-schema";
+import type { ScriptedReportMessage } from "@web-slideshow/renderer";
 
 import {
   mountProjectionSurface,
@@ -296,9 +296,9 @@ export function mountPlayer(
   stage.insertAdjacentHTML(
     "beforeend",
     `
-      <div class="powershow-player-controls">
+      <div class="player-controls">
         <button type="button" data-player-action="previous" aria-label="Previous slide">←</button>
-        <output class="powershow-player-counter"></output>
+        <output class="player-counter"></output>
         <button type="button" data-player-action="next" aria-label="Next slide">→</button>
         <button type="button" data-player-action="fullscreen" aria-label="Fullscreen">⛶</button>
       </div>
@@ -307,7 +307,7 @@ export function mountPlayer(
 
   const controls = queryRequired<HTMLElement>(
     root,
-    ".powershow-player-controls",
+    ".player-controls",
   );
 
   // ==========================================================
@@ -318,7 +318,7 @@ export function mountPlayer(
 
   const counter = queryRequired<HTMLOutputElement>(
     root,
-    ".powershow-player-counter",
+    ".player-counter",
   );
 
   // ==========================================================
@@ -360,24 +360,24 @@ export function mountPlayer(
 
   function synchronizeControls(): void {
     for (const position of PLAYER_CONTROLS_POSITIONS) {
-      controls.classList.remove(`powershow-player-controls-${position}`);
+      controls.classList.remove(`player-controls-${position}`);
     }
     controls.classList.add(
-      `powershow-player-controls-${controlsOptions.position}`,
+      `player-controls-${controlsOptions.position}`,
     );
 
     for (const style of PLAYER_CONTROLS_STYLES) {
-      controls.classList.remove(`powershow-player-controls-${style}`);
+      controls.classList.remove(`player-controls-${style}`);
     }
     controls.classList.add(
-      `powershow-player-controls-${controlsOptions.style}`,
+      `player-controls-${controlsOptions.style}`,
     );
 
     for (const animation of PLAYER_CONTROLS_ANIMATIONS) {
-      controls.classList.remove(`powershow-player-controls-${animation}`);
+      controls.classList.remove(`player-controls-${animation}`);
     }
     controls.classList.add(
-      `powershow-player-controls-${controlsOptions.animation}`,
+      `player-controls-${controlsOptions.animation}`,
     );
 
     // Usamos a propriedade HTML "hidden".
@@ -456,7 +456,7 @@ export function mountPlayer(
   }
 
   function showControls(): void {
-    controls.classList.remove("powershow-player-controls-hidden");
+    controls.classList.remove("player-controls-hidden");
 
     clearControlsTimer();
 
@@ -466,7 +466,7 @@ export function mountPlayer(
 
     controlsHideTimer = setTimeout(
       () => {
-        controls.classList.add("powershow-player-controls-hidden");
+        controls.classList.add("player-controls-hidden");
       },
 
       controlsAutoHideMs,

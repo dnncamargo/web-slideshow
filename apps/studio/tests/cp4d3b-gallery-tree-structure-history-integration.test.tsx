@@ -9,7 +9,7 @@ import {
   type GalleryElement,
   type ImageElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 const historyMetas = vi.hoisted(() => [] as Array<{
   kind: string;
@@ -305,7 +305,7 @@ describe("CP4D3B Gallery tree structure history", () => {
 
     await undo();
     await act(async () => elementsTab().click());
-    expect(host.querySelector('[data-powershow-id="image-element-3"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-id="image-element-3"]')).toBeNull();
     expect(treeOrder()).toEqual(["1. Photo"]);
     await redo();
     const save = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))

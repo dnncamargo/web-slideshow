@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 import { mountPlayer } from "../src/player";
 
@@ -44,7 +44,7 @@ describe("Player public Scripted ports", () => {
   afterEach(() => document.body.replaceChildren());
 
   function frame(): HTMLIFrameElement {
-    const result = root.querySelector<HTMLIFrameElement>('iframe[data-powershow-id="scripted-scroll"]');
+    const result = root.querySelector<HTMLIFrameElement>('iframe[data-presentation-id="scripted-scroll"]');
     if (!result) throw new Error("Scripted iframe not found");
     return result;
   }
@@ -52,7 +52,7 @@ describe("Player public Scripted ports", () => {
   function report(source: WindowProxy | null, value = 0.12): void {
     window.dispatchEvent(new MessageEvent("message", {
       source,
-      data: { type: "powershow:scripted:report", elementId: "scripted-scroll", portId: "current", value },
+      data: { type: "scripted:report", elementId: "scripted-scroll", portId: "current", value },
     }));
   }
 
@@ -69,9 +69,9 @@ describe("Player public Scripted ports", () => {
     expect(player.sendScriptedInput("scripted-scroll", "enabled", true)).toBe(true);
     expect(player.sendScriptedInput("scripted-scroll", "enabled", 1)).toBe(false);
 
-    expect(postMessage).toHaveBeenNthCalledWith(1, { type: "powershow:scripted:action", elementId: "scripted-scroll", portId: "scroll-up" }, "*");
-    expect(postMessage).toHaveBeenNthCalledWith(2, { type: "powershow:scripted:action", elementId: "scripted-scroll", portId: "scroll-down" }, "*");
-    expect(postMessage).toHaveBeenNthCalledWith(3, { type: "powershow:scripted:input", elementId: "scripted-scroll", portId: "enabled", value: true }, "*");
+    expect(postMessage).toHaveBeenNthCalledWith(1, { type: "scripted:action", elementId: "scripted-scroll", portId: "scroll-up" }, "*");
+    expect(postMessage).toHaveBeenNthCalledWith(2, { type: "scripted:action", elementId: "scripted-scroll", portId: "scroll-down" }, "*");
+    expect(postMessage).toHaveBeenNthCalledWith(3, { type: "scripted:input", elementId: "scripted-scroll", portId: "enabled", value: true }, "*");
     expect(postMessage).toHaveBeenCalledTimes(3);
     player.destroy();
   });
@@ -83,7 +83,7 @@ describe("Player public Scripted ports", () => {
 
     report(oldWindow);
     report(window);
-    expect(onScriptedReport).toHaveBeenCalledExactlyOnceWith({ type: "powershow:scripted:report", elementId: "scripted-scroll", portId: "current", value: 0.12 });
+    expect(onScriptedReport).toHaveBeenCalledExactlyOnceWith({ type: "scripted:report", elementId: "scripted-scroll", portId: "current", value: 0.12 });
 
     player.goTo(1);
     report(oldWindow, 0.2);

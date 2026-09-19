@@ -7,7 +7,7 @@ import {
   type CustomTextStyle,
   type PresentationPalette,
   type TextStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { normalizeFontFamily } from "../fonts/font-face-helpers";
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";

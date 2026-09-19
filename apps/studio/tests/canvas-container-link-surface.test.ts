@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { renderElement } from "@powershow/renderer";
+import { renderElement } from "@web-slideshow/renderer";
 
 // Vitest runs with the Studio package directory as the working
 // directory. jsdom overrides import.meta.url to a non-file scheme,
@@ -17,10 +17,10 @@ const editorWorkspaceCss = readFileSync(
 );
 
 const LINKED_CONTAINER_ATTRIBUTE =
-  'data-powershow-container-link-surface="true"';
+  'data-presentation-container-link-surface="true"';
 
 const LINKED_CONTAINER_SELECTOR =
-  '[data-powershow-container-link-surface="true"]';
+  '[data-presentation-container-link-surface="true"]';
 
 const SURFACE_STYLE = "position:absolute;inset:0;z-index:100";
 

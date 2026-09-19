@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { StudioEditorMount } from "../src/features/editor/studio-editor-mount";
@@ -129,7 +129,7 @@ describe("StudioEditorMount recovery flow", () => {
       "Could not load presentation.",
     );
     expect(testDeps.inspectPresentationRecovery).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-powershow-recovery="recoverable"]'))
+    expect(container.querySelector('[data-presentation-recovery="recoverable"]'))
       .toBeNull();
   });
 
@@ -148,16 +148,16 @@ describe("StudioEditorMount recovery flow", () => {
 
     expect(testDeps.inspectPresentationRecovery).toHaveBeenCalledWith("pres-1");
     expect(
-      container.querySelector('[data-powershow-recovery="recoverable"]'),
+      container.querySelector('[data-presentation-recovery="recoverable"]'),
     ).not.toBeNull();
     expect(container.textContent ?? "").toContain(
       "Presentation contains incompatible content",
     );
     expect(container.textContent ?? "").toContain("1 issues found");
-    expect(container.querySelector('[data-powershow-recovery-panel]')).not.toBeNull();
-    expect(container.querySelector('[data-powershow-recovery-summary="true"]')).not.toBeNull();
-    expect(container.querySelector('[data-powershow-recovery-actions="true"]')).not.toBeNull();
-    expect(container.querySelector('[data-powershow-recovery-open="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-recovery-panel]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-recovery-summary="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-recovery-actions="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-recovery-open="true"]')).not.toBeNull();
     expect(
       Array.from(container.querySelectorAll("button")).some((button) =>
         button.textContent?.includes("Back to Library"),
@@ -196,14 +196,14 @@ describe("StudioEditorMount recovery flow", () => {
     });
     await flush();
 
-    expect(container.querySelector("[data-powershow-recovery-details]")).toBeNull();
+    expect(container.querySelector("[data-presentation-recovery-details]")).toBeNull();
 
     const summaryToggle = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("View details"),
     );
     expect(summaryToggle?.getAttribute("aria-expanded")).toBe("false");
     expect(summaryToggle?.getAttribute("aria-controls")).toBe(
-      "powershow-recovery-details",
+      "presentation-recovery-details",
     );
 
     const detailsButton = Array.from(container.querySelectorAll("button")).find(
@@ -217,7 +217,7 @@ describe("StudioEditorMount recovery flow", () => {
     expect(summaryToggle?.getAttribute("aria-expanded")).toBe("true");
 
     const details = container.querySelector(
-      "[data-powershow-recovery-details]",
+      "[data-presentation-recovery-details]",
     );
 
     expect(details).not.toBeNull();
@@ -250,7 +250,7 @@ describe("StudioEditorMount recovery flow", () => {
     await flush();
 
     const openButton = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-recovery-open="true"]',
+      '[data-presentation-recovery-open="true"]',
     );
 
     expect(openButton).not.toBeNull();
@@ -261,11 +261,11 @@ describe("StudioEditorMount recovery flow", () => {
 
     // Confirmation state shown; repair NOT called yet.
     expect(
-      container.querySelector('[data-powershow-recovery-confirm="true"]'),
+      container.querySelector('[data-presentation-recovery-confirm="true"]'),
     ).not.toBeNull();
     expect(
       container.querySelector(
-        '[data-powershow-recovery-confirm="true"] [data-powershow-recovery-panel]',
+        '[data-presentation-recovery-confirm="true"] [data-presentation-recovery-panel]',
       ),
     ).not.toBeNull();
     expect(testDeps.repairPresentation).not.toHaveBeenCalled();
@@ -286,18 +286,18 @@ describe("StudioEditorMount recovery flow", () => {
 
     act(() => {
       container
-        .querySelector<HTMLButtonElement>('[data-powershow-recovery-open="true"]')
+        .querySelector<HTMLButtonElement>('[data-presentation-recovery-open="true"]')
         ?.click();
     });
 
     act(() => {
       container
-        .querySelector<HTMLButtonElement>('[data-powershow-recovery-cancel="true"]')
+        .querySelector<HTMLButtonElement>('[data-presentation-recovery-cancel="true"]')
         ?.click();
     });
 
     expect(
-      container.querySelector('[data-powershow-recovery="recoverable"]'),
+      container.querySelector('[data-presentation-recovery="recoverable"]'),
     ).not.toBeNull();
     expect(testDeps.repairPresentation).not.toHaveBeenCalled();
     expect(testDeps.editorRendered).not.toHaveBeenCalled();
@@ -324,14 +324,14 @@ describe("StudioEditorMount recovery flow", () => {
 
     act(() => {
       container
-        .querySelector<HTMLButtonElement>('[data-powershow-recovery-open="true"]')
+        .querySelector<HTMLButtonElement>('[data-presentation-recovery-open="true"]')
         ?.click();
     });
 
     act(() => {
       container
         .querySelector<HTMLButtonElement>(
-          '[data-powershow-recovery-confirm-action="true"]',
+          '[data-presentation-recovery-confirm-action="true"]',
         )
         ?.click();
     });
@@ -363,14 +363,14 @@ describe("StudioEditorMount recovery flow", () => {
     await flush();
 
     expect(
-      container.querySelector('[data-powershow-recovery-unrecoverable="true"]'),
+      container.querySelector('[data-presentation-recovery-unrecoverable="true"]'),
     ).not.toBeNull();
-    expect(container.querySelector('[data-powershow-recovery-unrecoverable="true"] [data-powershow-recovery-panel]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-recovery-unrecoverable="true"] [data-presentation-recovery-panel]')).not.toBeNull();
     expect(
-      container.querySelector('[data-powershow-recovery-open="true"]'),
+      container.querySelector('[data-presentation-recovery-open="true"]'),
     ).toBeNull();
     expect(
-      container.querySelector('[data-powershow-recovery-confirm="true"]'),
+      container.querySelector('[data-presentation-recovery-confirm="true"]'),
     ).toBeNull();
     expect(testDeps.repairPresentation).not.toHaveBeenCalled();
     expect(container.textContent ?? "").toContain(
@@ -399,14 +399,14 @@ describe("StudioEditorMount recovery flow", () => {
 
     act(() => {
       container
-        .querySelector<HTMLButtonElement>('[data-powershow-recovery-open="true"]')
+        .querySelector<HTMLButtonElement>('[data-presentation-recovery-open="true"]')
         ?.click();
     });
 
     act(() => {
       container
         .querySelector<HTMLButtonElement>(
-          '[data-powershow-recovery-confirm-action="true"]',
+          '[data-presentation-recovery-confirm-action="true"]',
         )
         ?.click();
     });
@@ -415,7 +415,7 @@ describe("StudioEditorMount recovery flow", () => {
 
     expect(testDeps.repairPresentation).toHaveBeenCalledTimes(1);
     expect(
-      container.querySelector('[data-powershow-recovery-unrecoverable="true"]'),
+      container.querySelector('[data-presentation-recovery-unrecoverable="true"]'),
     ).not.toBeNull();
     expect(testDeps.editorRendered).not.toHaveBeenCalled();
   });
@@ -436,14 +436,14 @@ describe("StudioEditorMount recovery flow", () => {
 
     act(() => {
       container
-        .querySelector<HTMLButtonElement>('[data-powershow-recovery-open="true"]')
+        .querySelector<HTMLButtonElement>('[data-presentation-recovery-open="true"]')
         ?.click();
     });
 
     act(() => {
       container
         .querySelector<HTMLButtonElement>(
-          '[data-powershow-recovery-confirm-action="true"]',
+          '[data-presentation-recovery-confirm-action="true"]',
         )
         ?.click();
     });
@@ -451,7 +451,7 @@ describe("StudioEditorMount recovery flow", () => {
     await flush();
 
     expect(
-      container.querySelector('[data-powershow-recovery-failed="true"]'),
+      container.querySelector('[data-presentation-recovery-failed="true"]'),
     ).not.toBeNull();
     expect(container.querySelector('[data-testid="editor-workspace"]')).toBeNull();
     expect(testDeps.editorRendered).not.toHaveBeenCalled();
@@ -527,7 +527,7 @@ describe("StudioEditorMount recovery flow", () => {
     };
     expect(props?.initialPresentation?.id).toBe("pres-new");
     expect(
-      container.querySelector('[data-powershow-recovery="recoverable"]'),
+      container.querySelector('[data-presentation-recovery="recoverable"]'),
     ).toBeNull();
   });
 });

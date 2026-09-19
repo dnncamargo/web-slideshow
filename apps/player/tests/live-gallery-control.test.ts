@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 const mocks = vi.hoisted(() => ({ onChildAdded: vi.fn(), onChildChanged: vi.fn(), ref: vi.fn() }));
 vi.mock("firebase/database", () => ({ onChildAdded: mocks.onChildAdded, onChildChanged: mocks.onChildChanged, ref: mocks.ref }));

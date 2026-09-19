@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { CustomLibraryPaletteRecord } from "./custom-library-palette-repository";
@@ -31,9 +31,9 @@ export function CustomLibraryPaletteDeleteDialog({
         className={styles.deleteDialog}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="powershow-custom-library-palette-delete-title"
+        aria-labelledby="studio-custom-library-palette-delete-title"
       >
-        <h2 id="powershow-custom-library-palette-delete-title" className={styles.deleteDialogTitle}>
+        <h2 id="studio-custom-library-palette-delete-title" className={styles.deleteDialogTitle}>
           {t("customLibrary.paletteDelete.title")}
         </h2>
         <p className={styles.deleteDialogText}>

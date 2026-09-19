@@ -1,6 +1,6 @@
 "use client";
 
-import type { Color } from "@powershow/document-schema";
+import type { Color } from "@web-slideshow/document-schema";
 import { useId, useState } from "react";
 
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";

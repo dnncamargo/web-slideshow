@@ -17,7 +17,7 @@ export {
   detachColorValue,
   linkColorToPalette,
   mapPresentationColorValues,
-  mapPowerShowElementColorValues,
+  mapPresentationElementColorValues,
   removePresentationPaletteColor,
   renamePresentationPaletteColor,
   updatePresentationPaletteColorValue,

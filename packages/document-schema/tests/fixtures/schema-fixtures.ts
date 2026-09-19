@@ -33,7 +33,7 @@ const makeContainer = (
 const textElement = {
   id: "text-element",
   type: "text",
-  content: "PowerShow",
+  content: "Example",
 };
 
 const highlightBoxElement = {

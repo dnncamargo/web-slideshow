@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ImageElement } from "@powershow/document-schema";
+import type { ImageElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -24,7 +24,7 @@ function imageElement(
 }
 
 function anchorTag(html: string): string {
-  // The anchor is the PowerShow element root, so the first closing
+  // The anchor is the presentation element root, so the first closing
   // angle bracket terminates its opening tag.
   const end = html.indexOf(">");
 
@@ -38,7 +38,7 @@ function mediaTag(html: string): string {
 }
 
 describe("renderElement linked Image support", () => {
-  it("makes the anchor the PowerShow element root", () => {
+  it("makes the anchor the presentation element root", () => {
     const html = renderElement(
       imageElement({
         link: HTTPS_LINK,
@@ -50,7 +50,7 @@ describe("renderElement linked Image support", () => {
     expect(anchorTag(html)).not.toContain("<img");
   });
 
-  it("keeps data-powershow-id and data-powershow-type on the root anchor", () => {
+  it("keeps data-presentation-id and data-presentation-type on the root anchor", () => {
     const html = renderElement(
       imageElement({
         id: "image-hero",
@@ -58,11 +58,11 @@ describe("renderElement linked Image support", () => {
       }),
     );
 
-    expect(anchorTag(html)).toContain('data-powershow-id="image-hero"');
-    expect(anchorTag(html)).toContain('data-powershow-type="image"');
+    expect(anchorTag(html)).toContain('data-presentation-id="image-hero"');
+    expect(anchorTag(html)).toContain('data-presentation-type="image"');
   });
 
-  it("keeps PowerShow classes and the custom class on the root anchor", () => {
+  it("keeps presentation classes and the custom class on the root anchor", () => {
     const html = renderElement(
       imageElement({
         link: HTTPS_LINK,
@@ -76,7 +76,7 @@ describe("renderElement linked Image support", () => {
     const tag = anchorTag(html);
 
     expect(tag).toContain(
-      'class="powershow-element powershow-image hero-image"',
+      'class="presentation-element presentation-image hero-image"',
     );
   });
 
@@ -89,19 +89,19 @@ describe("renderElement linked Image support", () => {
       }),
     );
 
-    expect(mediaTag(html)).toContain('class="powershow-image-media"');
+    expect(mediaTag(html)).toContain('class="presentation-image-media"');
     expect(mediaTag(html)).toContain('src="/images/hero.png"');
     expect(mediaTag(html)).toContain('alt="Hero visual"');
   });
 
-  it("marks the authored link with data-powershow-link=true", () => {
+  it("marks the authored link with data-presentation-link=true", () => {
     const html = renderElement(
       imageElement({
         link: HTTPS_LINK,
       }),
     );
 
-    expect(anchorTag(html)).toContain('data-powershow-link="true"');
+    expect(anchorTag(html)).toContain('data-presentation-link="true"');
   });
 
   it("emits the canonical href on the anchor", () => {
@@ -297,7 +297,7 @@ describe("renderElement linked Image support", () => {
     expect(media).not.toContain("height:100%");
   });
 
-  it("keeps placement properties on the PowerShow root, not the media", () => {
+  it("keeps placement properties on the presentation root, not the media", () => {
     const html = renderElement(
       imageElement({
         layout: {
@@ -391,10 +391,10 @@ describe("renderElement linked Image support", () => {
 
     expect(html).toMatch(/^<img /);
     expect(html).not.toContain("<a ");
-    expect(html).not.toContain("data-powershow-link");
-    expect(html).toContain('class="powershow-element powershow-image"');
-    expect(html).toContain('data-powershow-id="image-link"');
-    expect(html).toContain('data-powershow-type="image"');
+    expect(html).not.toContain("data-presentation-link");
+    expect(html).toContain('class="presentation-element presentation-image"');
+    expect(html).toContain('data-presentation-id="image-link"');
+    expect(html).toContain('data-presentation-type="image"');
     expect(html).toContain('src="/assets/example.png"');
     expect(html).toContain('alt="Example image"');
     expect(html).toContain("object-fit:contain");

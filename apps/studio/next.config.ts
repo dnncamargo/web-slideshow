@@ -1,10 +1,11 @@
 import type {
   NextConfig,
 } from "next";
+import { readInstanceDisplayName } from "../../tools/instance-config.mjs";
 
 
 // ============================================================
-// BEGIN: CONFIGURAÇÃO DO POWERSHOW STUDIO
+// BEGIN: CONFIGURAÇÃO DO STUDIO
 // ============================================================
 
 const nextConfig: NextConfig = {
@@ -16,15 +17,19 @@ const nextConfig: NextConfig = {
   // ----------------------------------------------------------
 
   transpilePackages: [
-    "@powershow/document-schema",
-    "@powershow/renderer",
-    "@powershow/theme",
-    "@powershow/ui",
+    "@web-slideshow/document-schema",
+    "@web-slideshow/renderer",
+    "@web-slideshow/theme",
+    "@web-slideshow/ui",
+    "@web-slideshow/instance-branding",
   ],
+  env: {
+    WEB_SLIDESHOW_DISPLAY_NAME: readInstanceDisplayName(),
+  },
 };
 
 // ============================================================
-// END: CONFIGURAÇÃO DO POWERSHOW STUDIO
+// END: CONFIGURAÇÃO DO STUDIO
 // ============================================================
 
 

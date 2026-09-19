@@ -10,7 +10,7 @@ import {
   PresentationPaletteSchema,
   PresentationSchema,
   isPaletteColorReference,
-  mapPowerShowElementColorValues,
+  mapPresentationElementColorValues,
   resolveColorValue,
 } from "../src";
 
@@ -116,7 +116,7 @@ describe("palette color resolution", () => {
         hidden: false,
         mode: "simple" as const,
         columns: [{ key: "name", label: "Name" }],
-        rows: [{ name: "PowerShow" }],
+        rows: [{ name: "Example" }],
         effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
       },
       path: ["slides", 0, "elements", 0, "effect", "shadow", "color", "colorId"],
@@ -166,7 +166,7 @@ describe("palette color resolution", () => {
           type: "table" as const,
           mode: "simple" as const,
           columns: [{ key: "name", label: "Name" }],
-          rows: [{ name: "PowerShow" }],
+        rows: [{ name: "Example" }],
           effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
         }
       : {
@@ -188,7 +188,7 @@ describe("palette color resolution", () => {
 describe("presentation palette reference integrity", () => {
   it("preserves simultaneous Blocks style transformations", () => {
     const reference = (colorId: string) => ({ kind: "palette" as const, colorId });
-    const mapped = mapPowerShowElementColorValues({
+    const mapped = mapPresentationElementColorValues({
       id: "blocks",
       type: "blocks",
       hidden: false,
@@ -223,7 +223,7 @@ describe("presentation palette reference integrity", () => {
   it("visits Blocks category colors, text color, and block border gradients", () => {
     const reference = { kind: "palette" as const, colorId: "accent" };
     const paths: string[] = [];
-    mapPowerShowElementColorValues({
+    mapPresentationElementColorValues({
       id: "blocks",
       type: "blocks",
       hidden: false,

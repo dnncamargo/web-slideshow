@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FontResource, PowerShowElement } from "@powershow/document-schema";
+import type { FontResource, PresentationElement } from "@web-slideshow/document-schema";
 
 import type { CustomLibraryItemDraft } from "../src/features/custom-library/custom-library-item";
 import type {
@@ -18,7 +18,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 function renderPanel(
   root: Root,
-  element: PowerShowElement | null,
+  element: PresentationElement | null,
   isStructuralTopicSelection = false,
   customLibraryRepository?: CustomLibraryRepository,
   fontResources?: readonly FontResource[],
@@ -50,7 +50,7 @@ function fakeRepository(
   };
 }
 
-const textElement: PowerShowElement = {
+const textElement: PresentationElement = {
   type: "text",
   id: "text-1",
   hidden: false,
@@ -58,7 +58,7 @@ const textElement: PowerShowElement = {
   content: "Hello",
 };
 
-const containerElement: PowerShowElement = {
+const containerElement: PresentationElement = {
   type: "container",
   id: "container-a",
   hidden: false,
@@ -136,7 +136,7 @@ describe("ElementPropertiesPanel", () => {
       id: "company-logo",
       hidden: false,
       src: "https://example.com/logo.svg",
-      alt: "PowerShow",
+      alt: "Presentation",
       fit: "contain",
     });
 
@@ -280,7 +280,7 @@ describe("ElementPropertiesPanel", () => {
   it("snapshots the authored Text Font dependency through the real save form", async () => {
     let saved: CustomLibraryItemDraft | undefined;
     const repository = fakeRepository(async (item) => { saved = item; return "item-1"; });
-    const element = { ...textElement, typography: { fontFamily: "Fira Code" } } as Extract<PowerShowElement, { type: "text" }>;
+    const element = { ...textElement, typography: { fontFamily: "Fira Code" } } as Extract<PresentationElement, { type: "text" }>;
     const fontResources: FontResource[] = [{
       id: "fira-resource",
       family: "Fira Code",
@@ -299,7 +299,7 @@ describe("ElementPropertiesPanel", () => {
   it("saves an unregistered Text family without dependencies", async () => {
     let saved: CustomLibraryItemDraft | undefined;
     const repository = fakeRepository(async (item) => { saved = item; return "item-1"; });
-    const element = { ...textElement, typography: { fontFamily: "Arial" } } as Extract<PowerShowElement, { type: "text" }>;
+    const element = { ...textElement, typography: { fontFamily: "Arial" } } as Extract<PresentationElement, { type: "text" }>;
     renderPanel(root, element, false, repository, []);
     act(() => container.querySelector<HTMLButtonElement>("button")?.click());
     const name = container.querySelector<HTMLInputElement>("input:not([type=checkbox])");

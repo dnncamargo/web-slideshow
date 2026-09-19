@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BlocksElement, CodeElement, SimpleTableElement, TableElement, TerminalElement } from "@powershow/document-schema";
+import type { BlocksElement, CodeElement, SimpleTableElement, TableElement, TerminalElement } from "@web-slideshow/document-schema";
 import { renderElement } from "../src/render-element";
 import { createCodeElement, createTableElement, createTerminalElement } from "./fixtures/render-fixtures";
 

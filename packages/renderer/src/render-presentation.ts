@@ -1,6 +1,6 @@
 import type {
   Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderFontResources } from "./render-font-resources";
@@ -19,7 +19,7 @@ export function renderPresentation(
     .join("");
   const fontResources = renderFontResources(presentation.resources?.fonts);
   const fontResourceStyle = fontResources
-    ? `<style data-powershow-font-resources>${fontResources}</style>`
+    ? `<style data-presentation-font-resources>${fontResources}</style>`
     : "";
   const paletteVariables = renderPresentationPaletteVariables(
     presentation.palette,
@@ -30,13 +30,13 @@ export function renderPresentation(
 
   return (
     `<div` +
-    ` class="powershow-presentation"` +
+    ` class="presentation"` +
     paletteStyle +
-    ` data-powershow-presentation-id="${escapeHtml(
+    ` data-presentation-id="${escapeHtml(
       presentation.id,
     )}"` +
-    ` data-powershow-schema-version="${presentation.schemaVersion}"` +
-    ` data-powershow-aspect-ratio="${escapeHtml(
+    ` data-presentation-schema-version="${presentation.schemaVersion}"` +
+    ` data-presentation-aspect-ratio="${escapeHtml(
       presentation.aspectRatio,
     )}"` +
     `>` +

@@ -3,7 +3,7 @@ import type {
   TextContent,
   TextRun,
   TextRunMarks,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export interface TextSelectionRange {
   start: number;

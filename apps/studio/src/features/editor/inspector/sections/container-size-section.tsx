@@ -1,11 +1,11 @@
-import type { ContainerElement, Presentation } from "@powershow/document-schema";
+import type { ContainerElement, Presentation } from "@web-slideshow/document-schema";
 
 import {
   PANEL_SIZE_PRESETS,
   resolvePanelSize,
-} from "@powershow/theme/panel-size";
+} from "@web-slideshow/theme/panel-size";
 
-import type { PanelSizePreset } from "@powershow/theme/panel-size";
+import type { PanelSizePreset } from "@web-slideshow/theme/panel-size";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { useAuthoringHistory } from "../../authoring-history-context";

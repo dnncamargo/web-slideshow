@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type {
   ContentSlot,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
-import { PresentationSchema } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 import { presentationUsesFontFamily } from "../src/features/editor/font-resource-helpers";
 
-function text(id: string, fontFamily: string): PowerShowElement {
+function text(id: string, fontFamily: string): PresentationElement {
   return {
     type: "text",
     id,
@@ -21,14 +21,14 @@ function text(id: string, fontFamily: string): PowerShowElement {
   };
 }
 
-function contentSlot(id: string, children: PowerShowElement[] = []): ContentSlot {
+function contentSlot(id: string, children: PresentationElement[] = []): ContentSlot {
   return { id, children };
 }
 
 function fontContentSlot(
   id: string,
   fontFamily: string | undefined,
-  children: PowerShowElement[] = [],
+  children: PresentationElement[] = [],
 ): ContentSlot {
   return {
     id,
@@ -52,7 +52,7 @@ function topics(id: string, items: TopicItem[]): TopicsElement {
 }
 
 function presentationWithElements(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   overrides: Partial<Presentation> = {},
 ): Presentation {
   return {
@@ -66,11 +66,11 @@ function presentationWithElements(
   };
 }
 
-function container(id: string, typography?: { fontFamily: string }): PowerShowElement {
+function container(id: string, typography?: { fontFamily: string }): PresentationElement {
   return { type: "container", id, hidden: false, children: [], typography };
 }
 
-function code(id: string): PowerShowElement {
+function code(id: string): PresentationElement {
   return {
     type: "code",
     id,
@@ -83,7 +83,7 @@ function code(id: string): PowerShowElement {
   };
 }
 
-function terminal(id: string, titleTypography?: { fontFamily: string }): PowerShowElement {
+function terminal(id: string, titleTypography?: { fontFamily: string }): PresentationElement {
   return {
     type: "terminal",
     id,
@@ -94,7 +94,7 @@ function terminal(id: string, titleTypography?: { fontFamily: string }): PowerSh
   };
 }
 
-function simpleTable(id: string): PowerShowElement {
+function simpleTable(id: string): PresentationElement {
   return {
     type: "table",
     id,
@@ -108,7 +108,7 @@ function simpleTable(id: string): PowerShowElement {
 function structuredTable(
   header: ContentSlot,
   cell: ContentSlot,
-): PowerShowElement {
+): PresentationElement {
   return {
     type: "table",
     id: "structured-table",

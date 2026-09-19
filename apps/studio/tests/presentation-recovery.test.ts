@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
-} from "@powershow/document-schema";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import {
   analyzePresentationRecovery,
@@ -14,7 +14,7 @@ import {
 // FIXTURES
 // ============================================================
 
-function validText(id: string, text = "Hello"): PowerShowElement {
+function validText(id: string, text = "Hello"): PresentationElement {
   return {
     type: "text",
     id,
@@ -35,7 +35,7 @@ function invalidText(id: string): unknown {
   };
 }
 
-function validImage(id: string): PowerShowElement {
+function validImage(id: string): PresentationElement {
   return {
     type: "image",
     id,
@@ -46,7 +46,7 @@ function validImage(id: string): PowerShowElement {
   };
 }
 
-function validScripted(id: string): PowerShowElement {
+function validScripted(id: string): PresentationElement {
   return {
     type: "scripted",
     id,
@@ -76,12 +76,12 @@ function invalidScripted(id: string): unknown {
 function validContainer(
   id: string,
   children: unknown[],
-): PowerShowElement {
+): PresentationElement {
   return {
     type: "container",
     id,
     hidden: false,
-    children: children as PowerShowElement[],
+    children: children as PresentationElement[],
   };
 }
 

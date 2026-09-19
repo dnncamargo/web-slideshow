@@ -1,4 +1,4 @@
-import type { GalleryElement } from "@powershow/document-schema";
+import type { GalleryElement } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderImageCropMetadata } from "./render-canonical-image";
@@ -25,7 +25,7 @@ export function renderGallery(element: GalleryElement): string {
 
   const gradientBorder = element.style?.border?.gradient;
   const hasGradientBorder = gradientBorder !== undefined;
-  const classes = ["powershow-element", "powershow-gallery"];
+  const classes = ["presentation-element", "presentation-gallery"];
   if (hasGradientBorder) {
     classes.push("presentation-gallery-gradient-frame", "presentation-gradient-border");
   }
@@ -58,8 +58,8 @@ export function renderGallery(element: GalleryElement): string {
       `object-position:${item.focalPoint?.x ?? 50}% ${item.focalPoint?.y ?? 50}%`,
     ];
     const itemAttributes = [
-      `class="powershow-gallery-item${index === 0 ? " powershow-gallery-item-active" : ""}"`,
-      `data-powershow-gallery-index="${index}"`,
+      `class="presentation-gallery-item${index === 0 ? " presentation-gallery-item-active" : ""}"`,
+      `data-presentation-gallery-index="${index}"`,
       `style="${escapeHtml((isIntrinsicSizingItem
         ? ["position:relative", "width:100%", "height:auto", "overflow:hidden"]
         : GALLERY_OVERLAY_ITEM_STYLES
@@ -75,7 +75,7 @@ export function renderGallery(element: GalleryElement): string {
         widthConstrained: true,
         heightConstrained: !isIntrinsicSizingItem,
       }));
-      image = `<div class="powershow-image-crop-viewport" style="position:absolute"><img class="powershow-gallery-image powershow-image-media" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="display:block;position:absolute;max-width:none"></div>`;
+      image = `<div class="presentation-image-crop-viewport" style="position:absolute"><img class="presentation-gallery-image presentation-image-media" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="display:block;position:absolute;max-width:none"></div>`;
     } else {
       const sizingImageStyles = isIntrinsicSizingItem
         ? [
@@ -86,7 +86,7 @@ export function renderGallery(element: GalleryElement): string {
           `object-position:${item.focalPoint?.x ?? 50}% ${item.focalPoint?.y ?? 50}%`,
         ]
         : imageStyles;
-      image = `<img class="powershow-gallery-image" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="${escapeHtml(sizingImageStyles.join(";"))}">`;
+      image = `<img class="presentation-gallery-image" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="${escapeHtml(sizingImageStyles.join(";"))}">`;
     }
 
     if (index > 0) itemAttributes.push('aria-hidden="true"');
@@ -97,5 +97,5 @@ export function renderGallery(element: GalleryElement): string {
     ? `<div class="presentation-gallery-gradient-surface${element.layout?.height !== undefined ? " presentation-gallery-gradient-surface-constrained" : ""}">${items}</div>`
     : items;
 
-  return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="gallery" style="${escapeHtml(styles.join(";"))}">${renderedItems}</div>`;
+  return `<div class="${escapeHtml(classes.join(" "))}" data-presentation-id="${escapeHtml(element.id)}" data-presentation-type="gallery" style="${escapeHtml(styles.join(";"))}">${renderedItems}</div>`;
 }

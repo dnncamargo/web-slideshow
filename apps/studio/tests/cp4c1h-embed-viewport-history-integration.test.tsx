@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type EmbedElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -88,7 +88,7 @@ describe("CP4C1H continuous Embed viewport history", () => {
 
   async function selectEmbed(): Promise<void> {
     const element = host.querySelector<HTMLElement>(
-      '[data-powershow-id="embed-1"]',
+      '[data-presentation-id="embed-1"]',
     );
     if (!element) throw new Error("Embed was not rendered");
     await act(async () => {

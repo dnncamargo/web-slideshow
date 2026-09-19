@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type Presentation,
   type ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   AuthoringHistoryContext,
@@ -131,14 +131,14 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
   }
 
   async function selectScripted(): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${SCRIPTED_ID}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${SCRIPTED_ID}"]`);
     if (!element) throw new Error("Scripted element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
 
   function input(id: string): HTMLInputElement {
     const selector = id.startsWith("scripted-port-")
-      ? `[data-powershow-${id}]`
+      ? `[data-presentation-${id}]`
       : `#${id}`;
     const control = host.querySelector<HTMLInputElement>(selector);
     if (!control) throw new Error(`input #${id} was not rendered`);
@@ -153,7 +153,7 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
 
   function select(id: string): HTMLSelectElement {
     const selector = id.startsWith("scripted-port-")
-      ? `[data-powershow-${id}]`
+      ? `[data-presentation-${id}]`
       : `#${id}`;
     const control = host.querySelector<HTMLSelectElement>(selector);
     if (!control) throw new Error(`select #${id} was not rendered`);
@@ -161,7 +161,7 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
   }
 
   function portButtons(): HTMLButtonElement[] {
-    return Array.from(host.querySelectorAll<HTMLButtonElement>("[data-powershow-scripted-port-select]"));
+    return Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-scripted-port-select]"));
   }
 
   async function selectPort(index: number): Promise<void> {
@@ -191,9 +191,9 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
       setValue(textarea("scripted-script"), APPLIED_AGGREGATE.script);
     });
 
-    await act(async () => click(host, "[data-powershow-scripted-port-add]"));
+    await act(async () => click(host, "[data-presentation-scripted-port-add]"));
     await selectPort(0);
-    await act(async () => click(host, "[data-powershow-scripted-port-remove]"));
+    await act(async () => click(host, "[data-presentation-scripted-port-remove]"));
     await selectPort(1);
     await act(async () => {
       setValue(input("scripted-port-label"), "Level updated");
@@ -327,7 +327,7 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
 
     function directInput(id: string): HTMLInputElement {
       const selector = id.startsWith("scripted-port-")
-        ? `[data-powershow-${id}]`
+        ? `[data-presentation-${id}]`
         : `#${id}`;
       const control = host.querySelector<HTMLInputElement>(selector);
       if (!control) throw new Error(`input #${id} was not rendered`);
@@ -362,10 +362,10 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
     it("keeps add/remove and all port edits local until one aggregate Apply", async () => {
       await mountDirect();
 
-      await act(async () => click(host, '[data-powershow-scripted-port-add]'));
-      await act(async () => click(host, '[data-powershow-scripted-port-select][data-powershow-scripted-port-index="0"]'));
-      await act(async () => click(host, '[data-powershow-scripted-port-remove]'));
-      await act(async () => click(host, '[data-powershow-scripted-port-select][data-powershow-scripted-port-index="1"]'));
+      await act(async () => click(host, '[data-presentation-scripted-port-add]'));
+      await act(async () => click(host, '[data-presentation-scripted-port-select][data-presentation-scripted-port-index="0"]'));
+      await act(async () => click(host, '[data-presentation-scripted-port-remove]'));
+      await act(async () => click(host, '[data-presentation-scripted-port-select][data-presentation-scripted-port-index="1"]'));
       await act(async () => setValue(directInput("scripted-port-label"), "Level changed"));
 
       expect(current.ports).toEqual(INITIAL_PORTS);
@@ -397,7 +397,7 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
       expect(host.textContent).toContain("Enter a title");
 
       await act(async () => setValue(directInput("scripted-title"), "fixed"));
-      await act(async () => click(host, '[data-powershow-scripted-port-add]'));
+      await act(async () => click(host, '[data-presentation-scripted-port-add]'));
       await act(async () => setValue(directInput("scripted-port-id"), "first"));
       await act(async () => click(host, "#scripted-apply-run"));
       expect(updateCount).toBe(0);
@@ -405,7 +405,7 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
       expect(host.textContent).toContain("Correct the selected port");
 
       await act(async () => setValue(directInput("scripted-port-id"), "numeric"));
-      await act(async () => setValue(host.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-type]")!, "number"));
+      await act(async () => setValue(host.querySelector<HTMLSelectElement>("[data-presentation-scripted-port-type]")!, "number"));
       await act(async () => setValue(directInput("scripted-port-step"), "0"));
       await act(async () => click(host, "#scripted-apply-run"));
       expect(updateCount).toBe(0);
@@ -446,7 +446,7 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
         setValue(directTextarea("scripted-html"), "draft html");
         setValue(directTextarea("scripted-css"), "draft css");
         setValue(directTextarea("scripted-script"), "draft script");
-        click(host, '[data-powershow-scripted-port-add]');
+        click(host, '[data-presentation-scripted-port-add]');
       });
       await act(async () => click(host, "#scripted-reset"));
       expect(current).toEqual(INITIAL_SCRIPTED);

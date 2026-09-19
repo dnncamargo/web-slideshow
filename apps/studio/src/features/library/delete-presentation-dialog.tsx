@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { PresentationSummary } from "../persistence/presentation-persistence";
@@ -67,11 +67,11 @@ export function DeletePresentationDialog({
         className={styles.deleteDialog}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="powershow-delete-dialog-title"
+        aria-labelledby="studio-delete-dialog-title"
         onKeyDown={handleKeyDown}
       >
         <h2
-          id="powershow-delete-dialog-title"
+          id="studio-delete-dialog-title"
           className={styles.deleteDialogTitle}
         >
           {t("library.deleteDialogTitle")}
@@ -87,13 +87,13 @@ export function DeletePresentationDialog({
 
         <label
           className={styles.deleteDialogLabel}
-          htmlFor="powershow-delete-confirm-input"
+          htmlFor="studio-delete-confirm-input"
         >
           {t("library.deleteDialogLabel")}
         </label>
 
         <input
-          id="powershow-delete-confirm-input"
+          id="studio-delete-confirm-input"
           ref={inputRef}
           className={styles.deleteDialogInput}
           type="text"

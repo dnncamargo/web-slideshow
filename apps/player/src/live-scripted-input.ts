@@ -1,5 +1,5 @@
 import { onValue, ref, type Database } from "firebase/database";
-import { visitSlideElements, type Presentation, type ScriptedElement } from "@powershow/document-schema";
+import { visitSlideElements, type Presentation, type ScriptedElement } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
 
 export const SCRIPTED_INPUT_ROOT_PATH = "live/scriptedInput";
