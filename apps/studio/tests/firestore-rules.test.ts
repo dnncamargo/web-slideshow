@@ -21,6 +21,10 @@ describe("Firestore presentation record rules", () => {
   });
 
   it("keeps immutable version and authoritative equality invariants", () => {
+    expect(rules).toContain("resource.keys().hasAll(['ownerUid'])");
+    expect(rules).toContain("request.resource.data.ownerUid == request.auth.uid");
+    expect(rules).toContain("request.resource.data.ownerUid == resource.data.ownerUid");
+    expect(rules).toContain("resource.data.ownerUid == request.auth.uid");
     expect(rules).toContain(
       "resource.keys().hasOnly(['presentationId', 'presentationJson', 'publishedRevision', 'publishedAt'])",
     );
@@ -28,6 +32,12 @@ describe("Firestore presentation record rules", () => {
     expect(rules).toContain("resource.presentationJson == draft.data.presentationJson");
     expect(rules).toContain("version.data.presentationJson == draft.data.presentationJson");
     expect(rules).toContain("version.data.presentationId");
+  });
+
+  it("binds publication deletion to the public pointer owner", () => {
+    expect(rules).toContain("function publishedPointerCreateIsAuthoritative");
+    expect(rules).toContain("function publishedPointerUpdateIsAuthoritative");
+    expect(rules).toContain("get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid");
   });
 
   it("does not retain the legacy nested presentation rule shape", () => {

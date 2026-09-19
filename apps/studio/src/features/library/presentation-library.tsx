@@ -873,7 +873,7 @@ export function PresentationLibrary({
   );
 
   const handleRequestDelete = useCallback((summary: PresentationSummary) => {
-    if (!summary.archived || summary.publication !== undefined) {
+    if (!summary.archived) {
       return;
     }
 

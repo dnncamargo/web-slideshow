@@ -361,7 +361,9 @@ function repositoryFor(
       current = current.filter((item) => item.id !== id);
     }),
     restorePresentation: vi.fn(async () => {}),
-    deleteArchivedPresentation: vi.fn(async () => {}),
+    deleteArchivedPresentation: vi.fn(async (id: string) => {
+      current = current.filter((item) => item.id !== id);
+    }),
     movePresentationToFolder: vi.fn(async () => {}),
     publishPresentation: vi.fn(async () => ({
       publicationId: "publication-id",
@@ -729,7 +731,7 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).not.toContain("Restore");
   });
 
-  it("shows a disabled Delete for a published archived selection", () => {
+  it("exposes Restore and enabled Delete for a published archived selection", () => {
     const publishedArchived: PresentationSummary = {
       ...summary("pa", "published"),
       archived: true,
@@ -742,24 +744,136 @@ describe("presentation library workspace controls", () => {
       (button) => button.textContent === "Delete",
     );
     expect(deleteButton).toBeTruthy();
-    expect(deleteButton?.disabled).toBe(true);
+    expect(deleteButton?.disabled).toBe(false);
+    expect(container.textContent).toContain("Restore");
   });
 
-  it("explains the published-artifact limitation on the disabled Delete", () => {
-    const publishedArchived: PresentationSummary = {
-      ...summary("pa", "published"),
+  it("exposes Restore and enabled Delete for archived unpublished changes", () => {
+    const unpublishedChanges: PresentationSummary = {
+      ...summary("changes", "unpublished-changes"),
       archived: true,
       archivedAt: "ts",
     };
 
-    act(() => root.render(renderToolbar(publishedArchived)));
+    act(() => root.render(renderToolbar(unpublishedChanges)));
 
     const deleteButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Delete",
     );
-    expect(deleteButton?.getAttribute("title")).toBe(
-      "Deleting published presentations is not available yet.",
+    expect(deleteButton?.disabled).toBe(false);
+    expect(container.textContent).toContain("Restore");
+  });
+
+  it("deletes an archived published presentation only after exact confirmation", async () => {
+    const archivedPublished: PresentationSummary = {
+      ...summary("published-delete", "published"),
+      archived: true,
+      archivedAt: "ts",
+    };
+    const { repository, getCurrent } = repositoryFor([archivedPublished]);
+
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Archived").click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select presentation Title published-delete"]',
     );
+    if (!row) throw new Error("expected archived published presentation row");
+    act(() => row.click());
+
+    act(() => findButton(container, "Delete").click());
+    expect(container.textContent).toContain("all published versions");
+    expect(container.textContent).not.toContain("Firestore");
+    expect(container.textContent).not.toContain("currentVersionId");
+    expect(repository.deleteArchivedPresentation).not.toHaveBeenCalled();
+
+    const input = container.querySelector<HTMLInputElement>("#studio-delete-confirm-input");
+    if (!input) throw new Error("expected delete confirmation input");
+    const confirm = () => findButton(container, "Delete permanently");
+    expect(confirm().disabled).toBe(true);
+    setLibraryInputValue(input, "Title published-delete ");
+    expect(confirm().disabled).toBe(true);
+    setLibraryInputValue(input, "Title published-delete");
+    expect(confirm().disabled).toBe(false);
+
+    act(() => confirm().click());
+    await flushWorkspaceEffects();
+
+    expect(repository.deleteArchivedPresentation).toHaveBeenCalledWith("published-delete");
+    expect(getCurrent()).toEqual([]);
+    expect(container.textContent).not.toContain("Title published-delete");
+    expect(container.textContent).not.toContain("Delete presentation permanently?");
+    expect(container.querySelector('[data-selected="true"]')).toBeNull();
+  });
+
+  it("keeps a published delete dialog open with a localized retryable error", async () => {
+    const archivedPublished: PresentationSummary = {
+      ...summary("published-retry", "published"),
+      archived: true,
+      archivedAt: "ts",
+    };
+    const { repository } = repositoryFor([archivedPublished]);
+    const deleteArchivedPresentation = repository.deleteArchivedPresentation as ReturnType<typeof vi.fn>;
+    deleteArchivedPresentation.mockRejectedValueOnce(new Error("delete failed"));
+
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Archived").click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select presentation Title published-retry"]',
+    );
+    if (!row) throw new Error("expected archived published presentation row");
+    act(() => row.click());
+    act(() => findButton(container, "Delete").click());
+
+    const input = container.querySelector<HTMLInputElement>("#studio-delete-confirm-input");
+    if (!input) throw new Error("expected delete confirmation input");
+    setLibraryInputValue(input, "Title published-retry");
+    await act(async () => {
+      findButton(container, "Delete permanently").click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+
+    expect(repository.deleteArchivedPresentation).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Title published-retry");
+    expect(container.textContent).toContain("Could not delete presentation.");
+    expect(container.textContent).toContain("Delete presentation permanently?");
+
+    const retryInput = container.querySelector<HTMLInputElement>("#studio-delete-confirm-input");
+    if (!retryInput) throw new Error("expected retry confirmation input");
+    setLibraryInputValue(retryInput, "Title published-retry");
+    await act(async () => {
+      findButton(container, "Delete permanently").click();
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+    expect(repository.deleteArchivedPresentation).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Title published-retry");
+  });
+
+  it("uses the private draft and notes warning for an archived unpublished presentation", async () => {
+    const archivedUnpublished: PresentationSummary = {
+      ...summary("unpublished-delete"),
+      archived: true,
+      archivedAt: "ts",
+    };
+    const { repository } = repositoryFor([archivedUnpublished]);
+
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Archived").click());
+    await flushWorkspaceEffects();
+    const row = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select presentation Title unpublished-delete"]',
+    );
+    if (!row) throw new Error("expected archived unpublished presentation row");
+    act(() => row.click());
+    act(() => findButton(container, "Delete").click());
+
+    expect(container.textContent).toContain("private draft and private notes");
+    expect(container.textContent).not.toContain("all published versions");
+    expect(container.textContent).not.toContain("Firestore");
   });
 
   it("renders no contextual group when nothing is selected", () => {

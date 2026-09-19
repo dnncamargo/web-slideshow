@@ -148,12 +148,7 @@ export function PresentationToolbar({
                 <Button
                   variant="danger"
                   size="compact"
-                  disabled={deletingId !== null || selected.publication !== undefined}
-                  title={
-                    selected.publication !== undefined
-                      ? t("library.deletePublishedUnavailable")
-                      : undefined
-                  }
+                  disabled={deletingId !== null}
                   onClick={() => onDelete(selected)}
                 >
                   {deletingId === selected.id ? t("library.deleting") : t("library.delete")}
