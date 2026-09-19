@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 
 import {
   DEFAULT_STUDIO_LOCALE,
+  LEGACY_STUDIO_LOCALE_STORAGE_KEY,
   STUDIO_LOCALE_STORAGE_KEY,
   isStudioLocale,
   translateStudioMessage,
@@ -39,9 +40,9 @@ const StudioI18nContext = createContext<StudioI18nContextValue | null>(null);
 
 function readPersistedLocale(): StudioLocale | null {
   try {
-    const persistedLocale = window.localStorage.getItem(
-      STUDIO_LOCALE_STORAGE_KEY,
-    );
+    const persistedLocale =
+      window.localStorage.getItem(STUDIO_LOCALE_STORAGE_KEY) ??
+      window.localStorage.getItem(LEGACY_STUDIO_LOCALE_STORAGE_KEY);
 
     return isStudioLocale(persistedLocale) ? persistedLocale : null;
   } catch {

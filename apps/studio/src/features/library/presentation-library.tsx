@@ -1230,7 +1230,7 @@ export function PresentationLibrary({
         <input
           ref={importInputRef}
           type="file"
-          accept=".json,.powershow.json,application/json"
+          accept=".json,.powershow.json,.presentation.json,application/json"
           hidden
           onChange={(event) => void handleImportFile(event)}
           aria-label={t("library.import")}

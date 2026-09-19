@@ -362,7 +362,7 @@ describe("transactional presentation publishing", () => {
     });
     mocks.doc.mockReturnValueOnce({ id: "private-draft" });
     await expect(repository.publishPresentation("pres-1")).rejects.toThrow(
-      "Persisted presentation is not a valid PowerShow document",
+      "Persisted presentation is not a valid presentation",
     );
     expect(transaction.set).not.toHaveBeenCalled();
   });

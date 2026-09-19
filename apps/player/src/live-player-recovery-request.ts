@@ -3,7 +3,7 @@ import { onValue, ref, type Database } from "firebase/database";
 import { recordPlayerDiagnostic } from "./player-diagnostics";
 
 export const PLAYER_RECOVERY_REQUEST_PATH = "live/playerRecoveryRequest";
-export const PLAYER_CACHE_CLEAR_ROUTE = "/__powershow/clear-cache";
+export const PLAYER_CACHE_CLEAR_ROUTE = "/__player/clear-cache";
 
 export interface PlayerRecoveryRequest {
   activationRevision: number;

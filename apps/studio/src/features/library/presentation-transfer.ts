@@ -172,7 +172,7 @@ export function parsePresentationImport(text: string): Presentation {
   if (!parsed.success) {
     throw new PresentationImportError(
       "invalid-presentation",
-      "The selected file is not a valid PowerShow presentation.",
+      "The selected file is not a valid presentation.",
     );
   }
 
@@ -196,5 +196,5 @@ export function buildPresentationExportFilename(title: string): string {
     .slice(0, 120)
     .trim();
 
-  return `${safeTitle || "presentation"}.powershow.json`;
+  return `${safeTitle || "presentation"}.presentation.json`;
 }

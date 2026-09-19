@@ -173,7 +173,7 @@ describe("canonical presentation transfer", () => {
   });
 
   it("builds a safe export filename", () => {
-    expect(buildPresentationExportFilename("A:/ demo? ")).toBe("A- demo.powershow.json");
+    expect(buildPresentationExportFilename("A:/ demo? ")).toBe("A- demo.presentation.json");
   });
 
   it("normalizes exact legacy reserved IDs and the legacy demo asset at import", () => {

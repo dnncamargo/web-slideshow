@@ -76,7 +76,8 @@ interface StorageLike {
   setItem(key: string, value: string): void;
 }
 
-const PLAYER_DIAGNOSTICS_STORAGE_KEY = "powershow:player-diagnostics:v1";
+export const PLAYER_DIAGNOSTICS_STORAGE_KEY = "web-slideshow:player-diagnostics:v1";
+const LEGACY_PLAYER_DIAGNOSTICS_STORAGE_KEY = "powershow:player-diagnostics:v1";
 
 const MAX_EVENTS = 100;
 
@@ -184,7 +185,9 @@ function loadStoredEvents(): PlayerDiagnosticEvent[] {
   }
 
   try {
-    const raw = storage.getItem(PLAYER_DIAGNOSTICS_STORAGE_KEY);
+    const raw =
+      storage.getItem(PLAYER_DIAGNOSTICS_STORAGE_KEY) ??
+      storage.getItem(LEGACY_PLAYER_DIAGNOSTICS_STORAGE_KEY);
 
     if (!raw) {
       return [];
@@ -430,7 +433,7 @@ function buildPanel(): HTMLElement | null {
 
     const heading = document.createElement("div");
     heading.setAttribute("style", PANEL_HEADING_STYLE);
-    heading.textContent = "PowerShow Player Diagnostics";
+    heading.textContent = "Player diagnostics";
 
     const env = document.createElement("div");
     env.setAttribute("style", PANEL_ENV_STYLE);

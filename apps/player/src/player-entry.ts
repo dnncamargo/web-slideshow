@@ -261,7 +261,7 @@ export function startPlayer(root: HTMLElement): () => void {
       if (!database) {
         if (logsEnabled) {
           console.warn(
-            "[PowerShow][live-state] RTDB unavailable – live projection state not attached",
+            "[player][live-state] RTDB unavailable – live projection state not attached",
           );
         }
         return;

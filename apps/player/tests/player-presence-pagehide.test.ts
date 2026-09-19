@@ -534,7 +534,7 @@ describe("Player presence pagehide cleanup", () => {
       expect(replace).toHaveBeenCalledTimes(1);
       const destination = new URL(replace.mock.calls[0]?.[0] as string);
       expect(destination.origin).toBe("https://player.example");
-      expect(destination.pathname).toBe("/__powershow/clear-cache");
+      expect(destination.pathname).toBe("/__player/clear-cache");
       expect(destination.searchParams.get("return")).toBe(
         "/watch?logs=true&mode=preview&_psreload=7-1#slide-2",
       );

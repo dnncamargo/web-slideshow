@@ -226,7 +226,7 @@ describe("presentation persistence helpers", () => {
       expect(error).toBeInstanceOf(InvalidPersistedPresentationError);
       expect((error as InvalidPersistedPresentationError).cause).toBeDefined();
       expect((error as InvalidPersistedPresentationError).message).toMatch(
-        /not a valid PowerShow document/,
+        /not a valid presentation/,
       );
     }
   });
