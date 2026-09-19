@@ -820,4 +820,109 @@ describe("permanently deleting archived presentations", () => {
     await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/failed to delete/i);
     expect(batches).toHaveLength(1);
   });
+
+  it("retries naturally after a historical page was committed before a later failure", async () => {
+    mockedDoc.mockImplementation((...path: unknown[]) => ({ path }) as never);
+    const historyRef = { path: ["firestore", "publishedPresentations", "pub-1", "versions", "history-1"] };
+    const historicalBatch = {
+      delete: vi.fn(),
+      commit: vi.fn().mockResolvedValue(undefined),
+    };
+    const firstInvocationBatches = [historicalBatch];
+    mockedWriteBatch.mockImplementation(() => {
+      const batch = firstInvocationBatches.at(-1) ?? historicalBatch;
+      return batch as never;
+    });
+    mockedGetDoc
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedDraft() } as never)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          ownerUid: "user-1",
+          currentVersionId: "current-1",
+          publishedRevision: 3,
+          publishedAt: "published",
+        }),
+      } as never)
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedVersion() } as never);
+    mockedGetDocs
+      .mockResolvedValueOnce({
+        docs: [{
+          id: "history-1",
+          ref: historyRef,
+          data: () => publishedVersion({ publishedRevision: 2, publishedAt: "older" }),
+        }],
+      } as never)
+      .mockRejectedValueOnce(new Error("next versions query failed"));
+
+    await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/failed to delete/i);
+    expect(historicalBatch.commit).toHaveBeenCalledTimes(1);
+    expect(mockedWriteBatch).toHaveBeenCalledTimes(1);
+
+    mockedGetDoc.mockReset();
+    mockedGetDocs.mockReset();
+    mockedWriteBatch.mockReset();
+    const finalBatch = {
+      delete: vi.fn(),
+      commit: vi.fn().mockResolvedValue(undefined),
+    };
+    mockedWriteBatch.mockReturnValue(finalBatch as never);
+    mockedGetDoc
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedDraft() } as never)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          ownerUid: "user-1",
+          currentVersionId: "current-1",
+          publishedRevision: 3,
+          publishedAt: "published",
+        }),
+      } as never)
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedVersion() } as never);
+    mockedGetDocs.mockResolvedValueOnce({ docs: [] } as never);
+
+    await repository.deleteArchivedPresentation("pres-1");
+
+    expect(finalBatch.delete.mock.calls.map(([ref]) => ref.path.slice(1).join("/"))).toEqual([
+      "publishedPresentations/pub-1/versions/current-1",
+      "publishedPresentations/pub-1",
+      "users/user-1/presentations/pres-1/private/notes",
+      "users/user-1/presentations/pres-1",
+    ]);
+    expect(finalBatch.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps final publication cleanup atomic when its batch commit fails", async () => {
+    mockedDoc.mockImplementation((...path: unknown[]) => ({ path }) as never);
+    mockedGetDoc
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedDraft() } as never)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          ownerUid: "user-1",
+          currentVersionId: "current-1",
+          publishedRevision: 3,
+          publishedAt: "published",
+        }),
+      } as never)
+      .mockResolvedValueOnce({ exists: () => true, data: () => publishedVersion() } as never);
+    mockedGetDocs.mockResolvedValueOnce({ docs: [] } as never);
+    const finalBatch = {
+      delete: vi.fn(),
+      commit: vi.fn().mockRejectedValue(new Error("final batch failed")),
+    };
+    mockedWriteBatch.mockReturnValue(finalBatch as never);
+
+    await expect(repository.deleteArchivedPresentation("pres-1")).rejects.toThrow(/failed to delete/i);
+
+    expect(finalBatch.delete.mock.calls.map(([ref]) => ref.path.slice(1).join("/"))).toEqual([
+      "publishedPresentations/pub-1/versions/current-1",
+      "publishedPresentations/pub-1",
+      "users/user-1/presentations/pres-1/private/notes",
+      "users/user-1/presentations/pres-1",
+    ]);
+    expect(finalBatch.commit).toHaveBeenCalledTimes(1);
+    expect(mockedWriteBatch).toHaveBeenCalledTimes(1);
+    expect(mockedGetDocs).toHaveBeenCalledTimes(1);
+  });
 });
