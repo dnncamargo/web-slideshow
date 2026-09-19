@@ -3437,8 +3437,23 @@ export function EditorWorkspace({
 
   function addCustomLibraryFont(font: CustomLibraryFontDraft) {
     const result = addCustomLibraryFontToPresentation(presentation, font);
-    if (result.kind === "conflict") return { kind: "conflict" as const, addedFaces: 0 };
-    setPresentation(result.presentation);
+    if (result.kind === "unchanged" || result.kind === "conflict") {
+      return { kind: result.kind, addedFaces: 0 };
+    }
+
+    commitPresentationAction(
+      {
+        kind: "font.import",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "font.import" },
+      },
+      (current) => {
+        const currentResult = addCustomLibraryFontToPresentation(current, font);
+        return currentResult.kind === "added" || currentResult.kind === "merged"
+          ? currentResult.presentation
+          : current;
+      },
+    );
     return { kind: result.kind, addedFaces: result.addedFaces };
   }
 
@@ -3447,20 +3462,29 @@ export function EditorWorkspace({
     if (!fontResource) return "not-found";
     if (presentationUsesFontFamily(presentation, fontResource.family)) return "in-use";
 
-    setPresentation((current) => {
-      const fonts = current.resources?.fonts;
-      if (!fonts?.some((font) => font.id === fontResourceId)) return current;
-      const remainingFonts = fonts.filter((font) => font.id !== fontResourceId);
-      if (remainingFonts.length > 0) {
-        return { ...current, resources: { ...current.resources, fonts: remainingFonts } };
-      }
-      if (current.resources && Object.keys(current.resources).some((key) => key !== "fonts")) {
-        const { fonts: _fonts, ...remainingResources } = current.resources;
-        return { ...current, resources: remainingResources };
-      }
-      const { resources: _resources, ...presentationWithoutResources } = current;
-      return presentationWithoutResources;
-    });
+    commitPresentationAction(
+      {
+        kind: "font.remove",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "font.remove" },
+      },
+      (current) => {
+        const fonts = current.resources?.fonts;
+        const currentFont = fonts?.find((font) => font.id === fontResourceId);
+        if (!fonts || !currentFont) return current;
+        if (presentationUsesFontFamily(current, currentFont.family)) return current;
+        const remainingFonts = fonts.filter((font) => font.id !== fontResourceId);
+        if (remainingFonts.length > 0) {
+          return { ...current, resources: { ...current.resources, fonts: remainingFonts } };
+        }
+        if (current.resources && Object.keys(current.resources).some((key) => key !== "fonts")) {
+          const { fonts: _fonts, ...remainingResources } = current.resources;
+          return { ...current, resources: remainingResources };
+        }
+        const { resources: _resources, ...presentationWithoutResources } = current;
+        return presentationWithoutResources;
+      },
+    );
     return "removed";
   }
 
