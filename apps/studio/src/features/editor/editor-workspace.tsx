@@ -163,7 +163,7 @@ import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -3208,13 +3208,30 @@ export function EditorWorkspace({
     const pending = pendingStyleDetach;
     if (!pending) return;
     if (pending.kind === "text-style") {
-      setPresentation((current) => {
-        const slide = current.slides[pending.slideIndex];
-        if (!slide) return current;
-        const target = findElementById(slide.elements, pending.elementId);
-        if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
-        return { ...current, slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, pending.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
-      });
+      commitPresentationAction(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "text.style" },
+        },
+        (current) => {
+          const slide = current.slides[pending.slideIndex];
+          if (!slide) return current;
+          if (!listPresentationTextStyles(current).some(({ id }) => id === pending.styleId)) return current;
+          const target = findElementById(slide.elements, pending.elementId);
+          if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
+          const elements = updateElementById(
+            slide.elements,
+            pending.elementId,
+            (element) => element.type === "text" ? detachTextStyle(current, element) : element,
+          );
+          if (elements === slide.elements) return current;
+          return {
+            ...current,
+            slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements } : candidate),
+          };
+        },
+      );
     } else {
       commitPresentationAction(
         {
