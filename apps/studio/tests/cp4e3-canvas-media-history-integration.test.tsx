@@ -93,7 +93,7 @@ describe("CP4E3 canvas Crop/Focal history", () => {
       hasPointerCapture: () => false,
     });
     HTMLElement.prototype.getBoundingClientRect = function () {
-      if (this.dataset.powershowId === "image-1" || this.dataset.powershowId === "gallery-1" || this.dataset.powershowGalleryIndex !== undefined) {
+      if (this.dataset.presentationId === "image-1" || this.dataset.presentationId === "gallery-1" || this.dataset.presentationGalleryIndex !== undefined) {
         return { left: 100, top: 80, right: 500, bottom: 380, width: 400, height: 300, x: 100, y: 80, toJSON: () => ({}) };
       }
       return originalGetBoundingClientRect.call(this);
@@ -118,13 +118,13 @@ describe("CP4E3 canvas Crop/Focal history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(pointer("pointerdown", 150, 120)));
   }
 
   async function selectGalleryItem(index: number): Promise<void> {
-    const button = container.querySelector<HTMLButtonElement>(`[data-powershow-gallery-select="true"][data-powershow-gallery-index="${index}"]`);
+    const button = container.querySelector<HTMLButtonElement>(`[data-presentation-gallery-select="true"][data-presentation-gallery-index="${index}"]`);
     if (!button) throw new Error(`Gallery item ${index} was not rendered`);
     await act(async () => button.click());
   }

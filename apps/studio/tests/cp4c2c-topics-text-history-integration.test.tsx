@@ -167,7 +167,7 @@ describe("CP4C2C Topics text history", () => {
 
   async function selectTopics(): Promise<void> {
     const element = host.querySelector<HTMLElement>(
-      `[data-powershow-id="${TOPICS_ID}"]`,
+      `[data-presentation-id="${TOPICS_ID}"]`,
     );
     if (!element) throw new Error("Topics element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -175,10 +175,10 @@ describe("CP4C2C Topics text history", () => {
 
   function topicInput(id: string): HTMLInputElement {
     const row = host.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${id}"]`,
+      `[data-presentation-topic-item-id="${id}"]`,
     );
     const input = row?.querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error(`Topic input was not rendered: ${id}`);
     return input;
@@ -373,9 +373,9 @@ describe("CP4C2C Topics text history", () => {
     await selectTopics();
 
     const row = host.querySelector<HTMLElement>(
-      '[data-powershow-topic-item-id="topic-image"]',
+      '[data-presentation-topic-item-id="topic-image"]',
     );
-    expect(row?.querySelector('input[data-powershow-topic-input="true"]')).toBeNull();
+    expect(row?.querySelector('input[data-presentation-topic-input="true"]')).toBeNull();
     expect(row?.textContent).toContain("Image");
   });
 
@@ -403,7 +403,7 @@ describe("CP4C2C Topics text history", () => {
     ));
 
     const input = host.querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error("standalone TopicItem input was not rendered");
     await act(async () => setTextValue(input, "After"));

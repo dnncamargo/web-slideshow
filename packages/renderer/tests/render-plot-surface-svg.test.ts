@@ -110,13 +110,13 @@ describe("renderMathSurfaceGeometrySvg", () => {
     const value = geometry(plane((x, y) => x + y));
     const svg = renderMathSurfaceGeometrySvg(value);
 
-    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-x"');
-    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-y"');
-    expect(svg).toContain('class="powershow-plot-axis powershow-plot-axis-z"');
-    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-x"');
-    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-y"');
-    expect(svg).toContain('class="powershow-plot-axis-label powershow-plot-axis-label-z"');
-    expect(svg).toContain("powershow-plot-surface-wireframe");
+    expect(svg).toContain('class="presentation-plot-axis presentation-plot-axis-x"');
+    expect(svg).toContain('class="presentation-plot-axis presentation-plot-axis-y"');
+    expect(svg).toContain('class="presentation-plot-axis presentation-plot-axis-z"');
+    expect(svg).toContain('class="presentation-plot-axis-label presentation-plot-axis-label-x"');
+    expect(svg).toContain('class="presentation-plot-axis-label presentation-plot-axis-label-y"');
+    expect(svg).toContain('class="presentation-plot-axis-label presentation-plot-axis-label-z"');
+    expect(svg).toContain("presentation-plot-surface-wireframe");
     expect(svg).not.toMatch(/NaN|Infinity/);
     expect(svg).toBe(renderMathSurfaceGeometrySvg(value));
   });
@@ -128,10 +128,10 @@ describe("renderMathSurfaceGeometrySvg", () => {
 
     expect(svg.match(/<line[^>]*stroke="#ff00aa"[^>]*stroke-width="3"/g)).toHaveLength(3);
     expect(svg.match(/<text[^>]*fill="#ff00aa"/g)).toHaveLength(3);
-    expect(svg.match(/<line[^>]*class="powershow-plot-axis[^>]*opacity="0\.5"/g)).toHaveLength(3);
-    expect(svg.match(/<text[^>]*class="powershow-plot-axis-label[^>]*opacity="0\.5"/g)).toHaveLength(3);
-    expect(svg).toContain('class="powershow-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1"');
-    expect(svg.match(/powershow-plot-surface-wireframe[^>]*opacity="/g)).toBeNull();
+    expect(svg.match(/<line[^>]*class="presentation-plot-axis[^>]*opacity="0\.5"/g)).toHaveLength(3);
+    expect(svg.match(/<text[^>]*class="presentation-plot-axis-label[^>]*opacity="0\.5"/g)).toHaveLength(3);
+    expect(svg).toContain('class="presentation-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1"');
+    expect(svg.match(/presentation-plot-surface-wireframe[^>]*opacity="/g)).toBeNull();
   });
 
   it("maps the mathematical origin to one shared SVG coordinate frame", () => {
@@ -143,7 +143,7 @@ describe("renderMathSurfaceGeometrySvg", () => {
     if (origin?.[0] === undefined || origin[1] === undefined) throw new Error("Missing surface origin");
 
     for (const axis of ["x", "y", "z"] as const) {
-      const point = svg.match(new RegExp(`powershow-plot-axis-${axis}\\" x1=\\"([^\\"]+)\\" y1=\\"([^\\"]+)\\"`))?.slice(1);
+      const point = svg.match(new RegExp(`presentation-plot-axis-${axis}\\" x1=\\"([^\\"]+)\\" y1=\\"([^\\"]+)\\"`))?.slice(1);
       expect(point).toEqual(origin);
     }
   });
@@ -151,9 +151,9 @@ describe("renderMathSurfaceGeometrySvg", () => {
   it("hides axes while preserving the surface wireframe", () => {
     const svg = renderMathSurfaceGeometrySvg(geometry(plane((x, y) => x + y)), { showAxes: false });
 
-    expect(svg).toContain("powershow-plot-surface-wireframe");
-    expect(svg).not.toContain("powershow-plot-axis");
-    expect(svg).not.toContain("powershow-plot-axis-label");
+    expect(svg).toContain("presentation-plot-surface-wireframe");
+    expect(svg).not.toContain("presentation-plot-axis");
+    expect(svg).not.toContain("presentation-plot-axis-label");
   });
 
   it("colors wireframe segments by mathematical Z with bounded deterministic paths", () => {
@@ -165,10 +165,10 @@ describe("renderMathSurfaceGeometrySvg", () => {
     const options = { showAxes: false, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } };
     const svg = renderMathSurfaceGeometrySvg(value, options);
 
-    expect(svg).toContain("powershow-plot-surface-wireframe-z-gradient");
+    expect(svg).toContain("presentation-plot-surface-wireframe-z-gradient");
     expect(svg).toContain("color-mix(in srgb,#7c3aed");
     expect(svg).toContain("color-mix(in srgb,#7c3aed 0%,#06b6d4 100%)");
-    const gradientPathCount = svg.match(/<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient"/g)?.length ?? 0;
+    const gradientPathCount = svg.match(/<path class="presentation-plot-surface-wireframe presentation-plot-surface-wireframe-z-gradient"/g)?.length ?? 0;
     expect(gradientPathCount).toBeGreaterThan(1);
     expect(gradientPathCount).toBeLessThanOrEqual(32);
     expect(svg).not.toMatch(/NaN|Infinity/);
@@ -190,7 +190,7 @@ describe("renderMathSurfaceGeometrySvg", () => {
       zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
     });
 
-    expect(svg.match(/<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient"/g)).toHaveLength(1);
+    expect(svg.match(/<path class="presentation-plot-surface-wireframe presentation-plot-surface-wireframe-z-gradient"/g)).toHaveLength(1);
     expect(svg).toContain("color-mix(in srgb,#7c3aed 48.38709677419355%,#06b6d4 51.61290322580645%)");
     expect(svg).not.toMatch(/NaN|Infinity/);
   });
@@ -203,10 +203,10 @@ describe("renderMathSurfaceGeometrySvg", () => {
     });
 
     for (const axis of ["x", "y", "z"] as const) {
-      const axisPattern = new RegExp(`(<line class="powershow-plot-axis powershow-plot-axis-${axis}"[^>]+>)`);
+      const axisPattern = new RegExp(`(<line class="presentation-plot-axis presentation-plot-axis-${axis}"[^>]+>)`);
       expect(gradient.match(axisPattern)?.[1]).toBe(solid.match(axisPattern)?.[1]);
     }
-    expect(renderMathSurfaceGeometrySvg(value, { showAxes: false, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } })).not.toContain("powershow-plot-axis");
+    expect(renderMathSurfaceGeometrySvg(value, { showAxes: false, zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" } })).not.toContain("presentation-plot-axis");
   });
 
   it("preserves gaps while banding finite row and column segments", () => {
@@ -218,10 +218,10 @@ describe("renderMathSurfaceGeometrySvg", () => {
       zGradient: { minColor: "#7c3aed", maxColor: "#06b6d4" },
     });
 
-    expect(svg).toContain("powershow-plot-surface-wireframe-z-gradient");
+    expect(svg).toContain("presentation-plot-surface-wireframe-z-gradient");
     expect(svg).not.toMatch(/NaN|Infinity/);
     expect(svg.match(/M /g)).toHaveLength(2);
-    expect(svg.match(/<path class="powershow-plot-surface-wireframe powershow-plot-surface-wireframe-z-gradient"/g)?.length).toBeLessThanOrEqual(32);
+    expect(svg.match(/<path class="presentation-plot-surface-wireframe presentation-plot-surface-wireframe-z-gradient"/g)?.length).toBeLessThanOrEqual(32);
   });
 
   it("uses finite non-degenerate padded bounds for a flat surface", () => {
@@ -264,9 +264,9 @@ describe("renderMathSurfaceGeometrySvg", () => {
       [{ x: 0, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 1, z: Number.POSITIVE_INFINITY }],
     ]), { showAxes: false });
 
-    expect(svg).toContain("powershow-plot-svg");
-    expect(svg).toContain("powershow-plot-surface-svg");
-    expect(svg).toContain("powershow-plot-surface-wireframe");
+    expect(svg).toContain("presentation-plot-svg");
+    expect(svg).toContain("presentation-plot-surface-svg");
+    expect(svg).toContain("presentation-plot-surface-wireframe");
     expect(svg).toContain('fill="none"');
     expect(svg).toContain('stroke="currentColor"');
     expect(svg).toContain('vector-effect="non-scaling-stroke"');
@@ -274,7 +274,7 @@ describe("renderMathSurfaceGeometrySvg", () => {
     expect(svg).not.toContain("Infinity");
     expect(svg).not.toContain("<polygon");
     expect(svg).not.toContain("<canvas");
-    expect(svg).not.toContain("powershow-plot-axis");
+    expect(svg).not.toContain("presentation-plot-axis");
   });
 
   it("returns empty output when no wireframe segment survives", () => {

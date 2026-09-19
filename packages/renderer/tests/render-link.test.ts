@@ -143,7 +143,7 @@ describe("renderElement link support", () => {
       const html = renderElement(element);
 
       expect(html).not.toContain("<a ");
-      expect(html).not.toContain("data-powershow-link");
+      expect(html).not.toContain("data-presentation-link");
       expect(html).toContain(">PowerShow Link</");
     },
   );
@@ -190,13 +190,13 @@ describe("renderElement link support", () => {
     expect(html).toContain('style="color:inherit;text-decoration:inherit"');
   });
 
-  it("marks authored links with data-powershow-link=true", () => {
+  it("marks authored links with data-presentation-link=true", () => {
     const html = renderElement(
       textElement({
         link: HTTPS_LINK,
       }),
     );
 
-    expect(html).toContain('data-powershow-link="true"');
+    expect(html).toContain('data-presentation-link="true"');
   });
 });

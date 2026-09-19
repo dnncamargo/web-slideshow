@@ -549,7 +549,7 @@ export function PresenterView({
 
         <section className={presenterStyles.currentColumn}>
           {fontResourcesCss && (
-            <style data-powershow-font-resources>{fontResourcesCss}</style>
+            <style data-presentation-font-resources>{fontResourcesCss}</style>
           )}
           {currentSlide && aspectRatio && presentation ? (
             <PresenterSlidePreview

@@ -108,8 +108,8 @@ export function renderTerminal(
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-terminal",
+    "presentation-element",
+    "presentation-terminal",
   ];
 
   const customClass =
@@ -137,7 +137,7 @@ export function renderTerminal(
 
   for (const [name, color] of semanticColors) {
     if (color !== undefined) {
-      rootStyles.push(`--powershow-terminal-${name}-color:${renderColorValue(color)}`);
+      rootStyles.push(`--presentation-terminal-${name}-color:${renderColorValue(color)}`);
     }
   }
 
@@ -158,7 +158,7 @@ export function renderTerminal(
 
   if (typography?.lineHeight !== undefined) {
     bodyStyles.push(`line-height:${typography.lineHeight}`);
-    bodyStyles.push(`--powershow-terminal-line-height:${typography.lineHeight}em`);
+    bodyStyles.push(`--presentation-terminal-line-height:${typography.lineHeight}em`);
   }
 
   if (typography?.letterSpacing !== undefined) {
@@ -176,7 +176,7 @@ export function renderTerminal(
   const titleStyleAttribute = titleStyles.length > 0
     ? ` style="${escapeHtml(titleStyles.join(";"))}"`
     : "";
-  const titleClasses = ["powershow-terminal-title"];
+  const titleClasses = ["presentation-terminal-title"];
   const customTitleClass = element.titleStyle?.className?.trim();
 
   if (customTitleClass) {
@@ -185,19 +185,19 @@ export function renderTerminal(
 
   const titleBar = hasTerminalTitleText(element.title)
     ? (
-      `<div class="powershow-terminal-titlebar">` +
+      `<div class="presentation-terminal-titlebar">` +
         `<div` +
-          ` class="powershow-terminal-controls"` +
+          ` class="presentation-terminal-controls"` +
           ` aria-hidden="true"` +
         `>` +
           `<span` +
-            ` class="powershow-terminal-control powershow-terminal-control-close"` +
+            ` class="presentation-terminal-control presentation-terminal-control-close"` +
           `></span>` +
           `<span` +
-            ` class="powershow-terminal-control powershow-terminal-control-minimize"` +
+            ` class="presentation-terminal-control presentation-terminal-control-minimize"` +
           `></span>` +
           `<span` +
-            ` class="powershow-terminal-control powershow-terminal-control-expand"` +
+            ` class="presentation-terminal-control presentation-terminal-control-expand"` +
           `></span>` +
         `</div>` +
         `<div class="${escapeHtml(titleClasses.join(" "))}"${titleStyleAttribute}>` +
@@ -211,7 +211,7 @@ export function renderTerminal(
     .map((line) => {
       return (
         `<div` +
-          ` class="powershow-terminal-line powershow-terminal-line-${line.type}"` +
+          ` class="presentation-terminal-line presentation-terminal-line-${line.type}"` +
           ` data-terminal-line-type="${line.type}"` +
         `>` +
           (typeof line.content === "string"
@@ -227,14 +227,14 @@ export function renderTerminal(
       ` class="${escapeHtml(
         classes.join(" "),
       )}"` +
-      ` data-powershow-id="${escapeHtml(
+      ` data-presentation-id="${escapeHtml(
         element.id,
       )}"` +
-      ` data-powershow-type="terminal"` +
+      ` data-presentation-type="terminal"` +
       styleAttribute +
     `>` +
       titleBar +
-      `<div class="powershow-terminal-body"${bodyStyleAttribute}>` +
+      `<div class="presentation-terminal-body"${bodyStyleAttribute}>` +
         lines +
       `</div>` +
     `</div>`

@@ -340,7 +340,7 @@ describe("Player presence pagehide cleanup", () => {
 
     await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
     const more = document.querySelector<HTMLButtonElement>(
-      ".powershow-player-recovery-toggle",
+      ".player-recovery-toggle",
     );
     expect(more?.getAttribute("aria-expanded")).toBe("false");
     expect(document.body.textContent).not.toContain("Try presentation again");
@@ -403,7 +403,7 @@ describe("Player presence pagehide cleanup", () => {
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
     });
     await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
-    document.querySelector<HTMLButtonElement>(".powershow-player-recovery-toggle")?.click();
+    document.querySelector<HTMLButtonElement>(".player-recovery-toggle")?.click();
 
     const retry = [...document.querySelectorAll("button")].find(
       (button) => button.textContent === "Try presentation again",
@@ -448,7 +448,7 @@ describe("Player presence pagehide cleanup", () => {
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
     });
     await vi.waitFor(() => expect(document.body.textContent).toContain("See more"));
-    document.querySelector<HTMLButtonElement>(".powershow-player-recovery-toggle")?.click();
+    document.querySelector<HTMLButtonElement>(".player-recovery-toggle")?.click();
   }
 
   function recoveryButton(label: string): HTMLButtonElement {
@@ -572,7 +572,7 @@ describe("Player presence pagehide cleanup", () => {
     expect(starting).toHaveBeenCalledTimes(1);
     expect(failed).toHaveBeenCalledWith("presentation-load-failed");
     expect(document.body.textContent).toContain("Could not load presentation.");
-    document.querySelector<HTMLButtonElement>(".powershow-player-recovery-toggle")?.click();
+    document.querySelector<HTMLButtonElement>(".player-recovery-toggle")?.click();
     expect(document.body.textContent).toContain("Error code: FIRESTORE_LOAD_ERROR");
     expect(document.body.textContent).toContain("Stage: Published presentation");
     expect(document.body.textContent).not.toContain("raw-error");

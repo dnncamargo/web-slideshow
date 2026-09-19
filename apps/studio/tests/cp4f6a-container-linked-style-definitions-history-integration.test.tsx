@@ -83,7 +83,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`Element was not rendered: ${id}`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

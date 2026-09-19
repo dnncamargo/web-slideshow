@@ -53,7 +53,7 @@ export function parseFullscreenRequest(value: unknown): FullscreenRequest | null
 function requestButton(root: HTMLElement): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "powershow-player-fullscreen-request";
+  button.className = "player-fullscreen-request";
   button.textContent = "Enter fullscreen";
   button.setAttribute("aria-label", "Enter fullscreen");
   root.appendChild(button);

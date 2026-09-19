@@ -42,7 +42,7 @@ function nodeColor(category: BlocksCategory | undefined, localColor: string | un
 }
 
 function categoryAttribute(category: BlocksCategory | undefined): string {
-  return category === undefined ? "" : ` data-powershow-block-category="${escapeHtml(category)}"`;
+  return category === undefined ? "" : ` data-presentation-block-category="${escapeHtml(category)}"`;
 }
 
 function styleAttribute(value: string): string {
@@ -60,50 +60,50 @@ function renderInline(nodes: BlocksInlineNode[], logicColor: string, textColor: 
       const colored = node.category !== undefined || node.color !== undefined;
       const fill = nodeColor(node.category, node.color, "#f8fafc", categoryColors);
       const foreground = colored ? textColor : "#1e293b";
-      return `<span class="powershow-block powershow-block--value"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${foreground};border-radius:999px;padding:4px 18px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${node.content.map((child) => child.type === "text" ? escapeHtml(child.value) : renderInline([child], nodeColor(node.category, node.color, logicColor, categoryColors), textColor, blockBorder, categoryColors)).join("")}</span>`;
+      return `<span class="presentation-block presentation-block--value"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${foreground};border-radius:999px;padding:4px 18px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${node.content.map((child) => child.type === "text" ? escapeHtml(child.value) : renderInline([child], nodeColor(node.category, node.color, logicColor, categoryColors), textColor, blockBorder, categoryColors)).join("")}</span>`;
     }
     if (node.type === "variable") {
       const fill = nodeColor(node.category, node.color, "#ff8c1a", categoryColors);
-      return `<span class="powershow-block powershow-block--variable"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};border-radius:999px;padding:8px 18px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${escapeHtml(node.value)}</span>`;
+      return `<span class="presentation-block presentation-block--variable"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};border-radius:999px;padding:8px 18px;border:1px solid rgba(15,23,42,0.22)${borderStyle(blockBorder)}`)}>${escapeHtml(node.value)}</span>`;
     }
     if (node.type === "option") {
-      return `<span class="powershow-block powershow-block--option"${styleAttribute(`${contentStyle};margin-inline:5px;background:#f8fafc;color:#1e293b;border:1px solid #94a3b8;border-radius:4px;padding:2px 7px`)}>${escapeHtml(node.value)}</span>`;
+      return `<span class="presentation-block presentation-block--option"${styleAttribute(`${contentStyle};margin-inline:5px;background:#f8fafc;color:#1e293b;border:1px solid #94a3b8;border-radius:4px;padding:2px 7px`)}>${escapeHtml(node.value)}</span>`;
     }
     if (node.type === "logic") {
       const fill = nodeColor(node.category, node.color, logicColor, categoryColors);
-      return `<span class="powershow-block powershow-block--logic"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};padding:4px 18px;border:1px solid rgba(15,23,42,0.22);clip-path:polygon(20px 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,20px 100%,0 50%)${borderStyle(blockBorder)}`)}>${renderInline(node.content, fill, textColor, blockBorder, categoryColors)}</span>`;
+      return `<span class="presentation-block presentation-block--logic"${categoryAttribute(node.category)}${styleAttribute(`${contentStyle};margin-inline:5px;background:${fill};color:${textColor};padding:4px 18px;border:1px solid rgba(15,23,42,0.22);clip-path:polygon(20px 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,20px 100%,0 50%)${borderStyle(blockBorder)}`)}>${renderInline(node.content, fill, textColor, blockBorder, categoryColors)}</span>`;
     }
     return "";
   }).join("");
 }
 
 function renderConnector(blockColor: string): string {
-  return `<span class="powershow-block-connector powershow-block-connector--bottom"${styleAttribute(`${connectorStyle};background:${blockColor}`)}></span>`;
+  return `<span class="presentation-block-connector presentation-block-connector--bottom"${styleAttribute(`${connectorStyle};background:${blockColor}`)}></span>`;
 }
 
 function renderBlock(block: BlocksAstNode, options: BlocksRenderOptions): string {
   const { statementColor, scopeColor, logicColor, categoryColors, textColor, blockBorder } = options;
   if (block.type === "scope") {
     const blockColor = nodeColor(block.category, block.color, scopeColor, categoryColors);
-    const header = `<div class="powershow-block-content"${styleAttribute(`${contentStyle};color:${textColor}`)}>${renderInline(block.content, logicColor, textColor, blockBorder, categoryColors)}</div>`;
+    const header = `<div class="presentation-block-content"${styleAttribute(`${contentStyle};color:${textColor}`)}>${renderInline(block.content, logicColor, textColor, blockBorder, categoryColors)}</div>`;
     const children = block.children.map((child) => renderBlock(child, options)).join("");
-    const body = `<div class="powershow-block-scope-body"${styleAttribute("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 0 14px;position:relative;z-index:1")}><div class="powershow-block-scope-stack"${styleAttribute(stackStyle)}>${children}</div></div>`;
-    return `<div class="powershow-block powershow-block--scope"${categoryAttribute(block.category)}${styleAttribute(`${scopeStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${header}${body}${renderConnector(blockColor)}</div>`;
+    const body = `<div class="presentation-block-scope-body"${styleAttribute("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 0 14px;position:relative;z-index:1")}><div class="presentation-block-scope-stack"${styleAttribute(stackStyle)}>${children}</div></div>`;
+    return `<div class="presentation-block presentation-block--scope"${categoryAttribute(block.category)}${styleAttribute(`${scopeStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${header}${body}${renderConnector(blockColor)}</div>`;
   }
-  const content = `<div class="powershow-block-content"${styleAttribute(`${contentStyle};color:${textColor}`)}>${renderInline(block.content, logicColor, textColor, blockBorder, categoryColors)}</div>`;
+  const content = `<div class="presentation-block-content"${styleAttribute(`${contentStyle};color:${textColor}`)}>${renderInline(block.content, logicColor, textColor, blockBorder, categoryColors)}</div>`;
   if (block.type === "start") {
     const blockColor = nodeColor(block.category, block.color, statementColor, categoryColors);
-    const arch = `<span class="powershow-block-start-arch"${styleAttribute(`position:absolute;left:8px;top:-5px;width:28px;height:10px;border-radius:50% 50% 0 0;background:${blockColor}`)}></span>`;
-    return `<div class="powershow-block powershow-block--start"${categoryAttribute(block.category)}${styleAttribute(`${blockStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${arch}${content}${renderConnector(blockColor)}</div>`;
+    const arch = `<span class="presentation-block-start-arch"${styleAttribute(`position:absolute;left:8px;top:-5px;width:28px;height:10px;border-radius:50% 50% 0 0;background:${blockColor}`)}></span>`;
+    return `<div class="presentation-block presentation-block--start"${categoryAttribute(block.category)}${styleAttribute(`${blockStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${arch}${content}${renderConnector(blockColor)}</div>`;
   }
   const blockColor = nodeColor(block.category, block.color, statementColor, categoryColors);
-  if (block.type === "end") return `<div class="powershow-block powershow-block--end"${categoryAttribute(block.category)}${styleAttribute(`${blockStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${content}</div>`;
-  return `<div class="powershow-block powershow-block--statement"${categoryAttribute(block.category)}${styleAttribute(`${blockStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${content}${renderConnector(blockColor)}</div>`;
+  if (block.type === "end") return `<div class="presentation-block presentation-block--end"${categoryAttribute(block.category)}${styleAttribute(`${blockStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${content}</div>`;
+  return `<div class="presentation-block presentation-block--statement"${categoryAttribute(block.category)}${styleAttribute(`${blockStyle};background:${blockColor}${borderStyle(blockBorder)}`)}>${content}${renderConnector(blockColor)}</div>`;
 }
 
 export function renderBlocks(element: BlocksElement): string {
   if (element.hidden) return "";
-  const classes = ["powershow-element", "powershow-blocks"];
+  const classes = ["presentation-element", "presentation-blocks"];
   const customClass = element.style?.className?.trim();
   if (customClass) classes.push(customClass);
   const rootStyle = renderCanonicalDataStyle(element);
@@ -121,7 +121,7 @@ export function renderBlocks(element: BlocksElement): string {
     blockBorder: element.style?.blockBorder,
   };
   const body = parsed.ok
-    ? `<div class="powershow-blocks-stack"${styleAttribute(stackStyle)}>${parsed.blocks.map((block) => renderBlock(block, options)).join("")}</div>`
-    : `<div class="powershow-blocks-invalid" data-powershow-blocks-invalid="true"></div>`;
-  return `<div class="${escapeHtml(classes.join(" "))}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="blocks"${style}>${body}</div>`;
+    ? `<div class="presentation-blocks-stack"${styleAttribute(stackStyle)}>${parsed.blocks.map((block) => renderBlock(block, options)).join("")}</div>`
+    : `<div class="presentation-blocks-invalid" data-presentation-blocks-invalid="true"></div>`;
+  return `<div class="${escapeHtml(classes.join(" "))}" data-presentation-id="${escapeHtml(element.id)}" data-presentation-type="blocks"${style}>${body}</div>`;
 }

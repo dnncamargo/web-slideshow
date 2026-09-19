@@ -71,8 +71,8 @@ export function renderCode(
     element.style?.className?.trim();
 
   const classes = [
-    "powershow-element",
-    "powershow-code",
+    "presentation-element",
+    "presentation-code",
   ];
 
   if (customClass) {
@@ -95,19 +95,19 @@ export function renderCode(
         );
 
       const lineClasses = [
-        "powershow-code-line",
+        "presentation-code-line",
       ];
 
       if (highlighted) {
         lineClasses.push(
-          "powershow-code-line-highlighted",
+          "presentation-code-line-highlighted",
         );
       }
 
       const number = element.showLineNumbers
         ? (
           `<span` +
-          ` class="powershow-code-line-number"` +
+          ` class="presentation-code-line-number"` +
           ` aria-hidden="true"` +
           `>${lineNumber}</span>`
         )
@@ -119,7 +119,7 @@ export function renderCode(
         ` data-line="${lineNumber}"` +
         `>` +
         number +
-        `<span class="powershow-code-line-content">` +
+        `<span class="presentation-code-line-content">` +
         (line === ""
           ? " "
           : typeof line === "string"
@@ -147,10 +147,10 @@ export function renderCode(
     ` class="${escapeHtml(
       classes.join(" "),
     )}"` +
-    ` data-powershow-id="${escapeHtml(
+    ` data-presentation-id="${escapeHtml(
       element.id,
     )}"` +
-    ` data-powershow-type="code"` +
+    ` data-presentation-type="code"` +
     ` data-language="${escapeHtml(
       element.language,
     )}"` +

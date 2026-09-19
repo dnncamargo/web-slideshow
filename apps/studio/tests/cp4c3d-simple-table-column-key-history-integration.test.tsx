@@ -135,7 +135,7 @@ describe("CP4C3D Simple Table column key history", () => {
   }
 
   async function selectTable(): Promise<void> {
-    const table = host.querySelector<HTMLElement>(`[data-powershow-id="${TABLE_ID}"]`);
+    const table = host.querySelector<HTMLElement>(`[data-presentation-id="${TABLE_ID}"]`);
     if (!table) throw new Error("Simple Table was not rendered");
     await act(async () => table.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

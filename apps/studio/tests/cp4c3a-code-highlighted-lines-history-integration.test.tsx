@@ -76,7 +76,7 @@ describe("CP4C3A Code highlighted lines history", () => {
   }
 
   async function selectCode(): Promise<void> {
-    const canvasElement = host.querySelector<HTMLElement>(`[data-powershow-id="${CODE_ID}"]`);
+    const canvasElement = host.querySelector<HTMLElement>(`[data-presentation-id="${CODE_ID}"]`);
     if (!canvasElement) throw new Error("code element was not rendered");
     await act(async () => canvasElement.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -88,7 +88,7 @@ describe("CP4C3A Code highlighted lines history", () => {
   }
 
   function highlightedLineNumbers(): number[] {
-    return Array.from(host.querySelectorAll<HTMLElement>(".powershow-code-line-highlighted"))
+    return Array.from(host.querySelectorAll<HTMLElement>(".presentation-code-line-highlighted"))
       .map((line) => Number(line.dataset.line));
   }
 

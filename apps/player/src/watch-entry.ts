@@ -51,9 +51,9 @@ function matchesLiveIdentity(
 
 function renderMessage(root: HTMLElement, message: string, loading = false): void {
   root.innerHTML = `
-    <div class="powershow-player-load-state" data-loading="${loading}">
+    <div class="player-load-state" data-loading="${loading}">
       <span>${message}</span>
-      <span class="powershow-player-load-indicator" aria-hidden="true"></span>
+      <span class="player-load-indicator" aria-hidden="true"></span>
     </div>
   `;
 }

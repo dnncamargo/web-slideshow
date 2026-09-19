@@ -13,7 +13,7 @@ describe("renderTerminal", () => {
     ["empty marked run", { type: "rich-text", runs: [{ text: "", marks: { bold: true } }] } as TerminalElement["title"]],
   ])("omits a titlebar for %s", (_name, title) => {
     expect(renderTerminal(createTerminalElement({ title }))).not.toContain(
-      "powershow-terminal-titlebar",
+      "presentation-terminal-titlebar",
     );
   });
 
@@ -22,7 +22,7 @@ describe("renderTerminal", () => {
       title: { type: "rich-text", runs: [{ text: "Title", marks: { bold: true, italic: true } }] },
     }));
 
-    expect(html).toContain("powershow-terminal-titlebar");
+    expect(html).toContain("presentation-terminal-titlebar");
     expect(html).toContain("<em><strong>Title</strong></em>");
   });
 
@@ -35,14 +35,14 @@ describe("renderTerminal", () => {
     expect(html).toContain("<strong>");
     expect(html).toContain("Terminal");
     expect(html).toContain("<em>ok</em>");
-    expect(html).toContain("powershow-terminal-line-output");
+    expect(html).toContain("presentation-terminal-line-output");
   });
   it("omits the title region when no title is provided", () => {
     const html = renderTerminal(createTerminalElement());
 
-    expect(html).not.toContain("powershow-terminal-title");
-    expect(html).toContain('class="powershow-terminal-body"');
-    expect(html).not.toContain("--powershow-terminal-");
+    expect(html).not.toContain("presentation-terminal-title");
+    expect(html).toContain('class="presentation-terminal-body"');
+    expect(html).not.toContain("--presentation-terminal-");
     expect(html).not.toContain("font-family:");
   });
 
@@ -57,9 +57,9 @@ describe("renderTerminal", () => {
       },
     }));
 
-    expect(html).toContain('class="powershow-terminal-title">Terminal title</div>');
-    expect(html).toContain('class="powershow-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px;line-height:1.25;--powershow-terminal-line-height:1.25em;letter-spacing:0.02em"');
-    expect(html).not.toContain('powershow-terminal-title" style=');
+    expect(html).toContain('class="presentation-terminal-title">Terminal title</div>');
+    expect(html).toContain('class="presentation-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px;line-height:1.25;--presentation-terminal-line-height:1.25em;letter-spacing:0.02em"');
+    expect(html).not.toContain('presentation-terminal-title" style=');
   });
 
   it("renders authored title typography and visual styling independently", () => {
@@ -84,19 +84,19 @@ describe("renderTerminal", () => {
       typography: { fontFamily: "Fira Code", fontSize: 18 },
     }));
 
-    expect(html).toContain('class="powershow-terminal-title custom-title"');
+    expect(html).toContain('class="presentation-terminal-title custom-title"');
     expect(html).toContain('style="color:#facc15;background:var(--ps-palette-');
     expect(html).toContain("border-width:1px;border-style:solid;border-color:#ffffff;border-radius:8px");
     expect(html).toContain('font-family:&quot;Example \\22 Mono\\22 &quot;');
     expect(html).toContain("font-size:14px;font-weight:600;font-style:italic;line-height:1.2;letter-spacing:0.02em;text-transform:uppercase");
-    expect(html).toContain('class="powershow-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px"');
+    expect(html).toContain('class="presentation-terminal-body" style="font-family:&quot;Fira Code&quot;;font-size:18px"');
   });
 
   it("does not emit authored title style when title styling is absent", () => {
     const html = renderTerminal(createTerminalElement({ title: "Plain title" }));
 
-    expect(html).toContain('class="powershow-terminal-title">Plain title</div>');
-    expect(html).not.toContain('powershow-terminal-title" style=');
+    expect(html).toContain('class="presentation-terminal-title">Plain title</div>');
+    expect(html).not.toContain('presentation-terminal-title" style=');
   });
 
   it("publishes authored semantic colors as root custom properties", () => {
@@ -110,12 +110,12 @@ describe("renderTerminal", () => {
       },
     }));
 
-    expect(html).toContain("--powershow-terminal-command-color:#ffffff");
-    expect(html).toContain("--powershow-terminal-prompt-color:var(--ps-palette-");
-    expect(html).toContain("--powershow-terminal-output-color:#cbd5e1");
-    expect(html).toContain("--powershow-terminal-comment-color:#64748b");
-    expect(html).toContain("--powershow-terminal-error-color:#fca5a5");
-    expect(html).not.toContain("powershow-terminal-body\" style=\"--powershow-terminal");
+    expect(html).toContain("--presentation-terminal-command-color:#ffffff");
+    expect(html).toContain("--presentation-terminal-prompt-color:var(--ps-palette-");
+    expect(html).toContain("--presentation-terminal-output-color:#cbd5e1");
+    expect(html).toContain("--presentation-terminal-comment-color:#64748b");
+    expect(html).toContain("--presentation-terminal-error-color:#fca5a5");
+    expect(html).not.toContain("presentation-terminal-body\" style=\"--presentation-terminal");
   });
 
   it("keeps canonical root styles alongside body typography and semantic colors", () => {
@@ -129,8 +129,8 @@ describe("renderTerminal", () => {
       effect: { opacity: 0.8 },
     }));
 
-    expect(html).toContain("position:absolute;left:12px;background:#080b0a;opacity:0.8;--powershow-terminal-command-color:#ffffff");
-    expect(html).toContain("line-height:2;--powershow-terminal-line-height:2em");
+    expect(html).toContain("position:absolute;left:12px;background:#080b0a;opacity:0.8;--presentation-terminal-command-color:#ffffff");
+    expect(html).toContain("line-height:2;--presentation-terminal-line-height:2em");
   });
 
   it("renders an empty terminal body for no lines", () => {
@@ -141,7 +141,7 @@ describe("renderTerminal", () => {
       }),
     );
 
-    expect(html).toContain("powershow-terminal-body");
+    expect(html).toContain("presentation-terminal-body");
     expect(html).not.toContain("data-terminal-line-type");
   });
 
@@ -159,7 +159,7 @@ describe("renderTerminal", () => {
         }),
       );
 
-      expect(html).toContain(`powershow-terminal-line-${type}`);
+      expect(html).toContain(`presentation-terminal-line-${type}`);
       expect(html).toContain(`data-terminal-line-type="${type}"`);
       expect(html).toContain(`${type} content`);
     },
@@ -224,32 +224,32 @@ describe("renderTerminal", () => {
       ],
     });
 
-    expect(html).toContain('class="powershow-terminal-titlebar"');
+    expect(html).toContain('class="presentation-terminal-titlebar"');
 
-    expect(html).toContain('class="powershow-terminal-controls"');
+    expect(html).toContain('class="presentation-terminal-controls"');
 
     expect(html).toContain(
-      'class="powershow-terminal-control powershow-terminal-control-close"',
+      'class="presentation-terminal-control presentation-terminal-control-close"',
     );
 
     expect(html).toContain(
-      'class="powershow-terminal-control powershow-terminal-control-minimize"',
+      'class="presentation-terminal-control presentation-terminal-control-minimize"',
     );
 
     expect(html).toContain(
-      'class="powershow-terminal-control powershow-terminal-control-expand"',
+      'class="presentation-terminal-control presentation-terminal-control-expand"',
     );
 
     expect(html).toContain('aria-hidden="true"');
 
-    expect(html).toContain('class="powershow-terminal-title"');
+    expect(html).toContain('class="presentation-terminal-title"');
 
     expect(html).toContain(">PowerShow</div>");
 
-    expect(html).toContain('class="powershow-terminal-body"');
+    expect(html).toContain('class="presentation-terminal-body"');
 
     expect(html).toContain(
-      'class="powershow-terminal-line powershow-terminal-line-command"',
+      'class="presentation-terminal-line presentation-terminal-line-command"',
     );
 
     expect(html).toContain('data-terminal-line-type="command"');
@@ -271,6 +271,6 @@ describe("renderTerminal", () => {
       ],
     });
 
-    expect(html).not.toContain("powershow-terminal-titlebar");
+    expect(html).not.toContain("presentation-terminal-titlebar");
   });
 });

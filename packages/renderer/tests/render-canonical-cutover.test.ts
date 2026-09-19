@@ -7,7 +7,7 @@ describe("Plot and Interactive placeholders", () => {
     [{ type: "interactive", id: "interactive-flow", hidden: false, widget: "function-plot", config: {} }],
   ])("renders a flow placeholder without legacy style", (element) => {
     const html = renderElement(element as never);
-    expect(html).toContain("powershow-placeholder");
+    expect(html).toContain("presentation-placeholder");
     expect(html).not.toContain("style=");
     expect(html).not.toContain("placement");
   });
@@ -76,8 +76,8 @@ describe("canonical ContentSlot renderer", () => {
       columns: [{ id: "column", header: { id: "header", children: [] }, width: 120 }],
       rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
     });
-    expect(html).toContain('data-powershow-content-slot-id="header"');
-    expect(html).not.toContain('data-powershow-content-slot-id="header" style=');
+    expect(html).toContain('data-presentation-content-slot-id="header"');
+    expect(html).not.toContain('data-presentation-content-slot-id="header" style=');
     expect(html).toContain("width:120px");
   });
 
@@ -89,7 +89,7 @@ describe("canonical ContentSlot renderer", () => {
       kind: "unordered",
       items: [{ id: "item", content: { id: "slot", layout: { padding: 8 }, style: { className: 'slot "quoted"' }, typography: { fontSize: 14 }, children: [] }, children: [] }],
     });
-    expect(html).toContain('class="powershow-topic-item slot &quot;quoted&quot;"');
+    expect(html).toContain('class="presentation-topic-item slot &quot;quoted&quot;"');
     expect(html).toContain("padding:8px");
     expect(html).toContain("font-size:14px");
   });

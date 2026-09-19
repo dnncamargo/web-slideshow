@@ -122,7 +122,7 @@ describe("CP4F8 linked style bulk attach history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`Element was not rendered: ${id}`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -203,15 +203,15 @@ describe("CP4F8 linked style bulk attach history", () => {
     expect(elementFrom(postBulk, "cp4f8-nonmatch")).toEqual(elementFrom(initialSnapshot, "cp4f8-nonmatch"));
     expect(elementFrom(postBulk, "cp4f8-already-target")).toEqual(elementFrom(initialSnapshot, "cp4f8-already-target"));
     expect(elementFrom(postBulk, "cp4f8-already-other")).toEqual(elementFrom(initialSnapshot, "cp4f8-already-other"));
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="cp4f8-root-match"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="cp4f8-root-match"]')?.classList.contains("studio-editor-selected")).toBe(true);
 
     await undo();
     expect(await save(saved)).toEqual(initialSnapshot);
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="cp4f8-root-match"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="cp4f8-root-match"]')?.classList.contains("studio-editor-selected")).toBe(true);
 
     await redo();
     expect(await save(saved)).toEqual(postBulk);
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="cp4f8-root-match"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="cp4f8-root-match"]')?.classList.contains("studio-editor-selected")).toBe(true);
   });
 
   it("recomputes the current match set after a separate definition transaction", async () => {

@@ -203,7 +203,7 @@ function directTopicChildren(treeItem: HTMLLIElement): HTMLLIElement[] {
 
 function contentGroup(treeItem: HTMLLIElement): HTMLElement {
   const group = treeItem.querySelector<HTMLElement>(
-    "[data-powershow-tree-content-group]",
+    "[data-presentation-tree-content-group]",
   );
 
   if (!group) {
@@ -387,7 +387,7 @@ describe("ElementTreePanel", () => {
 
     const topicB = findTreeItem(container, "B");
 
-    expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
+    expect(topicB.querySelector("[data-presentation-tree-content-group]")).toBeNull();
     expect(directTopicChildren(topicB).map(treeItemLabel)).toEqual([
       "Image",
       "Table",
@@ -544,23 +544,23 @@ describe("ElementTreePanel", () => {
     expect(container.textContent).toContain("Rows");
     expect(container.textContent).toContain("Column 1 (Name)");
     expect(container.textContent).toContain("Row 1 (Matrix)");
-    expect(container.querySelectorAll('[data-powershow-table-tree-column-id]')).toHaveLength(2);
-    expect(container.querySelectorAll('[data-powershow-table-tree-row-id]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-presentation-table-tree-column-id]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-presentation-table-tree-row-id]')).toHaveLength(2);
     expect(container.textContent).toContain("Name");
     expect(container.textContent).toContain("Matrix");
     expect(container.textContent).not.toContain("1999");
-    expect(container.querySelector('[data-powershow-table-tree-column-id="column-1"]')?.closest('li[role="treeitem"]')?.getAttribute("aria-selected")).toBe("false");
+    expect(container.querySelector('[data-presentation-table-tree-column-id="column-1"]')?.closest('li[role="treeitem"]')?.getAttribute("aria-selected")).toBe("false");
 
     act(() => {
-      container.querySelector<HTMLButtonElement>('[data-powershow-table-tree-column-id="column-2"]')?.click();
+      container.querySelector<HTMLButtonElement>('[data-presentation-table-tree-column-id="column-2"]')?.click();
     });
-    expect(container.querySelector('[data-powershow-table-tree-column-id="column-2"]')?.closest('li[role="treeitem"]')?.getAttribute("aria-selected")).toBe("true");
+    expect(container.querySelector('[data-presentation-table-tree-column-id="column-2"]')?.closest('li[role="treeitem"]')?.getAttribute("aria-selected")).toBe("true");
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Move left"]')?.click();
     });
     expect(onMoveTableColumn).toHaveBeenCalledWith("table-1", "column-2", -1);
     expect(onMoveTableRow).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-powershow-table-tree-column-id="table-1:cell"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-table-tree-column-id="table-1:cell"]')).toBeNull();
   });
 
   it("keeps single representative elements summarized and expands only multi-element slots", () => {
@@ -577,10 +577,10 @@ describe("ElementTreePanel", () => {
 
     renderPanel(slide, { selectedElementId: element.id });
 
-    const singleColumn = container.querySelector<HTMLElement>('[data-powershow-table-tree-column-id="column-1"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
-    const multiColumn = container.querySelector<HTMLElement>('[data-powershow-table-tree-column-id="column-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
-    const singleRow = container.querySelector<HTMLElement>('[data-powershow-table-tree-row-id="row-1"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
-    const multiRow = container.querySelector<HTMLElement>('[data-powershow-table-tree-row-id="row-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const singleColumn = container.querySelector<HTMLElement>('[data-presentation-table-tree-column-id="column-1"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const multiColumn = container.querySelector<HTMLElement>('[data-presentation-table-tree-column-id="column-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const singleRow = container.querySelector<HTMLElement>('[data-presentation-table-tree-row-id="row-1"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
+    const multiRow = container.querySelector<HTMLElement>('[data-presentation-table-tree-row-id="row-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement | null;
 
     expect(singleColumn?.getAttribute("aria-expanded")).toBeNull();
     expect(singleColumn ? directTreeGroup(singleColumn) : null).toBeNull();
@@ -612,7 +612,7 @@ describe("ElementTreePanel", () => {
     const onMoveTableRow = vi.fn();
 
     renderPanel(slide, { selectedElementId: element.id, onSelectElement, onMoveElement, onMoveTableRow });
-    const rowNode = container.querySelector<HTMLElement>('[data-powershow-table-tree-row-id="row-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement;
+    const rowNode = container.querySelector<HTMLElement>('[data-presentation-table-tree-row-id="row-2"]')?.closest('li[role="treeitem"]') as HTMLLIElement;
     const childImage = directTopicChildren(rowNode).find((item) => treeItemLabel(item) === "Image");
     if (!childImage) throw new Error("representative Image child not found");
 
@@ -1143,7 +1143,7 @@ describe("ElementTreePanel", () => {
     renderPanel(slide);
 
     const topicB = findTreeItem(container, "B");
-    expect(topicB.querySelector("[data-powershow-tree-content-group]")).toBeNull();
+    expect(topicB.querySelector("[data-presentation-tree-content-group]")).toBeNull();
   });
 
   it("does not mutate canonical data when rendering the selector", () => {

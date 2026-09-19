@@ -101,7 +101,7 @@ describe("CP4C1A continuous effect number history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

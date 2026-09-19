@@ -11,7 +11,7 @@ import {
 
 type PlotNode = {
   className: string;
-  dataset: { powershowId: string; powershowType: string };
+  dataset: { presentationId: string; presentationType: string };
   innerHTML: string;
   querySelector: () => null;
 };
@@ -43,9 +43,9 @@ function plot(id: string, animation: NonNullable<PlotElement["animation"]>, sour
 function node(element: PlotElement): PlotNode {
   const html = renderPlot(element);
   return {
-    className: "powershow-element powershow-plot",
-    dataset: { powershowId: element.id, powershowType: "plot" },
-    innerHTML: html.slice(html.indexOf(">", html.indexOf("data-powershow-type")) + 1, -6),
+    className: "presentation-element presentation-plot",
+    dataset: { presentationId: element.id, presentationType: "plot" },
+    innerHTML: html.slice(html.indexOf(">", html.indexOf("data-presentation-type")) + 1, -6),
     querySelector: () => null,
   };
 }
@@ -124,7 +124,7 @@ describe("Plot animation runtime", () => {
     const expected = renderPlotFrame(updated, { bindings: { t: 5 } });
     const old = renderPlotFrame(initial, { bindings: { t: 5 } });
     expect(expected).not.toBeNull();
-    expect(plotNode.className).toBe(`powershow-element ${expected?.className}`);
+    expect(plotNode.className).toBe(`presentation-element ${expected?.className}`);
     expect(plotNode.innerHTML).toBe(expected?.content);
     expect(plotNode.innerHTML).not.toBe(old?.content);
     expect(root.innerHTML).not.toContain("y = x + t");
@@ -148,9 +148,9 @@ describe("Plot animation runtime", () => {
 
     const expected = renderPlotFrame(updated, { bindings: { t: 5 } });
     expect(expected).not.toBeNull();
-    expect(plotNode.className).toBe(`powershow-element ${expected?.className}`);
+    expect(plotNode.className).toBe(`presentation-element ${expected?.className}`);
     expect(plotNode.innerHTML).toBe(expected?.content);
-    expect(plotNode.innerHTML).not.toContain("powershow-plot-axis");
+    expect(plotNode.innerHTML).not.toContain("presentation-plot-axis");
     expect(requestFrame).toHaveBeenCalledTimes(3);
   });
 
@@ -462,7 +462,7 @@ describe("Plot animation runtime", () => {
     disposeRendererRuntime(runtimeRoot(root));
     disposeRendererRuntime(runtimeRoot(root));
     expect(cancelFrame).toHaveBeenCalledTimes(2);
-    expect(plotNode.dataset.powershowId).toBe("plot-1");
+    expect(plotNode.dataset.presentationId).toBe("plot-1");
     expect(root.innerHTML).not.toContain("y = x + t");
   });
 
@@ -470,8 +470,8 @@ describe("Plot animation runtime", () => {
     const valid = renderPlotFrame(plot("valid", { parameter: "t", from: 0, to: 1, durationMs: 1000 }));
     const fallback = renderPlotFrame(plot("fallback", { parameter: "t", from: 0, to: 1, durationMs: 1000 }, ""));
 
-    expect(valid?.className).toBe("powershow-plot");
-    expect(fallback?.className).toBe("powershow-placeholder powershow-placeholder-plot");
+    expect(valid?.className).toBe("presentation-plot");
+    expect(fallback?.className).toBe("presentation-placeholder presentation-placeholder-plot");
     expect(valid?.content).not.toContain("y = x + t");
     expect(fallback?.content).toBe("[plot]");
   });

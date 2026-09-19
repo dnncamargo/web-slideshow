@@ -167,7 +167,7 @@ describe("CP4D2B Topics Remove history", () => {
 
   async function selectTopics(): Promise<void> {
     const element = container.querySelector<HTMLElement>(
-      `[data-powershow-id="${TOPICS_ID}"]`,
+      `[data-presentation-id="${TOPICS_ID}"]`,
     );
     if (!element) throw new Error("Topics element was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -175,10 +175,10 @@ describe("CP4D2B Topics Remove history", () => {
 
   async function removeTopic(id: string): Promise<void> {
     const row = container.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${id}"]`,
+      `[data-presentation-topic-item-id="${id}"]`,
     );
     const button = row?.querySelector<HTMLButtonElement>(
-      'button[data-powershow-topic-remove="true"]',
+      'button[data-presentation-topic-remove="true"]',
     );
     if (!button) throw new Error(`Topic Remove button was not rendered: ${id}`);
     await act(async () => button.click());
@@ -212,10 +212,10 @@ describe("CP4D2B Topics Remove history", () => {
 
   function topicInput(id: string): HTMLInputElement {
     const row = container.querySelector<HTMLElement>(
-      `[data-powershow-topic-item-id="${id}"]`,
+      `[data-presentation-topic-item-id="${id}"]`,
     );
     const input = row?.querySelector<HTMLInputElement>(
-      'input[data-powershow-topic-input="true"]',
+      'input[data-presentation-topic-input="true"]',
     );
     if (!input) throw new Error(`Topic input was not rendered: ${id}`);
     return input;
@@ -544,7 +544,7 @@ describe("CP4D2B Topics Remove history", () => {
     });
 
     const button = container.querySelector<HTMLElement>(
-      '[data-powershow-topic-item-id="topic-a"] button[data-powershow-topic-remove="true"]',
+      '[data-presentation-topic-item-id="topic-a"] button[data-presentation-topic-remove="true"]',
     );
     if (!button) throw new Error("standalone Remove button was not rendered");
     await act(async () => (button as HTMLButtonElement).click());

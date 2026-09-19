@@ -322,8 +322,8 @@ function hasAbsoluteChild(
 function renderLinkSurface(link: ElementLink): string {
   const attributes = [
     `href="${escapeHtml(link.href)}"`,
-    'data-powershow-link="true"',
-    'data-powershow-container-link-surface="true"',
+    'data-presentation-link="true"',
+    'data-presentation-container-link-surface="true"',
     `style="position:absolute;inset:0;z-index:${CONTAINER_LINK_SURFACE_Z_INDEX}"`,
   ];
 
@@ -399,17 +399,17 @@ export function renderContainer(
     styles.push("z-index:0");
   }
 
-  const classes = ["powershow-element", "powershow-container"];
-  if (isStack) classes.push("powershow-container-stack");
-  if (isFitted) classes.push("powershow-container-fit");
-  if (element.role) classes.push(`powershow-container-${element.role}`);
+  const classes = ["presentation-element", "presentation-container"];
+  if (isStack) classes.push("presentation-container-stack");
+  if (isFitted) classes.push("presentation-container-fit");
+  if (element.role) classes.push(`presentation-container-${element.role}`);
   if (hasGradientBorder) classes.push("presentation-gradient-border");
   if (element.style?.className?.trim()) classes.push(element.style.className.trim());
 
   const tag = getTagName(element.role);
   const pattern = renderedElement.style?.background?.pattern;
   const patternLayer = pattern
-    ? `<div class="powershow-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+    ? `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
         "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;" +
           renderBackgroundPattern(pattern),
       )}"></div>`
@@ -421,7 +421,7 @@ export function renderContainer(
     })
     .join("");
   const role = element.role
-    ? ` data-powershow-role="${escapeHtml(element.role)}"`
+    ? ` data-presentation-role="${escapeHtml(element.role)}"`
     : "";
 
   const childrenMarkup = isFitted
@@ -433,14 +433,14 @@ export function renderContainer(
           "transform-origin:0 0",
         ];
         renderChildLayout(renderedElement, surfaceStyles);
-        return `<div class="powershow-container-fit-viewport" data-powershow-container-fit="true" data-powershow-container-fit-mode="${fit.mode}" data-powershow-container-fit-source-width="${fit.sourceWidth}" data-powershow-container-fit-source-height="${fit.sourceHeight}" style="position:relative;width:100%;height:100%;${fit.mode === "cover" ? "overflow:hidden;" : "overflow:visible;"}"><div class="powershow-container-fit-surface" style="${escapeHtml(surfaceStyles.join(";"))}">${children}</div></div>`;
+        return `<div class="presentation-container-fit-viewport" data-presentation-container-fit="true" data-presentation-container-fit-mode="${fit.mode}" data-presentation-container-fit-source-width="${fit.sourceWidth}" data-presentation-container-fit-source-height="${fit.sourceHeight}" style="position:relative;width:100%;height:100%;${fit.mode === "cover" ? "overflow:hidden;" : "overflow:visible;"}"><div class="presentation-container-fit-surface" style="${escapeHtml(surfaceStyles.join(";"))}">${children}</div></div>`;
       })()
     : children;
 
   return (
     `<${tag} class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="container"${role}` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="container"${role}` +
     ` style="${escapeHtml(styles.join(";"))}">` +
     patternLayer +
     childrenMarkup +

@@ -65,11 +65,11 @@ export function BlocksContentSection({
   ] as const;
 
   return (
-    <div data-powershow-blocks-inspector="true">
+    <div data-presentation-blocks-inspector="true">
       <label className={styles.field}>
         <span>{t("inspector.blocks.source")}</span>
         <div className={styles.textEditor}>
-          <div className={styles.textEditorToolbar} data-powershow-blocks-toolbar="true">
+          <div className={styles.textEditorToolbar} data-presentation-blocks-toolbar="true">
             {tools.map(([label, prefix, suffix, translationKey, accessibleLabel]) => (
               <button
                 key={label}
@@ -110,16 +110,16 @@ export function BlocksContentSection({
               }
             }}
             rows={8}
-            data-powershow-blocks-source="true"
+            data-presentation-blocks-source="true"
           />
         </div>
       </label>
       {parsed.ok ? (
-        <div role="status" data-powershow-blocks-syntax="valid" className={styles.fieldHint}>
+        <div role="status" data-presentation-blocks-syntax="valid" className={styles.fieldHint}>
           {t("inspector.blocks.syntaxValid")}
         </div>
       ) : (
-        <div role="alert" data-powershow-blocks-syntax="invalid" className={styles.fieldHint}>
+        <div role="alert" data-presentation-blocks-syntax="invalid" className={styles.fieldHint}>
           {t("inspector.blocks.syntaxInvalid", {
             line: parsed.error.line,
             column: parsed.error.column,

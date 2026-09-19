@@ -26,11 +26,11 @@ describe("Player demo runtime", () => {
 
   it("mounts the controls-free projection, advances, and cleans up", () => {
     const demo = startDemo(root);
-    expect(root.querySelector(".powershow-player-controls")).toBeNull();
-    expect(root.querySelector(".powershow-player-slide-surface")).not.toBeNull();
+    expect(root.querySelector(".player-controls")).toBeNull();
+    expect(root.querySelector(".player-slide-surface")).not.toBeNull();
 
     vi.advanceTimersByTime(10_000);
-    expect(root.querySelector('[data-powershow-slide-id="slide-1"]')).toBeNull();
+    expect(root.querySelector('[data-presentation-slide-id="slide-1"]')).toBeNull();
 
     demo.destroy();
     expect(root.children).toHaveLength(0);
@@ -41,12 +41,12 @@ describe("Player demo runtime", () => {
     hidden = true;
     document.dispatchEvent(new Event("visibilitychange"));
     vi.advanceTimersByTime(20_000);
-    expect(root.querySelector('[data-powershow-slide-id="slide-1"]')).not.toBeNull();
+    expect(root.querySelector('[data-presentation-slide-id="slide-1"]')).not.toBeNull();
 
     hidden = false;
     document.dispatchEvent(new Event("visibilitychange"));
     vi.advanceTimersByTime(10_000);
-    expect(root.querySelector('[data-powershow-slide-id="slide-1"]')).toBeNull();
+    expect(root.querySelector('[data-presentation-slide-id="slide-1"]')).toBeNull();
     demo.destroy();
   });
 
@@ -57,7 +57,7 @@ describe("Player demo runtime", () => {
     });
     const demo = startDemo(root);
     vi.advanceTimersByTime(20_000);
-    expect(root.querySelector('[data-powershow-slide-id="slide-1"]')).not.toBeNull();
+    expect(root.querySelector('[data-presentation-slide-id="slide-1"]')).not.toBeNull();
     demo.destroy();
   });
 });

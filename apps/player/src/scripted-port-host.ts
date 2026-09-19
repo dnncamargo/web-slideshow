@@ -35,9 +35,9 @@ function findScriptedFrame(
   elementId: string,
 ): HTMLIFrameElement | null {
   for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
-    'iframe[data-powershow-type="scripted"][data-powershow-id]',
+    'iframe[data-presentation-type="scripted"][data-presentation-id]',
   )) {
-    if (frame.dataset.powershowId === elementId) {
+    if (frame.dataset.presentationId === elementId) {
       return frame;
     }
   }
@@ -149,7 +149,7 @@ export function validateScriptedReport(
 
   const frame = findScriptedFrame(slideSurface, data.elementId);
 
-  if (!frame || frame.contentWindow !== event.source || frame.dataset.powershowId !== data.elementId) {
+  if (!frame || frame.contentWindow !== event.source || frame.dataset.presentationId !== data.elementId) {
     return null;
   }
 

@@ -320,8 +320,8 @@ export function renderScripted(
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-scripted",
+    "presentation-element",
+    "presentation-scripted",
   ];
 
   const customClass =
@@ -396,8 +396,8 @@ export function renderScripted(
   const iframe = (
     `<iframe` +
     ` class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="scripted"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="scripted"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${SCRIPTED_SANDBOX}"` +
     ` referrerpolicy="${SCRIPTED_REFERRERPOLICY}"` +

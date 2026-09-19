@@ -95,7 +95,7 @@ describe("CP4E4 Container Fit history integration", () => {
   }
 
   async function selectContainer(): Promise<void> {
-    const element = host.querySelector<HTMLElement>("[data-powershow-id='container-fit-history']");
+    const element = host.querySelector<HTMLElement>("[data-presentation-id='container-fit-history']");
     if (!element) throw new Error("Container was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -107,7 +107,7 @@ describe("CP4E4 Container Fit history integration", () => {
   }
 
   function renderedContainer(): HTMLElement {
-    const element = host.querySelector<HTMLElement>("[data-powershow-id='container-fit-history']");
+    const element = host.querySelector<HTMLElement>("[data-presentation-id='container-fit-history']");
     if (!element) throw new Error("Rendered Container was not found");
     return element;
   }

@@ -96,7 +96,7 @@ function collectAnimatedPlots(slide: Slide): Map<string, PlotElement> {
 }
 
 function collectPlotNodes(root: ParentNode): PlotNode[] {
-  const selector = '[data-powershow-type="plot"][data-powershow-id]';
+  const selector = '[data-presentation-type="plot"][data-presentation-id]';
   const rootElement = root as ParentNode & {
     matches?: (value: string) => boolean;
   };
@@ -113,7 +113,7 @@ function applyFrame(instance: PlotInstance, value: number): void {
     bindings: { [instance.config.parameter]: value },
   });
   if (frame === null) return;
-  instance.node.className = `powershow-element ${frame.className}`;
+  instance.node.className = `presentation-element ${frame.className}`;
   instance.node.innerHTML = frame.content;
 }
 
@@ -193,7 +193,7 @@ export function hydratePlotAnimations(root: ParentNode, slide: Slide, runtimeAut
 
   const claimedIds = new Set<string>();
   for (const node of domNodes) {
-    const elementId = node.dataset.powershowId;
+    const elementId = node.dataset.presentationId;
     if (elementId === undefined || claimedIds.has(elementId)) continue;
     const canonical = canonicalPlots.get(elementId);
     if (canonical?.animation === undefined) continue;

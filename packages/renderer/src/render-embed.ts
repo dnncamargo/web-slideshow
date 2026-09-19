@@ -120,8 +120,8 @@ export function renderEmbed(
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-embed",
+    "presentation-element",
+    "presentation-embed",
   ];
 
   const customClass =
@@ -197,8 +197,8 @@ export function renderEmbed(
       : hasGradientBorder
         ? ""
         : ` class="${escapeHtml(classes.join(" "))}"` +
-          ` data-powershow-id="${escapeHtml(element.id)}"` +
-          ` data-powershow-type="embed"`) +
+          ` data-presentation-id="${escapeHtml(element.id)}"` +
+          ` data-presentation-type="embed"`) +
     ` src="${escapeHtml(resolveEmbedSrc(element.src))}"` +
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${EMBED_SANDBOX}"` +
@@ -216,8 +216,8 @@ export function renderEmbed(
   if (!element.viewport) {
     return (
       `<div class="${escapeHtml([...classes, "presentation-gradient-border"].join(" "))}"` +
-      ` data-powershow-id="${escapeHtml(element.id)}"` +
-      ` data-powershow-type="embed"` +
+      ` data-presentation-id="${escapeHtml(element.id)}"` +
+      ` data-presentation-type="embed"` +
       ` style="${escapeHtml(styles.join(";"))}">` +
       iframe +
       `</div>`
@@ -241,8 +241,8 @@ export function renderEmbed(
 
     return (
       `<div class="${escapeHtml([...classes, "presentation-gradient-border"].join(" "))}"` +
-      ` data-powershow-id="${escapeHtml(element.id)}"` +
-      ` data-powershow-type="embed"` +
+      ` data-presentation-id="${escapeHtml(element.id)}"` +
+      ` data-presentation-type="embed"` +
       ` style="${escapeHtml(styles.join(";"))}">` +
       `<div class="presentation-embed-gradient-surface" style="${escapeHtml(surfaceStyles.join(";"))}">` +
       iframe +
@@ -253,8 +253,8 @@ export function renderEmbed(
 
   return (
     `<div class="${escapeHtml(classes.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="embed"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="embed"` +
     ` style="${escapeHtml([
       ...styles,
       ...(element.layout?.position === undefined ? ["position:relative"] : []),

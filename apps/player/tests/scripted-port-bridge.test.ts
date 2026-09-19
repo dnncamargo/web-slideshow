@@ -65,9 +65,9 @@ describe("Scripted ProjectionSurface port bridge", () => {
 
   function frame(elementId: string): HTMLIFrameElement {
     for (const candidate of root.querySelectorAll<HTMLIFrameElement>(
-      'iframe[data-powershow-type="scripted"][data-powershow-id]',
+      'iframe[data-presentation-type="scripted"][data-presentation-id]',
     )) {
-      if (candidate.dataset.powershowId === elementId) {
+      if (candidate.dataset.presentationId === elementId) {
         return candidate;
       }
     }

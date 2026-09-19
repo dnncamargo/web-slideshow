@@ -199,7 +199,7 @@ function TopicRow({
   return (
     <li
       className={styles.topicsRow}
-      data-powershow-topic-item-id={item.id}
+      data-presentation-topic-item-id={item.id}
       style={{ paddingInlineStart: depth * 18 }}
     >
       <div className={styles.topicsRowLine}>
@@ -213,8 +213,8 @@ function TopicRow({
               registerInputRef(item.id, node);
             }}
             className={`${styles.inspectorControl} ${styles.topicsField} ${styles.topicsInput}`}
-            data-powershow-topic-input="true"
-            data-powershow-topic-content-state="editable"
+            data-presentation-topic-input="true"
+            data-presentation-topic-content-state="editable"
             type="text"
             value={plainText}
             onFocus={() => {
@@ -234,7 +234,7 @@ function TopicRow({
         ) : (
           <span
             className={`${styles.inspectorControl} ${styles.topicsField} ${styles.topicsReadOnlyField}`}
-            data-powershow-topic-content-state={
+            data-presentation-topic-content-state={
               contentLabels.length > 0 ? "descriptor" : "empty"
             }
           >
@@ -245,7 +245,7 @@ function TopicRow({
         <button
           type="button"
           className="ps-ui-action ps-ui-action--icon"
-          data-powershow-topic-add-child="true"
+          data-presentation-topic-add-child="true"
           title={addChildTitle}
           aria-label={addChildTitle}
           disabled={atMaxStructuralDepth}
@@ -259,7 +259,7 @@ function TopicRow({
         <button
           type="button"
           className="ps-ui-action ps-ui-action--icon"
-          data-powershow-topic-remove="true"
+          data-presentation-topic-remove="true"
           title={removeLabel}
           aria-label={removeLabel}
           onClick={() => {
@@ -273,7 +273,7 @@ function TopicRow({
       {hasDirectText && contentSummary ? (
         <div
           className={styles.topicsSummary}
-          data-powershow-topic-content-summary="true"
+          data-presentation-topic-content-summary="true"
         >
           {contentSummary}
         </div>

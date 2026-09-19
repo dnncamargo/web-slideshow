@@ -206,8 +206,8 @@
   background: var(--ps-ui-background-control);
 }
 
-.typographyStylePreview :global(.powershow-text),
-.linkedStylePreview :global(.powershow-text) {
+.typographyStylePreview :global(.presentation-text),
+.linkedStylePreview :global(.presentation-text) {
   width: 100%;
   margin: 0;
 }

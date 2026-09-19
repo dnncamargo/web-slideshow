@@ -126,7 +126,7 @@ describe("CP4D4 Terminal line structure history", () => {
         <EditorWorkspace initialPresentation={presentation(element)} />
       </StudioI18nProvider>,
     ));
-    const canvasElement = host.querySelector<HTMLElement>('[data-powershow-id="cp4d4-terminal"]');
+    const canvasElement = host.querySelector<HTMLElement>('[data-presentation-id="cp4d4-terminal"]');
     if (!canvasElement) throw new Error("Terminal was not rendered");
     await act(async () => canvasElement.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

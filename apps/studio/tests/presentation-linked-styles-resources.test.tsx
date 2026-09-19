@@ -307,31 +307,31 @@ describe("Linked Styles Resources contract", () => {
     const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Layout", layout: { padding: 20, children: { direction: "row", gap: 12 } } }] });
     await openStyle(value);
     const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
-    const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")!;
+    const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .presentation-container")!;
     expect(preview.className).toContain("linkedStylePreview");
-    expect(root.dataset.powershowId).toBe("linked-style-preview-gap");
-    expect(root.dataset.powershowType).toBe("container");
+    expect(root.dataset.presentationId).toBe("linked-style-preview-gap");
+    expect(root.dataset.presentationType).toBe("container");
     expect(root.getAttribute("style")).toContain("padding:20px");
     expect(root.getAttribute("style")).toContain("gap:12px");
-    expect(root.className).toContain("powershow-container");
-    expect(root.querySelectorAll(":scope > .powershow-container")).toHaveLength(3);
+    expect(root.className).toContain("presentation-container");
+    expect(root.querySelectorAll(":scope > .presentation-container")).toHaveLength(3);
   });
 
   it("keeps preview text capable of inheriting the Linked Style color", async () => {
     const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Color", style: { color: "#ff0000" } }] });
     await openStyle(value);
-    const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")!;
+    const root = host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .presentation-container")!;
     expect(root.getAttribute("style")).toContain("color:#ff0000");
-    expect(Array.from(root.querySelectorAll(".powershow-text")).map((text) => text.textContent)).toEqual(["A", "B", "C"]);
-    expect(Array.from(root.querySelectorAll(".powershow-text")).every((text) => !text.getAttribute("style")?.includes("color:"))).toBe(true);
+    expect(Array.from(root.querySelectorAll(".presentation-text")).map((text) => text.textContent)).toEqual(["A", "B", "C"]);
+    expect(Array.from(root.querySelectorAll(".presentation-text")).every((text) => !text.getAttribute("style")?.includes("color:"))).toBe(true);
   });
 
   it("renders Linked Style appearance through the renderer output", async () => {
     const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Appearance", style: { background: { color: "#102030", gradient: { type: "linear", stops: [{ color: "#102030", position: 0 }, { color: "#405060", position: 100 }] }, pattern: { image: "linear-gradient(#000, #fff)" } }, border: { width: 1, style: "solid", color: "#fff" }, borderRadius: 8 }, effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000" } } }] });
     await openStyle(value);
     const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
-    const root = preview.querySelector<HTMLElement>(".powershow-container")!;
-    expect(preview.querySelector(".powershow-container-background-pattern")).not.toBeNull();
+    const root = preview.querySelector<HTMLElement>(".presentation-container")!;
+    expect(preview.querySelector(".presentation-container-background-pattern")).not.toBeNull();
     expect(root.getAttribute("style")).toContain("border-radius:8px");
     expect(root.getAttribute("style")).toContain("box-shadow:");
     expect(root.getAttribute("style")).toContain("opacity:0.5");
@@ -343,7 +343,7 @@ describe("Linked Styles Resources contract", () => {
     const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
     const variable = paletteColorCssVariableName("accent");
     expect(preview.getAttribute("style")).toContain(`${variable}: #2563eb`);
-    expect(preview.querySelector<HTMLElement>(".powershow-container")?.getAttribute("style")).toContain(`color:var(${variable})`);
+    expect(preview.querySelector<HTMLElement>(".presentation-container")?.getAttribute("style")).toContain(`color:var(${variable})`);
   });
 
   it("rerenders the preview from the updated Presentation definition", async () => {
@@ -353,25 +353,25 @@ describe("Linked Styles Resources contract", () => {
     });
     await render(value, update);
     await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
-    expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")?.getAttribute("style")).toContain("padding:20px");
+    expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .presentation-container")?.getAttribute("style")).toContain("padding:20px");
     await setInput(host.querySelector<HTMLInputElement>("[data-linked-style-property='padding'] input")!, "40");
     await render(value, update);
     await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='gap'] button")?.click());
     expect(update).toHaveBeenCalledWith("gap", { layout: { padding: 40 } });
-    expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .powershow-container")?.getAttribute("style")).toContain("padding:40px");
+    expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .presentation-container")?.getAttribute("style")).toContain("padding:40px");
   });
 
   it("preserves canonical absolute positioning and Fit data in the preview", async () => {
     const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Positioned", layout: { position: "absolute", top: 10, children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
     await openStyle(value);
     const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
-    const root = preview.querySelector<HTMLElement>(".powershow-container")!;
+    const root = preview.querySelector<HTMLElement>(".presentation-container")!;
     expect(root.getAttribute("style")).toContain("position:absolute");
     expect(root.getAttribute("style")).toContain("top:10px");
-    const viewport = preview.querySelector<HTMLElement>("[data-powershow-container-fit='true']")!;
-    expect(viewport.dataset.powershowContainerFitMode).toBe("contain");
-    expect(viewport.dataset.powershowContainerFitSourceWidth).toBe("800");
-    expect(viewport.dataset.powershowContainerFitSourceHeight).toBe("600");
+    const viewport = preview.querySelector<HTMLElement>("[data-presentation-container-fit='true']")!;
+    expect(viewport.dataset.presentationContainerFitMode).toBe("contain");
+    expect(viewport.dataset.presentationContainerFitSourceWidth).toBe("800");
+    expect(viewport.dataset.presentationContainerFitSourceHeight).toBe("600");
   });
 
   it("keeps preview rendering transient and does not mutate the canonical Presentation", async () => {

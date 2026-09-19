@@ -121,7 +121,7 @@ describe("CP4F5 create Text Style from selected Text history", () => {
   }
 
   async function selectText(id: string): Promise<void> {
-    const target = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const target = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!target) throw new Error(`Rendered Text was not found: ${id}`);
     await act(async () => target.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }

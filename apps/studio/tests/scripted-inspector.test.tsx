@@ -822,28 +822,28 @@ describe("ScriptedInspector port drafts", () => {
       { id: "first", label: "First", kind: "action" },
       { id: "second", label: "Second", kind: "boolean", direction: "input" },
     ] })));
-    expect(Array.from(container.querySelectorAll("[data-powershow-scripted-port-select]")).map((node) => node.textContent)).toEqual(["First", "Second"]);
-    await act(async () => click('[data-powershow-scripted-port-select][data-powershow-scripted-port-index="1"]'));
-    await act(async () => click('[data-powershow-scripted-port-add]'));
+    expect(Array.from(container.querySelectorAll("[data-presentation-scripted-port-select]")).map((node) => node.textContent)).toEqual(["First", "Second"]);
+    await act(async () => click('[data-presentation-scripted-port-select][data-presentation-scripted-port-index="1"]'));
+    await act(async () => click('[data-presentation-scripted-port-add]'));
     expect(updates).toHaveLength(0);
-    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("port");
-    expect(container.querySelector<HTMLButtonElement>("[data-powershow-scripted-port-add]")?.textContent).toBe("+ Add port");
-    expect(container.querySelector<HTMLButtonElement>("[data-powershow-scripted-port-remove]")?.textContent).toBe("Remove");
-    expect(container.querySelector<HTMLButtonElement>("[data-powershow-scripted-port-remove]")?.getAttribute("aria-label")).toBe("Remove");
-    await act(async () => click('[data-powershow-scripted-port-remove]'));
+    expect(container.querySelector<HTMLInputElement>("[data-presentation-scripted-port-id]")?.value).toBe("port");
+    expect(container.querySelector<HTMLButtonElement>("[data-presentation-scripted-port-add]")?.textContent).toBe("+ Add port");
+    expect(container.querySelector<HTMLButtonElement>("[data-presentation-scripted-port-remove]")?.textContent).toBe("Remove");
+    expect(container.querySelector<HTMLButtonElement>("[data-presentation-scripted-port-remove]")?.getAttribute("aria-label")).toBe("Remove");
+    await act(async () => click('[data-presentation-scripted-port-remove]'));
     await act(async () => click("#scripted-reset"));
     expect(updates).toHaveLength(0);
-    expect(container.querySelectorAll("[data-powershow-scripted-port-select]")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-presentation-scripted-port-select]")).toHaveLength(2);
   });
 
   it("converts local port shapes and applies ports with source in one update", async () => {
     await act(async () => mount(scripted({ ports: [{ id: "go", label: "Go", kind: "action" }] })));
-    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
-    expect(container.querySelector("[data-powershow-scripted-port-direction]")).not.toBeNull();
-    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
-    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
-    expect(container.querySelector("[data-powershow-scripted-port-min]")).not.toBeNull();
-    await act(async () => change('[data-powershow-scripted-port-direction]', "output"));
+    await act(async () => change('[data-presentation-scripted-port-type]', "boolean"));
+    expect(container.querySelector("[data-presentation-scripted-port-direction]")).not.toBeNull();
+    expect(container.querySelector("[data-presentation-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-presentation-scripted-port-type]', "number"));
+    expect(container.querySelector("[data-presentation-scripted-port-min]")).not.toBeNull();
+    await act(async () => change('[data-presentation-scripted-port-direction]', "output"));
     await act(async () => change("#scripted-html", "<p>source</p>"));
     await act(async () => click("#scripted-apply-run"));
     expect(updates).toHaveLength(1);
@@ -853,8 +853,8 @@ describe("ScriptedInspector port drafts", () => {
 
   it("blocks invalid local ports without canonical writes", async () => {
     await act(async () => mount(scripted({ ports: [{ id: "existing", label: "Existing", kind: "action" }] })));
-    await act(async () => click('[data-powershow-scripted-port-add]'));
-    await act(async () => change('[data-powershow-scripted-port-id]', "existing"));
+    await act(async () => click('[data-presentation-scripted-port-add]'));
+    await act(async () => change('[data-presentation-scripted-port-id]', "existing"));
     await act(async () => click("#scripted-apply-run"));
     expect(updates).toHaveLength(0);
     expect(container.textContent).toContain("Correct the selected port");
@@ -865,37 +865,37 @@ describe("ScriptedInspector port drafts", () => {
       { id: "port", label: "One", kind: "action" },
       { id: "port-2", label: "Two", kind: "action" },
     ] })));
-    await act(async () => click('[data-powershow-scripted-port-select][data-powershow-scripted-port-index="1"]'));
+    await act(async () => click('[data-presentation-scripted-port-select][data-presentation-scripted-port-index="1"]'));
     expect(updates).toHaveLength(0);
     expect(container.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(true);
-    await act(async () => click('[data-powershow-scripted-port-add]'));
-    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("port-3");
+    await act(async () => click('[data-presentation-scripted-port-add]'));
+    expect(container.querySelector<HTMLInputElement>("[data-presentation-scripted-port-id]")?.value).toBe("port-3");
     expect(updates).toHaveLength(0);
     expect(container.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(false);
-    await act(async () => change('[data-powershow-scripted-port-label]', "Draft only"));
+    await act(async () => change('[data-presentation-scripted-port-label]', "Draft only"));
     expect(updates).toHaveLength(0);
   });
 
   it("uses the exact local shapes for every supported type conversion", async () => {
     await act(async () => mount(scripted({ ports: [{ id: "p", label: "Port", kind: "action" }] })));
-    expect(container.querySelector("[data-powershow-scripted-port-direction]")).toBeNull();
-    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
-    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
-    expect(container.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-direction]")?.value).toBe("input");
-    await act(async () => change('[data-powershow-scripted-port-type]', "action"));
-    expect(container.querySelector("[data-powershow-scripted-port-direction]")).toBeNull();
-    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
-    expect(container.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-direction]")?.value).toBe("input");
-    expect(container.querySelector("[data-powershow-scripted-port-min]")).not.toBeNull();
-    await act(async () => change('[data-powershow-scripted-port-direction]', "output"));
-    await act(async () => change('[data-powershow-scripted-port-min]', "1.5"));
-    await act(async () => change('[data-powershow-scripted-port-max]', "4.5"));
-    await act(async () => change('[data-powershow-scripted-port-step]', "0.25"));
-    await act(async () => change('[data-powershow-scripted-port-type]', "boolean"));
-    expect(container.querySelector<HTMLSelectElement>("[data-powershow-scripted-port-direction]")?.value).toBe("output");
-    expect(container.querySelector("[data-powershow-scripted-port-min]")).toBeNull();
-    await act(async () => change('[data-powershow-scripted-port-type]', "number"));
-    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-min]")?.value).toBe("");
+    expect(container.querySelector("[data-presentation-scripted-port-direction]")).toBeNull();
+    expect(container.querySelector("[data-presentation-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-presentation-scripted-port-type]', "boolean"));
+    expect(container.querySelector<HTMLSelectElement>("[data-presentation-scripted-port-direction]")?.value).toBe("input");
+    await act(async () => change('[data-presentation-scripted-port-type]', "action"));
+    expect(container.querySelector("[data-presentation-scripted-port-direction]")).toBeNull();
+    await act(async () => change('[data-presentation-scripted-port-type]', "number"));
+    expect(container.querySelector<HTMLSelectElement>("[data-presentation-scripted-port-direction]")?.value).toBe("input");
+    expect(container.querySelector("[data-presentation-scripted-port-min]")).not.toBeNull();
+    await act(async () => change('[data-presentation-scripted-port-direction]', "output"));
+    await act(async () => change('[data-presentation-scripted-port-min]', "1.5"));
+    await act(async () => change('[data-presentation-scripted-port-max]', "4.5"));
+    await act(async () => change('[data-presentation-scripted-port-step]', "0.25"));
+    await act(async () => change('[data-presentation-scripted-port-type]', "boolean"));
+    expect(container.querySelector<HTMLSelectElement>("[data-presentation-scripted-port-direction]")?.value).toBe("output");
+    expect(container.querySelector("[data-presentation-scripted-port-min]")).toBeNull();
+    await act(async () => change('[data-presentation-scripted-port-type]', "number"));
+    expect(container.querySelector<HTMLInputElement>("[data-presentation-scripted-port-min]")?.value).toBe("");
     await act(async () => click("#scripted-apply-run"));
     expect(elementState.ports).toEqual([{ id: "p", label: "Port", kind: "number", direction: "output" }]);
   });
@@ -903,22 +903,22 @@ describe("ScriptedInspector port drafts", () => {
   it("rejects blank fields and invalid numeric constraints without writes", async () => {
     await act(async () => mount(scripted({ ports: [{ id: "n", label: "Number", kind: "number", direction: "input" }] })));
     for (const [selector, value] of [
-      ['[data-powershow-scripted-port-id]', ""],
-      ['[data-powershow-scripted-port-id]', "n"],
-      ['[data-powershow-scripted-port-label]', ""],
-      ['[data-powershow-scripted-port-label]', "Number"],
-      ['[data-powershow-scripted-port-min]', "not-a-number"],
-      ['[data-powershow-scripted-port-min]', ""],
-      ['[data-powershow-scripted-port-step]', "0"],
-      ['[data-powershow-scripted-port-step]', "-1"],
+      ['[data-presentation-scripted-port-id]', ""],
+      ['[data-presentation-scripted-port-id]', "n"],
+      ['[data-presentation-scripted-port-label]', ""],
+      ['[data-presentation-scripted-port-label]', "Number"],
+      ['[data-presentation-scripted-port-min]', "not-a-number"],
+      ['[data-presentation-scripted-port-min]', ""],
+      ['[data-presentation-scripted-port-step]', "0"],
+      ['[data-presentation-scripted-port-step]', "-1"],
     ]) {
       await act(async () => change(selector, value));
       await act(async () => click("#scripted-apply-run"));
       expect(updates).toHaveLength(0);
     }
-    await act(async () => change('[data-powershow-scripted-port-step]', "0.5"));
-    await act(async () => change('[data-powershow-scripted-port-min]', "5"));
-    await act(async () => change('[data-powershow-scripted-port-max]', "2"));
+    await act(async () => change('[data-presentation-scripted-port-step]', "0.5"));
+    await act(async () => change('[data-presentation-scripted-port-min]', "5"));
+    await act(async () => change('[data-presentation-scripted-port-max]', "2"));
     await act(async () => click("#scripted-apply-run"));
     expect(updates).toHaveLength(0);
   });
@@ -926,17 +926,17 @@ describe("ScriptedInspector port drafts", () => {
   it("reset and canonical rehydration restore source and ports without rewriting JavaScript", async () => {
     await act(async () => mount(scripted({ html: "<p>one</p>", script: "window.__sentinel = 1", ports: [{ id: "one", label: "One", kind: "action" }] })));
     await act(async () => change("#scripted-html", "<p>draft</p>"));
-    await act(async () => change('[data-powershow-scripted-port-id]', "draft-id"));
+    await act(async () => change('[data-presentation-scripted-port-id]', "draft-id"));
     expect(container.querySelector<HTMLTextAreaElement>("#scripted-script")?.value).toBe("window.__sentinel = 1");
     await act(async () => click("#scripted-reset"));
     expect(container.querySelector<HTMLTextAreaElement>("#scripted-html")?.value).toBe("<p>one</p>");
-    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("one");
+    expect(container.querySelector<HTMLInputElement>("[data-presentation-scripted-port-id]")?.value).toBe("one");
     expect(updates).toHaveLength(0);
     await act(async () => {
       elementState = scripted({ id: "other", ports: [{ id: "other-port", label: "Other", kind: "boolean", direction: "input" }] });
       renderInspector();
     });
-    expect(container.querySelector<HTMLInputElement>("[data-powershow-scripted-port-id]")?.value).toBe("other-port");
+    expect(container.querySelector<HTMLInputElement>("[data-presentation-scripted-port-id]")?.value).toBe("other-port");
     expect(updates).toHaveLength(0);
   });
 });

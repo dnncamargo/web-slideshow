@@ -619,7 +619,7 @@ function StructuredTableTreeNodes({
           return <li key={id} className={styles.elementTreeNode} role="treeitem" aria-selected={isSelected} aria-expanded={children.length > 1 ? expanded : undefined}>
             <div className={isSelected ? `${styles.elementTreeRow} ${styles.elementTreeSelected}` : styles.elementTreeRow}>
               {children.length > 1 ? <button className={styles.elementTreeExpand} type="button" aria-label={t(expanded ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(id)}>{expanded ? "▾" : "▸"}</button> : <span className={styles.elementTreeExpand} aria-hidden="true" />}
-              <button className={styles.elementTreeSelect} type="button" data-powershow-table-tree-column-id={column.id} onClick={() => onSelect({ kind: "column", tableId: element.id, id: column.id })}>{getStructuredColumnLabel(element, index, t)}</button>
+              <button className={styles.elementTreeSelect} type="button" data-presentation-table-tree-column-id={column.id} onClick={() => onSelect({ kind: "column", tableId: element.id, id: column.id })}>{getStructuredColumnLabel(element, index, t)}</button>
             </div>
             {expanded && children.length > 1 && (
               <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>
@@ -653,7 +653,7 @@ function StructuredTableTreeNodes({
           return <li key={id} className={styles.elementTreeNode} role="treeitem" aria-selected={isSelected} aria-expanded={children.length > 1 ? expanded : undefined}>
             <div className={isSelected ? `${styles.elementTreeRow} ${styles.elementTreeSelected}` : styles.elementTreeRow}>
               {children.length > 1 ? <button className={styles.elementTreeExpand} type="button" aria-label={t(expanded ? "tree.collapse" : "tree.expand")} onClick={() => onToggle(id)}>{expanded ? "▾" : "▸"}</button> : <span className={styles.elementTreeExpand} aria-hidden="true" />}
-              <button className={styles.elementTreeSelect} type="button" data-powershow-table-tree-row-id={row.id} onClick={() => onSelect({ kind: "row", tableId: element.id, id: row.id })}>{getStructuredRowLabel(element, index, t)}</button>
+              <button className={styles.elementTreeSelect} type="button" data-presentation-table-tree-row-id={row.id} onClick={() => onSelect({ kind: "row", tableId: element.id, id: row.id })}>{getStructuredRowLabel(element, index, t)}</button>
             </div>
             {expanded && children.length > 1 ? (
               <ul role="group" className={`${styles.elementTreeList} ${styles.elementTreeChildren}`}>

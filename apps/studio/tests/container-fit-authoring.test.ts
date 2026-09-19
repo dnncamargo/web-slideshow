@@ -109,7 +109,7 @@ describe("Container Fit authoring", () => {
     const outer = document.createElement("div");
     const surface = document.createElement("div");
     const child = document.createElement("div");
-    surface.className = "powershow-container-fit-surface";
+    surface.className = "presentation-container-fit-surface";
     outer.append(surface);
     surface.append(child);
 
@@ -120,7 +120,7 @@ describe("Container Fit authoring", () => {
   it("guards a nested Container outer element inside an ancestor fit surface", () => {
     const surface = document.createElement("div");
     const nestedContainer = document.createElement("div");
-    surface.className = "powershow-container-fit-surface";
+    surface.className = "presentation-container-fit-surface";
     surface.append(nestedContainer);
 
     expect(isInsideContainerFitSurface(nestedContainer)).toBe(true);

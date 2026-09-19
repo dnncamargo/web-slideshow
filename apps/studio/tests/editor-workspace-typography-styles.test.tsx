@@ -87,9 +87,9 @@ describe("EditorWorkspace Text Styles rendering", () => {
       </StudioI18nProvider>,
     ));
 
-    const canvasText = () => container.querySelector<HTMLElement>("[data-powershow-id='body-text']");
+    const canvasText = () => container.querySelector<HTMLElement>("[data-presentation-id='body-text']");
     expect(canvasText()?.getAttribute("style") ?? "").not.toContain("Fira Code");
-    expect(container.querySelector("[data-powershow-font-resources]")?.textContent).toContain("Fira Code");
+    expect(container.querySelector("[data-presentation-font-resources]")?.textContent).toContain("Fira Code");
 
     const resourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
     await act(async () => resourcesButton?.click());
@@ -115,10 +115,10 @@ describe("EditorWorkspace Text Styles rendering", () => {
     });
 
     expect(canvasText()?.getAttribute("style")).toContain('font-family:"Fira Code"');
-    expect(container.querySelectorAll("[data-powershow-font-resources]")).toHaveLength(1);
-    expect(container.querySelector("[data-text-style-preview='body'] .powershow-text")?.getAttribute("style")).toContain('font-family:"Fira Code"');
+    expect(container.querySelectorAll("[data-presentation-font-resources]")).toHaveLength(1);
+    expect(container.querySelector("[data-text-style-preview='body'] .presentation-text")?.getAttribute("style")).toContain('font-family:"Fira Code"');
     expect(initial).toEqual(before);
-    expect(container.querySelector<HTMLElement>("[data-powershow-id='body-text']")?.getAttribute("style")).not.toContain("font-size");
+    expect(container.querySelector<HTMLElement>("[data-presentation-id='body-text']")?.getAttribute("style")).not.toContain("font-size");
 
     await act(async () => { await vi.advanceTimersByTimeAsync(EDITOR_AUTOSAVE_DELAY_MS); });
     expect(saved).toHaveLength(1);
@@ -161,7 +161,7 @@ describe("EditorWorkspace Text Styles rendering", () => {
     await act(async () => strokeProperty()?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
     await act(async () => Array.from(strokeProperty()?.querySelectorAll<HTMLButtonElement>("button[aria-pressed]") ?? []).find((button) => button.getAttribute("aria-label")?.includes("Outline"))?.click());
 
-    const canvasText = container.querySelector<HTMLElement>("[data-powershow-id='body-text']");
+    const canvasText = container.querySelector<HTMLElement>("[data-presentation-id='body-text']");
     expect(canvasText?.getAttribute("style")).toContain("var(--ps-palette-");
     expect(canvasText?.getAttribute("style")).toContain("-webkit-text-stroke:3px var(--ps-palette-");
     await act(async () => { await vi.advanceTimersByTimeAsync(EDITOR_AUTOSAVE_DELAY_MS); });
@@ -175,17 +175,17 @@ describe("EditorWorkspace Text Styles rendering", () => {
     root = createRoot(container);
     await act(async () => root?.render(<StudioI18nProvider><EditorWorkspace initialPresentation={reloaded!} onSave={async (presentation) => { saved.push(presentation); }} customLibraryPaletteRepository={repositories} customLibraryFontRepository={repositories} /></StudioI18nProvider>));
 
-    const reloadedCanvasText = container.querySelector<HTMLElement>("[data-powershow-id='body-text']");
+    const reloadedCanvasText = container.querySelector<HTMLElement>("[data-presentation-id='body-text']");
     expect(reloadedCanvasText?.getAttribute("style")).toContain("var(--ps-palette-");
     expect(reloadedCanvasText?.getAttribute("style")).toContain("-webkit-text-stroke:3px var(--ps-palette-");
     expect(reloadedCanvasText).not.toHaveProperty("typography");
-    expect(container.querySelector("[data-powershow-font-resources]")).not.toBeNull();
+    expect(container.querySelector("[data-presentation-font-resources]")).not.toBeNull();
 
     const reloadedResourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
     await act(async () => reloadedResourcesButton?.click());
     const reloadedEditBodyButton = container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button");
     await act(async () => reloadedEditBodyButton?.click());
-    const reloadedPreview = container.querySelector<HTMLElement>("[data-text-style-preview='body'] .powershow-text");
+    const reloadedPreview = container.querySelector<HTMLElement>("[data-text-style-preview='body'] .presentation-text");
     expect(reloadedPreview?.getAttribute("style")).toContain("var(--ps-palette-");
     expect(reloadedPreview?.getAttribute("style")).toContain("-webkit-text-stroke:3px var(--ps-palette-");
   });

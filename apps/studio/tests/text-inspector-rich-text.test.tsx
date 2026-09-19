@@ -109,7 +109,7 @@ describe("TextInspector rich text authoring", () => {
 
   function inlineButton(format: "bold" | "italic" | "underline" | "code"): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
-      `[data-powershow-inline-format="${format}"]`,
+      `[data-presentation-inline-format="${format}"]`,
     );
 
     if (!button) {
@@ -121,7 +121,7 @@ describe("TextInspector rich text authoring", () => {
 
   function lineBreakButton(): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-inline-line-break="true"]',
+      '[data-presentation-inline-line-break="true"]',
     );
 
     if (!button) {
@@ -133,7 +133,7 @@ describe("TextInspector rich text authoring", () => {
 
   function clearFormattingButton(): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-inline-format-clear-formatting="true"]',
+      '[data-presentation-inline-format-clear-formatting="true"]',
     );
 
     if (!button) {
@@ -145,7 +145,7 @@ describe("TextInspector rich text authoring", () => {
 
   function inlineColorButton(): HTMLButtonElement {
     const button = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-inline-color="true"]',
+      '[data-presentation-inline-color="true"]',
     );
 
     if (!button) {
@@ -276,9 +276,9 @@ describe("TextInspector rich text authoring", () => {
       mount(richTextElement());
     });
 
-    const shell = container.querySelector('[data-powershow-text-editor="true"]');
+    const shell = container.querySelector('[data-presentation-text-editor="true"]');
     const toolbar = container.querySelector(
-      '[data-powershow-text-editor-toolbar="true"]',
+      '[data-presentation-text-editor-toolbar="true"]',
     );
 
     expect(shell).not.toBeNull();
@@ -288,7 +288,7 @@ describe("TextInspector rich text authoring", () => {
       (toolbar?.compareDocumentPosition(textarea()) ?? 0) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
-    expect(container.querySelector('[data-powershow-inline-color-panel="true"]'))
+    expect(container.querySelector('[data-presentation-inline-color-panel="true"]'))
       .toBeNull();
   });
 
@@ -313,7 +313,7 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineColorButton().textContent).not.toContain("A");
     expect(
       inlineColorButton().querySelector(
-        '[data-powershow-inline-color-icon="paint-bucket"]',
+        '[data-presentation-inline-color-icon="paint-bucket"]',
       ),
     ).not.toBeNull();
   });
@@ -629,7 +629,7 @@ describe("TextInspector rich text authoring", () => {
       selectRange(0, 5);
     });
 
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("mixed");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("mixed");
 
     await act(async () => {
       inlineColorButton().click();
@@ -646,7 +646,7 @@ describe("TextInspector rich text authoring", () => {
       { text: "Hello", marks: { color: "#7c3aed" } },
       { text: " world" },
     ]));
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("uniform");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("uniform");
   });
 
   it("preserves resolved color indication in the paint-bucket control", async () => {
@@ -660,9 +660,9 @@ describe("TextInspector rich text authoring", () => {
       selectRange(0, 5);
     });
 
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("uniform");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("uniform");
     expect(
-      inlineColorButton().querySelector('[data-powershow-inline-color-swatch="true"]'),
+      inlineColorButton().querySelector('[data-presentation-inline-color-swatch="true"]'),
     ).not.toBeNull();
     expect(inlineColorButton().querySelector("svg path")?.getAttribute("fill"))
       .not.toBe("currentColor");
@@ -719,7 +719,7 @@ describe("TextInspector rich text authoring", () => {
       selectRange(0, 7);
     });
 
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("mixed");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("mixed");
     expect(colorInput().value).toBe("#f8fafc");
   });
 
@@ -747,7 +747,7 @@ describe("TextInspector rich text authoring", () => {
     });
 
     expect(elementState.content).toBe("Hello");
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("none");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("none");
   });
 
   it("normalizes a remembered selection when content becomes shorter", async () => {
@@ -818,7 +818,7 @@ describe("TextInspector rich text authoring", () => {
     expect(inlineButton("bold").disabled).toBe(true);
     expect(inlineColorButton().disabled).toBe(true);
     expect(clearFormattingButton().disabled).toBe(true);
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("none");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("none");
   });
 
   it("clears all inline formatting without changing element typography", async () => {
@@ -843,7 +843,7 @@ describe("TextInspector rich text authoring", () => {
     expect(elementState.content).toBe("Hello world");
     expect(elementState.typography).toEqual({ fontSize: 32 });
     expect(inlineButton("bold").getAttribute("aria-pressed")).toBe("false");
-    expect(inlineColorButton().getAttribute("data-powershow-inline-color-state")).toBe("none");
+    expect(inlineColorButton().getAttribute("data-presentation-inline-color-state")).toBe("none");
   });
 
   it("preserves marks when typing inside rich content", async () => {

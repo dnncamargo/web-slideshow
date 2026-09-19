@@ -97,9 +97,9 @@ describe("single-line hover-scroll slide titles", () => {
       );
     });
 
-    const imageRoot = container.querySelector<HTMLElement>("[data-powershow-image-crop]");
-    const image = container.querySelector<HTMLImageElement>(".powershow-image-media");
-    const viewport = container.querySelector<HTMLElement>(".powershow-image-crop-viewport");
+    const imageRoot = container.querySelector<HTMLElement>("[data-presentation-image-crop]");
+    const image = container.querySelector<HTMLImageElement>(".presentation-image-media");
+    const viewport = container.querySelector<HTMLElement>(".presentation-image-crop-viewport");
 
     expect(imageRoot).not.toBeNull();
     expect(viewport).not.toBeNull();
@@ -116,7 +116,7 @@ describe("single-line hover-scroll slide titles", () => {
     });
 
     expect(viewport?.style.width).toBe("400px");
-    expect(imageRoot?.dataset.powershowImageCrop).toContain("width");
+    expect(imageRoot?.dataset.presentationImageCrop).toContain("width");
   });
 
   it("uses the same primitive for Control Summary slide titles and keeps the full text available", () => {

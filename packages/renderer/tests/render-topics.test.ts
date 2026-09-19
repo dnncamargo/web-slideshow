@@ -11,7 +11,7 @@ function countOccurrences(value: string, search: string): number {
 function topicMarkerSequence(html: string): string[] {
   const matches: string[] = [];
 
-  const regex = /--powershow-topic-marker-style:([a-z-]+)/g;
+  const regex = /--presentation-topic-marker-style:([a-z-]+)/g;
 
   let match: RegExpExecArray | null;
 
@@ -113,10 +113,10 @@ describe("renderElement topics support", () => {
     );
 
     expect(html).toContain(
-      '<ul class="powershow-element powershow-topics topic-root"',
+      '<ul class="presentation-element presentation-topics topic-root"',
     );
-    expect(html).toContain('data-powershow-id="topics-root"');
-    expect(html).toContain('data-powershow-type="topics"');
+    expect(html).toContain('data-presentation-id="topics-root"');
+    expect(html).toContain('data-presentation-type="topics"');
     expect(html).toContain("position:absolute");
   });
 
@@ -129,9 +129,9 @@ describe("renderElement topics support", () => {
       slides: [{ id: "s", title: "S", elements: [{ ...topicsElement({ linkedStyleId: "shared", itemGap: 4, items: [topicItem()] }) }] }],
     });
     const html = renderElement(presentation.slides[0]!.elements[0]!, { presentation });
-    expect(html).toContain("--powershow-topic-marker-style:square");
-    expect(html).toContain("--powershow-topic-marker-color:#123456");
-    expect(html).toContain("--powershow-topic-item-gap:4px");
+    expect(html).toContain("--presentation-topic-marker-style:square");
+    expect(html).toContain("--presentation-topic-marker-color:#123456");
+    expect(html).toContain("--presentation-topic-item-gap:4px");
   });
 
   it("renders the effective linked kind and defaults omitted standalone kind to unordered", () => {
@@ -208,8 +208,8 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain("--powershow-topic-item-gap:12px");
-    expect(countOccurrences(html, "--powershow-topic-item-gap:12px")).toBe(1);
+    expect(html).toContain("--presentation-topic-item-gap:12px");
+    expect(countOccurrences(html, "--presentation-topic-item-gap:12px")).toBe(1);
     expect(countOccurrences(html, "<li ")).toBe(2);
   });
 
@@ -226,7 +226,7 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain(`--powershow-topic-marker-style:${rootMarkerStyle}`);
+    expect(html).toContain(`--presentation-topic-marker-style:${rootMarkerStyle}`);
   });
 
   it("renders an independent marker color override", () => {
@@ -237,7 +237,7 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain("--powershow-topic-marker-color:#22d3ee");
+    expect(html).toContain("--presentation-topic-marker-color:#22d3ee");
   });
 
   it("preserves a local Text override inside collectively styled Topics", () => {
@@ -272,8 +272,8 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain("--powershow-topic-color:#ffffff");
-    expect(html).toContain("--powershow-topic-font-size:30px");
+    expect(html).toContain("--presentation-topic-color:#ffffff");
+    expect(html).toContain("--presentation-topic-font-size:30px");
     expect(html).toContain("color:#facc15");
     expect(html).toContain("font-weight:700");
   });
@@ -302,7 +302,7 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain("--powershow-topic-color:#ffffff");
+    expect(html).toContain("--presentation-topic-color:#ffffff");
     expect(html).toContain("color:#22d3ee");
     expect(html).toContain("color:#facc15");
   });
@@ -340,14 +340,14 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain("--powershow-topic-color:#ffffff");
-    expect(html).toContain("--powershow-topic-font-family:&quot;Inter&quot;");
-    expect(html).toContain("--powershow-topic-font-size:24px");
-    expect(html).toContain("--powershow-topic-font-weight:700");
-    expect(html).toContain("--powershow-topic-font-style:italic");
-    expect(html).toContain("--powershow-topic-line-height:1.4");
-    expect(html).toContain("--powershow-topic-letter-spacing:1px");
-    expect(html).toContain("--powershow-topic-text-decoration-line:underline");
+    expect(html).toContain("--presentation-topic-color:#ffffff");
+    expect(html).toContain("--presentation-topic-font-family:&quot;Inter&quot;");
+    expect(html).toContain("--presentation-topic-font-size:24px");
+    expect(html).toContain("--presentation-topic-font-weight:700");
+    expect(html).toContain("--presentation-topic-font-style:italic");
+    expect(html).toContain("--presentation-topic-line-height:1.4");
+    expect(html).toContain("--presentation-topic-letter-spacing:1px");
+    expect(html).toContain("--presentation-topic-text-decoration-line:underline");
     expect(html).not.toContain('style="text-decoration-line:underline"');
   });
 
@@ -425,12 +425,12 @@ describe("renderElement topics support", () => {
     );
 
     expect(
-      countOccurrences(html, 'data-powershow-content-slot-id="parent-slot"'),
+      countOccurrences(html, 'data-presentation-content-slot-id="parent-slot"'),
     ).toBe(1);
     expect(
-      countOccurrences(html, 'data-powershow-content-slot-id="child-slot"'),
+      countOccurrences(html, 'data-presentation-content-slot-id="child-slot"'),
     ).toBe(1);
-    expect(html).toContain('data-powershow-content-slot-id="parent-slot"');
+    expect(html).toContain('data-presentation-content-slot-id="parent-slot"');
   });
 
   it("renders ContentSlot children directly inside li", () => {
@@ -458,10 +458,10 @@ describe("renderElement topics support", () => {
     expect(
       countOccurrences(
         html,
-        'data-powershow-content-slot-id="slot-direct"',
+        'data-presentation-content-slot-id="slot-direct"',
       ),
     ).toBe(1);
-    expect(html).not.toContain('data-powershow-id="slot-direct"');
+    expect(html).not.toContain('data-presentation-id="slot-direct"');
   });
 
   it("preserves child order", () => {
@@ -517,7 +517,7 @@ describe("renderElement topics support", () => {
     );
 
     expect(html).toContain(
-      '<li class="powershow-topic-item topic &quot;body&quot;" data-powershow-content-slot-id="slot-styled" style="padding:12px">',
+      '<li class="presentation-topic-item topic &quot;body&quot;" data-presentation-content-slot-id="slot-styled" style="padding:12px">',
     );
   });
 
@@ -539,10 +539,10 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain('<ul class="powershow-topics" style=');
-    expect(countOccurrences(html, 'data-powershow-type="topics"')).toBe(1);
+    expect(html).toContain('<ul class="presentation-topics" style=');
+    expect(countOccurrences(html, 'data-presentation-type="topics"')).toBe(1);
     expect(
-      countOccurrences(html, 'class="powershow-element powershow-topics"'),
+      countOccurrences(html, 'class="presentation-element presentation-topics"'),
     ).toBe(1);
   });
 
@@ -591,7 +591,7 @@ describe("renderElement topics support", () => {
     expect(html).toContain('href="https://example.com/text"');
     expect(html).toContain('rel="noopener noreferrer"');
     expect(html).toContain('href="http://example.com/image"');
-    expect(html).toContain('data-powershow-type="container"');
+    expect(html).toContain('data-presentation-type="container"');
   });
 
   it("renders an autonomous nested topics element inside the topic content", () => {
@@ -620,9 +620,9 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(countOccurrences(html, 'data-powershow-type="topics"')).toBe(2);
+    expect(countOccurrences(html, 'data-presentation-type="topics"')).toBe(2);
     expect(
-      countOccurrences(html, 'class="powershow-element powershow-topics"'),
+      countOccurrences(html, 'class="presentation-element presentation-topics"'),
     ).toBe(2);
     expect(html).toContain("<ol ");
   });
@@ -655,10 +655,10 @@ describe("renderElement topics support", () => {
     );
 
     expect(html).toContain(
-      'class="powershow-element powershow-topics topic &quot;root&quot;"',
+      'class="presentation-element presentation-topics topic &quot;root&quot;"',
     );
     expect(html).toContain(
-      'class="powershow-topic-item slot &quot;body&quot;"',
+      'class="presentation-topic-item slot &quot;body&quot;"',
     );
     expect(html).toContain("&lt;script&gt;");
   });
@@ -876,7 +876,7 @@ describe("renderElement topics support", () => {
     ]);
   });
 
-  it("does not mark structural nested lists as powershow-element", () => {
+  it("does not mark structural nested lists as presentation-element", () => {
     const html = renderElement(
       topicsElement({
         id: "nested-no-element",
@@ -885,11 +885,11 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(countOccurrences(html, "powershow-topics")).toBe(3);
+    expect(countOccurrences(html, "presentation-topics")).toBe(3);
     expect(
-      countOccurrences(html, 'class="powershow-element powershow-topics"'),
+      countOccurrences(html, 'class="presentation-element presentation-topics"'),
     ).toBe(1);
-    expect(countOccurrences(html, 'class="powershow-topics" style=')).toBe(2);
+    expect(countOccurrences(html, 'class="presentation-topics" style=')).toBe(2);
   });
 
   it("renders an Image and a Container inside TopicItem content", () => {
@@ -915,13 +915,13 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="slot-image"');
+    expect(html).toContain('data-presentation-id="slot-image"');
     expect(html).toContain('src="/assets/example.png"');
-    expect(html).toContain('data-powershow-id="slot-container"');
+    expect(html).toContain('data-presentation-id="slot-container"');
     expect(
-      html.indexOf('data-powershow-id="slot-image"'),
+      html.indexOf('data-presentation-id="slot-image"'),
     ).toBeLessThan(
-      html.indexOf('data-powershow-id="slot-container"'),
+      html.indexOf('data-presentation-id="slot-container"'),
     );
   });
 
@@ -935,8 +935,8 @@ describe("renderElement topics support", () => {
       }),
     );
 
-    expect(countOccurrences(html, "--powershow-topic-marker-color:#22d3ee")).toBe(1);
-    expect(html).toContain("--powershow-topic-marker-color:#22d3ee");
+    expect(countOccurrences(html, "--presentation-topic-marker-color:#22d3ee")).toBe(1);
+    expect(html).toContain("--presentation-topic-marker-color:#22d3ee");
   });
 
   it("renders structural TopicItem.children deeper than the Studio authoring limit", () => {
@@ -949,8 +949,8 @@ describe("renderElement topics support", () => {
     );
 
     expect(countOccurrences(html, "<li ")).toBe(7);
-    expect(countOccurrences(html, 'class="powershow-topics" style=')).toBe(6);
-    expect(countOccurrences(html, 'class="powershow-element powershow-topics"')).toBe(1);
+    expect(countOccurrences(html, 'class="presentation-topics" style=')).toBe(6);
+    expect(countOccurrences(html, 'class="presentation-element presentation-topics"')).toBe(1);
     expect(topicMarkerSequence(html)).toEqual([
       "disc",
       "circle",

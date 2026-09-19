@@ -66,7 +66,7 @@ function RecoveryPanel({
     <main className={styles.recoveryScreen} {...attributes}>
       <section
         className={`${styles.recoveryPanel} ${className ?? ""}`}
-        data-powershow-recovery-panel="true"
+        data-presentation-recovery-panel="true"
       >
         {children}
       </section>
@@ -224,7 +224,7 @@ export function StudioEditorMount({
 
   if (status.kind === "not-found") {
     return (
-      <RecoveryPanel data-powershow-recovery-not-found="true">
+      <RecoveryPanel data-presentation-recovery-not-found="true">
         <header className={styles.recoveryHeader}>
           <h1 className={styles.recoveryTitle}>{t("library.notFound")}</h1>
         </header>
@@ -239,7 +239,7 @@ export function StudioEditorMount({
 
   if (status.kind === "error") {
     return (
-      <RecoveryPanel data-powershow-recovery-error="true">
+      <RecoveryPanel data-presentation-recovery-error="true">
         <header className={styles.recoveryHeader}>
           <h1 className={styles.recoveryTitle}>{t("editor.couldNotLoad")}</h1>
         </header>
@@ -255,7 +255,7 @@ export function StudioEditorMount({
   if (status.kind === "recovery") {
     if (status.inspection.status === "unrecoverable") {
       return (
-        <RecoveryPanel data-powershow-recovery-unrecoverable="true">
+        <RecoveryPanel data-presentation-recovery-unrecoverable="true">
           <header className={styles.recoveryHeader}>
             <h1 className={styles.recoveryTitle}>
               {t("recovery.unrecoverableTitle")}
@@ -280,14 +280,14 @@ export function StudioEditorMount({
     }
 
     return (
-      <RecoveryPanel data-powershow-recovery="recoverable">
+      <RecoveryPanel data-presentation-recovery="recoverable">
         <header className={styles.recoveryHeader}>
           <h1 className={styles.recoveryTitle}>{t("recovery.title")}</h1>
 
           <p className={styles.recoveryExplanation}>{t("recovery.explanation")}</p>
         </header>
 
-        <section className={styles.recoverySummary} data-powershow-recovery-summary="true">
+        <section className={styles.recoverySummary} data-presentation-recovery-summary="true">
           <p className={styles.issueCount}>
             {t("recovery.issueCount", { count: status.inspection.issues.length })}
           </p>
@@ -295,7 +295,7 @@ export function StudioEditorMount({
           <button
             className={styles.detailsToggle}
             type="button"
-            aria-controls="powershow-recovery-details"
+            aria-controls="presentation-recovery-details"
             aria-expanded={detailsOpen}
             onClick={() => setDetailsOpen((open) => !open)}
           >
@@ -306,11 +306,11 @@ export function StudioEditorMount({
         {detailsOpen && (
           <ul
             className={styles.recoveryDetails}
-            id="powershow-recovery-details"
-            data-powershow-recovery-details="true"
+            id="presentation-recovery-details"
+            data-presentation-recovery-details="true"
           >
             {status.inspection.issues.map((issue, index) => (
-              <li className={styles.recoveryIssue} key={index} data-powershow-recovery-issue={index}>
+              <li className={styles.recoveryIssue} key={index} data-presentation-recovery-issue={index}>
                 <code className={styles.recoveryIssuePath}>
                   {formatRecoveryIssuePath(issue.path)}
                 </code>
@@ -339,11 +339,11 @@ export function StudioEditorMount({
           </ul>
         )}
 
-        <div className={styles.recoveryActions} data-powershow-recovery-actions="true">
+        <div className={styles.recoveryActions} data-presentation-recovery-actions="true">
           <button
             className={styles.primaryAction}
             type="button"
-            data-powershow-recovery-open="true"
+            data-presentation-recovery-open="true"
             onClick={() => setStatus({ kind: "recovery-confirm", inspection: status.inspection })}
           >
             {t("recovery.removeAndOpen")}
@@ -362,7 +362,7 @@ export function StudioEditorMount({
 
   if (status.kind === "recovery-confirm") {
     return (
-      <RecoveryPanel className={styles.warningPanel} data-powershow-recovery-confirm="true">
+      <RecoveryPanel className={styles.warningPanel} data-presentation-recovery-confirm="true">
         <header className={styles.recoveryHeader}>
           <h1 className={styles.recoveryTitle}>{t("recovery.confirmTitle")}</h1>
 
@@ -373,7 +373,7 @@ export function StudioEditorMount({
           <button
             className={styles.dangerAction}
             type="button"
-            data-powershow-recovery-confirm-action="true"
+            data-presentation-recovery-confirm-action="true"
             onClick={() => runRepair(status.inspection)}
           >
             {t("recovery.confirm")}
@@ -381,7 +381,7 @@ export function StudioEditorMount({
           <button
             className={styles.secondaryAction}
             type="button"
-            data-powershow-recovery-cancel="true"
+            data-presentation-recovery-cancel="true"
             onClick={() => setStatus({ kind: "recovery", inspection: status.inspection })}
           >
             {t("recovery.cancel")}
@@ -403,7 +403,7 @@ export function StudioEditorMount({
 
   if (status.kind === "recovery-failed") {
     return (
-      <RecoveryPanel data-powershow-recovery-failed="true">
+      <RecoveryPanel data-presentation-recovery-failed="true">
         <header className={styles.recoveryHeader}>
           <h1 className={styles.recoveryTitle}>{t("recovery.repairFailed")}</h1>
         </header>

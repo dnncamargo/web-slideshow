@@ -83,5 +83,5 @@ export function updateContainerFit(
 }
 
 export function isInsideContainerFitSurface(element: Element): boolean {
-  return element.closest(".powershow-container-fit-surface") !== null;
+  return element.closest(".presentation-container-fit-surface") !== null;
 }

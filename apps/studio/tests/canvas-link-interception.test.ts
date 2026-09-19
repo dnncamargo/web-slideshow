@@ -25,7 +25,7 @@ function createCanvasClickHandler() {
 describe("isAuthoredPresentationLink", () => {
   it("recognizes a rendered authored PowerShow link", () => {
     const canvas = createCanvas(
-      '<a href="https://example.com" data-powershow-link="true"' +
+      '<a href="https://example.com" data-presentation-link="true"' +
         ' style="color:inherit;text-decoration:inherit">PowerShow Link</a>',
     );
 
@@ -37,7 +37,7 @@ describe("isAuthoredPresentationLink", () => {
 
   it("recognizes activation inside a nested child of an authored link", () => {
     const canvas = createCanvas(
-      '<a href="https://example.com" data-powershow-link="true">' +
+      '<a href="https://example.com" data-presentation-link="true">' +
         "<strong>Bold link text</strong></a>",
     );
 
@@ -73,16 +73,16 @@ describe("isAuthoredPresentationLink", () => {
 
   it("recognizes the linked Image renderer output through its anchor marker", () => {
     const canvas = createCanvas(
-      '<a href="https://example.com" data-powershow-link="true"' +
-        ' class="powershow-element powershow-image"' +
-        ' data-powershow-id="image-1" data-powershow-type="image"' +
+      '<a href="https://example.com" data-presentation-link="true"' +
+        ' class="presentation-element presentation-image"' +
+        ' data-presentation-id="image-1" data-presentation-type="image"' +
         ' style="color:inherit;text-decoration:inherit">' +
-        '<img class="powershow-image-media" src="/assets/example.png"' +
+        '<img class="presentation-image-media" src="/assets/example.png"' +
         ' alt="Example image"></a>',
     );
 
     const anchor = canvas.querySelector("a");
-    const media = canvas.querySelector<HTMLImageElement>(".powershow-image-media");
+    const media = canvas.querySelector<HTMLImageElement>(".presentation-image-media");
 
     expect(anchor).not.toBeNull();
     expect(media).not.toBeNull();
@@ -93,8 +93,8 @@ describe("isAuthoredPresentationLink", () => {
 
   it("ignores an unlinked Image (plain img) in the canvas", () => {
     const canvas = createCanvas(
-      '<img class="powershow-element powershow-image"' +
-        ' data-powershow-id="image-1" data-powershow-type="image"' +
+      '<img class="presentation-element presentation-image"' +
+        ' data-presentation-id="image-1" data-presentation-type="image"' +
         ' src="/assets/example.png" alt="Example">',
     );
 
@@ -106,20 +106,20 @@ describe("isAuthoredPresentationLink", () => {
 
   it("recognizes the linked Container surface through its renderer markers", () => {
     const canvas = createCanvas(
-      '<div class="powershow-element powershow-container"' +
-        ' data-powershow-id="container-1" data-powershow-type="container">' +
-        '<p class="powershow-element powershow-text">Child</p>' +
-        '<a href="https://example.com" data-powershow-link="true"' +
-        ' data-powershow-container-link-surface="true"' +
+      '<div class="presentation-element presentation-container"' +
+        ' data-presentation-id="container-1" data-presentation-type="container">' +
+        '<p class="presentation-element presentation-text">Child</p>' +
+        '<a href="https://example.com" data-presentation-link="true"' +
+        ' data-presentation-container-link-surface="true"' +
         ' style="position:absolute;inset:0;z-index:100"></a>' +
         "</div>",
     );
 
     const surface = canvas.querySelector(
-      '[data-powershow-container-link-surface="true"]',
+      '[data-presentation-container-link-surface="true"]',
     );
     const container = canvas.querySelector(
-      '[data-powershow-id="container-1"]',
+      '[data-presentation-id="container-1"]',
     );
 
     expect(surface).not.toBeNull();
@@ -134,14 +134,14 @@ describe("isAuthoredPresentationLink", () => {
 
   it("ignores an unlinked Container (no overlay) in the canvas", () => {
     const canvas = createCanvas(
-      '<div class="powershow-element powershow-container"' +
-        ' data-powershow-id="container-1" data-powershow-type="container">' +
+      '<div class="presentation-element presentation-container"' +
+        ' data-presentation-id="container-1" data-presentation-type="container">' +
         "<p>Plain child</p>" +
         "</div>",
     );
 
     const container = canvas.querySelector(
-      '[data-powershow-id="container-1"]',
+      '[data-presentation-id="container-1"]',
     );
     const child = canvas.querySelector("p");
 
@@ -153,7 +153,7 @@ describe("isAuthoredPresentationLink", () => {
 describe("canvas click interception", () => {
   it("prevents navigation when an authored link is clicked", () => {
     const canvas = createCanvas(
-      '<a href="https://example.com" data-powershow-link="true">' +
+      '<a href="https://example.com" data-presentation-link="true">' +
         "Go</a>",
     );
 
@@ -176,8 +176,8 @@ describe("canvas click interception", () => {
 
   it("prevents navigation when the linked Image canvas surface is clicked", () => {
     const canvas = createCanvas(
-      '<a href="https://example.com" data-powershow-link="true">' +
-        '<img class="powershow-image-media" src="/assets/example.png"' +
+      '<a href="https://example.com" data-presentation-link="true">' +
+        '<img class="presentation-image-media" src="/assets/example.png"' +
         ' alt="Example"></a>',
     );
 
@@ -190,7 +190,7 @@ describe("canvas click interception", () => {
 
     canvas.addEventListener("click", handleClick);
     canvas
-      .querySelector(".powershow-image-media")
+      .querySelector(".presentation-image-media")
       ?.dispatchEvent(click);
 
     expect(click.defaultPrevented).toBe(true);
@@ -198,17 +198,17 @@ describe("canvas click interception", () => {
 
   it("prevents navigation when the linked Container surface is clicked", () => {
     const canvas = createCanvas(
-      '<div class="powershow-element powershow-container"' +
-        ' data-powershow-id="container-1" data-powershow-type="container">' +
+      '<div class="presentation-element presentation-container"' +
+        ' data-presentation-id="container-1" data-presentation-type="container">' +
         "<p>Child</p>" +
-        '<a href="https://example.com" data-powershow-link="true"' +
-        ' data-powershow-container-link-surface="true"' +
+        '<a href="https://example.com" data-presentation-link="true"' +
+        ' data-presentation-container-link-surface="true"' +
         ' style="position:absolute;inset:0;z-index:100"></a>' +
         "</div>",
     );
 
     const surface = canvas.querySelector(
-      '[data-powershow-container-link-surface="true"]',
+      '[data-presentation-container-link-surface="true"]',
     );
 
     expect(surface).not.toBeNull();
@@ -228,12 +228,12 @@ describe("canvas click interception", () => {
 
   it("does not suppress a click on a sibling child of a linked Container", () => {
     const canvas = createCanvas(
-      '<div class="powershow-element powershow-container"' +
-        ' data-powershow-id="container-1" data-powershow-type="container">' +
-        '<img class="powershow-image-media" src="/assets/example.png"' +
+      '<div class="presentation-element presentation-container"' +
+        ' data-presentation-id="container-1" data-presentation-type="container">' +
+        '<img class="presentation-image-media" src="/assets/example.png"' +
         ' alt="Example">' +
-        '<a href="https://example.com" data-powershow-link="true"' +
-        ' data-powershow-container-link-surface="true"' +
+        '<a href="https://example.com" data-presentation-link="true"' +
+        ' data-presentation-container-link-surface="true"' +
         ' style="position:absolute;inset:0;z-index:100"></a>' +
         "</div>",
     );
@@ -251,7 +251,7 @@ describe("canvas click interception", () => {
     // clicks land on the child itself, which is not inside an authored
     // anchor. The click must not be suppressed so selection keeps
     // working on descendants.
-    canvas.querySelector(".powershow-image-media")?.dispatchEvent(click);
+    canvas.querySelector(".presentation-image-media")?.dispatchEvent(click);
 
     expect(click.defaultPrevented).toBe(false);
   });

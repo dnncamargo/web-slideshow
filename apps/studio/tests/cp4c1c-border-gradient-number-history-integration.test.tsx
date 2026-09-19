@@ -111,7 +111,7 @@ describe("CP4C1C border and gradient numeric history", () => {
   });
 
   async function selectElement(id: string): Promise<void> {
-    await act(async () => host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`)?.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`)?.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
 
   async function edit(inputId: string, values: string[]): Promise<void> {

@@ -127,7 +127,7 @@ function appendGeometry(target: MathGeometryResult, result: MathGeometryResult):
 }
 
 export interface PlotFrame {
-  readonly className: "powershow-plot" | "powershow-placeholder powershow-placeholder-plot";
+  readonly className: "presentation-plot" | "presentation-placeholder presentation-placeholder-plot";
   readonly content: string;
 }
 
@@ -194,7 +194,7 @@ export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions
         }),
       });
       if (surfaceSvg !== "") {
-        return { className: "powershow-plot", content: surfaceSvg };
+        return { className: "presentation-plot", content: surfaceSvg };
       }
     }
   }
@@ -210,13 +210,13 @@ export function renderPlotFrame(element: PlotElement, options: PlotRenderOptions
       ...(axisStyle === undefined ? {} : { axisStyle }),
     }
     : undefined);
-  if (svg === "") return { className: "powershow-placeholder powershow-placeholder-plot", content: "[plot]" };
+  if (svg === "") return { className: "presentation-placeholder presentation-placeholder-plot", content: "[plot]" };
 
-  return { className: "powershow-plot", content: svg };
+  return { className: "presentation-plot", content: svg };
 }
 
 export function renderPlot(element: PlotElement, options: PlotRenderOptions = {}): string {
   const frame = renderPlotFrame(element, options);
   if (frame === null) return "";
-  return `<div class="powershow-element ${frame.className}" data-powershow-id="${escapeHtml(element.id)}" data-powershow-type="plot"${renderPlotStyle(element)}>${frame.content}</div>`;
+  return `<div class="presentation-element ${frame.className}" data-presentation-id="${escapeHtml(element.id)}" data-presentation-type="plot"${renderPlotStyle(element)}>${frame.content}</div>`;
 }

@@ -64,7 +64,7 @@ describe("LS7B Linked Styles editor integration", () => {
     expect(row?.textContent).toContain("Used by 3 elements");
     expect(row?.textContent).toContain("Matching 0 elements");
     expect(row?.textContent).not.toContain("Attach 2 matching");
-    expect(host.querySelector("[data-powershow-id='mismatch']")).not.toBeNull();
+    expect(host.querySelector("[data-presentation-id='mismatch']")).not.toBeNull();
     expect(host.textContent).toContain("Resources");
   });
 
@@ -76,6 +76,6 @@ describe("LS7B Linked Styles editor integration", () => {
     expect(host.textContent).toContain("Slide 2");
     expect(host.textContent).toContain("Container · match-b");
     expect(host.textContent).toContain("Resources");
-    expect(host.querySelector("[data-powershow-id='match-b']")).not.toBeNull();
+    expect(host.querySelector("[data-presentation-id='match-b']")).not.toBeNull();
   });
 });

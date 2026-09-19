@@ -161,7 +161,7 @@ describe("PresenterSlidePreview logical geometry", () => {
       expect(surface.style.width).toBe("960px");
       expect(surface.style.height).toBe("540px");
       expect(surface.style.transform).toBe("scale(0.5)");
-      expect(surface.querySelector("[data-powershow-id='palette-text']")).not.toBeNull();
+      expect(surface.querySelector("[data-presentation-id='palette-text']")).not.toBeNull();
       expect(surface.innerHTML).toContain("var(--ps-palette-0061006300630065006e0074)");
     }
 

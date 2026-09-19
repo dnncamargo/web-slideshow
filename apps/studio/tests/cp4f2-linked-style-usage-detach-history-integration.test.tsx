@@ -259,7 +259,7 @@ describe("CP4F2 linked style usage detach history", () => {
     const saved: Presentation[] = [];
     await mount(initial, saved);
 
-    const target = host.querySelector<HTMLElement>(`[data-powershow-id="${TARGET_A_ID}"]`);
+    const target = host.querySelector<HTMLElement>(`[data-presentation-id="${TARGET_A_ID}"]`);
     if (!target) throw new Error("Target container was not rendered");
     await act(async () => target.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => changeSelect(host.querySelector<HTMLSelectElement>("#container-linked-style")!, LINKED_STYLE_ID));

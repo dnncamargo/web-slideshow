@@ -466,7 +466,7 @@ export function WebFontSearchControl({
         .map((weight) => findFace(customize.family, customize.style, customize.subset, weight))
         .filter((face): face is FontFaceResource => face !== undefined)
     : [];
-  const previewFamilyName = `powershow-web-font-preview-${useId().replaceAll(":", "")}`;
+  const previewFamilyName = `studio-web-font-preview-${useId().replaceAll(":", "")}`;
 
   useEffect(() => {
     if (!customize || !previewFace || typeof FontFace === "undefined") return;

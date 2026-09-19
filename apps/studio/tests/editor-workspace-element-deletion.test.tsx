@@ -54,7 +54,7 @@ describe("EditorWorkspace element deletion", () => {
       );
     });
 
-    const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]');
+    const image = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]');
     expect(image).not.toBeNull();
     await act(async () => image!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => {
@@ -69,7 +69,7 @@ describe("EditorWorkspace element deletion", () => {
     expect(document.activeElement).toBe(confirm);
 
     await act(async () => confirm!.click());
-    expect(container.querySelector('[data-powershow-id="image-1"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="image-1"]')).toBeNull();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
@@ -81,13 +81,13 @@ describe("EditorWorkspace element deletion", () => {
         </StudioI18nProvider>,
       );
     });
-    const image = container.querySelector<HTMLElement>('[data-powershow-id="image-1"]')!;
+    const image = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')!;
     await act(async () => image.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
     await act(async () => container.querySelector<HTMLDivElement>('[role="dialog"]')!
       .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
 
-    expect(container.querySelector('[data-powershow-id="image-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="image-1"]')).not.toBeNull();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 });

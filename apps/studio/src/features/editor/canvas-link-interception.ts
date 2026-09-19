@@ -1,4 +1,4 @@
-const AUTHORED_LINK_SELECTOR = 'a[data-powershow-link="true"]';
+const AUTHORED_LINK_SELECTOR = 'a[data-presentation-link="true"]';
 
 // ============================================================
 // BEGIN: CANVAS LINK INTERCEPTION

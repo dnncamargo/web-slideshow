@@ -116,7 +116,7 @@ describe("CP4C2A media content history", () => {
 
   async function selectElement(id: string): Promise<void> {
     const element = host.querySelector<HTMLElement>(
-      `[data-powershow-id="${id}"]`,
+      `[data-presentation-id="${id}"]`,
     );
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -124,7 +124,7 @@ describe("CP4C2A media content history", () => {
 
   async function selectGalleryItem(index: number): Promise<void> {
     const button = host.querySelector<HTMLButtonElement>(
-      `[data-powershow-gallery-select="true"][data-powershow-gallery-index="${index}"]`,
+      `[data-presentation-gallery-select="true"][data-presentation-gallery-index="${index}"]`,
     );
     if (!button) throw new Error(`Gallery item ${index} was not rendered`);
     await act(async () => button.click());

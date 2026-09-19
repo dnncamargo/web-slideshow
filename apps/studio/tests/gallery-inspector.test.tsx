@@ -182,7 +182,7 @@ describe("GalleryInspector", () => {
 
   function addButton(): HTMLButtonElement {
     const button =
-      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-add]');
+      container.querySelector<HTMLButtonElement>('[data-presentation-gallery-add]');
     if (!button) {
       throw new Error("gallery add button not found");
     }
@@ -192,7 +192,7 @@ describe("GalleryInspector", () => {
   function removeButtons(): HTMLButtonElement[] {
     return Array.from(
       container.querySelectorAll<HTMLButtonElement>(
-        "[data-powershow-gallery-remove]",
+        "[data-presentation-gallery-remove]",
       ),
     );
   }
@@ -200,7 +200,7 @@ describe("GalleryInspector", () => {
   function moveUpButtons(): HTMLButtonElement[] {
     return Array.from(
       container.querySelectorAll<HTMLButtonElement>(
-        "[data-powershow-gallery-move-up]",
+        "[data-presentation-gallery-move-up]",
       ),
     );
   }
@@ -208,7 +208,7 @@ describe("GalleryInspector", () => {
   function moveDownButtons(): HTMLButtonElement[] {
     return Array.from(
       container.querySelectorAll<HTMLButtonElement>(
-        "[data-powershow-gallery-move-down]",
+        "[data-presentation-gallery-move-down]",
       ),
     );
   }
@@ -298,7 +298,7 @@ describe("GalleryInspector", () => {
     await act(async () => {
       mount(galleryElement());
     });
-    const rows = container.querySelectorAll("[data-powershow-gallery-select]");
+    const rows = container.querySelectorAll("[data-presentation-gallery-select]");
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toBe("One");
     expect(rows[1]?.textContent).toBe("Two");
@@ -310,10 +310,10 @@ describe("GalleryInspector", () => {
     await act(async () => mount(galleryElement({ items: [...DEFAULT_ITEMS, { src: "/three.png", alt: "Three" }] })));
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]')?.click();
+      container.querySelector<HTMLButtonElement>('[data-presentation-gallery-index="2"]')?.click();
     });
 
-    const selected = container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="2"]');
+    const selected = container.querySelector<HTMLButtonElement>('[data-presentation-gallery-index="2"]');
     expect(selected?.textContent).toBe("Three");
     expect(selected?.getAttribute("aria-pressed")).toBe("true");
     expect(itemSrc("#gallery-gallery-1-item-2-src").value).toBe("/three.png");
@@ -331,7 +331,7 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
+      container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="1"]')?.click();
     });
     expect(itemAlt("#gallery-gallery-1-item-1-alt").value).toBe("Two");
   });
@@ -352,7 +352,7 @@ describe("GalleryInspector", () => {
       mount(galleryElement());
     });
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="1"]')?.click();
+      container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="1"]')?.click();
     });
     await act(async () => {
       setTextAreaValue(itemAlt("#gallery-gallery-1-item-1-alt"), "Changed");
@@ -401,7 +401,7 @@ describe("GalleryInspector", () => {
       { src: "/one.png", alt: "One", crop: { x: 10, y: 20, width: 60, height: 50 }, focalPoint: { x: 10, y: 20 } },
       { src: "/two.png", alt: "Two", crop: { x: 2, y: 3, width: 90, height: 80 }, focalPoint: { x: 80, y: 90 } },
     ] })));
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-index="1"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-index="1"]')?.click());
     expect(itemInput("crop-x").value).toBe("2");
     expect(itemInput("focal-x").value).toBe("80");
     await act(async () => buttonWithText("Reset to center").click());
@@ -443,7 +443,7 @@ describe("GalleryInspector", () => {
   it("places Gallery structural actions before the selected item source field", async () => {
     await act(async () => mount(galleryElement()));
 
-    const structuralActions = container.querySelector("[data-powershow-gallery-add]")?.parentElement;
+    const structuralActions = container.querySelector("[data-presentation-gallery-add]")?.parentElement;
     const source = itemSrc("#gallery-gallery-1-item-0-src");
     if (!structuralActions) {
       throw new Error("Gallery structural actions not found");

@@ -36,7 +36,7 @@ function galleryPresentation({
 }
 
 function galleryItems(root: HTMLElement, galleryIndex = 0): HTMLElement[] {
-  const gallery = root.querySelectorAll<HTMLElement>(".powershow-gallery")[galleryIndex];
+  const gallery = root.querySelectorAll<HTMLElement>(".presentation-gallery")[galleryIndex];
 
   if (!gallery) {
     throw new Error("Gallery was not rendered.");
@@ -45,18 +45,18 @@ function galleryItems(root: HTMLElement, galleryIndex = 0): HTMLElement[] {
   return Array.from(gallery.children).filter(
     (child): child is HTMLElement =>
       child instanceof HTMLElement &&
-      child.classList.contains("powershow-gallery-item"),
+      child.classList.contains("presentation-gallery-item"),
   );
 }
 
 function activeIndex(items: HTMLElement[]): number {
   return items.findIndex((item) =>
-    item.classList.contains("powershow-gallery-item-active"),
+    item.classList.contains("presentation-gallery-item-active"),
   );
 }
 
 function expandedOverlay(root: HTMLElement): HTMLElement | null {
-  return root.querySelector<HTMLElement>(".powershow-player-gallery-expanded");
+  return root.querySelector<HTMLElement>(".player-gallery-expanded");
 }
 
 function expandedImage(root: HTMLElement): HTMLImageElement | null {
@@ -87,7 +87,7 @@ describe("Projection surface Gallery interaction", () => {
     expect(items[1]?.getAttribute("aria-hidden")).toBe("true");
     expect(items[2]?.getAttribute("aria-hidden")).toBe("true");
 
-    const firstImage = items[0]?.querySelector<HTMLImageElement>("img.powershow-gallery-image");
+    const firstImage = items[0]?.querySelector<HTMLImageElement>("img.presentation-gallery-image");
     firstImage?.click();
     expect(activeIndex(items)).toBe(1);
     expect(items[0]?.style.visibility).toBe("hidden");
@@ -112,7 +112,7 @@ describe("Projection surface Gallery interaction", () => {
     single.destroy();
 
     const empty = mountProjectionSurface(root, galleryPresentation({ items: [] }), { transition: "none" });
-    expect(() => root.querySelector<HTMLElement>(".powershow-gallery")?.click()).not.toThrow();
+    expect(() => root.querySelector<HTMLElement>(".presentation-gallery")?.click()).not.toThrow();
     empty.destroy();
   });
 
@@ -146,7 +146,7 @@ describe("Projection surface Gallery interaction", () => {
 
   it("removes the delegated interaction listener during idempotent destroy", () => {
     const projection = mountProjectionSurface(root, galleryPresentation(), { transition: "none" });
-    const image = root.querySelector<HTMLImageElement>("img.powershow-gallery-image");
+    const image = root.querySelector<HTMLImageElement>("img.presentation-gallery-image");
 
     projection.destroy();
     projection.destroy();
@@ -163,8 +163,8 @@ describe("Projection surface Gallery interaction", () => {
     expect(overlay).not.toBeNull();
     expect(expandedImage(root)?.getAttribute("src")).toBe("/0-first.png");
     expect(overlay?.parentElement).toBe(projection.stage);
-    expect(overlay?.closest(".powershow-player-slide-host")).toBeNull();
-    expect(overlay?.closest(".powershow-player-slide-surface")).toBeNull();
+    expect(overlay?.closest(".player-slide-host")).toBeNull();
+    expect(overlay?.closest(".player-slide-surface")).toBeNull();
 
     projection.setGalleryExpanded("gallery-0-0", false);
     projection.setGalleryExpanded("gallery-0-0", false);
@@ -177,12 +177,12 @@ describe("Projection surface Gallery interaction", () => {
     projection.setGalleryExpanded("gallery-0-0", true);
     projection.setGalleryExpanded("gallery-0-1", true);
 
-    expect(root.querySelectorAll(".powershow-player-gallery-expanded")).toHaveLength(1);
-    expect(expandedOverlay(root)?.dataset.powershowGalleryExpanded).toBe("gallery-0-1");
+    expect(root.querySelectorAll(".player-gallery-expanded")).toHaveLength(1);
+    expect(expandedOverlay(root)?.dataset.presentationGalleryExpanded).toBe("gallery-0-1");
     projection.setGalleryExpanded("gallery-0-0", false);
-    expect(expandedOverlay(root)?.dataset.powershowGalleryExpanded).toBe("gallery-0-1");
+    expect(expandedOverlay(root)?.dataset.presentationGalleryExpanded).toBe("gallery-0-1");
     expect(() => projection.setGalleryExpanded("missing", true)).not.toThrow();
-    expect(expandedOverlay(root)?.dataset.powershowGalleryExpanded).toBe("gallery-0-1");
+    expect(expandedOverlay(root)?.dataset.presentationGalleryExpanded).toBe("gallery-0-1");
     projection.destroy();
 
     const empty = mountProjectionSurface(root, galleryPresentation({ items: [] }), { transition: "none" });
@@ -201,7 +201,7 @@ describe("Projection surface Gallery interaction", () => {
     expandedImage(root)?.click();
     expect(activeIndex(originalItems)).toBe(2);
     expect(expandedImage(root)?.getAttribute("src")).toBe("/0-third.png");
-    expect(root.querySelectorAll(".powershow-player-gallery-expanded")).toHaveLength(1);
+    expect(root.querySelectorAll(".player-gallery-expanded")).toHaveLength(1);
     projection.destroy();
   });
 
@@ -237,12 +237,12 @@ describe("Projection surface Gallery interaction", () => {
     });
     const projection = mountProjectionSurface(root, presentation, { transition: "none" });
     projection.setGalleryExpanded("gallery-crop", true);
-    const clone = expandedOverlay(root)?.querySelector<HTMLElement>("[data-powershow-image-crop]");
+    const clone = expandedOverlay(root)?.querySelector<HTMLElement>("[data-presentation-image-crop]");
 
-    expect(clone?.dataset.powershowImageWidthAuthored).toBe("true");
-    expect(clone?.dataset.powershowImageHeightAuthored).toBe("true");
-    expect(clone?.querySelector(".powershow-image-crop-viewport")).not.toBeNull();
-    expect(clone?.querySelector(".powershow-image-media")).not.toBeNull();
+    expect(clone?.dataset.presentationImageWidthAuthored).toBe("true");
+    expect(clone?.dataset.presentationImageHeightAuthored).toBe("true");
+    expect(clone?.querySelector(".presentation-image-crop-viewport")).not.toBeNull();
+    expect(clone?.querySelector(".presentation-image-media")).not.toBeNull();
     projection.destroy();
   });
 
@@ -258,7 +258,7 @@ describe("Projection surface Gallery interaction", () => {
     const projection = mountProjectionSurface(root, presentation, { transition: "none" });
     projection.setGalleryExpanded(awkwardId, true);
     window.dispatchEvent(new Event("resize"));
-    expect(root.querySelectorAll(".powershow-player-gallery-expanded")).toHaveLength(1);
+    expect(root.querySelectorAll(".player-gallery-expanded")).toHaveLength(1);
     expect(expandedImage(root)?.getAttribute("src")).toBe("/first.png");
 
     projection.goTo(1);

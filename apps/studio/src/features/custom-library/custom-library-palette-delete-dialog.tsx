@@ -31,9 +31,9 @@ export function CustomLibraryPaletteDeleteDialog({
         className={styles.deleteDialog}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="powershow-custom-library-palette-delete-title"
+        aria-labelledby="studio-custom-library-palette-delete-title"
       >
-        <h2 id="powershow-custom-library-palette-delete-title" className={styles.deleteDialogTitle}>
+        <h2 id="studio-custom-library-palette-delete-title" className={styles.deleteDialogTitle}>
           {t("customLibrary.paletteDelete.title")}
         </h2>
         <p className={styles.deleteDialogText}>

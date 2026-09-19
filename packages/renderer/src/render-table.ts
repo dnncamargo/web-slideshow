@@ -45,8 +45,8 @@ export function renderTable(
   }
 
   const classes = [
-    "powershow-element",
-    "powershow-table",
+    "presentation-element",
+    "presentation-table",
   ];
 
   const customClass =
@@ -59,7 +59,7 @@ export function renderTable(
   const styleParts = [renderCanonicalDataStyle(element)];
 
   if (element.mode === "structured" && element.style?.dividerOpacity !== undefined) {
-    styleParts.push(`--powershow-table-divider-opacity:${element.style.dividerOpacity}`);
+    styleParts.push(`--presentation-table-divider-opacity:${element.style.dividerOpacity}`);
   }
 
   if (element.mode !== "structured") {
@@ -116,8 +116,8 @@ export function renderTable(
     return (
       `<table` +
       ` class="${escapeHtml(classes.join(" "))}"` +
-      ` data-powershow-id="${escapeHtml(element.id)}"` +
-      ` data-powershow-type="table"` +
+      ` data-presentation-id="${escapeHtml(element.id)}"` +
+      ` data-presentation-type="table"` +
       styleAttribute +
       `>` +
       `<thead>` +
@@ -134,7 +134,7 @@ export function renderTable(
     throw new Error("Structured tables require a child renderer.");
   }
 
-  const frameClasses = ["powershow-element", "powershow-table-frame"];
+  const frameClasses = ["presentation-element", "presentation-table-frame"];
   if (customClass) frameClasses.push(customClass);
 
   const frameStyleParts = [
@@ -144,23 +144,23 @@ export function renderTable(
       includeRadius: false,
     }),
     element.style?.borderRadius !== undefined
-      ? `--powershow-table-frame-radius:${renderLength(element.style.borderRadius)}`
+      ? `--presentation-table-frame-radius:${renderLength(element.style.borderRadius)}`
       : "",
-    "--powershow-table-border-width:1px",
-    "--powershow-table-border-color:var(--powershow-border)",
+    "--presentation-table-border-width:1px",
+    "--presentation-table-border-color:var(--presentation-border)",
   ];
   const border = element.style?.border;
   if (border) {
-    frameStyleParts.push(`--powershow-table-border-width:${renderLength(border.width)}`);
+    frameStyleParts.push(`--presentation-table-border-width:${renderLength(border.width)}`);
     if (border.gradient) {
-      frameClasses.push("presentation-gradient-border", "powershow-table-frame-gradient-border");
+      frameClasses.push("presentation-gradient-border", "presentation-table-frame-gradient-border");
       frameStyleParts.push(...renderGradientBorder(border.gradient, border.width));
     } else {
       frameStyleParts.push(`border-width:${renderLength(border.width)}`);
       frameStyleParts.push(`border-style:${border.style ?? "solid"}`);
       if (border.color) {
         frameStyleParts.push(`border-color:${renderColorValue(border.color)}`);
-        frameStyleParts.push(`--powershow-table-border-color:${renderColorValue(border.color)}`);
+        frameStyleParts.push(`--presentation-table-border-color:${renderColorValue(border.color)}`);
       }
     }
   }
@@ -170,14 +170,14 @@ export function renderTable(
   const frameStyle = frameStyleParts.filter(Boolean).join(";");
   const frameStyleAttribute = frameStyle ? ` style="${escapeHtml(frameStyle)}"` : "";
 
-  const tableClasses = ["powershow-table", "powershow-table-structured"];
-  if (element.style?.background !== undefined) tableClasses.push("powershow-table-has-surface");
-  if (element.layout?.height !== undefined) tableClasses.push("powershow-table-fills-frame");
+  const tableClasses = ["presentation-table", "presentation-table-structured"];
+  if (element.style?.background !== undefined) tableClasses.push("presentation-table-has-surface");
+  if (element.layout?.height !== undefined) tableClasses.push("presentation-table-fills-frame");
   const tableStyleParts = [
     element.style?.background ? renderBackground(element.style.background).join(";") : "",
   ];
   if (element.style?.dividerOpacity !== undefined) {
-    tableStyleParts.push(`--powershow-table-divider-opacity:${element.style.dividerOpacity}`);
+    tableStyleParts.push(`--presentation-table-divider-opacity:${element.style.dividerOpacity}`);
   }
   const tableStyle = tableStyleParts.filter(Boolean).join(";");
   const tableStyleAttribute = tableStyle ? ` style="${escapeHtml(tableStyle)}"` : "";
@@ -197,9 +197,9 @@ export function renderTable(
     const style = styleParts.filter(Boolean).join(";");
     const attributes = [
       tag === "th" ? `scope="col"` : "",
-      `data-powershow-content-slot-id="${escapeHtml(slot.id)}"`,
+      `data-presentation-content-slot-id="${escapeHtml(slot.id)}"`,
       columnId
-        ? `data-powershow-table-column-id="${escapeHtml(columnId)}"`
+        ? `data-presentation-table-column-id="${escapeHtml(columnId)}"`
         : "",
       classes ? `class="${escapeHtml(classes)}"` : "",
       style ? `style="${escapeHtml(style)}"` : "",
@@ -211,7 +211,7 @@ export function renderTable(
   const colgroup = element.columns.some((column) => column.width !== undefined)
     ? `<colgroup>${element.columns.map((column) => {
         const attributes = [
-          `data-powershow-table-column-id="${escapeHtml(column.id)}"`,
+          `data-presentation-table-column-id="${escapeHtml(column.id)}"`,
           column.width !== undefined
             ? `style="width:${escapeHtml(renderLength(column.width))}"`
             : "",
@@ -233,7 +233,7 @@ export function renderTable(
 
   const bodyParityOffset = element.showHeader && element.style?.headerBackground === undefined ? 1 : 0;
   const rows = element.rows.map((row, rowIndex) =>
-    `<tr data-powershow-table-row-id="${escapeHtml(row.id)}">${row.cells.map((cell) => {
+    `<tr data-presentation-table-row-id="${escapeHtml(row.id)}">${row.cells.map((cell) => {
       const background = (rowIndex + bodyParityOffset) % 2 === 1
         ? element.style?.bodyRowAlternateBackground
         : undefined;
@@ -243,8 +243,8 @@ export function renderTable(
 
   return (
     `<div class="${escapeHtml(frameClasses.join(" "))}"` +
-    ` data-powershow-id="${escapeHtml(element.id)}"` +
-    ` data-powershow-type="table"` +
+    ` data-presentation-id="${escapeHtml(element.id)}"` +
+    ` data-presentation-type="table"` +
     frameStyleAttribute +
     `>` +
     `<table class="${escapeHtml(tableClasses.join(" "))}"${tableStyleAttribute}>` +

@@ -70,8 +70,8 @@ describe("semantic placement rendering", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="inner"');
-    expect(html).toContain('data-powershow-id="absolute-text"');
+    expect(html).toContain('data-presentation-id="inner"');
+    expect(html).toContain('data-presentation-id="absolute-text"');
     expect(html.match(/position:relative/g)).toHaveLength(1);
     expect(html.indexOf("Background")).toBeLessThan(html.indexOf("absolute-text"));
     expect(html).toContain("grid-area:1 / 1;z-index:0");

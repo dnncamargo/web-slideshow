@@ -53,7 +53,7 @@ describe("canonical Text family renderer", () => {
       style: { border: { width: 2, gradient } },
     });
 
-    expect(html.match(/class="powershow-element/g)).toHaveLength(1);
+    expect(html.match(/class="presentation-element/g)).toHaveLength(1);
     expect(html).toContain("presentation-gradient-border");
     expect(html).toContain("padding:2px");
     expect(html).toContain("<strong>first line<br>second line</strong>");

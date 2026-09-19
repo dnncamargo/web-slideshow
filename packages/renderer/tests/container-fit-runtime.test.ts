@@ -23,10 +23,10 @@ function fitRoot(width = 400, height = 300) {
   const surface = { style: {} as Record<string, string> };
   const viewport = {
     dataset: {
-      powershowContainerFit: "true",
-      powershowContainerFitMode: "contain",
-      powershowContainerFitSourceWidth: "800",
-      powershowContainerFitSourceHeight: "400",
+      presentationContainerFit: "true",
+      presentationContainerFitMode: "contain",
+      presentationContainerFitSourceWidth: "800",
+      presentationContainerFitSourceHeight: "400",
     },
     clientWidth: width,
     clientHeight: height,
@@ -42,7 +42,7 @@ describe("hydrateContainerFits", () => {
     const modes = ["contain", "cover", "fill"] as const;
     for (const mode of modes) {
       const { root, viewport, surface } = fitRoot();
-      viewport.dataset.powershowContainerFitMode = mode;
+      viewport.dataset.presentationContainerFitMode = mode;
       hydrateContainerFits(root as unknown as ParentNode);
       const transform = surface.style.transform;
       expect(transform).toContain(mode === "contain" ? "scale(0.5,0.5)" : mode === "cover" ? "scale(0.75,0.75)" : "scale(0.5,0.75)");
@@ -98,17 +98,17 @@ describe("hydrateRendererRuntime", () => {
     };
     const imageRoot = {
       dataset: {
-        powershowImageCrop: JSON.stringify({ x: 10, y: 20, width: 60, height: 50 }),
-        powershowImageFit: "contain",
-        powershowImageFocalX: "50",
-        powershowImageFocalY: "50",
-        powershowImageWidthAuthored: "true",
-        powershowImageHeightAuthored: "true",
+        presentationImageCrop: JSON.stringify({ x: 10, y: 20, width: 60, height: 50 }),
+        presentationImageFit: "contain",
+        presentationImageFocalX: "50",
+        presentationImageFocalY: "50",
+        presentationImageWidthAuthored: "true",
+        presentationImageHeightAuthored: "true",
       },
       clientWidth: 600,
       clientHeight: 400,
       getBoundingClientRect: () => ({ width: 600, height: 400 }),
-      querySelector: (selector: string) => selector === ".powershow-image-media" ? image : null,
+      querySelector: (selector: string) => selector === ".presentation-image-media" ? image : null,
     };
     const root = {
       querySelectorAll: (selector: string) => selector.includes("image-crop")

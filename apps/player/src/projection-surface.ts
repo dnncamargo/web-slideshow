@@ -71,24 +71,24 @@ export function mountProjectionSurface(
   let destroyed = false;
 
   root.innerHTML = `
-    <div class="powershow-player">
-      <div class="powershow-player-stage">
-        <div class="powershow-player-slide-host">
-          <div class="powershow-player-slide-surface"></div>
+    <div class="player">
+      <div class="player-stage">
+        <div class="player-slide-host">
+          <div class="player-slide-surface"></div>
         </div>
       </div>
     </div>
   `;
 
-  const player = queryRequired<HTMLElement>(root, ".powershow-player");
-  const stage = queryRequired<HTMLElement>(root, ".powershow-player-stage");
+  const player = queryRequired<HTMLElement>(root, ".player");
+  const stage = queryRequired<HTMLElement>(root, ".player-stage");
   const slideHost = queryRequired<HTMLElement>(
     root,
-    ".powershow-player-slide-host",
+    ".player-slide-host",
   );
   const slideSurface = queryRequired<HTMLElement>(
     root,
-    ".powershow-player-slide-surface",
+    ".player-slide-surface",
   );
 
   const fontResourceCss = renderFontResources(presentation.resources?.fonts);
@@ -96,7 +96,7 @@ export function mountProjectionSurface(
   if (fontResourceCss) {
     const fontResourceStyle = document.createElement("style");
 
-    fontResourceStyle.setAttribute("data-powershow-font-resources", "");
+    fontResourceStyle.setAttribute("data-presentation-font-resources", "");
     fontResourceStyle.textContent = fontResourceCss;
     player.prepend(fontResourceStyle);
   }
@@ -186,7 +186,7 @@ export function mountProjectionSurface(
 
     if (!slide) {
       slideSurface.innerHTML = `
-        <div class="powershow-player-empty">No slides</div>
+        <div class="player-empty">No slides</div>
       `;
       return;
     }
@@ -194,9 +194,9 @@ export function mountProjectionSurface(
     slideSurface.innerHTML = renderSlide(slide, { presentation });
     hydrateCurrentSlideRuntime();
     for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
-      'iframe[data-powershow-type="scripted"][data-powershow-id]',
+      'iframe[data-presentation-type="scripted"][data-presentation-id]',
     )) {
-      const elementId = frame.dataset.powershowId;
+      const elementId = frame.dataset.presentationId;
       if (elementId !== undefined) options.onScriptedMount?.({ pageId: slide.id, elementId });
     }
     animateSlide(direction);
@@ -242,17 +242,17 @@ export function mountProjectionSurface(
     return Array.from(galleryRoot.children).filter(
       (child): child is HTMLElement =>
         child instanceof HTMLElement &&
-        child.classList.contains("powershow-gallery-item"),
+        child.classList.contains("presentation-gallery-item"),
     );
   }
 
   function findGalleryById(galleryId: string): HTMLElement | null {
     for (const candidate of slideSurface.querySelectorAll<HTMLElement>(
-      "[data-powershow-id][data-powershow-type]",
+      "[data-presentation-id][data-presentation-type]",
     )) {
       if (
-        candidate.dataset.powershowType === "gallery" &&
-        candidate.dataset.powershowId === galleryId
+        candidate.dataset.presentationType === "gallery" &&
+        candidate.dataset.presentationId === galleryId
       ) {
         return candidate;
       }
@@ -263,7 +263,7 @@ export function mountProjectionSurface(
 
   function activeGalleryItem(galleryRoot: HTMLElement): HTMLElement | null {
     return galleryItems(galleryRoot).find((item) =>
-      item.classList.contains("powershow-gallery-item-active"),
+      item.classList.contains("presentation-gallery-item-active"),
     ) ?? null;
   }
 
@@ -292,14 +292,14 @@ export function mountProjectionSurface(
 
     if (!expandedOverlay) {
       expandedOverlay = document.createElement("div");
-      expandedOverlay.className = "powershow-player-gallery-expanded";
-      expandedOverlay.dataset.powershowGalleryExpanded = expandedGalleryId;
+      expandedOverlay.className = "player-gallery-expanded";
+      expandedOverlay.dataset.presentationGalleryExpanded = expandedGalleryId;
       expandedOverlay.addEventListener("click", handleExpandedGalleryClick);
       stage.append(expandedOverlay);
     }
 
     const frame = document.createElement("div");
-    frame.className = "powershow-player-gallery-expanded-media";
+    frame.className = "player-gallery-expanded-media";
     const clone = activeItem.cloneNode(true) as HTMLElement;
 
     clone.style.position = "absolute";
@@ -311,11 +311,11 @@ export function mountProjectionSurface(
     clone.style.pointerEvents = "auto";
     clone.removeAttribute("aria-hidden");
 
-    if (clone.dataset.powershowImageCrop !== undefined) {
-      clone.dataset.powershowImageWidthAuthored = "true";
-      clone.dataset.powershowImageHeightAuthored = "true";
+    if (clone.dataset.presentationImageCrop !== undefined) {
+      clone.dataset.presentationImageWidthAuthored = "true";
+      clone.dataset.presentationImageHeightAuthored = "true";
     } else {
-      const image = clone.querySelector<HTMLImageElement>("img.powershow-gallery-image");
+      const image = clone.querySelector<HTMLImageElement>("img.presentation-gallery-image");
       if (image) {
         image.style.width = "100%";
         image.style.height = "100%";
@@ -341,7 +341,7 @@ export function mountProjectionSurface(
     for (const [index, item] of items.entries()) {
       const isActive = index === targetIndex;
 
-      item.classList.toggle("powershow-gallery-item-active", isActive);
+      item.classList.toggle("presentation-gallery-item-active", isActive);
       item.style.visibility = isActive ? "" : "hidden";
       item.style.pointerEvents = isActive ? "" : "none";
 
@@ -352,7 +352,7 @@ export function mountProjectionSurface(
       }
     }
 
-    if (galleryRoot.dataset.powershowId === expandedGalleryId) {
+    if (galleryRoot.dataset.presentationId === expandedGalleryId) {
       refreshExpandedGallery();
     }
   }
@@ -360,7 +360,7 @@ export function mountProjectionSurface(
   function advanceGallery(galleryRoot: HTMLElement): void {
     const items = galleryItems(galleryRoot);
     const activeIndex = items.findIndex((item) =>
-      item.classList.contains("powershow-gallery-item-active"),
+      item.classList.contains("presentation-gallery-item-active"),
     );
 
     if (items.length < 2 || activeIndex < 0) {
@@ -375,7 +375,7 @@ export function mountProjectionSurface(
       return;
     }
 
-    const galleryRoot = event.target.closest<HTMLElement>(".powershow-gallery");
+    const galleryRoot = event.target.closest<HTMLElement>(".presentation-gallery");
 
     if (!galleryRoot || !slideSurface.contains(galleryRoot)) {
       return;
@@ -390,7 +390,7 @@ export function mountProjectionSurface(
     }
 
     const frame = expandedOverlay?.querySelector<HTMLElement>(
-      ".powershow-player-gallery-expanded-media",
+      ".player-gallery-expanded-media",
     );
 
     if (!frame || !frame.contains(event.target) || !expandedGalleryId) {

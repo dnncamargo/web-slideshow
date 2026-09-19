@@ -279,7 +279,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => disclosure("body").click());
 
     const bodyPreview = requiredElement<HTMLElement>("[data-text-style-preview='body']");
-    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='body'] .powershow-text");
+    const bodyPreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='body'] .presentation-text");
     expect(bodyPreview.getAttribute("aria-hidden")).toBe("true");
     expect(bodyPreview.textContent).toBe("Aa");
     expect(bodyPreviewText().getAttribute("style")).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
@@ -315,7 +315,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => button("+ Add Style").click());
     await act(async () => disclosure("quote").click());
 
-    const quotePreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='quote'] .powershow-text");
+    const quotePreviewText = () => requiredElement<HTMLElement>("[data-text-style-preview='quote'] .presentation-text");
     const bodyFontSize = quotePreviewText().getAttribute("style");
     expect(bodyFontSize).toContain(`font-size:${TEXT_VARIANT_TYPOGRAPHY_DEFAULTS.body.fontSize}px`);
 
@@ -716,8 +716,8 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     await act(async () => disclosure("quote").click());
 
     const preview = requiredElement<HTMLElement>("[data-text-style-preview='quote']");
-    const previewText = requiredElement<HTMLElement>("[data-text-style-preview='quote'] .powershow-text");
-    expect(previewText.className).toContain("powershow-text-body");
+    const previewText = requiredElement<HTMLElement>("[data-text-style-preview='quote'] .presentation-text");
+    expect(previewText.className).toContain("presentation-text-body");
     expect(previewText.getAttribute("style")).toContain("color:var(--ps-palette-");
     expect(previewText.getAttribute("style")).toContain("text-decoration-color:var(--ps-palette-");
     expect(previewText.getAttribute("style")).toContain("-webkit-text-stroke:2px var(--ps-palette-");

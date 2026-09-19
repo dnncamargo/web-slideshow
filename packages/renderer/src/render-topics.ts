@@ -108,23 +108,23 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
       if (value !== undefined) styles.push(`${property}:${renderLength(value)}`);
     }
   }
-  if (element.style?.color !== undefined) styles.push(`--powershow-topic-color:${renderColorValue(element.style.color)}`);
+  if (element.style?.color !== undefined) styles.push(`--presentation-topic-color:${renderColorValue(element.style.color)}`);
   const typography = element.typography;
-  if (typography?.fontFamily !== undefined) styles.push(`--powershow-topic-font-family:${quoteCssString(typography.fontFamily)}`);
-  if (typography?.fontSize !== undefined) styles.push(`--powershow-topic-font-size:${renderLength(typography.fontSize)}`);
-  if (typography?.fontWeight !== undefined) styles.push(`--powershow-topic-font-weight:${typography.fontWeight}`);
-  if (typography?.fontStyle !== undefined) styles.push(`--powershow-topic-font-style:${typography.fontStyle}`);
-  if (typography?.textAlign !== undefined) styles.push(`--powershow-topic-text-align:${typography.textAlign}`);
-  if (typography?.lineHeight !== undefined) styles.push(`--powershow-topic-line-height:${typography.lineHeight}`);
-  if (typography?.letterSpacing !== undefined) styles.push(`--powershow-topic-letter-spacing:${renderLength(typography.letterSpacing)}`);
-  if (typography?.textTransform !== undefined) styles.push(`--powershow-topic-text-transform:${typography.textTransform}`);
-  if (typography?.whiteSpace !== undefined) styles.push(`--powershow-topic-white-space:${typography.whiteSpace}`);
-  if (typography?.textWrapStyle !== undefined) styles.push(`--powershow-topic-text-wrap-style:${typography.textWrapStyle}`);
-  if (typography?.overflowWrap !== undefined) styles.push(`--powershow-topic-overflow-wrap:${typography.overflowWrap}`);
-  if (typography?.textDecorationLine !== undefined) styles.push(`--powershow-topic-text-decoration-line:${typography.textDecorationLine}`);
+  if (typography?.fontFamily !== undefined) styles.push(`--presentation-topic-font-family:${quoteCssString(typography.fontFamily)}`);
+  if (typography?.fontSize !== undefined) styles.push(`--presentation-topic-font-size:${renderLength(typography.fontSize)}`);
+  if (typography?.fontWeight !== undefined) styles.push(`--presentation-topic-font-weight:${typography.fontWeight}`);
+  if (typography?.fontStyle !== undefined) styles.push(`--presentation-topic-font-style:${typography.fontStyle}`);
+  if (typography?.textAlign !== undefined) styles.push(`--presentation-topic-text-align:${typography.textAlign}`);
+  if (typography?.lineHeight !== undefined) styles.push(`--presentation-topic-line-height:${typography.lineHeight}`);
+  if (typography?.letterSpacing !== undefined) styles.push(`--presentation-topic-letter-spacing:${renderLength(typography.letterSpacing)}`);
+  if (typography?.textTransform !== undefined) styles.push(`--presentation-topic-text-transform:${typography.textTransform}`);
+  if (typography?.whiteSpace !== undefined) styles.push(`--presentation-topic-white-space:${typography.whiteSpace}`);
+  if (typography?.textWrapStyle !== undefined) styles.push(`--presentation-topic-text-wrap-style:${typography.textWrapStyle}`);
+  if (typography?.overflowWrap !== undefined) styles.push(`--presentation-topic-overflow-wrap:${typography.overflowWrap}`);
+  if (typography?.textDecorationLine !== undefined) styles.push(`--presentation-topic-text-decoration-line:${typography.textDecorationLine}`);
 
   styles.push(
-    `--powershow-topic-marker-style:${resolveTopicMarkerStyle(
+    `--presentation-topic-marker-style:${resolveTopicMarkerStyle(
       kind,
       element.rootMarkerStyle,
       0,
@@ -132,11 +132,11 @@ function renderTopicsStyleOverrides(element: TopicsElement): string {
   );
 
   if (element.markerColor !== undefined) {
-    styles.push(`--powershow-topic-marker-color:${renderColorValue(element.markerColor)}`);
+    styles.push(`--presentation-topic-marker-color:${renderColorValue(element.markerColor)}`);
   }
 
   if (element.itemGap !== undefined) {
-    styles.push(`--powershow-topic-item-gap:${element.itemGap}px`);
+    styles.push(`--presentation-topic-item-gap:${element.itemGap}px`);
   }
 
   return styles.join(";");
@@ -154,7 +154,7 @@ function renderTopicItem(
   depth: number,
   renderChild: RenderChild,
 ): string {
-  const classes = ["powershow-topic-item"];
+  const classes = ["presentation-topic-item"];
 
   const customClass = item.content.style?.className?.trim();
 
@@ -166,7 +166,7 @@ function renderTopicItem(
 
   const attributes = [
     `class="${escapeHtml(classes.join(" "))}"`,
-    `data-powershow-content-slot-id="${escapeHtml(item.content.id)}"`,
+    `data-presentation-content-slot-id="${escapeHtml(item.content.id)}"`,
     style ? `style="${escapeHtml(style)}"` : "",
   ]
   .filter(Boolean)
@@ -191,7 +191,7 @@ function renderTopicList(
   renderChild: RenderChild,
 ): string {
   const tag = renderTopicListTag(context.kind);
-  const classes = ["powershow-topics"];
+  const classes = ["presentation-topics"];
 
   const markerStyle = resolveTopicMarkerStyle(
     context.kind,
@@ -201,7 +201,7 @@ function renderTopicList(
 
   const attributes = [
     `class="${escapeHtml(classes.join(" "))}"`,
-    `style="--powershow-topic-marker-style:${markerStyle}"`,
+    `style="--presentation-topic-marker-style:${markerStyle}"`,
   ].join(" ");
 
   const children = items
@@ -236,7 +236,7 @@ export function renderTopics(
 
   const tag = renderTopicListTag(effectiveKind);
 
-  const classes = ["powershow-element", "powershow-topics"];
+  const classes = ["presentation-element", "presentation-topics"];
 
   const customClass = renderedElement.style?.className?.trim();
 
@@ -248,8 +248,8 @@ export function renderTopics(
 
   const attributes = [
     `class="${escapeHtml(classes.join(" "))}"`,
-    `data-powershow-id="${escapeHtml(renderedElement.id)}"`,
-    `data-powershow-type="topics"`,
+    `data-presentation-id="${escapeHtml(renderedElement.id)}"`,
+    `data-presentation-type="topics"`,
     combinedStyle ? `style="${escapeHtml(combinedStyle)}"` : "",
   ]
     .filter(Boolean)

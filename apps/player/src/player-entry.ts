@@ -114,19 +114,19 @@ export function startPlayer(root: HTMLElement): () => void {
     recoverable = false,
   ): void {
     root.innerHTML = `
-      <div class="powershow-player-load-state" data-loading="${loading}">
+      <div class="player-load-state" data-loading="${loading}">
         <span>${message}</span>
-        <span class="powershow-player-load-indicator" aria-hidden="true"></span>
+        <span class="player-load-indicator" aria-hidden="true"></span>
       </div>
     `;
 
     if (!recoverable) return;
 
-    const state = root.querySelector<HTMLElement>(".powershow-player-load-state");
+    const state = root.querySelector<HTMLElement>(".player-load-state");
     if (!state) return;
 
     const moreButton = document.createElement("button");
-    moreButton.className = "powershow-player-recovery-toggle";
+    moreButton.className = "player-recovery-toggle";
     moreButton.type = "button";
     moreButton.textContent = "See more";
     moreButton.setAttribute("aria-expanded", "false");
@@ -142,11 +142,11 @@ export function startPlayer(root: HTMLElement): () => void {
   }
 
   function renderRecoveryExpanded(): void {
-    const state = root.querySelector<HTMLElement>(".powershow-player-load-state");
+    const state = root.querySelector<HTMLElement>(".player-load-state");
     if (!state) return;
 
     const moreButton = state.querySelector<HTMLButtonElement>(
-      ".powershow-player-recovery-toggle",
+      ".player-recovery-toggle",
     );
     if (moreButton) {
       moreButton.setAttribute("aria-expanded", "true");
@@ -154,7 +154,7 @@ export function startPlayer(root: HTMLElement): () => void {
     }
 
     const options = document.createElement("div");
-    options.className = "powershow-player-recovery-options";
+    options.className = "player-recovery-options";
     options.setAttribute("role", "group");
     options.setAttribute("aria-label", "Local recovery options");
 

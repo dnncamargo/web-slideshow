@@ -80,7 +80,7 @@ const PLAYER_DIAGNOSTICS_STORAGE_KEY = "powershow:player-diagnostics:v1";
 
 const MAX_EVENTS = 100;
 
-const PANEL_ELEMENT_ID = "powershow-player-diagnostics";
+const PANEL_ELEMENT_ID = "player-diagnostics";
 
 let enabled = false;
 
@@ -425,7 +425,7 @@ function buildPanel(): HTMLElement | null {
     const panel = document.createElement("div");
 
     panel.id = PANEL_ELEMENT_ID;
-    panel.setAttribute("data-powershow-diagnostics", "");
+    panel.setAttribute("data-presentation-diagnostics", "");
     panel.setAttribute("style", PANEL_STYLE);
 
     const heading = document.createElement("div");
@@ -440,7 +440,7 @@ function buildPanel(): HTMLElement | null {
     ].join("\n");
 
     const log = document.createElement("div");
-    log.setAttribute("data-powershow-diagnostics-log", "");
+    log.setAttribute("data-presentation-diagnostics-log", "");
     log.setAttribute("style", PANEL_LOG_STYLE);
 
     panel.append(heading, env, log);

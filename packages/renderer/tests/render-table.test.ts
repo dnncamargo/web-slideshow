@@ -272,12 +272,12 @@ describe("renderTable", () => {
       rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
     });
 
-    expect(html).toContain("--powershow-table-border-width:2px");
+    expect(html).toContain("--presentation-table-border-width:2px");
     expect(html).toContain("presentation-gradient-border");
-    expect(html).toContain("powershow-table-frame-gradient-border");
+    expect(html).toContain("presentation-table-frame-gradient-border");
     expect(html).toContain("--presentation-gradient-border-width:2px");
     expect(html).toContain("--presentation-gradient-border-paint:linear-gradient(90deg,#7c3aed 0%,#06b6d4 100%)");
-    expect(html).toContain("--powershow-table-border-width:2px");
+    expect(html).toContain("--presentation-table-border-width:2px");
     expect(html).not.toContain("border-image:");
   });
 
@@ -294,10 +294,10 @@ describe("renderTable", () => {
       rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
     });
 
-    expect(sized).toContain('data-powershow-id="sized-table"');
-    expect(sized).toContain('class="powershow-table powershow-table-structured powershow-table-fills-frame"');
+    expect(sized).toContain('data-presentation-id="sized-table"');
+    expect(sized).toContain('class="presentation-table presentation-table-structured presentation-table-fills-frame"');
     expect(sized).toContain("height:180px");
-    expect(intrinsic).not.toContain("powershow-table-fills-frame");
+    expect(intrinsic).not.toContain("presentation-table-fills-frame");
   });
 
   it("keeps the gradient ring visual-only and above the inner surface", () => {
@@ -308,7 +308,7 @@ describe("renderTable", () => {
       rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
     });
 
-    expect(html).toContain("powershow-table-frame-gradient-border");
+    expect(html).toContain("presentation-table-frame-gradient-border");
     expect(html).not.toContain("border-image:");
   });
 
@@ -323,10 +323,10 @@ describe("renderTable", () => {
       rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
     });
 
-    expect(html).toContain("--powershow-table-frame-radius:12px");
-    expect(html).toContain("--powershow-table-border-width:3px");
+    expect(html).toContain("--presentation-table-frame-radius:12px");
+    expect(html).toContain("--presentation-table-border-width:3px");
     expect(html).toContain("border-radius:12px");
-    expect(html).toContain('data-powershow-id="rounded-table"');
+    expect(html).toContain('data-presentation-id="rounded-table"');
   });
 
   it("renders structured tables with recursive semantic content", () => {
@@ -374,15 +374,15 @@ describe("renderTable", () => {
     });
 
     expect(html).toContain("<colgroup>");
-    expect(html).toContain('data-powershow-table-column-id="name-column"');
+    expect(html).toContain('data-presentation-table-column-id="name-column"');
     expect(html).toContain('style="width:120px"');
     expect(html).toContain('<thead><tr><th scope="col"');
-    expect(html).toContain('data-powershow-content-slot-id="name-header"');
-    expect(html).toContain('data-powershow-content-slot-id="name-cell"');
+    expect(html).toContain('data-presentation-content-slot-id="name-header"');
+    expect(html).toContain('data-presentation-content-slot-id="name-cell"');
     expect(html).toContain('class="header-slot"');
     expect(html).toContain('class="cell-slot"');
-    expect(html).toContain('data-powershow-table-row-id="row-1"');
-    expect(html).toContain('data-powershow-id="cell-container"');
+    expect(html).toContain('data-presentation-table-row-id="row-1"');
+    expect(html).toContain('data-presentation-id="cell-container"');
     expect(html).toContain("Alice &amp; Bob");
   });
 
@@ -401,7 +401,7 @@ describe("renderTable", () => {
     });
 
     expect(html).not.toContain("<thead>");
-    expect(html).toContain("data-powershow-id=\"no-header-table\"");
+    expect(html).toContain("data-presentation-id=\"no-header-table\"");
     expect(html).toContain("<tbody>");
   });
 
@@ -421,11 +421,11 @@ describe("renderTable", () => {
       rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }, { id: "cell-2", style: { background: { color: "#555555" } }, children: [] }] }, { id: "row-2", cells: [{ id: "cell-3", children: [] }, { id: "cell-4", children: [] }] }],
     });
 
-    expect(html).toContain("--powershow-table-divider-opacity:0.5");
-    expect(html).toContain('data-powershow-content-slot-id="header-1" data-powershow-table-column-id="column-1" style="background:#111111"');
-    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
-    expect(html).toContain('data-powershow-content-slot-id="cell-2" style="background:#555555"');
-    expect(html).toContain('data-powershow-content-slot-id="cell-4" style="background:#444444"');
+    expect(html).toContain("--presentation-table-divider-opacity:0.5");
+    expect(html).toContain('data-presentation-content-slot-id="header-1" data-presentation-table-column-id="column-1" style="background:#111111"');
+    expect(html).not.toContain('data-presentation-content-slot-id="cell-1" style=');
+    expect(html).toContain('data-presentation-content-slot-id="cell-2" style="background:#555555"');
+    expect(html).toContain('data-presentation-content-slot-id="cell-4" style="background:#444444"');
   });
 
   it("includes an unoverridden visible header in zebra parity", () => {
@@ -438,10 +438,10 @@ describe("renderTable", () => {
         { id: "row-2", cells: [{ id: "cell-2", children: [] }] },
       ],
     });
-    expect(html).toContain('class="powershow-table powershow-table-structured powershow-table-has-surface"');
-    expect(html).not.toContain('data-powershow-content-slot-id="header" style=');
-    expect(html).toContain('data-powershow-content-slot-id="cell-1" style="background:#202020"');
-    expect(html).not.toContain('data-powershow-content-slot-id="cell-2" style=');
+    expect(html).toContain('class="presentation-table presentation-table-structured presentation-table-has-surface"');
+    expect(html).not.toContain('data-presentation-content-slot-id="header" style=');
+    expect(html).toContain('data-presentation-content-slot-id="cell-1" style="background:#202020"');
+    expect(html).not.toContain('data-presentation-content-slot-id="cell-2" style=');
   });
 
   it("restarts body parity when the header has an explicit override", () => {
@@ -454,9 +454,9 @@ describe("renderTable", () => {
         { id: "row-2", cells: [{ id: "cell-2", children: [] }] },
       ],
     });
-    expect(html).toContain('data-powershow-content-slot-id="header" data-powershow-table-column-id="column" style="background:#303030"');
-    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
-    expect(html).toContain('data-powershow-content-slot-id="cell-2" style="background:#202020"');
+    expect(html).toContain('data-presentation-content-slot-id="header" data-presentation-table-column-id="column" style="background:#303030"');
+    expect(html).not.toContain('data-presentation-content-slot-id="cell-1" style=');
+    expect(html).toContain('data-presentation-content-slot-id="cell-2" style="background:#202020"');
   });
 
   it("starts body parity at the first row when the header is hidden", () => {
@@ -469,8 +469,8 @@ describe("renderTable", () => {
         { id: "row-2", cells: [{ id: "cell-2", children: [] }] },
       ],
     });
-    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
-    expect(html).toContain('data-powershow-content-slot-id="cell-2" style="background:#202020"');
+    expect(html).not.toContain('data-presentation-content-slot-id="cell-1" style=');
+    expect(html).toContain('data-presentation-content-slot-id="cell-2" style="background:#202020"');
   });
 
   it("lets semantic backgrounds fall through to the generic table surface", () => {
@@ -481,10 +481,10 @@ describe("renderTable", () => {
       rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
     });
 
-    expect(html).toContain("powershow-table-has-surface");
+    expect(html).toContain("presentation-table-has-surface");
     expect(html).toContain('style="background:#101010"');
-    expect(html).not.toContain('data-powershow-content-slot-id="header-1" style=');
-    expect(html).not.toContain('data-powershow-content-slot-id="cell-1" style=');
+    expect(html).not.toContain('data-presentation-content-slot-id="header-1" style=');
+    expect(html).not.toContain('data-presentation-content-slot-id="cell-1" style=');
   });
 
   it("renders an explicitly transparent reset surface without a gradient", () => {
@@ -495,8 +495,8 @@ describe("renderTable", () => {
       rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }, { id: "row-2", cells: [{ id: "cell-2", children: [] }] }],
     });
     expect(html).toContain('style="background:#00000000"');
-    expect(html).toContain('data-powershow-content-slot-id="cell-1" style="background:#222222"');
-    expect(html).not.toContain('data-powershow-content-slot-id="cell-2" style=');
+    expect(html).toContain('data-presentation-content-slot-id="cell-1" style="background:#222222"');
+    expect(html).not.toContain('data-presentation-content-slot-id="cell-2" style=');
     expect(html).not.toContain("background-image:");
   });
 });

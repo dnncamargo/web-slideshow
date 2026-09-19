@@ -103,8 +103,8 @@ function structuredTablePresentation(): Presentation {
 
   function canvasIds(host: HTMLElement): string[] {
     return Array.from(
-      host.querySelectorAll<HTMLElement>("[class*='slideCanvas'] [data-powershow-id]"),
-      (element) => element.dataset.powershowId ?? "",
+      host.querySelectorAll<HTMLElement>("[class*='slideCanvas'] [data-presentation-id]"),
+      (element) => element.dataset.presentationId ?? "",
     );
   }
 
@@ -152,7 +152,7 @@ describe("CP4D1B generic element move history", () => {
   }
 
   async function selectCanvasElement(id: string): Promise<void> {
-    const element = container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`element ${id} was not rendered`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -165,7 +165,7 @@ describe("CP4D1B generic element move history", () => {
   }
 
   async function selectTreeElement(id: string): Promise<void> {
-    const canvasElement = container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const canvasElement = container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!canvasElement) throw new Error(`element ${id} was not rendered`);
     const label = canvasElement.textContent?.trim() || id;
     const treeButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button[class*='elementTreeSelect']"))
@@ -287,9 +287,9 @@ describe("CP4D1B generic element move history", () => {
     expect(vi.mocked(historyState.commitHistory).mock.calls.map((call) => call[2])).toEqual([MOVE_META, MOVE_META, MOVE_META]);
 
     await act(async () => dispatchUndo());
-    expect(container.querySelector('[data-powershow-id="container-b"] [data-powershow-id="text-a"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="container-b"] [data-presentation-id="text-a"]')).not.toBeNull();
     await act(async () => dispatchRedo());
-    expect(container.querySelector('[data-powershow-id="container-b"] [data-powershow-id="text-a"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="container-b"] [data-presentation-id="text-a"]')).toBeNull();
   });
 
   it("reorders real children inside a Structured Table ContentSlot", async () => {
@@ -313,8 +313,8 @@ describe("CP4D1B generic element move history", () => {
     vi.mocked(historyState.commitHistory).mockClear();
 
     await dragBefore("Cell B", "Table");
-    expect(container.querySelector('[data-powershow-id="cell-text-a"]')).not.toBeNull();
-    expect(container.querySelector('[data-powershow-id="cell-text-b"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="cell-text-a"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="cell-text-b"]')).not.toBeNull();
     const undo = key("z", { ctrlKey: true });
     await act(async () => window.dispatchEvent(undo));
     expect(undo.defaultPrevented).toBe(false);

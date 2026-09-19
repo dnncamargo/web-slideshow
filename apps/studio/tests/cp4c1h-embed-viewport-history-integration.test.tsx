@@ -88,7 +88,7 @@ describe("CP4C1H continuous Embed viewport history", () => {
 
   async function selectEmbed(): Promise<void> {
     const element = host.querySelector<HTMLElement>(
-      '[data-powershow-id="embed-1"]',
+      '[data-presentation-id="embed-1"]',
     );
     if (!element) throw new Error("Embed was not rendered");
     await act(async () => {

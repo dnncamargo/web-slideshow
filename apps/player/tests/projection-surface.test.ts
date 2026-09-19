@@ -119,7 +119,7 @@ describe("Projection surface", () => {
   it("animates Plot playback by default without leaking source", () => {
     const raf = stubPlotRaf();
     const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
-    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    const plot = root.querySelector<HTMLElement>('[data-presentation-id="animated-plot"]');
     if (!plot) throw new Error("Animated Plot was not rendered");
 
     raf.run(100);
@@ -138,7 +138,7 @@ describe("Projection surface", () => {
       transition: "none",
       animatePlots: false,
     });
-    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    const plot = root.querySelector<HTMLElement>('[data-presentation-id="animated-plot"]');
 
     expect(raf.request).not.toHaveBeenCalled();
     expect(plot).not.toBeNull();
@@ -162,7 +162,7 @@ describe("Projection surface", () => {
   it("delegates Plot play, pause, and reset through the active renderer runtime", () => {
     const raf = stubPlotRaf();
     const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
-    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    const plot = root.querySelector<HTMLElement>('[data-presentation-id="animated-plot"]');
     if (!plot) throw new Error("Animated Plot was not rendered");
 
     projection.controlPlotAnimation("animated-plot", "pause");
@@ -190,7 +190,7 @@ describe("Projection surface", () => {
   it("retains the Plot runtime across resize hydration", () => {
     const raf = stubPlotRaf();
     const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
-    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    const plot = root.querySelector<HTMLElement>('[data-presentation-id="animated-plot"]');
     if (!plot) throw new Error("Animated Plot was not rendered");
 
     const initial = plot.innerHTML;
@@ -223,15 +223,15 @@ describe("Projection surface", () => {
       ],
     });
     const projection = mountProjectionSurface(root, presentation, { transition: "none" });
-    const firstPlot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    const firstPlot = root.querySelector<HTMLElement>('[data-presentation-id="animated-plot"]');
     if (!firstPlot) throw new Error("First Plot was not rendered");
     const firstFrameId = Array.from(raf.callbacks.keys())[0];
 
     projection.goTo(1);
     expect(firstFrameId).toBeDefined();
     expect(raf.cancel).toHaveBeenCalledWith(firstFrameId);
-    expect(root.querySelector('[data-powershow-id="animated-plot"]')).toBeNull();
-    expect(root.querySelector('[data-powershow-id="second-plot"]')).not.toBeNull();
+    expect(root.querySelector('[data-presentation-id="animated-plot"]')).toBeNull();
+    expect(root.querySelector('[data-presentation-id="second-plot"]')).not.toBeNull();
     expect(raf.callbacks.size).toBe(1);
     projection.destroy();
   });
@@ -239,7 +239,7 @@ describe("Projection surface", () => {
   it("disposes Plot playback when destroyed", () => {
     const raf = stubPlotRaf();
     const projection = mountProjectionSurface(root, animatedPresentation(), { transition: "none" });
-    const plot = root.querySelector<HTMLElement>('[data-powershow-id="animated-plot"]');
+    const plot = root.querySelector<HTMLElement>('[data-presentation-id="animated-plot"]');
     if (!plot) throw new Error("Animated Plot was not rendered");
     const beforeDestroy = plot.innerHTML;
     const pending = Array.from(raf.callbacks.values())[0];
@@ -257,8 +257,8 @@ describe("Projection surface", () => {
       transition: "none",
     });
 
-    expect(root.querySelector(".powershow-player-slide-surface")).not.toBeNull();
-    expect(root.querySelector(".powershow-player-controls")).toBeNull();
+    expect(root.querySelector(".player-slide-surface")).not.toBeNull();
+    expect(root.querySelector(".player-controls")).toBeNull();
     expect(root.innerHTML).toContain("Slide One");
     expect(projection.getCurrentIndex()).toBe(0);
 
@@ -282,12 +282,12 @@ describe("Projection surface", () => {
       }],
     });
     const projection = mountProjectionSurface(root, presentation, { transition: "none" });
-    const blocksRoot = root.querySelector<HTMLElement>('[data-powershow-type="blocks"]');
+    const blocksRoot = root.querySelector<HTMLElement>('[data-presentation-type="blocks"]');
     if (!blocksRoot) throw new Error("Player Blocks projection was not rendered");
-    expect(blocksRoot.querySelector(".powershow-block--start")).not.toBeNull();
+    expect(blocksRoot.querySelector(".presentation-block--start")).not.toBeNull();
     expect(blocksRoot.textContent).toContain("When flag clicked");
     expect(blocksRoot.textContent).toContain("Move 10 steps");
-    expect(blocksRoot.querySelector(".powershow-block--end")).not.toBeNull();
+    expect(blocksRoot.querySelector(".presentation-block--end")).not.toBeNull();
     expect(blocksRoot.querySelectorAll("[onclick]")).toHaveLength(0);
 
     projection.destroy();
@@ -540,17 +540,17 @@ describe("Projection surface", () => {
       transition: "none",
     });
     const surface = root.querySelector<HTMLElement>(
-      ".powershow-player-slide-surface",
+      ".player-slide-surface",
     );
     const fitSurface = root.querySelector<HTMLElement>(
-      ".powershow-container-fit-surface",
+      ".presentation-container-fit-surface",
     );
     const fitViewport = root.querySelector<HTMLElement>(
-      "[data-powershow-container-fit]",
+      "[data-presentation-container-fit]",
     );
 
-    expect(root.querySelector("style[data-powershow-font-resources]")).not.toBeNull();
-    expect(root.querySelector("style[data-powershow-font-resources]")?.textContent).toContain(
+    expect(root.querySelector("style[data-presentation-font-resources]")).not.toBeNull();
+    expect(root.querySelector("style[data-presentation-font-resources]")?.textContent).toContain(
       "@font-face",
     );
     expect(surface?.style.getPropertyValue(paletteColorCssVariableName("accent"))).toBe(

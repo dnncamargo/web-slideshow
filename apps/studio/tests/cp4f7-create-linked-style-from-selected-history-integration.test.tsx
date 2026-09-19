@@ -111,7 +111,7 @@ describe("CP4F7 create Linked Style from selected element history", () => {
   }
 
   async function selectElement(id: string): Promise<void> {
-    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
     if (!element) throw new Error(`Element was not rendered: ${id}`);
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -202,12 +202,12 @@ describe("CP4F7 create Linked Style from selected element history", () => {
       linkedStyleId: "shared-2",
     });
     expect(getElement(changed, "sibling")).not.toHaveProperty("linkedStyleId");
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="nested-source"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="nested-source"]')?.classList.contains("studio-editor-selected")).toBe(true);
 
     const undoEvent = await undo();
     expect(undoEvent.defaultPrevented).toBe(true);
     expect(await save(saved)).toEqual(initial);
-    expect(host.querySelector<HTMLElement>('[data-powershow-id="nested-source"]')?.classList.contains("powershow-editor-selected")).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="nested-source"]')?.classList.contains("studio-editor-selected")).toBe(true);
 
     const redoEvent = await redo();
     expect(redoEvent.defaultPrevented).toBe(true);

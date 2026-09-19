@@ -85,7 +85,7 @@ describe("element setting history integration", () => {
       );
     });
     const canvasElement = container.querySelector<HTMLElement>(
-      `[data-powershow-id="${String(element.id)}"]`,
+      `[data-presentation-id="${String(element.id)}"]`,
     );
     if (!canvasElement) throw new Error(`element was not rendered: ${String(element.id)}`);
     await act(async () => {
@@ -107,7 +107,7 @@ describe("element setting history integration", () => {
       );
     });
     const canvasElement = container.querySelector<HTMLElement>(
-      `[data-powershow-id="${String(element.id)}"]`,
+      `[data-presentation-id="${String(element.id)}"]`,
     );
     if (!canvasElement) throw new Error(`element was not rendered: ${String(element.id)}`);
     await act(async () => {
@@ -480,7 +480,7 @@ describe("element setting history integration", () => {
       );
     });
     const child = container.querySelector<HTMLElement>(
-      '[data-powershow-id="container-preserve-child-history"]',
+      '[data-presentation-id="container-preserve-child-history"]',
     );
     if (!child) throw new Error("nested Container was not rendered");
     await act(async () => child.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -550,7 +550,7 @@ describe("element setting history integration", () => {
     });
 
     const itemButton = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-gallery-select][data-powershow-gallery-index="0"]',
+      '[data-presentation-gallery-select][data-presentation-gallery-index="0"]',
     );
     if (!itemButton) throw new Error("gallery item selector was not rendered");
     await act(async () => itemButton.click());
@@ -566,7 +566,7 @@ describe("element setting history integration", () => {
     expect(container.querySelector<HTMLSelectElement>("#gallery-fit")?.value).toBe("fill");
 
     const currentItemButton = container.querySelector<HTMLButtonElement>(
-      '[data-powershow-gallery-select][data-powershow-gallery-index="0"]',
+      '[data-presentation-gallery-select][data-presentation-gallery-index="0"]',
     );
     if (!currentItemButton) throw new Error("gallery item selector was not rerendered");
     await act(async () => currentItemButton.click());
@@ -574,20 +574,20 @@ describe("element setting history integration", () => {
     if (!itemFit) throw new Error("gallery item fit control was not rendered");
     await act(async () => changeSelect(itemFit, ""));
     const inheritedImage = container.querySelector<HTMLImageElement>(
-      '[data-powershow-gallery-index="0"] img',
+      '[data-presentation-gallery-index="0"] img',
     );
     expect(itemFit.value).toBe("");
     expect(inheritedImage?.style.objectFit).toBe("fill");
 
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="0"]')?.click());
     expect(container.querySelector<HTMLSelectElement>("#gallery-gallery-history-item-0-fit")?.value).toBe("cover");
-    expect(container.querySelector<HTMLImageElement>('[data-powershow-gallery-index="0"] img')?.style.objectFit).toBe("cover");
+    expect(container.querySelector<HTMLImageElement>('[data-presentation-gallery-index="0"] img')?.style.objectFit).toBe("cover");
 
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-powershow-gallery-select][data-powershow-gallery-index="0"]')?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-presentation-gallery-select][data-presentation-gallery-index="0"]')?.click());
     expect(container.querySelector<HTMLSelectElement>("#gallery-gallery-history-item-0-fit")?.value).toBe("");
-    expect(container.querySelector<HTMLImageElement>('[data-powershow-gallery-index="0"] img')?.style.objectFit).toBe("fill");
+    expect(container.querySelector<HTMLImageElement>('[data-presentation-gallery-index="0"] img')?.style.objectFit).toBe("fill");
   });
 
   it("tracks Code show-line-numbers through undo and redo", async () => {

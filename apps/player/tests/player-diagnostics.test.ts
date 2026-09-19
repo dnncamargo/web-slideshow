@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const STORAGE_KEY = "powershow:player-diagnostics:v1";
 
-const PANEL_ELEMENT_ID = "powershow-player-diagnostics";
+const PANEL_ELEMENT_ID = "player-diagnostics";
 
 function makeStorage() {
   const map = new Map<string, string>();

@@ -23,15 +23,15 @@ export function renderSlide(
 
   return (
     `<section` +
-    ` class="powershow-slide"` +
-    ` data-powershow-slide-id="${escapeHtml(
+    ` class="presentation-slide"` +
+    ` data-presentation-slide-id="${escapeHtml(
       slide.id,
     )}"` +
     ` style="position:relative;overflow:hidden;width:100%;height:100%"` +
     `>` +
     background +
     `<div` +
-    ` class="powershow-slide-content"` +
+    ` class="presentation-slide-content"` +
     ` style="position:relative;z-index:1;width:100%;height:100%"` +
     `>` +
     content +

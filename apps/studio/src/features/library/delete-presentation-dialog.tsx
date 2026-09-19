@@ -67,11 +67,11 @@ export function DeletePresentationDialog({
         className={styles.deleteDialog}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="powershow-delete-dialog-title"
+        aria-labelledby="studio-delete-dialog-title"
         onKeyDown={handleKeyDown}
       >
         <h2
-          id="powershow-delete-dialog-title"
+          id="studio-delete-dialog-title"
           className={styles.deleteDialogTitle}
         >
           {t("library.deleteDialogTitle")}
@@ -87,13 +87,13 @@ export function DeletePresentationDialog({
 
         <label
           className={styles.deleteDialogLabel}
-          htmlFor="powershow-delete-confirm-input"
+          htmlFor="studio-delete-confirm-input"
         >
           {t("library.deleteDialogLabel")}
         </label>
 
         <input
-          id="powershow-delete-confirm-input"
+          id="studio-delete-confirm-input"
           ref={inputRef}
           className={styles.deleteDialogInput}
           type="text"

@@ -19,7 +19,7 @@ describe("stack container rendering", () => {
 
     expect(html).toContain("display:flex");
     expect(html).toContain("flex-direction:row");
-    expect(html).not.toContain("powershow-container-stack");
+    expect(html).not.toContain("presentation-container-stack");
   });
 
   it("renders stack containers as a grid with direct children in one area", () => {
@@ -33,7 +33,7 @@ describe("stack container rendering", () => {
       }),
     );
 
-    expect(html).toContain("powershow-container-stack");
+    expect(html).toContain("presentation-container-stack");
     expect(html).toContain("display:grid");
     expect(html).toContain("justify-items:center");
     expect(html).toContain("align-items:center");
@@ -58,8 +58,8 @@ describe("stack container rendering", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="cropped-image"');
-    expect(html).toContain('data-powershow-id="front-text"');
+    expect(html).toContain('data-presentation-id="cropped-image"');
+    expect(html).toContain('data-presentation-id="front-text"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:0;position:relative;overflow:hidden"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:1"');
   });
@@ -78,8 +78,8 @@ describe("stack container rendering", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="back-text"');
-    expect(html).toContain('data-powershow-id="front-image"');
+    expect(html).toContain('data-presentation-id="back-text"');
+    expect(html).toContain('data-presentation-id="front-image"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:0"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:1;position:relative;overflow:hidden"');
   });
@@ -102,10 +102,10 @@ describe("stack container rendering", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="inner-stack"');
-    expect(html).toContain('data-powershow-id="outer-front"');
-    expect(html).toContain('data-powershow-id="inner-back"');
-    expect(html).toContain('data-powershow-id="inner-front"');
+    expect(html).toContain('data-presentation-id="inner-stack"');
+    expect(html).toContain('data-presentation-id="outer-front"');
+    expect(html).toContain('data-presentation-id="inner-back"');
+    expect(html).toContain('data-presentation-id="inner-front"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:0;display:grid"');
     expect(html).toContain('style="grid-area:1 / 1;z-index:1"');
   });
@@ -144,9 +144,9 @@ describe("stack container rendering", () => {
       }),
     );
 
-    expect(html).toContain('data-powershow-id="outer-stack"');
-    expect(html).toContain('data-powershow-id="inner-stack"');
-    expect(html).toContain('data-powershow-id="overlay-text"');
-    expect(html.match(/powershow-container-stack/g)).toHaveLength(2);
+    expect(html).toContain('data-presentation-id="outer-stack"');
+    expect(html).toContain('data-presentation-id="inner-stack"');
+    expect(html).toContain('data-presentation-id="overlay-text"');
+    expect(html.match(/presentation-container-stack/g)).toHaveLength(2);
   });
 });

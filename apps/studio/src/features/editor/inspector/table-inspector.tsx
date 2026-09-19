@@ -1065,7 +1065,7 @@ function StructuredTableInspector({
         count={element.columns.length}
         defaultOpen
       >
-        <ul className={styles.collectionSelector} data-powershow-table-column-summary>
+        <ul className={styles.collectionSelector} data-presentation-table-column-summary>
           {element.columns.map((column, index) => {
             const selected = selectedTableStructuralNode?.kind === "column" && selectedTableStructuralNode.tableId === element.id && selectedTableStructuralNode.id === column.id;
             const label = getStructuredColumnLabel(element, index, t);
@@ -1078,13 +1078,13 @@ function StructuredTableInspector({
           })}
         </ul>
         <div className={styles.tableEditorActions}>
-          <button type="button" className="ps-ui-action" data-powershow-table-add-column="true" onClick={() => tableAuthoringControls.onAddColumn(element.id)}>
+          <button type="button" className="ps-ui-action" data-presentation-table-add-column="true" onClick={() => tableAuthoringControls.onAddColumn(element.id)}>
             <span>{t("table.addColumn")}</span>
           </button>
           <button
             type="button"
             className="ps-ui-action"
-            data-powershow-table-remove-column="true"
+            data-presentation-table-remove-column="true"
             disabled={!isSelectedColumn(element, selectedTableStructuralNode)}
             onClick={() => setPendingRemoval(selectedTableStructuralNode ?? null)}
           >
@@ -1098,7 +1098,7 @@ function StructuredTableInspector({
         count={element.rows.length}
         defaultOpen
       >
-        <ul className={styles.collectionSelector} data-powershow-table-row-summary>
+        <ul className={styles.collectionSelector} data-presentation-table-row-summary>
           {element.rows.map((row, index) => {
             const selected = selectedTableStructuralNode?.kind === "row" && selectedTableStructuralNode.tableId === element.id && selectedTableStructuralNode.id === row.id;
             const label = getStructuredRowLabel(element, index, t);
@@ -1111,13 +1111,13 @@ function StructuredTableInspector({
           })}
         </ul>
         <div className={styles.tableEditorActions}>
-          <button type="button" className="ps-ui-action" data-powershow-table-add-row="true" onClick={() => tableAuthoringControls.onAddRow(element.id)}>
+          <button type="button" className="ps-ui-action" data-presentation-table-add-row="true" onClick={() => tableAuthoringControls.onAddRow(element.id)}>
             <span>{t("table.addRow")}</span>
           </button>
           <button
             type="button"
             className="ps-ui-action"
-            data-powershow-table-remove-row="true"
+            data-presentation-table-remove-row="true"
             disabled={!isSelectedRow(element, selectedTableStructuralNode)}
             onClick={() => setPendingRemoval(selectedTableStructuralNode ?? null)}
           >

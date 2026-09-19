@@ -78,7 +78,7 @@ function sourceButton(container: HTMLElement): HTMLButtonElement {
 }
 
 function canvasElement(container: HTMLElement, id: string): HTMLElement {
-  const element = container.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+  const element = container.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
   if (!element) throw new Error(`element ${id} was not rendered`);
   return element;
 }
@@ -165,13 +165,13 @@ describe("CP4D1C QR creation history", () => {
     const qrId = qr.id;
     const qrSrc = qr.src;
     await undo();
-    expect(container.querySelector(`[data-powershow-id="${qrId}"]`)).toBeNull();
+    expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).toBeNull();
     await select("source");
     expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
     expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
     await redo();
     expect(qrDomSnapshot(container, qrId)).toEqual({ src: qrSrc, alt: `QR code for ${href}` });
-    expect(container.querySelector(`[data-powershow-id="${qrId}"]`)).not.toBeNull();
+    expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).not.toBeNull();
     await select("source");
     expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
     expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
@@ -196,7 +196,7 @@ describe("CP4D1C QR creation history", () => {
     const qrId = qr.id;
     const qrSrc = qr.src;
     await undo();
-    expect(container.querySelector(`[data-powershow-id="${qrId}"]`)).toBeNull();
+    expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).toBeNull();
     await redo();
     expect(qrDomSnapshot(container, qrId).src).toBe(qrSrc);
   });
@@ -247,7 +247,7 @@ describe("CP4D1C QR creation history", () => {
     const qrId = qr.id;
 
     await undo();
-    expect(container.querySelector(`[data-powershow-id="${qrId}"]`)).toBeNull();
+    expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).toBeNull();
     await select("source");
     expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe("https://example.com/linked");
     await undo();

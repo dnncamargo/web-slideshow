@@ -87,7 +87,7 @@ export function resolveCanvasPointerHit({
 }): CanvasPointerHit {
   const embedElement =
     (embedTarget &&
-      (embeds.find((embed) => embed.dataset.powershowId === embedTarget.id) ??
+      (embeds.find((embed) => embed.dataset.presentationId === embedTarget.id) ??
         null)) ??
     null;
   const embedOverridesOrdinary =
@@ -105,8 +105,8 @@ export function resolveCanvasPointerHit({
   return {
     elementTarget: ordinaryTarget,
     target: {
-      id: ordinaryTarget.dataset.powershowId,
-      type: ordinaryTarget.dataset.powershowType,
+      id: ordinaryTarget.dataset.presentationId,
+      type: ordinaryTarget.dataset.presentationType,
     },
   };
 }

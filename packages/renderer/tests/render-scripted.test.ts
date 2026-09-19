@@ -126,9 +126,9 @@ describe("renderScripted", () => {
     }));
 
     expect(html).toContain('<div class="presentation-gradient-border"');
-    expect(html).toContain('<iframe class="powershow-element powershow-scripted custom-scripted-stage"');
-    expect(html).toContain('data-powershow-id="scripted-1"');
-    expect(html).toContain('data-powershow-type="scripted"');
+    expect(html).toContain('<iframe class="presentation-element presentation-scripted custom-scripted-stage"');
+    expect(html).toContain('data-presentation-id="scripted-1"');
+    expect(html).toContain('data-presentation-type="scripted"');
     expect(html).toContain("--presentation-gradient-border-width:2px");
     expect(html).toContain("--presentation-gradient-border-paint:linear-gradient");
     expect(html).toContain("border:0");
@@ -136,7 +136,7 @@ describe("renderScripted", () => {
     expect(html).toContain("border-radius:12px");
     expect(html).toContain("border-radius:max(0px,calc(12px - 2px))");
     expect(html).not.toContain("border-image:");
-    expect(html).not.toContain('class="presentation-gradient-border powershow-element');
+    expect(html).not.toContain('class="presentation-gradient-border presentation-element');
   });
 
   it("maps authored dimensions to the frame and iframe viewport", () => {
@@ -283,23 +283,23 @@ describe("renderScripted", () => {
     expect(html).toContain("></iframe>");
   });
 
-  it("emits the powershow-element and powershow-scripted classes", () => {
+  it("emits the presentation-element and presentation-scripted classes", () => {
     const html = renderScripted(scripted());
 
-    expect(html).toContain("powershow-element");
+    expect(html).toContain("presentation-element");
 
-    expect(html).toContain("powershow-scripted");
+    expect(html).toContain("presentation-scripted");
   });
 
-  it("emits data-powershow-id", () => {
+  it("emits data-presentation-id", () => {
     expect(renderScripted(scripted())).toContain(
-      'data-powershow-id="scripted-1"',
+      'data-presentation-id="scripted-1"',
     );
   });
 
-  it("emits data-powershow-type=\"scripted\"", () => {
+  it("emits data-presentation-type=\"scripted\"", () => {
     expect(renderScripted(scripted())).toContain(
-      'data-powershow-type="scripted"',
+      'data-presentation-type="scripted"',
     );
   });
 
@@ -426,7 +426,7 @@ describe("renderScripted", () => {
 
     expect(html).toContain("<iframe");
 
-    expect(html).toContain('data-powershow-type="scripted"');
+    expect(html).toContain('data-presentation-type="scripted"');
   });
 });
 

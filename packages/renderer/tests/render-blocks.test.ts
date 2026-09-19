@@ -4,8 +4,8 @@ import { renderBlocks } from "../src/render-blocks";
 import { createDidacticBlocksElement } from "./fixtures/render-fixtures";
 
 const region = (html: string, className: string): string => {
-  const start = html.indexOf(`class="powershow-block powershow-block--${className}`);
-  const next = html.indexOf('class="powershow-block powershow-block--', start + 10);
+  const start = html.indexOf(`class="presentation-block presentation-block--${className}`);
+  const next = html.indexOf('class="presentation-block presentation-block--', start + 10);
   return start < 0 ? "" : html.slice(start, next < 0 ? html.length : next);
 };
 
@@ -13,9 +13,9 @@ describe("renderBlocks", () => {
   it("preserves the wrapper, custom class, and hidden behavior", () => {
     const element = { ...createDidacticBlocksElement(), style: { className: "custom-blocks" } };
     const html = renderBlocks(element);
-    expect(html).toContain('class="powershow-element powershow-blocks custom-blocks"');
-    expect(html).toContain('data-powershow-id="didactic-blocks"');
-    expect(html).toContain('data-powershow-type="blocks"');
+    expect(html).toContain('class="presentation-element presentation-blocks custom-blocks"');
+    expect(html).toContain('data-presentation-id="didactic-blocks"');
+    expect(html).toContain('data-presentation-type="blocks"');
     expect(renderBlocks({ ...element, hidden: true })).toBe("");
   });
 
@@ -23,9 +23,9 @@ describe("renderBlocks", () => {
     const element = { ...createDidacticBlocksElement(), source: String.raw`\start(Start)\statement(Text \value(10) \variable(score) \logic(yes))\scope(Loop){\statement(Child)}\end(End)` };
     const html = renderBlocks(element);
     for (const shape of ["start", "statement", "scope", "end", "value", "variable", "logic"]) {
-      expect(html).toContain(`powershow-block--${shape}`);
+      expect(html).toContain(`presentation-block--${shape}`);
     }
-    expect(html).not.toContain("powershow-blocks-source");
+    expect(html).not.toContain("presentation-blocks-source");
     expect(html).not.toContain("\\statement(");
     expect(html).toContain("Text ");
     expect(html).toContain(">10</span>");
@@ -41,11 +41,11 @@ describe("renderBlocks", () => {
       input: "#5CB1D6", math: "#59C059", variables: "#FF8C1A",
     };
     for (const [category, color] of Object.entries(expected)) {
-      expect(html).toContain(`data-powershow-block-category="${category}"`);
+      expect(html).toContain(`data-presentation-block-category="${category}"`);
       expect(html).toContain(`background:${color}`);
     }
-    expect(html).toContain("powershow-block--statement");
-    expect(html).toContain("powershow-block--logic");
+    expect(html).toContain("presentation-block--statement");
+    expect(html).toContain("presentation-block--logic");
   });
 
   it("separates inline visual tokens without changing stack block geometry", () => {
@@ -71,22 +71,22 @@ describe("renderBlocks", () => {
     expect(html).not.toContain("width:100%;min-width:max-content");
     expect(html).not.toContain("overflow-wrap:anywhere");
     expect(html).not.toContain("white-space:pre-wrap");
-    expect(region(html, "start")).toContain("powershow-block-connector--bottom");
-    expect(html.match(/powershow-block-connector--bottom/g)?.length).toBe(8);
-    expect(html.slice(html.indexOf('class="powershow-block powershow-block--end'), html.length)).not.toContain("powershow-block-connector");
-    expect(html).toContain("powershow-block-start-arch");
+    expect(region(html, "start")).toContain("presentation-block-connector--bottom");
+    expect(html.match(/presentation-block-connector--bottom/g)?.length).toBe(8);
+    expect(html.slice(html.indexOf('class="presentation-block presentation-block--end'), html.length)).not.toContain("presentation-block-connector");
+    expect(html).toContain("presentation-block-start-arch");
   });
 
   it("renders scope children in authored order on the filled scope surface", () => {
     const html = renderBlocks(createDidacticBlocksElement());
-    expect(html).toContain("powershow-block-scope-body");
-    expect(html).toContain("powershow-block-scope-stack");
-    const scopeStart = html.indexOf('class="powershow-block powershow-block--scope"');
-    const scopeBody = html.indexOf('class="powershow-block-scope-body"', scopeStart);
+    expect(html).toContain("presentation-block-scope-body");
+    expect(html).toContain("presentation-block-scope-stack");
+    const scopeStart = html.indexOf('class="presentation-block presentation-block--scope"');
+    const scopeBody = html.indexOf('class="presentation-block-scope-body"', scopeStart);
     expect(scopeStart).toBeGreaterThanOrEqual(0);
     expect(scopeBody).toBeGreaterThan(scopeStart);
     expect(html.slice(scopeStart, scopeBody)).toContain("display:inline-flex;align-items:center;width:max-content;min-width:0;white-space:nowrap;box-sizing:border-box;padding:7px 12px;border-radius:7px;position:relative;border:1px solid rgba(15,23,42,0.22);flex-direction:column;align-items:flex-start;padding:7px 12px 2px");
-    expect(html.slice(scopeBody, html.indexOf('class="powershow-block-scope-stack"', scopeBody))).toContain("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 0 14px;position:relative;z-index:1");
+    expect(html.slice(scopeBody, html.indexOf('class="presentation-block-scope-stack"', scopeBody))).toContain("display:flex;flex-direction:column;align-items:flex-start;width:max-content;padding:6px 0 0 14px;position:relative;z-index:1");
     expect(html.indexOf("Turn ")).toBeLessThan(html.indexOf("Set x to"));
     expect(html.indexOf("Move ")).toBeLessThan(html.indexOf("Turn "));
   });
@@ -96,11 +96,11 @@ describe("renderBlocks", () => {
       ...createDidacticBlocksElement(),
       source: String.raw`\scope(Outer){\statement(Before)\scope(Inner){\statement(Inside)}\statement(After)}`,
     });
-    const outerStart = html.indexOf('class="powershow-block powershow-block--scope"');
-    const outerBody = html.indexOf('class="powershow-block-scope-body"', outerStart);
-    const innerStart = html.indexOf('class="powershow-block powershow-block--scope"', outerBody);
+    const outerStart = html.indexOf('class="presentation-block presentation-block--scope"');
+    const outerBody = html.indexOf('class="presentation-block-scope-body"', outerStart);
+    const innerStart = html.indexOf('class="presentation-block presentation-block--scope"', outerBody);
 
-    expect(html.match(/powershow-block--scope/g)).toHaveLength(2);
+    expect(html.match(/presentation-block--scope/g)).toHaveLength(2);
     expect(outerStart).toBeGreaterThanOrEqual(0);
     expect(outerBody).toBeGreaterThan(outerStart);
     expect(innerStart).toBeGreaterThan(outerBody);
@@ -132,7 +132,7 @@ describe("renderBlocks", () => {
         blockBorder: { width: 2, style: "solid", color: "#111827" },
       },
     });
-    expect(html).toContain('data-powershow-block-category="events"');
+    expect(html).toContain('data-presentation-block-category="events"');
     expect(region(html, "start")).toContain("background:#abcdef");
     expect(region(html, "start")).toContain("color:#123456");
     expect(region(html, "value")).toContain("background:#f8fafc;color:#1e293b");
@@ -154,7 +154,7 @@ describe("renderBlocks", () => {
     expect(statement).toContain("border:1px solid rgba(15,23,42,0.22)");
     expect(statement).toContain("border-width:2px;border-style:solid;border-color:#111827");
     expect(statement.match(/border-width:2px/g)).toHaveLength(1);
-    const connectorStart = explicitHtml.indexOf('class="powershow-block-connector');
+    const connectorStart = explicitHtml.indexOf('class="presentation-block-connector');
     const connectorEnd = explicitHtml.indexOf("</span>", connectorStart);
     expect(explicitHtml.slice(connectorStart, connectorEnd)).not.toContain("border:");
   });
@@ -175,10 +175,10 @@ describe("renderBlocks", () => {
       ...createDidacticBlocksElement(),
       source: String.raw`\statement[output,color=#e11d48](Set \value[input,color=#0891b2](Pino \[13\]) \variable[variables](x) \logic[math,color=#22c55e](x = \value(1)))`,
     });
-    expect(html).toContain("powershow-block--statement");
-    expect(html).toContain("powershow-block--value");
-    expect(html).toContain("powershow-block--logic");
-    expect(html).toContain("powershow-block--option");
+    expect(html).toContain("presentation-block--statement");
+    expect(html).toContain("presentation-block--value");
+    expect(html).toContain("presentation-block--logic");
+    expect(html).toContain("presentation-block--option");
     expect(html).toContain("background:#e11d48");
     expect(html).toContain("background:#0891b2");
     expect(html).toContain("background:#22c55e");
@@ -196,11 +196,11 @@ describe("renderBlocks", () => {
 
   it("fails closed for invalid source and keeps an empty valid source empty", () => {
     const invalid = renderBlocks({ ...createDidacticBlocksElement(), source: "\\statement(" });
-    expect(invalid).toContain('data-powershow-blocks-invalid="true"');
+    expect(invalid).toContain('data-presentation-blocks-invalid="true"');
     expect(invalid).not.toContain("\\statement(");
     const empty = renderBlocks({ ...createDidacticBlocksElement(), source: " \n\t" });
-    expect(empty).toContain("powershow-blocks-stack");
-    expect(empty).not.toContain("powershow-blocks-invalid");
+    expect(empty).toContain("presentation-blocks-stack");
+    expect(empty).not.toContain("presentation-blocks-invalid");
   });
 
   it("accepts the didactic fixture against the canonical schema", () => {

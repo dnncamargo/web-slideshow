@@ -17,10 +17,10 @@ const editorWorkspaceCss = readFileSync(
 );
 
 const LINKED_CONTAINER_ATTRIBUTE =
-  'data-powershow-container-link-surface="true"';
+  'data-presentation-container-link-surface="true"';
 
 const LINKED_CONTAINER_SELECTOR =
-  '[data-powershow-container-link-surface="true"]';
+  '[data-presentation-container-link-surface="true"]';
 
 const SURFACE_STYLE = "position:absolute;inset:0;z-index:100";
 

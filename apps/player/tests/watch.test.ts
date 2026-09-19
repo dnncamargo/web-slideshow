@@ -151,8 +151,8 @@ describe("Player Watch runtime", () => {
 
   function renderedSlideId(): string | null {
     return root
-      .querySelector<HTMLElement>("[data-powershow-slide-id]")
-      ?.getAttribute("data-powershow-slide-id") ?? null;
+      .querySelector<HTMLElement>("[data-presentation-slide-id]")
+      ?.getAttribute("data-presentation-slide-id") ?? null;
   }
 
   it("shows no active presentation without subscribing to playerState", () => {
@@ -178,7 +178,7 @@ describe("Player Watch runtime", () => {
 
     await emitPlayer(playerState());
     await vi.waitFor(() => expect(renderedSlideId()).toBe("slide-1"));
-    expect(root.querySelector(".powershow-player-controls")).toBeNull();
+    expect(root.querySelector(".player-controls")).toBeNull();
   });
 
   it("delegates Watch Blocks rendering to the shared projection surface", async () => {
@@ -190,12 +190,12 @@ describe("Player Watch runtime", () => {
     await emitPlayer(playerState({ pageId: "watch-blocks-slide" }));
     await vi.waitFor(() => expect(renderedSlideId()).toBe("watch-blocks-slide"));
 
-    const blocksRoot = root.querySelector<HTMLElement>('[data-powershow-type="blocks"]');
+    const blocksRoot = root.querySelector<HTMLElement>('[data-presentation-type="blocks"]');
     if (!blocksRoot) throw new Error("Watch Blocks projection was not rendered");
-    expect(blocksRoot.querySelector(".powershow-block--start")).not.toBeNull();
+    expect(blocksRoot.querySelector(".presentation-block--start")).not.toBeNull();
     expect(blocksRoot.textContent).toContain("When flag clicked");
     expect(blocksRoot.textContent).toContain("Move 10 steps");
-    expect(blocksRoot.querySelector(".powershow-block--end")).not.toBeNull();
+    expect(blocksRoot.querySelector(".presentation-block--end")).not.toBeNull();
     expect(root.querySelectorAll("[onclick]")).toHaveLength(0);
   });
 

@@ -21,19 +21,19 @@ export interface PresenterGalleryTarget {
 
 function getGalleryItems(gallery: HTMLElement): HTMLElement[] {
   return Array.from(gallery.querySelectorAll<HTMLElement>(
-    ".powershow-gallery-item[data-powershow-gallery-index]",
+    ".presentation-gallery-item[data-presentation-gallery-index]",
   )).filter(
-    (item) => item.closest<HTMLElement>('[data-powershow-type="gallery"]') === gallery,
+    (item) => item.closest<HTMLElement>('[data-presentation-type="gallery"]') === gallery,
   );
 }
 
 function resetGalleryProjection(root: ParentNode): void {
   for (const gallery of root.querySelectorAll<HTMLElement>(
-    '[data-powershow-type="gallery"][data-powershow-id]',
+    '[data-presentation-type="gallery"][data-presentation-id]',
   )) {
     for (const item of getGalleryItems(gallery)) {
-      const isDefault = Number(item.dataset.powershowGalleryIndex) === 0;
-      item.classList.toggle("powershow-gallery-item-active", isDefault);
+      const isDefault = Number(item.dataset.presentationGalleryIndex) === 0;
+      item.classList.toggle("presentation-gallery-item-active", isDefault);
       item.style.visibility = isDefault ? "" : "hidden";
       item.style.pointerEvents = isDefault ? "" : "none";
       if (isDefault) item.removeAttribute("aria-hidden");
@@ -51,19 +51,19 @@ export function projectGalleryTargets(
   for (const target of targets) {
     if (!Number.isInteger(target.targetIndex) || target.targetIndex < 0) continue;
     const gallery = Array.from(root.querySelectorAll<HTMLElement>(
-      '[data-powershow-type="gallery"][data-powershow-id]',
-    )).find((candidate) => candidate.dataset.powershowId === target.elementId);
+      '[data-presentation-type="gallery"][data-presentation-id]',
+    )).find((candidate) => candidate.dataset.presentationId === target.elementId);
     if (!gallery) continue;
 
     const items = getGalleryItems(gallery);
     const active = items.find(
-      (item) => Number(item.dataset.powershowGalleryIndex) === target.targetIndex,
+      (item) => Number(item.dataset.presentationGalleryIndex) === target.targetIndex,
     );
     if (!active) continue;
 
     for (const item of items) {
       const isActive = item === active;
-      item.classList.toggle("powershow-gallery-item-active", isActive);
+      item.classList.toggle("presentation-gallery-item-active", isActive);
       item.style.visibility = isActive ? "" : "hidden";
       item.style.pointerEvents = isActive ? "" : "none";
       if (isActive) item.removeAttribute("aria-hidden");

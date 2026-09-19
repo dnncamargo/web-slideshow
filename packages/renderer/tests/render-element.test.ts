@@ -19,9 +19,9 @@ describe("renderElement", () => {
     expect(html).toContain("<p ");
     expect(html).toContain("Hello PowerShow");
 
-    expect(html).toContain('data-powershow-id="text-1"');
+    expect(html).toContain('data-presentation-id="text-1"');
 
-    expect(html).toContain('data-powershow-type="text"');
+    expect(html).toContain('data-presentation-type="text"');
   });
 
   it("renders title text as h1", () => {
@@ -279,11 +279,11 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain('data-powershow-id="root"');
+    expect(html).toContain('data-presentation-id="root"');
 
-    expect(html).toContain('data-powershow-id="nested"');
+    expect(html).toContain('data-presentation-id="nested"');
 
-    expect(html).toContain('data-powershow-id="nested-text"');
+    expect(html).toContain('data-presentation-id="nested-text"');
 
     expect(html).toContain("Recursive rendering works");
   });
@@ -306,7 +306,7 @@ describe("renderElement", () => {
 
     expect(html).toContain(tag);
 
-    expect(html).toContain(`data-powershow-role="${role}"`);
+    expect(html).toContain(`data-presentation-role="${role}"`);
   });
 
   it("supports mixed content inside containers", () => {
@@ -345,11 +345,11 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain('data-powershow-type="image"');
+    expect(html).toContain('data-presentation-type="image"');
 
-    expect(html).toContain('data-powershow-type="divider"');
+    expect(html).toContain('data-presentation-type="divider"');
 
-    expect(html).toContain('data-powershow-type="text"');
+    expect(html).toContain('data-presentation-type="text"');
   });
 
   it("renders implemented-later elements as placeholders", () => {
@@ -362,7 +362,7 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain("powershow-placeholder-plot");
+    expect(html).toContain("presentation-placeholder-plot");
 
     expect(html).toContain("[plot]");
   });
@@ -380,13 +380,13 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain('data-powershow-type="code"');
+    expect(html).toContain('data-presentation-type="code"');
 
     expect(html).toContain('data-language="typescript"');
 
-    expect(html).toContain("powershow-code-line-number");
+    expect(html).toContain("presentation-code-line-number");
 
-    expect(html).toContain("powershow-code-line-highlighted");
+    expect(html).toContain("presentation-code-line-highlighted");
   });
 
   it("escapes code content", () => {
@@ -433,7 +433,7 @@ describe("renderElement", () => {
 
     expect(html).toContain("PowerShow Terminal");
 
-    expect(html).toContain("powershow-terminal-line-command");
+    expect(html).toContain("presentation-terminal-line-command");
 
     expect(html).toContain("pnpm test");
 

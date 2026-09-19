@@ -170,7 +170,7 @@ export function CodeInspector({
             id="code-language"
             name="codeLanguage"
             type="text"
-            list="powershow-code-languages"
+            list="presentation-code-languages"
             value={element.language}
             onFocus={() => authoringHistory?.begin(languageHistoryKey, textEditMeta)}
             onBlur={() => authoringHistory?.finish(languageHistoryKey)}
@@ -201,7 +201,7 @@ export function CodeInspector({
             }}
           />
 
-          <datalist id="powershow-code-languages">
+          <datalist id="presentation-code-languages">
             <option value="text" />
             <option value="typescript" />
             <option value="javascript" />

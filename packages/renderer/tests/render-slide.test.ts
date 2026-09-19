@@ -32,9 +32,9 @@ describe("renderSlide", () => {
 
     const html = renderSlide(slide);
 
-    expect(html).toContain('class="powershow-slide-background"');
+    expect(html).toContain('class="presentation-slide-background"');
 
-    expect(html).toContain('class="powershow-slide-content"');
+    expect(html).toContain('class="presentation-slide-content"');
 
     expect(html).toContain("PowerShow");
   });
@@ -53,7 +53,7 @@ describe("renderSlide", () => {
 
     const html = renderSlide(slide);
 
-    expect(html).toContain("powershow-slide-background-image");
+    expect(html).toContain("presentation-slide-background-image");
 
     expect(html).toContain('src="/assets/background.jpg"');
 
@@ -79,7 +79,7 @@ describe("renderSlide", () => {
 
     const html = renderSlide(slide);
 
-    expect(html).toContain("powershow-slide-background-pattern");
+    expect(html).toContain("presentation-slide-background-pattern");
 
     expect(html).toContain("radial-gradient");
 
@@ -112,10 +112,10 @@ describe("renderSlide", () => {
 
     const backgroundEnd = html.indexOf(
       "</div>",
-      html.indexOf('class="powershow-slide-background"'),
+      html.indexOf('class="presentation-slide-background"'),
     );
 
-    const contentStart = html.indexOf('class="powershow-slide-content"');
+    const contentStart = html.indexOf('class="presentation-slide-content"');
 
     expect(backgroundEnd).toBeLessThan(contentStart);
   });
@@ -185,8 +185,8 @@ describe("renderSlide", () => {
       }),
     );
 
-    const backgroundStart = html.indexOf('class="powershow-slide-background"');
-    const contentStart = html.indexOf('class="powershow-slide-content"');
+    const backgroundStart = html.indexOf('class="presentation-slide-background"');
+    const contentStart = html.indexOf('class="presentation-slide-content"');
     const backgroundMarkup = html.slice(backgroundStart, contentStart);
 
     expect(backgroundMarkup).toContain("background-color:#123456");
@@ -219,8 +219,8 @@ describe("renderSlide", () => {
     );
 
     expect(html).not.toMatch(/<(?:button|nav)\b/);
-    expect(html).not.toContain("powershow-navigation");
-    expect(html).not.toContain("powershow-controls");
+    expect(html).not.toContain("presentation-navigation");
+    expect(html).not.toContain("presentation-controls");
     expect(html).not.toContain("aria-current");
   });
 
@@ -282,6 +282,6 @@ describe("renderSlide", () => {
 
     expect(html).toContain("radial-gradient");
 
-    expect(html).toContain("powershow-slide-background-pattern");
+    expect(html).toContain("presentation-slide-background-pattern");
   });
 });

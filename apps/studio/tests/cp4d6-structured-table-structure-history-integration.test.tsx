@@ -124,7 +124,7 @@ describe("CP4D6 Structured Table structure history", () => {
   }
 
   async function selectTable(): Promise<void> {
-    const element = container.querySelector<HTMLElement>('[data-powershow-id="cp4d6-table"]');
+    const element = container.querySelector<HTMLElement>('[data-presentation-id="cp4d6-table"]');
     if (!element) throw new Error("table was not rendered");
     await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
@@ -168,7 +168,7 @@ describe("CP4D6 Structured Table structure history", () => {
 
   async function removeSelected(kind: "column" | "row", id: string): Promise<void> {
     await act(async () => structuralSelection(id).click());
-    await act(async () => button(`[data-powershow-table-remove-${kind}]`).click());
+    await act(async () => button(`[data-presentation-table-remove-${kind}]`).click());
     const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.startsWith(`Remove ${kind}`));
     if (!confirm) throw new Error("confirmation button was not rendered");
@@ -193,7 +193,7 @@ describe("CP4D6 Structured Table structure history", () => {
     await mount();
     const before = structuredClone(latest);
 
-    await act(async () => button("[data-powershow-table-add-column]").click());
+    await act(async () => button("[data-presentation-table-add-column]").click());
     await save();
     const added = getTable(latest);
     const addedColumn = added.columns[3];
@@ -227,7 +227,7 @@ describe("CP4D6 Structured Table structure history", () => {
 
   it("adds rows with current column count, including zero columns, and replays exact IDs", async () => {
     await mount();
-    await act(async () => button("[data-powershow-table-add-row]").click());
+    await act(async () => button("[data-presentation-table-add-row]").click());
     await save();
     const added = getTable(latest);
     const addedRow = added.rows[2];
@@ -243,7 +243,7 @@ describe("CP4D6 Structured Table structure history", () => {
       slides: [{ id: "slide-zero", title: "Zero", summary: "", speakerNotes: "", elements: [{ ...table(), columns: [], rows: [{ id: "zero-row", cells: [] }] }] }],
     });
     await mount(zeroColumn);
-    await act(async () => button("[data-powershow-table-add-row]").click());
+    await act(async () => button("[data-presentation-table-add-row]").click());
     await save();
     expect(getTable(latest).rows.at(-1)?.cells).toEqual([]);
   });
@@ -256,7 +256,7 @@ describe("CP4D6 Structured Table structure history", () => {
       ],
     });
     await mount(authored);
-    await act(async () => button("[data-powershow-table-add-column]").click());
+    await act(async () => button("[data-presentation-table-add-column]").click());
     await save();
     expect(latest.textStyles).toEqual(authored.textStyles);
     expect(latest.textStyles?.filter((style) => style.id === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
@@ -342,7 +342,7 @@ describe("CP4D6 Structured Table structure history", () => {
     await act(async () => button('button[aria-label="Move right"]').click());
     await openInspectorPanel();
     await act(async () => structuralSelection("column-b").click());
-    await act(async () => button("[data-powershow-table-remove-column]").click());
+    await act(async () => button("[data-presentation-table-remove-column]").click());
     const staleConfirm = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.startsWith("Remove column"));
     if (!staleConfirm) throw new Error("confirmation button missing");

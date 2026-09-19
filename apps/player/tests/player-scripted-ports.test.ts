@@ -44,7 +44,7 @@ describe("Player public Scripted ports", () => {
   afterEach(() => document.body.replaceChildren());
 
   function frame(): HTMLIFrameElement {
-    const result = root.querySelector<HTMLIFrameElement>('iframe[data-powershow-id="scripted-scroll"]');
+    const result = root.querySelector<HTMLIFrameElement>('iframe[data-presentation-id="scripted-scroll"]');
     if (!result) throw new Error("Scripted iframe not found");
     return result;
   }
