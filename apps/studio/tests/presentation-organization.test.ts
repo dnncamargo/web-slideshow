@@ -8,12 +8,17 @@ vi.mock("firebase/firestore", () => ({
   getDoc: vi.fn(),
   getDocs: vi.fn(),
   increment: vi.fn(),
+  limit: vi.fn(),
   orderBy: vi.fn(),
   query: vi.fn(),
   runTransaction: vi.fn(),
   serverTimestamp: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+  writeBatch: vi.fn(() => ({
+    delete: vi.fn(),
+    commit: vi.fn(),
+  })),
   deleteField: vi.fn(() => "__delete_field__"),
 }));
 
@@ -37,22 +42,22 @@ import {
 } from "../src/features/persistence/presentation-persistence";
 
 import {
-  deleteDoc,
   deleteField,
   doc,
   getDoc,
   getDocs,
   increment,
+  limit,
   query,
   runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { getFirebaseFirestore } from "../src/features/persistence/firebase-client";
 import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
 
-const mockedDeleteDoc = vi.mocked(deleteDoc);
 const mockedDeleteField = vi.mocked(deleteField);
 const mockedDoc = vi.mocked(doc);
 const mockedGetDoc = vi.mocked(getDoc);
@@ -63,6 +68,7 @@ const mockedRunTransaction = vi.mocked(runTransaction);
 const mockedServerTimestamp = vi.mocked(serverTimestamp);
 const mockedSetDoc = vi.mocked(setDoc);
 const mockedUpdateDoc = vi.mocked(updateDoc);
+const mockedWriteBatch = vi.mocked(writeBatch);
 const mockedGetFirestore = vi.mocked(getFirebaseFirestore);
 const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 
@@ -534,7 +540,7 @@ describe("permanently deleting archived presentations", () => {
       await expect(
         repository.deleteArchivedPresentation("pres-1"),
       ).rejects.toThrow(/missing/i);
-      expect(mockedDeleteDoc).not.toHaveBeenCalled();
+      expect(mockedWriteBatch).not.toHaveBeenCalled();
       expect(errorSpy).not.toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();
@@ -552,14 +558,14 @@ describe("permanently deleting archived presentations", () => {
       await expect(
         repository.deleteArchivedPresentation("pres-1"),
       ).rejects.toThrow(/non-archived/i);
-      expect(mockedDeleteDoc).not.toHaveBeenCalled();
+      expect(mockedWriteBatch).not.toHaveBeenCalled();
       expect(errorSpy).not.toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();
     }
   });
 
-  it("rejects a published archived draft without deleting", async () => {
+  it("fails closed when a published archived draft has no public pointer", async () => {
     mockedGetDoc.mockResolvedValue({
       exists: () => true,
       data: () =>
@@ -573,17 +579,22 @@ describe("permanently deleting archived presentations", () => {
           },
         }),
     } as never);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockedGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => presentationDoc("pres-a", {
+        archivedAt: "archived",
+        publication: {
+          publicationId: "pub-1",
+          currentVersionId: "version-1",
+          publishedRevision: 1,
+          publishedAt: "ts",
+        },
+      }),
+    } as never).mockResolvedValueOnce({ exists: () => false } as never);
 
-    try {
-      await expect(
-        repository.deleteArchivedPresentation("pres-1"),
-      ).rejects.toThrow(/published/i);
-      expect(mockedDeleteDoc).not.toHaveBeenCalled();
-      expect(errorSpy).not.toHaveBeenCalled();
-    } finally {
-      errorSpy.mockRestore();
-    }
+    await expect(repository.deleteArchivedPresentation("pres-1"))
+      .rejects.toThrow(/pointer is missing/i);
+    expect(mockedWriteBatch).not.toHaveBeenCalled();
   });
 
   it("deletes only the private draft for an eligible archived unpublished item", async () => {
@@ -598,7 +609,7 @@ describe("permanently deleting archived presentations", () => {
 
     await repository.deleteArchivedPresentation("pres-1");
 
-    expect(mockedDeleteDoc).toHaveBeenCalledTimes(1);
+    expect(mockedWriteBatch).toHaveBeenCalledTimes(1);
     expect(mockedDoc).toHaveBeenCalledWith(
       expect.anything(),
       "users",
@@ -616,7 +627,7 @@ describe("permanently deleting archived presentations", () => {
 
     await repository.deleteArchivedPresentation("pres-1");
 
-    expect(mockedDeleteDoc).toHaveBeenCalledTimes(1);
+    expect(mockedWriteBatch).toHaveBeenCalledTimes(1);
     expect(mockedUpdateDoc).not.toHaveBeenCalled();
     expect(mockedIncrement).not.toHaveBeenCalled();
     expect(mockedSetDoc).not.toHaveBeenCalled();
@@ -635,6 +646,6 @@ describe("permanently deleting archived presentations", () => {
       repository.deleteArchivedPresentation("pres-1"),
     ).rejects.toThrow(/published/i);
 
-    expect(mockedDeleteDoc).not.toHaveBeenCalled();
+    expect(mockedWriteBatch).not.toHaveBeenCalled();
   });
 });

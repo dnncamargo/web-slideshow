@@ -9,18 +9,19 @@ import {
 
 import {
   collection,
-  deleteDoc,
   deleteField,
   doc,
   getDoc,
   getDocs,
   increment,
+  limit,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 
 import { getFirebaseFirestore } from "./firebase-client";
@@ -69,6 +70,146 @@ function folderDocumentRef(userId: string, folderId: string) {
   const firestore = getFirebaseFirestore();
 
   return doc(firestore, "users", userId, "presentationFolders", folderId);
+}
+
+function presentationNotesDocumentRef(userId: string, presentationId: string) {
+  const firestore = getFirebaseFirestore();
+
+  return doc(
+    firestore,
+    "users",
+    userId,
+    "presentations",
+    presentationId,
+    "private",
+    "notes",
+  );
+}
+
+function publicationDocumentRef(publicationId: string) {
+  return doc(getFirebaseFirestore(), "publishedPresentations", publicationId);
+}
+
+function publishedVersionsCollectionRef(publicationId: string) {
+  return collection(
+    getFirebaseFirestore(),
+    "publishedPresentations",
+    publicationId,
+    "versions",
+  );
+}
+
+function publishedVersionDocumentRef(
+  publicationId: string,
+  versionId: string,
+) {
+  return doc(
+    getFirebaseFirestore(),
+    "publishedPresentations",
+    publicationId,
+    "versions",
+    versionId,
+  );
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function hasPersistedTimestamp(value: unknown): boolean {
+  return value !== undefined && value !== null;
+}
+
+function persistedValuesEqual(left: unknown, right: unknown): boolean {
+  if (
+    typeof left === "object" &&
+    left !== null &&
+    "isEqual" in left &&
+    typeof left.isEqual === "function"
+  ) {
+    return left.isEqual(right);
+  }
+
+  return left === right;
+}
+
+type PublicationDeletionMetadata = {
+  publicationId: string;
+  currentVersionId: string;
+  publishedRevision: number;
+  publishedAt: unknown;
+};
+
+function readPublicationDeletionMetadata(
+  value: unknown,
+): PublicationDeletionMetadata | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+  if (
+    keys.join("|") !==
+    ["currentVersionId", "publicationId", "publishedAt", "publishedRevision"]
+      .sort()
+      .join("|")
+  ) {
+    return null;
+  }
+  if (
+    typeof candidate.publicationId !== "string" ||
+    candidate.publicationId.length === 0 ||
+    typeof candidate.currentVersionId !== "string" ||
+    candidate.currentVersionId.length === 0 ||
+    !isNonNegativeInteger(candidate.publishedRevision) ||
+    !hasPersistedTimestamp(candidate.publishedAt)
+  ) {
+    return null;
+  }
+
+  return {
+    publicationId: candidate.publicationId,
+    currentVersionId: candidate.currentVersionId,
+    publishedRevision: candidate.publishedRevision,
+    publishedAt: candidate.publishedAt,
+  };
+}
+
+function validatePublishedVersion(
+  value: Record<string, unknown>,
+  presentationId: string,
+  metadata: PublicationDeletionMetadata,
+  requireCurrentMetadata: boolean,
+): void {
+  const keys = Object.keys(value).sort();
+  if (
+    keys.join("|") !==
+    ["presentationId", "presentationJson", "publishedAt", "publishedRevision"]
+      .sort()
+      .join("|")
+  ) {
+    throw new FirestoreOperationError("Published version has an invalid persisted shape.");
+  }
+
+  if (
+    typeof value.presentationId !== "string" ||
+    value.presentationId !== presentationId ||
+    typeof value.presentationJson !== "string" ||
+    value.presentationJson.length === 0 ||
+    !isNonNegativeInteger(value.publishedRevision) ||
+    !hasPersistedTimestamp(value.publishedAt)
+  ) {
+    throw new FirestoreOperationError("Published version has an invalid persisted shape.");
+  }
+
+  if (
+    requireCurrentMetadata &&
+    (value.publishedRevision !== metadata.publishedRevision ||
+      !persistedValuesEqual(value.publishedAt, metadata.publishedAt))
+  ) {
+    throw new FirestoreOperationError("Published version metadata does not match the publication.");
+  }
 }
 
 /**
@@ -319,14 +460,9 @@ export class FirestorePresentationRepository implements PresentationRepository {
     }
   }
 
-  /**
-   * Permanently delete the private draft of an archived, never-published
-   * presentation. Public publication artifacts (pointer and immutable
-   * versions) are intentionally untouched: deleting a published presentation
-   * is not implemented, so drafts with publication metadata are rejected.
-   */
   async deleteArchivedPresentation(id: string): Promise<void> {
     const user = this.requireAuthenticatedUser();
+    const firestore = getFirebaseFirestore();
     const documentRef = presentationDocumentRef(user.uid, id);
 
     try {
@@ -346,13 +482,109 @@ export class FirestorePresentationRepository implements PresentationRepository {
         );
       }
 
-      if (data.publication !== undefined && data.publication !== null) {
+      const publication =
+        data.publication === undefined || data.publication === null
+          ? null
+          : readPublicationDeletionMetadata(data.publication);
+
+      if (data.publication !== undefined && data.publication !== null && !publication) {
         throw new FirestoreOperationError(
-          `Cannot permanently delete published presentation "${id}".`,
+          `Cannot permanently delete published presentation "${id}" with invalid publication metadata.`,
         );
       }
 
-      await deleteDoc(documentRef);
+      if (!publication) {
+        const batch = writeBatch(firestore);
+        batch.delete(presentationNotesDocumentRef(user.uid, id));
+        batch.delete(documentRef);
+        await batch.commit();
+        return;
+      }
+
+      const pointerSnapshot = await getDoc(
+        publicationDocumentRef(publication.publicationId),
+      );
+      if (!pointerSnapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot delete published presentation "${id}" because its publication pointer is missing.`,
+        );
+      }
+
+      const pointer = pointerSnapshot.data();
+      if (
+        Object.keys(pointer).sort().join("|") !==
+          ["currentVersionId", "publishedAt", "publishedRevision"]
+            .sort()
+            .join("|") ||
+        typeof pointer.currentVersionId !== "string" ||
+        pointer.currentVersionId.length === 0 ||
+        !isNonNegativeInteger(pointer.publishedRevision) ||
+        !hasPersistedTimestamp(pointer.publishedAt) ||
+        pointer.currentVersionId !== publication.currentVersionId ||
+        pointer.publishedRevision !== publication.publishedRevision ||
+        !persistedValuesEqual(pointer.publishedAt, publication.publishedAt)
+      ) {
+        throw new FirestoreOperationError(
+          `Cannot delete published presentation "${id}" because its publication pointer is inconsistent.`,
+        );
+      }
+
+      const currentVersionSnapshot = await getDoc(
+        publishedVersionDocumentRef(
+          publication.publicationId,
+          publication.currentVersionId,
+        ),
+      );
+      if (!currentVersionSnapshot.exists()) {
+        throw new FirestoreOperationError(
+          `Cannot delete published presentation "${id}" because its current published version is missing.`,
+        );
+      }
+      validatePublishedVersion(
+        currentVersionSnapshot.data(),
+        id,
+        publication,
+        true,
+      );
+
+      const versionsRef = publishedVersionsCollectionRef(publication.publicationId);
+      while (true) {
+        const versionsSnapshot = await getDocs(query(versionsRef, limit(100)));
+        const historicalVersions = versionsSnapshot.docs.filter(
+          (version) => version.id !== publication.currentVersionId,
+        );
+
+        for (const version of versionsSnapshot.docs) {
+          validatePublishedVersion(
+            version.data(),
+            id,
+            publication,
+            version.id === publication.currentVersionId,
+          );
+        }
+
+        if (historicalVersions.length === 0) {
+          break;
+        }
+
+        const historicalBatch = writeBatch(firestore);
+        for (const version of historicalVersions) {
+          historicalBatch.delete(version.ref);
+        }
+        await historicalBatch.commit();
+      }
+
+      const finalBatch = writeBatch(firestore);
+      finalBatch.delete(
+        publishedVersionDocumentRef(
+          publication.publicationId,
+          publication.currentVersionId,
+        ),
+      );
+      finalBatch.delete(publicationDocumentRef(publication.publicationId));
+      finalBatch.delete(presentationNotesDocumentRef(user.uid, id));
+      finalBatch.delete(documentRef);
+      await finalBatch.commit();
 
     } catch (error) {
       if (error instanceof PersistenceError) {
