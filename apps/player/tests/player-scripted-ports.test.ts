@@ -69,9 +69,9 @@ describe("Player public Scripted ports", () => {
     expect(player.sendScriptedInput("scripted-scroll", "enabled", true)).toBe(true);
     expect(player.sendScriptedInput("scripted-scroll", "enabled", 1)).toBe(false);
 
-    expect(postMessage).toHaveBeenNthCalledWith(1, { type: "powershow:scripted:action", elementId: "scripted-scroll", portId: "scroll-up" }, "*");
-    expect(postMessage).toHaveBeenNthCalledWith(2, { type: "powershow:scripted:action", elementId: "scripted-scroll", portId: "scroll-down" }, "*");
-    expect(postMessage).toHaveBeenNthCalledWith(3, { type: "powershow:scripted:input", elementId: "scripted-scroll", portId: "enabled", value: true }, "*");
+    expect(postMessage).toHaveBeenNthCalledWith(1, { type: "scripted:action", elementId: "scripted-scroll", portId: "scroll-up" }, "*");
+    expect(postMessage).toHaveBeenNthCalledWith(2, { type: "scripted:action", elementId: "scripted-scroll", portId: "scroll-down" }, "*");
+    expect(postMessage).toHaveBeenNthCalledWith(3, { type: "scripted:input", elementId: "scripted-scroll", portId: "enabled", value: true }, "*");
     expect(postMessage).toHaveBeenCalledTimes(3);
     player.destroy();
   });
@@ -83,7 +83,7 @@ describe("Player public Scripted ports", () => {
 
     report(oldWindow);
     report(window);
-    expect(onScriptedReport).toHaveBeenCalledExactlyOnceWith({ type: "powershow:scripted:report", elementId: "scripted-scroll", portId: "current", value: 0.12 });
+    expect(onScriptedReport).toHaveBeenCalledExactlyOnceWith({ type: "scripted:report", elementId: "scripted-scroll", portId: "current", value: 0.12 });
 
     player.goTo(1);
     report(oldWindow, 0.2);

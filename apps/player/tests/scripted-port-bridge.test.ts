@@ -99,17 +99,17 @@ describe("Scripted ProjectionSurface port bridge", () => {
     projection.sendScriptedAction("scripted-a", "missing");
 
     expect(first).toHaveBeenCalledExactlyOnceWith({
-      type: "powershow:scripted:action",
+      type: "scripted:action",
       elementId: "scripted-a",
       portId: "reset",
     }, "*");
     expect(second).toHaveBeenCalledExactlyOnceWith({
-      type: "powershow:scripted:action",
+      type: "scripted:action",
       elementId: "scripted-b",
       portId: "reset",
     }, "*");
     expect(nested).toHaveBeenCalledExactlyOnceWith({
-      type: "powershow:scripted:action",
+      type: "scripted:action",
       elementId: 'nested [selector] "<&',
       portId: "nested-action",
     }, "*");
@@ -132,13 +132,13 @@ describe("Scripted ProjectionSurface port bridge", () => {
     projection.sendScriptedInput("scripted-a", "reset", true);
 
     expect(spy).toHaveBeenNthCalledWith(1, {
-      type: "powershow:scripted:input",
+      type: "scripted:input",
       elementId: "scripted-a",
       portId: "enabled",
       value: true,
     }, "*");
     expect(spy).toHaveBeenNthCalledWith(2, {
-      type: "powershow:scripted:input",
+      type: "scripted:input",
       elementId: "scripted-a",
       portId: "current",
       value: 2.5,
@@ -258,7 +258,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     }));
 
     expect(reports).toEqual([{
-      type: "powershow:scripted:report",
+      type: "scripted:report",
       elementId: "scripted-a",
       portId: "current",
       value: 2.5,
@@ -311,7 +311,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     }));
 
     expect(reports).toEqual([{
-      type: "powershow:scripted:report",
+      type: "scripted:report",
       elementId: "scripted-a",
       portId: "current",
       value: 2.5,

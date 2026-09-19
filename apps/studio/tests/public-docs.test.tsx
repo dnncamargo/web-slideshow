@@ -75,9 +75,9 @@ describe("public Docs", () => {
     ]);
     expect(findTopicText("element-interactive")).toContain("não possui Inspector dedicado");
 
-    expect(findTopicText("scripted-api")).toContain("PowerShow.ports.onAction");
-    expect(findTopicText("scripted-api")).toContain("PowerShow.ports.onInput");
-    expect(findTopicText("scripted-api")).toContain("PowerShow.ports.report");
+    expect(findTopicText("scripted-api")).toContain("ScriptedRuntime.ports.onAction");
+    expect(findTopicText("scripted-api")).toContain("ScriptedRuntime.ports.onInput");
+    expect(findTopicText("scripted-api")).toContain("ScriptedRuntime.ports.report");
     expect(findTopicText("plot-language")).toContain("x^2 + y^2 = 1");
 
     for (const topic of elementGroup?.topics ?? []) {
@@ -114,9 +114,9 @@ describe("public Docs", () => {
     expect(scripted).toContain("enabled");
     expect(scripted).toContain("level");
     expect(scripted).toContain("pulse");
-    expect(scripted).toContain("PowerShow.ports.onAction");
-    expect(scripted).toContain("PowerShow.ports.onInput");
-    expect(scripted).toContain("PowerShow.ports.report");
+    expect(scripted).toContain("ScriptedRuntime.ports.onAction");
+    expect(scripted).toContain("ScriptedRuntime.ports.onInput");
+    expect(scripted).toContain("ScriptedRuntime.ports.report");
   });
 
   it("opens one selected topic in the reading pane and mirrors it in the hash", async () => {

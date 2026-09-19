@@ -10,6 +10,9 @@ import {
   SCRIPTED_ACTION_MESSAGE_TYPE,
   SCRIPTED_INPUT_MESSAGE_TYPE,
   SCRIPTED_REPORT_MESSAGE_TYPE,
+  LEGACY_SCRIPTED_ACTION_MESSAGE_TYPE,
+  LEGACY_SCRIPTED_INPUT_MESSAGE_TYPE,
+  LEGACY_SCRIPTED_REPORT_MESSAGE_TYPE,
 } from "./scripted-port-protocol";
 
 // ============================================================
@@ -81,10 +84,10 @@ const SCRIPTED_CSP =
 // 4. apply HTML to the Scripted root;
 // 5. create a <style> element and assign CSS through textContent;
 // 6. append the style to document.head;
-// 7. install the fixed PowerShow.ports API and message listener;
+// 7. install the fixed ScriptedRuntime.ports API and legacy PowerShow alias;
 // 8. create a <script> element and assign canonical script through
 //    textContent;
-// 9. append it only after HTML, CSS, and PowerShow.ports exist;
+// 9. append it only after HTML, CSS, and ScriptedRuntime.ports exist;
 // 10. remove the temporary payload node.
 //
 // No eval(), no Function(), no setTimeout(string), no document.write.
@@ -209,7 +212,9 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var portsApi = Object.freeze({ onAction: onAction, onInput: onInput, report: report });" +
   "\n" +
-  "Object.defineProperty(window, 'PowerShow', { value: Object.freeze({ ports: portsApi }), writable: false, configurable: false });" +
+  "var runtimeApi = Object.freeze({ ports: portsApi });" +
+  "Object.defineProperty(window, 'ScriptedRuntime', { value: runtimeApi, writable: false, configurable: false });" +
+  "Object.defineProperty(window, 'PowerShow', { value: runtimeApi, writable: false, configurable: false });" +
   "\n" +
   "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
   "\n" +
@@ -229,7 +234,7 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "  var data = event.data;" +
   "\n" +
-  "  if (data.type === '" + SCRIPTED_ACTION_MESSAGE_TYPE + "') {" +
+  "  if (data.type === '" + SCRIPTED_ACTION_MESSAGE_TYPE + "' || data.type === '" + LEGACY_SCRIPTED_ACTION_MESSAGE_TYPE + "') {" +
   "\n" +
   "    if (!exactKeys(data, 'type', 'elementId', 'portId') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId) || portsById[data.portId].kind !== 'action' || !own(actionHandlers, data.portId)) { return; }" +
   "\n" +
@@ -239,7 +244,7 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "  }" +
   "\n" +
-  "  if (data.type !== '" + SCRIPTED_INPUT_MESSAGE_TYPE + "' || !exactKeys(data, 'type', 'elementId', 'portId', 'value') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId)) { return; }" +
+  "  if ((data.type !== '" + SCRIPTED_INPUT_MESSAGE_TYPE + "' && data.type !== '" + LEGACY_SCRIPTED_INPUT_MESSAGE_TYPE + "') || !exactKeys(data, 'type', 'elementId', 'portId', 'value') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId)) { return; }" +
   "\n" +
   "  var input = portsById[data.portId];" +
   "\n" +

@@ -8,6 +8,7 @@ import {
   SCRIPTED_ACTION_MESSAGE_TYPE,
   SCRIPTED_INPUT_MESSAGE_TYPE,
   SCRIPTED_REPORT_MESSAGE_TYPE,
+  LEGACY_SCRIPTED_REPORT_MESSAGE_TYPE,
   type ScriptedReportMessage,
 } from "@web-slideshow/renderer";
 
@@ -143,7 +144,7 @@ export function validateScriptedReport(
 
   const data = event.data;
 
-  if (data.type !== SCRIPTED_REPORT_MESSAGE_TYPE || typeof data.elementId !== "string" || typeof data.portId !== "string") {
+  if ((data.type !== SCRIPTED_REPORT_MESSAGE_TYPE && data.type !== LEGACY_SCRIPTED_REPORT_MESSAGE_TYPE) || typeof data.elementId !== "string" || typeof data.portId !== "string") {
     return null;
   }
 
