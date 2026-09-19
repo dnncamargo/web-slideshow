@@ -447,6 +447,36 @@ interface CanvasResizeState {
   guideBounds: CanvasBounds;
 }
 
+type CanvasResizeLayoutField =
+  | "position"
+  | "top"
+  | "right"
+  | "bottom"
+  | "left"
+  | "width"
+  | "height";
+
+type CanvasResizeLayout = Partial<Record<CanvasResizeLayoutField, unknown>>;
+
+function hasCanvasResizeLayoutChange(
+  before: PowerShowElement,
+  after: PowerShowElement,
+): boolean {
+  const beforeLayout = before.layout as CanvasResizeLayout | undefined;
+  const afterLayout = after.layout as CanvasResizeLayout | undefined;
+  const fields: readonly CanvasResizeLayoutField[] = [
+    "position",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "width",
+    "height",
+  ];
+
+  return fields.some((field) => beforeLayout?.[field] !== afterLayout?.[field]);
+}
+
 interface CanvasFocalOverlay {
   target: ImageMediaAuthoringTarget;
   left: number;
@@ -2460,72 +2490,97 @@ export function EditorWorkspace({
 
     canvasResizeRef.current = null;
     clearCanvasGuides();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: updateElementById(
-                slide.elements,
-                resize.elementId,
-                (element) => {
-                  if (element.type === "container") {
-                    if (!resize.containerResizeGeometry) {
-                      return element;
-                    }
+    commitPresentationAction(
+      {
+        kind: "canvas.resize",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "canvas.resize" },
+      },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (!slide) {
+          return current;
+        }
 
-                    return updateContainerForCanvasResize(
-                      element,
-                      resize.direction,
-                      resize.deltaX,
-                      resize.deltaY,
-                      resize.containerResizeGeometry,
-                    );
-                  }
-                  if (element.type === "text") {
-                    return element;
-                  }
-                  if (element.type === "image") {
-                    const locked = preserveImageProportion;
-                    const proportional = locked
-                      ? resolveProportionalResize(
-                          resize.direction,
-                          resize.deltaX,
-                          resize.deltaY,
-                          resize.initialWidthPx,
-                          resize.initialHeightPx,
-                        )
-                      : undefined;
-                    return resize.canonicalTextResizeGeometry
-                      ? updateImageForCanvasResize(
-                          element,
-                          resize.direction,
-                          resize.deltaX,
-                          resize.deltaY,
-                          resize.canonicalTextResizeGeometry,
-                          proportional,
-                        )
-                      : element;
-                  }
-                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
-                    return resize.canonicalTextResizeGeometry
-                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
-                      : element;
-                  }
-                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "plot") {
-                    return resize.canonicalTextResizeGeometry
-                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
-                      : element;
-                  }
-                  if (element.type === "divider" || element.type === "topics" || element.type === "interactive") return element;
-                  return element;
-                },
-              ),
+        const elements = updateElementById(
+          slide.elements,
+          resize.elementId,
+          (element) => {
+            let nextElement: PowerShowElement = element;
+
+            if (element.type === "container") {
+              if (!resize.containerResizeGeometry) {
+                return element;
+              }
+
+              nextElement = updateContainerForCanvasResize(
+                element,
+                resize.direction,
+                resize.deltaX,
+                resize.deltaY,
+                resize.containerResizeGeometry,
+              );
+            } else if (element.type === "image") {
+              const proportional = preserveImageProportion
+                ? resolveProportionalResize(
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.initialWidthPx,
+                    resize.initialHeightPx,
+                  )
+                : undefined;
+              nextElement = resize.canonicalTextResizeGeometry
+                ? updateImageForCanvasResize(
+                    element,
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.canonicalTextResizeGeometry,
+                    proportional,
+                  )
+                : element;
+            } else if (
+              element.type === "gallery" ||
+              element.type === "embed" ||
+              element.type === "scripted" ||
+              element.type === "code" ||
+              element.type === "terminal" ||
+              element.type === "table" ||
+              element.type === "blocks" ||
+              element.type === "plot"
+            ) {
+              nextElement = resize.canonicalTextResizeGeometry
+                ? updateSurfaceForCanvasResize(
+                    element,
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.canonicalTextResizeGeometry,
+                  )
+                : element;
             }
-          : slide,
-      ),
-    }));
+
+            return hasCanvasResizeLayoutChange(element, nextElement)
+              ? nextElement
+              : element;
+          },
+        );
+
+        if (elements === slide.elements) {
+          return current;
+        }
+
+        return {
+          ...current,
+          slides: current.slides.map((currentSlide, index) =>
+            index === selectedSlideIndex
+              ? { ...currentSlide, elements }
+              : currentSlide,
+          ),
+        };
+      },
+    );
   }
 
   function handleResizePointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
