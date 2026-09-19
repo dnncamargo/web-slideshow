@@ -919,36 +919,42 @@ export function EditorWorkspace({
     return gallery?.type === "gallery" ? gallery.items[target.itemIndex] ?? null : null;
   }
 
-  function updateImageMediaTarget(
+  function applyImageMediaTargetUpdate(
+    current: Presentation,
     target: ImageMediaAuthoringTarget,
     update: (media: ImageMediaValue) => ImageMediaValue,
-  ) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) return slide;
-        if (target.kind === "image") {
+  ): Presentation {
+    const slide = current.slides[selectedSlideIndex];
+    if (!slide) return current;
+
+    const elements = target.kind === "image"
+      ? updateElementById(slide.elements, target.elementId, (element) => {
+          if (element.type !== "image") return element;
+          const next = update(element);
+          return next === element ? element : next as typeof element;
+        })
+      : updateElementById(slide.elements, target.galleryId, (element) => {
+          if (element.type !== "gallery") return element;
+          const item = element.items[target.itemIndex];
+          if (!item) return element;
+          const nextItem = update(item);
+          if (nextItem === item) return element;
           return {
-            ...slide,
-            elements: updateElementById(slide.elements, target.elementId, (element) =>
-              element.type === "image" ? update(element) as typeof element : element,
+            ...element,
+            items: element.items.map((currentItem, itemIndex) =>
+              itemIndex === target.itemIndex ? nextItem as typeof currentItem : currentItem,
             ),
           };
-        }
-        return {
-          ...slide,
-          elements: updateElementById(slide.elements, target.galleryId, (element) => {
-            if (element.type !== "gallery" || !element.items[target.itemIndex]) return element;
-            return {
-              ...element,
-              items: element.items.map((item, itemIndex) =>
-                itemIndex === target.itemIndex ? update(item) as typeof item : item,
-              ),
-            };
-          }),
-        };
-      }),
-    }));
+        });
+
+    if (elements === slide.elements) return current;
+
+    return {
+      ...current,
+      slides: current.slides.map((currentSlide, index) =>
+        index === selectedSlideIndex ? { ...currentSlide, elements } : currentSlide,
+      ),
+    };
   }
 
   useEffect(() => {
@@ -2200,9 +2206,18 @@ export function EditorWorkspace({
 
   function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, target: ImageMediaAuthoringTarget) {
     const normalized = normalizeCropCanvasValue(crop);
-    const authored = resolveImageMediaTarget(target);
-    if (!authored || areImageCropsEqual(authored.crop, normalized)) return;
-    updateImageMediaTarget(target, (media) => ({ ...media, crop: normalized }));
+    commitPresentationAction(
+      {
+        kind: "canvas.crop",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "media.crop" },
+      },
+      (current) => {
+        const authored = resolveImageMediaTarget(target, current);
+        if (!authored || areImageCropsEqual(authored.crop, normalized)) return current;
+        return applyImageMediaTargetUpdate(current, target, (media) => ({ ...media, crop: normalized }));
+      },
+    );
   }
 
   function handleCropPointerUp(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
@@ -2639,8 +2654,23 @@ export function EditorWorkspace({
     focalPoint: ImageFocalPoint,
     target: ImageMediaAuthoringTarget,
   ) {
-    if (resolveImageMediaTarget(target)?.src === undefined) return;
-    updateImageMediaTarget(target, (media) => ({ ...media, focalPoint }));
+    commitPresentationAction(
+      {
+        kind: "canvas.focalPoint",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "media.focalPoint" },
+      },
+      (current) => {
+        const authored = resolveImageMediaTarget(target, current);
+        if (
+          !authored ||
+          (authored.focalPoint?.x === focalPoint.x && authored.focalPoint?.y === focalPoint.y)
+        ) {
+          return current;
+        }
+        return applyImageMediaTargetUpdate(current, target, (media) => ({ ...media, focalPoint }));
+      },
+    );
   }
 
   function handleFocalPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
