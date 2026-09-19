@@ -39,7 +39,7 @@ describe("getElementPropertyEntries", () => {
       id: "company-logo",
       hidden: false,
       src: "https://example.com/logo.svg",
-      alt: "PowerShow",
+      alt: "Presentation",
       fit: "contain",
       effect: { opacity: 0.9 },
     };
@@ -47,7 +47,7 @@ describe("getElementPropertyEntries", () => {
     expect(entriesFor(element)).toMatchObject({
       hidden: "false",
       src: "https://example.com/logo.svg",
-      alt: "PowerShow",
+      alt: "Presentation",
       fit: "contain",
       "effect.opacity": "0.9",
     });

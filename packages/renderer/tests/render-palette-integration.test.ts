@@ -68,7 +68,7 @@ describe("canonical palette color rendering", () => {
             type: "table",
             mode: "simple",
             columns: [{ key: "name", label: "Name" }],
-            rows: [{ name: "PowerShow" }],
+            rows: [{ name: "Example" }],
             style: {
               background: { gradient: { type: "linear", stops: [
                 { color: reference, position: 0 },

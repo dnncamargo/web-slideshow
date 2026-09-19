@@ -1,4 +1,4 @@
-# PowerShow Studio
+# Studio
 
 Studio administrativo, Editor e Control.
 

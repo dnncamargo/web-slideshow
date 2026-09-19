@@ -116,7 +116,7 @@ describe("palette color resolution", () => {
         hidden: false,
         mode: "simple" as const,
         columns: [{ key: "name", label: "Name" }],
-        rows: [{ name: "PowerShow" }],
+        rows: [{ name: "Example" }],
         effect: { shadow: { x: 0, y: 1, blur: 2, color: { kind: "palette" as const, colorId: "missing" } } },
       },
       path: ["slides", 0, "elements", 0, "effect", "shadow", "color", "colorId"],
@@ -166,7 +166,7 @@ describe("palette color resolution", () => {
           type: "table" as const,
           mode: "simple" as const,
           columns: [{ key: "name", label: "Name" }],
-          rows: [{ name: "PowerShow" }],
+        rows: [{ name: "Example" }],
           effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
         }
       : {

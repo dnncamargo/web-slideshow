@@ -35,7 +35,7 @@ function textElement(
     id: "text-1",
     hidden: false,
     variant: "body",
-    content: "PowerShow Example",
+    content: "Presentation Example",
     ...overrides,
   };
 }

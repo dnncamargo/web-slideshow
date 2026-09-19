@@ -189,7 +189,7 @@ describe("Custom Library persisted contract", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
     const draft = createCustomLibraryItemDraft({
       name: "Table",
@@ -200,7 +200,7 @@ describe("Custom Library persisted contract", () => {
 
     rows[0]!.name = "Changed";
 
-    expect(source.rows[0]).toEqual({ name: "PowerShow" });
+    expect(source.rows[0]).toEqual({ name: "Example" });
     expect(CustomLibraryItemDraftSchema.parse(draft)).toEqual(draft);
   });
 });

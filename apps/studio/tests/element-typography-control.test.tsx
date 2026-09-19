@@ -371,7 +371,7 @@ describe("shared text capability controls", () => {
             id: "text-1",
             hidden: false,
             variant: "body",
-            content: "PowerShow Example",
+            content: "Presentation Example",
           }}
           onUpdate={() => {}}
           fontResources={FONT_RESOURCES}

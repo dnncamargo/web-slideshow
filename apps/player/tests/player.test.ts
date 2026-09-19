@@ -12,7 +12,7 @@ import {
 
 import { playerTestPresentation } from "./fixtures/player-presentation";
 
-describe("PowerShow Player", () => {
+describe("Player", () => {
   let root: HTMLElement;
   let player: PlayerController;
   let originalInnerWidth: number;

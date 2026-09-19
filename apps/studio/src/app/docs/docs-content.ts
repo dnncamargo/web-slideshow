@@ -12,23 +12,23 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "overview",
         title: "Visão geral",
         summary:
-          "O PowerShow é um sistema web para criar, publicar, exibir e controlar apresentações interativas.",
+          "A aplicação é um sistema web para criar, publicar, exibir e controlar apresentações interativas.",
         sections: [
           {
-            title: "O que é o PowerShow",
+            title: "O que é a aplicação",
             paragraphs: [
-              "O PowerShow separa autoria, publicação e reprodução. A apresentação é um documento estruturado, validado e independente das superfícies que o editam ou reproduzem.",
+              "A aplicação separa autoria, publicação e reprodução. A apresentação é um documento estruturado, validado e independente das superfícies que o editam ou reproduzem.",
               "A prioridade arquitetural é permitir autoria rica sem transformar o Player em um segundo Editor. O documento deve continuar previsível e o playback deve permanecer leve.",
             ],
           },
           {
             title: "Superfícies principais",
             bullets: [
-              "PowerShow Library: gerenciamento de apresentações e organização.",
-              "PowerShow Editor: autoria de slides, elementos, estilos e recursos.",
-              "PowerShow Control: controle remoto da apresentação e ferramentas operacionais.",
-              "PowerShow Player: runtime moderno de apresentação.",
-              "PowerShow Watch: acompanhamento público read-only da apresentação ao vivo.",
+              "Library: gerenciamento de apresentações e organização.",
+              "Editor: autoria de slides, elementos, estilos e recursos.",
+              "Control: controle remoto da apresentação e ferramentas operacionais.",
+              "Player: runtime moderno de apresentação.",
+              "Watch: acompanhamento público read-only da apresentação ao vivo.",
               "Player Legacy: runtime de compatibilidade para ambientes mais limitados.",
               "Public Portal: porta de entrada pública para Studio, Player e sessão ao vivo.",
             ],
@@ -91,7 +91,7 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "monorepo",
         title: "Monorepo e módulos",
         summary:
-          "O PowerShow é um monorepo pnpm com apps de produto e packages compartilhados.",
+          "A aplicação é um monorepo pnpm com apps e packages compartilhados.",
         sections: [
           {
             title: "Apps",

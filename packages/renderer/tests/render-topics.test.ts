@@ -46,7 +46,7 @@ function textElement(overrides: Record<string, unknown> = {}) {
     id: "text-1",
     hidden: false,
     variant: "body",
-    content: "PowerShow",
+    content: "Example",
     ...overrides,
   };
 }

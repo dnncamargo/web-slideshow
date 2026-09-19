@@ -24,7 +24,7 @@ function imageElement(
 }
 
 function anchorTag(html: string): string {
-  // The anchor is the PowerShow element root, so the first closing
+  // The anchor is the presentation element root, so the first closing
   // angle bracket terminates its opening tag.
   const end = html.indexOf(">");
 
@@ -38,7 +38,7 @@ function mediaTag(html: string): string {
 }
 
 describe("renderElement linked Image support", () => {
-  it("makes the anchor the PowerShow element root", () => {
+  it("makes the anchor the presentation element root", () => {
     const html = renderElement(
       imageElement({
         link: HTTPS_LINK,
@@ -62,7 +62,7 @@ describe("renderElement linked Image support", () => {
     expect(anchorTag(html)).toContain('data-presentation-type="image"');
   });
 
-  it("keeps PowerShow classes and the custom class on the root anchor", () => {
+  it("keeps presentation classes and the custom class on the root anchor", () => {
     const html = renderElement(
       imageElement({
         link: HTTPS_LINK,
@@ -297,7 +297,7 @@ describe("renderElement linked Image support", () => {
     expect(media).not.toContain("height:100%");
   });
 
-  it("keeps placement properties on the PowerShow root, not the media", () => {
+  it("keeps placement properties on the presentation root, not the media", () => {
     const html = renderElement(
       imageElement({
         layout: {

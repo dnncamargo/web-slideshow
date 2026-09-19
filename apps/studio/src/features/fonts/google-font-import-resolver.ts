@@ -10,7 +10,7 @@ export const GOOGLE_FONT_IMPORT_MAX_BYTES = 256 * 1024;
 export const GOOGLE_FONT_IMPORT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
   "AppleWebKit/537.36 (KHTML, like Gecko) " +
-  "Chrome/131.0.0.0 Safari/537.36 PowerShow-Studio/1.0";
+  "Chrome/131.0.0.0 Safari/537.36 Studio/1.0";
 
 interface ResolveGoogleFontImportOptions {
   fetchImpl?: typeof fetch;

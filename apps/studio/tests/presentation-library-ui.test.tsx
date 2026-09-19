@@ -590,7 +590,7 @@ describe("presentation library workspace controls", () => {
     [
       "schema-invalid JSON",
       JSON.stringify({ schemaVersion: 2 }),
-      "The selected file is not a valid PowerShow presentation.",
+      "The selected file is not a valid presentation.",
     ],
   ])("does not write when importing %s", async (_name, text, message) => {
     const { repository } = repositoryFor([]);

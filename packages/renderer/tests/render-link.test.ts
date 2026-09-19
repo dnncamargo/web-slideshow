@@ -20,7 +20,7 @@ function textElement(
     id: "link-text",
     hidden: false,
     variant: "body",
-    content: "PowerShow Link",
+    content: "Presentation Link",
     ...overrides,
   };
 }
@@ -144,21 +144,21 @@ describe("renderElement link support", () => {
 
       expect(html).not.toContain("<a ");
       expect(html).not.toContain("data-presentation-link");
-      expect(html).toContain(">PowerShow Link</");
+      expect(html).toContain(">Presentation Link</");
     },
   );
 
   it("keeps content escaped when wrapped in an anchor", () => {
     const html = renderElement(
       textElement({
-        content: '<script>alert("PowerShow")</script>',
+        content: '<script>alert("presentation")</script>',
         link: HTTPS_LINK,
       }),
     );
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain('&lt;script&gt;alert(&quot;PowerShow&quot;)&lt;/script&gt;');
+      expect(html).toContain('&lt;script&gt;alert(&quot;presentation&quot;)&lt;/script&gt;');
   });
 
   it("keeps rich text escaped and does not create nested anchors", () => {

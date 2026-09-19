@@ -22,7 +22,7 @@ describe("renderSlide", () => {
           id: "text-1",
           hidden: false,
           variant: "body",
-          content: "PowerShow",
+          content: "Example",
         },
       ],
       background: {
@@ -36,7 +36,7 @@ describe("renderSlide", () => {
 
     expect(html).toContain('class="presentation-slide-content"');
 
-    expect(html).toContain("PowerShow");
+    expect(html).toContain("Example");
   });
 
   it("renders a background image", () => {

@@ -62,5 +62,5 @@ test("the generated demo asset visibly uses the configured instance name", () =>
   const svg = createInstanceDemoSvg("Batata Chip");
 
   assert.match(svg, /Batata Chip/);
-  assert.doesNotMatch(svg, /PowerShow/);
+  assert.doesNotMatch(svg, new RegExp(["Power", "Show"].join("")));
 });

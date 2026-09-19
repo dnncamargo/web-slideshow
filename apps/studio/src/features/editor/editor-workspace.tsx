@@ -2551,7 +2551,7 @@ export function EditorWorkspace({
   // ==========================================================
   // BEGIN: LINK ACTIVATION SUPPRESSION
   //
-  // Authored PowerShow links render as native anchors through the
+  // Authored presentation links render as native anchors through the
   // shared renderer. Inside the Editor they must not navigate, but
   // the href stays in the document so Player and Watch continue to
   // use native anchor behavior. Selection, drag and resize use

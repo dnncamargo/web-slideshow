@@ -326,7 +326,7 @@ describe("composeCustomLibraryElementRecipe", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
     const selections = new Map([[table.id, new Set(["rows"])]]);
     const before = JSON.stringify(table);
@@ -334,7 +334,7 @@ describe("composeCustomLibraryElementRecipe", () => {
     const rows = recipe.properties[0]?.value as Array<Record<string, string>>;
 
     rows[0]!.name = "Recipe";
-    expect(table.rows[0]).toEqual({ name: "PowerShow" });
+    expect(table.rows[0]).toEqual({ name: "Example" });
     expect(JSON.stringify(table)).toBe(before);
     expect(recipe).not.toHaveProperty("children");
     expect([...selections.get(table.id)!]).toEqual(["rows"]);

@@ -11,13 +11,13 @@ describe("renderElement", () => {
       id: "text-1",
       hidden: false,
       variant: "body",
-      content: "Hello PowerShow",
+      content: "Hello presentation",
     };
 
     const html = renderElement(element);
 
     expect(html).toContain("<p ");
-    expect(html).toContain("Hello PowerShow");
+    expect(html).toContain("Hello presentation");
 
     expect(html).toContain('data-presentation-id="text-1"');
 
@@ -30,13 +30,13 @@ describe("renderElement", () => {
       id: "title-1",
       hidden: false,
       variant: "title",
-      content: "PowerShow",
+      content: "Example",
     };
 
     const html = renderElement(element);
 
     expect(html).toContain("<h1 ");
-    expect(html).toContain(">PowerShow</h1>");
+    expect(html).toContain(">Example</h1>");
   });
 
   it.each([
@@ -51,7 +51,7 @@ describe("renderElement", () => {
         id: "case-text",
         hidden: false,
         variant: "body",
-        content: "PowerShow Example",
+        content: "Presentation Example",
         typography: { textTransform },
       };
 
@@ -59,7 +59,7 @@ describe("renderElement", () => {
 
       // The stored content is preserved exactly; only CSS text-transform is
       // emitted, and the browser applies the casing visually.
-      expect(html).toContain(">PowerShow Example</p>");
+      expect(html).toContain(">Presentation Example</p>");
       expect(html).toContain(`text-transform:${textTransform}`);
     },
   );
@@ -70,7 +70,7 @@ describe("renderElement", () => {
       id: "dangerous-text",
       hidden: false,
       variant: "body",
-      content: '<script>alert("PowerShow")</script>',
+      content: '<script>alert("presentation")</script>',
     };
 
     const html = renderElement(element);
@@ -411,7 +411,7 @@ describe("renderElement", () => {
       type: "terminal",
       id: "terminal-1",
       hidden: false,
-      title: "PowerShow Terminal",
+      title: "Presentation Terminal",
 
       lines: [
         {
@@ -431,7 +431,7 @@ describe("renderElement", () => {
 
     const html = renderElement(element);
 
-    expect(html).toContain("PowerShow Terminal");
+    expect(html).toContain("Presentation Terminal");
 
     expect(html).toContain("presentation-terminal-line-command");
 

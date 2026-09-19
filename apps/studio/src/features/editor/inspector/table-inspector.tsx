@@ -1007,7 +1007,7 @@ function SimpleTableInspector({
 // BEGIN: STRUCTURED TABLE INSPECTOR
 //
 // Minimal authoring surface for Structured Tables. Cell/header
-// CONTENT is authored through nested PowerShow elements; this
+// CONTENT is authored through nested presentation elements; this
 // Inspector only mutates the rectangular structure.
 // ============================================================
 

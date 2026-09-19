@@ -214,7 +214,7 @@ describe("renderTerminal", () => {
       id: "terminal-titlebar",
       hidden: false,
 
-      title: "PowerShow",
+      title: "Presentation",
 
       lines: [
         {
@@ -244,7 +244,7 @@ describe("renderTerminal", () => {
 
     expect(html).toContain('class="presentation-terminal-title"');
 
-    expect(html).toContain(">PowerShow</div>");
+    expect(html).toContain(">Presentation</div>");
 
     expect(html).toContain('class="presentation-terminal-body"');
 

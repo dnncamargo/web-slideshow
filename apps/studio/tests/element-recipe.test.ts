@@ -151,13 +151,13 @@ describe("extractElementRecipeDraft", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
 
     const draft = extractElementRecipeDraft(element, new Set(["rows"]));
 
     expect(draft.properties).toEqual([
-      { path: "rows", value: [{ name: "PowerShow" }] },
+      { path: "rows", value: [{ name: "Example" }] },
     ]);
   });
 
@@ -200,7 +200,7 @@ describe("extractElementRecipeDraft", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
     const selectedPaths = new Set(["rows"]);
     const sourceBefore = JSON.stringify(element);
@@ -209,7 +209,7 @@ describe("extractElementRecipeDraft", () => {
     const recipeRows = draft.properties[0]?.value as Array<Record<string, string>>;
     recipeRows[0]!.name = "Recipe";
 
-    expect(element.rows[0]).toEqual({ name: "PowerShow" });
+    expect(element.rows[0]).toEqual({ name: "Example" });
     element.rows[0]!.name = "Source";
     expect(recipeRows[0]).toEqual({ name: "Recipe" });
     expect(JSON.stringify(element)).not.toBe(sourceBefore);

@@ -174,7 +174,7 @@ describe("renderEmbed", () => {
     expect(html).toContain('data-presentation-id="embed-1"');
   });
 
-  it("renders a PowerShow-owned clipped viewport when authored", () => {
+  it("renders an application-owned clipped viewport when authored", () => {
     const html = renderEmbed(embed({ viewport: { zoom: 0.75 } }));
 
     expect(html.startsWith('<div class="presentation-element presentation-embed"')).toBe(true);

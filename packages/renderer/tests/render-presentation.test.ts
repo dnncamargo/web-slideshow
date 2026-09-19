@@ -22,7 +22,7 @@ function createPresentation(): Presentation {
   return {
     schemaVersion: 1,
     id: "presentation-1",
-    title: "PowerShow Demo",
+    title: "Presentation Demo",
     description: "",
     aspectRatio: "16:9",
 

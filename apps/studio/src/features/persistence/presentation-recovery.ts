@@ -10,7 +10,7 @@ import {
 // ============================================================
 // PRESENTATION RECOVERY ANALYSIS
 //
-// Safe recovery for persisted PowerShow presentations that fail
+// Safe recovery for persisted presentations that fail
 // canonical PresentationSchema validation.
 //
 // FROZEN PRINCIPLE: preserve canonical content, remove incompatible
@@ -474,7 +474,7 @@ function recoverTable(
 ): PresentationElement | null {
   // Structured tables preserve structurally valid headers/cells while
   // pruning incompatible nested content. Simple tables have no nested
-  // PowerShow content to recover: any invalid simple table is removed.
+  // Presentation content to recover: any invalid simple table is removed.
   if (raw.mode !== "structured") {
     return removeElementIssue(
       raw,

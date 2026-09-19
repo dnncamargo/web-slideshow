@@ -1,4 +1,4 @@
-# PowerShow Player
+# Player
 
 Runtime moderno de apresentaÃ§Ãµes.
 

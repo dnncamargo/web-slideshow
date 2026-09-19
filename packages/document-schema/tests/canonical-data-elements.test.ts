@@ -25,7 +25,7 @@ describe("canonical data element contracts", () => {
   it.each([
     ["code", CodeElementSchema, { type: "code", code: "const x = 1", language: "ts", showLineNumbers: true, highlightedLines: [] }],
     ["terminal", TerminalElementSchema, { type: "terminal", title: "shell", lines: [{ type: "command", content: "pnpm test" }] }],
-    ["simple table", SimpleTableElementSchema, { type: "table", mode: "simple", columns: [{ key: "name", label: "Name" }], rows: [{ name: "PowerShow" }] }],
+    ["simple table", SimpleTableElementSchema, { type: "table", mode: "simple", columns: [{ key: "name", label: "Name" }], rows: [{ name: "Example" }] }],
   ] as const)("accepts canonical namespaces for %s", (_name, schema, element) => {
     const parsed = schema.parse({ id: "data-1", hidden: false, layout, style: visual, effect, ...element });
     expect(parsed.layout?.position).toBe("absolute");
@@ -197,7 +197,7 @@ describe("canonical data element contracts", () => {
       type: "table",
       hidden: false,
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
       typography: { fontFamily: "sans-serif", fontSize: 16, lineHeight: 1.5 },
       style: { color: "#ffffff" },
     });

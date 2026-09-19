@@ -268,7 +268,7 @@ export interface PresenterViewProps {
  * desired slide until the operator chooses to follow.
  *
  * The shell follows the Studio Editor visual structure: a 52px top bar with
- * PowerShow Control branding, centered presentation title, Locale selector,
+ * Control branding, centered presentation title, Locale selector,
  * local clock, Live sync/latency status and Stop action. The body contains the
  * slide summary, current preview and next preview + notes. Previous/Next,
  * Fullscreen and the desired slide counter belong to the control row below the

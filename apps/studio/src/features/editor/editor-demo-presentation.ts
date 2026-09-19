@@ -106,7 +106,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               variant: "title",
 
-              content: "PowerShow Editor",
+              content: "Presentation Editor",
             },
 
             {
@@ -119,7 +119,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
               variant: "body",
 
               content:
-                "The canvas is rendered by the same PowerShow renderer used by the Player.",
+                "The canvas is rendered by the same renderer used by the Player.",
             },
           ],
         },
@@ -240,7 +240,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               hidden: false,
 
-              title: "PowerShow",
+              title: "Studio",
 
               layout: {
                 width: "70%",
@@ -256,7 +256,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
                 {
                   type: "output",
 
-                  content: "PowerShow Editor running",
+                  content: "Presentation Editor running",
                 },
 
                 {

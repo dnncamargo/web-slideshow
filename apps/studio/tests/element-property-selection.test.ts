@@ -269,7 +269,7 @@ describe("getSelectableElementProperties", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     });
 
     expect(result.columns.kind).toBe("payload");

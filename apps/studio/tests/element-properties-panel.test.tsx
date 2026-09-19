@@ -136,7 +136,7 @@ describe("ElementPropertiesPanel", () => {
       id: "company-logo",
       hidden: false,
       src: "https://example.com/logo.svg",
-      alt: "PowerShow",
+      alt: "Presentation",
       fit: "contain",
     });
 

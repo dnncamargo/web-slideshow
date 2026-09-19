@@ -198,7 +198,7 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
     classes.push(customClass);
   }
 
-  // The anchor owns the PowerShow element box. The authored-link
+  // The anchor owns the presentation element box. The authored-link
   // appearance is emitted first so an explicit element style (color,
   // text-decoration-line) keeps precedence while the browser link look
   // stays suppressed otherwise.
@@ -334,7 +334,7 @@ function renderPlaceholder(element: InteractiveElement): string {
 }
 
 function assertNever(value: never): never {
-  throw new Error(`Unsupported PowerShow element: ${String(value)}`);
+  throw new Error(`Unsupported presentation element: ${String(value)}`);
 }
 
 export function renderElement(

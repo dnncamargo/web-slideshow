@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { encodePresentationForFirestore } from "@web-slideshow/firebase";
+import { parsePersistedPresentation } from "../src/features/persistence/presentation-persistence";
 
 import {
   PresentationSchema,
@@ -176,11 +178,41 @@ describe("canonical presentation transfer", () => {
     expect(buildPresentationExportFilename("A:/ demo? ")).toBe("A- demo.presentation.json");
   });
 
+  it("preserves historical Scripted source byte-for-byte across import, save, load and export", () => {
+    const script = "// histórico: café 日本語\r\n  PowerShow.ports.report('current', 17.25);\r\n";
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "historical-script",
+      title: "Historical source preservation",
+      slides: [{ id: "slide", elements: [{
+        id: "script", type: "scripted", script,
+        ports: [{ id: "current", label: "Current", kind: "number", direction: "output" }],
+      }] }],
+    });
+    const original = JSON.stringify(source);
+    const imported = parsePresentationImport(original);
+    // These are the exact codec boundaries used by repository save/get and publication.
+    const saved = encodePresentationForFirestore(imported);
+    const loaded = parsePersistedPresentation(saved);
+    const exported = JSON.parse(serializePresentationForExport(loaded)) as unknown;
+
+    for (const candidate of [imported, JSON.parse(saved.presentationJson) as unknown, loaded, exported]) {
+      const parsed = PresentationSchema.parse(candidate);
+      const element = parsed.slides[0]?.elements[0];
+      expect(element?.type).toBe("scripted");
+      if (element?.type !== "scripted") throw new Error("Missing historical Scripted fixture");
+      expect(element.script).toBe(script);
+      expect(new TextEncoder().encode(element.script)).toEqual(new TextEncoder().encode(script));
+      expect(parsed.schemaVersion).toBe(1);
+    }
+    expect(JSON.stringify(source)).toBe(original);
+  });
+
   it("normalizes exact legacy reserved IDs and the legacy demo asset at import", () => {
     const legacy = PresentationSchema.parse({
       schemaVersion: 1,
       id: "legacy-presentation",
-      title: "PowerShow legacy content",
+      title: "Legacy content",
       slides: [{
         id: "legacy-slide",
         elements: [{

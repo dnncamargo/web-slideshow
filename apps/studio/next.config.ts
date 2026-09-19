@@ -5,7 +5,7 @@ import { readInstanceDisplayName } from "../../tools/instance-config.mjs";
 
 
 // ============================================================
-// BEGIN: CONFIGURAÇÃO DO POWERSHOW STUDIO
+// BEGIN: CONFIGURAÇÃO DO STUDIO
 // ============================================================
 
 const nextConfig: NextConfig = {
@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
 };
 
 // ============================================================
-// END: CONFIGURAÇÃO DO POWERSHOW STUDIO
+// END: CONFIGURAÇÃO DO STUDIO
 // ============================================================
 
 

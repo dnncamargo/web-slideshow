@@ -4,7 +4,7 @@ const AUTHORED_LINK_SELECTOR = 'a[data-presentation-link="true"]';
 // BEGIN: CANVAS LINK INTERCEPTION
 //
 // The Editor canvas renders the shared Player renderer output,
-// so authored PowerShow links are native anchors inside the
+// so authored presentation links are native anchors inside the
 // editor preview. This helper lets the Editor suppress link
 // activation while authoring without removing the href or
 // changing the shared renderer.

@@ -389,7 +389,7 @@ describe("Scripted element schema", () => {
 
         variant: "body",
 
-        content: "PowerShow",
+        content: "Example",
 
         hidden: false,
       });

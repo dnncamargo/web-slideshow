@@ -15,8 +15,8 @@ describe("escapeHtml", () => {
 
   it("keeps ordinary text unchanged", () => {
     expect(
-      escapeHtml("PowerShow presentation"),
-    ).toBe("PowerShow presentation");
+      escapeHtml("Example presentation"),
+    ).toBe("Example presentation");
   });
 
   it("handles empty strings", () => {

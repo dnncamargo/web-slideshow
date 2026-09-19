@@ -23,10 +23,10 @@ function createCanvasClickHandler() {
 }
 
 describe("isAuthoredPresentationLink", () => {
-  it("recognizes a rendered authored PowerShow link", () => {
+  it("recognizes a rendered authored presentation link", () => {
     const canvas = createCanvas(
       '<a href="https://example.com" data-presentation-link="true"' +
-        ' style="color:inherit;text-decoration:inherit">PowerShow Link</a>',
+        ' style="color:inherit;text-decoration:inherit">Presentation Link</a>',
     );
 
     const anchor = canvas.querySelector("a");
@@ -47,7 +47,7 @@ describe("isAuthoredPresentationLink", () => {
     expect(isAuthoredPresentationLink(strong)).toBe(true);
   });
 
-  it("ignores plain anchors without the PowerShow marker", () => {
+  it("ignores plain anchors without the presentation marker", () => {
     const canvas = createCanvas('<a href="https://example.org">Plain</a>');
 
     const anchor = canvas.querySelector("a");

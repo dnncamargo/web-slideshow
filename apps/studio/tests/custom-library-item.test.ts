@@ -420,7 +420,7 @@ describe("createCustomLibraryItemDraft", () => {
       hidden: false,
       mode: "simple",
       columns: [{ key: "name", label: "Name" }],
-      rows: [{ name: "PowerShow" }],
+      rows: [{ name: "Example" }],
     };
     const item = createCustomLibraryItemDraft(inputFor(root, {
       selections: new Map([[root.id, new Set(["rows"])]]),
@@ -429,7 +429,7 @@ describe("createCustomLibraryItemDraft", () => {
 
     rows[0]!.name = "Recipe";
 
-    expect(root.rows[0]).toEqual({ name: "PowerShow" });
+    expect(root.rows[0]).toEqual({ name: "Example" });
   });
 
   it("omits children for a leaf recipe", () => {
