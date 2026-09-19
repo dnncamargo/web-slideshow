@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import { StudioEditorMount } from "@/features/editor/studio-editor-mount";
 
 export const metadata: Metadata = {
-  title: "PowerShow Editor",
+  title: `${displayName} Editor`,
 };
 
 interface StudioEditorPageProps {

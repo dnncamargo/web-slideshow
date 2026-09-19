@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import {
   defaultDocsTopicId,
@@ -54,8 +55,8 @@ export function DocsPage() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <a className={styles.brand} href="/" aria-label="PowerShow home">
-          PowerShow
+        <a className={styles.brand} href="/" aria-label={`${displayName} home`}>
+          {displayName}
         </a>
         <div className={styles.headerMeta}>
           <span>Docs</span>
@@ -72,7 +73,7 @@ export function DocsPage() {
       <div className={styles.shell}>
         <aside className={styles.sidebar} aria-label="Documentation contents">
           <div className={styles.sidebarIntro}>
-            <span className={styles.kicker}>PowerShow Docs</span>
+            <span className={styles.kicker}>{displayName} Docs</span>
             <p>Arquitetura, contrato, runtime e referência do sistema.</p>
           </div>
 

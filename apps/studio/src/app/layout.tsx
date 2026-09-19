@@ -1,6 +1,7 @@
 import type {
   Metadata,
 } from "next";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import type {
   ReactNode,
@@ -46,10 +47,10 @@ import {
 // ============================================================
 
 export const metadata: Metadata = {
-  title: "PowerShow",
+  title: displayName,
 
   description:
-    "Create and edit interactive PowerShow presentations.",
+    "Create and edit interactive presentations.",
 };
 
 // ============================================================

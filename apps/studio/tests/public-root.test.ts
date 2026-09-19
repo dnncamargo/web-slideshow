@@ -29,6 +29,7 @@ vi.mock("qrcode.react", () => ({
 }));
 
 import Home from "../src/app/page";
+import { displayName } from "@web-slideshow/instance-branding";
 
 type LiveState =
   | { kind: "loading" | "none" | "error" }
@@ -77,14 +78,14 @@ describe("public root", () => {
   }
 
   it("keeps the demo background for initial, loading, none, and error states", async () => {
-    expect(iframeSrc("PowerShow demo presentation")).toBe("https://player.example.com/demo");
+    expect(iframeSrc(`${displayName} demo presentation`)).toBe("https://player.example.com/demo");
     expect(container.querySelector("[data-qr-value]")).toBeNull();
 
     await emit({ kind: "loading" });
     await emit({ kind: "none" });
     await emit({ kind: "error" });
 
-    expect(iframeSrc("PowerShow demo presentation")).toBe("https://player.example.com/demo");
+    expect(iframeSrc(`${displayName} demo presentation`)).toBe("https://player.example.com/demo");
     expect(container.querySelector("[data-qr-value]")).toBeNull();
   });
 
@@ -94,8 +95,8 @@ describe("public root", () => {
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
     });
 
-    expect(iframeSrc("PowerShow demo presentation")).toBeNull();
-    expect(iframeSrc("PowerShow live presentation cover")).toBe("https://player.example.com/cover");
+    expect(iframeSrc(`${displayName} demo presentation`)).toBeNull();
+    expect(iframeSrc(`${displayName} live presentation cover`)).toBe("https://player.example.com/cover");
     expect(container.textContent).toContain("WATCH LIVE");
     expect(container.querySelector("[aria-hidden=\"true\"]")).not.toBeNull();
     expect(container.querySelector("[data-qr-value]")?.getAttribute("data-qr-value")).toBe(
@@ -108,13 +109,13 @@ describe("public root", () => {
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 1 },
     });
-    const firstCover = container.querySelector('iframe[title="PowerShow live presentation cover"]');
+    const firstCover = container.querySelector(`iframe[title="${displayName} live presentation cover"]`);
 
     await emit({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-2", revision: 1 },
     });
-    const secondCover = container.querySelector('iframe[title="PowerShow live presentation cover"]');
+    const secondCover = container.querySelector(`iframe[title="${displayName} live presentation cover"]`);
 
     expect(firstCover).not.toBe(secondCover);
     expect(secondCover?.getAttribute("src")).toBe("https://player.example.com/cover");
@@ -128,8 +129,8 @@ describe("public root", () => {
     });
     await emit({ kind: "none" });
 
-    expect(iframeSrc("PowerShow demo presentation")).toBe("https://player.example.com/demo");
-    expect(iframeSrc("PowerShow live presentation cover")).toBeNull();
+    expect(iframeSrc(`${displayName} demo presentation`)).toBe("https://player.example.com/demo");
+    expect(iframeSrc(`${displayName} live presentation cover`)).toBeNull();
     expect(container.querySelector("[data-qr-value]")).toBeNull();
   });
 
@@ -162,7 +163,7 @@ describe("public root", () => {
   });
 
   it("preserves the primary actions and approved immersive composition", () => {
-    expect(container.textContent).toContain("PowerShow");
+    expect(container.textContent).toContain(displayName);
     expect(container.textContent).toContain("Studio");
     expect(container.textContent).toContain("Player");
     expect(stylesSource).toContain("width: min(76vw, 972px)");

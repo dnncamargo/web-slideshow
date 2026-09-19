@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
 import { TopbarBrand } from "@powershow/ui";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import {
-  PRODUCT_NAME,
   PRODUCT_SURFACE_LABELS,
   type ProductSurfaceName,
 } from "./product-labels";
@@ -25,7 +25,7 @@ export function ProductSurfaceBrand({
 }) {
   return (
     <TopbarBrand className={className}>
-      <strong>{PRODUCT_NAME}</strong>
+      <strong>{displayName}</strong>
       <span className="ps-ui-topbar__product-surface">
         {PRODUCT_SURFACE_LABELS[surface]}
       </span>
