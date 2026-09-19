@@ -3242,20 +3242,27 @@ export function EditorWorkspace({
   }
   function createTextStyleFromSelectedText(name: string): void {
     if (selectedDocumentElement?.type !== "text") return;
-    setPresentation((current) => {
-      const slide = current.slides[selectedSlideIndex];
-      if (!slide) return current;
-      const text = findElementById(slide.elements, selectedDocumentElement.id);
-      if (text?.type !== "text") return current;
-      const created = createTextStyleFromText(current, text, name);
-      if (!created) return current;
-      return {
-        ...created.presentation,
-        slides: current.slides.map((candidate, index) => index === selectedSlideIndex
-          ? { ...candidate, elements: updateElementById(candidate.elements, text.id, () => created.text) }
-          : candidate),
-      };
-    });
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    const textId = selectedDocumentElement.id;
+    const slideIndex = selectedSlideIndex;
+    commitPresentationAction(
+      { kind: "textStyle.createFromText", labelKey: "history.element.setting", labelParams: { setting: "textStyle.createFromText" } },
+      (current) => {
+        const slide = current.slides[slideIndex];
+        if (!slide) return current;
+        const text = findElementById(slide.elements, textId);
+        if (text?.type !== "text") return current;
+        const created = createTextStyleFromText(current, text, trimmedName);
+        if (!created) return current;
+        return {
+          ...created.presentation,
+          slides: current.slides.map((candidate, index) => index === slideIndex
+            ? { ...candidate, elements: updateElementById(candidate.elements, textId, () => created.text) }
+            : candidate),
+        };
+      },
+    );
   }
   function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
     applyTextStyleDefinitionUpdate(
