@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   ContentSlot,
+  ContainerElement,
   ImageElement,
   PresentationElement,
   Slide,
@@ -23,6 +24,7 @@ import {
   moveElementToSiblingIndexById,
   removeElementById,
   resolveAddElementDestination,
+  unwrapContainerPreservingChildren,
 } from "../src/features/editor/element-operations";
 import {
   collectAuthoringIds,
@@ -404,6 +406,137 @@ describe("canonical element hierarchy operations", () => {
     if (remainingTopics?.type === "topics") {
       expect(remainingTopics.items[0]?.content.children).toEqual([]);
     }
+  });
+
+  it("unwraps a root container atomically while preserving order, payload, and identity", () => {
+    const childB: ContainerElement = {
+      type: "container",
+      id: "b",
+      hidden: false,
+      children: [],
+      layout: {
+        width: "40%",
+        padding: 12,
+        children: { direction: "row", gap: 8 },
+      },
+      style: { borderRadius: 6, background: { color: "#f00" } },
+      effect: { shadow: { x: 0, y: 2, blur: 4, spread: 0, color: "#000" } },
+    };
+    const childC = image("c");
+    const siblingA = text("a");
+    const siblingD = text("d");
+    const elements = [siblingA, container("wrapper", [childB, childC]), siblingD];
+
+    const result = unwrapContainerPreservingChildren(elements, "wrapper");
+
+    expect(result).toEqual({
+      elements: [siblingA, childB, childC, siblingD],
+      changed: true,
+    });
+    expect(result.elements).not.toBe(elements);
+    expect(result.elements[0]).toBe(siblingA);
+    expect(result.elements[1]).toBe(childB);
+    expect(result.elements[2]).toBe(childC);
+    expect(result.elements[3]).toBe(siblingD);
+    expect(result.elements[1]).toEqual(childB);
+  });
+
+  it("unwraps a nested container without cloning its children or descendants", () => {
+    const nestedChild = text("nested-child");
+    const inner = container("inner", [nestedChild]);
+    const outer = container("outer", [text("before"), inner, text("after")]);
+
+    const result = unwrapContainerPreservingChildren([outer], "inner");
+
+    expect(result.changed).toBe(true);
+    expect(result.elements[0]).not.toBe(outer);
+    const nextOuter = result.elements[0];
+    expect(nextOuter?.type).toBe("container");
+    if (nextOuter?.type === "container") {
+      expect(nextOuter.children.map((element) => element.id)).toEqual([
+        "before",
+        "nested-child",
+        "after",
+      ]);
+      expect(nextOuter.children[1]).toBe(nestedChild);
+    }
+  });
+
+  it("unwraps containers in generic and compatible TopicItem ContentSlots", () => {
+    const genericChild = text("generic-child");
+    const topicChild = text("topic-child");
+    const elements = [
+      topics("topics", [
+        topicItem("topic", contentSlot("generic-slot", [container("generic", [genericChild])])),
+        topicItem("topic-2", contentSlot("topic-slot", [container("topic-wrapper", [topicChild])])),
+      ]),
+    ];
+
+    const generic = unwrapContainerPreservingChildren(elements, "generic");
+    expect(generic.changed).toBe(true);
+    expect(generic.elements[0]?.type).toBe("topics");
+    if (generic.elements[0]?.type === "topics") {
+      expect(generic.elements[0].items[0]?.content.children[0]).toBe(genericChild);
+    }
+
+    const compatible = unwrapContainerPreservingChildren(generic.elements, "topic-wrapper");
+    expect(compatible.changed).toBe(true);
+    expect(compatible.elements[0]?.type).toBe("topics");
+    if (compatible.elements[0]?.type === "topics") {
+      expect(compatible.elements[0].items[1]?.content.children[0]).toBe(topicChild);
+    }
+  });
+
+  it("rejects a TopicItem ContentSlot when direct children include Topics", () => {
+    const elements = [
+      topics("topics", [
+        topicItem(
+          "topic",
+          contentSlot("slot", [container("wrapper", [text("allowed"), topics("nested-topics", [])])]),
+        ),
+      ]),
+    ];
+
+    const result = unwrapContainerPreservingChildren(elements, "wrapper");
+
+    expect(result).toEqual({
+      elements,
+      changed: false,
+      error: "topic-item-content-slot-incompatible",
+    });
+  });
+
+  it("rejects containers directly owned by Structured Table ContentSlots", () => {
+    const child = text("table-child");
+    const table = structuredTable("table", container("wrapper", [child]), text("cell"));
+    const elements = [table];
+
+    const result = unwrapContainerPreservingChildren(elements, "wrapper");
+
+    expect(result).toEqual({
+      elements,
+      changed: false,
+      error: "structured-table-content-slot-unsupported",
+    });
+  });
+
+  it.each([
+    ["wrapper", "container-empty"],
+    ["missing", "target-not-found"],
+    ["text", "target-not-container"],
+  ] as const)("rejects %s with an explicit error", (id, error) => {
+    const elements = [container("wrapper", []), text("text")];
+    const result = unwrapContainerPreservingChildren(elements, id);
+
+    expect(result).toEqual({ elements, changed: false, error });
+    expect(result.elements).toBe(elements);
+  });
+
+  it("keeps destructive delete semantics separate from preserve-children unwrap", () => {
+    const elements = [container("wrapper", [container("inner", [text("leaf")])])];
+
+    expect(removeElementById(elements, "wrapper")).toEqual([]);
+    expect(unwrapContainerPreservingChildren(elements, "wrapper").changed).toBe(true);
   });
 
   it("finds sibling positions with explicit parent refs", () => {

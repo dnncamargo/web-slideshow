@@ -2047,6 +2047,228 @@ export function removeElementById(
 }
 
 // ============================================================
+// BEGIN: UNWRAP CONTAINER PRESERVING CHILDREN
+// ============================================================
+
+export type UnwrapContainerError =
+  | "target-not-found"
+  | "target-not-container"
+  | "container-empty"
+  | "invalid-parent"
+  | "topic-item-content-slot-incompatible"
+  | "structured-table-content-slot-unsupported";
+
+export interface UnwrapContainerResult {
+  elements: PresentationElement[];
+  changed: boolean;
+  error?: UnwrapContainerError;
+}
+
+function replaceChildrenInTopicItems(
+  items: readonly TopicItem[],
+  parentRef: ElementParentRef,
+  children: PresentationElement[],
+): TopicItem[] | null {
+  let changed = false;
+
+  const nextItems = items.map((item) => {
+    const contentChildren =
+      parentRef.kind === "content-slot" && item.content.id === parentRef.id
+        ? children
+        : replaceChildrenInElements(item.content.children, parentRef, children);
+    const nestedItems = replaceChildrenInTopicItems(item.children, parentRef, children);
+
+    if (contentChildren === null && nestedItems === null) {
+      return item;
+    }
+
+    changed = true;
+
+    return {
+      ...item,
+      content:
+        contentChildren === null
+          ? item.content
+          : { ...item.content, children: contentChildren },
+      children: nestedItems ?? item.children,
+    };
+  });
+
+  return changed ? nextItems : null;
+}
+
+function replaceChildrenInStructuredTable(
+  table: StructuredTableElement,
+  parentRef: ElementParentRef,
+  children: PresentationElement[],
+): StructuredTableElement | null {
+  let changed = false;
+  const replaceSlot = (slot: ContentSlot): ContentSlot => {
+    if (parentRef.kind === "content-slot" && slot.id === parentRef.id) {
+      changed = true;
+      return { ...slot, children };
+    }
+
+    const nested = replaceChildrenInElements(slot.children, parentRef, children);
+
+    if (nested === null) {
+      return slot;
+    }
+
+    changed = true;
+    return { ...slot, children: nested };
+  };
+
+  const columns = table.columns.map((column) => ({
+    ...column,
+    header: replaceSlot(column.header),
+  }));
+  const rows = table.rows.map((row) => ({
+    ...row,
+    cells: row.cells.map(replaceSlot),
+  }));
+
+  return changed ? { ...table, columns, rows } : null;
+}
+
+function replaceChildrenInElements(
+  elements: readonly PresentationElement[],
+  parentRef: ElementParentRef,
+  children: PresentationElement[],
+): PresentationElement[] | null {
+  let changed = false;
+
+  const nextElements = elements.map((element) => {
+    if (parentRef.kind === "container" && element.id === parentRef.id) {
+      if (element.type !== "container") {
+        return element;
+      }
+
+      changed = true;
+      return { ...element, children };
+    }
+
+    if (element.type === "container") {
+      const nested = replaceChildrenInElements(element.children, parentRef, children);
+
+      if (nested === null) {
+        return element;
+      }
+
+      changed = true;
+      return { ...element, children: nested };
+    }
+
+    if (isStructuredTable(element)) {
+      const updated = replaceChildrenInStructuredTable(element, parentRef, children);
+
+      if (updated !== null) {
+        changed = true;
+        return updated;
+      }
+
+      return element;
+    }
+
+    if (element.type === "topics") {
+      const items = replaceChildrenInTopicItems(element.items, parentRef, children);
+
+      if (items === null) {
+        return element;
+      }
+
+      changed = true;
+      return { ...element, items };
+    }
+
+    return element;
+  });
+
+  return changed ? nextElements : null;
+}
+
+function replaceChildrenAtParentRef(
+  elements: PresentationElement[],
+  parentRef: ElementParentRef,
+  children: PresentationElement[],
+): PresentationElement[] | null {
+  if (parentRef.kind === "slide") {
+    return children;
+  }
+
+  return replaceChildrenInElements(elements, parentRef, children);
+}
+
+export function unwrapContainerPreservingChildren(
+  elements: PresentationElement[],
+  containerId: string,
+): UnwrapContainerResult {
+  const location = findElementLocation(elements, containerId);
+
+  if (location === null) {
+    return { elements, changed: false, error: "target-not-found" };
+  }
+
+  if (location.element.type !== "container") {
+    return { elements, changed: false, error: "target-not-container" };
+  }
+
+  if (location.element.children.length === 0) {
+    return { elements, changed: false, error: "container-empty" };
+  }
+
+  if (
+    location.parentRef.kind === "content-slot" &&
+    isStructuredTableContentSlotId(elements, location.parentRef.id)
+  ) {
+    return {
+      elements,
+      changed: false,
+      error: "structured-table-content-slot-unsupported",
+    };
+  }
+
+  if (
+    location.parentRef.kind === "content-slot" &&
+    isTopicItemContentSlotId(elements, location.parentRef.id) &&
+    location.element.children.some((child) => child.type === "topics")
+  ) {
+    return {
+      elements,
+      changed: false,
+      error: "topic-item-content-slot-incompatible",
+    };
+  }
+
+  const siblings = getElementsForParentRef(elements, location.parentRef);
+
+  if (siblings === null || siblings[location.index] !== location.element) {
+    return { elements, changed: false, error: "invalid-parent" };
+  }
+
+  const nextSiblings = [
+    ...siblings.slice(0, location.index),
+    ...location.element.children,
+    ...siblings.slice(location.index + 1),
+  ];
+  const nextElements = replaceChildrenAtParentRef(
+    elements,
+    location.parentRef,
+    nextSiblings,
+  );
+
+  if (nextElements === null) {
+    return { elements, changed: false, error: "invalid-parent" };
+  }
+
+  return { elements: nextElements, changed: true };
+}
+
+// ============================================================
+// END: UNWRAP CONTAINER PRESERVING CHILDREN
+// ============================================================
+
+// ============================================================
 // END: DELETE ELEMENT
 // ============================================================
 
