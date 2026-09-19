@@ -372,6 +372,22 @@ function findCanvasGalleryItem(
   ).find((candidate) => Number(candidate.dataset.powershowGalleryIndex) === itemIndex) ?? null;
 }
 
+type AuthoredContainerFit = {
+  mode: ContainerFitMode;
+  sourceWidth: number;
+  sourceHeight: number;
+};
+
+function areAuthoredContainerFitsEqual(
+  left: AuthoredContainerFit | undefined,
+  right: AuthoredContainerFit | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.mode === right.mode &&
+    left.sourceWidth === right.sourceWidth &&
+    left.sourceHeight === right.sourceHeight;
+}
+
 interface PendingElementDeletion {
   elementId: string;
   elementType: PowerShowElement["type"];
@@ -2800,30 +2816,77 @@ export function EditorWorkspace({
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
-    const canvas = slideCanvasRef.current;
-    const target = canvas
-      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
-          .find((candidate) => candidate.dataset.powershowId === selectedDocumentElement.id)
-      : undefined;
-    const linkedFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
-    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit === undefined
-      ? target ? measureContainerFitSourceSize(target) : null
-      : undefined;
-    const base = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit !== undefined
-      ? { ...selectedDocumentElement, layout: { ...selectedDocumentElement.layout, children: { ...selectedDocumentElement.layout?.children, fit: { ...linkedFit } } } }
-      : selectedDocumentElement;
-    const updated = updateContainerFit(base, mode, sourceSize ?? undefined);
+    const containerId = selectedDocumentElement.id;
+    const renderTimeLocalFit = selectedDocumentElement.layout?.children?.fit;
+    const renderTimeEffectiveFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
+    const requiresMeasurement = mode !== null &&
+      renderTimeLocalFit === undefined &&
+      renderTimeEffectiveFit === undefined;
+    let measuredSourceSize: { sourceWidth: number; sourceHeight: number } | undefined;
 
-    if (!updated) return false;
+    if (requiresMeasurement) {
+      const target = slideCanvasRef.current === null
+        ? null
+        : findCanvasElementById(slideCanvasRef.current, containerId);
+      const measured = target === null ? null : measureContainerFitSourceSize(target);
+      if (measured === null) return false;
+      measuredSourceSize = measured;
+    }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? { ...slide, elements: updateElementById(slide.elements, selectedDocumentElement.id, () => updated) }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "container.childrenFit" },
+      },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (slide === undefined) return current;
+
+        const currentElement = findElementById(slide.elements, containerId);
+        if (currentElement?.type !== "container") return current;
+
+        const currentLocalFit = currentElement.layout?.children?.fit;
+        const currentEffectiveFit = resolveLinkedContainerStyle(current, currentElement).layout?.children?.fit;
+        const base = currentLocalFit === undefined && currentEffectiveFit !== undefined
+          ? {
+              ...currentElement,
+              layout: {
+                ...currentElement.layout,
+                children: {
+                  ...currentElement.layout?.children,
+                  fit: { ...currentEffectiveFit },
+                },
+              },
+            }
+          : currentElement;
+        const currentRequiresMeasurement = mode !== null &&
+          currentLocalFit === undefined &&
+          currentEffectiveFit === undefined;
+
+        if (currentRequiresMeasurement && measuredSourceSize === undefined) return current;
+
+        const updated = updateContainerFit(
+          base,
+          mode,
+          currentRequiresMeasurement ? measuredSourceSize : undefined,
+        );
+        if (updated === null) return current;
+
+        const updatedLocalFit = updated.layout?.children?.fit;
+        if (areAuthoredContainerFitsEqual(currentLocalFit, updatedLocalFit)) return current;
+
+        const elements = updateElementById(slide.elements, containerId, () => updated);
+        return elements === slide.elements
+          ? current
+          : {
+              ...current,
+              slides: current.slides.map((candidate) =>
+                candidate === slide ? { ...slide, elements } : candidate,
+              ),
+            };
+      },
+    );
     return true;
   }
 
