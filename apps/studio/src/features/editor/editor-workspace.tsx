@@ -43,6 +43,7 @@ import {
   type ElementTypography,
   type LinkedContainerStyle,
   type LinkedContainerStyleVisual,
+  type LinkedTopicsStyle,
   type TextStroke,
   type TextStyle,
 } from "@powershow/document-schema";
@@ -551,6 +552,46 @@ function areLinkedContainerStyleDefinitionsEqual(
     && areLinkedStyleVisualValuesEqual(left.style, right.style)
     && areLinkedStyleTypographyValuesEqual(left.typography, right.typography)
     && areLinkedStyleEffectValuesEqual(left.effect, right.effect);
+}
+
+function areLinkedTopicsStyleColorsEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (typeof left === "string" || typeof right === "string") return left === right;
+  return left.kind === right.kind && left.colorId === right.colorId;
+}
+
+function areLinkedTopicsStyleLayoutsEqual(
+  left: LinkedTopicsStyle["layout"],
+  right: LinkedTopicsStyle["layout"],
+): boolean {
+  return left?.position === right?.position
+    && left?.top === right?.top
+    && left?.right === right?.right
+    && left?.bottom === right?.bottom
+    && left?.left === right?.left
+    && left?.margin === right?.margin
+    && left?.marginTop === right?.marginTop
+    && left?.marginRight === right?.marginRight
+    && left?.marginBottom === right?.marginBottom
+    && left?.marginLeft === right?.marginLeft;
+}
+
+function areLinkedTopicsStyleDefinitionsEqual(
+  left: LinkedTopicsStyle | undefined,
+  right: LinkedTopicsStyle | undefined,
+): boolean {
+  return left !== undefined && right !== undefined
+    && left.target === right.target
+    && left.id === right.id
+    && left.name === right.name
+    && left.kind === right.kind
+    && areLinkedTopicsStyleLayoutsEqual(left.layout, right.layout)
+    && left.rootMarkerStyle === right.rootMarkerStyle
+    && areLinkedTopicsStyleColorsEqual(left.markerColor, right.markerColor)
+    && left.itemGap === right.itemGap;
 }
 
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
@@ -3460,7 +3501,19 @@ export function EditorWorkspace({
       },
     );
   }
-  function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void { setPresentation((current) => updateLinkedTopicsStyle(current, id, patch)); }
+  function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || !("target" in before) || before.target !== "topics") return current;
+        const candidate = updateLinkedTopicsStyle(current, id, patch);
+        const after = candidate.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || !("target" in after) || after.target !== "topics" || areLinkedTopicsStyleDefinitionsEqual(before, after) === true) return current;
+        return candidate;
+      },
+    );
+  }
   function createLinkedStyleFromSelectedElement(name: string): void {
     if (!selectedDocumentElement) return;
     setPresentation((current) => {
@@ -3493,8 +3546,29 @@ export function EditorWorkspace({
       },
     );
   }
-  function renamePresentationLinkedTopicsStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
-  function removePresentationLinkedTopicsStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
+  function renamePresentationLinkedTopicsStyle(id: string, name: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || !("target" in before) || before.target !== "topics") return current;
+        const candidate = renameLinkedStyle(current, id, name);
+        const after = candidate.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || !("target" in after) || after.target !== "topics" || areLinkedTopicsStyleDefinitionsEqual(before, after) === true) return current;
+        return candidate;
+      },
+    );
+  }
+  function removePresentationLinkedTopicsStyle(id: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.remove" } },
+      (current) => {
+        const target = current.linkedStyles?.find((style) => style.id === id);
+        if (target === undefined || !("target" in target) || target.target !== "topics") return current;
+        return removeUnusedLinkedStyle(current, id) ?? current;
+      },
+    );
+  }
   function attachLinkedStyleMatches(id: string): void {
     setPresentation((current) => attachLinkedStyleToMatchingContainers(current, id).presentation);
   }

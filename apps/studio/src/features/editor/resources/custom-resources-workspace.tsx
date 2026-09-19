@@ -428,7 +428,7 @@ function LinkedStylesWorkspace({
     {stylesList.length === 0 ? <p className={styles.status}>{t("customResources.linkedStyleNoStyles")}</p> : null}
     {stylesList.map((linkedStyle) => {
       if ("target" in linkedStyle && linkedStyle.target === "topics") {
-        return <TopicsLinkedStyleRow key={linkedStyle.id} style={linkedStyle} presentation={presentation} editing={editingId === linkedStyle.id} onEdit={() => setEditingId(editingId === linkedStyle.id ? null : linkedStyle.id)} onRename={onRenameTopics} onUpdate={onUpdateTopics} onRemove={onRemoveTopics} />;
+        return <TopicsLinkedStyleRow key={linkedStyle.id} style={linkedStyle} presentation={presentation} authoringHistory={authoringHistory} editing={editingId === linkedStyle.id} onEdit={() => setEditingId(editingId === linkedStyle.id ? null : linkedStyle.id)} onRename={onRenameTopics} onUpdate={onUpdateTopics} onRemove={onRemoveTopics} />;
       }
       const linkedLocations = presentation ? findContainersLinkedToStyle(presentation, linkedStyle.id) : [];
       const matchingLocations = presentation ? findMatchingContainersForLinkedStyle(presentation, linkedStyle.id) : [];
@@ -467,14 +467,32 @@ function LinkedStylesWorkspace({
   </div>;
 }
 
-function TopicsLinkedStyleRow({ style, presentation, editing, onEdit, onRename, onUpdate, onRemove }: { style: LinkedTopicsStyle; presentation?: Presentation; editing: boolean; onEdit: () => void; onRename: (id: string, name: string) => void; onUpdate: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onRemove: (id: string) => void }) {
+function TopicsLinkedStyleRow({ style, presentation, authoringHistory, editing, onEdit, onRename, onUpdate, onRemove }: { style: LinkedTopicsStyle; presentation?: Presentation; authoringHistory: AuthoringHistoryContextValue | null; editing: boolean; onEdit: () => void; onRename: (id: string, name: string) => void; onUpdate: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onRemove: (id: string) => void }) {
   const { t } = useStudioI18n();
   const locations = presentation ? findElementsLinkedToStyle(presentation, style.id) : [];
-  return <div data-linked-style-id={style.id} className={styles.group}><button type="button" className={styles.typographyStyleDisclosure} aria-expanded={editing} onClick={onEdit}><span className={styles.resourceItemDetails}><strong>{style.name}</strong><span className={styles.resourceItemMeta}>{t(locations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: locations.length })}</span></span><span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span></button>{editing ? <div className={styles.linkedStyleEditor}><LinkedStyleNameField style={style} onRename={onRename} /><div className={styles.linkedStylePreview} data-linked-style-preview={style.id} aria-hidden="true" dangerouslySetInnerHTML={{ __html: presentation ? renderElement(createLinkedStylePreviewTopics(style.id), { presentation }) : "" }} /><TopicsLinkedStyleEditor style={style} onUpdate={(patch) => onUpdate(style.id, patch)} /><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={locations.length > 0} onClick={() => onRemove(style.id)}>{t("customResources.linkedStyleRemove")}</button></div></div> : null}</div>;
+  const definitionMeta = { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
+  const runDefinitionDiscrete = (callback: () => void): void => {
+    if (authoringHistory) authoringHistory.discrete(definitionMeta, callback);
+    else callback();
+  };
+  return <div data-linked-style-id={style.id} className={styles.group}>
+    <button type="button" className={styles.typographyStyleDisclosure} aria-expanded={editing} onClick={onEdit}>
+      <span className={styles.resourceItemDetails}><strong>{style.name}</strong><span className={styles.resourceItemMeta}>{t(locations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: locations.length })}</span></span>
+      <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
+    </button>
+    {editing ? <AuthoringHistoryContext.Provider value={authoringHistory}><div className={styles.linkedStyleEditor}>
+      <LinkedStyleNameField style={style} onRename={(id, name) => runDefinitionDiscrete(() => onRename(id, name))} />
+      <div className={styles.linkedStylePreview} data-linked-style-preview={style.id} aria-hidden="true" dangerouslySetInnerHTML={{ __html: presentation ? renderElement(createLinkedStylePreviewTopics(style.id), { presentation }) : "" }} />
+      <TopicsLinkedStyleEditor style={style} authoringHistory={authoringHistory} onUpdate={(patch) => onUpdate(style.id, patch)} />
+      <div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={locations.length > 0} onClick={() => runDefinitionDiscrete(() => onRemove(style.id))}>{t("customResources.linkedStyleRemove")}</button></div>
+    </div></AuthoringHistoryContext.Provider> : null}
+  </div>;
 }
 
-function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
+function TopicsLinkedStyleEditor({ style, authoringHistory, onUpdate }: { style: LinkedTopicsStyle; authoringHistory: AuthoringHistoryContextValue | null; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
   const { t } = useStudioI18n();
+  const definitionMeta = { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
   const layoutProperties = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const;
   const configuredLayout = layoutProperties.filter((property) => style.layout?.[property] !== undefined);
   const configuredAppearance = [
@@ -488,17 +506,30 @@ function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle
     else layout[property] = value;
     onUpdate({ layout: Object.keys(layout).length > 0 ? layout : undefined });
   };
+  const runDefinitionDiscrete = (callback: () => void): void => {
+    if (authoringHistory) authoringHistory.discrete(definitionMeta, callback);
+    else callback();
+  };
+  const runContinuous = (property: TopicsLinkedStyleProperty, callback: () => void): void => {
+    if (!authoringHistory) {
+      callback();
+      return;
+    }
+    const key = `linked-topics-style:${style.id}:${property}`;
+    authoringHistory.begin(key, numberHistoryMeta);
+    authoringHistory.update(key, callback);
+  };
   const addProperty = (property: TopicsLinkedStyleProperty) => {
     if (isTopicsLinkedStyleLayoutProperty(property)) {
-      updateLayoutProperty(property, 0);
+      runDefinitionDiscrete(() => updateLayoutProperty(property, 0));
     } else if (property === "itemGap") {
-      onUpdate({ itemGap: TOPICS_ITEM_GAP_DEFAULT_PX });
+      runDefinitionDiscrete(() => onUpdate({ itemGap: TOPICS_ITEM_GAP_DEFAULT_PX }));
     } else if (property === "rootMarkerStyle") {
-      onUpdate({ rootMarkerStyle: "disc" });
+      runDefinitionDiscrete(() => onUpdate({ rootMarkerStyle: "disc" }));
     } else if (property === "kind") {
-      onUpdate({ kind: "ordered" });
+      runDefinitionDiscrete(() => onUpdate({ kind: "ordered" }));
     } else {
-      onUpdate({ markerColor: "#ffffff" });
+      runDefinitionDiscrete(() => onUpdate({ markerColor: "#ffffff" }));
     }
   };
   const availableProperties = TOPICS_LINKED_STYLE_PROPERTY_ORDER.filter((property) => {
@@ -514,7 +545,7 @@ function TopicsLinkedStyleEditor({ style, onUpdate }: { style: LinkedTopicsStyle
     <div className={styles.resourcePropertyStack}>
       {groups.map((group) => group.properties.length === 0 ? null : <section className={styles.resourcePropertyGroup} data-linked-topics-property-group={group.id} key={group.id}>
         <h4 className={styles.resourcePropertyGroupTitle}>{t(group.label)}</h4>
-        {group.properties.map((property) => <TopicsLinkedStylePropertyCard key={property} style={style} property={property} onUpdateLayoutProperty={updateLayoutProperty} onUpdate={onUpdate} />)}
+        {group.properties.map((property) => <TopicsLinkedStylePropertyCard key={property} style={style} property={property} authoringHistory={authoringHistory} onUpdateLayoutProperty={updateLayoutProperty} onUpdate={onUpdate} onDiscrete={runDefinitionDiscrete} onContinuous={runContinuous} />)}
       </section>)}
     </div>
     {availableProperties.length > 0 ? <TopicsLinkedStylePropertyChooser properties={availableProperties} onAdd={addProperty} /> : null}
@@ -532,28 +563,30 @@ function isTopicsLinkedStyleLayoutProperty(property: TopicsLinkedStyleProperty):
   return TOPICS_LINKED_STYLE_LAYOUT_PROPERTIES.includes(property as TopicsLinkedStyleLayoutProperty);
 }
 
-function TopicsLinkedStylePropertyCard({ style, property, onUpdateLayoutProperty, onUpdate }: { style: LinkedTopicsStyle; property: TopicsLinkedStyleProperty; onUpdateLayoutProperty: (property: "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", value: Length | undefined) => void; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void }) {
+function TopicsLinkedStylePropertyCard({ style, property, authoringHistory, onUpdateLayoutProperty, onUpdate, onDiscrete, onContinuous }: { style: LinkedTopicsStyle; property: TopicsLinkedStyleProperty; authoringHistory: AuthoringHistoryContextValue | null; onUpdateLayoutProperty: (property: "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", value: Length | undefined) => void; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onDiscrete: (callback: () => void) => void; onContinuous: (property: TopicsLinkedStyleProperty, callback: () => void) => void }) {
   const { t } = useStudioI18n();
   const canRemove = topicsLinkedStyleAuthoredPropertyCount(style) > 1;
   const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
   const label = t(labels[property]);
-  const remove = () => {
+  const remove = () => onDiscrete(() => {
     if (isTopicsLinkedStyleLayoutProperty(property)) onUpdateLayoutProperty(property, undefined);
     else if (property === "itemGap") onUpdate({ itemGap: undefined });
     else if (property === "kind") onUpdate({ kind: undefined });
     else if (property === "rootMarkerStyle") onUpdate({ rootMarkerStyle: undefined });
     else onUpdate({ markerColor: undefined });
-  };
+  });
   let control: ReactNode;
   if (isTopicsLinkedStyleLayoutProperty(property)) {
-    control = <div className={styles.unitInput}><input id={`linked-topics-style-${style.id}-${property}`} type="number" min="0" value={readAbsoluteNumber(style.layout?.[property])} onChange={(event) => onUpdateLayoutProperty(property, event.target.value === "" ? undefined : Number(event.target.value))} /><span>px</span></div>;
+    const historyKey = `linked-topics-style:${style.id}:${property}`;
+    control = <div className={styles.unitInput}><input id={`linked-topics-style-${style.id}-${property}`} type="number" min="0" value={readAbsoluteNumber(style.layout?.[property])} onFocus={() => authoringHistory?.begin(historyKey, { kind: "number.change", labelKey: "history.number.change" })} onBlur={() => authoringHistory?.finish(historyKey)} onChange={(event) => onContinuous(property, () => onUpdateLayoutProperty(property, event.target.value === "" ? undefined : Number(event.target.value)))} /><span>px</span></div>;
   } else if (property === "itemGap") {
-    control = <input id={`linked-topics-style-${style.id}-item-gap`} type="number" min="0" value={style.itemGap ?? ""} onChange={(event) => onUpdate({ itemGap: event.target.value === "" ? undefined : Number(event.target.value) })} />;
+    const historyKey = `linked-topics-style:${style.id}:itemGap`;
+    control = <input id={`linked-topics-style-${style.id}-item-gap`} type="number" min="0" value={style.itemGap ?? ""} onFocus={() => authoringHistory?.begin(historyKey, { kind: "number.change", labelKey: "history.number.change" })} onBlur={() => authoringHistory?.finish(historyKey)} onChange={(event) => onContinuous(property, () => onUpdate({ itemGap: event.target.value === "" ? undefined : Number(event.target.value) }))} />;
   } else if (property === "rootMarkerStyle") {
     const markerOptions = style.kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS;
-    control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined })}><option value="">{t("inspector.default")}</option>{markerOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>;
+    control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onDiscrete(() => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined }))}><option value="">{t("inspector.default")}</option>{markerOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>;
   } else if (property === "kind") {
-    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => { const kind = event.target.value === "ordered" ? "ordered" : undefined; const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS; onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined }); }}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option></select>;
+    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => onDiscrete(() => { const kind = event.target.value === "ordered" ? "ordered" : undefined; const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS; onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined }); })}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option></select>;
   } else {
     control = <ColorControl id={`linked-topics-style-${style.id}-marker-color`} name={label} value={style.markerColor} onChange={(markerColor) => onUpdate({ markerColor })} />;
   }
