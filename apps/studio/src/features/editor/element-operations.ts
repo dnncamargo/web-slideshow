@@ -2102,33 +2102,10 @@ function replaceChildrenInStructuredTable(
   parentRef: ElementParentRef,
   children: PresentationElement[],
 ): StructuredTableElement | null {
-  let changed = false;
-  const replaceSlot = (slot: ContentSlot): ContentSlot => {
-    if (parentRef.kind === "content-slot" && slot.id === parentRef.id) {
-      changed = true;
-      return { ...slot, children };
-    }
-
-    const nested = replaceChildrenInElements(slot.children, parentRef, children);
-
-    if (nested === null) {
-      return slot;
-    }
-
-    changed = true;
-    return { ...slot, children: nested };
-  };
-
-  const columns = table.columns.map((column) => ({
-    ...column,
-    header: replaceSlot(column.header),
-  }));
-  const rows = table.rows.map((row) => ({
-    ...row,
-    cells: row.cells.map(replaceSlot),
-  }));
-
-  return changed ? { ...table, columns, rows } : null;
+  return updateStructuredTableSlots(table, (slotChildren) => {
+    const nested = replaceChildrenInElements(slotChildren, parentRef, children);
+    return nested ?? slotChildren;
+  });
 }
 
 function replaceChildrenInElements(

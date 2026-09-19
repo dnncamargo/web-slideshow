@@ -442,11 +442,13 @@ describe("canonical element hierarchy operations", () => {
   });
 
   it("unwraps a nested container without cloning its children or descendants", () => {
-    const nestedChild = text("nested-child");
-    const inner = container("inner", [nestedChild]);
-    const outer = container("outer", [text("before"), inner, text("after")]);
+    const b = text("b");
+    const inner = container("inner", [b]);
+    const c = text("c");
+    const target = container("target", [inner, c]);
+    const outer = container("outer", [text("before"), target, text("after")]);
 
-    const result = unwrapContainerPreservingChildren([outer], "inner");
+    const result = unwrapContainerPreservingChildren([outer], "target");
 
     expect(result.changed).toBe(true);
     expect(result.elements[0]).not.toBe(outer);
@@ -455,10 +457,14 @@ describe("canonical element hierarchy operations", () => {
     if (nextOuter?.type === "container") {
       expect(nextOuter.children.map((element) => element.id)).toEqual([
         "before",
-        "nested-child",
+        "inner",
+        "c",
         "after",
       ]);
-      expect(nextOuter.children[1]).toBe(nestedChild);
+      const promotedInner = nextOuter.children[1];
+      expect(promotedInner).toBe(inner);
+      expect(promotedInner?.type === "container" ? promotedInner.children[0] : undefined).toBe(b);
+      expect(nextOuter.children[2]).toBe(c);
     }
   });
 
@@ -518,6 +524,54 @@ describe("canonical element hierarchy operations", () => {
       changed: false,
       error: "structured-table-content-slot-unsupported",
     });
+  });
+
+  it("preserves unaffected Structured Table ancestry during nested unwrap", () => {
+    const b = text("table-b");
+    const c = text("table-c");
+    const target = container("target", [b, c]);
+    const outer = container("outer", [text("before"), target]);
+    const table = structuredTable("table", outer, text("unaffected-cell"));
+    const unaffectedColumn = {
+      id: "column-2",
+      header: { id: "header-slot-2", children: [text("unaffected-header")] },
+    };
+    const unaffectedRow = {
+      id: "row-2",
+      cells: [{ id: "cell-slot-2", children: [text("unaffected-row")] }],
+    };
+    const elements: PresentationElement[] = [
+      {
+        ...table,
+        columns: [...table.columns, unaffectedColumn],
+        rows: [...table.rows, unaffectedRow],
+      },
+    ];
+    const originalTable = elements[0];
+    if (originalTable?.type !== "table" || originalTable.mode !== "structured") {
+      throw new Error("expected structured table fixture");
+    }
+    const originalUnaffectedColumn = originalTable.columns[1];
+    const originalUnaffectedRow = originalTable.rows[1];
+    const originalUnaffectedCell = originalTable.rows[0]?.cells[0];
+
+    const result = unwrapContainerPreservingChildren(elements, "target");
+    const nextTable = result.elements[0];
+
+    expect(result.changed).toBe(true);
+    expect(nextTable?.type).toBe("table");
+    if (nextTable?.type === "table" && nextTable.mode === "structured") {
+      expect(nextTable.columns[1]).toBe(originalUnaffectedColumn);
+      expect(nextTable.rows[1]).toBe(originalUnaffectedRow);
+      expect(nextTable.rows[0]?.cells[0]).toBe(originalUnaffectedCell);
+      const nextOuter = nextTable.columns[0]?.header.children[0];
+      expect(nextOuter?.type).toBe("container");
+      if (nextOuter?.type === "container") {
+        expect(nextOuter.children.map((element) => element.id)).toEqual(["before", "table-b", "table-c"]);
+        expect(nextOuter.children[1]).toBe(b);
+        expect(nextOuter.children[2]).toBe(c);
+      }
+    }
   });
 
   it.each([
