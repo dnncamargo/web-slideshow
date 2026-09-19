@@ -335,12 +335,13 @@ export function CustomResourcesWorkspace({
             {presentationColors.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationColors")}</p> : null}
             <div className={styles.localColorList} data-presentation-palette>
               {presentationColors.map((color) => (
-                <LocalPresentationColorRow
-                  key={color.id}
-                  color={color}
-                  onUpdate={onUpdatePresentationColor}
-                  onRemove={onRemovePresentationColor}
-                />
+                <AuthoringHistoryContext.Provider key={color.id} value={authoringHistory}>
+                  <LocalPresentationColorRow
+                    color={color}
+                    onUpdate={onUpdatePresentationColor}
+                    onRemove={onRemovePresentationColor}
+                  />
+                </AuthoringHistoryContext.Provider>
               ))}
             </div>
             <span className={styles.colorCount}>{t("customResources.colorCount", { count: presentationColors.length })}</span>
@@ -1097,6 +1098,11 @@ function LocalPresentationColorRow({
   onRemove: (id: string) => void;
 }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const colorHistoryKey = `palette-color:${color.id}:value`;
+  const colorHistoryMeta = { kind: "color.change", labelKey: "history.color.change" } as const;
+  const definitionMeta = { kind: "palette.definition", labelKey: "history.element.setting", labelParams: { setting: "palette.definition" } } as const;
+  const removeMeta = { kind: "palette.remove", labelKey: "history.element.setting", labelParams: { setting: "palette.remove" } } as const;
   const [nameDraft, setNameDraft] = useState(color.name);
   const [lastCanonicalName, setLastCanonicalName] = useState(color.name);
 
@@ -1111,7 +1117,30 @@ function LocalPresentationColorRow({
       setNameDraft(color.name);
       return;
     }
-    onUpdate(color.id, { name: nextName, value: color.value });
+    if (authoringHistory) {
+      authoringHistory.discrete(definitionMeta, () => onUpdate(color.id, { name: nextName, value: color.value }));
+    } else {
+      onUpdate(color.id, { name: nextName, value: color.value });
+    }
+  };
+
+  const updateValue = (value: Color, source: "picker" | "text" | "format"): void => {
+    if (source === "format") {
+      authoringHistory?.finish(colorHistoryKey);
+      if (authoringHistory) {
+        authoringHistory.discrete(colorHistoryMeta, () => onUpdate(color.id, { name: color.name, value }));
+      } else {
+        onUpdate(color.id, { name: color.name, value });
+      }
+      return;
+    }
+
+    if (authoringHistory) {
+      authoringHistory.begin(colorHistoryKey, colorHistoryMeta);
+      authoringHistory.update(colorHistoryKey, () => onUpdate(color.id, { name: color.name, value }));
+    } else {
+      onUpdate(color.id, { name: color.name, value });
+    }
   };
 
   return (
@@ -1131,8 +1160,18 @@ function LocalPresentationColorRow({
         }}
       />
       <div className={styles.localColorValueRow}>
-        <LiteralColorInput id={`custom-resources-literal-color-${color.id}`} name={t("customResources.color")} value={color.value} onChange={(value) => onUpdate(color.id, { name: color.name, value })} />
-        <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => onRemove(color.id)}>×</button>
+        <LiteralColorInput
+          id={`custom-resources-literal-color-${color.id}`}
+          name={t("customResources.color")}
+          value={color.value}
+          onChange={updateValue}
+          onCommit={() => authoringHistory?.finish(colorHistoryKey)}
+          onBlur={() => authoringHistory?.finish(colorHistoryKey)}
+        />
+        <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationColor", { name: color.name })} onClick={() => {
+          if (authoringHistory) authoringHistory.discrete(removeMeta, () => onRemove(color.id));
+          else onRemove(color.id);
+        }}>×</button>
       </div>
     </div>
   );

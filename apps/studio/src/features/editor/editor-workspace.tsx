@@ -939,6 +939,20 @@ export function EditorWorkspace({
     }
   }
 
+  function applyPresentationPaletteUpdate(
+    fallbackMeta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update });
+    } else {
+      commitPresentationAction(fallbackMeta, update);
+    }
+  }
+
   const authoringHistory: AuthoringHistoryContextValue = {
     begin: beginPresentationTransaction,
     update: (key, callback) => {
@@ -3349,35 +3363,75 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addNamedPresentationPaletteColor(name: string, color: Color) {
-    setPresentation((current) => {
-      const result = addPaletteEntry(current, name, color);
-      return result.ok ? result.presentation : current;
-    });
+    commitPresentationAction(
+      {
+        kind: "palette.add",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.add" },
+      },
+      (current) => {
+        const result = addPaletteEntry(current, name, color);
+        return result.ok ? result.presentation : current;
+      },
+    );
   }
 
   function removePresentationPaletteColor(colorId: string) {
-    setPresentation((current) => {
-      const result = removePaletteEntry(current, colorId);
-      return result.ok ? result.presentation : current;
-    });
+    commitPresentationAction(
+      {
+        kind: "palette.remove",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.remove" },
+      },
+      (current) => {
+        const result = removePaletteEntry(current, colorId);
+        return result.ok ? result.presentation : current;
+      },
+    );
   }
 
   function updateNamedPresentationPaletteColor(
     colorId: string,
     patch: { name: string; value: Color },
   ) {
-    setPresentation((current) => {
-      const renamed = renamePaletteEntry(current, colorId, patch.name);
-      if (!renamed.ok) return current;
-      const updated = updatePresentationPaletteColorValue(renamed.presentation, colorId, patch.value);
-      return updated.ok ? updated.presentation : current;
-    });
+    applyPresentationPaletteUpdate(
+      {
+        kind: "palette.definition",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.definition" },
+      },
+      (current) => {
+        const currentColor = current.palette?.colors.find((color) => color.id === colorId);
+        if (!currentColor) return current;
+        const renamed = renamePaletteEntry(current, colorId, patch.name);
+        if (!renamed.ok) return current;
+        const updated = updatePresentationPaletteColorValue(renamed.presentation, colorId, patch.value);
+        if (!updated.ok) return current;
+        const nextColor = updated.presentation.palette?.colors.find((color) => color.id === colorId);
+        if (!nextColor || (
+          nextColor.id === currentColor.id
+          && nextColor.name === currentColor.name
+          && nextColor.value === currentColor.value
+        )) return current;
+        return updated.presentation;
+      },
+    );
   }
 
   function addCustomLibraryPalette(palette: CustomLibraryPaletteDraft): CustomLibraryPaletteAddOutcome {
     const result = addCustomLibraryPaletteToPresentation(presentation, palette);
     if (!result.ok) return { ok: false, reason: result.reason };
-    setPresentation(result.presentation);
+    commitPresentationAction(
+      {
+        kind: "palette.import",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.import" },
+      },
+      (current) => {
+        const currentResult = addCustomLibraryPaletteToPresentation(current, palette);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
     return { ok: true };
   }
 
