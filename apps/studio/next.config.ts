@@ -1,6 +1,7 @@
 import type {
   NextConfig,
 } from "next";
+import { readInstanceDisplayName } from "../../tools/instance-config.mjs";
 
 
 // ============================================================
@@ -20,7 +21,11 @@ const nextConfig: NextConfig = {
     "@powershow/renderer",
     "@powershow/theme",
     "@powershow/ui",
+    "@web-slideshow/instance-branding",
   ],
+  env: {
+    WEB_SLIDESHOW_DISPLAY_NAME: readInstanceDisplayName(),
+  },
 };
 
 // ============================================================

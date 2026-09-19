@@ -4,6 +4,8 @@
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
+    "instantiate": "node tools/instantiate.mjs",
+    "test:instantiate": "node --test tools/instance-config.test.mjs",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"

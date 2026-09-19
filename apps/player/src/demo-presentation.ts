@@ -13,6 +13,7 @@ import {
 import {
   PresentationSchema,
 } from "@powershow/document-schema";
+import { displayName } from "@web-slideshow/instance-branding";
 
 
 // ============================================================
@@ -30,84 +31,7 @@ import {
 // deixando as diferenças entre os modos de fit bem visíveis.
 // ============================================================
 
-const demoImageSvg = `
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 800 450"
->
-  <defs>
-    <linearGradient
-      id="background"
-      x1="0"
-      y1="0"
-      x2="1"
-      y2="1"
-    >
-      <stop
-        offset="0%"
-        stop-color="#7c3aed"
-      />
-
-      <stop
-        offset="100%"
-        stop-color="#06b6d4"
-      />
-    </linearGradient>
-  </defs>
-
-  <rect
-    width="800"
-    height="450"
-    fill="url(#background)"
-  />
-
-  <circle
-    cx="175"
-    cy="225"
-    r="105"
-    fill="#f8fafc"
-    fill-opacity="0.92"
-  />
-
-  <rect
-    x="340"
-    y="105"
-    width="330"
-    height="240"
-    rx="30"
-    fill="#020617"
-    fill-opacity="0.78"
-  />
-
-  <text
-    x="505"
-    y="210"
-    text-anchor="middle"
-    fill="#f8fafc"
-    font-family="Arial, sans-serif"
-    font-size="46"
-    font-weight="700"
-  >
-    PowerShow
-  </text>
-
-  <text
-    x="505"
-    y="265"
-    text-anchor="middle"
-    fill="#cbd5e1"
-    font-family="Arial, sans-serif"
-    font-size="24"
-  >
-    Image demo
-  </text>
-</svg>
-`;
-
-const demoImageSrc =
-  `data:image/svg+xml,${encodeURIComponent(
-    demoImageSvg,
-  )}`;
+const demoImageSrc = "/instance-demo.svg";
 
 // ============================================================
 // END: IMAGEM LOCAL DA DEMO
@@ -311,13 +235,13 @@ export const demoPresentation =
   PresentationSchema.parse(migrateLegacyDemoDocument({
     schemaVersion: 1,
 
-    id: "powershow-demo",
+    id: "presentation-demo",
 
     title:
-      "PowerShow Component Showcase",
+      `${displayName} Component Showcase`,
 
     description:
-      "Visual validation of PowerShow renderer and theme components.",
+      `Visual validation of ${displayName} renderer and theme components.`,
 
     aspectRatio: "16:9",
 
@@ -500,7 +424,7 @@ export const demoPresentation =
                     variant: "title",
 
                     content:
-                      "PowerShow",
+                      displayName,
                   },
 
                   {
@@ -1104,7 +1028,7 @@ export const demoPresentation =
                     hidden: false,
 
                     title:
-                      "PowerShow",
+                      displayName,
 
                     lines: [
                       {
@@ -1120,7 +1044,7 @@ export const demoPresentation =
                           "output",
 
                         content:
-                          "PowerShow Player running",
+                          `${displayName} Player running`,
                       },
 
                       {
@@ -1508,7 +1432,7 @@ export const demoPresentation =
                           demoImageSrc,
 
                         alt:
-                          "PowerShow demo graphic using contain",
+                          `${displayName} demo graphic using contain`,
 
                         fit:
                           "contain",
@@ -1588,7 +1512,7 @@ export const demoPresentation =
                           demoImageSrc,
 
                         alt:
-                          "PowerShow demo graphic using cover",
+                          `${displayName} demo graphic using cover`,
 
                         fit:
                           "cover",
@@ -1665,7 +1589,7 @@ export const demoPresentation =
                           demoImageSrc,
 
                         alt:
-                          "PowerShow demo graphic using fill",
+                          `${displayName} demo graphic using fill`,
 
                         fit:
                           "fill",

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PowerShowElement } from "@powershow/document-schema";
 
 import { demoPresentation } from "../src/demo-presentation";
+import { displayName } from "@web-slideshow/instance-branding";
 
 function findElement(element: PowerShowElement, id: string): PowerShowElement | undefined {
   if (element.id === id) return element;
@@ -43,5 +44,13 @@ describe("canonical demo presentation", () => {
     expect(card?.type === "container" && card.children.some((child) => child.id === "demo-plot")).toBe(true);
     expect(findElement(root!, "demo-plot-frame")).toBeUndefined();
     expect(interactive?.type).toBe("interactive");
+  });
+
+  it("uses instance branding only in visual demo surfaces", () => {
+    expect(demoPresentation.id).toBe("presentation-demo");
+    expect(demoPresentation.title).toBe(`${displayName} Component Showcase`);
+    const image = findElement(demoPresentation.slides[6]!.elements[0]!, "image-contain");
+    expect(image?.type).toBe("image");
+    expect(image?.type === "image" && image.src).toBe("/instance-demo.svg");
   });
 });

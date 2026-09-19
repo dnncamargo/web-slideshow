@@ -18,6 +18,7 @@ import {
   POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
   POWERSHOW_TOPICS_TEXT_STYLE_ID,
 } from "@powershow/document-schema";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import {
   getTextContentPlainText,
@@ -1012,7 +1013,7 @@ export function createElement(
 
         hidden: false,
 
-        src: "/powershow-demo.svg",
+        src: "/instance-demo.svg",
 
         alt: "New image",
 
@@ -1037,7 +1038,7 @@ export function createElement(
 
         items: [
           {
-            src: "/powershow-demo.svg",
+            src: "/instance-demo.svg",
 
             alt: "",
           },
@@ -1124,7 +1125,7 @@ export function createElement(
 
         hidden: false,
 
-        code: 'const message = "Hello PowerShow";',
+        code: 'const message = "Hello, presentation";',
 
         language: "typescript",
 

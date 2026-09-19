@@ -88,12 +88,12 @@ describe("Gallery element authoring", () => {
     }
   });
 
-  it("defaults the single item to src /powershow-demo.svg and empty alt", () => {
+  it("defaults the single item to the neutral demo asset and empty alt", () => {
     const created = createElement("gallery", []);
 
     if (created.type === "gallery") {
       expect(created.items[0]).toEqual({
-        src: "/powershow-demo.svg",
+        src: "/instance-demo.svg",
 
         alt: "",
       });
@@ -199,6 +199,19 @@ describe("Gallery element authoring", () => {
       expect(created.items).toHaveLength(1);
 
       expect(created.items[0]).not.toHaveProperty("id");
+    }
+  });
+});
+
+describe("application-owned new content defaults", () => {
+  it("uses a neutral Code example", () => {
+    const created = createElement("code", []);
+
+    expect(created.type).toBe("code");
+    if (created.type === "code") {
+      expect(typeof created.code).toBe("string");
+      if (typeof created.code !== "string") return;
+      expect(created.code).toBe('const message = "Hello, presentation";');
     }
   });
 });

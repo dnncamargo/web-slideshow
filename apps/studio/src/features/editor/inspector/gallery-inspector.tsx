@@ -13,7 +13,7 @@ import { useAuthoringHistory } from "../authoring-history-context";
 
 type GalleryFit = GalleryElement["fit"];
 type GalleryItem = GalleryElement["items"][number];
-const GALLERY_ITEM_DEFAULT: GalleryItem = { src: "/powershow-demo.svg", alt: "" };
+const GALLERY_ITEM_DEFAULT: GalleryItem = { src: "/instance-demo.svg", alt: "" };
 
 interface GalleryInspectorProps extends TypedInspectorProps<GalleryElement> {
   selectedItemIndex?: number | null;

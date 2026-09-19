@@ -1,4 +1,5 @@
 import { PresentationSchema } from "@powershow/document-schema";
+import { displayName } from "@web-slideshow/instance-branding";
 
 // ============================================================
 // BEGIN: APRESENTAÇÃO LOCAL DO EDITOR
@@ -19,7 +20,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
   title: "Editor Demo",
 
-  description: "Local presentation used while developing PowerShow Editor.",
+  description: `Local presentation used while developing ${displayName} Editor.`,
 
   aspectRatio: "16:9",
 
@@ -340,9 +341,9 @@ export const editorDemoPresentation = PresentationSchema.parse({
 
               hidden: false,
 
-              src: "/powershow-demo.svg",
+              src: "/instance-demo.svg",
 
-              alt: "PowerShow Image Element demonstration",
+              alt: `${displayName} Image Element demonstration`,
 
               fit: "contain",
 

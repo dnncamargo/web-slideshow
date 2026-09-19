@@ -434,7 +434,7 @@ describe("GalleryInspector", () => {
     });
     expect(updates[0]?.items).toHaveLength(3);
     expect(updates[0]?.items[2]).toEqual({
-      src: "/powershow-demo.svg",
+      src: "/instance-demo.svg",
       alt: "",
     });
     expect(selectedItemIndex).toBe(2);
