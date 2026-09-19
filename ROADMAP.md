@@ -562,9 +562,29 @@ Manual acceptance passed with Blockly Games: provider content rendered, viewport
 
 ---
 
-# P13 — Production Readiness ← NEXT
+# Editor History / Undo-Redo ✅
 
-Topics and Embed refinement are complete. P13 is now the active work area.
+Editor History is complete as a session-scoped authoring capability. The canonical owner of undoable state is the `Presentation` snapshot; History itself is not part of the persisted document.
+
+Delivered:
+
+- semantic discrete actions and coalesced continuous editing/gestures;
+- a maximum of 30 retained actions per Editor session;
+- Undo/Redo over canonical `Presentation` snapshots, with selection and clipboard state kept outside those snapshots;
+- normal autosave after Undo/Redo mutations without clearing History on Save or Publish;
+- current Inspector, structural, Canvas, resource and Custom Library Apply paths covered by the implementation;
+- a read-only History panel driven by action metadata, with applied actions newest first and the next Redo action first;
+- `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`, while native editable-control undo remains native.
+
+The high-signal manual acceptance areas were completed by the user. The remaining Canvas browser/device smoke (drag, resize, crop, focal point and Container Fit) does not block this milestone and remains a future post-merge verification item. Automated coverage and implementation are present, but this checkpoint does not claim that physical/manual Canvas acceptance is complete.
+
+At this close checkpoint (`75ca782630ee3742f887e531a389e485a1fb03a6`), Studio and Player Vercel results were green. That evidence does not establish the user-facing production deployment identity, so production deployment is not claimed as verified here.
+
+---
+
+# P13 — Production Readiness — planned
+
+Topics, Embed refinement and Editor History are complete. P13 remains a planned readiness work area, but it is not designated as the next work area at this checkpoint.
 
 P13 should stabilize the product from concrete deployment/reliability/security evidence rather than reopen completed feature architecture speculatively.
 
@@ -608,7 +628,6 @@ Deferred candidates include:
 - direct This Presentation FontResource authoring;
 - Library-thumbnail FontResource parity;
 - Topics → Text Style consumption;
-- bounded Undo/Redo;
 - Custom Library portability refinements;
 - remaining WYSIWYG/Text improvements.
 
@@ -650,12 +669,10 @@ P12   UX / Properties refinement                            ✅
        Font authoring + usage protection (#150)             ✅
        Topics structural refinement (#152)                  ✅
        Embed viewport + stable Control preview (#154)       ✅
+       Editor History / Undo-Redo                            ✅
 
 NEXT:
-  P13 Production Readiness
-  → read-only readiness audit
-  → smallest evidence-backed readiness checkpoints
-  → deployment / reliability / security acceptance
+  Next work area: TBD — pending product decision
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -671,9 +688,8 @@ FUTURE / DEFERRED:
   direct This Presentation FontResource authoring
   Library-thumbnail FontResource parity
   Topics → Text Style consumption
-  bounded Undo/Redo
   Custom Library portability
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and start **P13 with an audit before changing production code**.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and audit the work area selected by the pending product decision before changing production code.

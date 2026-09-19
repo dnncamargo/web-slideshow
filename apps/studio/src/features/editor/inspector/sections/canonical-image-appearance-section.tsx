@@ -5,6 +5,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber } from "../inspector-helpers";
+import { useAuthoringHistory } from "../../authoring-history-context";
 import { InspectorSection } from "../inspector-section";
 import { EffectiveLengthInput } from "./effective-length-input";
 import { ElementBorderControl } from "./element-border-control";
@@ -36,6 +37,8 @@ function readOpacityPercentage(value: number | undefined): number {
   return value === undefined ? 100 : value * 100;
 }
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
 export function CanonicalImageAppearanceSection({
   style,
   effect,
@@ -43,7 +46,19 @@ export function CanonicalImageAppearanceSection({
   onUpdateEffect,
 }: Props) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const effectiveDefaults = resolveEffectiveElementStyleDefaults({ type: "image" });
+  const opacityHistoryKey = "number:image-opacity";
+  const updateOpacity = (opacity: number | undefined) => {
+    if (opacity === effect?.opacity) return;
+    const update = () => onUpdateEffect((current) => ({ ...current, opacity }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(opacityHistoryKey, numberHistoryMeta);
+    authoringHistory.update(opacityHistoryKey, update);
+  };
 
   return (
     <InspectorSection title={t("inspector.appearance")}>
@@ -96,12 +111,11 @@ export function CanonicalImageAppearanceSection({
               min="0"
               max="100"
               value={readOpacityPercentage(effect?.opacity)}
+              onFocus={() => authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish(opacityHistoryKey)}
               onChange={(event) => {
                 const percentage = parseOptionalNumber(event.target.value);
-                onUpdateEffect((current) => ({
-                  ...current,
-                  opacity: percentage === undefined ? undefined : percentage / 100,
-                }));
+                updateOpacity(percentage === undefined ? undefined : percentage / 100);
               }}
             />
             <span>%</span>

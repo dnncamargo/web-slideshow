@@ -16,6 +16,7 @@ import { CanonicalElementEffectsSection } from "./sections/canonical-element-eff
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type CodeElement = Extract<PowerShowElement, { type: "code" }>;
 
@@ -32,6 +33,14 @@ function parseHighlightedLines(value: string): number[] {
   return Array.from(new Set(numbers)).sort((left, right) => left - right);
 }
 
+function areHighlightedLinesEqual(left: readonly number[], right: readonly number[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
 // ============================================================
 // BEGIN: CODE INSPECTOR
 // ============================================================
@@ -42,6 +51,14 @@ export function CodeInspector({
   fontResources = [],
 }: TypedInspectorProps<CodeElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const languageHistoryKey = `text:code-${element.id}-language`;
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "code.showLineNumbers" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
 
   const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     onUpdate((current) => {
@@ -76,17 +93,28 @@ export function CodeInspector({
 
     setHighlightedLinesInput(formatHighlightedLines(highlightedLines));
 
-    onUpdate((current) => {
-      if (current.type !== "code") {
+    if (areHighlightedLinesEqual(element.highlightedLines, highlightedLines)) {
+      return;
+    }
+
+    const update = () => onUpdate((current) => {
+      if (current.type !== "code" || areHighlightedLinesEqual(current.highlightedLines, highlightedLines)) {
         return current;
       }
 
-      return {
-        ...current,
-
-        highlightedLines,
-      };
+      return { ...current, highlightedLines };
     });
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "code.highlightedLines" },
+    } as const;
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, update);
+    } else {
+      update();
+    }
   }
 
   const updateEffect = (update: (effect: ElementEffect | undefined) => ElementEffect) => {
@@ -115,6 +143,7 @@ export function CodeInspector({
 
           <RichTextAuthoringControl
             content={element.code}
+            historyKey={`element:${element.id}:code`}
             id="code-source"
             name="codeSource"
             rows={10}
@@ -143,11 +172,17 @@ export function CodeInspector({
             type="text"
             list="powershow-code-languages"
             value={element.language}
+            onFocus={() => authoringHistory?.begin(languageHistoryKey, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(languageHistoryKey)}
             onChange={(event) => {
               const language = event.target.value;
+              if (language === element.language) {
+                return;
+              }
 
-              onUpdate((current) => {
-                if (current.type !== "code") {
+              authoringHistory?.begin(languageHistoryKey, textEditMeta);
+              const update = () => onUpdate((current) => {
+                if (current.type !== "code" || current.language === language) {
                   return current;
                 }
 
@@ -157,6 +192,12 @@ export function CodeInspector({
                   language,
                 };
               });
+
+              if (authoringHistory) {
+                authoringHistory.update(languageHistoryKey, update);
+              } else {
+                update();
+              }
             }}
           />
 
@@ -186,18 +227,8 @@ export function CodeInspector({
             checked={element.showLineNumbers}
             onChange={(event) => {
               const showLineNumbers = event.target.checked;
-
-              onUpdate((current) => {
-                if (current.type !== "code") {
-                  return current;
-                }
-
-                return {
-                  ...current,
-
-                  showLineNumbers,
-                };
-              });
+              if (showLineNumbers === element.showLineNumbers) return;
+              runDiscrete(() => onUpdate((current) => current.type === "code" ? { ...current, showLineNumbers } : current));
             }}
           />
 

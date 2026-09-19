@@ -12,6 +12,8 @@ import styles from "../../editor-workspace.module.css";
 
 import { InspectorSection } from "../inspector-section";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
+
 import type { ElementInspectorUpdate } from "../inspector-types";
 import type { CreateQrCodeFromLink } from "../inspector-types";
 
@@ -81,6 +83,7 @@ export function ElementInteractionSection({
   onCreateQrFromLink,
 }: ElementInteractionSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
 
   const [urlDraft, setUrlDraft] = useState<string>(element.link?.href ?? "");
 
@@ -126,6 +129,20 @@ export function ElementInteractionSection({
     setInvalidUrlMessage(null);
   }
 
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
+
   function commitUrlDraft(): void {
     const href = urlDraft;
 
@@ -139,13 +156,13 @@ export function ElementInteractionSection({
         return;
       }
 
-      onUpdate((current) => {
+      runDiscrete("interaction.url", () => onUpdate((current) => {
         if (!isLinkableElement(current)) {
           return current;
         }
 
         return elementWithoutLink(current);
-      });
+      }));
 
       return;
     }
@@ -153,17 +170,22 @@ export function ElementInteractionSection({
     if (isAbsoluteHttpHref(href)) {
       setInvalidUrlMessage(null);
       setUrlDraft(href);
+      const link = createCanonicalLink(href, openIn);
 
-      onUpdate((current) => {
+      if (element.link?.href === link.href && element.link?.target === link.target) {
+        return;
+      }
+
+      runDiscrete("interaction.url", () => onUpdate((current) => {
         if (!isLinkableElement(current)) {
           return current;
         }
 
         return {
           ...current,
-          link: createCanonicalLink(href, openIn),
+          link,
         };
-      });
+      }));
 
       return;
     }
@@ -202,7 +224,16 @@ export function ElementInteractionSection({
       return;
     }
 
-    onUpdate((current) => {
+    const link = createCanonicalLink(element.link.href, selection);
+
+    if (
+      element.link.href === link.href &&
+      element.link.target === link.target
+    ) {
+      return;
+    }
+
+    runDiscrete("interaction.target", () => onUpdate((current) => {
       if (!isLinkableElement(current)) {
         return current;
       }
@@ -214,19 +245,19 @@ export function ElementInteractionSection({
       return {
         ...current,
 
-        link: createCanonicalLink(current.link.href, selection),
+        link,
       };
-    });
+    }));
   }
 
   function handleRemoveLink(): void {
-    onUpdate((current) => {
+    runDiscrete("interaction.removeLink", () => onUpdate((current) => {
       if (!isLinkableElement(current)) {
         return current;
       }
 
       return elementWithoutLink(current);
-    });
+    }));
   }
 
   return (

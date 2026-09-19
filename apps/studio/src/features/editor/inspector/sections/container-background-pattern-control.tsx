@@ -8,6 +8,7 @@ import type {
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import { getControlName } from "../inspector-helpers";
 
@@ -19,6 +20,7 @@ import {
 
 interface ContainerBackgroundPatternControlProps {
   element: ContainerElement;
+  localElement?: ContainerElement;
   onChange: (pattern: BackgroundPattern | undefined, color?: string) => void;
   controlPrefix: string;
   allowNone?: boolean;
@@ -31,6 +33,15 @@ type PatternControlMode =
 
 function patternSignature(pattern: BackgroundPattern | undefined): string {
   return pattern === undefined ? "none" : JSON.stringify(pattern);
+}
+
+function samePattern(left: BackgroundPattern | undefined, right: BackgroundPattern | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.image === right.image
+    && left.size === right.size
+    && left.position === right.position
+    && left.repeat === right.repeat
+    && left.opacity === right.opacity;
 }
 
 function renderPatternCss(
@@ -55,14 +66,20 @@ function renderPatternCss(
 
 export function ContainerBackgroundPatternControl({
   element,
+  localElement = element,
   onChange,
   controlPrefix,
   allowNone = true,
 }: ContainerBackgroundPatternControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const pattern = element.style?.background?.pattern;
   const color = typeof element.style?.background?.color === "string"
     ? element.style.background.color
+    : undefined;
+  const localPattern = localElement.style?.background?.pattern;
+  const localColor = typeof localElement.style?.background?.color === "string"
+    ? localElement.style.background.color
     : undefined;
   const presetId = pattern === undefined ? undefined : findBackgroundPatternPreset(pattern);
   const derivedMode: PatternControlMode = pattern === undefined ? "none" : presetId ?? "custom";
@@ -71,6 +88,12 @@ export function ContainerBackgroundPatternControl({
   const [mode, setMode] = useState<PatternControlMode>(derivedMode);
   const [customCss, setCustomCss] = useState(() => renderPatternCss(pattern, color));
   const [error, setError] = useState<string | undefined>();
+
+  function runDiscrete(callback: () => void): void {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "container.backgroundPattern" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
 
   useEffect(() => {
     styleRef.current = element.style;
@@ -113,7 +136,8 @@ export function ContainerBackgroundPatternControl({
             if (nextMode === "none") {
               if (!allowNone) return;
               setError(undefined);
-              onChange(undefined);
+              if (localPattern === undefined) return;
+              runDiscrete(() => onChange(undefined));
               return;
             }
 
@@ -127,7 +151,8 @@ export function ContainerBackgroundPatternControl({
             }
 
             setError(undefined);
-            onChange(preset.pattern);
+            if (samePattern(localPattern, preset.pattern)) return;
+            runDiscrete(() => onChange(preset.pattern));
           }}
         >
           {allowNone && <option value="none">{t("inspector.pattern.none")}</option>}
@@ -166,7 +191,9 @@ export function ContainerBackgroundPatternControl({
               }
 
               setError(undefined);
-              onChange(parsed.backgroundPattern, parsed.background);
+              const nextLocalColor = parsed.background === undefined ? localColor : parsed.background;
+              if (samePattern(localPattern, parsed.backgroundPattern) && localColor === nextLocalColor) return;
+              runDiscrete(() => onChange(parsed.backgroundPattern, parsed.background));
             }}
           >
             {t("inspector.pattern.apply")}

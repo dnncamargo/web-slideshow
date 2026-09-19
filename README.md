@@ -36,7 +36,7 @@ PowerShow
 
 - **Public Portal** — public PowerShow root. Without Live it exposes the self-contained demo; during Live it shows the active presentation cover and Watch entry.
 - **PowerShow Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
-- **PowerShow Editor** — visual authoring of the canonical Presentation.
+- **PowerShow Editor** — visual authoring of the canonical Presentation, with session-scoped History and Undo/Redo.
 - **PowerShow Control** — authenticated live-session control, navigation, Player options, contextual element controls and Player-state feedback.
 - **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence, bounded recovery and remote diagnostics mode.
 - **PowerShow Player** — public projection runtime.
@@ -110,6 +110,8 @@ Custom Library resource
 → copy/materialize values into Presentation
 → Presentation owns the resulting canonical data
 ```
+
+Editor History is a current authoring capability. It provides session-only Undo/Redo over canonical Presentation snapshots; History is not persisted into the document or carried into a new Editor session.
 
 Presentation-local systems include Palette references, FontResources, Text Styles and Linked Styles.
 
@@ -391,6 +393,7 @@ Recent merged work includes:
 - manual font-family authoring and complete FontResource usage protection (PR #150);
 - Topics structural authoring refinement and Element Tree simplification (PR #152);
 - Embed viewport framing, provider compatibility and stable Control preview DOM (PR #154).
+- Editor History / Undo-Redo over canonical Presentation snapshots, with semantic actions and a 30-action session bound.
 
 Historical suite counts belong to their respective checkpoints and should not be treated as the current expected total. Feature closure continues to require focused tests, relevant typechecks, `git diff --check`, remote review and manual acceptance where applicable.
 
@@ -468,16 +471,11 @@ Repository execution rules live in `AGENTS.md`. Operational handoffs are provide
 
 See [`ROADMAP.md`](./ROADMAP.md) for chronology and the active execution queue.
 
-Current planned execution order:
+Current milestone state:
 
 ```text
-P13 Production Readiness
-→ end-to-end Studio → publish → Control → Player validation
-→ auth + Firebase rules review
-→ deploy / smoke / rollback readiness
-→ performance + responsive acceptance
-→ focused security review
-→ physical Android interactive display + Firefox 116 release gate
+Editor History / Undo-Redo                         ✅
+Next work area: TBD — pending product decision
 ```
 
-After P13, broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes delete-and-preserve-children semantics, delete-published workflow, a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, bounded Undo/Redo, Custom Library portability and remaining WYSIWYG/Text improvements.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes delete-and-preserve-children semantics, delete-published workflow, a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.

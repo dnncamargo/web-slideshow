@@ -8,6 +8,7 @@ import {
 import type { PanelSizePreset } from "@powershow/theme/panel-size";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import styles from "../../editor-workspace.module.css";
 
@@ -68,6 +69,38 @@ export function ContainerSizeSection({
   onUpdate,
 }: ContainerSizeSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
+  function updateCustomSize(field: "width" | "height", rawValue: string): void {
+    const number = parseOptionalNumber(rawValue);
+    const nextValue = number === undefined ? undefined : `${number}%`;
+
+    if (Object.is(localElement.layout?.[field], nextValue)) {
+      return;
+    }
+
+    const update = () => onUpdate((container) => ({
+      ...container,
+
+      layout: { ...container.layout, [field]: nextValue },
+    }));
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    const historyKey = `number:container-${field}`;
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
+  }
+
+  function runDiscrete(callback: () => void): void {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "container.sizePreset" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
   const source = (property: "layout.width" | "layout.height") => getContainerShareablePropertySource(presentation, localElement, property);
 
   return (
@@ -89,12 +122,12 @@ export function ContainerSizeSection({
             const preset = value as PanelSizePreset;
 
             const size = resolvePanelSize(preset);
-
-            onUpdate((container) => ({
+            if (localElement.layout?.width === size.width && localElement.layout?.height === size.height) return;
+            runDiscrete(() => onUpdate((container) => ({
               ...container,
 
               layout: { ...container.layout, width: size.width, height: size.height },
-            }));
+            })));
           }}
         >
           <option value="small">{t("inspector.small")}</option>
@@ -123,15 +156,9 @@ export function ContainerSizeSection({
               min="1"
               max="100"
               value={readPercentage(element.layout?.width)}
-              onChange={(event) => {
-                const number = parseOptionalNumber(event.target.value);
-
-                onUpdate((container) => ({
-                  ...container,
-
-                  layout: { ...container.layout, width: number === undefined ? undefined : `${number}%` },
-                }));
-              }}
+              onFocus={() => authoringHistory?.begin("number:container-width", numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish("number:container-width")}
+              onChange={(event) => updateCustomSize("width", event.target.value)}
             />
 
             <span>%</span>
@@ -150,15 +177,9 @@ export function ContainerSizeSection({
               min="1"
               max="100"
               value={readPercentage(element.layout?.height)}
-              onChange={(event) => {
-                const number = parseOptionalNumber(event.target.value);
-
-                onUpdate((container) => ({
-                  ...container,
-
-                  layout: { ...container.layout, height: number === undefined ? undefined : `${number}%` },
-                }));
-              }}
+              onFocus={() => authoringHistory?.begin("number:container-height", numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish("number:container-height")}
+              onChange={(event) => updateCustomSize("height", event.target.value)}
             />
 
             <span>%</span>

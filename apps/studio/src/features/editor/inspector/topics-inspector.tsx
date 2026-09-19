@@ -38,6 +38,7 @@ import {
 import { getTextContentPlainText } from "../rich-text-authoring";
 
 import { InspectorSection } from "./inspector-section";
+import { useAuthoringHistory } from "../authoring-history-context";
 import { ColorControl } from "./sections/color-control";
 import { ElementTypographyControl } from "./sections/element-typography-control";
 import { EffectiveNumberInput } from "./sections/effective-number-input";
@@ -87,6 +88,10 @@ interface TopicRowProps {
   removeLabel: string;
 
   onTextChange: (topicItemId: string, content: string) => void;
+
+  onTextFocus: (topicItemId: string) => void;
+
+  onTextBlur: (topicItemId: string) => void;
 
   onAddChild: (topicItemId: string) => void;
 
@@ -170,6 +175,8 @@ function TopicRow({
   maxDepthAddChildLabel,
   removeLabel,
   onTextChange,
+  onTextFocus,
+  onTextBlur,
   onAddChild,
   onRemove,
   registerInputRef,
@@ -179,6 +186,9 @@ function TopicRow({
   const hasDirectText = textChild !== null;
   const contentLabels = getTopicContentLabels(item, t);
   const contentSummary = summarizeTopicContent(contentLabels);
+  const plainText = textChild
+    ? getTextContentPlainText(textChild.content)
+    : "";
   const atMaxStructuralDepth =
     depth + 1 >= MAX_TOPIC_STRUCTURAL_DEPTH;
 
@@ -206,8 +216,18 @@ function TopicRow({
             data-powershow-topic-input="true"
             data-powershow-topic-content-state="editable"
             type="text"
-            value={textChild ? getTextContentPlainText(textChild.content) : ""}
+            value={plainText}
+            onFocus={() => {
+              onTextFocus(item.id);
+            }}
+            onBlur={() => {
+              onTextBlur(item.id);
+            }}
             onChange={(event) => {
+              if (event.currentTarget.value === plainText) {
+                return;
+              }
+
               onTextChange(item.id, event.currentTarget.value);
             }}
           />
@@ -270,6 +290,8 @@ function TopicRow({
               maxDepthAddChildLabel={maxDepthAddChildLabel}
               removeLabel={removeLabel}
               onTextChange={onTextChange}
+              onTextFocus={onTextFocus}
+              onTextBlur={onTextBlur}
               onAddChild={onAddChild}
               onRemove={onRemove}
               registerInputRef={registerInputRef}
@@ -291,6 +313,22 @@ export function TopicsInspector({
   onDetachLinkedTopicsStyle = () => {},
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const textEditMeta = {
+    kind: "text.edit",
+    labelKey: "history.text.edit",
+  } as const;
+  const topicTextHistoryKey = (topicItemId: string) =>
+    `text:topics-${element.id}-item-${topicItemId}`;
+  const runDiscrete = (setting: string, callback: () => void): void => {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
   const [pendingFocusTopicItemId, setPendingFocusTopicItemId] = useState<
     string | null
   >(null);
@@ -342,7 +380,8 @@ export function TopicsInspector({
   }
 
   function updateTopicContent(topicItemId: string, content: string) {
-    updateCurrentTopics((current) => {
+    const historyKey = topicTextHistoryKey(topicItemId);
+    const update = () => updateCurrentTopics((current) => {
       const items = updateTopicItemTextContent(
         current.items,
         topicItemId,
@@ -356,6 +395,21 @@ export function TopicsInspector({
             items,
           };
     });
+
+    if (authoringHistory) {
+      authoringHistory.begin(historyKey, textEditMeta);
+      authoringHistory.update(historyKey, update);
+    } else {
+      update();
+    }
+  }
+
+  function beginTopicTextEdit(topicItemId: string) {
+    authoringHistory?.begin(topicTextHistoryKey(topicItemId), textEditMeta);
+  }
+
+  function finishTopicTextEdit(topicItemId: string) {
+    authoringHistory?.finish(topicTextHistoryKey(topicItemId));
   }
 
   function addTopLevelTopic() {
@@ -380,7 +434,16 @@ function addChildTopic(topicItemId: string) {
   }
 
   function removeTopic(topicItemId: string) {
-    updateCurrentTopics((current) => {
+    const renderedItems = removeTopicItemFromTopicItems(
+      element.items,
+      topicItemId,
+    );
+
+    if (renderedItems === element.items) {
+      return;
+    }
+
+    const update = () => updateCurrentTopics((current) => {
       const items = removeTopicItemFromTopicItems(current.items, topicItemId);
 
       return items === current.items
@@ -390,6 +453,15 @@ function addChildTopic(topicItemId: string) {
             items,
           };
     });
+
+    const removeMeta = {
+      kind: "topics.remove",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "topics.remove" },
+    } as const;
+
+    if (authoringHistory) authoringHistory.discrete(removeMeta, update);
+    else update();
   }
 
   const topicStyleDefaults = resolveEffectiveElementStyleDefaults({
@@ -457,6 +529,8 @@ function addChildTopic(topicItemId: string) {
               maxDepthAddChildLabel={t("inspector.topics.maxDepth")}
               removeLabel={t("inspector.topics.remove")}
               onTextChange={updateTopicContent}
+              onTextFocus={beginTopicTextEdit}
+              onTextBlur={finishTopicTextEdit}
               onAddChild={addChildTopic}
               onRemove={removeTopic}
               registerInputRef={(topicItemId, node) => {
@@ -489,25 +563,11 @@ function addChildTopic(topicItemId: string) {
               onChange={(event) => {
                 const kind = event.target.value as NonNullable<TopicsElement["kind"]>;
 
-                updateCurrentTopics((current) => {
-                  const rootMarkerStyle = normalizeTopicMarkerStyle(
-                    kind,
-                    current.rootMarkerStyle,
-                  );
-
-                  if (
-                    current.kind === kind &&
-                    rootMarkerStyle === current.rootMarkerStyle
-                  ) {
-                    return current;
-                  }
-
-                  return {
-                    ...current,
-                    kind,
-                    rootMarkerStyle,
-                  };
-                });
+                runDiscrete("topics.kind", () => updateCurrentTopics((current) => {
+                  const rootMarkerStyle = normalizeTopicMarkerStyle(kind, current.rootMarkerStyle);
+                  if (current.kind === kind && rootMarkerStyle === current.rootMarkerStyle) return current;
+                  return { ...current, kind, rootMarkerStyle };
+                }));
               }}
             >
               <option value="unordered">
@@ -589,7 +649,7 @@ function addChildTopic(topicItemId: string) {
                     ? undefined
                     : (event.target.value as TopicMarkerStyle);
 
-                updateCurrentTopics((current) => {
+                runDiscrete("topics.rootMarkerStyle", () => updateCurrentTopics((current) => {
                   const normalized = normalizeTopicMarkerStyle(
                     effectiveKind,
                     nextRootMarkerStyle,
@@ -603,7 +663,7 @@ function addChildTopic(topicItemId: string) {
                     ...current,
                     rootMarkerStyle: normalized,
                   };
-                });
+                }));
               }}
             >
               <option value="">{t("inspector.default")}</option>

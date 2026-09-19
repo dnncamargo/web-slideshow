@@ -1,5 +1,6 @@
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
 
 interface EffectiveNumberInputProps {
@@ -28,6 +29,23 @@ export function EffectiveNumberInput({
   onReset,
 }: EffectiveNumberInputProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const historyKey = `number:${id}`;
+  const historyMeta = { kind: "number.change", labelKey: "history.number.change" };
+
+  function beginEditing() {
+    authoringHistory?.begin(historyKey, historyMeta);
+  }
+
+  function updateValue(nextValue: string) {
+    if (!authoringHistory) {
+      onChange(nextValue);
+      return;
+    }
+
+    authoringHistory.begin(historyKey, historyMeta);
+    authoringHistory.update(historyKey, () => onChange(nextValue));
+  }
 
   return (
     <div className={styles.effectiveNumberControl}>
@@ -41,8 +59,10 @@ export function EffectiveNumberInput({
           {...(max === undefined ? {} : { max })}
           {...(step === undefined ? {} : { step })}
           value={value}
+          onFocus={beginEditing}
+          onBlur={() => authoringHistory?.finish(historyKey)}
           onChange={(event) => {
-            onChange(event.target.value);
+            updateValue(event.target.value);
           }}
         />
 
@@ -58,7 +78,18 @@ export function EffectiveNumberInput({
           className={styles.effectiveValueReset}
           type="button"
           title={t("inspector.useThemeDefault")}
-          onClick={onReset}
+          onClick={() => {
+            if (!authoringHistory) {
+              onReset();
+              return;
+            }
+
+            authoringHistory.finish(historyKey);
+            authoringHistory.discrete(
+              { kind: "number.reset", labelKey: "history.number.reset" },
+              onReset,
+            );
+          }}
         >
           {t("inspector.default")}
         </button>

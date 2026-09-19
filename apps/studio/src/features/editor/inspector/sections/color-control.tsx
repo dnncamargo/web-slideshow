@@ -17,6 +17,8 @@ import styles from "../../editor-workspace.module.css";
 
 import { usePresentationColorPalette } from "./presentation-color-palette";
 import { usePickedColors } from "./picked-colors-provider";
+import { useAuthoringHistory } from "../../authoring-history-context";
+import type { HistoryActionMeta } from "../../editor-history-state";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -32,6 +34,7 @@ interface ColorControlProps {
     disabled?: boolean;
   };
   disabled?: boolean;
+  historyMeta?: HistoryActionMeta;
 }
 
 type ColorChangeSource = LiteralColorChangeSource | "palette" | "picked" | "detach";
@@ -44,10 +47,13 @@ export function ColorControl({
   onChange,
   secondaryAction,
   disabled = false,
+  historyMeta = { kind: "color.change", labelKey: "history.color.change" },
 }: ColorControlProps) {
   const { t } = useStudioI18n();
   const palette = usePresentationColorPalette();
   const picked = usePickedColors();
+  const authoringHistory = useAuthoringHistory();
+  const historyKey = `color:${id}`;
   const displayedValue = value ?? effectiveValue;
   const sourceValue = displayedValue === undefined
     ? DEFAULT_PICKER_COLOR
@@ -68,7 +74,25 @@ export function ColorControl({
     ? undefined
     : detachColorValue(value, { colors: [...paletteColors] });
   const emitLiteralColor = (color: Color, source: ColorChangeSource = "text") => {
-    onChange(color, source);
+    if (!authoringHistory) {
+      onChange(color, source);
+      return;
+    }
+    if (source === "picker" || source === "text") {
+      authoringHistory.begin(historyKey, historyMeta);
+      authoringHistory.update(historyKey, () => onChange(color, source));
+    } else {
+      authoringHistory.finish(historyKey);
+      authoringHistory.discrete(historyMeta, () => onChange(color, source));
+    }
+  };
+  const emitDiscreteColor = (color: ColorValue, source: ColorChangeSource) => {
+    if (!authoringHistory) {
+      onChange(color, source);
+      return;
+    }
+    authoringHistory.finish(historyKey);
+    authoringHistory.discrete(historyMeta, () => onChange(color, source));
   };
   const hasReusableChoices = paletteColors.length > 0 || (picked?.colors.length ?? 0) > 0;
 
@@ -79,7 +103,11 @@ export function ColorControl({
         name={name}
         value={literalValue}
         disabled={disabled}
-        onCommit={(color) => picked?.onPickColor(color)}
+        onCommit={(color) => {
+          authoringHistory?.finish(historyKey);
+          picked?.onPickColor(color);
+        }}
+        onBlur={() => authoringHistory?.finish(historyKey)}
         onChange={(color, source) => {
           setLiteralValue(color);
           setIsPaletteChooserOpen(false);
@@ -113,7 +141,12 @@ export function ColorControl({
               disabled={disabled || secondaryAction.disabled}
               onClick={() => {
                 setIsPaletteChooserOpen(false);
-                secondaryAction.onClick();
+                if (!authoringHistory) {
+                  secondaryAction.onClick();
+                } else {
+                  authoringHistory.finish(historyKey);
+                  authoringHistory.discrete(historyMeta, secondaryAction.onClick);
+                }
               }}
             >
               {secondaryAction.label}
@@ -158,7 +191,7 @@ export function ColorControl({
                     onClick={() => {
                       setLiteralValue(color.value);
                       setIsPaletteChooserOpen(false);
-                      onChange({ kind: "palette", colorId: color.id }, "palette");
+                      emitDiscreteColor({ kind: "palette", colorId: color.id }, "palette");
                     }}
                   />
                 </div>
@@ -181,7 +214,7 @@ export function ColorControl({
                       onClick={() => {
                         setLiteralValue(color);
                         setIsPaletteChooserOpen(false);
-                        onChange(color, "picked");
+                        emitDiscreteColor(color, "picked");
                       }}
                     />
                     <button

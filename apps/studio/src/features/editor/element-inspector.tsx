@@ -329,7 +329,12 @@ export function ElementInspector({
 
       <ElementTypeInspector
         element={element}
-        onUpdate={onUpdate}
+        onUpdate={(update) => {
+          // Rich text and ColorControl explicitly mark their next element
+          // update through the authoring boundary. Other inspector writes
+          // retain the existing compatibility path.
+          onUpdate(update);
+        }}
         plotPreviewControls={plotPreviewControls}
         onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}

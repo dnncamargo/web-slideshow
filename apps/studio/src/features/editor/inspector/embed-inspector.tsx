@@ -12,6 +12,8 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../editor-workspace.module.css";
 
+import { useAuthoringHistory } from "../authoring-history-context";
+
 import { InspectorSection } from "./inspector-section";
 
 import type {
@@ -40,11 +42,80 @@ import { ElementSpacingSection } from "./sections/element-spacing-section";
 // canonical value.
 // ============================================================
 
+const numberHistoryMeta = {
+  kind: "number.change",
+  labelKey: "history.number.change",
+} as const;
+
+const textEditHistoryMeta = {
+  kind: "text.edit",
+  labelKey: "history.text.edit",
+} as const;
+
+const EMBED_VIEWPORT_HISTORY_KEYS: Record<keyof EmbedViewport, string> = {
+  zoom: "number:embed-viewport-zoom",
+  top: "number:embed-viewport-top",
+  right: "number:embed-viewport-right",
+  bottom: "number:embed-viewport-bottom",
+  left: "number:embed-viewport-left",
+};
+
+const EMBED_VIEWPORT_FIELDS: readonly (keyof EmbedViewport)[] = [
+  "zoom",
+  "top",
+  "right",
+  "bottom",
+  "left",
+];
+
+function normalizeEmbedViewport(
+  viewport: EmbedViewport | undefined,
+  field: keyof EmbedViewport,
+  value: number,
+): EmbedViewport | undefined {
+  const nextViewport: EmbedViewport = {
+    ...viewport,
+    [field]: value,
+  };
+
+  for (const key of EMBED_VIEWPORT_FIELDS) {
+    const nextValue = nextViewport[key];
+    if (
+      nextValue === undefined ||
+      (key === "zoom" ? nextValue === 1 : nextValue === 0)
+    ) {
+      delete nextViewport[key];
+    }
+  }
+
+  return Object.keys(nextViewport).length === 0 ? undefined : nextViewport;
+}
+
+function areEmbedViewportsEqual(
+  left: EmbedViewport | undefined,
+  right: EmbedViewport | undefined,
+): boolean {
+  if (left === undefined || right === undefined) {
+    return left === right;
+  }
+
+  return EMBED_VIEWPORT_FIELDS.every((field) => left[field] === right[field]);
+}
+
 export function EmbedInspector({
   element,
   onUpdate,
 }: TypedInspectorProps<EmbedElement>) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+
+  const runTextEdit = (callback: () => void): void => {
+    if (authoringHistory) {
+      authoringHistory.discrete(textEditHistoryMeta, callback);
+    } else {
+      callback();
+    }
+  };
 
   const [srcDraft, setSrcDraft] = useState<string>(element.src);
 
@@ -129,35 +200,45 @@ export function EmbedInspector({
       return;
     }
 
-    onUpdate((current) => {
-      if (current.type !== "embed") {
-        return current;
-      }
+    const nextViewport = normalizeEmbedViewport(
+      element.viewport,
+      field,
+      canonicalValue,
+    );
 
-      const nextViewport: EmbedViewport = {
-        ...current.viewport,
-        [field]: canonicalValue,
-      };
+    if (areEmbedViewportsEqual(element.viewport, nextViewport)) {
+      return;
+    }
 
-      for (const [key, nextValue] of Object.entries(nextViewport) as [
-        keyof EmbedViewport,
-        number | undefined,
-      ][]) {
-        if (
-          nextValue === undefined ||
-          (key === "zoom" ? nextValue === 1 : nextValue === 0)
-        ) {
-          delete nextViewport[key];
+    const update = () => {
+      onUpdate((current) => {
+        if (current.type !== "embed") {
+          return current;
         }
-      }
 
-      return {
-        ...current,
-        ...(Object.keys(nextViewport).length === 0
-          ? { viewport: undefined }
-          : { viewport: nextViewport }),
-      };
-    });
+        const currentNextViewport = normalizeEmbedViewport(
+          current.viewport,
+          field,
+          canonicalValue,
+        );
+
+        return {
+          ...current,
+          ...(currentNextViewport === undefined
+            ? { viewport: undefined }
+            : { viewport: currentNextViewport }),
+        };
+      });
+    };
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    const historyKey = EMBED_VIEWPORT_HISTORY_KEYS[field];
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
   }
 
   function commitSrcDraft(): void {
@@ -167,17 +248,17 @@ export function EmbedInspector({
       setInvalidSrcMessage(null);
       setSrcDraft(src);
 
-      onUpdate((current) => {
-        if (current.type !== "embed") {
+      if (element.src === src) {
+        return;
+      }
+
+      runTextEdit(() => onUpdate((current) => {
+        if (current.type !== "embed" || current.src === src) {
           return current;
         }
 
-        return {
-          ...current,
-
-          src,
-        };
-      });
+        return { ...current, src };
+      }));
 
       return;
     }
@@ -208,17 +289,17 @@ export function EmbedInspector({
       setTitleRequiredMessage(null);
       setTitleDraft(title);
 
-      onUpdate((current) => {
-        if (current.type !== "embed") {
+      if (element.title === title) {
+        return;
+      }
+
+      runTextEdit(() => onUpdate((current) => {
+        if (current.type !== "embed" || current.title === title) {
           return current;
         }
 
-        return {
-          ...current,
-
-          title,
-        };
-      });
+        return { ...current, title };
+      }));
 
       return;
     }
@@ -319,9 +400,16 @@ export function EmbedInspector({
               step="1"
               inputMode="decimal"
               value={(element.viewport?.zoom ?? 1) * 100}
-              onChange={(event) =>
-                updateViewportField("zoom", event.target.value)
+              onFocus={() =>
+                authoringHistory?.begin(
+                  EMBED_VIEWPORT_HISTORY_KEYS.zoom,
+                  numberHistoryMeta,
+                )
               }
+              onBlur={() =>
+                authoringHistory?.finish(EMBED_VIEWPORT_HISTORY_KEYS.zoom)
+              }
+              onChange={(event) => updateViewportField("zoom", event.target.value)}
             />
             <span>%</span>
           </div>
@@ -342,9 +430,16 @@ export function EmbedInspector({
                     step="1"
                     inputMode="numeric"
                     value={element.viewport?.[field] ?? 0}
-                    onChange={(event) =>
-                      updateViewportField(field, event.target.value)
+                    onFocus={() =>
+                      authoringHistory?.begin(
+                        EMBED_VIEWPORT_HISTORY_KEYS[field],
+                        numberHistoryMeta,
+                      )
                     }
+                    onBlur={() =>
+                      authoringHistory?.finish(EMBED_VIEWPORT_HISTORY_KEYS[field])
+                    }
+                    onChange={(event) => updateViewportField(field, event.target.value)}
                   />
                   <span>px</span>
                 </div>

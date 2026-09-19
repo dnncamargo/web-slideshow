@@ -45,6 +45,7 @@ import {
   resolveEffectiveTextStyleForAuthoring,
 } from "../text-typography-authoring";
 import { listPresentationTextStyles } from "../text-style-helpers";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type TextInspectorElement = Extract<PowerShowElement, { type: "text" }>;
 
@@ -66,6 +67,21 @@ export function TextInspector({
   onCreateQrFromLink?: CreateQrCodeFromLink;
 }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+
+  function runStyleRelationship(callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "text.style" },
+    } as const;
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
 
   const updateStyle = (update: (style: TextVisualStyle | undefined) => TextVisualStyle) => {
     onUpdate((current) => {
@@ -114,16 +130,18 @@ export function TextInspector({
     : fundamentalLabels[element.variant] ?? element.variant;
 
   function attachTextStyle(variant: TextInspectorElement["variant"]) {
-    onUpdate((current) => {
-      if (current.type !== "text") return current;
-      const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, ...attached } = current;
-      const local = stripLocalTextStyleProperties(current.typography, current.style);
-      return {
-        ...attached,
-        variant,
-        ...(local.style === undefined ? {} : { style: local.style }),
-        ...(local.typography === undefined ? {} : { typography: local.typography }),
-      };
+    runStyleRelationship(() => {
+      onUpdate((current) => {
+        if (current.type !== "text") return current;
+        const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, ...attached } = current;
+        const local = stripLocalTextStyleProperties(current.typography, current.style);
+        return {
+          ...attached,
+          variant,
+          ...(local.style === undefined ? {} : { style: local.style }),
+          ...(local.typography === undefined ? {} : { typography: local.typography }),
+        };
+      });
     });
   }
 
@@ -134,6 +152,7 @@ export function TextInspector({
       <InspectorSection title={t("inspector.content")} defaultOpen>
         <RichTextAuthoringControl
           content={element.content}
+          historyKey={`element:${element.id}:content`}
           onChange={(content) => onUpdate((current) => current.type === "text" ? { ...current, content } : current)}
         />
       </InspectorSection>
@@ -170,9 +189,9 @@ export function TextInspector({
           {!element.styleDetached && presentation && (
             <button
               type="button"
-              onClick={() => onUpdate((current) => current.type === "text"
+              onClick={() => runStyleRelationship(() => onUpdate((current) => current.type === "text"
                 ? detachTextStyle(presentation, current)
-                : current)}
+                : current))}
             >
               {t("inspector.detachTypographyNamed", { style: selectedStyleName })}
             </button>

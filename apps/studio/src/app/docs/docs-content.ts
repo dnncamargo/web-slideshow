@@ -312,6 +312,44 @@ export const docsGroups: readonly DocsGroup[] = [
         ],
       },
       {
+        id: "editor-history",
+        title: "Histórico do Editor",
+        summary:
+          "Undo/Redo é uma capacidade de autoria baseada em snapshots da Presentation e válida somente na sessão atual do Editor.",
+        sections: [
+          {
+            title: "Owner e lifetime",
+            paragraphs: [
+              "O estado undoable pertence ao snapshot da Presentation canônica. Cada ação mantém o estado anterior e o posterior; seleção, estado transitório da interface e clipboard não fazem parte do snapshot.",
+              "O Editor retém no máximo 30 ações. History é somente de sessão: não é persistido na Presentation, não muda o schemaVersion e uma nova sessão ou reload começa sem ações anteriores.",
+            ],
+          },
+          {
+            title: "Ações semânticas",
+            bullets: [
+              "Mudanças discretas formam ações separadas; edição numérica, de cor, tamanho e gestos contínuos são coalescidos quando pertencem à mesma interação.",
+              "Um gesto concluído de Canvas é uma ação semântica; a prévia intermediária não cria ações persistidas adicionais.",
+              "Custom Library Apply é atômico do ponto de vista do usuário. Uma única ação pode criar o elemento e materializar/remapear Font, Text Style e Linked Style; um Undo reverte e um Redo restaura esse conjunto canônico.",
+            ],
+          },
+          {
+            title: "Integração com autoria e persistência",
+            paragraphs: [
+              "Undo e Redo restauram snapshots da Presentation e seguem o pipeline normal de autosave. Save e Publish não limpam History; a seleção é reconciliada separadamente depois de um replay.",
+              "A integração cobre os caminhos atuais de Inspector, estrutura, Canvas, recursos e Custom Library para as famílias de elementos e recursos implementadas. Isso descreve a cobertura atual, não uma promessa automática para futuros controles.",
+            ],
+          },
+          {
+            title: "UI e teclado",
+            bullets: [
+              "O painel History é read-only e consome metadados das ações para seus rótulos; ele não deriva labels inspecionando snapshots nem implementa uma segunda History.",
+              "Ações aplicadas aparecem da mais nova para a mais antiga. A lista de Redo começa pela próxima ação disponível.",
+              "Ctrl/Cmd+Z desfaz e Ctrl/Cmd+Shift+Z refaz quando o alvo não é um controle editável. Campos editáveis mantêm o Undo nativo do input ou editor de texto.",
+            ],
+          },
+        ],
+      },
+      {
         id: "player-watch-legacy",
         title: "Player, Watch e Legacy",
         summary:

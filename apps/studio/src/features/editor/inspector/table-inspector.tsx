@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type {
   FontResource,
@@ -14,6 +14,7 @@ import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 import type {
   TableAuthoringControls,
@@ -177,8 +178,15 @@ function ColumnKeyInput({
   onCommit,
 }: ColumnKeyInputProps) {
   const [draft, setDraft] = useState(currentKey);
+  const skipNextCommitRef = useRef(false);
 
   function commit() {
+    if (skipNextCommitRef.current) {
+      skipNextCommitRef.current = false;
+
+      return;
+    }
+
     const value = draft.trim();
 
     const duplicate = existingKeys.some(
@@ -212,6 +220,7 @@ function ColumnKeyInput({
         }
 
         if (event.key === "Escape") {
+          skipNextCommitRef.current = true;
           setDraft(currentKey);
 
           event.currentTarget.blur();
@@ -246,6 +255,10 @@ interface TableCellEditorProps {
 
   controlNamePrefix: string;
 
+  textHistoryKey: string;
+
+  numberHistoryKey: string;
+
   value: TableCellValue | undefined;
 
   onChange: (value: TableCellValue) => void;
@@ -254,11 +267,68 @@ interface TableCellEditorProps {
 function TableCellEditor({
   controlIdPrefix,
   controlNamePrefix,
+  textHistoryKey,
+  numberHistoryKey,
   value,
   onChange,
 }: TableCellEditorProps) {
   const type = getCellType(value);
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
+  const numberChangeMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+  const runDiscrete = (setting: "table.cellType" | "table.cellBoolean", callback: () => void): void => {
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting } },
+        callback,
+      );
+    } else {
+      callback();
+    }
+  };
+  const updateTextValue = (nextPlainText: string): void => {
+    const currentPlainText = value === null || value === undefined || (typeof value !== "string" && typeof value !== "object")
+      ? ""
+      : getTextContentPlainText(value);
+
+    if (nextPlainText === currentPlainText) {
+      return;
+    }
+
+    const update = () => onChange(
+      reconcileTextContentEdit(
+        value !== null && (typeof value === "string" || typeof value === "object") ? value : "",
+        nextPlainText,
+      ),
+    );
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(textHistoryKey, textEditMeta);
+    authoringHistory.update(textHistoryKey, update);
+  };
+  const updateNumberValue = (rawValue: string): void => {
+    const number = Number(rawValue);
+    const nextNumber = Number.isFinite(number) ? number : 0;
+
+    if (nextNumber === value) {
+      return;
+    }
+
+    const update = () => onChange(nextNumber);
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(numberHistoryKey, numberChangeMeta);
+    authoringHistory.update(numberHistoryKey, update);
+  };
 
   return (
     <div className={styles.tableCellEditor}>
@@ -268,13 +338,9 @@ function TableCellEditor({
         className={`${styles.inspectorControl} ${styles.tableCellType}`}
         value={type}
         onChange={(event) => {
-          onChange(
-            convertCellType(
-              value,
-
-              event.target.value as "string" | "number" | "boolean" | "null",
-            ),
-          );
+          const nextType = event.target.value as "string" | "number" | "boolean" | "null";
+          if (nextType === type) return;
+          runDiscrete("table.cellType", () => onChange(convertCellType(value, nextType)));
         }}
       >
         <option value="string">{t("table.text")}</option>
@@ -295,14 +361,10 @@ function TableCellEditor({
           value={value === undefined || value === null || (typeof value !== "string" && typeof value !== "object")
             ? ""
             : getTextContentPlainText(value)}
+          onFocus={() => authoringHistory?.begin(textHistoryKey, textEditMeta)}
+          onBlur={() => authoringHistory?.finish(textHistoryKey)}
           onChange={(event) => {
-            const nextPlainText = event.target.value;
-            onChange(
-              reconcileTextContentEdit(
-                value !== null && (typeof value === "string" || typeof value === "object") ? value : "",
-                nextPlainText,
-              ),
-            );
+            updateTextValue(event.target.value);
           }}
         />
       )}
@@ -314,10 +376,10 @@ function TableCellEditor({
           type="number"
           className={styles.inspectorControl}
           value={typeof value === "number" ? value : 0}
+          onFocus={() => authoringHistory?.begin(numberHistoryKey, numberChangeMeta)}
+          onBlur={() => authoringHistory?.finish(numberHistoryKey)}
           onChange={(event) => {
-            const number = Number(event.target.value);
-
-            onChange(Number.isFinite(number) ? number : 0);
+            updateNumberValue(event.target.value);
           }}
         />
       )}
@@ -329,7 +391,9 @@ function TableCellEditor({
           className={styles.inspectorControl}
           value={value === true ? "true" : "false"}
           onChange={(event) => {
-            onChange(event.target.value === "true");
+            const nextValue = event.target.value === "true";
+            if (nextValue === value) return;
+            runDiscrete("table.cellBoolean", () => onChange(nextValue));
           }}
         >
           <option value="true">{t("table.true")}</option>
@@ -393,6 +457,8 @@ function SimpleTableInspector({
   fontResources: readonly FontResource[];
 }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
 
   // ==========================================================
   // BEGIN: UPDATE GENÉRICO DE TABLE
@@ -437,11 +503,18 @@ function SimpleTableInspector({
   // migrados para a nova key.
   // ==========================================================
 
-  function renameColumn(index: number, newKey: string) {
-    updateTable((table) => {
+  function renameColumn(index: number, expectedOldKey: string, newKey: string) {
+    const update = () => updateTable((table) => {
       const column = table.columns[index];
 
-      if (!column) {
+      if (
+        !column
+        || column.key !== expectedOldKey
+        || !newKey
+        || table.columns.some((currentColumn, columnIndex) =>
+          columnIndex !== index && currentColumn.key === newKey,
+        )
+      ) {
         return table;
       }
 
@@ -482,6 +555,19 @@ function SimpleTableInspector({
         rows,
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.columnKey" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -493,7 +579,7 @@ function SimpleTableInspector({
   // ==========================================================
 
   function addColumn() {
-    updateTable((table) => {
+    const update = () => updateTable((table) => {
       const key = createUniqueColumnKey(table.columns);
 
       return {
@@ -516,6 +602,19 @@ function SimpleTableInspector({
         })),
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.addColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addColumn" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -526,11 +625,11 @@ function SimpleTableInspector({
   // BEGIN: REMOVER COLUNA
   // ==========================================================
 
-  function removeColumn(index: number) {
-    updateTable((table) => {
+  function removeColumn(index: number, expectedKey: string) {
+    const update = () => updateTable((table) => {
       const column = table.columns[index];
 
-      if (!column) {
+      if (!column || column.key !== expectedKey) {
         return table;
       }
 
@@ -554,6 +653,19 @@ function SimpleTableInspector({
         }),
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.removeColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeColumn" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -565,7 +677,7 @@ function SimpleTableInspector({
   // ==========================================================
 
   function addRow() {
-    updateTable((table) => {
+    const update = () => updateTable((table) => {
       const row: TableRow = {};
 
       for (const column of table.columns) {
@@ -578,6 +690,19 @@ function SimpleTableInspector({
         rows: [...table.rows, row],
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.addRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addRow" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -589,11 +714,30 @@ function SimpleTableInspector({
   // ==========================================================
 
   function removeRow(index: number) {
-    updateTable((table) => ({
-      ...table,
+    const update = () => updateTable((table) => {
+      if (index < 0 || index >= table.rows.length) {
+        return table;
+      }
 
-      rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
-    }));
+      return {
+        ...table,
+
+        rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
+      };
+    });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "table.removeRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeRow" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -622,6 +766,37 @@ function SimpleTableInspector({
           : row,
       ),
     }));
+  }
+
+  function updateColumnLabel(columnKey: string, nextPlainText: string) {
+    const column = element.columns.find((currentColumn) => currentColumn.key === columnKey);
+
+    if (!column || getTextContentPlainText(column.label) === nextPlainText) {
+      return;
+    }
+
+    const historyKey = `text:table-${element.id}-column-${columnKey}-label`;
+    const update = () => updateTable((table) => ({
+      ...table,
+
+      columns: table.columns.map((currentColumn) =>
+        currentColumn.key === columnKey
+          ? {
+              ...currentColumn,
+
+              label: reconcileTextContentEdit(currentColumn.label, nextPlainText),
+            }
+          : currentColumn,
+      ),
+    }));
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(historyKey, textEditMeta);
+    authoringHistory.update(historyKey, update);
   }
 
   // ==========================================================
@@ -654,7 +829,7 @@ function SimpleTableInspector({
                 className={styles.iconButtonDanger}
                 aria-label={t("table.removeColumn", { number: index + 1 })}
                 onClick={() => {
-                  removeColumn(index);
+                  removeColumn(index, column.key);
                 }}
               >
                 <span aria-hidden="true">×</span>
@@ -669,22 +844,15 @@ function SimpleTableInspector({
                 name={`tableColumnLabel_${element.id}_${column.key}`}
                 type="text"
                 value={getTextContentPlainText(column.label)}
+                onFocus={() => authoringHistory?.begin(
+                  `text:table-${element.id}-column-${column.key}-label`,
+                  textEditMeta,
+                )}
+                onBlur={() => authoringHistory?.finish(
+                  `text:table-${element.id}-column-${column.key}-label`,
+                )}
                 onChange={(event) => {
-                  const nextPlainText = event.target.value;
-
-                  updateTable((table) => ({
-                    ...table,
-
-                    columns: table.columns.map((currentColumn, columnIndex) =>
-                      columnIndex === index
-                        ? {
-                            ...currentColumn,
-
-                            label: reconcileTextContentEdit(currentColumn.label, nextPlainText),
-                          }
-                        : currentColumn,
-                    ),
-                  }));
+                  updateColumnLabel(column.key, event.target.value);
                 }}
               />
             </label>
@@ -705,7 +873,7 @@ function SimpleTableInspector({
                 currentKey={column.key}
                 existingKeys={element.columns.map((item) => item.key)}
                 onCommit={(newKey) => {
-                  renameColumn(index, newKey);
+                  renameColumn(index, column.key, newKey);
                 }}
               />
               {/* ==========================================================
@@ -781,6 +949,8 @@ function SimpleTableInspector({
                   <TableCellEditor
                     controlIdPrefix={`table-${element.id}-row-${rowIndex}-column-${column.key}-${columnIndex}`}
                     controlNamePrefix={`tableCell_${element.id}_${rowIndex}_${column.key}_${columnIndex}`}
+                    textHistoryKey={`text:table-${element.id}-row-${rowIndex}-column-${column.key}-value`}
+                    numberHistoryKey={`number:table-${element.id}-row-${rowIndex}-column-${column.key}-value`}
                     value={row[column.key]}
                     onChange={(value) => {
                       updateCell(rowIndex, column.key, value);

@@ -16,6 +16,7 @@ import type { PlotPreviewControls, TypedInspectorProps } from "./inspector-types
 import { ColorControl } from "./sections/color-control";
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 const DEFAULT_PLOT_Z_GRADIENT = {
   minColor: "#7c3aed",
@@ -29,6 +30,11 @@ const DEFAULT_PLOT_ANIMATION = {
   durationMs: "4000",
   loop: true,
   autoplay: true,
+} as const;
+
+const numberChangeHistoryMeta = {
+  kind: "number.change",
+  labelKey: "history.number.change",
 } as const;
 
 type PlotAnimationDraft = {
@@ -59,6 +65,10 @@ function animationIdentity(animation: PlotAnimation | undefined): string {
   return JSON.stringify(animation ?? null);
 }
 
+function plotStyleIdentity(style: PlotVisualStyle | undefined): string {
+  return JSON.stringify(style ?? null);
+}
+
 function normalizePlotStyle(style: PlotVisualStyle | undefined): PlotVisualStyle | undefined {
   if (style === undefined) return undefined;
   const background = style.background?.color === undefined ? undefined : style.background;
@@ -81,6 +91,18 @@ export function PlotInspector({
   previewControls,
 }: TypedInspectorProps<PlotElement> & { previewControls?: PlotPreviewControls }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const sourceHistoryKey = `text:plot-${element.id}-source`;
+  const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
+  const runDiscrete = (setting: string, callback: () => void): void => {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
   const [animationDraft, setAnimationDraft] = useState<PlotAnimationDraft>(() => plotAnimationDraft(element.animation));
   const [hydratedAnimation, setHydratedAnimation] = useState({
     id: element.id,
@@ -125,12 +147,12 @@ export function PlotInspector({
   function applyAnimationDraft(): void {
     if (!animationDraft.enabled) {
       if (element.animation === undefined) return;
-      onUpdate((current) => {
+      runDiscrete("plot.animation", () => onUpdate((current) => {
         if (current.type !== "plot" || current.animation === undefined) return current;
         const next = { ...current };
         delete next.animation;
         return next;
-      });
+      }));
       return;
     }
 
@@ -162,9 +184,9 @@ export function PlotInspector({
     }
 
     setAnimationMessage(null);
-    onUpdate((current) => current.type === "plot"
+    runDiscrete("plot.animation", () => onUpdate((current) => current.type === "plot"
       ? { ...current, animation: parsed.data }
-      : current);
+      : current));
   }
 
   function resetAnimationDraft(): void {
@@ -178,9 +200,25 @@ export function PlotInspector({
       : current);
   };
 
+  const commitAxisStyle = (update: (style: PlotVisualStyle | undefined) => PlotVisualStyle | undefined): void => {
+    const nextStyle = normalizePlotStyle(update(element.style));
+    if (plotStyleIdentity(nextStyle) === plotStyleIdentity(element.style)) return;
+
+    const apply = () => onUpdate((current) => {
+      if (current.type !== "plot") return current;
+      const currentStyle = current.style;
+      const recomputedStyle = normalizePlotStyle(update(currentStyle));
+      if (plotStyleIdentity(recomputedStyle) === plotStyleIdentity(currentStyle)) return current;
+      return { ...current, style: recomputedStyle };
+    });
+
+    if (authoringHistory) authoringHistory.discrete(numberChangeHistoryMeta, apply);
+    else apply();
+  };
+
   function commitAxisStrokeWidth(value = axisStrokeWidthDraft): void {
     if (value.trim() === "") {
-      updateStyle((current) => {
+      commitAxisStyle((current) => {
         if (current?.axes === undefined) return current;
         const next = { ...current, axes: { ...current.axes } };
         delete next.axes.strokeWidth;
@@ -191,7 +229,7 @@ export function PlotInspector({
 
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return;
-    updateStyle((current) => ({
+    commitAxisStyle((current) => ({
       ...(current ?? {}),
       axes: { ...(current?.axes ?? {}), strokeWidth: parsed },
     }));
@@ -199,7 +237,7 @@ export function PlotInspector({
 
   function commitAxisOpacity(value = axisOpacityDraft): void {
     if (value.trim() === "") {
-      updateStyle((current) => {
+      commitAxisStyle((current) => {
         if (current?.axes === undefined) return current;
         const next = { ...current, axes: { ...current.axes } };
         delete next.axes.opacity;
@@ -210,7 +248,7 @@ export function PlotInspector({
 
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) return;
-    updateStyle((current) => ({
+    commitAxisStyle((current) => ({
       ...(current ?? {}),
       axes: { ...(current?.axes ?? {}), opacity: parsed / 100 },
     }));
@@ -232,11 +270,17 @@ export function PlotInspector({
             spellCheck={false}
             value={element.source}
             maxLength={4096}
+            onFocus={() => authoringHistory?.begin(sourceHistoryKey, textEditMeta)}
+            onBlur={() => authoringHistory?.finish(sourceHistoryKey)}
             onChange={(event) => {
               const source = event.target.value;
+              if (source === element.source) {
+                return;
+              }
 
-              onUpdate((current) => {
-                if (current.type !== "plot") {
+              authoringHistory?.begin(sourceHistoryKey, textEditMeta);
+              const update = () => onUpdate((current) => {
+                if (current.type !== "plot" || current.source === source) {
                   return current;
                 }
 
@@ -245,6 +289,12 @@ export function PlotInspector({
                   source,
                 };
               });
+
+              if (authoringHistory) {
+                authoringHistory.update(sourceHistoryKey, update);
+              } else {
+                update();
+              }
             }}
           />
         </label>
@@ -420,9 +470,10 @@ export function PlotInspector({
             type="checkbox"
             checked={element.fitToAxes !== false}
             onChange={(event) => {
-              onUpdate((current) => current.type === "plot"
+              if ((element.fitToAxes !== false) === event.target.checked) return;
+              runDiscrete("plot.fitToAxes", () => onUpdate((current) => current.type === "plot"
                 ? { ...current, fitToAxes: event.target.checked }
-                : current);
+                : current));
             }}
           />
           <span>{t("inspector.fitToAxes")}</span>
@@ -435,9 +486,10 @@ export function PlotInspector({
             type="checkbox"
             checked={element.showAxes !== false}
             onChange={(event) => {
-              onUpdate((current) => current.type === "plot"
+              if ((element.showAxes !== false) === event.target.checked) return;
+              runDiscrete("plot.showAxes", () => onUpdate((current) => current.type === "plot"
                 ? { ...current, showAxes: event.target.checked }
-                : current);
+                : current));
             }}
           />
           <span>{t("inspector.showAxes")}</span>
@@ -547,7 +599,9 @@ export function PlotInspector({
             value={element.style?.zGradient === undefined ? "solid" : "z"}
             onChange={(event) => {
               const mode = event.target.value;
-              updateStyle((current) => {
+              const currentMode = element.style?.zGradient === undefined ? "solid" : "z";
+              if (mode === currentMode) return;
+              runDiscrete("plot.zColorMode", () => updateStyle((current) => {
                 const next = { ...(current ?? {}) };
                 if (mode === "z") {
                   next.zGradient = current?.zGradient ?? DEFAULT_PLOT_Z_GRADIENT;
@@ -555,7 +609,7 @@ export function PlotInspector({
                   delete next.zGradient;
                 }
                 return next;
-              });
+              }));
             }}
           >
             <option value="solid">{t("inspector.plot3dColor.solid")}</option>

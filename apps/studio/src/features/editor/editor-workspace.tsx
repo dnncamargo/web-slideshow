@@ -37,6 +37,15 @@ import {
   updatePresentationPaletteColorValue,
   resolveLinkedContainerStyle,
   type Color,
+  type ColorValue,
+  type ContainerLayout,
+  type ElementEffect,
+  type ElementTypography,
+  type LinkedContainerStyle,
+  type LinkedContainerStyleVisual,
+  type LinkedTopicsStyle,
+  type TextStroke,
+  type TextStyle,
 } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
@@ -59,7 +68,21 @@ import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
+import { AuthoringHistoryContext, type AuthoringHistoryContextValue } from "./authoring-history-context";
 import { ElementTreePanel } from "./element-tree-panel";
+import { ClipboardPanel, HistoryPanel } from "./clipboard-panel";
+import {
+  addClipboardEntry,
+  clearDisposableClipboardEntries,
+  createPendingClipboardCut,
+  createClipboardEntry,
+  EMPTY_CLIPBOARD_SESSION,
+  pinClipboardEntry,
+  removeClipboardEntry,
+  unpinClipboardEntry,
+  type ClipboardSessionState,
+  type PendingClipboardCut,
+} from "./clipboard-session";
 import {
   EDITOR_AUTOSAVE_DELAY_MS,
   editorSaveReducer,
@@ -144,10 +167,12 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
+import { findElementLocation, type ElementParentRef } from "./element-hierarchy";
+import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -223,11 +248,30 @@ import {
   outdentTopicItem,
   resolveAddElementDestination,
 } from "./element-operations";
+import {
+  moveClipboardElement,
+  resolveClipboardPasteDestination,
+} from "./clipboard-operations";
 
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrImageElement } from "./qr-image-authoring";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
+import {
+  beginHistoryTransaction,
+  applyUntrackedHistoryUpdate,
+  cancelHistoryTransaction,
+  commitHistory,
+  commitHistoryTransaction,
+  createHistoryState,
+  redoHistory,
+  resetHistory,
+  undoHistory,
+  updateHistoryTransaction,
+  type EditorHistoryState,
+  type HistoryActionMeta,
+} from "./editor-history-state";
+import { reconcileSelectedElementAfterReplay } from "./editor-history-selection-reconciliation";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -283,6 +327,8 @@ interface SelectedElementInfo {
   contentSlotId?: string | null;
 }
 
+type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
+
 interface GalleryItemSelection {
   galleryId: string;
   itemIndex: number;
@@ -312,6 +358,242 @@ function imageMediaTargetKey(target: ImageMediaAuthoringTarget): string {
     : `gallery-item:${target.galleryId}:${target.itemIndex}`;
 }
 
+function areTextStyleColorValuesEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (typeof left === "string" || typeof right === "string") return left === right;
+  if (left === undefined || right === undefined) return left === right;
+  return left.kind === right.kind && left.kind === "palette" && left.colorId === right.colorId;
+}
+
+function areTextStrokeValuesEqual(
+  left: TextStroke | undefined,
+  right: TextStroke | undefined,
+): boolean {
+  return left === undefined || right === undefined
+    ? left === right
+    : left.width === right.width && areTextStyleColorValuesEqual(left.color, right.color);
+}
+
+const TEXT_STYLE_TYPOGRAPHY_FIELDS = [
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "fontStyle",
+  "textAlign",
+  "lineHeight",
+  "letterSpacing",
+  "textTransform",
+  "whiteSpace",
+  "textWrapStyle",
+  "overflowWrap",
+  "textDecorationLine",
+] as const;
+
+function areTextStyleTypographyValuesEqual(
+  left: TextStyle["typography"] | undefined,
+  right: TextStyle["typography"] | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  for (const field of TEXT_STYLE_TYPOGRAPHY_FIELDS) {
+    if (left[field] !== right[field]) return false;
+  }
+  return areTextStyleColorValuesEqual(left.textDecorationColor, right.textDecorationColor)
+    && areTextStrokeValuesEqual(left.textStroke, right.textStroke);
+}
+
+function areTextStyleDefinitionsEqual(
+  left: TextStyle | undefined,
+  right: TextStyle | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.id !== right.id) return false;
+  if (!areTextStyleColorValuesEqual(left.style?.color, right.style?.color)) return false;
+  if (!areTextStyleTypographyValuesEqual(left.typography, right.typography)) return false;
+  if ("name" in left || "name" in right) {
+    return "name" in left && "name" in right && left.name === right.name && left.role === right.role;
+  }
+  return true;
+}
+
+function areLinkedStyleColorValuesEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (typeof left === "string" || typeof right === "string") return left === right;
+  if (left === undefined || right === undefined) return left === right;
+  return left.kind === right.kind && left.kind === "palette" && left.colorId === right.colorId;
+}
+
+function areLinkedStyleGradientValuesEqual(
+  left: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["gradient"]> | undefined,
+  right: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["gradient"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.type !== right.type) return false;
+  if (left.type === "linear" && right.type === "linear" && left.angle !== right.angle) return false;
+  if (left.type === "radial" && right.type === "radial" && left.shape !== right.shape) return false;
+  if (left.stops.length !== right.stops.length) return false;
+  return left.stops.every((stop, index) => {
+    const other = right.stops[index];
+    return other !== undefined
+      && stop.position === other.position
+      && areLinkedStyleColorValuesEqual(stop.color, other.color);
+  });
+}
+
+function areLinkedStyleBorderValuesEqual(
+  left: NonNullable<LinkedContainerStyleVisual["border"]> | undefined,
+  right: NonNullable<LinkedContainerStyleVisual["border"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.width === right.width
+    && left.style === right.style
+    && areLinkedStyleColorValuesEqual(left.color, right.color)
+    && areLinkedStyleGradientValuesEqual(left.gradient, right.gradient);
+}
+
+function areLinkedStylePatternValuesEqual(
+  left: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["pattern"]> | undefined,
+  right: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["pattern"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.image === right.image
+    && left.size === right.size
+    && left.position === right.position
+    && left.repeat === right.repeat
+    && left.opacity === right.opacity;
+}
+
+function areLinkedStyleShadowValuesEqual(
+  left: NonNullable<ElementEffect["shadow"]> | undefined,
+  right: NonNullable<ElementEffect["shadow"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.x === right.x
+    && left.y === right.y
+    && left.blur === right.blur
+    && left.spread === right.spread
+    && left.inset === right.inset
+    && areLinkedStyleColorValuesEqual(left.color, right.color);
+}
+
+function areLinkedStyleTypographyValuesEqual(
+  left: ElementTypography | undefined,
+  right: ElementTypography | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  const fields = [
+    "fontFamily", "fontSize", "fontWeight", "fontStyle", "textAlign", "lineHeight",
+    "letterSpacing", "textTransform", "whiteSpace", "textWrapStyle", "overflowWrap",
+    "textDecorationLine",
+  ] as const;
+  return fields.every((field) => left[field] === right[field])
+    && areLinkedStyleColorValuesEqual(left.textDecorationColor, right.textDecorationColor)
+    && (left.textStroke === undefined || right.textStroke === undefined
+      ? left.textStroke === right.textStroke
+      : left.textStroke.width === right.textStroke.width
+        && areLinkedStyleColorValuesEqual(left.textStroke.color, right.textStroke.color));
+}
+
+function areLinkedStyleLayoutValuesEqual(
+  left: ContainerLayout | undefined,
+  right: ContainerLayout | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  const fields = [
+    "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight", "margin",
+    "marginTop", "marginRight", "marginBottom", "marginLeft", "padding", "paddingTop",
+    "paddingRight", "paddingBottom", "paddingLeft", "overflow", "position", "top", "right",
+    "bottom", "left", "flexShrink",
+  ] as const;
+  if (!fields.every((field) => left[field] === right[field])) return false;
+  if (left.children === undefined || right.children === undefined) return left.children === right.children;
+  const childFields = ["mode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign"] as const;
+  if (!childFields.every((field) => left.children?.[field] === right.children?.[field])) return false;
+  if (left.children.fit === undefined || right.children.fit === undefined) return left.children.fit === right.children.fit;
+  return left.children.fit.mode === right.children.fit.mode
+    && left.children.fit.sourceWidth === right.children.fit.sourceWidth
+    && left.children.fit.sourceHeight === right.children.fit.sourceHeight;
+}
+
+function areLinkedStyleVisualValuesEqual(
+  left: LinkedContainerStyleVisual | undefined,
+  right: LinkedContainerStyleVisual | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (!areLinkedStyleColorValuesEqual(left.color, right.color) || left.borderRadius !== right.borderRadius) return false;
+  if (left.background === undefined || right.background === undefined) {
+    return left.background === right.background && areLinkedStyleBorderValuesEqual(left.border, right.border);
+  }
+  return areLinkedStyleColorValuesEqual(left.background.color, right.background.color)
+    && areLinkedStyleGradientValuesEqual(left.background.gradient, right.background.gradient)
+    && areLinkedStylePatternValuesEqual(left.background.pattern, right.background.pattern)
+    && areLinkedStyleBorderValuesEqual(left.border, right.border);
+}
+
+function areLinkedStyleEffectValuesEqual(
+  left: ElementEffect | undefined,
+  right: ElementEffect | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.opacity === right.opacity && areLinkedStyleShadowValuesEqual(left.shadow, right.shadow);
+}
+
+function areLinkedContainerStyleDefinitionsEqual(
+  left: LinkedContainerStyle | undefined,
+  right: LinkedContainerStyle | undefined,
+): boolean {
+  return left !== undefined && right !== undefined
+    && left.id === right.id
+    && left.name === right.name
+    && areLinkedStyleLayoutValuesEqual(left.layout, right.layout)
+    && areLinkedStyleVisualValuesEqual(left.style, right.style)
+    && areLinkedStyleTypographyValuesEqual(left.typography, right.typography)
+    && areLinkedStyleEffectValuesEqual(left.effect, right.effect);
+}
+
+function areLinkedTopicsStyleColorsEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (typeof left === "string" || typeof right === "string") return left === right;
+  return left.kind === right.kind && left.colorId === right.colorId;
+}
+
+function areLinkedTopicsStyleLayoutsEqual(
+  left: LinkedTopicsStyle["layout"],
+  right: LinkedTopicsStyle["layout"],
+): boolean {
+  return left?.position === right?.position
+    && left?.top === right?.top
+    && left?.right === right?.right
+    && left?.bottom === right?.bottom
+    && left?.left === right?.left
+    && left?.margin === right?.margin
+    && left?.marginTop === right?.marginTop
+    && left?.marginRight === right?.marginRight
+    && left?.marginBottom === right?.marginBottom
+    && left?.marginLeft === right?.marginLeft;
+}
+
+function areLinkedTopicsStyleDefinitionsEqual(
+  left: LinkedTopicsStyle | undefined,
+  right: LinkedTopicsStyle | undefined,
+): boolean {
+  return left !== undefined && right !== undefined
+    && left.target === right.target
+    && left.id === right.id
+    && left.name === right.name
+    && left.kind === right.kind
+    && areLinkedTopicsStyleLayoutsEqual(left.layout, right.layout)
+    && left.rootMarkerStyle === right.rootMarkerStyle
+    && areLinkedTopicsStyleColorsEqual(left.markerColor, right.markerColor)
+    && left.itemGap === right.itemGap;
+}
+
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
   return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
     .find((candidate) => candidate.dataset.powershowId === id) ?? null;
@@ -333,6 +615,22 @@ function findCanvasGalleryItem(
   return Array.from(
     gallery.querySelectorAll<HTMLElement>("[data-powershow-gallery-index]"),
   ).find((candidate) => Number(candidate.dataset.powershowGalleryIndex) === itemIndex) ?? null;
+}
+
+type AuthoredContainerFit = {
+  mode: ContainerFitMode;
+  sourceWidth: number;
+  sourceHeight: number;
+};
+
+function areAuthoredContainerFitsEqual(
+  left: AuthoredContainerFit | undefined,
+  right: AuthoredContainerFit | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.mode === right.mode &&
+    left.sourceWidth === right.sourceWidth &&
+    left.sourceHeight === right.sourceHeight;
 }
 
 interface PendingElementDeletion {
@@ -408,6 +706,36 @@ interface CanvasResizeState {
   deltaY: number;
   candidates: CanvasSnapCandidate[];
   guideBounds: CanvasBounds;
+}
+
+type CanvasResizeLayoutField =
+  | "position"
+  | "top"
+  | "right"
+  | "bottom"
+  | "left"
+  | "width"
+  | "height";
+
+type CanvasResizeLayout = Partial<Record<CanvasResizeLayoutField, unknown>>;
+
+function hasCanvasResizeLayoutChange(
+  before: PowerShowElement,
+  after: PowerShowElement,
+): boolean {
+  const beforeLayout = before.layout as CanvasResizeLayout | undefined;
+  const afterLayout = after.layout as CanvasResizeLayout | undefined;
+  const fields: readonly CanvasResizeLayoutField[] = [
+    "position",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "width",
+    "height",
+  ];
+
+  return fields.some((field) => beforeLayout?.[field] !== afterLayout?.[field]);
 }
 
 interface CanvasFocalOverlay {
@@ -510,9 +838,137 @@ export function EditorWorkspace({
       : structuredClone(editorDemoPresentation);
   }
 
-  const [presentation, setPresentation] = useState<Presentation>(
+  // History owns the one editable Presentation. The compatibility setter is
+  // deliberately an untracked boundary for CP3 authoring surfaces: changing
+  // one of those surfaces resets the stack, so an old entry can never undo
+  // through an untracked mutation. This is temporary and mechanically
+  // removable as each continuous surface moves to transactions.
+  const [history, dispatchHistory] = useReducer(
+    (state: EditorHistoryState, action:
+      | { type: "commit"; update: (current: Presentation) => Presentation; meta: HistoryActionMeta }
+      | { type: "transaction-begin"; key: string; meta: HistoryActionMeta }
+      | { type: "transaction-update"; key: string; update: (current: Presentation) => Presentation }
+      | { type: "transaction-commit"; key?: string }
+      | { type: "transaction-cancel"; key?: string }
+      | { type: "untracked"; update: Presentation | ((current: Presentation) => Presentation) }
+      | { type: "undo" }
+      | { type: "redo" }
+      | { type: "reset"; next: Presentation }) => {
+      switch (action.type) {
+        case "commit": return commitHistory(state, action.update(state.present), action.meta);
+        case "transaction-begin": return beginHistoryTransaction(state, action.key, action.meta);
+        case "transaction-update": return updateHistoryTransaction(state, action.key, action.update(state.present));
+        case "transaction-commit": return commitHistoryTransaction(state, action.key);
+        case "transaction-cancel": return cancelHistoryTransaction(state, action.key);
+        case "untracked": {
+          const next = typeof action.update === "function"
+            ? action.update(state.present)
+            : action.update;
+          return applyUntrackedHistoryUpdate(state, next);
+        }
+        case "undo": return undoHistory(state);
+        case "redo": return redoHistory(state);
+        case "reset": return resetHistory(action.next);
+      }
+    },
     initialEditableRef.current,
+    createHistoryState,
   );
+  const presentation = history.present;
+  const authoringIntentRef = useRef<
+    | { type: "continuous"; key: string }
+    | { type: "discrete"; meta: HistoryActionMeta }
+    | null
+  >(null);
+  const setPresentation = (
+    update: Presentation | ((current: Presentation) => Presentation),
+  ) => {
+    dispatchHistory({
+      type: "untracked",
+      update,
+    });
+  };
+  function commitPresentationAction(
+    meta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    dispatchHistory({ type: "transaction-commit" });
+    dispatchHistory({ type: "commit", meta, update });
+  }
+
+  function beginPresentationTransaction(key: string, meta: HistoryActionMeta): void {
+    dispatchHistory({ type: "transaction-begin", key, meta });
+  }
+
+  function updatePresentationTransaction(
+    key: string,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    dispatchHistory({ type: "transaction-update", key, update });
+  }
+
+  function finishPresentationTransaction(key?: string): void {
+    dispatchHistory({ type: "transaction-commit", ...(key === undefined ? {} : { key }) });
+  }
+
+  function applyTextStyleDefinitionUpdate(
+    fallbackMeta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update });
+    } else {
+      commitPresentationAction(fallbackMeta, update);
+    }
+  }
+
+  function applyLinkedStyleDefinitionUpdate(
+    fallbackMeta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update });
+    } else {
+      commitPresentationAction(fallbackMeta, update);
+    }
+  }
+
+  function applyPresentationPaletteUpdate(
+    fallbackMeta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update });
+    } else {
+      commitPresentationAction(fallbackMeta, update);
+    }
+  }
+
+  const authoringHistory: AuthoringHistoryContextValue = {
+    begin: beginPresentationTransaction,
+    update: (key, callback) => {
+      authoringIntentRef.current = {
+        type: "continuous",
+        key,
+      };
+      try { callback(); } finally { authoringIntentRef.current = null; }
+    },
+    finish: finishPresentationTransaction,
+    discrete: (meta, callback) => {
+      finishPresentationTransaction();
+      authoringIntentRef.current = { type: "discrete", meta };
+      try { callback(); } finally { authoringIntentRef.current = null; }
+    },
+  };
 
   const [saveState, dispatchSave] = useReducer(editorSaveReducer, {
     lastSavedPresentation: initialEditableRef.current,
@@ -561,9 +1017,29 @@ export function EditorWorkspace({
     }
   }, [presentation.id]);
 
-  const [editorPanelView, setEditorPanelView] = useState<
-    "inspector" | "elements"
-  >("inspector");
+  const [editorPanelView, setEditorPanelView] =
+    useState<EditorPanelView>("inspector");
+  const editorPanelTabsRef = useRef<HTMLDivElement>(null);
+  const scrollEditorPanelTabs = (amount: number) => {
+    const tabStrip = editorPanelTabsRef.current;
+    if (!tabStrip) return;
+    if (typeof tabStrip.scrollBy === "function") {
+      tabStrip.scrollBy({ left: amount, behavior: "smooth" });
+    } else {
+      tabStrip.scrollLeft += amount;
+    }
+  };
+  const [clipboardSession, setClipboardSession] =
+    useState<ClipboardSessionState>(EMPTY_CLIPBOARD_SESSION);
+  const [pendingCut, setPendingCut] = useState<PendingClipboardCut | null>(null);
+  const clipboardPresentationId = useRef(presentation.id);
+  useEffect(() => {
+    if (clipboardPresentationId.current !== presentation.id) {
+      clipboardPresentationId.current = presentation.id;
+      setClipboardSession(EMPTY_CLIPBOARD_SESSION);
+      setPendingCut(null);
+    }
+  }, [presentation.id]);
 
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
@@ -746,36 +1222,42 @@ export function EditorWorkspace({
     return gallery?.type === "gallery" ? gallery.items[target.itemIndex] ?? null : null;
   }
 
-  function updateImageMediaTarget(
+  function applyImageMediaTargetUpdate(
+    current: Presentation,
     target: ImageMediaAuthoringTarget,
     update: (media: ImageMediaValue) => ImageMediaValue,
-  ) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) return slide;
-        if (target.kind === "image") {
+  ): Presentation {
+    const slide = current.slides[selectedSlideIndex];
+    if (!slide) return current;
+
+    const elements = target.kind === "image"
+      ? updateElementById(slide.elements, target.elementId, (element) => {
+          if (element.type !== "image") return element;
+          const next = update(element);
+          return next === element ? element : next as typeof element;
+        })
+      : updateElementById(slide.elements, target.galleryId, (element) => {
+          if (element.type !== "gallery") return element;
+          const item = element.items[target.itemIndex];
+          if (!item) return element;
+          const nextItem = update(item);
+          if (nextItem === item) return element;
           return {
-            ...slide,
-            elements: updateElementById(slide.elements, target.elementId, (element) =>
-              element.type === "image" ? update(element) as typeof element : element,
+            ...element,
+            items: element.items.map((currentItem, itemIndex) =>
+              itemIndex === target.itemIndex ? nextItem as typeof currentItem : currentItem,
             ),
           };
-        }
-        return {
-          ...slide,
-          elements: updateElementById(slide.elements, target.galleryId, (element) => {
-            if (element.type !== "gallery" || !element.items[target.itemIndex]) return element;
-            return {
-              ...element,
-              items: element.items.map((item, itemIndex) =>
-                itemIndex === target.itemIndex ? update(item) as typeof item : item,
-              ),
-            };
-          }),
-        };
-      }),
-    }));
+        });
+
+    if (elements === slide.elements) return current;
+
+    return {
+      ...current,
+      slides: current.slides.map((currentSlide, index) =>
+        index === selectedSlideIndex ? { ...currentSlide, elements } : currentSlide,
+      ),
+    };
   }
 
   useEffect(() => {
@@ -788,6 +1270,159 @@ export function EditorWorkspace({
       return { galleryId: gallery.id, itemIndex: Math.min(current.itemIndex, gallery.items.length - 1) };
     });
   }, [selectedDocumentElement?.id, selectedDocumentElement?.type, selectedDocumentElement?.type === "gallery" ? selectedDocumentElement.items.length : undefined]);
+
+  function selectClipboardEntry(entryId: string): void {
+    setPendingCut(null);
+    setClipboardSession((current) =>
+      current.entries.some((entry) => entry.id === entryId)
+        ? { ...current, selectedEntryId: entryId }
+        : current,
+    );
+  }
+
+  function copySelectedElement(): boolean {
+    if (!selectedDocumentElement || !selectedElementPosition) {
+      return false;
+    }
+
+    const entry = createClipboardEntry(
+      selectedDocumentElement,
+    );
+    setPendingCut(null);
+    setClipboardSession((current) => ({
+      ...addClipboardEntry(current, entry),
+      selectedEntryId: entry.id,
+    }));
+    return true;
+  }
+
+  function cutSelectedElement(): boolean {
+    if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
+      return false;
+    }
+
+    setPendingCut(
+      createPendingClipboardCut(selectedDocumentElement, selectedSlide.id),
+    );
+    setClipboardSession((current) => ({ ...current, selectedEntryId: null }));
+    return true;
+  }
+
+  function pasteClipboardEntry(entryId: string): boolean {
+    const entry = clipboardSession.entries.find(
+      (candidate) => candidate.id === entryId,
+    );
+    if (!entry || !selectedSlide) {
+      return false;
+    }
+
+    const currentSlide = history.present.slides[selectedSlideIndex];
+    if (!currentSlide || !resolveClipboardPasteDestination(
+      currentSlide.elements, entry.element.id, selectedDocumentElement,
+      selectedElement?.contentSlotId ?? null,
+    )) return false;
+    commitPresentationAction(
+      { kind: "element.paste", labelKey: "history.element.paste", labelParams: { elementType: entry.element.type } },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (!slide) return current;
+        const destination = resolveClipboardPasteDestination(
+          slide.elements,
+          entry.element.id,
+          selectedDocumentElement,
+          selectedElement?.contentSlotId ?? null,
+        );
+        if (!destination) return current;
+        const pastedElement = duplicateElement(entry.element, current.slides);
+        const nextElements = destination.kind === "slide"
+          ? [...slide.elements, pastedElement]
+          : destination.kind === "container"
+            ? appendElementToContainer(slide.elements, destination.id, pastedElement)
+            : appendElementToContentSlot(slide.elements, destination.id, pastedElement);
+        if (nextElements === slide.elements) return current;
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
+    return true;
+  }
+
+  function pastePendingCut(): boolean {
+    if (!pendingCut) return false;
+
+    const nextPresentation = moveClipboardElement(
+      history.present,
+      pendingCut.sourceSlideId,
+      pendingCut.sourceElementId,
+      selectedSlideIndex,
+      selectedDocumentElement,
+      selectedElement?.contentSlotId ?? null,
+    );
+    if (!nextPresentation) {
+      if (!history.present.slides.some((slide) => slide.id === pendingCut.sourceSlideId)
+        || !history.present.slides.some((slide) => findElementById(slide.elements, pendingCut.sourceElementId))) {
+        setPendingCut(null);
+      }
+      return false;
+    }
+
+    commitPresentationAction(
+      { kind: "element.move", labelKey: "history.element.move" },
+      (current) => moveClipboardElement(
+        current,
+        pendingCut.sourceSlideId,
+        pendingCut.sourceElementId,
+        selectedSlideIndex,
+        selectedDocumentElement,
+        selectedElement?.contentSlotId ?? null,
+      ) ?? current,
+    );
+    setPendingCut(null);
+    return true;
+  }
+
+  function reconcileAfterHistoryReplay(next: Presentation): void {
+    const nextSlideIndex = Math.max(
+      0,
+      Math.min(selectedSlideIndex, Math.max(0, next.slides.length - 1)),
+    );
+    setSelectedSlideIndex(nextSlideIndex);
+    setSelectedElement((current) => reconcileSelectedElementAfterReplay(current, next, nextSlideIndex));
+    setGalleryItemSelection(null);
+    setSelectedTableStructuralNode(null);
+    setPendingElementDeletion(null);
+    setPendingStyleDetach(null);
+    setPendingTextStyleReset(null);
+    setPendingCut(null);
+    closeCanvasMediaEditing();
+    canvasDragRef.current = null;
+    canvasResizeRef.current = null;
+    setCanvasResizeOverlay(null);
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
+  }
+
+  function undoEditorHistory(): boolean {
+    if (history.transaction !== undefined) dispatchHistory({ type: "transaction-commit" });
+    if (history.past.length === 0 && history.transaction === undefined) return false;
+    const nextState = undoHistory(history);
+    dispatchHistory({ type: "undo" });
+    reconcileAfterHistoryReplay(nextState.present);
+    return true;
+  }
+
+  function redoEditorHistory(): boolean {
+    if (history.transaction !== undefined) dispatchHistory({ type: "transaction-commit" });
+    if (history.future.length === 0 && history.transaction === undefined) return false;
+    const nextState = redoHistory(history);
+    dispatchHistory({ type: "redo" });
+    reconcileAfterHistoryReplay(nextState.present);
+    return true;
+  }
 
   function requestElementDeletion() {
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
@@ -802,17 +1437,72 @@ export function EditorWorkspace({
   }
 
   useEffect(() => {
-    if (rightPanelMode !== "editor") {
+    if (rightPanelMode !== "editor" && rightPanelMode !== "resources") {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key !== "Delete" ||
         event.repeat ||
         event.defaultPrevented ||
+        isEditableKeyboardTarget(event.target)
+      ) {
+        return;
+      }
+
+      const modifierPressed = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (modifierPressed && !event.altKey && key === "z") {
+        const replayed = event.shiftKey ? redoEditorHistory() : undoEditorHistory();
+        if (replayed) event.preventDefault();
+        return;
+      }
+
+      if (
+        modifierPressed &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "c"
+      ) {
+        if (copySelectedElement()) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (
+        modifierPressed &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "x"
+      ) {
+        if (cutSelectedElement()) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (
+        modifierPressed &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "v"
+      ) {
+        const pasted = pendingCut
+          ? pastePendingCut()
+          : clipboardSession.selectedEntryId !== null
+            ? pasteClipboardEntry(clipboardSession.selectedEntryId)
+            : false;
+        if (pasted) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (
+        event.key !== "Delete" ||
         pendingElementDeletion !== null ||
-        isEditableKeyboardTarget(event.target) ||
         !selectedDocumentElement
       ) {
         return;
@@ -824,7 +1514,18 @@ export function EditorWorkspace({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingElementDeletion, rightPanelMode, selectedDocumentElement, selectedSlideIndex]);
+  }, [
+    clipboardSession,
+    pendingCut,
+    pendingElementDeletion,
+    presentation,
+    history,
+    rightPanelMode,
+    selectedElement,
+    selectedDocumentElement,
+    selectedSlide,
+    selectedSlideIndex,
+  ]);
 
   // ==========================================================
   // BEGIN: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -1003,6 +1704,14 @@ export function EditorWorkspace({
       element.classList.remove("powershow-editor-draggable");
     });
 
+    const previousPendingCuts = canvas.querySelectorAll(
+      ".powershow-editor-pending-cut",
+    );
+
+    previousPendingCuts.forEach((element) => {
+      element.classList.remove("powershow-editor-pending-cut");
+    });
+
     const candidates = canvas.querySelectorAll<HTMLElement>(
       "[data-powershow-id]",
     );
@@ -1014,6 +1723,10 @@ export function EditorWorkspace({
         : null;
 
       if (documentElement) {
+        if (id === pendingCut?.sourceElementId) {
+          candidate.classList.add("powershow-editor-pending-cut");
+        }
+
         const draggable =
           documentElement.type === "container"
             ? isContainerCanvasDraggable(documentElement)
@@ -1068,6 +1781,7 @@ export function EditorWorkspace({
     selectedDocumentElement,
     selectedElement,
     selectedSlide,
+    pendingCut,
   ]);
 
   useEffect(() => {
@@ -1196,6 +1910,16 @@ export function EditorWorkspace({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        const hasMediaEditing = Boolean(
+          canvasCropDragRef.current ||
+            canvasFocalDragRef.current ||
+            cropEditingTarget ||
+            focalEditingTarget,
+        );
+        if (pendingCut && !hasMediaEditing) {
+          setPendingCut(null);
+          return;
+        }
         if (canvasCropDragRef.current) {
           canvasCropDragRef.current = null;
           setCanvasCropPreview(null);
@@ -1212,7 +1936,7 @@ export function EditorWorkspace({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [cropEditingTarget, focalEditingTarget, pendingCut]);
 
   // ==========================================================
   // END: OUTLINE DO ELEMENTO SELECIONADO
@@ -1225,6 +1949,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function selectSlide(index: number) {
+    finishPresentationTransaction();
     setSelectedSlideIndex(index);
 
     setSelectedElement(null);
@@ -1474,6 +2199,7 @@ export function EditorWorkspace({
     );
 
     if (!selection) {
+      finishPresentationTransaction();
       setSelectedElement(null);
 
       return;
@@ -1481,6 +2207,13 @@ export function EditorWorkspace({
 
     const contentSlotId = contentSlotTarget?.dataset.powershowContentSlotId;
 
+    if (
+      selectedElement?.id !== selection.id ||
+      selectedElement.type !== selection.type ||
+      selectedElement?.contentSlotId !== (contentSlotId ?? null)
+    ) {
+      finishPresentationTransaction();
+    }
     setSelectedElement({
       id: selection.id,
       type: selection.type,
@@ -1638,72 +2371,89 @@ export function EditorWorkspace({
     }
 
     clearCanvasDragPreview();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: updateElementById(
-                slide.elements,
-                drag.elementId,
-                (element) => {
-                  if (element.type === "container") {
-                    if (!drag.containerGeometry) {
-                      return element;
-                    }
+    commitPresentationAction(
+      {
+        kind: "canvas.drag",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "canvas.drag" },
+      },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (!slide) {
+          return current;
+        }
 
-                    return updateContainerForCanvasDrag(
-                      element,
-                      drag.deltaX,
-                      drag.deltaY,
-                      drag.containerGeometry,
-                    );
-                  }
+        const elements = updateElementById(
+          slide.elements,
+          drag.elementId,
+          (element) => {
+            if (element.type === "container") {
+              if (!drag.containerGeometry) {
+                return element;
+              }
 
-                  if (element.type === "text") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-
-                  if (element.type === "image") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-
-                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-
-                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-                  if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") {
-                    return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
-                      parentWidthPx: drag.parentWidthPx,
-                      parentHeightPx: drag.parentHeightPx,
-                      initialLeftPx: 0,
-                      initialTopPx: 0,
-                      initialRightPx: 0,
-                      initialBottomPx: 0,
-                      initialWidthPx: 0,
-                      initialHeightPx: 0,
-                    });
-                  }
-
-                  return element;
-                },
-              ),
+              return updateContainerForCanvasDrag(
+                element,
+                drag.deltaX,
+                drag.deltaY,
+                drag.containerGeometry,
+              );
             }
-          : slide,
-      ),
-    }));
+
+            if (element.type === "text") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+
+            if (element.type === "image") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+
+            if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+
+            if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+            if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") {
+              return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
+                parentWidthPx: drag.parentWidthPx,
+                parentHeightPx: drag.parentHeightPx,
+                initialLeftPx: 0,
+                initialTopPx: 0,
+                initialRightPx: 0,
+                initialBottomPx: 0,
+                initialWidthPx: 0,
+                initialHeightPx: 0,
+              });
+            }
+
+            return element;
+          },
+        );
+
+        if (elements === slide.elements) {
+          return current;
+        }
+
+        return {
+          ...current,
+          slides: current.slides.map((currentSlide, index) =>
+            index === selectedSlideIndex
+              ? { ...currentSlide, elements }
+              : currentSlide,
+          ),
+        };
+      },
+    );
   }
 
   function handleCanvasPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1759,9 +2509,18 @@ export function EditorWorkspace({
 
   function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, target: ImageMediaAuthoringTarget) {
     const normalized = normalizeCropCanvasValue(crop);
-    const authored = resolveImageMediaTarget(target);
-    if (!authored || areImageCropsEqual(authored.crop, normalized)) return;
-    updateImageMediaTarget(target, (media) => ({ ...media, crop: normalized }));
+    commitPresentationAction(
+      {
+        kind: "canvas.crop",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "media.crop" },
+      },
+      (current) => {
+        const authored = resolveImageMediaTarget(target, current);
+        if (!authored || areImageCropsEqual(authored.crop, normalized)) return current;
+        return applyImageMediaTargetUpdate(current, target, (media) => ({ ...media, crop: normalized }));
+      },
+    );
   }
 
   function handleCropPointerUp(event: ReactPointerEvent<HTMLButtonElement | HTMLDivElement>) {
@@ -2049,72 +2808,97 @@ export function EditorWorkspace({
 
     canvasResizeRef.current = null;
     clearCanvasGuides();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: updateElementById(
-                slide.elements,
-                resize.elementId,
-                (element) => {
-                  if (element.type === "container") {
-                    if (!resize.containerResizeGeometry) {
-                      return element;
-                    }
+    commitPresentationAction(
+      {
+        kind: "canvas.resize",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "canvas.resize" },
+      },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (!slide) {
+          return current;
+        }
 
-                    return updateContainerForCanvasResize(
-                      element,
-                      resize.direction,
-                      resize.deltaX,
-                      resize.deltaY,
-                      resize.containerResizeGeometry,
-                    );
-                  }
-                  if (element.type === "text") {
-                    return element;
-                  }
-                  if (element.type === "image") {
-                    const locked = preserveImageProportion;
-                    const proportional = locked
-                      ? resolveProportionalResize(
-                          resize.direction,
-                          resize.deltaX,
-                          resize.deltaY,
-                          resize.initialWidthPx,
-                          resize.initialHeightPx,
-                        )
-                      : undefined;
-                    return resize.canonicalTextResizeGeometry
-                      ? updateImageForCanvasResize(
-                          element,
-                          resize.direction,
-                          resize.deltaX,
-                          resize.deltaY,
-                          resize.canonicalTextResizeGeometry,
-                          proportional,
-                        )
-                      : element;
-                  }
-                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
-                    return resize.canonicalTextResizeGeometry
-                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
-                      : element;
-                  }
-                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks" || element.type === "plot") {
-                    return resize.canonicalTextResizeGeometry
-                      ? updateSurfaceForCanvasResize(element, resize.direction, resize.deltaX, resize.deltaY, resize.canonicalTextResizeGeometry)
-                      : element;
-                  }
-                  if (element.type === "divider" || element.type === "topics" || element.type === "interactive") return element;
-                  return element;
-                },
-              ),
+        const elements = updateElementById(
+          slide.elements,
+          resize.elementId,
+          (element) => {
+            let nextElement: PowerShowElement = element;
+
+            if (element.type === "container") {
+              if (!resize.containerResizeGeometry) {
+                return element;
+              }
+
+              nextElement = updateContainerForCanvasResize(
+                element,
+                resize.direction,
+                resize.deltaX,
+                resize.deltaY,
+                resize.containerResizeGeometry,
+              );
+            } else if (element.type === "image") {
+              const proportional = preserveImageProportion
+                ? resolveProportionalResize(
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.initialWidthPx,
+                    resize.initialHeightPx,
+                  )
+                : undefined;
+              nextElement = resize.canonicalTextResizeGeometry
+                ? updateImageForCanvasResize(
+                    element,
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.canonicalTextResizeGeometry,
+                    proportional,
+                  )
+                : element;
+            } else if (
+              element.type === "gallery" ||
+              element.type === "embed" ||
+              element.type === "scripted" ||
+              element.type === "code" ||
+              element.type === "terminal" ||
+              element.type === "table" ||
+              element.type === "blocks" ||
+              element.type === "plot"
+            ) {
+              nextElement = resize.canonicalTextResizeGeometry
+                ? updateSurfaceForCanvasResize(
+                    element,
+                    resize.direction,
+                    resize.deltaX,
+                    resize.deltaY,
+                    resize.canonicalTextResizeGeometry,
+                  )
+                : element;
             }
-          : slide,
-      ),
-    }));
+
+            return hasCanvasResizeLayoutChange(element, nextElement)
+              ? nextElement
+              : element;
+          },
+        );
+
+        if (elements === slide.elements) {
+          return current;
+        }
+
+        return {
+          ...current,
+          slides: current.slides.map((currentSlide, index) =>
+            index === selectedSlideIndex
+              ? { ...currentSlide, elements }
+              : currentSlide,
+          ),
+        };
+      },
+    );
   }
 
   function handleResizePointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
@@ -2173,8 +2957,23 @@ export function EditorWorkspace({
     focalPoint: ImageFocalPoint,
     target: ImageMediaAuthoringTarget,
   ) {
-    if (resolveImageMediaTarget(target)?.src === undefined) return;
-    updateImageMediaTarget(target, (media) => ({ ...media, focalPoint }));
+    commitPresentationAction(
+      {
+        kind: "canvas.focalPoint",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "media.focalPoint" },
+      },
+      (current) => {
+        const authored = resolveImageMediaTarget(target, current);
+        if (
+          !authored ||
+          (authored.focalPoint?.x === focalPoint.x && authored.focalPoint?.y === focalPoint.y)
+        ) {
+          return current;
+        }
+        return applyImageMediaTargetUpdate(current, target, (media) => ({ ...media, focalPoint }));
+      },
+    );
   }
 
   function handleFocalPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
@@ -2227,7 +3026,7 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
+    const applyUpdate = (current: Presentation): Presentation => ({
       ...current,
 
       slides: current.slides.map((slide, index) => {
@@ -2245,7 +3044,15 @@ export function EditorWorkspace({
           ),
         };
       }),
-    }));
+    });
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update: applyUpdate });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update: applyUpdate });
+    } else {
+      setPresentation(applyUpdate);
+    }
   }
 
   function runSelectedPlotPreview(command: (controller: PlotAnimationController) => void): void {
@@ -2266,60 +3073,168 @@ export function EditorWorkspace({
 
   function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "container") return;
-    setPresentation((current) => attachLinkedStyle(
-      current,
-      selectedSlideIndex,
-      selectedDocumentElement.id,
-      linkedStyleId,
-    ));
+    const containerId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "container.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentContainer = findElementById(currentSlide.elements, containerId);
+        if (currentContainer?.type !== "container") return current;
+        if (currentContainer.linkedStyleId === linkedStyleId) return current;
+        if (!current.linkedStyles?.some((style) => style.id === linkedStyleId)) return current;
+
+        return attachLinkedStyle(current, selectedSlideIndex, containerId, linkedStyleId);
+      },
+    );
   }
 
   function detachSelectedContainerLinkedStyle(): void {
     if (selectedDocumentElement?.type !== "container") return;
-    setPresentation((current) => detachLinkedStyle(
-      current,
-      selectedSlideIndex,
-      selectedDocumentElement.id,
-    ));
+    const containerId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "container.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentContainer = findElementById(currentSlide.elements, containerId);
+        if (currentContainer?.type !== "container" || currentContainer.linkedStyleId === undefined) return current;
+        if (!current.linkedStyles?.some((style) => style.id === currentContainer.linkedStyleId)) return current;
+
+        return detachLinkedStyle(current, selectedSlideIndex, containerId);
+      },
+    );
   }
 
   function attachSelectedTopicsLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "topics") return;
-    setPresentation((current) => attachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id, linkedStyleId));
+    const topicsId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentTopics = findElementById(currentSlide.elements, topicsId);
+        if (currentTopics?.type !== "topics") return current;
+        if (currentTopics.linkedStyleId === linkedStyleId) return current;
+        if (!current.linkedStyles?.some((style) => style.id === linkedStyleId && "target" in style && style.target === "topics")) return current;
+
+        return attachLinkedTopicsStyle(current, selectedSlideIndex, topicsId, linkedStyleId);
+      },
+    );
   }
 
   function detachSelectedTopicsLinkedStyle(): void {
     if (selectedDocumentElement?.type !== "topics") return;
-    setPresentation((current) => detachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id));
+    const topicsId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentTopics = findElementById(currentSlide.elements, topicsId);
+        if (currentTopics?.type !== "topics" || currentTopics.linkedStyleId === undefined) return current;
+        if (!current.linkedStyles?.some((style) => style.id === currentTopics.linkedStyleId && "target" in style && style.target === "topics")) return current;
+
+        return detachLinkedTopicsStyle(current, selectedSlideIndex, topicsId);
+      },
+    );
   }
 
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
-    const canvas = slideCanvasRef.current;
-    const target = canvas
-      ? Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
-          .find((candidate) => candidate.dataset.powershowId === selectedDocumentElement.id)
-      : undefined;
-    const linkedFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
-    const sourceSize = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit === undefined
-      ? target ? measureContainerFitSourceSize(target) : null
-      : undefined;
-    const base = selectedDocumentElement.layout?.children?.fit === undefined && linkedFit !== undefined
-      ? { ...selectedDocumentElement, layout: { ...selectedDocumentElement.layout, children: { ...selectedDocumentElement.layout?.children, fit: { ...linkedFit } } } }
-      : selectedDocumentElement;
-    const updated = updateContainerFit(base, mode, sourceSize ?? undefined);
+    const containerId = selectedDocumentElement.id;
+    const renderTimeLocalFit = selectedDocumentElement.layout?.children?.fit;
+    const renderTimeEffectiveFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
+    const requiresMeasurement = mode !== null &&
+      renderTimeLocalFit === undefined &&
+      renderTimeEffectiveFit === undefined;
+    let measuredSourceSize: { sourceWidth: number; sourceHeight: number } | undefined;
 
-    if (!updated) return false;
+    if (requiresMeasurement) {
+      const target = slideCanvasRef.current === null
+        ? null
+        : findCanvasElementById(slideCanvasRef.current, containerId);
+      const measured = target === null ? null : measureContainerFitSourceSize(target);
+      if (measured === null) return false;
+      measuredSourceSize = measured;
+    }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? { ...slide, elements: updateElementById(slide.elements, selectedDocumentElement.id, () => updated) }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "container.childrenFit" },
+      },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (slide === undefined) return current;
+
+        const currentElement = findElementById(slide.elements, containerId);
+        if (currentElement?.type !== "container") return current;
+
+        const currentLocalFit = currentElement.layout?.children?.fit;
+        const currentEffectiveFit = resolveLinkedContainerStyle(current, currentElement).layout?.children?.fit;
+        const base = currentLocalFit === undefined && currentEffectiveFit !== undefined
+          ? {
+              ...currentElement,
+              layout: {
+                ...currentElement.layout,
+                children: {
+                  ...currentElement.layout?.children,
+                  fit: { ...currentEffectiveFit },
+                },
+              },
+            }
+          : currentElement;
+        const currentRequiresMeasurement = mode !== null &&
+          currentLocalFit === undefined &&
+          currentEffectiveFit === undefined;
+
+        if (currentRequiresMeasurement && measuredSourceSize === undefined) return current;
+
+        const updated = updateContainerFit(
+          base,
+          mode,
+          currentRequiresMeasurement ? measuredSourceSize : undefined,
+        );
+        if (updated === null) return current;
+
+        const updatedLocalFit = updated.layout?.children?.fit;
+        if (areAuthoredContainerFitsEqual(currentLocalFit, updatedLocalFit)) return current;
+
+        const elements = updateElementById(slide.elements, containerId, () => updated);
+        return elements === slide.elements
+          ? current
+          : {
+              ...current,
+              slides: current.slides.map((candidate) =>
+                candidate === slide ? { ...slide, elements } : candidate,
+              ),
+            };
+      },
+    );
     return true;
   }
 
@@ -2448,42 +3363,97 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addNamedPresentationPaletteColor(name: string, color: Color) {
-    setPresentation((current) => {
-      const result = addPaletteEntry(current, name, color);
-      return result.ok ? result.presentation : current;
-    });
+    commitPresentationAction(
+      {
+        kind: "palette.add",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.add" },
+      },
+      (current) => {
+        const result = addPaletteEntry(current, name, color);
+        return result.ok ? result.presentation : current;
+      },
+    );
   }
 
   function removePresentationPaletteColor(colorId: string) {
-    setPresentation((current) => {
-      const result = removePaletteEntry(current, colorId);
-      return result.ok ? result.presentation : current;
-    });
+    commitPresentationAction(
+      {
+        kind: "palette.remove",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.remove" },
+      },
+      (current) => {
+        const result = removePaletteEntry(current, colorId);
+        return result.ok ? result.presentation : current;
+      },
+    );
   }
 
   function updateNamedPresentationPaletteColor(
     colorId: string,
     patch: { name: string; value: Color },
   ) {
-    setPresentation((current) => {
-      const renamed = renamePaletteEntry(current, colorId, patch.name);
-      if (!renamed.ok) return current;
-      const updated = updatePresentationPaletteColorValue(renamed.presentation, colorId, patch.value);
-      return updated.ok ? updated.presentation : current;
-    });
+    applyPresentationPaletteUpdate(
+      {
+        kind: "palette.definition",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.definition" },
+      },
+      (current) => {
+        const currentColor = current.palette?.colors.find((color) => color.id === colorId);
+        if (!currentColor) return current;
+        const renamed = renamePaletteEntry(current, colorId, patch.name);
+        if (!renamed.ok) return current;
+        const updated = updatePresentationPaletteColorValue(renamed.presentation, colorId, patch.value);
+        if (!updated.ok) return current;
+        const nextColor = updated.presentation.palette?.colors.find((color) => color.id === colorId);
+        if (!nextColor || (
+          nextColor.id === currentColor.id
+          && nextColor.name === currentColor.name
+          && nextColor.value === currentColor.value
+        )) return current;
+        return updated.presentation;
+      },
+    );
   }
 
   function addCustomLibraryPalette(palette: CustomLibraryPaletteDraft): CustomLibraryPaletteAddOutcome {
     const result = addCustomLibraryPaletteToPresentation(presentation, palette);
     if (!result.ok) return { ok: false, reason: result.reason };
-    setPresentation(result.presentation);
+    commitPresentationAction(
+      {
+        kind: "palette.import",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "palette.import" },
+      },
+      (current) => {
+        const currentResult = addCustomLibraryPaletteToPresentation(current, palette);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
     return { ok: true };
   }
 
   function addCustomLibraryFont(font: CustomLibraryFontDraft) {
     const result = addCustomLibraryFontToPresentation(presentation, font);
-    if (result.kind === "conflict") return { kind: "conflict" as const, addedFaces: 0 };
-    setPresentation(result.presentation);
+    if (result.kind === "unchanged" || result.kind === "conflict") {
+      return { kind: result.kind, addedFaces: 0 };
+    }
+
+    commitPresentationAction(
+      {
+        kind: "font.import",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "font.import" },
+      },
+      (current) => {
+        const currentResult = addCustomLibraryFontToPresentation(current, font);
+        return currentResult.kind === "added" || currentResult.kind === "merged"
+          ? currentResult.presentation
+          : current;
+      },
+    );
     return { kind: result.kind, addedFaces: result.addedFaces };
   }
 
@@ -2492,63 +3462,231 @@ export function EditorWorkspace({
     if (!fontResource) return "not-found";
     if (presentationUsesFontFamily(presentation, fontResource.family)) return "in-use";
 
-    setPresentation((current) => {
-      const fonts = current.resources?.fonts;
-      if (!fonts?.some((font) => font.id === fontResourceId)) return current;
-      const remainingFonts = fonts.filter((font) => font.id !== fontResourceId);
-      if (remainingFonts.length > 0) {
-        return { ...current, resources: { ...current.resources, fonts: remainingFonts } };
-      }
-      if (current.resources && Object.keys(current.resources).some((key) => key !== "fonts")) {
-        const { fonts: _fonts, ...remainingResources } = current.resources;
-        return { ...current, resources: remainingResources };
-      }
-      const { resources: _resources, ...presentationWithoutResources } = current;
-      return presentationWithoutResources;
-    });
+    commitPresentationAction(
+      {
+        kind: "font.remove",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "font.remove" },
+      },
+      (current) => {
+        const fonts = current.resources?.fonts;
+        const currentFont = fonts?.find((font) => font.id === fontResourceId);
+        if (!fonts || !currentFont) return current;
+        if (presentationUsesFontFamily(current, currentFont.family)) return current;
+        const remainingFonts = fonts.filter((font) => font.id !== fontResourceId);
+        if (remainingFonts.length > 0) {
+          return { ...current, resources: { ...current.resources, fonts: remainingFonts } };
+        }
+        if (current.resources && Object.keys(current.resources).some((key) => key !== "fonts")) {
+          const { fonts: _fonts, ...remainingResources } = current.resources;
+          return { ...current, resources: remainingResources };
+        }
+        const { resources: _resources, ...presentationWithoutResources } = current;
+        return presentationWithoutResources;
+      },
+    );
     return "removed";
   }
 
-  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, patch)); }
-  function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
+      (current) => {
+        const before = current.textStyles?.find((style) => style.id === id);
+        const candidate = upsertFundamentalTextStyleOverride(current, id, patch);
+        const after = candidate.textStyles?.find((style) => style.id === id);
+        return areTextStyleDefinitionsEqual(before, after) ? current : candidate;
+      },
+    );
+  }
+  function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption"): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.reset", labelKey: "history.element.setting", labelParams: { setting: "textStyle.reset" } },
+      (current) => current.textStyles?.some((style) => style.id === id)
+        ? resetFundamentalTextStyleOverride(current, id)
+        : current,
+    );
+  }
   function requestResetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPendingTextStyleReset(id); }
-  function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
+  function addTextStyle(name: string, role: TextStyleRole): void {
+    if (!name.trim()) return;
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.add", labelKey: "history.element.setting", labelParams: { setting: "textStyle.add" } },
+      (current) => addCustomTextStyle(current, name, role),
+    );
+  }
   function createTextStyleFromSelectedText(name: string): void {
     if (selectedDocumentElement?.type !== "text") return;
-    setPresentation((current) => {
-      const slide = current.slides[selectedSlideIndex];
-      if (!slide) return current;
-      const text = findElementById(slide.elements, selectedDocumentElement.id);
-      if (text?.type !== "text") return current;
-      const created = createTextStyleFromText(current, text, name);
-      if (!created) return current;
-      return {
-        ...created.presentation,
-        slides: current.slides.map((candidate, index) => index === selectedSlideIndex
-          ? { ...candidate, elements: updateElementById(candidate.elements, text.id, () => created.text) }
-          : candidate),
-      };
-    });
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    const textId = selectedDocumentElement.id;
+    const slideIndex = selectedSlideIndex;
+    commitPresentationAction(
+      { kind: "textStyle.createFromText", labelKey: "history.element.setting", labelParams: { setting: "textStyle.createFromText" } },
+      (current) => {
+        const slide = current.slides[slideIndex];
+        if (!slide) return current;
+        const text = findElementById(slide.elements, textId);
+        if (text?.type !== "text") return current;
+        const created = createTextStyleFromText(current, text, trimmedName);
+        if (!created) return current;
+        return {
+          ...created.presentation,
+          slides: current.slides.map((candidate, index) => index === slideIndex
+            ? { ...candidate, elements: updateElementById(candidate.elements, textId, () => created.text) }
+            : candidate),
+        };
+      },
+    );
   }
-  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
-  function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
-  function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
+  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
+      (current) => {
+        const before = current.textStyles?.find((style) => style.id === id);
+        if (before === undefined || !("name" in before)) return current;
+        const candidate = updateCustomTextStyle(current, id, patch);
+        const after = candidate.textStyles?.find((style) => style.id === id);
+        return areTextStyleDefinitionsEqual(before, after) ? current : candidate;
+      },
+    );
+  }
+  function removeTextStyle(id: string): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "textStyle.remove" } },
+      (current) => removeUnusedCustomTextStyle(current, id) ?? current,
+    );
+  }
+  function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || ("target" in before && before.target === "topics")) return current;
+        const afterPresentation = updateLinkedStyle(current, id, patch);
+        const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || ("target" in after && after.target === "topics") || areLinkedContainerStyleDefinitionsEqual(before, after)) return current;
+        return afterPresentation;
+      },
+    );
+  }
   function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
-    setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.add", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.add" } },
+      (current) => {
+        const created = createLinkedStyleWithProperty(current, name, property);
+        return created.linkedStyleId === undefined || created.presentation === current ? current : created.presentation;
+      },
+    );
   }
-  function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void { setPresentation((current) => updateLinkedTopicsStyle(current, id, patch)); }
+  function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || !("target" in before) || before.target !== "topics") return current;
+        const candidate = updateLinkedTopicsStyle(current, id, patch);
+        const after = candidate.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || !("target" in after) || after.target !== "topics" || areLinkedTopicsStyleDefinitionsEqual(before, after) === true) return current;
+        return candidate;
+      },
+    );
+  }
   function createLinkedStyleFromSelectedElement(name: string): void {
-    if (!selectedDocumentElement) return;
-    setPresentation((current) => {
-      if (selectedDocumentElement.type === "container" && canCreateLinkedStyleFromContainer(selectedDocumentElement)) return createLinkedStyleFromContainer(current, selectedSlideIndex, selectedDocumentElement.id, name);
-      if (selectedDocumentElement.type === "topics" && canCreateLinkedStyleFromTopics(selectedDocumentElement)) return createLinkedStyleFromTopics(current, selectedSlideIndex, selectedDocumentElement.id, name);
-      return current;
-    });
+    if (!name.trim()) return;
+    if (selectedDocumentElement?.type !== "container" && selectedDocumentElement?.type !== "topics") return;
+
+    const slideIndex = selectedSlideIndex;
+    const elementId = selectedDocumentElement.id;
+    const expectedType = selectedDocumentElement.type;
+
+    commitPresentationAction(
+      {
+        kind: "linkedStyle.createFromElement",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "linkedStyle.createFromElement" },
+      },
+      (current) => {
+        const slide = current.slides[slideIndex];
+        if (!slide) return current;
+
+        const currentElement = findElementById(slide.elements, elementId);
+        if (!currentElement || currentElement.type !== expectedType) return current;
+
+        if (expectedType === "container") {
+          if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
+          const candidate = createLinkedStyleFromContainer(current, slideIndex, elementId, name);
+          return candidate === current ? current : candidate;
+        }
+
+        if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
+        const candidate = createLinkedStyleFromTopics(current, slideIndex, elementId, name);
+        return candidate === current ? current : candidate;
+      },
+    );
   }
-  function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
-  function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
+  function renamePresentationLinkedStyle(id: string, name: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || ("target" in before && before.target === "topics")) return current;
+        const afterPresentation = renameLinkedStyle(current, id, name);
+        const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
+        return after !== undefined && !(("target" in after) && after.target === "topics") && !areLinkedContainerStyleDefinitionsEqual(before, after)
+          ? afterPresentation
+          : current;
+      },
+    );
+  }
+  function removePresentationLinkedStyle(id: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.remove" } },
+      (current) => {
+        const target = current.linkedStyles?.find((style) => style.id === id);
+        if (target === undefined || ("target" in target && target.target === "topics")) return current;
+        return removeUnusedLinkedStyle(current, id) ?? current;
+      },
+    );
+  }
+  function renamePresentationLinkedTopicsStyle(id: string, name: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || !("target" in before) || before.target !== "topics") return current;
+        const candidate = renameLinkedStyle(current, id, name);
+        const after = candidate.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || !("target" in after) || after.target !== "topics" || areLinkedTopicsStyleDefinitionsEqual(before, after) === true) return current;
+        return candidate;
+      },
+    );
+  }
+  function removePresentationLinkedTopicsStyle(id: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.remove" } },
+      (current) => {
+        const target = current.linkedStyles?.find((style) => style.id === id);
+        if (target === undefined || !("target" in target) || target.target !== "topics") return current;
+        return removeUnusedLinkedStyle(current, id) ?? current;
+      },
+    );
+  }
   function attachLinkedStyleMatches(id: string): void {
-    setPresentation((current) => attachLinkedStyleToMatchingContainers(current, id).presentation);
+    commitPresentationAction(
+      {
+        kind: "linkedStyle.attachMatches",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "linkedStyle.attachMatches" },
+      },
+      (current) => {
+        const linkedStyle = current.linkedStyles?.find((style) => style.id === id);
+        if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
+
+        const result = attachLinkedStyleToMatchingContainers(current, id);
+        return result.attachedLocations.length === 0 || result.presentation === current ? current : result.presentation;
+      },
+    );
   }
   function selectLinkedStyleContainer(location: LinkedStyleContainerLocation): void {
     const slide = presentation.slides[location.slideIndex];
@@ -2579,17 +3717,48 @@ export function EditorWorkspace({
   function confirmStyleDetach(): void {
     const pending = pendingStyleDetach;
     if (!pending) return;
-    setPresentation((current) => {
-      const slide = current.slides[pending.slideIndex];
-      if (!slide) return current;
-      const target = findElementById(slide.elements, pending.elementId);
-      if (pending.kind === "text-style") {
-        if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
-        return { ...current, slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, pending.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
-      }
-      if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
-      return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
-    });
+    if (pending.kind === "text-style") {
+      commitPresentationAction(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "text.style" },
+        },
+        (current) => {
+          const slide = current.slides[pending.slideIndex];
+          if (!slide) return current;
+          if (!listPresentationTextStyles(current).some(({ id }) => id === pending.styleId)) return current;
+          const target = findElementById(slide.elements, pending.elementId);
+          if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
+          const elements = updateElementById(
+            slide.elements,
+            pending.elementId,
+            (element) => element.type === "text" ? detachTextStyle(current, element) : element,
+          );
+          if (elements === slide.elements) return current;
+          return {
+            ...current,
+            slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements } : candidate),
+          };
+        },
+      );
+    } else {
+      commitPresentationAction(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "container.linkedStyle" },
+        },
+        (current) => {
+          const slide = current.slides[pending.slideIndex];
+          if (!slide) return current;
+          const target = findElementById(slide.elements, pending.elementId);
+          if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
+          if (!current.linkedStyles?.some((style) => style.id === pending.styleId)) return current;
+          return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
+        },
+      );
+    }
     setPendingStyleDetach(null);
   }
 
@@ -2611,68 +3780,74 @@ export function EditorWorkspace({
   function addElement(type: ElementCreateType) {
     const newElement = createElement(type, presentation.slides);
 
-    setPresentation((current) => {
-      const prepared = type === "table"
-        ? ensureStructuredTableTextStyles(current).presentation
-        : type === "topics"
-          ? ensureTopicsTextStyle(current)
-          : current;
+    commitPresentationAction(
+      {
+        kind: "element.add",
+        labelKey: "history.element.add",
+        labelParams: { elementType: type },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
 
-      return {
-      ...prepared,
-
-      slides: prepared.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
+        const prepared = type === "table"
+          ? ensureStructuredTableTextStyles(current).presentation
+          : type === "topics"
+            ? ensureTopicsTextStyle(current)
+            : current;
+        const preparedSlide = prepared.slides[selectedSlideIndex];
+        if (!preparedSlide) return current;
 
         const destination = resolveAddElementDestination(
-          slide.elements,
+          preparedSlide.elements,
           selectedElement?.id ?? null,
           newElement,
           selectedElement?.contentSlotId ?? null,
         );
 
+        let nextElements: PowerShowElement[];
         switch (destination.kind) {
           case "slide-root":
-            return {
-              ...slide,
-              elements: [...slide.elements, newElement],
-            };
+            nextElements = [...preparedSlide.elements, newElement];
+            break;
 
           case "append-container":
-            return {
-              ...slide,
-              elements: appendElementToContainer(
-                slide.elements,
-                destination.containerId,
-                newElement,
-              ),
-            };
+            nextElements = appendElementToContainer(
+              preparedSlide.elements,
+              destination.containerId,
+              newElement,
+            );
+            break;
 
           case "append-content-slot":
-            return {
-              ...slide,
-              elements: appendElementToContentSlot(
-                slide.elements,
-                destination.contentSlotId,
-                newElement,
-              ),
-            };
+            nextElements = appendElementToContentSlot(
+              preparedSlide.elements,
+              destination.contentSlotId,
+              newElement,
+            );
+            break;
 
           case "insert-after":
-            return {
-              ...slide,
-              elements: insertElementAfterId(
-                slide.elements,
-                destination.targetId,
-                newElement,
-              ),
-            };
+            nextElements = insertElementAfterId(
+              preparedSlide.elements,
+              destination.targetId,
+              newElement,
+            );
+            break;
         }
-      }),
-      };
-    });
+
+        if (nextElements === preparedSlide.elements) return current;
+
+        return {
+          ...prepared,
+          slides: prepared.slides.map((slide, index) =>
+            index === selectedSlideIndex
+              ? { ...slide, elements: nextElements }
+              : slide,
+          ),
+        };
+      },
+    );
 
     setSelectedElement({
       id: newElement.id,
@@ -2693,28 +3868,54 @@ export function EditorWorkspace({
       return;
     }
 
+    const sourceElementId = selectedElement?.id;
     const newElement = createQrImageElement(href, presentation.slides);
-    if (!newElement || !selectedElement) {
+    if (!newElement || !sourceElementId) {
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+    commitPresentationAction(
+      {
+        kind: "element.add",
+        labelKey: "history.element.add",
+        labelParams: { elementType: "image" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentSource = findElementById(
+          currentSlide.elements,
+          sourceElementId,
+        );
+        if (
+          !currentSource ||
+          (currentSource.type !== "text" &&
+            currentSource.type !== "image" &&
+            currentSource.type !== "container") ||
+          !currentSource.link ||
+          currentSource.link.href !== href
+        ) {
+          return current;
         }
 
+        const nextElements = insertElementAfterId(
+          currentSlide.elements,
+          sourceElementId,
+          newElement,
+        );
+        if (nextElements === currentSlide.elements) return current;
+
         return {
-          ...slide,
-          elements: insertElementAfterId(
-            slide.elements,
-            selectedElement.id,
-            newElement,
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex
+              ? { ...slide, elements: nextElements }
+              : slide,
           ),
         };
-      }),
-    }));
+      },
+    );
 
     setSelectedElement({ id: newElement.id, type: "image" });
   }
@@ -2730,25 +3931,48 @@ export function EditorWorkspace({
       return { ok: false, reason: "invalid-recipe-application" };
     }
 
+    const slideIndex = selectedSlideIndex;
     const selectedElementId = selectedElement?.contentSlotId != null
       ? null
       : selectedElement?.id ?? null;
-    const result = applyCustomLibraryItemToPresentation(
+
+    const preflightResult = applyCustomLibraryItemToPresentation(
       item,
       presentation,
-      selectedSlideIndex,
+      slideIndex,
       selectedElementId,
     );
 
-    if (!result.ok) {
-      return result;
+    if (!preflightResult.ok) {
+      return preflightResult;
     }
 
-    setPresentation(result.presentation);
+    let currentResult: ReturnType<typeof applyCustomLibraryItemToPresentation> = preflightResult;
+    commitPresentationAction(
+      {
+        kind: "customLibrary.apply",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "customLibrary.apply" },
+      },
+      (current) => {
+        const result = applyCustomLibraryItemToPresentation(
+          item,
+          current,
+          slideIndex,
+          selectedElementId,
+        );
+        currentResult = result;
+        return result.ok ? result.presentation : current;
+      },
+    );
+
+    if (!currentResult.ok) {
+      return currentResult;
+    }
 
     const appliedElement = findElementById(
-      result.presentation.slides[selectedSlideIndex]?.elements ?? [],
-      result.appliedElementId,
+      preflightResult.presentation.slides[slideIndex]?.elements ?? [],
+      preflightResult.appliedElementId,
     );
     if (appliedElement) {
       setSelectedElement({
@@ -2793,40 +4017,42 @@ export function EditorWorkspace({
       return null;
     }
 
-    setPresentation((current) => {
-      const prepared = ensureTopicsTextStyle(current);
-      let changed = false;
+    commitPresentationAction(
+      {
+        kind: "topics.add",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.add" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) {
+          return current;
+        }
 
-      const slides = prepared.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+        const prepared = ensureTopicsTextStyle(current);
+        const preparedSlide = prepared.slides[selectedSlideIndex];
+        if (!preparedSlide) {
+          return current;
         }
 
         const elements = appendTopicItemToTopics(
-          slide.elements,
+          preparedSlide.elements,
           topicsId,
           created.item,
         );
 
-        if (elements === slide.elements) {
-          return slide;
+        if (elements === preparedSlide.elements) {
+          return current;
         }
 
-        changed = true;
-
         return {
-          ...slide,
-          elements,
+          ...prepared,
+          slides: prepared.slides.map((slide, index) => index === selectedSlideIndex
+            ? { ...slide, elements }
+            : slide),
         };
-      });
-
-      return changed
-        ? {
-            ...prepared,
-            slides,
-          }
-        : prepared;
-    });
+      },
+    );
 
     return created.item.id;
   }
@@ -2852,41 +4078,43 @@ export function EditorWorkspace({
       return null;
     }
 
-    setPresentation((current) => {
-      const prepared = ensureTopicsTextStyle(current);
-      let changed = false;
+    commitPresentationAction(
+      {
+        kind: "topics.add",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.add" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) {
+          return current;
+        }
 
-      const slides = prepared.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+        const prepared = ensureTopicsTextStyle(current);
+        const preparedSlide = prepared.slides[selectedSlideIndex];
+        if (!preparedSlide) {
+          return current;
         }
 
         const elements = appendChildTopicItemToTopics(
-          slide.elements,
+          preparedSlide.elements,
           topicsId,
           topicItemId,
           created.item,
         );
 
-        if (elements === slide.elements) {
-          return slide;
+        if (elements === preparedSlide.elements) {
+          return current;
         }
 
-        changed = true;
-
         return {
-          ...slide,
-          elements,
+          ...prepared,
+          slides: prepared.slides.map((slide, index) => index === selectedSlideIndex
+            ? { ...slide, elements }
+            : slide),
         };
-      });
-
-      return changed
-        ? {
-            ...prepared,
-            slides,
-          }
-        : prepared;
-    });
+      },
+    );
 
     return created.item.id;
   }
@@ -2912,30 +4140,41 @@ export function EditorWorkspace({
       return;
     }
 
+    const sourceElementId = selectedDocumentElement.id;
     const duplicatedElement = duplicateElement(
       selectedDocumentElement,
       presentation.slides,
     );
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+    commitPresentationAction(
+      {
+        kind: "element.duplicate",
+        labelKey: "history.element.duplicate",
+        labelParams: { elementType: selectedDocumentElement.type },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide || !findElementById(currentSlide.elements, sourceElementId)) {
+          return current;
         }
 
-        return {
-          ...slide,
+        const nextElements = insertElementAfterId(
+          currentSlide.elements,
+          sourceElementId,
+          duplicatedElement,
+        );
+        if (nextElements === currentSlide.elements) return current;
 
-          elements: insertElementAfterId(
-            slide.elements,
-            selectedDocumentElement.id,
-            duplicatedElement,
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex
+              ? { ...slide, elements: nextElements }
+              : slide,
           ),
         };
-      }),
-    }));
+      },
+    );
 
     setSelectedElement({
       id: duplicatedElement.id,
@@ -2957,27 +4196,30 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: current.slides.map((slide, index) => {
-        if (index !== pendingElementDeletion.slideIndex) {
-          return slide;
-        }
-
+    const deletion = pendingElementDeletion;
+    const current = history.present;
+    const deletionSlide = current.slides[deletion.slideIndex];
+    if (!deletionSlide || !findElementById(deletionSlide.elements, deletion.elementId)) {
+      setPendingElementDeletion(null);
+      setSelectedElement((selected) => selected?.id === deletion.elementId ? null : selected);
+      return;
+    }
+    commitPresentationAction(
+      { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } },
+      (currentPresentation) => {
+        const slide = currentPresentation.slides[deletion.slideIndex];
+        if (!slide || !findElementById(slide.elements, deletion.elementId)) return currentPresentation;
         return {
-          ...slide,
-
-          elements: removeElementById(
-            slide.elements,
-            pendingElementDeletion.elementId,
-          ),
+          ...currentPresentation,
+          slides: currentPresentation.slides.map((candidate, index) => index === deletion.slideIndex
+            ? { ...candidate, elements: removeElementById(candidate.elements, deletion.elementId) }
+            : candidate),
         };
-      }),
-    }));
+      },
+    );
 
     setSelectedElement((current) =>
-      current?.id === pendingElementDeletion.elementId ? null : current,
+      current?.id === deletion.elementId ? null : current,
     );
     setPendingElementDeletion(null);
   }
@@ -3022,17 +4264,13 @@ export function EditorWorkspace({
 
     const newSlide = createSlideFromPreset(preset, presentation.slides);
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: [
-        ...current.slides.slice(0, insertionIndex),
-
-        newSlide,
-
-        ...current.slides.slice(insertionIndex),
-      ],
-    }));
+    commitPresentationAction(
+      { kind: "slide.add", labelKey: "history.slide.add" },
+      (current) => ({
+        ...current,
+        slides: [...current.slides.slice(0, insertionIndex), newSlide, ...current.slides.slice(insertionIndex)],
+      }),
+    );
 
     setSelectedSlideIndex(insertionIndex);
 
@@ -3072,17 +4310,13 @@ export function EditorWorkspace({
       presentation.slides,
     );
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: [
-        ...current.slides.slice(0, insertionIndex),
-
-        duplicatedSlide,
-
-        ...current.slides.slice(insertionIndex),
-      ],
-    }));
+    commitPresentationAction(
+      { kind: "slide.duplicate", labelKey: "history.slide.duplicate" },
+      (current) => ({
+        ...current,
+        slides: [...current.slides.slice(0, insertionIndex), duplicatedSlide, ...current.slides.slice(insertionIndex)],
+      }),
+    );
 
     setSelectedSlideIndex(insertionIndex);
 
@@ -3125,13 +4359,15 @@ export function EditorWorkspace({
 
     const nextIndex = Math.min(selectedSlideIndex, nextSlides.length - 1);
 
-    setPresentation((current) => ({
+    commitPresentationAction(
+      { kind: "slide.delete", labelKey: "history.slide.delete" },
+      (current) => ({
       ...current,
-
       slides: current.slides.filter(
         (_slide, index) => index !== selectedSlideIndex,
       ),
-    }));
+      }),
+    );
 
     setSelectedSlideIndex(nextIndex);
 
@@ -3164,11 +4400,13 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-
-      slides: moveSlide(current.slides, selectedSlideIndex, targetIndex),
-    }));
+    commitPresentationAction(
+      { kind: "slide.move", labelKey: "history.slide.move" },
+      (current) => ({
+        ...current,
+        slides: moveSlide(current.slides, selectedSlideIndex, targetIndex),
+      }),
+    );
 
     setSelectedSlideIndex(targetIndex);
   }
@@ -3191,36 +4429,73 @@ export function EditorWorkspace({
       return;
     }
 
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: moveElementToSiblingIndexById(
-                slide.elements,
-                selectedElement.id,
-                targetIndex,
-              ),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      { kind: "element.move", labelKey: "history.element.move" },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = moveElementToSiblingIndexById(
+          currentSlide.elements,
+          selectedElement.id,
+          targetIndex,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function moveElementInTree(options: Parameters<typeof moveElement>[1]) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
+    commitPresentationAction(
+      { kind: "element.move", labelKey: "history.element.move" },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const source = findElementLocation(currentSlide.elements, options.elementId);
+        if (!source) return current;
+
+        const areElementParentRefsEqual = (
+          left: ElementParentRef,
+          right: ElementParentRef,
+        ): boolean => {
+          switch (left.kind) {
+            case "slide":
+              return right.kind === "slide";
+            case "container":
+              return right.kind === "container" && left.id === right.id;
+            case "content-slot":
+              return right.kind === "content-slot" && left.id === right.id;
+          }
+        };
+
+        if (
+          areElementParentRefsEqual(source.parentRef, options.targetParentRef) &&
+          ((options.targetIndex !== undefined && options.targetIndex === source.index) ||
+            (options.targetIndex === undefined && source.index === source.count - 1))
+        ) {
+          return current;
         }
 
-        const result = moveElement(slide.elements, options);
+        const result = moveElement(currentSlide.elements, options);
+        if (!result.moved) return current;
 
-        return result.moved ? { ...slide, elements: result.elements } : slide;
-      }),
-    }));
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: result.elements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function moveTopicItemInTree(
@@ -3228,50 +4503,91 @@ export function EditorWorkspace({
     topicItemId: string,
     targetIndex: number,
   ) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: moveTopicItemToSiblingIndex(
-                slide.elements,
-                topicsId,
-                topicItemId,
-                targetIndex,
-              ),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "topics.move",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.move" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = moveTopicItemToSiblingIndex(
+          currentSlide.elements,
+          topicsId,
+          topicItemId,
+          targetIndex,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function indentTopicItemInTree(topicsId: string, topicItemId: string) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: indentTopicItem(slide.elements, topicsId, topicItemId),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "topics.indent",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.indent" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = indentTopicItem(
+          currentSlide.elements,
+          topicsId,
+          topicItemId,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function outdentTopicItemInTree(topicsId: string, topicItemId: string) {
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: outdentTopicItem(slide.elements, topicsId, topicItemId),
-            }
-          : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "topics.outdent",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.outdent" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const nextElements = outdentTopicItem(
+          currentSlide.elements,
+          topicsId,
+          topicItemId,
+        );
+
+        if (nextElements === currentSlide.elements) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
+          ),
+        };
+      },
+    );
   }
 
   function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
@@ -3279,64 +4595,128 @@ export function EditorWorkspace({
 
     const source = options.source;
     const target = options.target;
-    let outcome:
-      | ReturnType<typeof reorderGalleryItem>
-      | ReturnType<typeof detachGalleryItemToImage>
-      | ReturnType<typeof attachImageToGallery>
-      | null = null;
+    const resolveOperation = (elements: PowerShowElement[], slides: readonly Slide[]) => {
+      if (source.kind === "gallery-item") {
+        if (target.kind === "gallery-item") {
+          const gallery = findElementById(elements, source.galleryId);
+          const targetGallery = findElementById(elements, target.galleryId);
+          if (
+            source.galleryId !== target.galleryId ||
+            gallery?.type !== "gallery" ||
+            targetGallery?.type !== "gallery" ||
+            !gallery.items[source.itemIndex] ||
+            !targetGallery.items[target.itemIndex]
+          ) return null;
 
-    if (source.kind === "gallery-item") {
-      if (target.kind === "gallery-item") {
-        if (source.galleryId !== target.galleryId) return;
-        const finalIndex = options.intent === "before"
-          ? target.itemIndex - (source.itemIndex < target.itemIndex ? 1 : 0)
-          : target.itemIndex + (source.itemIndex < target.itemIndex ? 0 : 1);
-        outcome = reorderGalleryItem(selectedSlide.elements, source.galleryId, source.itemIndex, finalIndex);
-      } else if (
-        options.intent !== "inside" || target.element.type === "container"
-      ) {
-        outcome = detachGalleryItemToImage(
-          selectedSlide.elements,
-          presentation.slides,
-          source.galleryId,
-          source.itemIndex,
-          target.element.id,
-          options.intent,
-        );
+          const finalIndex = options.intent === "before"
+            ? target.itemIndex - (source.itemIndex < target.itemIndex ? 1 : 0)
+            : target.itemIndex + (source.itemIndex < target.itemIndex ? 0 : 1);
+          return {
+            kind: "move" as const,
+            galleryId: source.galleryId,
+            outcome: reorderGalleryItem(elements, source.galleryId, source.itemIndex, finalIndex),
+          };
+        }
+
+        const currentTarget = findElementById(elements, target.element.id);
+        if (
+          currentTarget === null ||
+          currentTarget.type !== target.element.type ||
+          (options.intent === "inside" && currentTarget.type !== "container")
+        ) return null;
+
+        return {
+          kind: "detach" as const,
+          galleryId: source.galleryId,
+          outcome: detachGalleryItemToImage(
+            elements,
+            slides,
+            source.galleryId,
+            source.itemIndex,
+            target.element.id,
+            options.intent,
+          ),
+        };
       }
-    } else if (target.kind === "gallery-item" && options.intent !== "inside") {
-      outcome = attachImageToGallery(
-        selectedSlide.elements,
-        source.elementId,
-        target.galleryId,
-        target.itemIndex + (options.intent === "after" ? 1 : 0),
-      );
-    } else if (target.kind === "element" && target.element.type === "gallery" && options.intent === "inside") {
-      outcome = attachImageToGallery(
-        selectedSlide.elements,
-        source.elementId,
-        target.element.id,
-        target.element.items.length,
-      );
-    }
 
-    if (!outcome?.changed) return;
+      if (target.kind === "gallery-item" && options.intent !== "inside") {
+        const gallery = findElementById(elements, target.galleryId);
+        if (
+          gallery?.type !== "gallery" ||
+          !gallery.items[target.itemIndex]
+        ) return null;
+
+        return {
+          kind: "attach" as const,
+          galleryId: target.galleryId,
+          outcome: attachImageToGallery(
+            elements,
+            source.elementId,
+            target.galleryId,
+            target.itemIndex + (options.intent === "after" ? 1 : 0),
+          ),
+        };
+      }
+
+      if (target.kind === "element" && target.element.type === "gallery" && options.intent === "inside") {
+        const gallery = findElementById(elements, target.element.id);
+        if (gallery?.type !== "gallery") return null;
+
+        return {
+          kind: "attach" as const,
+          galleryId: gallery.id,
+          outcome: attachImageToGallery(
+            elements,
+            source.elementId,
+            gallery.id,
+            gallery.items.length,
+          ),
+        };
+      }
+
+      return null;
+    };
+
+    const resolved = resolveOperation(selectedSlide.elements, presentation.slides);
+    if (!resolved?.outcome.changed) return;
+
+    const meta: HistoryActionMeta = {
+      kind: `gallery.${resolved.kind}`,
+      labelKey: "history.element.setting",
+      labelParams: { setting: `gallery.${resolved.kind}` },
+    };
+    const expectedImageId = resolved.kind === "detach" ? resolved.outcome.imageId : undefined;
 
     closeCanvasMediaEditing();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex ? { ...slide, elements: outcome!.elements } : slide,
-      ),
-    }));
+    commitPresentationAction(meta, (current) => {
+      const currentSlide = current.slides[selectedSlideIndex];
+      if (!currentSlide) return current;
 
-    if (outcome.imageId) {
-      setSelectedElement({ id: outcome.imageId, type: "image" });
+      const currentResolved = resolveOperation(currentSlide.elements, current.slides);
+      if (
+        !currentResolved?.outcome.changed ||
+        currentResolved.kind !== resolved.kind ||
+        (expectedImageId !== undefined && currentResolved.outcome.imageId !== expectedImageId)
+      ) return current;
+
+      return {
+        ...current,
+        slides: current.slides.map((slide, index) =>
+          index === selectedSlideIndex
+            ? { ...slide, elements: currentResolved.outcome.elements }
+            : slide,
+        ),
+      };
+    });
+
+    if (resolved.outcome.imageId) {
+      setSelectedElement({ id: resolved.outcome.imageId, type: "image" });
       setGalleryItemSelection(null);
-    } else if (outcome.galleryItemIndex !== undefined) {
-      const galleryId = source.kind === "gallery-item" ? source.galleryId : target.kind === "gallery-item" ? target.galleryId : target.element.id;
+    } else if (resolved.outcome.galleryItemIndex !== undefined) {
+      const galleryId = resolved.galleryId;
+      if (!galleryId) return;
       setSelectedElement({ id: galleryId, type: "gallery" });
-      setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
+      setGalleryItemSelection({ galleryId, itemIndex: resolved.outcome.galleryItemIndex });
     }
   }
 
@@ -3354,12 +4734,32 @@ export function EditorWorkspace({
     if (!outcome.changed || outcome.galleryItemIndex === undefined) return;
 
     closeCanvasMediaEditing();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex ? { ...slide, elements: outcome.elements } : slide,
-      ),
-    }));
+    commitPresentationAction(
+      {
+        kind: "gallery.move",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "gallery.move" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentOutcome = reorderGalleryItem(
+          currentSlide.elements,
+          galleryId,
+          itemIndex,
+          itemIndex + offset,
+        );
+        if (!currentOutcome.changed) return current;
+
+        return {
+          ...current,
+          slides: current.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: currentOutcome.elements } : slide,
+          ),
+        };
+      },
+    );
     setSelectedElement({ id: galleryId, type: "gallery" });
     setGalleryItemSelection({ galleryId, itemIndex: outcome.galleryItemIndex });
   }
@@ -3376,44 +4776,104 @@ export function EditorWorkspace({
   // single selected element updater.
   // ==========================================================
 
+  function findStructuredTableInPresentation(
+    current: Presentation,
+    tableId: string,
+  ): Extract<PowerShowElement, { type: "table"; mode: "structured" }> | null {
+    for (const slide of current.slides) {
+      const element = findElementById(slide.elements, tableId);
+      if (element?.type === "table" && element.mode === "structured") {
+        return element;
+      }
+    }
+    return null;
+  }
+
   const tableAuthoringControls: TableAuthoringControls = {
     onAddColumn: (tableId) => {
-      setPresentation((current) => {
-        const prepared = ensureStructuredTableTextStyles(current).presentation;
-        return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId) };
-      });
+      commitPresentationAction(
+        {
+          kind: "table.addColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addColumn" },
+        },
+        (current) => {
+          if (!findStructuredTableInPresentation(current, tableId)) return current;
+          const prepared = ensureStructuredTableTextStyles(current).presentation;
+          return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId) };
+        },
+      );
     },
 
     onRemoveColumn: (tableId, index) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: removeColumnFromStructuredTable(current.slides, tableId, index),
-      }));
+      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const expectedColumnId = currentTable?.columns[index]?.id;
+      if (expectedColumnId === undefined) return;
+
+      commitPresentationAction(
+        {
+          kind: "table.removeColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeColumn" },
+        },
+        (current) => {
+          const table = findStructuredTableInPresentation(current, tableId);
+          if (table?.columns[index]?.id !== expectedColumnId) return current;
+          return {
+            ...current,
+            slides: removeColumnFromStructuredTable(current.slides, tableId, index),
+          };
+        },
+      );
     },
 
     onAddRow: (tableId) => {
-      setPresentation((current) => {
-        const prepared = ensureStructuredTableTextStyles(current).presentation;
-        return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId) };
-      });
+      commitPresentationAction(
+        {
+          kind: "table.addRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addRow" },
+        },
+        (current) => {
+          if (!findStructuredTableInPresentation(current, tableId)) return current;
+          const prepared = ensureStructuredTableTextStyles(current).presentation;
+          return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId) };
+        },
+      );
     },
 
     onRemoveRow: (tableId, index) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: removeRowFromStructuredTable(current.slides, tableId, index),
-      }));
+      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const expectedRowId = currentTable?.rows[index]?.id;
+      if (expectedRowId === undefined) return;
+
+      commitPresentationAction(
+        {
+          kind: "table.removeRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeRow" },
+        },
+        (current) => {
+          const table = findStructuredTableInPresentation(current, tableId);
+          if (table?.rows[index]?.id !== expectedRowId) return current;
+          return {
+            ...current,
+            slides: removeRowFromStructuredTable(current.slides, tableId, index),
+          };
+        },
+      );
     },
 
     onShowHeaderChange: (tableId, showHeader) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: setStructuredTableShowHeader(
-          current.slides,
-          tableId,
-          showHeader,
-        ),
-      }));
+      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      if (!currentTable || currentTable.showHeader === showHeader) return;
+      commitPresentationAction(
+        { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
+        (current) => ({
+          ...current,
+          slides: setStructuredTableShowHeader(current.slides, tableId, showHeader),
+        }),
+      );
     },
   };
 
@@ -3473,12 +4933,14 @@ export function EditorWorkspace({
             className={styles.presentationTitleInput}
             value={presentation.title}
             aria-label={t("topbar.editor")}
+            onFocus={() => beginPresentationTransaction("presentation:title", { kind: "presentation.rename", labelKey: "history.presentation.rename" })}
             onChange={(event) => {
               const title = event.target.value;
-              setPresentation((current) =>
+              updatePresentationTransaction("presentation:title", (current) =>
                 updatePresentationTitle(current, title),
               );
             }}
+            onBlur={() => finishPresentationTransaction("presentation:title")}
           />
         </TopbarTitle>
 
@@ -4022,6 +5484,7 @@ export function EditorWorkspace({
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
             presentationTextStyles={presentation.textStyles ?? []}
             presentation={presentation}
+            authoringHistory={authoringHistory}
             onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
             onResetFundamentalTextStyle={requestResetFundamentalTextStyle}
             onAddTextStyle={addTextStyle}
@@ -4033,7 +5496,9 @@ export function EditorWorkspace({
              onUpdateLinkedTopicsStyle={updatePresentationLinkedTopicsStyle}
              onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
+             onRenameLinkedTopicsStyle={renamePresentationLinkedTopicsStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
+             onRemoveLinkedTopicsStyle={removePresentationLinkedTopicsStyle}
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              onSelectTextStyleElement={selectTextStyleElement}
@@ -4046,30 +5511,33 @@ export function EditorWorkspace({
            />
         ) : (
           <aside className={styles.inspector}>
-            <div className={styles.panelHeader}>
+            <div className={styles.panelHeader + " " + styles.editorPanelTabHeader}>
               <button
-                className={
-                  editorPanelView === "inspector"
-                    ? styles.rightPanelTabActive
-                    : styles.rightPanelTab
-                }
+                className={styles.panelGroupSwitch}
                 type="button"
-                aria-pressed={editorPanelView === "inspector"}
-                onClick={() => setEditorPanelView("inspector")}
+                aria-label={t("editor.scrollTabsEarlier")}
+                onClick={() => scrollEditorPanelTabs(-70)}
               >
-                {t("inspector.title")}
+                ‹
               </button>
-              <button
-                className={
-                  editorPanelView === "elements"
-                    ? styles.rightPanelTabActive
-                    : styles.rightPanelTab
-                }
-                type="button"
-                aria-pressed={editorPanelView === "elements"}
-                onClick={() => setEditorPanelView("elements")}
+              <div
+                className={styles.panelTabViewport}
+                ref={editorPanelTabsRef}
               >
-                {t("tree.elements")}
+                <div className={styles.panelTabStrip}>
+                  <button className={editorPanelView === "inspector" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "inspector"} onClick={() => setEditorPanelView("inspector")}>{t("inspector.title")}</button>
+                  <button className={editorPanelView === "elements" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "elements"} onClick={() => setEditorPanelView("elements")}>{t("tree.elements")}</button>
+                  <button className={editorPanelView === "clipboard" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "clipboard"} onClick={() => setEditorPanelView("clipboard")}>{t("editor.clipboard")}</button>
+                  <button className={editorPanelView === "history" ? styles.rightPanelTabActive : styles.rightPanelTab} type="button" aria-pressed={editorPanelView === "history"} onClick={() => setEditorPanelView("history")}>{t("editor.history")}</button>
+                </div>
+              </div>
+              <button
+                className={styles.panelGroupSwitch}
+                type="button"
+                aria-label={t("editor.scrollTabsLater")}
+                onClick={() => scrollEditorPanelTabs(70)}
+              >
+                ›
               </button>
             </div>
 
@@ -4080,8 +5548,60 @@ export function EditorWorkspace({
                   : ""
               }`}
             >
-              {editorPanelView === "elements" ? (
-                <ElementTreePanel
+              {(() => {
+                switch (editorPanelView) {
+                  case "clipboard":
+                    return (
+                <ClipboardPanel
+                  session={clipboardSession}
+                  pendingCut={pendingCut}
+                  pendingCutLabel={t("editor.pendingCut")}
+                  presentation={presentation}
+                  clearLabel={t("editor.clearClipboard")}
+                  emptyLabel={t("editor.clipboardEmpty")}
+                  pinnedLabel={t("editor.pinnedSnapshots")}
+                  onClear={() => {
+                    setPendingCut(null);
+                    setClipboardSession(clearDisposableClipboardEntries);
+                  }}
+                  onSelect={selectClipboardEntry}
+                  onPaste={(entryId) => {
+                    selectClipboardEntry(entryId);
+                    pasteClipboardEntry(entryId);
+                  }}
+                  onCancelPendingCut={() => setPendingCut(null)}
+                  pinLabel={t("editor.pinSnapshot")}
+                  unpinLabel={t("editor.unpinSnapshot")}
+                  removeLabel={t("editor.removeSnapshot")}
+                  onPin={(entryId) =>
+                    setClipboardSession((current) =>
+                      current.entries.find((entry) => entry.id === entryId)?.pinned
+                        ? unpinClipboardEntry(current, entryId)
+                        : pinClipboardEntry(current, entryId),
+                    )
+                  }
+                  onRemove={(entryId) =>
+                    setClipboardSession((current) => removeClipboardEntry(current, entryId))
+                  }
+                  typeLabel={(element) =>
+                    getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))
+                  }
+                />
+                    );
+                  case "history":
+                    return (
+                      <HistoryPanel
+                        pastActions={history.past.map((entry) => entry.action)}
+                        futureActions={history.future.map((entry) => entry.action)}
+                        emptyLabel={t("editor.historyEmpty")}
+                        appliedLabel={t("editor.historyApplied")}
+                        redoLabel={t("editor.historyRedo")}
+                        translate={t}
+                      />
+                    );
+                  case "elements":
+                    return (
+                      <ElementTreePanel
                   key={selectedSlide.id}
                   slide={selectedSlide}
                   selectedElementId={selectedElement?.id ?? null}
@@ -4113,6 +5633,7 @@ export function EditorWorkspace({
                       selectedElement.type !== selection.type ||
                       selectedElement.contentSlotId !== selection.contentSlotId
                     ) {
+                      finishPresentationTransaction();
                       setSelectedElement({
                         id: selection.id,
                         type: selection.type,
@@ -4126,19 +5647,42 @@ export function EditorWorkspace({
                   onOutdentTopicItem={outdentTopicItemInTree}
                   onMoveGalleryItem={moveGalleryItemInTree}
                   onGalleryStructureDrop={applyGalleryStructureDrop}
-                  onMoveTableColumn={(tableId, columnId, offset) => setPresentation((current) => ({ ...current, slides: moveColumnInStructuredTable(current.slides, tableId, columnId, offset) }))}
-                  onMoveTableRow={(tableId, rowId, offset) => setPresentation((current) => ({ ...current, slides: moveRowInStructuredTable(current.slides, tableId, rowId, offset) }))}
-                  selectedTableStructuralNode={selectedTableStructuralNode}
-                  onSelectTableStructuralNode={setSelectedTableStructuralNode}
-                  customLibraryRepository={customLibraryRepository}
-                  onBrowseElementStyles={() => setRightPanelMode("resources")}
-                  palette={presentation.palette}
-                  fontResources={presentation.resources?.fonts}
-                  textStyles={presentation.textStyles}
-                  linkedStyles={presentation.linkedStyles}
-                />
-              ) : (
-                <>
+                  onMoveTableColumn={(tableId, columnId, offset) => commitPresentationAction(
+                    {
+                      kind: "table.moveColumn",
+                      labelKey: "history.element.setting",
+                      labelParams: { setting: "table.moveColumn" },
+                    },
+                    (current) => {
+                      const slides = moveColumnInStructuredTable(current.slides, tableId, columnId, offset);
+                      return slides === current.slides ? current : { ...current, slides };
+                    },
+                  )}
+                  onMoveTableRow={(tableId, rowId, offset) => commitPresentationAction(
+                    {
+                      kind: "table.moveRow",
+                      labelKey: "history.element.setting",
+                      labelParams: { setting: "table.moveRow" },
+                    },
+                    (current) => {
+                      const slides = moveRowInStructuredTable(current.slides, tableId, rowId, offset);
+                      return slides === current.slides ? current : { ...current, slides };
+                    },
+                  )}
+                   selectedTableStructuralNode={selectedTableStructuralNode}
+                   onSelectTableStructuralNode={setSelectedTableStructuralNode}
+                   customLibraryRepository={customLibraryRepository}
+                   onBrowseElementStyles={() => setRightPanelMode("resources")}
+                   palette={presentation.palette}
+                   fontResources={presentation.resources?.fonts}
+                   textStyles={presentation.textStyles}
+                   linkedStyles={presentation.linkedStyles}
+                 />
+                    );
+                  case "inspector":
+                  default:
+                    return (
+                      <>
                   {/* =================================================
                 BEGIN: ELEMENT CRUD CONTROLS
                 ================================================= */}
@@ -4177,6 +5721,7 @@ export function EditorWorkspace({
                       <PresentationColorPaletteProvider
                         colors={presentation.palette?.colors ?? []}
                       >
+                        <AuthoringHistoryContext.Provider value={authoringHistory}>
                         <ElementInspector
                           element={selectedDocumentElement}
                           onUpdate={updateSelectedElement}
@@ -4228,6 +5773,7 @@ export function EditorWorkspace({
                           selectedTableStructuralNode={selectedTableStructuralNode}
                           onSelectTableStructuralNode={setSelectedTableStructuralNode}
                         />
+                        </AuthoringHistoryContext.Provider>
                       </PresentationColorPaletteProvider>
                     </PickedColorsProvider>
                   ) : (
@@ -4247,15 +5793,16 @@ export function EditorWorkspace({
                           type="text"
                           value={selectedSlide.title}
                           placeholder={t("slides.untitled")}
+                          onFocus={() => beginPresentationTransaction(`slide:${selectedSlide.id}:title`, { kind: "slide.rename", labelKey: "history.slide.rename" })}
                           onChange={(event) => {
                             const title = event.target.value;
 
-                            updateSelectedSlide((slide) => ({
-                              ...slide,
-
-                              title,
+                            updatePresentationTransaction(`slide:${selectedSlide.id}:title`, (current) => ({
+                              ...current,
+                              slides: current.slides.map((slide) => slide.id === selectedSlide.id ? { ...slide, title } : slide),
                             }));
                           }}
+                          onBlur={() => finishPresentationTransaction(`slide:${selectedSlide.id}:title`)}
                         />
                       </label>
 
@@ -4288,8 +5835,10 @@ export function EditorWorkspace({
                     ============================================= */}
                     </>
                   )}
-                </>
-              )}
+                      </>
+                    );
+                }
+              })()}
             </div>
           </aside>
         )}

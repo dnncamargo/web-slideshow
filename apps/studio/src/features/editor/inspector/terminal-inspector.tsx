@@ -24,6 +24,7 @@ import {
   getTextContentPlainText,
 } from "../rich-text-authoring";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
+import { useAuthoringHistory } from "../authoring-history-context";
 
 type TerminalElement = Extract<PowerShowElement, { type: "terminal" }>;
 
@@ -39,6 +40,12 @@ export function TerminalInspector({
   fontResources = [],
 }: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[] }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runDiscrete = (callback: () => void): void => {
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "terminal.lineType" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
 
   const updateStyle = (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => {
     onUpdate((current) => {
@@ -82,8 +89,16 @@ export function TerminalInspector({
   // ==========================================================
 
   function removeLine(index: number) {
-    onUpdate((current) => {
+    if (index < 0 || index >= element.lines.length) {
+      return;
+    }
+
+    const update = () => onUpdate((current) => {
       if (current.type !== "terminal") {
+        return current;
+      }
+
+      if (index < 0 || index >= current.lines.length) {
         return current;
       }
 
@@ -93,6 +108,19 @@ export function TerminalInspector({
         lines: current.lines.filter((_line, lineIndex) => lineIndex !== index),
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "terminal.remove",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "terminal.remove" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -103,7 +131,7 @@ export function TerminalInspector({
   // ==========================================================
 
   function addLine() {
-    onUpdate((current) => {
+    const update = () => onUpdate((current) => {
       if (current.type !== "terminal") {
         return current;
       }
@@ -116,12 +144,24 @@ export function TerminalInspector({
 
           {
             type: "command",
-
             content: "New command",
           },
         ],
       };
     });
+
+    if (authoringHistory) {
+      authoringHistory.discrete(
+        {
+          kind: "terminal.add",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "terminal.add" },
+        },
+        update,
+      );
+    } else {
+      update();
+    }
   }
 
   // ==========================================================
@@ -162,6 +202,7 @@ export function TerminalInspector({
 
           <RichTextAuthoringControl
             content={element.title ?? ""}
+            historyKey={`element:${element.id}:title`}
             id="terminal-title"
             name="terminalTitle"
             multiline={false}
@@ -205,16 +246,8 @@ export function TerminalInspector({
                   value={line.type}
                   onChange={(event) => {
                     const type = event.target.value as TerminalLine["type"];
-
-                    updateLine(
-                      index,
-
-                      (currentLine) => ({
-                        ...currentLine,
-
-                        type,
-                      }),
-                    );
+                    if (type === line.type) return;
+                    runDiscrete(() => updateLine(index, (currentLine) => ({ ...currentLine, type })));
                   }}
                 >
                   <option value="command">{t("inspector.command")}</option>
@@ -243,6 +276,7 @@ export function TerminalInspector({
 
               <RichTextAuthoringControl
                 content={line.content}
+                historyKey={`element:${element.id}:line:${index}`}
                 id={`terminal-${element.id}-line-${index}-content`}
                 name={`terminalLineContent_${element.id}_${index}`}
                 rows={2}

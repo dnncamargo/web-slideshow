@@ -3,6 +3,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
 import { shouldShowPositionLayerControls, type ElementLayerControls } from "./element-positioning-helpers";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 interface Props {
   element: TextElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement;
@@ -15,11 +16,28 @@ function edgeValue(value: string | number | undefined): string | number {
   return value ?? "";
 }
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
 export function CanonicalElementPositionSection({ element, parent, onUpdateLayout, layerControls }: Props) {
   const { t } = useStudioI18n();
   const layout = element.layout;
+  const authoringHistory = useAuthoringHistory();
   const isAbsolute = layout?.position === "absolute";
   const layerVisible = shouldShowPositionLayerControls(isAbsolute, parent?.layout?.children?.mode);
+
+  function runDiscrete(callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting: "position.mode" },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
 
   return (
     <InspectorSection title={t("inspector.placement")}>
@@ -31,13 +49,15 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
           value={isAbsolute ? "absolute" : "flow"}
           onChange={(event) => {
             if (event.target.value === "absolute") {
-              onUpdateLayout((current) => ({ ...current, position: "absolute" }));
+              if (isAbsolute) return;
+              runDiscrete(() => onUpdateLayout((current) => ({ ...current, position: "absolute" })));
             } else {
-              onUpdateLayout((current) => {
-                if (!current) return undefined;
-                const { position: _position, top: _top, right: _right, bottom: _bottom, left: _left, ...flow } = current;
-                return flow;
-              });
+              if (!isAbsolute) return;
+              runDiscrete(() => onUpdateLayout((current) => {
+                  if (!current) return undefined;
+                  const { position: _position, top: _top, right: _right, bottom: _bottom, left: _left, ...flow } = current;
+                  return flow;
+                }));
             }
           }}
         >
@@ -57,13 +77,29 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
                 type="text"
                 inputMode="decimal"
                 value={edgeValue(layout?.[edge])}
+                onFocus={() => authoringHistory?.begin(`number:element-canonical-${edge}`, numberHistoryMeta)}
+                onBlur={() => authoringHistory?.finish(`number:element-canonical-${edge}`)}
                 onChange={(event) => {
                   const value = event.target.value.trim();
-                  onUpdateLayout((current) => ({
+                  const nextValue = value === "" ? undefined : /^-?\d+(?:\.\d+)?%$/.test(value) ? value : Number(value);
+                  if (Object.is(layout?.[edge], nextValue)) {
+                    return;
+                  }
+
+                  const update = () => onUpdateLayout((current) => ({
                     ...current,
                     position: "absolute",
-                    [edge]: value === "" ? undefined : /^-?\d+(?:\.\d+)?%$/.test(value) ? value : Number(value),
+                    [edge]: nextValue,
                   }));
+
+                  if (!authoringHistory) {
+                    update();
+                    return;
+                  }
+
+                  const historyKey = `number:element-canonical-${edge}`;
+                  authoringHistory.begin(historyKey, numberHistoryMeta);
+                  authoringHistory.update(historyKey, update);
                 }}
               />
             </label>

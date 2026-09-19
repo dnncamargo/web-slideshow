@@ -26,6 +26,7 @@ import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 import { usePresentationColorPalette } from "./presentation-color-palette";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle | SimpleTableVisualStyle | StructuredTableVisualStyle;
 type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
@@ -96,6 +97,8 @@ const BLOCK_FALLBACK_LABELS: Record<FallbackKind, "inspector.blocks.statement" |
   statement: "inspector.blocks.statement", scope: "inspector.blocks.scope", logic: "inspector.blocks.logic",
 };
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
 function blockUsage(source: string): { categories: Set<BlocksCategory>; fallbacks: Set<FallbackKind> } {
   const categories = new Set<BlocksCategory>();
   const fallbacks = new Set<FallbackKind>();
@@ -133,6 +136,7 @@ interface Props {
 
 export function CanonicalDataAppearanceSection({ element, style, effect, showColor = false, onUpdateStyle, onUpdateEffect, controlPrefix }: Props) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const palette = usePresentationColorPalette();
   const radius = resolveEffectiveElementStyleDefaults(element).borderRadius;
   const blocksStyle = element.type === "blocks" ? element.style : undefined;
@@ -145,6 +149,28 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
   const updateStructuredStyle = (
     update: (style: StructuredTableVisualStyle | undefined) => StructuredTableVisualStyle,
   ) => onUpdateStyle((current) => update(current as StructuredTableVisualStyle | undefined));
+  const opacityHistoryKey = `number:${controlPrefix}-opacity`;
+  const dividerOpacityHistoryKey = `number:${controlPrefix}-divider-opacity`;
+  const updateOpacity = (opacity: number | undefined) => {
+    if (opacity === effect?.opacity) return;
+    const update = () => onUpdateEffect((current) => ({ ...current, opacity }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(opacityHistoryKey, numberHistoryMeta);
+    authoringHistory.update(opacityHistoryKey, update);
+  };
+  const updateDividerOpacity = (opacity: number | undefined) => {
+    if (opacity === structuredStyle?.dividerOpacity) return;
+    const update = () => updateStructuredStyle((current) => ({ ...(current ?? {}), dividerOpacity: opacity }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(dividerOpacityHistoryKey, numberHistoryMeta);
+    authoringHistory.update(dividerOpacityHistoryKey, update);
+  };
   const updateStructuredBackground = (
     key: "headerBackground" | "bodyRowAlternateBackground",
     background: ColorValue | undefined,
@@ -154,7 +180,10 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     const resolved = source === undefined ? undefined : resolveColorValue(source, palette ? { colors: palette.colors } : undefined);
     const color = suggestAlternatingSurfaceColor(resolved);
     if (color === undefined) return;
-    updateStructuredBackground("bodyRowAlternateBackground", color);
+    if (structuredStyle?.bodyRowAlternateBackground === color) return;
+    const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.bodyRowAlternateBackground" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, () => updateStructuredBackground("bodyRowAlternateBackground", color));
+    else updateStructuredBackground("bodyRowAlternateBackground", color);
   };
   const resolvedStructuredBackground = structuredStyle?.background?.color === undefined
     ? undefined
@@ -209,7 +238,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     <ElementGradientControl gradient={style?.background?.gradient} controlPrefix={`${controlPrefix}-background`} onChange={(gradient) => onUpdateStyle((current) => updateCanonicalBackground(current, "gradient", gradient))} />
     <div className={styles.fieldGrid}>
       <div className={styles.field}><label htmlFor={`${controlPrefix}-border-radius`}>{t("inspector.roundedCorners")}</label><EffectiveLengthInput id={`${controlPrefix}-border-radius`} name={getControlName(controlPrefix, "BorderRadius")} min="0" value={style?.borderRadius} inheritedValue={radius} preferredUnit="px" units={["px", "rem"]} stepByUnit={{ px: "1", rem: "0.1" }} onChange={(borderRadius) => onUpdateStyle((current) => ({ ...current, borderRadius }))} onReset={() => onUpdateStyle((current) => ({ ...current, borderRadius: undefined }))} /></div>
-      <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-opacity`} name={getControlName(controlPrefix, "Opacity")} type="number" min="0" max="100" value={(effect?.opacity ?? 1) * 100} onChange={(event) => { const value = parseOptionalNumber(event.target.value); onUpdateEffect((current) => ({ ...current, opacity: value === undefined ? undefined : Math.max(0, Math.min(1, value / 100)) })); }} /><span>%</span></div></label>
+      <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-opacity`} name={getControlName(controlPrefix, "Opacity")} type="number" min="0" max="100" value={(effect?.opacity ?? 1) * 100} onFocus={() => authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(opacityHistoryKey)} onChange={(event) => { const value = parseOptionalNumber(event.target.value); updateOpacity(value === undefined ? undefined : Math.max(0, Math.min(1, value / 100))); }} /><span>%</span></div></label>
     </div>
       <ElementBorderControl border={style?.border} onChange={(border) => onUpdateStyle((current) => ({ ...current, border }))} controlPrefix={controlPrefix} />
     </div>
@@ -220,7 +249,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       </div>
       <div className={styles.appearanceSubgroup}>
         <span className={styles.appearanceSubheading}>{t("table.appearance.dividers")}</span>
-        <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-divider-opacity`} name={getControlName(controlPrefix, "DividerOpacity")} type="number" min="0" max="100" value={(structuredStyle.dividerOpacity ?? 1) * 100} onChange={(event) => { const value = parseOptionalNumber(event.target.value); updateStructuredStyle((current) => ({ ...(current ?? {}), dividerOpacity: value === undefined ? undefined : Math.max(0, Math.min(1, value / 100)) })); }} /><span>%</span></div></label>
+        <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-divider-opacity`} name={getControlName(controlPrefix, "DividerOpacity")} type="number" min="0" max="100" value={(structuredStyle.dividerOpacity ?? 1) * 100} onFocus={() => authoringHistory?.begin(dividerOpacityHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(dividerOpacityHistoryKey)} onChange={(event) => { const value = parseOptionalNumber(event.target.value); updateDividerOpacity(value === undefined ? undefined : Math.max(0, Math.min(1, value / 100))); }} /><span>%</span></div></label>
       </div>
     </>}
   </InspectorSection>;

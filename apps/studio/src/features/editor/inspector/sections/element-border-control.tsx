@@ -11,6 +11,7 @@ import {
 } from "../inspector-helpers";
 
 import { ColorControl } from "./color-control";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 import {
   ElementGradientControl,
@@ -19,6 +20,9 @@ import {
 
 interface ElementBorderControlProps {
   border: Border | undefined;
+
+  /** When supplied, this is the locally authored value behind the effective border. */
+  authoredBorder?: { value: Border | undefined };
 
   onChange: (border: Border | undefined) => void;
 
@@ -77,6 +81,7 @@ function isEnabledBorderStyle(value: string): value is EnabledBorderStyle {
 
 export function ElementBorderControl({
   border,
+  authoredBorder,
   onChange,
   controlPrefix,
   allowGradient = true,
@@ -84,6 +89,22 @@ export function ElementBorderControl({
   label,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
+  function runDiscrete(setting: string, callback: () => void): void {
+    const meta = {
+      kind: "element.setting",
+      labelKey: "history.element.setting",
+      labelParams: { setting },
+    };
+
+    if (authoringHistory) {
+      authoringHistory.discrete(meta, callback);
+    } else {
+      callback();
+    }
+  }
 
   const paintSelection = allowGradient
     ? getPaintSelection(border)
@@ -109,7 +130,8 @@ export function ElementBorderControl({
 
             if (borderSelection === "none") {
               if (!allowNone) return;
-              onChange(undefined);
+              if (border === undefined) return;
+              runDiscrete("border.style", () => onChange(undefined));
 
               return;
             }
@@ -120,15 +142,17 @@ export function ElementBorderControl({
 
             if (gradientPaint) {
               if (border === undefined) return;
-              onChange({ ...border, style: "solid" });
+              if (border.style === "solid") return;
+              runDiscrete("border.style", () => onChange({ ...border, style: "solid" }));
               return;
             }
 
-            onChange(
+            const nextBorder =
               border === undefined
                 ? { ...createDefaultBorder(), style: borderSelection }
-                : { ...border, style: borderSelection },
-            );
+                : { ...border, style: borderSelection };
+            if (getBorderSelection(border) === borderSelection) return;
+            runDiscrete("border.style", () => onChange(nextBorder));
           }}
         >
           {allowNone && <option value="none">{t("inspector.border.none")}</option>}
@@ -167,7 +191,8 @@ export function ElementBorderControl({
 
                     if (border === undefined) return;
 
-                    onChange(
+                    if (paintSelection === paint) return;
+                    runDiscrete("border.paint", () => onChange(
                       paint === "gradient"
                         ? {
                             ...border,
@@ -180,7 +205,7 @@ export function ElementBorderControl({
                             color: DEFAULT_BORDER_COLOR,
                             gradient: undefined,
                           },
-                    );
+                    ));
                   }}
                 >
                   <option value="color">{t("inspector.borderPaint.color")}</option>
@@ -202,20 +227,35 @@ export function ElementBorderControl({
                   type="number"
                   min="0"
                   value={readAbsoluteNumber(border.width)}
+                  onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-border-width`, numberHistoryMeta)}
+                  onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-border-width`)}
                   onChange={(event) => {
                     const width =
                       parseOptionalNumber(event.target.value) ??
                       DEFAULT_BORDER_WIDTH;
 
-                    onChange(
-                      border === undefined
-                        ? {
-                            width,
-                            style: "solid",
-                            color: DEFAULT_BORDER_COLOR,
-                          }
-                        : { ...border, width },
-                    );
+                    const nextBorder = border === undefined
+                      ? {
+                          width,
+                          style: "solid" as const,
+                          color: DEFAULT_BORDER_COLOR,
+                        }
+                      : { ...border, width };
+                    const authoredValue = authoredBorder === undefined
+                      ? border
+                      : authoredBorder.value;
+                    const unchanged = authoredValue?.width === width;
+                    if (unchanged) return;
+
+                    const update = () => onChange(nextBorder);
+                    if (!authoringHistory) {
+                      update();
+                      return;
+                    }
+
+                    const historyKey = `number:${controlPrefix}-border-width`;
+                    authoringHistory.begin(historyKey, numberHistoryMeta);
+                    authoringHistory.update(historyKey, update);
                   }}
                 />
 
@@ -252,6 +292,9 @@ export function ElementBorderControl({
       {gradientPaint && border !== undefined && (
         <ElementGradientControl
           gradient={border.gradient}
+          {...(authoredBorder === undefined
+            ? {}
+            : { authoredGradient: { value: authoredBorder.value?.gradient } })}
           controlPrefix={`${controlPrefix}-border`}
           allowNone={false}
           onChange={(gradient) => {

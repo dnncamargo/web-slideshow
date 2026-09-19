@@ -14,6 +14,7 @@ import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
 import { getContainerShareablePropertySource } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
+import { useAuthoringHistory } from "../../authoring-history-context";
 
 interface ContainerAppearanceSectionProps {
   element: ContainerElement;
@@ -26,12 +27,26 @@ function readOpacityPercentage(value: number | undefined): number {
   return value === undefined ? 100 : value * 100;
 }
 
+const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+
 export function ContainerAppearanceSection({ element, localElement = element, presentation, onUpdate }: ContainerAppearanceSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const style = element.style;
   const background = style?.background;
   const defaults = resolveEffectiveElementStyleDefaults(element);
   const source = (property: Parameters<typeof getContainerShareablePropertySource>[2]) => getContainerShareablePropertySource(presentation, localElement, property);
+  const opacityHistoryKey = "number:container-opacity";
+  const updateOpacity = (opacity: number | undefined) => {
+    if (opacity === localElement.effect?.opacity) return;
+    const update = () => onUpdate((current) => ({ ...current, effect: { ...current.effect, opacity } }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(opacityHistoryKey, numberHistoryMeta);
+    authoringHistory.update(opacityHistoryKey, update);
+  };
 
   function updateStyle(update: (style: NonNullable<ContainerElement["style"]>) => NonNullable<ContainerElement["style"]>) {
     onUpdate((current) => ({ ...current, style: update(current.style ?? {}) }));
@@ -76,6 +91,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
 
         <ElementGradientControl
           gradient={background?.gradient}
+          authoredGradient={{ value: localElement.style?.background?.gradient }}
           controlPrefix="container"
           onChange={(gradient: Gradient | undefined) => updateStyle((current) => ({
             ...current,
@@ -87,6 +103,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
 
         <ContainerBackgroundPatternControl
           element={element}
+          localElement={localElement}
           controlPrefix="container"
           allowNone={source("style.background.pattern").linkedValue === undefined}
           onChange={(pattern, parsedColor) => updateStyle((current) => ({
@@ -130,15 +147,11 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
               min="0"
               max="100"
               value={readOpacityPercentage(element.effect?.opacity)}
+              onFocus={() => authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta)}
+              onBlur={() => authoringHistory?.finish(opacityHistoryKey)}
               onChange={(event) => {
                 const percentage = parseOptionalNumber(event.target.value);
-                onUpdate((current) => ({
-                  ...current,
-                  effect: {
-                    ...current.effect,
-                    opacity: percentage === undefined ? undefined : percentage / 100,
-                  },
-                }));
+                updateOpacity(percentage === undefined ? undefined : percentage / 100);
               }}
             />
             <span>%</span>
@@ -149,6 +162,7 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
 
       <ElementBorderControl
         border={style?.border}
+        authoredBorder={{ value: localElement.style?.border }}
         controlPrefix="container"
         onChange={(border) => updateStyle((current) => ({ ...current, border }))}
         allowNone={source("style.border").linkedValue === undefined}

@@ -4,6 +4,8 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
 
+import { useAuthoringHistory } from "../../authoring-history-context";
+
 import {
   parseOptionalNumber,
   readAbsoluteNumber,
@@ -36,6 +38,14 @@ const ELEMENT_MARGIN_SIDE_LABELS: Record<
   marginRight: "inspector.right",
   marginBottom: "inspector.bottom",
   marginLeft: "inspector.left",
+};
+
+const ELEMENT_MARGIN_HISTORY_FIELDS: Record<ElementSpacingField, string> = {
+  margin: "margin",
+  marginTop: "margin-top",
+  marginRight: "margin-right",
+  marginBottom: "margin-bottom",
+  marginLeft: "margin-left",
 };
 
 interface ElementSpacingSectionProps {
@@ -86,9 +96,24 @@ export function ElementSpacingSection({
   onUpdateLayout,
 }: ElementSpacingSectionProps) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
 
   function updateField(field: ElementSpacingField, value: number | undefined) {
-    onUpdateLayout((current) => updateMarginField(current, field, value));
+    if (Object.is(layout?.[field], value)) {
+      return;
+    }
+
+    const update = () => onUpdateLayout((current) => updateMarginField(current, field, value));
+    const historyKey = `number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`;
+
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+
+    authoringHistory.begin(historyKey, numberHistoryMeta);
+    authoringHistory.update(historyKey, update);
   }
 
   return (
@@ -103,6 +128,8 @@ export function ElementSpacingSection({
             type="number"
             min="0"
             value={readAbsoluteNumber(layout?.margin)}
+            onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-margin`, numberHistoryMeta)}
+            onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-margin`)}
             onChange={(event) => {
               updateField("margin", parseOptionalNumber(event.target.value));
             }}
@@ -132,6 +159,8 @@ export function ElementSpacingSection({
                     type="number"
                     min="0"
                     value={readAbsoluteNumber(layout?.[field])}
+                    onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`, numberHistoryMeta)}
+                    onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`)}
                     onChange={(event) => {
                       updateField(
                         field,
