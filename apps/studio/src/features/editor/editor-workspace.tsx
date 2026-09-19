@@ -3207,17 +3207,31 @@ export function EditorWorkspace({
   function confirmStyleDetach(): void {
     const pending = pendingStyleDetach;
     if (!pending) return;
-    setPresentation((current) => {
-      const slide = current.slides[pending.slideIndex];
-      if (!slide) return current;
-      const target = findElementById(slide.elements, pending.elementId);
-      if (pending.kind === "text-style") {
+    if (pending.kind === "text-style") {
+      setPresentation((current) => {
+        const slide = current.slides[pending.slideIndex];
+        if (!slide) return current;
+        const target = findElementById(slide.elements, pending.elementId);
         if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
         return { ...current, slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, pending.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
-      }
-      if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
-      return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
-    });
+      });
+    } else {
+      commitPresentationAction(
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "container.linkedStyle" },
+        },
+        (current) => {
+          const slide = current.slides[pending.slideIndex];
+          if (!slide) return current;
+          const target = findElementById(slide.elements, pending.elementId);
+          if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
+          if (!current.linkedStyles?.some((style) => style.id === pending.styleId)) return current;
+          return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
+        },
+      );
+    }
     setPendingStyleDetach(null);
   }
 
