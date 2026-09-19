@@ -21,12 +21,11 @@ interface DeletePresentationDialogProps {
 
 /**
  * Local danger confirmation dialog for permanently deleting an archived,
- * never-published presentation from Archived.
+ * presentation from Archived.
  *
  * The user must type the presentation's DISPLAY NAME exactly (case-sensitive,
- * untrimmed) to enable the destructive action. Only the private draft is
- * deleted; published presentations never reach this dialog because the tool
- * already disables their Delete control.
+ * untrimmed) to enable the destructive action. The warning explains whether
+ * the private draft and notes alone or published versions are also removed.
  *
  * This is intentionally a Library-local surface, not a reusable modal
  * framework.
@@ -78,7 +77,11 @@ export function DeletePresentationDialog({
         </h2>
 
         <p className={styles.deleteDialogText}>
-          {t("library.deleteDialogWarning")}
+          {t(
+            summary.publication === undefined
+              ? "library.deleteDialogWarningUnpublished"
+              : "library.deleteDialogWarningPublished",
+          )}
         </p>
 
         <p className={styles.deleteDialogText}>
