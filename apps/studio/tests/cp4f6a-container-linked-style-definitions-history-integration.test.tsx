@@ -248,15 +248,17 @@ describe("CP4F6A Container Linked Style definition history", () => {
     expect(Array.from(target.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remove")?.disabled).toBe(true);
   });
 
-  it("does not give Topics definition controls F6A history ownership", async () => {
-    const topics = { target: "topics" as const, id: "topics-1", name: "Topics", itemGap: 8 };
-    await renderWorkspace(presentation({ slides: [{ id: "slide-1", title: "Slide 1", elements: [] }], linkedStyles: [...linkedStyle(), topics] }));
-    const topicsRow = await openRow("topics-1");
-    const name = topicsRow.querySelector<HTMLInputElement>("input");
-    if (!name) throw new Error("Topics name input was not rendered");
-    await act(async () => { name.focus(); setInputValue(name, "Topics renamed"); name.blur(); });
+  it("keeps Container rename independently undoable after Topics history exists", async () => {
+    await renderWorkspace(presentation({ linkedStyles: linkedStyle() }));
+    const containerRow = await openRow("style-1");
+    const name = containerRow.querySelector<HTMLInputElement>("input");
+    if (!name) throw new Error("Container name input was not rendered");
+    await act(async () => { name.focus(); setInputValue(name, "Container renamed"); name.blur(); });
+    expect(row("style-1").textContent).toContain("Container renamed");
     await undo();
-    expect(row("topics-1").textContent).toContain("Topics renamed");
+    expect(row("style-1").textContent).toContain("Container");
+    await redo();
+    expect(row("style-1").textContent).toContain("Container renamed");
   });
 
   it("replays one shared ColorControl definition edit without a duplicate outer action", async () => {

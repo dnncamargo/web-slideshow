@@ -116,7 +116,9 @@ describe("CP4F6B Topics Linked Style definition history", () => {
   });
 
   it("coalesces margin and itemGap independently, then separates a kind action", async () => {
-    await renderWorkspace(presentation());
+    const initial = presentation();
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
     const row = await openRow();
     const margin = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-margin");
     const itemGap = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap");
@@ -131,10 +133,24 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     await redo();
     const kind = row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind");
     if (!kind) throw new Error("Topics kind control was not rendered");
+    expect(kind.value).toBe("unordered");
+    const beforeKind = await save(saved);
+    expect(beforeKind.linkedStyles?.find((style) => "target" in style && style.target === "topics" && style.id === "topics-style")).toMatchObject({ kind: "unordered", rootMarkerStyle: "square" });
     await act(async () => setSelectValue(kind, "ordered"));
+    const afterKind = await save(saved);
+    const afterKindStyle = afterKind.linkedStyles?.find((style) => style.id === "topics-style");
+    expect(afterKindStyle).toMatchObject({ kind: "ordered" });
+    expect(afterKindStyle).not.toHaveProperty("rootMarkerStyle");
     await undo();
+    const undoneKind = await save(saved);
+    expect(undoneKind).toEqual(beforeKind);
+    expect(undoneKind.linkedStyles?.find((style) => "target" in style && style.target === "topics" && style.id === "topics-style")).toMatchObject({ kind: "unordered", rootMarkerStyle: "square" });
     expect(row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap")?.value).toBe("12");
     await redo();
+    const redoneKind = await save(saved);
+    expect(redoneKind).toEqual(afterKind);
+    expect(redoneKind.linkedStyles?.find((style) => "target" in style && style.target === "topics" && style.id === "topics-style")).toMatchObject({ kind: "ordered" });
+    expect(redoneKind.linkedStyles?.find((style) => "target" in style && style.target === "topics" && style.id === "topics-style")).not.toHaveProperty("rootMarkerStyle");
     expect(row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind")?.value).toBe("ordered");
   });
 
