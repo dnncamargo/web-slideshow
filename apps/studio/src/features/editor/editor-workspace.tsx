@@ -5589,7 +5589,16 @@ export function EditorWorkspace({
                 />
                     );
                   case "history":
-                    return <HistoryPanel emptyLabel={t("editor.historyEmpty")} />;
+                    return (
+                      <HistoryPanel
+                        pastActions={history.past.map((entry) => entry.action)}
+                        futureActions={history.future.map((entry) => entry.action)}
+                        emptyLabel={t("editor.historyEmpty")}
+                        appliedLabel={t("editor.historyApplied")}
+                        redoLabel={t("editor.historyRedo")}
+                        translate={t}
+                      />
+                    );
                   case "elements":
                     return (
                       <ElementTreePanel

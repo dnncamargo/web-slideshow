@@ -772,6 +772,39 @@
   text-align: center;
 }
 
+.historyPanel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.historyEntries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historyEntry {
+  padding: 8px 10px;
+  border: 1px solid #252d3a;
+  border-radius: 6px;
+  background: #0d121a;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .clipboardEntry,
 .clipboardEntrySelected {
   width: 100%;
