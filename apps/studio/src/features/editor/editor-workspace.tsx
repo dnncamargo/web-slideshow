@@ -3986,39 +3986,96 @@ export function EditorWorkspace({
   // single selected element updater.
   // ==========================================================
 
+  function findStructuredTableInPresentation(
+    current: Presentation,
+    tableId: string,
+  ): Extract<PowerShowElement, { type: "table"; mode: "structured" }> | null {
+    for (const slide of current.slides) {
+      const element = findElementById(slide.elements, tableId);
+      if (element?.type === "table" && element.mode === "structured") {
+        return element;
+      }
+    }
+    return null;
+  }
+
   const tableAuthoringControls: TableAuthoringControls = {
     onAddColumn: (tableId) => {
-      setPresentation((current) => {
-        const prepared = ensureStructuredTableTextStyles(current).presentation;
-        return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId) };
-      });
+      commitPresentationAction(
+        {
+          kind: "table.addColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addColumn" },
+        },
+        (current) => {
+          if (!findStructuredTableInPresentation(current, tableId)) return current;
+          const prepared = ensureStructuredTableTextStyles(current).presentation;
+          return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId) };
+        },
+      );
     },
 
     onRemoveColumn: (tableId, index) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: removeColumnFromStructuredTable(current.slides, tableId, index),
-      }));
+      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const expectedColumnId = currentTable?.columns[index]?.id;
+      if (expectedColumnId === undefined) return;
+
+      commitPresentationAction(
+        {
+          kind: "table.removeColumn",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeColumn" },
+        },
+        (current) => {
+          const table = findStructuredTableInPresentation(current, tableId);
+          if (table?.columns[index]?.id !== expectedColumnId) return current;
+          return {
+            ...current,
+            slides: removeColumnFromStructuredTable(current.slides, tableId, index),
+          };
+        },
+      );
     },
 
     onAddRow: (tableId) => {
-      setPresentation((current) => {
-        const prepared = ensureStructuredTableTextStyles(current).presentation;
-        return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId) };
-      });
+      commitPresentationAction(
+        {
+          kind: "table.addRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.addRow" },
+        },
+        (current) => {
+          if (!findStructuredTableInPresentation(current, tableId)) return current;
+          const prepared = ensureStructuredTableTextStyles(current).presentation;
+          return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId) };
+        },
+      );
     },
 
     onRemoveRow: (tableId, index) => {
-      setPresentation((current) => ({
-        ...current,
-        slides: removeRowFromStructuredTable(current.slides, tableId, index),
-      }));
+      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const expectedRowId = currentTable?.rows[index]?.id;
+      if (expectedRowId === undefined) return;
+
+      commitPresentationAction(
+        {
+          kind: "table.removeRow",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.removeRow" },
+        },
+        (current) => {
+          const table = findStructuredTableInPresentation(current, tableId);
+          if (table?.rows[index]?.id !== expectedRowId) return current;
+          return {
+            ...current,
+            slides: removeRowFromStructuredTable(current.slides, tableId, index),
+          };
+        },
+      );
     },
 
     onShowHeaderChange: (tableId, showHeader) => {
-      const currentTable = history.present.slides
-        .map((slide) => findElementById(slide.elements, tableId))
-        .find((element): element is Extract<PowerShowElement, { type: "table"; mode: "structured" }> => element?.type === "table" && element.mode === "structured");
+      const currentTable = findStructuredTableInPresentation(history.present, tableId);
       if (!currentTable || currentTable.showHeader === showHeader) return;
       commitPresentationAction(
         { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
@@ -4788,8 +4845,28 @@ export function EditorWorkspace({
                   onOutdentTopicItem={outdentTopicItemInTree}
                   onMoveGalleryItem={moveGalleryItemInTree}
                   onGalleryStructureDrop={applyGalleryStructureDrop}
-                  onMoveTableColumn={(tableId, columnId, offset) => setPresentation((current) => ({ ...current, slides: moveColumnInStructuredTable(current.slides, tableId, columnId, offset) }))}
-                  onMoveTableRow={(tableId, rowId, offset) => setPresentation((current) => ({ ...current, slides: moveRowInStructuredTable(current.slides, tableId, rowId, offset) }))}
+                  onMoveTableColumn={(tableId, columnId, offset) => commitPresentationAction(
+                    {
+                      kind: "table.moveColumn",
+                      labelKey: "history.element.setting",
+                      labelParams: { setting: "table.moveColumn" },
+                    },
+                    (current) => {
+                      const slides = moveColumnInStructuredTable(current.slides, tableId, columnId, offset);
+                      return slides === current.slides ? current : { ...current, slides };
+                    },
+                  )}
+                  onMoveTableRow={(tableId, rowId, offset) => commitPresentationAction(
+                    {
+                      kind: "table.moveRow",
+                      labelKey: "history.element.setting",
+                      labelParams: { setting: "table.moveRow" },
+                    },
+                    (current) => {
+                      const slides = moveRowInStructuredTable(current.slides, tableId, rowId, offset);
+                      return slides === current.slides ? current : { ...current, slides };
+                    },
+                  )}
                    selectedTableStructuralNode={selectedTableStructuralNode}
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
