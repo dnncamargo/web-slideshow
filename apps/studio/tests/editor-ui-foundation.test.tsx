@@ -10,11 +10,8 @@ import { updatePresentationTitle } from "../src/features/editor/presentation-tit
 import { SlideLayoutPicker } from "../src/features/editor/slide-layout-picker";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ProductSurfaceBrand } from "../src/features/app/product-surface-brand";
-import {
-  PRODUCT_NAME,
-  PRODUCT_SURFACE_LABELS,
-  type ProductSurfaceName,
-} from "../src/features/app/product-labels";
+import { displayName } from "@web-slideshow/instance-branding";
+import { PRODUCT_SURFACE_LABELS, type ProductSurfaceName } from "../src/features/app/product-labels";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -114,7 +111,8 @@ describe("editor UI foundation", () => {
   });
 
   it("keeps the product name and surface names as separate central labels", () => {
-    expect(PRODUCT_NAME).toBe("PowerShow");
+    expect(displayName).toBe("Presentation");
+    expect(displayName).not.toBe("web-slideshow");
     expect(PRODUCT_SURFACE_LABELS).toEqual({
       library: "Library",
       editor: "Editor",
@@ -130,7 +128,7 @@ describe("editor UI foundation", () => {
       });
 
       const strong = container.querySelector("strong");
-      expect(strong?.textContent).toBe("PowerShow");
+      expect(strong?.textContent).toBe(displayName);
 
       const surfaceSpan = container.querySelector(
         ".ps-ui-topbar__product-surface",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
@@ -60,7 +61,7 @@ export default function LoginPage() {
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <h1>PowerShow</h1>
+        <h1>{displayName}</h1>
 
         <button
           type="button"

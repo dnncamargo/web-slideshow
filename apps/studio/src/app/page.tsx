@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { displayName } from "@web-slideshow/instance-branding";
 
 import {
   subscribeLiveCurrent,
@@ -118,7 +119,7 @@ export default function Home() {
             className={styles.demo}
             key={isLive ? coverKey : "demo"}
             src={presentationUrl}
-            title={isLive ? "PowerShow live presentation cover" : "PowerShow demo presentation"}
+            title={isLive ? `${displayName} live presentation cover` : `${displayName} demo presentation`}
             tabIndex={-1}
           />
         )}
@@ -126,7 +127,7 @@ export default function Home() {
       <div className={styles.overlay} aria-hidden="true" />
 
       <main className={styles.main}>
-        <h1 className={styles.brand}>PowerShow</h1>
+        <h1 className={styles.brand}>{displayName}</h1>
 
         <div className={styles.rail}>
           {isLive && coverUrl !== null && watchUrl !== null ? (

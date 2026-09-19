@@ -1,5 +1,3 @@
-export const PRODUCT_NAME = "PowerShow";
-
 export const PRODUCT_SURFACE_LABELS = {
   library: "Library",
   editor: "Editor",
