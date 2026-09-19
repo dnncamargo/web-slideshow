@@ -3931,25 +3931,48 @@ export function EditorWorkspace({
       return { ok: false, reason: "invalid-recipe-application" };
     }
 
+    const slideIndex = selectedSlideIndex;
     const selectedElementId = selectedElement?.contentSlotId != null
       ? null
       : selectedElement?.id ?? null;
-    const result = applyCustomLibraryItemToPresentation(
+
+    const preflightResult = applyCustomLibraryItemToPresentation(
       item,
       presentation,
-      selectedSlideIndex,
+      slideIndex,
       selectedElementId,
     );
 
-    if (!result.ok) {
-      return result;
+    if (!preflightResult.ok) {
+      return preflightResult;
     }
 
-    setPresentation(result.presentation);
+    let currentResult: ReturnType<typeof applyCustomLibraryItemToPresentation> = preflightResult;
+    commitPresentationAction(
+      {
+        kind: "customLibrary.apply",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "customLibrary.apply" },
+      },
+      (current) => {
+        const result = applyCustomLibraryItemToPresentation(
+          item,
+          current,
+          slideIndex,
+          selectedElementId,
+        );
+        currentResult = result;
+        return result.ok ? result.presentation : current;
+      },
+    );
+
+    if (!currentResult.ok) {
+      return currentResult;
+    }
 
     const appliedElement = findElementById(
-      result.presentation.slides[selectedSlideIndex]?.elements ?? [],
-      result.appliedElementId,
+      preflightResult.presentation.slides[slideIndex]?.elements ?? [],
+      preflightResult.appliedElementId,
     );
     if (appliedElement) {
       setSelectedElement({
