@@ -2786,31 +2786,92 @@ export function EditorWorkspace({
 
   function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "container") return;
-    setPresentation((current) => attachLinkedStyle(
-      current,
-      selectedSlideIndex,
-      selectedDocumentElement.id,
-      linkedStyleId,
-    ));
+    const containerId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "container.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentContainer = findElementById(currentSlide.elements, containerId);
+        if (currentContainer?.type !== "container") return current;
+        if (currentContainer.linkedStyleId === linkedStyleId) return current;
+        if (!current.linkedStyles?.some((style) => style.id === linkedStyleId)) return current;
+
+        return attachLinkedStyle(current, selectedSlideIndex, containerId, linkedStyleId);
+      },
+    );
   }
 
   function detachSelectedContainerLinkedStyle(): void {
     if (selectedDocumentElement?.type !== "container") return;
-    setPresentation((current) => detachLinkedStyle(
-      current,
-      selectedSlideIndex,
-      selectedDocumentElement.id,
-    ));
+    const containerId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "container.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentContainer = findElementById(currentSlide.elements, containerId);
+        if (currentContainer?.type !== "container" || currentContainer.linkedStyleId === undefined) return current;
+        if (!current.linkedStyles?.some((style) => style.id === currentContainer.linkedStyleId)) return current;
+
+        return detachLinkedStyle(current, selectedSlideIndex, containerId);
+      },
+    );
   }
 
   function attachSelectedTopicsLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "topics") return;
-    setPresentation((current) => attachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id, linkedStyleId));
+    const topicsId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentTopics = findElementById(currentSlide.elements, topicsId);
+        if (currentTopics?.type !== "topics") return current;
+        if (currentTopics.linkedStyleId === linkedStyleId) return current;
+        if (!current.linkedStyles?.some((style) => style.id === linkedStyleId && "target" in style && style.target === "topics")) return current;
+
+        return attachLinkedTopicsStyle(current, selectedSlideIndex, topicsId, linkedStyleId);
+      },
+    );
   }
 
   function detachSelectedTopicsLinkedStyle(): void {
     if (selectedDocumentElement?.type !== "topics") return;
-    setPresentation((current) => detachLinkedTopicsStyle(current, selectedSlideIndex, selectedDocumentElement.id));
+    const topicsId = selectedDocumentElement.id;
+    commitPresentationAction(
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "topics.linkedStyle" },
+      },
+      (current) => {
+        const currentSlide = current.slides[selectedSlideIndex];
+        if (!currentSlide) return current;
+
+        const currentTopics = findElementById(currentSlide.elements, topicsId);
+        if (currentTopics?.type !== "topics" || currentTopics.linkedStyleId === undefined) return current;
+        if (!current.linkedStyles?.some((style) => style.id === currentTopics.linkedStyleId && "target" in style && style.target === "topics")) return current;
+
+        return detachLinkedTopicsStyle(current, selectedSlideIndex, topicsId);
+      },
+    );
   }
 
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
