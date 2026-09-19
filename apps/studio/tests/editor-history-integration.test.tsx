@@ -116,6 +116,39 @@ function effectsHistoryPresentation(): Presentation {
   });
 }
 
+function containerPreserveHistoryPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "container-preserve-history",
+    title: "Container preserve history",
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      elements: [
+        { type: "text", id: "a", hidden: false, variant: "body", content: "A", typography: { fontFamily: "Arial", fontSize: "16px", lineHeight: 1.2, textAlign: "left" } },
+        {
+          type: "container",
+          id: "w",
+          hidden: false,
+          children: [
+            { type: "text", id: "b", hidden: false, variant: "body", content: "B", typography: { fontFamily: "Arial", fontSize: "16px", lineHeight: 1.2, textAlign: "left" } },
+            {
+              type: "container",
+              id: "inner",
+              hidden: false,
+              children: [{ type: "text", id: "c", hidden: false, variant: "body", content: "C", typography: { fontFamily: "Arial", fontSize: "16px", lineHeight: 1.2, textAlign: "left" } }],
+            },
+          ],
+          layout: { width: "70%", padding: 12, children: { direction: "column", gap: 6 } },
+          style: { background: { color: "#123456" }, border: { width: 2, style: "solid", color: "#abcdef" } },
+          effect: { shadow: { x: 1, y: 2, blur: 3, spread: 0, color: "#000000" } },
+        },
+        { type: "text", id: "d", hidden: false, variant: "body", content: "D", typography: { fontFamily: "Arial", fontSize: "16px", lineHeight: 1.2, textAlign: "left" } },
+      ],
+    }],
+  });
+}
+
 function key(key: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...options });
 }
@@ -155,6 +188,35 @@ describe("EditorWorkspace history integration", () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
     vi.restoreAllMocks();
+  });
+
+  it("preserves a container's children as one undoable and redoable action", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={containerPreserveHistoryPresentation()} /></StudioI18nProvider>));
+
+    await act(async () => container.querySelector<HTMLElement>('[data-presentation-id="w"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(key("Delete")));
+    const preserve = buttonByText(container, "Delete container, keep children");
+    expect(preserve).toBeDefined();
+    await act(async () => preserve!.click());
+
+    expect(container.querySelector('[data-presentation-id="w"]')).toBeNull();
+    expect(Array.from(container.querySelectorAll<HTMLElement>("[data-presentation-id]"), (element) => element.dataset.presentationId)).toEqual(["a", "b", "inner", "c", "d"]);
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector('[data-presentation-id="w"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="b"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="inner"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="c"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector('[data-presentation-id="w"]')).toBeNull();
+    expect(Array.from(container.querySelectorAll<HTMLElement>("[data-presentation-id]"), (element) => element.dataset.presentationId)).toEqual(["a", "b", "inner", "c", "d"]);
+
+    const historyButton = buttonByText(container, "History");
+    expect(historyButton).toBeDefined();
+    await act(async () => historyButton!.click());
+    expect(container.textContent).toContain("Delete container, keep children");
   });
 
   it("replays deletion and does not undo across an untracked mutation", async () => {

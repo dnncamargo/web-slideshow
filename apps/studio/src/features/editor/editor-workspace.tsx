@@ -215,6 +215,7 @@ import type { SlideLayoutPreset } from "./slide-operations";
 // ============================================================
 
 import { ElementCrudControls } from "./element-crud-controls";
+import { ContainerDeletionDialog } from "./container-deletion-dialog";
 
 // ============================================================
 // BEGIN: ELEMENT OPERATIONS
@@ -239,6 +240,7 @@ import {
   reorderGalleryItem,
   removeColumnFromStructuredTable,
   removeElementById,
+  unwrapContainerPreservingChildren,
   removeRowFromStructuredTable,
   setStructuredTableShowHeader,
   appendTopicItemToTopics,
@@ -4224,6 +4226,39 @@ export function EditorWorkspace({
     setPendingElementDeletion(null);
   }
 
+  function confirmContainerDeletionPreservingChildren() {
+    if (!pendingElementDeletion || pendingElementDeletion.elementType !== "container") {
+      return;
+    }
+
+    const deletion = pendingElementDeletion;
+    commitPresentationAction(
+      {
+        kind: "element.deleteContainerPreserveChildren",
+        labelKey: "history.element.deleteContainerPreserveChildren",
+      },
+      (currentPresentation) => {
+        const slide = currentPresentation.slides[deletion.slideIndex];
+        if (!slide || !findElementById(slide.elements, deletion.elementId)) {
+          return currentPresentation;
+        }
+
+        const result = unwrapContainerPreservingChildren(slide.elements, deletion.elementId);
+        if (!result.changed) return currentPresentation;
+
+        return {
+          ...currentPresentation,
+          slides: currentPresentation.slides.map((candidate, index) => index === deletion.slideIndex
+            ? { ...candidate, elements: result.elements }
+            : candidate),
+        };
+      },
+    );
+
+    setSelectedElement((current) => current?.id === deletion.elementId ? null : current);
+    setPendingElementDeletion(null);
+  }
+
   // ==========================================================
   // END: DELETE ELEMENT
   // ==========================================================
@@ -5848,28 +5883,40 @@ export function EditorWorkspace({
             =================================================== */}
       </div>
 
-      {pendingElementDeletion ? (
-        <DangerConfirmDialog
+      {pendingElementDeletion ? (() => {
+        const pendingSlide = presentation.slides[pendingElementDeletion.slideIndex];
+        const preserveAvailable = pendingElementDeletion.elementType === "container" &&
+          pendingSlide !== undefined &&
+          unwrapContainerPreservingChildren(pendingSlide.elements, pendingElementDeletion.elementId).changed;
+
+        if (preserveAvailable) {
+          return <ContainerDeletionDialog
+            title={t("elementCrud.deleteDialogTitle")}
+            message={t("elementCrud.deleteContainerConfirm", { id: pendingElementDeletion.elementId })}
+            cancelLabel={t("elementCrud.cancel")}
+            deleteAllLabel={t("elementCrud.deleteContainerAndChildren")}
+            preserveChildrenLabel={t("elementCrud.deleteContainerPreserveChildren")}
+            onCancel={() => setPendingElementDeletion(null)}
+            onDeleteAll={confirmElementDeletion}
+            onPreserveChildren={confirmContainerDeletionPreservingChildren}
+          />;
+        }
+
+        return <DangerConfirmDialog
           title={t("elementCrud.deleteDialogTitle")}
-          message={
-            pendingElementDeletion.elementType === "container"
-              ? t("elementCrud.deleteContainerConfirm", {
-                  id: pendingElementDeletion.elementId,
-                })
-              : t("elementCrud.deleteElementConfirm", {
-                  id: pendingElementDeletion.elementId,
-                  type: t(
-                    ELEMENT_TYPE_MESSAGE_KEYS[pendingElementDeletion.elementType],
-                  ),
-                })
-          }
+          message={pendingElementDeletion.elementType === "container"
+            ? t("elementCrud.deleteContainerConfirm", { id: pendingElementDeletion.elementId })
+            : t("elementCrud.deleteElementConfirm", {
+                id: pendingElementDeletion.elementId,
+                type: t(ELEMENT_TYPE_MESSAGE_KEYS[pendingElementDeletion.elementType]),
+              })}
           confirmLabel={t("elementCrud.delete")}
           cancelLabel={t("elementCrud.cancel")}
           initialFocus="confirm"
           onCancel={() => setPendingElementDeletion(null)}
           onConfirm={confirmElementDeletion}
-        />
-      ) : null}
+        />;
+      })() : null}
 
       {pendingTextStyleReset ? (() => {
         const styleName = t(`customResources.role.${pendingTextStyleReset}`);
