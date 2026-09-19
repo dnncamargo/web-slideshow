@@ -33,6 +33,7 @@ import { ElementGradientControl } from "../inspector/sections/element-gradient-c
 import { ContainerBackgroundPatternControl } from "../inspector/sections/container-background-pattern-control";
 import { ContainerEffectsSection } from "../inspector/sections/container-effects-section";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
+import { AuthoringHistoryContext, useAuthoringHistory, type AuthoringHistoryContextValue } from "../authoring-history-context";
 import { findTextStyleUsageLocations, listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties, type TextStyleUsageLocation } from "../text-style-helpers";
 import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canUpdateLinkedStyle } from "../linked-style-authoring";
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
@@ -56,6 +57,7 @@ interface CustomResourcesWorkspaceProps {
   isPresentationFontInUse: (family: string) => boolean;
   presentationTextStyles?: readonly TextStyle[];
   presentation?: Presentation;
+  authoringHistory?: AuthoringHistoryContextValue | null;
   onUpdateFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption", patch: TextStylePatch) => void;
   onResetFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption") => void;
   onAddTextStyle?: (name: string, role: TextStyleRole) => void;
@@ -157,6 +159,7 @@ export function CustomResourcesWorkspace({
   isPresentationFontInUse,
   presentationTextStyles = [],
   presentation,
+  authoringHistory = null,
   onUpdateFundamentalTextStyle = () => undefined,
   onResetFundamentalTextStyle = () => undefined,
   onAddTextStyle = () => undefined,
@@ -299,28 +302,30 @@ export function CustomResourcesWorkspace({
               <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} onUpdate={onUpdateLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
-            <InspectorSection title={t("customResources.textStyles")} count={listPresentationTextStyles({ textStyles: presentationTextStyles }).length} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
-              <TextStylesWorkspace
-                presentationStyles={presentationTextStyles}
-                presentation={presentation}
-                presentationFonts={presentationFonts}
-                onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
-                editingStyleId={editingStyleId}
-                onUpdateFundamental={onUpdateFundamentalTextStyle}
-                onResetFundamental={onResetFundamentalTextStyle}
-                onAdd={() => setAddingStyle(true)}
-                adding={addingStyle}
-                onCancelAdd={() => setAddingStyle(false)}
-                onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
-                onCreateFromSelected={(name) => { onCreateTextStyleFromSelected(name); setAddingStyle(false); }}
-                onUpdate={onUpdateTextStyle}
-                onRemove={onRemoveTextStyle}
-                isInUse={isTextStyleInUse}
-                onSelectElement={onSelectTextStyleElement}
-                onRequestDetachElement={onRequestDetachTextStyleElement}
-                selectedElement={selectedElement}
-              />
-            </InspectorSection>
+              <InspectorSection title={t("customResources.textStyles")} count={listPresentationTextStyles({ textStyles: presentationTextStyles }).length} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
+                <AuthoringHistoryContext.Provider value={authoringHistory}>
+                  <TextStylesWorkspace
+                    presentationStyles={presentationTextStyles}
+                    presentation={presentation}
+                    presentationFonts={presentationFonts}
+                    onEdit={(id) => setEditingStyleId(editingStyleId === id ? null : id)}
+                    editingStyleId={editingStyleId}
+                    onUpdateFundamental={onUpdateFundamentalTextStyle}
+                    onResetFundamental={onResetFundamentalTextStyle}
+                    onAdd={() => setAddingStyle(true)}
+                    adding={addingStyle}
+                    onCancelAdd={() => setAddingStyle(false)}
+                    onCreate={(name, role) => { onAddTextStyle(name, role); setAddingStyle(false); }}
+                    onCreateFromSelected={(name) => { onCreateTextStyleFromSelected(name); setAddingStyle(false); }}
+                    onUpdate={onUpdateTextStyle}
+                    onRemove={onRemoveTextStyle}
+                    isInUse={isTextStyleInUse}
+                    onSelectElement={onSelectTextStyleElement}
+                    onRequestDetachElement={onRequestDetachTextStyleElement}
+                    selectedElement={selectedElement}
+                  />
+                </AuthoringHistoryContext.Provider>
+              </InspectorSection>
             </PresentationColorPaletteProvider>
             <InspectorSection title={t("customResources.presentationPalette")} open={resourceSections.presentationPalette} onOpenChange={(open) => onResourceSectionChange("presentationPalette", open)}>
             {presentationColors.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationColors")}</p> : null}
@@ -706,6 +711,14 @@ function TextStylesWorkspace({
   selectedElement?: PowerShowElement | null;
 }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const runTextStyleDiscrete = (meta: { kind: string; labelKey: string; labelParams: { setting: string } }, callback: () => void): void => {
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  };
+  const runTextStyleDefinitionDiscrete = (callback: () => void): void => runTextStyleDiscrete({ kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } }, callback);
+  const runTextStyleAddDiscrete = (callback: () => void): void => runTextStyleDiscrete({ kind: "textStyle.add", labelKey: "history.element.setting", labelParams: { setting: "textStyle.add" } }, callback);
+  const runTextStyleRemoveDiscrete = (callback: () => void): void => runTextStyleDiscrete({ kind: "textStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "textStyle.remove" } }, callback);
   const [addingFromSelected, setAddingFromSelected] = useState(false);
   const projectedStyles = listPresentationTextStyles({ textStyles: presentationStyles });
   const byId = new Map(projectedStyles.filter((item) => item.style !== undefined).map((item) => [item.id, item.style]));
@@ -718,11 +731,11 @@ function TextStylesWorkspace({
       {FUNDAMENTAL_TEXT_STYLE_IDS.map((id) => {
         const style = byId.get(id);
         const locations = presentation ? findTextStyleUsageLocations(presentation, id) : [];
-        return <TextStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={`${style ? t("customResources.customized") : t("customResources.builtIn")} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} onRequestDetachElement={(location) => onRequestDetachElement(id, t(`customResources.role.${id}`), location)} editing={editingStyleId === id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdateFundamental(id, patch)} onReset={() => onResetFundamental(id)} />;
+        return <TextStyleRow key={id} id={id} label={t(`customResources.role.${id}`)} status={`${style ? t("customResources.customized") : t("customResources.builtIn")} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} onRequestDetachElement={(location) => onRequestDetachElement(id, t(`customResources.role.${id}`), location)} editing={editingStyleId === id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdateFundamental(id, patch)} onReset={() => onResetFundamental(id)} runDefinitionDiscrete={runTextStyleDefinitionDiscrete} />;
       })}
-      {customStyles.map((style) => { const locations = presentation ? findTextStyleUsageLocations(presentation, style.id) : []; const styleName = "name" in style ? style.name : style.id; return <TextStyleRow key={style.id} id={style.id} label={styleName} status={`${"role" in style ? t(`customResources.role.${style.role}`) : ""} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} onRequestDetachElement={(location) => onRequestDetachElement(style.id, styleName, location)} editing={editingStyleId === style.id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdate(style.id, patch)} onRemove={() => onRemove(style.id)} removeDisabled={presentation ? locations.length > 0 : isInUse(style.id)} />; })}
+      {customStyles.map((style) => { const locations = presentation ? findTextStyleUsageLocations(presentation, style.id) : []; const styleName = "name" in style ? style.name : style.id; return <TextStyleRow key={style.id} id={style.id} label={styleName} status={`${"role" in style ? t(`customResources.role.${style.role}`) : ""} · ${t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}`} locations={locations} onSelectElement={onSelectElement} onRequestDetachElement={(location) => onRequestDetachElement(style.id, styleName, location)} editing={editingStyleId === style.id} style={style} presentation={presentation} fonts={presentationFonts} onEdit={onEdit} onUpdate={(patch) => onUpdate(style.id, patch)} onRemove={() => runTextStyleRemoveDiscrete(() => onRemove(style.id))} removeDisabled={presentation ? locations.length > 0 : isInUse(style.id)} runDefinitionDiscrete={runTextStyleDefinitionDiscrete} />; })}
     </div>
-    {adding ? <NewTextStyleForm fonts={presentationFonts} onCancel={onCancelAdd} onCreate={onCreate} /> : addingFromSelected ? <NewTextStyleFromSelectedForm onCancel={() => setAddingFromSelected(false)} onCreate={(name) => { onCreateFromSelected(name); setAddingFromSelected(false); }} /> : <div className={styles.resourceActionRow}><button type="button" className={styles.resourceAction} onClick={onAdd}>{t("customResources.addStyle")}</button><button type="button" className={styles.resourceAction} disabled={selectedElement?.type !== "text"} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToTextStyles")}</button></div>}
+    {adding ? <NewTextStyleForm fonts={presentationFonts} onCancel={onCancelAdd} onCreate={(name, role) => runTextStyleAddDiscrete(() => onCreate(name, role))} /> : addingFromSelected ? <NewTextStyleFromSelectedForm onCancel={() => setAddingFromSelected(false)} onCreate={(name) => { onCreateFromSelected(name); setAddingFromSelected(false); }} /> : <div className={styles.resourceActionRow}><button type="button" className={styles.resourceAction} onClick={onAdd}>{t("customResources.addStyle")}</button><button type="button" className={styles.resourceAction} disabled={selectedElement?.type !== "text"} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToTextStyles")}</button></div>}
   </section>;
 }
 
@@ -738,13 +751,15 @@ function NewTextStyleFromSelectedForm({ onCancel, onCreate }: { onCancel: () => 
 
 
 
-function TextStyleRow({ id, label, status, locations, onSelectElement, onRequestDetachElement, editing, style, presentation, fonts, onEdit, onUpdate, onReset, onRemove, removeDisabled }: {
+function TextStyleRow({ id, label, status, locations, onSelectElement, onRequestDetachElement, editing, style, presentation, fonts, onEdit, onUpdate, onReset, onRemove, removeDisabled, runDefinitionDiscrete }: {
   id: string; label: string; status: string; editing: boolean; style?: TextStyle; presentation?: Presentation; fonts: readonly FontResource[];
   locations: readonly TextStyleUsageLocation[]; onSelectElement: (location: TextStyleUsageLocation) => void; onRequestDetachElement: (location: TextStyleUsageLocation) => void;
   onEdit: (id: string) => void; onUpdate?: (value: TextStylePatch & { name?: string; role?: TextStyleRole }) => void;
   onReset?: () => void; onRemove?: () => void; removeDisabled?: boolean;
+  runDefinitionDiscrete?: (callback: () => void) => void;
 }) {
   const { t } = useStudioI18n();
+  const runDirectDefinition = runDefinitionDiscrete ?? ((callback: () => void) => callback());
   const [pendingFontFamily, setPendingFontFamily] = useState(false);
   const [pendingColor, setPendingColor] = useState(false);
   const [pendingDecorationColor, setPendingDecorationColor] = useState(false);
@@ -791,7 +806,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     const value = baseline[property];
     if (value === undefined) return;
     const nextTypography = { ...(typography ?? {}), [property]: value };
-    onUpdate?.({ typography: normalizeTextStyleTypographyProperties(nextTypography) });
+    runDirectDefinition(() => onUpdate?.({ typography: normalizeTextStyleTypographyProperties(nextTypography) }));
   };
   const updateTypography = (update: (current: TextStyleTypographyProperties | undefined) => TextStyleTypographyProperties): void => {
     const nextTypography = normalizeTextStyleTypographyProperties(update(typography));
@@ -801,10 +816,10 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     onUpdate?.({ style: normalizeTextStyleVisualProperties(update(visual)) });
   };
   const removeAppearance = (property: "color" | "textDecorationColor" | "textStroke"): void => {
-    if (property === "color") { if (pendingColor && visual?.color === undefined) setPendingColor(false); else updateStyle((current) => ({ ...(current ?? {}), color: undefined })); }
-    else if (property === "textDecorationColor") { if (pendingDecorationColor && typography?.textDecorationColor === undefined) setPendingDecorationColor(false); else updateTypography((current) => ({ ...(current ?? {}), textDecorationColor: undefined })); }
+    if (property === "color") { if (pendingColor && visual?.color === undefined) setPendingColor(false); else runDirectDefinition(() => updateStyle((current) => ({ ...(current ?? {}), color: undefined }))); }
+    else if (property === "textDecorationColor") { if (pendingDecorationColor && typography?.textDecorationColor === undefined) setPendingDecorationColor(false); else runDirectDefinition(() => updateTypography((current) => ({ ...(current ?? {}), textDecorationColor: undefined }))); }
     else if (pendingStroke && typography?.textStroke === undefined) setPendingStroke(undefined);
-    else updateTypography((current) => ({ ...(current ?? {}), textStroke: undefined }));
+    else runDirectDefinition(() => updateTypography((current) => ({ ...(current ?? {}), textStroke: undefined })));
   };
   const addAppearance = (property: (typeof availableAppearance)[number]): void => {
     if (property === "color") setPendingColor(true);
@@ -826,7 +841,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       setPendingFontFamily(false);
       return;
     }
-    updateTypography((current) => ({ ...(current ?? {}), [property]: undefined }));
+    runDirectDefinition(() => updateTypography((current) => ({ ...(current ?? {}), [property]: undefined })));
   };
 
   return <div className={styles.typographyStyleRow} data-text-style-id={id}>
@@ -853,8 +868,8 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
         style={presentation ? Object.fromEntries((presentation.palette?.colors ?? []).map((color) => [paletteColorCssVariableName(color.id), color.value])) : undefined}
         dangerouslySetInnerHTML={{ __html: renderElement(previewText, presentation ? { presentation } : undefined) }}
       />
-      {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => onUpdate?.({ name })} /> : null}
-      {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => onUpdate?.({ role: event.target.value as TextStyleRole })}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
+      {!fundamental && style && "name" in style ? <CustomTextStyleNameInput canonicalName={style.name} onCommit={(name) => runDirectDefinition(() => onUpdate?.({ name }))} /> : null}
+      {!fundamental && <label className={styles.localColorName}><span>{t("customResources.role")}</span><select value={role} onChange={(event) => runDirectDefinition(() => onUpdate?.({ role: event.target.value as TextStyleRole }))}>{FUNDAMENTAL_TEXT_STYLE_IDS.map((roleId) => <option key={roleId} value={roleId}>{t(`customResources.role.${roleId}`)}</option>)}</select></label>}
       {visibleProperties.length === 0 ? <p className={styles.status}>{t("customResources.noTypographyProperties")}</p> : null}
       <div className={styles.resourcePropertyStack}>
         {propertyGroups.map((group) => group.items.length === 0 ? null : <section className={styles.resourcePropertyGroup} data-text-style-property-group={group.id} key={group.id}>
@@ -935,9 +950,23 @@ function PropertyChooser({ properties, appearanceProperties, onAdd, onAddAppeara
 
 function TextStyleStrokeFields({ id, stroke, pendingWidth, onWidthChange, onColorChange }: { id: string; stroke: TextStroke | undefined; pendingWidth: number | undefined; onWidthChange: (width: number) => void; onColorChange: (color: ColorValue) => void }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const historyKey = `number:text-style-${id}-stroke-width`;
+  const historyMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
   const width = readAbsoluteNumber(stroke?.width ?? pendingWidth);
+  const beginEditing = () => {
+    if (stroke !== undefined) authoringHistory?.begin(historyKey, historyMeta);
+  };
+  const updateWidth = (nextWidth: number) => {
+    if (stroke === undefined || authoringHistory === null) {
+      onWidthChange(nextWidth);
+      return;
+    }
+    authoringHistory.begin(historyKey, historyMeta);
+    authoringHistory.update(historyKey, () => onWidthChange(nextWidth));
+  };
   return <div className={styles.fieldGrid}>
-    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={`${styles.unitInput} ${styles.textStrokeUnitInput}`}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={width} onChange={(event) => onWidthChange(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
+    <label className={styles.field}><span>{t("inspector.textStrokeWidth")}</span><div className={`${styles.unitInput} ${styles.textStrokeUnitInput}`}><input id={`text-style-${id}-stroke-width`} type="number" min="0" value={width} onFocus={beginEditing} onBlur={() => authoringHistory?.finish(historyKey)} onChange={(event) => updateWidth(Math.max(0, Number(event.target.value) || 0))} /><span>px</span></div></label>
     <label className={styles.field}><span>{t("inspector.textStrokeColor")}</span><ColorControl id={`text-style-${id}-stroke-color`} name={t("inspector.textStrokeColor")} value={stroke?.color} onChange={onColorChange} /></label>
   </div>;
 }

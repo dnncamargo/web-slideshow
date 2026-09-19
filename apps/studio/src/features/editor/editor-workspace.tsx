@@ -37,6 +37,9 @@ import {
   updatePresentationPaletteColorValue,
   resolveLinkedContainerStyle,
   type Color,
+  type ColorValue,
+  type TextStroke,
+  type TextStyle,
 } from "@powershow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
@@ -347,6 +350,65 @@ function imageMediaTargetKey(target: ImageMediaAuthoringTarget): string {
   return target.kind === "image"
     ? `image:${target.elementId}`
     : `gallery-item:${target.galleryId}:${target.itemIndex}`;
+}
+
+function areTextStyleColorValuesEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (typeof left === "string" || typeof right === "string") return left === right;
+  if (left === undefined || right === undefined) return left === right;
+  return left.kind === right.kind && left.kind === "palette" && left.colorId === right.colorId;
+}
+
+function areTextStrokeValuesEqual(
+  left: TextStroke | undefined,
+  right: TextStroke | undefined,
+): boolean {
+  return left === undefined || right === undefined
+    ? left === right
+    : left.width === right.width && areTextStyleColorValuesEqual(left.color, right.color);
+}
+
+const TEXT_STYLE_TYPOGRAPHY_FIELDS = [
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "fontStyle",
+  "textAlign",
+  "lineHeight",
+  "letterSpacing",
+  "textTransform",
+  "whiteSpace",
+  "textWrapStyle",
+  "overflowWrap",
+  "textDecorationLine",
+] as const;
+
+function areTextStyleTypographyValuesEqual(
+  left: TextStyle["typography"] | undefined,
+  right: TextStyle["typography"] | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  for (const field of TEXT_STYLE_TYPOGRAPHY_FIELDS) {
+    if (left[field] !== right[field]) return false;
+  }
+  return areTextStyleColorValuesEqual(left.textDecorationColor, right.textDecorationColor)
+    && areTextStrokeValuesEqual(left.textStroke, right.textStroke);
+}
+
+function areTextStyleDefinitionsEqual(
+  left: TextStyle | undefined,
+  right: TextStyle | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.id !== right.id) return false;
+  if (!areTextStyleColorValuesEqual(left.style?.color, right.style?.color)) return false;
+  if (!areTextStyleTypographyValuesEqual(left.typography, right.typography)) return false;
+  if ("name" in left || "name" in right) {
+    return "name" in left && "name" in right && left.name === right.name && left.role === right.role;
+  }
+  return true;
 }
 
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
@@ -664,6 +726,20 @@ export function EditorWorkspace({
 
   function finishPresentationTransaction(key?: string): void {
     dispatchHistory({ type: "transaction-commit", ...(key === undefined ? {} : { key }) });
+  }
+
+  function applyTextStyleDefinitionUpdate(
+    fallbackMeta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update });
+    } else {
+      commitPresentationAction(fallbackMeta, update);
+    }
   }
 
   const authoringHistory: AuthoringHistoryContextValue = {
@@ -1150,7 +1226,7 @@ export function EditorWorkspace({
   }
 
   useEffect(() => {
-    if (rightPanelMode !== "editor") {
+    if (rightPanelMode !== "editor" && rightPanelMode !== "resources") {
       return;
     }
 
@@ -3137,10 +3213,33 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => upsertFundamentalTextStyleOverride(current, id, patch)); }
-  function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPresentation((current) => resetFundamentalTextStyleOverride(current, id)); }
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
+      (current) => {
+        const before = current.textStyles?.find((style) => style.id === id);
+        const candidate = upsertFundamentalTextStyleOverride(current, id, patch);
+        const after = candidate.textStyles?.find((style) => style.id === id);
+        return areTextStyleDefinitionsEqual(before, after) ? current : candidate;
+      },
+    );
+  }
+  function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption"): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.reset", labelKey: "history.element.setting", labelParams: { setting: "textStyle.reset" } },
+      (current) => current.textStyles?.some((style) => style.id === id)
+        ? resetFundamentalTextStyleOverride(current, id)
+        : current,
+    );
+  }
   function requestResetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPendingTextStyleReset(id); }
-  function addTextStyle(name: string, role: TextStyleRole) { setPresentation((current) => addCustomTextStyle(current, name, role)); }
+  function addTextStyle(name: string, role: TextStyleRole): void {
+    if (!name.trim()) return;
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.add", labelKey: "history.element.setting", labelParams: { setting: "textStyle.add" } },
+      (current) => addCustomTextStyle(current, name, role),
+    );
+  }
   function createTextStyleFromSelectedText(name: string): void {
     if (selectedDocumentElement?.type !== "text") return;
     setPresentation((current) => {
@@ -3158,8 +3257,24 @@ export function EditorWorkspace({
       };
     });
   }
-  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }) { setPresentation((current) => updateCustomTextStyle(current, id, patch)); }
-  function removeTextStyle(id: string): void { setPresentation((current) => removeUnusedCustomTextStyle(current, id) ?? current); }
+  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
+      (current) => {
+        const before = current.textStyles?.find((style) => style.id === id);
+        if (before === undefined || !("name" in before)) return current;
+        const candidate = updateCustomTextStyle(current, id, patch);
+        const after = candidate.textStyles?.find((style) => style.id === id);
+        return areTextStyleDefinitionsEqual(before, after) ? current : candidate;
+      },
+    );
+  }
+  function removeTextStyle(id: string): void {
+    applyTextStyleDefinitionUpdate(
+      { kind: "textStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "textStyle.remove" } },
+      (current) => removeUnusedCustomTextStyle(current, id) ?? current,
+    );
+  }
   function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
   function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
     setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
@@ -4951,6 +5066,7 @@ export function EditorWorkspace({
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
             presentationTextStyles={presentation.textStyles ?? []}
             presentation={presentation}
+            authoringHistory={authoringHistory}
             onUpdateFundamentalTextStyle={updateFundamentalTextStyle}
             onResetFundamentalTextStyle={requestResetFundamentalTextStyle}
             onAddTextStyle={addTextStyle}
