@@ -38,6 +38,11 @@ import {
   resolveLinkedContainerStyle,
   type Color,
   type ColorValue,
+  type ContainerLayout,
+  type ElementEffect,
+  type ElementTypography,
+  type LinkedContainerStyle,
+  type LinkedContainerStyleVisual,
   type TextStroke,
   type TextStyle,
 } from "@powershow/document-schema";
@@ -411,6 +416,143 @@ function areTextStyleDefinitionsEqual(
   return true;
 }
 
+function areLinkedStyleColorValuesEqual(
+  left: ColorValue | undefined,
+  right: ColorValue | undefined,
+): boolean {
+  if (typeof left === "string" || typeof right === "string") return left === right;
+  if (left === undefined || right === undefined) return left === right;
+  return left.kind === right.kind && left.kind === "palette" && left.colorId === right.colorId;
+}
+
+function areLinkedStyleGradientValuesEqual(
+  left: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["gradient"]> | undefined,
+  right: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["gradient"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.type !== right.type) return false;
+  if (left.type === "linear" && right.type === "linear" && left.angle !== right.angle) return false;
+  if (left.type === "radial" && right.type === "radial" && left.shape !== right.shape) return false;
+  if (left.stops.length !== right.stops.length) return false;
+  return left.stops.every((stop, index) => {
+    const other = right.stops[index];
+    return other !== undefined
+      && stop.position === other.position
+      && areLinkedStyleColorValuesEqual(stop.color, other.color);
+  });
+}
+
+function areLinkedStyleBorderValuesEqual(
+  left: NonNullable<LinkedContainerStyleVisual["border"]> | undefined,
+  right: NonNullable<LinkedContainerStyleVisual["border"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.width === right.width
+    && left.style === right.style
+    && areLinkedStyleColorValuesEqual(left.color, right.color)
+    && areLinkedStyleGradientValuesEqual(left.gradient, right.gradient);
+}
+
+function areLinkedStylePatternValuesEqual(
+  left: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["pattern"]> | undefined,
+  right: NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["pattern"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.image === right.image
+    && left.size === right.size
+    && left.position === right.position
+    && left.repeat === right.repeat
+    && left.opacity === right.opacity;
+}
+
+function areLinkedStyleShadowValuesEqual(
+  left: NonNullable<ElementEffect["shadow"]> | undefined,
+  right: NonNullable<ElementEffect["shadow"]> | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.x === right.x
+    && left.y === right.y
+    && left.blur === right.blur
+    && left.spread === right.spread
+    && left.inset === right.inset
+    && areLinkedStyleColorValuesEqual(left.color, right.color);
+}
+
+function areLinkedStyleTypographyValuesEqual(
+  left: ElementTypography | undefined,
+  right: ElementTypography | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  const fields = [
+    "fontFamily", "fontSize", "fontWeight", "fontStyle", "textAlign", "lineHeight",
+    "letterSpacing", "textTransform", "whiteSpace", "textWrapStyle", "overflowWrap",
+    "textDecorationLine",
+  ] as const;
+  return fields.every((field) => left[field] === right[field])
+    && areLinkedStyleColorValuesEqual(left.textDecorationColor, right.textDecorationColor)
+    && (left.textStroke === undefined || right.textStroke === undefined
+      ? left.textStroke === right.textStroke
+      : left.textStroke.width === right.textStroke.width
+        && areLinkedStyleColorValuesEqual(left.textStroke.color, right.textStroke.color));
+}
+
+function areLinkedStyleLayoutValuesEqual(
+  left: ContainerLayout | undefined,
+  right: ContainerLayout | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  const fields = [
+    "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight", "margin",
+    "marginTop", "marginRight", "marginBottom", "marginLeft", "padding", "paddingTop",
+    "paddingRight", "paddingBottom", "paddingLeft", "overflow", "position", "top", "right",
+    "bottom", "left", "flexShrink",
+  ] as const;
+  if (!fields.every((field) => left[field] === right[field])) return false;
+  if (left.children === undefined || right.children === undefined) return left.children === right.children;
+  const childFields = ["mode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign"] as const;
+  if (!childFields.every((field) => left.children?.[field] === right.children?.[field])) return false;
+  if (left.children.fit === undefined || right.children.fit === undefined) return left.children.fit === right.children.fit;
+  return left.children.fit.mode === right.children.fit.mode
+    && left.children.fit.sourceWidth === right.children.fit.sourceWidth
+    && left.children.fit.sourceHeight === right.children.fit.sourceHeight;
+}
+
+function areLinkedStyleVisualValuesEqual(
+  left: LinkedContainerStyleVisual | undefined,
+  right: LinkedContainerStyleVisual | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (!areLinkedStyleColorValuesEqual(left.color, right.color) || left.borderRadius !== right.borderRadius) return false;
+  if (left.background === undefined || right.background === undefined) {
+    return left.background === right.background && areLinkedStyleBorderValuesEqual(left.border, right.border);
+  }
+  return areLinkedStyleColorValuesEqual(left.background.color, right.background.color)
+    && areLinkedStyleGradientValuesEqual(left.background.gradient, right.background.gradient)
+    && areLinkedStylePatternValuesEqual(left.background.pattern, right.background.pattern)
+    && areLinkedStyleBorderValuesEqual(left.border, right.border);
+}
+
+function areLinkedStyleEffectValuesEqual(
+  left: ElementEffect | undefined,
+  right: ElementEffect | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return left.opacity === right.opacity && areLinkedStyleShadowValuesEqual(left.shadow, right.shadow);
+}
+
+function areLinkedContainerStyleDefinitionsEqual(
+  left: LinkedContainerStyle | undefined,
+  right: LinkedContainerStyle | undefined,
+): boolean {
+  return left !== undefined && right !== undefined
+    && left.id === right.id
+    && left.name === right.name
+    && areLinkedStyleLayoutValuesEqual(left.layout, right.layout)
+    && areLinkedStyleVisualValuesEqual(left.style, right.style)
+    && areLinkedStyleTypographyValuesEqual(left.typography, right.typography)
+    && areLinkedStyleEffectValuesEqual(left.effect, right.effect);
+}
+
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
   return Array.from(canvas.querySelectorAll<HTMLElement>("[data-powershow-id]"))
     .find((candidate) => candidate.dataset.powershowId === id) ?? null;
@@ -729,6 +871,20 @@ export function EditorWorkspace({
   }
 
   function applyTextStyleDefinitionUpdate(
+    fallbackMeta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    const intent = authoringIntentRef.current;
+    if (intent?.type === "continuous") {
+      dispatchHistory({ type: "transaction-update", key: intent.key, update });
+    } else if (intent?.type === "discrete") {
+      dispatchHistory({ type: "commit", meta: intent.meta, update });
+    } else {
+      commitPresentationAction(fallbackMeta, update);
+    }
+  }
+
+  function applyLinkedStyleDefinitionUpdate(
     fallbackMeta: HistoryActionMeta,
     update: (current: Presentation) => Presentation,
   ): void {
@@ -3282,9 +3438,27 @@ export function EditorWorkspace({
       (current) => removeUnusedCustomTextStyle(current, id) ?? current,
     );
   }
-  function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void { setPresentation((current) => updateLinkedStyle(current, id, patch)); }
+  function updatePresentationLinkedStyle(id: string, patch: Parameters<typeof updateLinkedStyle>[2]): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || ("target" in before && before.target === "topics")) return current;
+        const afterPresentation = updateLinkedStyle(current, id, patch);
+        const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || ("target" in after && after.target === "topics") || areLinkedContainerStyleDefinitionsEqual(before, after)) return current;
+        return afterPresentation;
+      },
+    );
+  }
   function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
-    setPresentation((current) => createLinkedStyleWithProperty(current, name, property).presentation);
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.add", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.add" } },
+      (current) => {
+        const created = createLinkedStyleWithProperty(current, name, property);
+        return created.linkedStyleId === undefined || created.presentation === current ? current : created.presentation;
+      },
+    );
   }
   function updatePresentationLinkedTopicsStyle(id: string, patch: Parameters<typeof updateLinkedTopicsStyle>[2]): void { setPresentation((current) => updateLinkedTopicsStyle(current, id, patch)); }
   function createLinkedStyleFromSelectedElement(name: string): void {
@@ -3295,8 +3469,32 @@ export function EditorWorkspace({
       return current;
     });
   }
-  function renamePresentationLinkedStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
-  function removePresentationLinkedStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
+  function renamePresentationLinkedStyle(id: string, name: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || ("target" in before && before.target === "topics")) return current;
+        const afterPresentation = renameLinkedStyle(current, id, name);
+        const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
+        return after !== undefined && !(("target" in after) && after.target === "topics") && !areLinkedContainerStyleDefinitionsEqual(before, after)
+          ? afterPresentation
+          : current;
+      },
+    );
+  }
+  function removePresentationLinkedStyle(id: string): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.remove", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.remove" } },
+      (current) => {
+        const target = current.linkedStyles?.find((style) => style.id === id);
+        if (target === undefined || ("target" in target && target.target === "topics")) return current;
+        return removeUnusedLinkedStyle(current, id) ?? current;
+      },
+    );
+  }
+  function renamePresentationLinkedTopicsStyle(id: string, name: string): void { setPresentation((current) => renameLinkedStyle(current, id, name)); }
+  function removePresentationLinkedTopicsStyle(id: string): void { setPresentation((current) => removeUnusedLinkedStyle(current, id) ?? current); }
   function attachLinkedStyleMatches(id: string): void {
     setPresentation((current) => attachLinkedStyleToMatchingContainers(current, id).presentation);
   }
@@ -5085,7 +5283,9 @@ export function EditorWorkspace({
              onUpdateLinkedTopicsStyle={updatePresentationLinkedTopicsStyle}
              onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
+             onRenameLinkedTopicsStyle={renamePresentationLinkedTopicsStyle}
              onRemoveLinkedStyle={removePresentationLinkedStyle}
+             onRemoveLinkedTopicsStyle={removePresentationLinkedTopicsStyle}
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              onSelectTextStyleElement={selectTextStyleElement}

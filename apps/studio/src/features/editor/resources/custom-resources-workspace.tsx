@@ -69,7 +69,9 @@ interface CustomResourcesWorkspaceProps {
   onUpdateLinkedTopicsStyle?: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
   onCreateLinkedStyle?: (name: string, property: LinkedStyleAuthorableProperty) => void;
   onRenameLinkedStyle?: (id: string, name: string) => void;
+  onRenameLinkedTopicsStyle?: (id: string, name: string) => void;
   onRemoveLinkedStyle?: (id: string) => void;
+  onRemoveLinkedTopicsStyle?: (id: string) => void;
   onAttachLinkedStyleMatches?: (id: string) => void;
   onSelectLinkedStyleContainer?: (location: LinkedStyleContainerLocation) => void;
   onSelectTextStyleElement?: (location: TextStyleUsageLocation) => void;
@@ -171,7 +173,9 @@ export function CustomResourcesWorkspace({
   onUpdateLinkedTopicsStyle = () => undefined,
   onCreateLinkedStyle = () => undefined,
   onRenameLinkedStyle = () => undefined,
+  onRenameLinkedTopicsStyle = onRenameLinkedStyle,
   onRemoveLinkedStyle = () => undefined,
+  onRemoveLinkedTopicsStyle = onRemoveLinkedStyle,
   onAttachLinkedStyleMatches = () => undefined,
   onSelectLinkedStyleContainer = () => undefined,
   onSelectTextStyleElement = () => undefined,
@@ -299,7 +303,7 @@ export function CustomResourcesWorkspace({
           <h2 id="custom-resources-this-presentation" className={styles.sectionTitle}>{t("customResources.thisPresentation")}</h2>
           <div className={styles.presentationSections}>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
-              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} onUpdate={onUpdateLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRemove={onRemoveLinkedStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} authoringHistory={authoringHistory} onUpdate={onUpdateLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRenameTopics={onRenameLinkedTopicsStyle} onRemove={onRemoveLinkedStyle} onRemoveTopics={onRemoveLinkedTopicsStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
               <InspectorSection title={t("customResources.textStyles")} count={listPresentationTextStyles({ textStyles: presentationTextStyles }).length} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
@@ -369,14 +373,17 @@ export function CustomResourcesWorkspace({
 }
 
 function LinkedStylesWorkspace({
-  presentation, onUpdate: dispatchUpdate, onUpdateTopics, onCreate, onRename, onRemove, onAttach, onSelectContainer, onRequestDetach, selectedElement, onCreateFromSelected,
+  presentation, authoringHistory, onUpdate: dispatchUpdate, onUpdateTopics, onCreate, onRename, onRenameTopics, onRemove, onRemoveTopics, onAttach, onSelectContainer, onRequestDetach, selectedElement, onCreateFromSelected,
 }: {
   presentation?: Presentation;
+  authoringHistory: AuthoringHistoryContextValue | null;
   onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
   onUpdateTopics: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
   onCreate: (name: string, property: LinkedStyleAuthorableProperty) => void;
   onRename: (id: string, name: string) => void;
+  onRenameTopics: (id: string, name: string) => void;
   onRemove: (id: string) => void;
+  onRemoveTopics: (id: string) => void;
   onAttach: (id: string) => void;
   onSelectContainer: (location: LinkedStyleContainerLocation) => void;
   onRequestDetach: (styleId: string, styleName: string, location: LinkedStyleContainerLocation) => void;
@@ -384,6 +391,8 @@ function LinkedStylesWorkspace({
   onCreateFromSelected: (name: string) => void;
 }) {
   const { t } = useStudioI18n();
+  const definitionMeta = { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
+  const addMeta = { kind: "linkedStyle.add", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.add" } } as const;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -396,6 +405,14 @@ function LinkedStylesWorkspace({
     : selectedElement?.type === "topics"
       ? canCreateLinkedStyleFromTopics(selectedElement)
       : false;
+  const runDefinitionDiscrete = (callback: () => void): void => {
+    if (authoringHistory) authoringHistory.discrete(definitionMeta, callback);
+    else callback();
+  };
+  const runAddDiscrete = (callback: () => void): void => {
+    if (authoringHistory) authoringHistory.discrete(addMeta, callback);
+    else callback();
+  };
   const commit = (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => {
     if (!presentation || canUpdateLinkedStyle(presentation, id, patch)) { setFeedback(null); dispatchUpdate(id, patch); }
     else setFeedback(t("customResources.linkedStyleMustNotBeEmpty"));
@@ -411,7 +428,7 @@ function LinkedStylesWorkspace({
     {stylesList.length === 0 ? <p className={styles.status}>{t("customResources.linkedStyleNoStyles")}</p> : null}
     {stylesList.map((linkedStyle) => {
       if ("target" in linkedStyle && linkedStyle.target === "topics") {
-        return <TopicsLinkedStyleRow key={linkedStyle.id} style={linkedStyle} presentation={presentation} editing={editingId === linkedStyle.id} onEdit={() => setEditingId(editingId === linkedStyle.id ? null : linkedStyle.id)} onRename={onRename} onUpdate={onUpdateTopics} onRemove={onRemove} />;
+        return <TopicsLinkedStyleRow key={linkedStyle.id} style={linkedStyle} presentation={presentation} editing={editingId === linkedStyle.id} onEdit={() => setEditingId(editingId === linkedStyle.id ? null : linkedStyle.id)} onRename={onRenameTopics} onUpdate={onUpdateTopics} onRemove={onRemoveTopics} />;
       }
       const linkedLocations = presentation ? findContainersLinkedToStyle(presentation, linkedStyle.id) : [];
       const matchingLocations = presentation ? findMatchingContainersForLinkedStyle(presentation, linkedStyle.id) : [];
@@ -425,8 +442,8 @@ function LinkedStylesWorkspace({
           <span className={styles.resourceItemDetails}><strong>{linkedStyle.name}</strong><span className={styles.resourceItemMeta}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: linkedLocations.length })}</span></span>
           <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
         </button>
-        {editing ? <div id={editorId} className={styles.linkedStyleEditor}>
-          <LinkedStyleNameField style={linkedStyle} onRename={onRename} />
+        {editing ? <AuthoringHistoryContext.Provider value={authoringHistory}><div id={editorId} className={styles.linkedStyleEditor}>
+          <LinkedStyleNameField style={linkedStyle} onRename={(id, name) => runDefinitionDiscrete(() => onRename(id, name))} />
           <div
             className={styles.linkedStylePreview}
             data-linked-style-preview={linkedStyle.id}
@@ -438,15 +455,15 @@ function LinkedStylesWorkspace({
             const properties = group === "layout" ? LINKED_STYLE_PROPERTY_GROUPS.layout : group === "position" ? LINKED_STYLE_PROPERTY_GROUPS.position : group === "size" ? LINKED_STYLE_PROPERTY_GROUPS.size : group === "spacing" ? LINKED_STYLE_PROPERTY_GROUPS.spacing : group === "appearance" ? LINKED_STYLE_PROPERTY_GROUPS.appearance : LINKED_STYLE_PROPERTY_GROUPS.effects;
             const visible = properties.filter((property) => hasLinkedStyleProperty(linkedStyle, property));
             if (visible.length === 0) return null;
-            return <div className={styles.linkedStyleSection} data-linked-style-section={group} key={group}><h3 className={styles.linkedStyleSectionTitle}>{t(`inspector.${group}` as "inspector.layout")}</h3>{visible.map((property) => <LinkedStylePropertyRow key={property} style={linkedStyle} property={property} onUpdate={(next) => commit(linkedStyle.id, patch(next, property))} onRemove={() => commit(linkedStyle.id, patch(removeLinkedStyleProperty(linkedStyle, property), property))} canRemove={(listLinkedStyleAuthoredProperties(linkedStyle).length > 1 || linkedStyle.typography !== undefined) && removeLinkedStyleProperty(linkedStyle, property) !== linkedStyle} />)}</div>;
+            return <div className={styles.linkedStyleSection} data-linked-style-section={group} key={group}><h3 className={styles.linkedStyleSectionTitle}>{t(`inspector.${group}` as "inspector.layout")}</h3>{visible.map((property) => <LinkedStylePropertyRow key={property} style={linkedStyle} property={property} onUpdate={(next) => commit(linkedStyle.id, patch(next, property))} onRemove={() => runDefinitionDiscrete(() => commit(linkedStyle.id, patch(removeLinkedStyleProperty(linkedStyle, property), property)))} canRemove={(listLinkedStyleAuthoredProperties(linkedStyle).length > 1 || linkedStyle.typography !== undefined) && removeLinkedStyleProperty(linkedStyle, property) !== linkedStyle} />)}</div>;
           })}
-          {linkedStyle.typography ? <div className={styles.linkedStyleSection} data-linked-style-section="legacy-typography"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.linkedStyleLegacyTypography")}</h3><p className={styles.status}>{t("customResources.linkedStyleLegacyTypographyDescription")}</p><Button variant="danger" size="compact" disabled={!presentation || !canUpdateLinkedStyle(presentation, linkedStyle.id, { typography: undefined })} onClick={() => commit(linkedStyle.id, { typography: undefined })}>{t("customResources.linkedStyleRemoveLegacyTypography")}</Button></div> : null}
-          {listAvailableLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><div className={styles.resourcePropertyChooser}><button type="button" className={styles.resourceAction} onClick={() => setChooserId(chooserId === linkedStyle.id ? null : linkedStyle.id)}>{t("customResources.addProperty")}</button>{chooserId === linkedStyle.id ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties(linkedStyle)} onChoose={(property) => { const next = addLinkedStyleProperty(linkedStyle, property); commit(linkedStyle.id, patch(next, property)); setChooserId(null); }} /> : null}</div></div> : null}
-          <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><span className={styles.status}>{t(matchingLocations.length === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingLocations.length })}</span>{matchingLocations.length > 0 ? <Button variant="secondary" size="compact" onClick={() => onAttach(linkedStyle.id)}>{t("customResources.linkedStyleAttachMany", { count: matchingLocations.length })}</Button> : null}<ResourceUsageLocations locations={linkedLocations} onSelect={onSelectContainer} onRequestDetach={(location) => onRequestDetach(linkedStyle.id, linkedStyle.name, location)} styleName={linkedStyle.name} /><span className={styles.status}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count: linkedLocations.length })}</span><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={linkedLocations.length > 0} onClick={() => onRemove(linkedStyle.id)}>{t("customResources.linkedStyleRemove")}</button></div></div>
-        </div> : null}
+          {linkedStyle.typography ? <div className={styles.linkedStyleSection} data-linked-style-section="legacy-typography"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.linkedStyleLegacyTypography")}</h3><p className={styles.status}>{t("customResources.linkedStyleLegacyTypographyDescription")}</p><Button variant="danger" size="compact" disabled={!presentation || !canUpdateLinkedStyle(presentation, linkedStyle.id, { typography: undefined })} onClick={() => runDefinitionDiscrete(() => commit(linkedStyle.id, { typography: undefined }))}>{t("customResources.linkedStyleRemoveLegacyTypography")}</Button></div> : null}
+          {listAvailableLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><div className={styles.resourcePropertyChooser}><button type="button" className={styles.resourceAction} onClick={() => setChooserId(chooserId === linkedStyle.id ? null : linkedStyle.id)}>{t("customResources.addProperty")}</button>{chooserId === linkedStyle.id ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties(linkedStyle)} onChoose={(property) => { const next = addLinkedStyleProperty(linkedStyle, property); runDefinitionDiscrete(() => commit(linkedStyle.id, patch(next, property))); setChooserId(null); }} /> : null}</div></div> : null}
+          <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><span className={styles.status}>{t(matchingLocations.length === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingLocations.length })}</span>{matchingLocations.length > 0 ? <Button variant="secondary" size="compact" onClick={() => onAttach(linkedStyle.id)}>{t("customResources.linkedStyleAttachMany", { count: matchingLocations.length })}</Button> : null}<ResourceUsageLocations locations={linkedLocations} onSelect={onSelectContainer} onRequestDetach={(location) => onRequestDetach(linkedStyle.id, linkedStyle.name, location)} styleName={linkedStyle.name} /><span className={styles.status}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count: linkedLocations.length })}</span><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={linkedLocations.length > 0} onClick={() => runDefinitionDiscrete(() => onRemove(linkedStyle.id))}>{t("customResources.linkedStyleRemove")}</button></div></div>
+        </div></AuthoringHistoryContext.Provider> : null}
       </div>;
     })}
-    {adding || addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label>{addingFromSelected ? <button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button> : <><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={create} /> : null}</>}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setAddingFromSelected(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
+    {adding ? <AuthoringHistoryContext.Provider value={authoringHistory}><div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={(property) => runAddDiscrete(() => create(property))} /> : null}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div></AuthoringHistoryContext.Provider> : addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button><Button variant="ghost" size="compact" onClick={() => { setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
   </div>;
 }
 
@@ -598,8 +615,24 @@ function LinkedStylePropertyChooser({ properties, onChoose }: { properties: read
 
 function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove }: { style: LinkedContainerStyle; property: LinkedStyleProperty; onUpdate: (style: LinkedContainerStyle) => void; onRemove: () => void; canRemove: boolean }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
+  const definitionMeta = { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+  const numberHistoryKey = `number:linked-style-${style.id}-${property}`;
+  const runDiscrete = (callback: () => void): void => {
+    if (authoringHistory) authoringHistory.discrete(definitionMeta, callback);
+    else callback();
+  };
+  const runContinuous = (callback: () => void): void => {
+    if (!authoringHistory) {
+      callback();
+      return;
+    }
+    authoringHistory.begin(numberHistoryKey, numberHistoryMeta);
+    authoringHistory.update(numberHistoryKey, callback);
+  };
   const displayLabel = linkedStylePropertyLabel(t, property);
-  const numeric = (value: number | undefined, update: (next: number | undefined) => LinkedContainerStyle) => <input type="number" value={value ?? ""} onChange={(event) => onUpdate(update(event.target.value === "" ? undefined : Number(event.target.value)))} />;
+  const numeric = (value: number | undefined, update: (next: number | undefined) => LinkedContainerStyle) => <input type="number" value={value ?? ""} onFocus={() => authoringHistory?.begin(numberHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(numberHistoryKey)} onChange={(event) => runContinuous(() => onUpdate(update(event.target.value === "" ? undefined : Number(event.target.value))))} />;
   const layoutUpdate = (update: (layout: NonNullable<LinkedContainerStyle["layout"]>) => NonNullable<LinkedContainerStyle["layout"]>) => ({ ...style, layout: update({ ...style.layout, children: style.layout?.children === undefined ? undefined : { ...style.layout.children } }) });
   const childrenUpdate = (update: (children: NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => layoutUpdate((layout) => ({ ...layout, children: update({ ...(layout.children ?? {}) }) }));
   const numberLayout = (field: "padding" | "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft" | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" | "top" | "right" | "bottom" | "left", value: number | undefined) => layoutUpdate((layout) => ({ ...layout, [field]: value }));
@@ -608,18 +641,18 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
   const commitChildren = (update: (children: NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => NonNullable<NonNullable<LinkedContainerStyle["layout"]>["children"]>) => onUpdate(childrenUpdate(update));
   let control: ReactNode;
   switch (property) {
-    case "layoutMode": control = <select value={style.layout?.children?.mode ?? "flow"} onChange={(event) => commitChildren((children) => ({ ...children, mode: event.target.value as "flow" | "stack" }))}><option value="flow">{t("inspector.flow")}</option><option value="stack">{t("inspector.stack")}</option></select>; break;
-    case "direction": control = <select value={style.layout?.children?.direction ?? "column"} onChange={(event) => commitChildren((children) => ({ ...children, direction: event.target.value as "row" | "column" }))}><option value="column">{t("inspector.vertical")}</option><option value="row">{t("inspector.horizontal")}</option></select>; break;
+    case "layoutMode": control = <select value={style.layout?.children?.mode ?? "flow"} onChange={(event) => runDiscrete(() => commitChildren((children) => ({ ...children, mode: event.target.value as "flow" | "stack" })))}><option value="flow">{t("inspector.flow")}</option><option value="stack">{t("inspector.stack")}</option></select>; break;
+    case "direction": control = <select value={style.layout?.children?.direction ?? "column"} onChange={(event) => runDiscrete(() => commitChildren((children) => ({ ...children, direction: event.target.value as "row" | "column" })))}><option value="column">{t("inspector.vertical")}</option><option value="row">{t("inspector.horizontal")}</option></select>; break;
     case "gap": control = numeric(typeof style.layout?.children?.gap === "number" ? style.layout.children.gap : undefined, (next) => { const updated = addLinkedStyleProperty(removeLinkedStyleProperty(style, property), property); updated.layout = { ...updated.layout, children: { ...updated.layout?.children, gap: next } }; return updated; }); break;
-    case "distribution": control = <select value={style.layout?.children?.distribution ?? "packed"} onChange={(event) => commitChildren((children) => ({ ...children, distribution: event.target.value as "packed" | "space-between" | "space-around" | "space-evenly" }))}><option value="packed">{t("inspector.distribution.packed")}</option><option value="space-between">{t("inspector.distribution.spaceBetween")}</option><option value="space-around">{t("inspector.distribution.spaceAround")}</option><option value="space-evenly">{t("inspector.distribution.spaceEvenly")}</option></select>; break;
+    case "distribution": control = <select value={style.layout?.children?.distribution ?? "packed"} onChange={(event) => runDiscrete(() => commitChildren((children) => ({ ...children, distribution: event.target.value as "packed" | "space-between" | "space-around" | "space-evenly" })))}><option value="packed">{t("inspector.distribution.packed")}</option><option value="space-between">{t("inspector.distribution.spaceBetween")}</option><option value="space-around">{t("inspector.distribution.spaceAround")}</option><option value="space-evenly">{t("inspector.distribution.spaceEvenly")}</option></select>; break;
     case "horizontalAlign":
-    case "verticalAlign": control = <select value={style.layout?.children?.[property] ?? "start"} onChange={(event) => commitChildren((children) => ({ ...children, [property]: event.target.value as "start" | "center" | "end" | "stretch" }))}><option value="start">{t("inspector.start")}</option><option value="center">{t("inspector.center")}</option><option value="end">{t("inspector.end")}</option><option value="stretch">{t("inspector.stretch")}</option></select>; break;
-    case "overflow": control = <select value={style.layout?.overflow ?? "visible"} onChange={(event) => commitLayout((layout) => ({ ...layout, overflow: event.target.value as "visible" | "hidden" | "auto" }))}><option value="visible">{t("inspector.overflow.visible")}</option><option value="hidden">{t("inspector.overflow.hidden")}</option><option value="auto">{t("inspector.overflow.auto")}</option></select>; break;
-    case "fit": control = <select value={style.layout?.children?.fit?.mode ?? "contain"} onChange={(event) => commitChildren((children) => children.fit === undefined ? children : ({ ...children, fit: { ...children.fit, mode: event.target.value as "contain" | "cover" | "fill" } }))}><option value="contain">{t("inspector.childrenFit.contain")}</option><option value="cover">{t("inspector.childrenFit.cover")}</option><option value="fill">{t("inspector.childrenFit.fill")}</option></select>; break;
-    case "position": control = <select value={style.layout?.position ?? "absolute"} onChange={(event) => commitLayout((layout) => ({ ...layout, position: event.target.value as "absolute" }))}><option value="absolute">{t("inspector.absolute")}</option></select>; break;
+    case "verticalAlign": control = <select value={style.layout?.children?.[property] ?? "start"} onChange={(event) => runDiscrete(() => commitChildren((children) => ({ ...children, [property]: event.target.value as "start" | "center" | "end" | "stretch" })))}><option value="start">{t("inspector.start")}</option><option value="center">{t("inspector.center")}</option><option value="end">{t("inspector.end")}</option><option value="stretch">{t("inspector.stretch")}</option></select>; break;
+    case "overflow": control = <select value={style.layout?.overflow ?? "visible"} onChange={(event) => runDiscrete(() => commitLayout((layout) => ({ ...layout, overflow: event.target.value as "visible" | "hidden" | "auto" })))}><option value="visible">{t("inspector.overflow.visible")}</option><option value="hidden">{t("inspector.overflow.hidden")}</option><option value="auto">{t("inspector.overflow.auto")}</option></select>; break;
+    case "fit": control = <select value={style.layout?.children?.fit?.mode ?? "contain"} onChange={(event) => runDiscrete(() => commitChildren((children) => children.fit === undefined ? children : ({ ...children, fit: { ...children.fit, mode: event.target.value as "contain" | "cover" | "fill" } })))}><option value="contain">{t("inspector.childrenFit.contain")}</option><option value="cover">{t("inspector.childrenFit.cover")}</option><option value="fill">{t("inspector.childrenFit.fill")}</option></select>; break;
+    case "position": control = <select value={style.layout?.position ?? "absolute"} onChange={(event) => runDiscrete(() => commitLayout((layout) => ({ ...layout, position: event.target.value as "absolute" })))}><option value="absolute">{t("inspector.absolute")}</option></select>; break;
     case "top": case "right": case "bottom": case "left": control = numeric(numericLayoutValue(property), (next) => numberLayout(property, next)); break;
-    case "width": case "height": control = <div className={styles.unitInput}><input type="number" min="0" max="100" value={typeof style.layout?.[property] === "string" && style.layout[property].endsWith("%") ? Number(style.layout[property].slice(0, -1)) : ""} onChange={(event) => commitLayout((layout) => ({ ...layout, [property]: event.target.value === "" ? undefined : `${Number(event.target.value)}%` }))} /><span>%</span></div>; break;
-    case "preserveSize": control = <label className={styles.linkedStyleCheckboxRow}><input aria-label={displayLabel} type="checkbox" checked={style.layout?.flexShrink === 0} onChange={(event) => commitLayout((layout) => ({ ...layout, flexShrink: event.target.checked ? 0 : undefined }))} /><span className={styles.resourcePropertyVisuallyHidden}>{displayLabel}</span></label>; break;
+    case "width": case "height": control = <div className={styles.unitInput}><input type="number" min="0" max="100" value={typeof style.layout?.[property] === "string" && style.layout[property].endsWith("%") ? Number(style.layout[property].slice(0, -1)) : ""} onFocus={() => authoringHistory?.begin(numberHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(numberHistoryKey)} onChange={(event) => runContinuous(() => commitLayout((layout) => ({ ...layout, [property]: event.target.value === "" ? undefined : `${Number(event.target.value)}%` })))} /><span>%</span></div>; break;
+    case "preserveSize": control = <label className={styles.linkedStyleCheckboxRow}><input aria-label={displayLabel} type="checkbox" checked={style.layout?.flexShrink === 0} onChange={(event) => runDiscrete(() => commitLayout((layout) => ({ ...layout, flexShrink: event.target.checked ? 0 : undefined })))} /><span className={styles.resourcePropertyVisuallyHidden}>{displayLabel}</span></label>; break;
     case "padding": case "paddingTop": case "paddingRight": case "paddingBottom": case "paddingLeft": case "margin": case "marginTop": case "marginRight": case "marginBottom": case "marginLeft": control = numeric(numericLayoutValue(property), (next) => numberLayout(property, next)); break;
     case "color": control = <ColorControl id={`linked-style-${style.id}-color`} name={linkedStylePropertyLabel(t, property)} value={style.style?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, color } })} />; break;
     case "backgroundColor": control = <ColorControl id={`linked-style-${style.id}-background-color`} name={linkedStylePropertyLabel(t, property)} value={style.style?.background?.color} onChange={(color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, color } } })} />; break;
@@ -627,7 +660,7 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
     case "pattern": control = <ContainerBackgroundPatternControl allowNone={false} element={{ id: style.id, type: "container", hidden: false, children: [], style: style.style }} controlPrefix={`linked-style-${style.id}`} onChange={(pattern, color) => onUpdate({ ...style, style: { ...style.style, background: { ...style.style?.background, pattern, ...(color === undefined ? {} : { color }) } } })} />; break;
     case "border": control = <ElementBorderControl allowNone={false} border={style.style?.border} controlPrefix={`linked-style-${style.id}`} onChange={(border) => onUpdate({ ...style, style: { ...style.style, border } })} />; break;
     case "borderRadius": control = <LinkedStyleLengthField id={`linked-style-${style.id}-border-radius`} label={t("inspector.roundedCorners")} hideLabel value={style.style?.borderRadius} onChange={(value) => onUpdate({ ...style, style: { ...style.style, borderRadius: value } })} />; break;
-    case "opacity": control = <input type="number" min="0" max="100" value={style.effect?.opacity === undefined ? "" : style.effect.opacity * 100} onChange={(event) => onUpdate({ ...style, effect: { ...style.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } })} />; break;
+    case "opacity": control = <input type="number" min="0" max="100" value={style.effect?.opacity === undefined ? "" : style.effect.opacity * 100} onFocus={() => authoringHistory?.begin(numberHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(numberHistoryKey)} onChange={(event) => runContinuous(() => onUpdate({ ...style, effect: { ...style.effect, opacity: event.target.value === "" ? undefined : Number(event.target.value) / 100 } }))} />; break;
     case "shadow": control = <ContainerEffectsSection embedded allowNone={false} showSourceMeta={false} element={{ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }} onUpdate={(update) => { const next = update({ id: style.id, type: "container", hidden: false, children: [], effect: style.effect }); if (next.type === "container") onUpdate({ ...style, effect: next.effect }); }} />; break;
   }
   return <div className={styles.resourcePropertyCard} data-linked-style-property={property}>
@@ -650,6 +683,10 @@ function LinkedStyleNameField({ style, onRename }: { style: Pick<LinkedContainer
 }
 
 function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void; hideLabel?: boolean }) {
+  const authoringHistory = useAuthoringHistory();
+  const numberHistoryKey = `number:${id}`;
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+  const definitionMeta = { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
   const parsed = value === undefined ? undefined : parseAuthoringLength(value);
   const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit === "rem" ? "rem" : "px");
   useEffect(() => setUnit(parsed?.unit === "rem" ? "rem" : "px"), [parsed?.unit]);
@@ -658,20 +695,35 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false 
   return <label className={styles.field}>
     <span className={hideLabel ? styles.resourcePropertyVisuallyHidden : undefined}>{label}</span>
     <div className={styles.unitInput}>
-      <input id={id} type="number" step="any" value={numericValue} onChange={(event) => {
+      <input id={id} type="number" step="any" value={numericValue} onFocus={() => authoringHistory?.begin(numberHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(numberHistoryKey)} onChange={(event) => {
         if (event.target.value === "") {
-          onChange(undefined);
+          if (authoringHistory) {
+            authoringHistory.begin(numberHistoryKey, numberHistoryMeta);
+            authoringHistory.update(numberHistoryKey, () => onChange(undefined));
+          } else onChange(undefined);
           return;
         }
         const next = event.target.valueAsNumber;
-        if (Number.isFinite(next)) onChange(serializeAuthoringLength(next, unit));
+        if (Number.isFinite(next)) {
+          const update = () => onChange(serializeAuthoringLength(next, unit));
+          if (authoringHistory) {
+            authoringHistory.begin(numberHistoryKey, numberHistoryMeta);
+            authoringHistory.update(numberHistoryKey, update);
+          } else update();
+        }
       }} />
       <select aria-label={`${label} unit`} value={unit} onChange={(event) => {
         const nextUnit = event.target.value as AuthoringLengthUnit;
         setUnit(nextUnit);
         if (value !== undefined) {
           const converted = convertAuthoringLength(value, nextUnit);
-          if (converted !== undefined) onChange(serializeAuthoringLength(converted, nextUnit));
+          if (converted !== undefined) {
+            const update = () => onChange(serializeAuthoringLength(converted, nextUnit));
+            if (authoringHistory) {
+              authoringHistory.finish(numberHistoryKey);
+              authoringHistory.discrete(definitionMeta, update);
+            } else update();
+          }
         }
       }}>
         <option value="px">px</option>
