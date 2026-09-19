@@ -3595,7 +3595,20 @@ export function EditorWorkspace({
     );
   }
   function attachLinkedStyleMatches(id: string): void {
-    setPresentation((current) => attachLinkedStyleToMatchingContainers(current, id).presentation);
+    commitPresentationAction(
+      {
+        kind: "linkedStyle.attachMatches",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "linkedStyle.attachMatches" },
+      },
+      (current) => {
+        const linkedStyle = current.linkedStyles?.find((style) => style.id === id);
+        if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
+
+        const result = attachLinkedStyleToMatchingContainers(current, id);
+        return result.attachedLocations.length === 0 || result.presentation === current ? current : result.presentation;
+      },
+    );
   }
   function selectLinkedStyleContainer(location: LinkedStyleContainerLocation): void {
     const slide = presentation.slides[location.slideIndex];
