@@ -3515,12 +3515,37 @@ export function EditorWorkspace({
     );
   }
   function createLinkedStyleFromSelectedElement(name: string): void {
-    if (!selectedDocumentElement) return;
-    setPresentation((current) => {
-      if (selectedDocumentElement.type === "container" && canCreateLinkedStyleFromContainer(selectedDocumentElement)) return createLinkedStyleFromContainer(current, selectedSlideIndex, selectedDocumentElement.id, name);
-      if (selectedDocumentElement.type === "topics" && canCreateLinkedStyleFromTopics(selectedDocumentElement)) return createLinkedStyleFromTopics(current, selectedSlideIndex, selectedDocumentElement.id, name);
-      return current;
-    });
+    if (!name.trim()) return;
+    if (selectedDocumentElement?.type !== "container" && selectedDocumentElement?.type !== "topics") return;
+
+    const slideIndex = selectedSlideIndex;
+    const elementId = selectedDocumentElement.id;
+    const expectedType = selectedDocumentElement.type;
+
+    commitPresentationAction(
+      {
+        kind: "linkedStyle.createFromElement",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "linkedStyle.createFromElement" },
+      },
+      (current) => {
+        const slide = current.slides[slideIndex];
+        if (!slide) return current;
+
+        const currentElement = findElementById(slide.elements, elementId);
+        if (!currentElement || currentElement.type !== expectedType) return current;
+
+        if (expectedType === "container") {
+          if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
+          const candidate = createLinkedStyleFromContainer(current, slideIndex, elementId, name);
+          return candidate === current ? current : candidate;
+        }
+
+        if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
+        const candidate = createLinkedStyleFromTopics(current, slideIndex, elementId, name);
+        return candidate === current ? current : candidate;
+      },
+    );
   }
   function renamePresentationLinkedStyle(id: string, name: string): void {
     applyLinkedStyleDefinitionUpdate(
