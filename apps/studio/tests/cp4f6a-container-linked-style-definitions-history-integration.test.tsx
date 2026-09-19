@@ -57,15 +57,35 @@ describe("CP4F6A Container Linked Style definition history", () => {
     document.body.innerHTML = "";
   });
 
-  async function renderWorkspace(initial: Presentation): Promise<void> {
+  async function renderWorkspace(initial: Presentation, saved?: Presentation[]): Promise<void> {
     await act(async () => root.render(
       <StudioI18nProvider>
-        <EditorWorkspace initialPresentation={initial} customLibraryPaletteRepository={repositories} customLibraryFontRepository={repositories} />
+        <EditorWorkspace
+          initialPresentation={initial}
+          customLibraryPaletteRepository={repositories}
+          customLibraryFontRepository={repositories}
+          {...(saved === undefined ? {} : { onSave: async (snapshot: Presentation) => { saved.push(structuredClone(snapshot)); } })}
+        />
       </StudioI18nProvider>,
     ));
     const resources = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
     if (!resources) throw new Error("Custom Resources button was not rendered");
     await act(async () => resources.click());
+  }
+
+  async function save(saved: Presentation[]): Promise<Presentation> {
+    const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save");
+    if (!button) throw new Error("Save button was not rendered");
+    await act(async () => button.click());
+    const snapshot = saved.at(-1);
+    if (!snapshot) throw new Error("Save did not produce a snapshot");
+    return snapshot;
+  }
+
+  async function selectElement(id: string): Promise<void> {
+    const element = host.querySelector<HTMLElement>(`[data-powershow-id="${id}"]`);
+    if (!element) throw new Error(`Element was not rendered: ${id}`);
+    await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
 
   async function undo(): Promise<void> {
@@ -237,5 +257,106 @@ describe("CP4F6A Container Linked Style definition history", () => {
     await act(async () => { name.focus(); setInputValue(name, "Topics renamed"); name.blur(); });
     await undo();
     expect(row("topics-1").textContent).toContain("Topics renamed");
+  });
+
+  it("replays one shared ColorControl definition edit without a duplicate outer action", async () => {
+    const initial = presentation({ linkedStyles: linkedStyle({ style: { color: "#111111" } }) });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const color = host.querySelector<HTMLInputElement>("#linked-style-style-1-color-value");
+    if (!color) throw new Error("shared Linked Style ColorControl was not rendered");
+    await act(async () => { color.focus(); setInputValue(color, "#222222"); color.blur(); });
+    const changed = await save(saved);
+    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.style?.color).toBe("#222222");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
+  });
+
+  it("removes and replays legacy typography while preserving the normal definition", async () => {
+    const initial = presentation({ linkedStyles: linkedStyle({ layout: { children: { gap: 4 } }, typography: { fontSize: 20 } }) });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const target = await openRow("style-1");
+    const remove = Array.from(target.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remove legacy typography");
+    if (!remove) throw new Error("legacy typography remove button was not rendered");
+    await act(async () => remove.click());
+    const changed = await save(saved);
+    const changedStyle = changed.linkedStyles?.find((style) => style.id === "style-1");
+    expect(changedStyle).toMatchObject({ layout: { children: { gap: 4 } } });
+    expect(changedStyle?.typography).toBeUndefined();
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
+  });
+
+  it("changes only the shared definition when two Containers use it", async () => {
+    const initial = presentation({
+      slides: [{
+        id: "slide-1",
+        title: "Slide 1",
+        elements: [
+          { id: "container-1", type: "container", hidden: false, linkedStyleId: "style-1", style: { background: { color: "#111111" } }, children: [] },
+          { id: "container-2", type: "container", hidden: false, linkedStyleId: "style-1", layout: { padding: 8 }, children: [] },
+        ],
+      }],
+      linkedStyles: linkedStyle(),
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const initialElements = structuredClone(initial.slides[0]?.elements);
+    await openRow("style-1");
+    const gap = host.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("shared definition gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "18"); gap.blur(); });
+    const changed = await save(saved);
+    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.children?.gap).toBe(18);
+    expect(changed.slides[0]?.elements).toEqual(initialElements);
+    expect(changed.slides[0]?.elements.map((element) => element.type === "container" ? element.linkedStyleId : undefined)).toEqual(["style-1", "style-1"]);
+    await undo();
+    const undone = await save(saved);
+    expect(undone).toEqual(initial);
+    expect(undone.slides[0]?.elements).toEqual(initialElements);
+    await redo();
+    const redone = await save(saved);
+    expect(redone).toEqual(changed);
+    expect(redone.slides[0]?.elements).toEqual(initialElements);
+  });
+
+  it("keeps definition and Inspector relationship actions independently undoable", async () => {
+    const initial = presentation({ linkedStyles: linkedStyle() });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const gap = host.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("definition gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "16"); gap.blur(); });
+    const definitionEdited = await save(saved);
+
+    const customResources = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!customResources) throw new Error("Custom Resources toggle was not rendered");
+    await act(async () => customResources.click());
+    await selectElement("container-1");
+    const inspector = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Inspector");
+    if (!inspector) throw new Error("Inspector tab was not rendered");
+    await act(async () => inspector.click());
+    const relationship = host.querySelector<HTMLSelectElement>("#container-linked-style");
+    if (!relationship) throw new Error("Container linked-style relationship control was not rendered");
+    await act(async () => setSelectValue(relationship, ""));
+    const relationshipEdited = await save(saved);
+    expect(relationshipEdited.slides[0]?.elements[0]).not.toHaveProperty("linkedStyleId");
+    expect(relationshipEdited.linkedStyles).toEqual(definitionEdited.linkedStyles);
+
+    await undo();
+    expect(await save(saved)).toEqual(definitionEdited);
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(definitionEdited);
+    await redo();
+    expect(await save(saved)).toEqual(relationshipEdited);
   });
 });
