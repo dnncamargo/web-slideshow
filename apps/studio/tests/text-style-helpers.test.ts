@@ -42,8 +42,8 @@ describe("presentation typography style authoring", () => {
 
   it("uses reserved Structured Table IDs without adding styles to a new presentation", () => {
     expect(base()).not.toHaveProperty("textStyles");
-    expect(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID).toBe("powershow:table-column-header");
-    expect(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID).toBe("powershow:table-cell");
+    expect(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID).toBe("system:table-column-header");
+    expect(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID).toBe("system:table-cell");
     expect(createTextStyleId("powershow:table-column-header", [])).not.toBe(POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
     expect(createTextStyleId("powershow:table-cell", [])).not.toBe(POWERSHOW_TABLE_CELL_TEXT_STYLE_ID);
   });
@@ -72,7 +72,7 @@ describe("presentation typography style authoring", () => {
       { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
     ]);
     expect(ensureTopicsTextStyle(prepared)).toBe(prepared);
-    expect(POWERSHOW_TOPICS_TEXT_STYLE_ID).toBe("powershow:topics");
+    expect(POWERSHOW_TOPICS_TEXT_STYLE_ID).toBe("system:topics");
   });
 
   it("preserves IDs when editing and validates custom style creation", () => {

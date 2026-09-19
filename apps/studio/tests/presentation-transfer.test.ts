@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import {
+  PresentationSchema,
+  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  type Presentation,
+} from "@powershow/document-schema";
 
 import {
   buildPresentationExportFilename,
@@ -168,5 +174,104 @@ describe("canonical presentation transfer", () => {
 
   it("builds a safe export filename", () => {
     expect(buildPresentationExportFilename("A:/ demo? ")).toBe("A- demo.powershow.json");
+  });
+
+  it("normalizes exact legacy reserved IDs and the legacy demo asset at import", () => {
+    const legacy = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "legacy-presentation",
+      title: "PowerShow legacy content",
+      slides: [{
+        id: "legacy-slide",
+        elements: [{
+          id: "legacy-topics",
+          type: "topics",
+          hidden: false,
+          items: [{
+            id: "topic-item",
+            content: {
+              id: "topic-slot",
+              children: [{ id: "topic-text", type: "text", hidden: false, variant: "powershow:topics", content: "PowerShow" }],
+            },
+            children: [],
+          }],
+        }, {
+          id: "legacy-table",
+          type: "table",
+          mode: "structured",
+          showHeader: true,
+          hidden: false,
+          columns: [{
+            id: "column",
+            header: { id: "header-slot", children: [{ id: "header-text", type: "text", hidden: false, variant: "powershow:table-column-header", content: "Header" }] },
+          }],
+          rows: [{
+            id: "row",
+            cells: [{ id: "cell-slot", children: [{ id: "cell-text", type: "text", hidden: false, variant: "powershow:table-cell", content: "Cell" }] }],
+          }],
+        }, {
+          id: "legacy-image",
+          type: "image",
+          hidden: false,
+          src: "/powershow-demo.svg",
+          alt: "PowerShow caption",
+          fit: "contain",
+        }, {
+          id: "unrelated-image",
+          type: "image",
+          hidden: false,
+          src: "https://example.test/powershow-demo.svg?source=powershow",
+          alt: "External powershow URL",
+          fit: "contain",
+        }, {
+          id: "legacy-script",
+          type: "scripted",
+          html: "<p>Hello PowerShow</p>",
+          css: ".powershow { color: red; }",
+          script: "PowerShow.ports.value = 'PowerShow';",
+        }],
+      }],
+      textStyles: [
+        { id: "powershow:topics", name: "Topics", role: "body" },
+        { id: "powershow:table-column-header", name: "Column header", role: "body" },
+        { id: "powershow:table-cell", name: "Table cell", role: "body" },
+      ],
+    });
+    const imported = parsePresentationImport(JSON.stringify(legacy));
+    const elements = imported.slides[0]?.elements ?? [];
+    const topics = elements[0];
+    const table = elements[1];
+
+    expect(imported.textStyles?.map((style) => style.id)).toEqual([
+      POWERSHOW_TOPICS_TEXT_STYLE_ID,
+      POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+      POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+    ]);
+    expect(topics?.type === "topics" && topics.items[0]?.content.children[0]).toMatchObject({ variant: POWERSHOW_TOPICS_TEXT_STYLE_ID, content: "PowerShow" });
+    expect(table?.type === "table" && table.mode === "structured" && table.columns[0]?.header.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(table?.type === "table" && table.mode === "structured" && table.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID });
+    expect(elements[2]).toMatchObject({ src: "/instance-demo.svg" });
+    expect(elements[3]).toMatchObject({ src: "https://example.test/powershow-demo.svg?source=powershow" });
+    expect(elements[4]).toMatchObject({ html: "<p>Hello PowerShow</p>", css: ".powershow { color: red; }", script: "PowerShow.ports.value = 'PowerShow';" });
+  });
+
+  it("deduplicates a legacy reserved style when the canonical style already exists", () => {
+    const source = presentation();
+    const legacy = {
+      ...source,
+      textStyles: [
+        { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Canonical topics", role: "body" },
+        { id: "powershow:topics", name: "Legacy topics", role: "body" },
+      ],
+      slides: [{
+        ...source.slides[0],
+        elements: [{ id: "topic-text", type: "text", hidden: false, variant: "powershow:topics", content: "Topic" }],
+      }],
+    };
+    const imported = parsePresentationImport(JSON.stringify(legacy));
+
+    expect(imported.textStyles).toHaveLength(1);
+    expect(imported.textStyles?.[0]?.id).toBe(POWERSHOW_TOPICS_TEXT_STYLE_ID);
+    expect(imported.slides[0]?.elements[0]).toMatchObject({ variant: POWERSHOW_TOPICS_TEXT_STYLE_ID });
   });
 });
