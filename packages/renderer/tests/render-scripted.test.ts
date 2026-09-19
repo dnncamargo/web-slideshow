@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runInNewContext } from "node:vm";
+import { createContext, runInContext, runInNewContext } from "node:vm";
 
 import type {
   ScriptedElement,
@@ -107,7 +107,7 @@ function cspDirectives(csp: string): Map<string, string> {
 
 function extractBootstrap(srcdoc: string): string {
   const match = srcdoc.match(
-    /<script data-powershow-scripted-bootstrap="true">([\s\S]*)<\/script>/,
+    /<script data-scripted-runtime-bootstrap="true">([\s\S]*)<\/script>/,
   );
 
   expect(match).not.toBeNull();
@@ -554,10 +554,10 @@ describe("renderScripted payload structural safety", () => {
     // immediately followed by the bootstrap script open), so the
     // authored sequences must never appear as unescaped structural
     // tags before authored content.
-    expect(srcdoc).toContain('data-powershow-scripted-bootstrap="true"');
+    expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
 
     expect(srcdoc).toContain(
-      "document.getElementById('powershow-scripted-root')",
+      "document.getElementById('scripted-runtime-root')",
     );
 
     // Hostile authored sequences never become renderer-owned structure:
@@ -692,7 +692,52 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     expect(srcdoc).toContain("onAction: onAction");
     expect(srcdoc).toContain("onInput: onInput");
     expect(srcdoc).toContain("report: report");
-    expect(srcdoc).toContain("Object.defineProperty(window, 'PowerShow'");
+    expect(srcdoc).not.toContain("PowerShow");
+  });
+
+  it.each([
+    ["historical source", "PowerShow.ports.report('current', 17.25);", false],
+    ["manually migrated source", "ScriptedRuntime.ports.report('current', 17.25);", true],
+  ])("preserves and executes %s without source migration", (_label, script, works) => {
+    const element = scripted({ ports, script: `// café\r\n  ${script}\r\n` });
+    const original = JSON.stringify(element);
+    const srcdoc = extractSrcdoc(renderScripted(element));
+    const reports: unknown[] = [];
+    const errors: unknown[] = [];
+    const root = { innerHTML: "" };
+    const payload = {
+      getAttribute: (name: string) => JSON.stringify(recoverPayload(srcdoc, name.slice(5))),
+      remove() {},
+    };
+    const sandbox: Record<string, unknown> = {
+      parent: { postMessage: (message: unknown) => reports.push(message) },
+      addEventListener() {},
+    };
+    sandbox.window = sandbox;
+    const context = createContext(sandbox);
+    sandbox.document = {
+      getElementById: (id: string) => id === "scripted-runtime-payload" ? payload : root,
+      createElement: () => ({ textContent: "" }),
+      head: { appendChild() {} },
+      body: {
+        appendChild(node: { textContent: string }) {
+          expect(node.textContent).toBe(element.script);
+          try { runInContext(node.textContent, context); } catch (error) { errors.push(error); }
+        },
+      },
+    };
+
+    runInContext(extractBootstrap(srcdoc), context);
+
+    expect(recoverPayload(srcdoc, "script")).toBe(element.script);
+    expect(JSON.stringify(element)).toBe(original);
+    expect(runInContext("typeof window.PowerShow", context)).toBe("undefined");
+    expect(runInContext("typeof ScriptedRuntime.ports.report", context)).toBe("function");
+    expect(errors).toHaveLength(works ? 0 : 1);
+    if (!works) expect(errors[0]).toMatchObject({ name: "ReferenceError" });
+    expect(reports).toEqual(works ? [{
+      type: "scripted:report", elementId: element.id, portId: "current", value: 17.25,
+    }] : []);
   });
 
   it("uses the exact three Scripted message types", () => {
@@ -701,8 +746,10 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     expect(srcdoc).toContain("scripted:action");
     expect(srcdoc).toContain("scripted:input");
     expect(srcdoc).toContain("scripted:report");
-    expect(srcdoc).toContain("powershow:scripted:action");
-    expect(srcdoc).toContain("powershow:scripted:input");
+    expect(srcdoc).not.toMatch(/powershow/i);
+    expect(srcdoc).toContain('id="scripted-runtime-root"');
+    expect(srcdoc).toContain('id="scripted-runtime-payload"');
+    expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
   });
 
   it("enforces source, exact envelopes, and canonical element and port checks", () => {
@@ -773,11 +820,11 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     const root = { innerHTML: "" };
     const document = {
       getElementById(id: string) {
-        if (id === "powershow-scripted-payload") {
+        if (id === "scripted-runtime-payload") {
           return payload;
         }
 
-        return id === "powershow-scripted-root" ? root : null;
+        return id === "scripted-runtime-root" ? root : null;
       },
       createElement() {
         return { textContent: "" };
@@ -809,25 +856,19 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
           report(id: string, value: boolean | number): void;
         };
       };
-      PowerShow: {
-        ports: {
-          onAction(id: string, handler: () => void): void;
-          onInput(id: string, handler: (value: boolean | number) => void): void;
-          report(id: string, value: boolean | number): void;
-        };
-      };
     };
     let actionCount = 0;
     const inputs: Array<boolean | number> = [];
 
-    expect(runtimeWindow.ScriptedRuntime.ports).toBe(runtimeWindow.PowerShow.ports);
+    expect(runInNewContext("typeof window.PowerShow", { window: sandboxWindow })).toBe("undefined");
+    expect(Object.getOwnPropertyDescriptor(sandboxWindow, "PowerShow")).toBeUndefined();
     expect(Object.isFrozen(runtimeWindow.ScriptedRuntime)).toBe(true);
     expect(Object.isFrozen(runtimeWindow.ScriptedRuntime.ports)).toBe(true);
 
     runtimeWindow.ScriptedRuntime.ports.onAction("scroll-up", () => {
       actionCount += 1;
     });
-    runtimeWindow.PowerShow.ports.onInput("closed", (value) => {
+    runtimeWindow.ScriptedRuntime.ports.onInput("closed", (value) => {
       inputs.push(value);
     });
 
@@ -842,7 +883,7 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     listener!({
       source: parent,
       data: {
-        type: "powershow:scripted:action",
+        type: "scripted:action",
         elementId: "scripted-1",
         portId: "scroll-up",
         value: true,
@@ -860,13 +901,29 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     listener!({
       source: parent,
       data: {
-        type: "powershow:scripted:input",
+        type: "scripted:input",
         elementId: "scripted-1",
         portId: "closed",
         value: 1,
       },
     });
 
+    expect(actionCount).toBe(1);
+    expect(inputs).toEqual([true]);
+
+    // Historical envelopes are fixtures for rejection, never a supported API.
+    listener!({ source: parent, data: {
+      type: "powershow:scripted:action", elementId: "scripted-1", portId: "scroll-up",
+    } });
+    listener!({ source: parent, data: {
+      type: "powershow:scripted:input", elementId: "scripted-1", portId: "closed", value: false,
+    } });
+    listener!({ source: {}, data: {
+      type: "scripted:action", elementId: "scripted-1", portId: "scroll-up",
+    } });
+    listener!({ source: parent, data: {
+      type: "scripted:action", elementId: "other-element", portId: "scroll-up",
+    } });
     expect(actionCount).toBe(1);
     expect(inputs).toEqual([true]);
 
@@ -883,7 +940,7 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
         target: "*",
       },
     ]);
-    expect(() => runtimeWindow.PowerShow.ports.report("current", Infinity)).toThrow();
-    expect(() => runtimeWindow.PowerShow.ports.report("closed", false)).toThrow();
+    expect(() => runtimeWindow.ScriptedRuntime.ports.report("current", Infinity)).toThrow();
+    expect(() => runtimeWindow.ScriptedRuntime.ports.report("closed", false)).toThrow();
   });
 });

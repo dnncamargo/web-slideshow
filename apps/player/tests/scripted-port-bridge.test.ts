@@ -157,10 +157,20 @@ describe("Scripted ProjectionSurface port bridge", () => {
     const currentFrame = frame("scripted-a");
     const otherFrame = frame("scripted-b");
 
+    // Historical protocol fixture: even a valid source and port cannot use it.
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
         type: "powershow:scripted:report",
+        elementId: "scripted-a",
+        portId: "current",
+        value: 7,
+      },
+    }));
+    window.dispatchEvent(new MessageEvent("message", {
+      source: currentFrame.contentWindow,
+      data: {
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 2.5,
@@ -169,7 +179,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: otherFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 3,
@@ -178,7 +188,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 3,
@@ -188,7 +198,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
       },
@@ -196,7 +206,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "other-element",
         portId: "current",
         value: 3,
@@ -205,7 +215,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "missing",
         value: 3,
@@ -214,7 +224,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "enabled",
         value: true,
@@ -223,7 +233,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: Number.NaN,
@@ -232,7 +242,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: true,
@@ -241,7 +251,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 10.1,
@@ -250,7 +260,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: -0.1,
@@ -279,7 +289,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: oldFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 2.5,
@@ -291,7 +301,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 2.5,
@@ -303,7 +313,7 @@ describe("Scripted ProjectionSurface port bridge", () => {
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 3,

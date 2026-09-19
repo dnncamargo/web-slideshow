@@ -10,9 +10,6 @@ import {
   SCRIPTED_ACTION_MESSAGE_TYPE,
   SCRIPTED_INPUT_MESSAGE_TYPE,
   SCRIPTED_REPORT_MESSAGE_TYPE,
-  LEGACY_SCRIPTED_ACTION_MESSAGE_TYPE,
-  LEGACY_SCRIPTED_INPUT_MESSAGE_TYPE,
-  LEGACY_SCRIPTED_REPORT_MESSAGE_TYPE,
 } from "./scripted-port-protocol";
 
 // ============================================================
@@ -23,7 +20,7 @@ import {
 // renderer-owned policy, never authored state, and is NOT
 // configurable. It deliberately denies same-origin, forms, popups,
 // downloads, top navigation, and storage access: the authored
-// document is fully isolated from the PowerShow application origin.
+// document is fully isolated from the application origin.
 //
 // The srcdoc is a complete renderer-generated document. The CSP meta
 // below is a fixed defense-in-depth policy layered on top of the
@@ -53,7 +50,7 @@ import {
 const SCRIPTED_SANDBOX = "allow-scripts";
 
 // Referrer isolation: the Scripted document must never receive or
-// transmit an HTTP Referer derived from the PowerShow origin.
+// transmit an HTTP Referer derived from the application origin.
 const SCRIPTED_REFERRERPOLICY = "no-referrer";
 
 // Renderer-owned fixed CSP. Never authored, never configurable, and
@@ -84,7 +81,7 @@ const SCRIPTED_CSP =
 // 4. apply HTML to the Scripted root;
 // 5. create a <style> element and assign CSS through textContent;
 // 6. append the style to document.head;
-// 7. install the fixed ScriptedRuntime.ports API and legacy PowerShow alias;
+// 7. install the fixed ScriptedRuntime.ports API;
 // 8. create a <script> element and assign canonical script through
 //    textContent;
 // 9. append it only after HTML, CSS, and ScriptedRuntime.ports exist;
@@ -94,11 +91,11 @@ const SCRIPTED_CSP =
 const SCRIPTED_BOOTSTRAP_SOURCE =
   "(() => {" +
   "\n" +
-  "var payload = document.getElementById('powershow-scripted-payload');" +
+  "var payload = document.getElementById('scripted-runtime-payload');" +
   "\n" +
   "if (!payload) { return; }" +
   "\n" +
-  "var root = document.getElementById('powershow-scripted-root');" +
+  "var root = document.getElementById('scripted-runtime-root');" +
   "\n" +
   "if (!root) { return; }" +
   "\n" +
@@ -214,7 +211,6 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var runtimeApi = Object.freeze({ ports: portsApi });" +
   "Object.defineProperty(window, 'ScriptedRuntime', { value: runtimeApi, writable: false, configurable: false });" +
-  "Object.defineProperty(window, 'PowerShow', { value: runtimeApi, writable: false, configurable: false });" +
   "\n" +
   "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
   "\n" +
@@ -234,7 +230,7 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "  var data = event.data;" +
   "\n" +
-  "  if (data.type === '" + SCRIPTED_ACTION_MESSAGE_TYPE + "' || data.type === '" + LEGACY_SCRIPTED_ACTION_MESSAGE_TYPE + "') {" +
+  "  if (data.type === '" + SCRIPTED_ACTION_MESSAGE_TYPE + "') {" +
   "\n" +
   "    if (!exactKeys(data, 'type', 'elementId', 'portId') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId) || portsById[data.portId].kind !== 'action' || !own(actionHandlers, data.portId)) { return; }" +
   "\n" +
@@ -244,7 +240,7 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "  }" +
   "\n" +
-  "  if ((data.type !== '" + SCRIPTED_INPUT_MESSAGE_TYPE + "' && data.type !== '" + LEGACY_SCRIPTED_INPUT_MESSAGE_TYPE + "') || !exactKeys(data, 'type', 'elementId', 'portId', 'value') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId)) { return; }" +
+  "  if (data.type !== '" + SCRIPTED_INPUT_MESSAGE_TYPE + "' || !exactKeys(data, 'type', 'elementId', 'portId', 'value') || data.elementId !== elementId || typeof data.portId !== 'string' || !own(portsById, data.portId)) { return; }" +
   "\n" +
   "  var input = portsById[data.portId];" +
   "\n" +
@@ -293,8 +289,8 @@ function buildScriptedDocument(
     escapeHtml(element.title) +
     "</title>" +
     "</head><body>" +
-    "<div id=\"powershow-scripted-root\"></div>" +
-    "<template id=\"powershow-scripted-payload\"" +
+    "<div id=\"scripted-runtime-root\"></div>" +
+    "<template id=\"scripted-runtime-payload\"" +
     " data-html=\"" +
     serializedPayloadValue(element.html) +
     "\"" +
@@ -310,7 +306,7 @@ function buildScriptedDocument(
     " data-ports=\"" +
     serializedPayloadValue(element.ports) +
     "\"></template>" +
-    "<script data-powershow-scripted-bootstrap=\"true\">" +
+    "<script data-scripted-runtime-bootstrap=\"true\">" +
     SCRIPTED_BOOTSTRAP_SOURCE +
     "</script>" +
     "</body></html>"
@@ -369,7 +365,7 @@ export function renderScripted(
   } else if (element.style?.border === undefined) {
     // The browser iframe default is a visible border. When no canonical
     // border is authored, the renderer collapses it so the Scripted box
-    // matches other PowerShow elements. An authored border remains
+    // matches other presentation elements. An authored border remains
     // authoritative and is never overridden.
     outerStyles.push("border:0");
   }

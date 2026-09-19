@@ -52,7 +52,7 @@ describe("Player public Scripted ports", () => {
   function report(source: WindowProxy | null, value = 0.12): void {
     window.dispatchEvent(new MessageEvent("message", {
       source,
-      data: { type: "powershow:scripted:report", elementId: "scripted-scroll", portId: "current", value },
+      data: { type: "scripted:report", elementId: "scripted-scroll", portId: "current", value },
     }));
   }
 

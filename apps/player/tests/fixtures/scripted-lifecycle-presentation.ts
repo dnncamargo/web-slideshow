@@ -20,8 +20,8 @@ const scriptedHtml = `<div id="counter">0</div>`;
 const scriptedCss = `#counter { font-weight: bold; }`;
 
 const scriptedScript =
-  `window.__powershowScriptedBootCount = ` +
-  `(window.__powershowScriptedBootCount || 0) + 1;`;
+  `window.__scriptedRuntimeBootCount = ` +
+  `(window.__scriptedRuntimeBootCount || 0) + 1;`;
 
 export const scriptedLifecyclePresentation: Presentation =
   PresentationSchema.parse({

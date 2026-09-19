@@ -107,7 +107,7 @@ describe("Scripted Player runtime lifecycle", () => {
       // The authored source is present only as escaped data in the iframe
       // srcdoc transport owned by the renderer.
       expect(frame?.getAttribute("srcdoc")).toContain(
-        "__powershowScriptedBootCount",
+        "__scriptedRuntimeBootCount",
       );
 
       // No authored <script> element leaks into the Player application DOM.
@@ -178,7 +178,7 @@ describe("Scripted Player runtime lifecycle", () => {
 
       // The canonical Scripted payload is present again in the transport.
       expect(revived?.getAttribute("srcdoc")).toContain(
-        "__powershowScriptedBootCount",
+        "__scriptedRuntimeBootCount",
       );
     });
   });
